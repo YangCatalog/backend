@@ -1,14 +1,46 @@
+"""
+This script is run by a cronjob and it
+finds all the modules that have expiration
+metadata and updates them based on a date to
+expired if it is necessary
+"""
+# Copyright 2018 Cisco and its affiliates
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = "Miroslav Kovac"
+__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__license__ = "Apache License, Version 2.0"
+__email__ = "miroslav.kovac@pantheon.tech"
+
 import argparse
 import json
 
 import requests
 
-import tools.utility.log as log
+import utility.log as log
 
 LOGGER = log.get_logger('ResolveExpiration')
 
 
 def __resolve_expiration(reference, module, args):
+    """Walks through all the modules and updates them if necessary
+
+        Arguments:
+            :param reference: (str) reference metadata from yangcatalog.yang
+            :param module: (json) all the module metadata
+            :param args: (obj) arguments received at the start of this script
+    """
     update = False
     if reference is not None and 'datatracker.ietf.org' in reference:
         ref = reference.split('/')[-1]

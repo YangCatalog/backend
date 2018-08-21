@@ -1,3 +1,26 @@
+"""
+MessageFactory class that send a automated messages to
+specified rooms or people.
+"""
+# Copyright 2018 Cisco and its affiliates
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = "Miroslav Kovac"
+__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__license__ = "Apache License, Version 2.0"
+__email__ = "miroslav.kovac@pantheon.tech"
+
 import os
 import smtplib
 import sys
@@ -5,7 +28,7 @@ from email.mime.text import MIMEText
 
 from ciscosparkapi import CiscoSparkAPI
 
-import tools.utility.log as lo
+import utility.log as lo
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -17,13 +40,22 @@ GREETINGS = 'Hello from yang-catalog'
 
 
 class MessageFactory:
+    """This class serves to automatically send a message to
+       Webex Teams cisco admins private room and/or to send
+       a message to a group of admin e-mails
+    """
 
-    def __init__(self, config_path='../utility/config.ini'):
+    def __init__(self, config_path='utility/config.ini'):
+        """Setup Webex teams rooms and smtp
+
+            Arguments:
+                :param config_path: (str) path to a config.ini file
+        """
         def list_matching_rooms(a, title_match):
             return [r for r in a.rooms.list() if title_match in r.title]
 
         LOGGER.info('Initialising Message')
-        config_path = os.path.abspath('.') + '/' + config_path
+        config_path = os.getcwd() + '/' + config_path
         config = ConfigParser.ConfigParser()
         config.read(config_path)
         token = config.get('Message-Section', 'access-token')
@@ -44,6 +76,15 @@ class MessageFactory:
         self.__smtp = smtplib.SMTP('localhost')
 
     def __post_to_spark(self, msg, markdown=False, files=None):
+        """Send message to a spark room
+
+            Arguments:
+                :param msg: (str) message to send
+                :param markdown: (boolean) whether to use markdown.
+                    Default False
+                :param files: (list) list of paths to files that
+                    need to be attache with a message. Default None
+        """
         if markdown:
             self.__api.messages.create(self.__room.id, markdown=msg
                                        , files=files)
@@ -55,6 +96,13 @@ class MessageFactory:
                 os.remove(f)
 
     def __post_to_email(self, message, to):
+        """Send message to a e-mail
+
+            Arguments:
+                :param message: (str) message to send
+                :param to: (str/list) list of people to whom we
+                    need to send a message.
+        """
         if not isinstance(to, list):
             to = [to]
         msg = MIMEText(message)

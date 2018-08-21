@@ -12,6 +12,25 @@ The html file also contains general statistics like
 number of vendor yang files, number of unique yang files,
 number of yang files in yang-catalog...
 """
+# Copyright 2018 Cisco and its affiliates
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = "Miroslav Kovac"
+__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__license__ = "Apache License, Version 2.0"
+__email__ = "miroslav.kovac@pantheon.tech"
+
 import argparse
 import fnmatch
 import json
@@ -24,8 +43,8 @@ import time
 import jinja2
 import requests
 
-import tools.utility.log as log
-from tools.utility import yangParser, repoutil
+import utility.log as log
+from utility import yangParser, repoutil
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

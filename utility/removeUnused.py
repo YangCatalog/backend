@@ -1,3 +1,27 @@
+"""
+This script is run by a cronjob every day and it
+automatically removes unused diff files, yangsuite
+users and correlation ids.
+"""
+# Copyright 2018 Cisco and its affiliates
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = "Miroslav Kovac"
+__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__license__ = "Apache License, Version 2.0"
+__email__ = "miroslav.kovac@pantheon.tech"
+
 import argparse
 import datetime
 import math
@@ -5,8 +29,8 @@ import os
 import shutil
 import time
 
-import tools.utility.log as lo
-from tools.utility import messageFactory
+import utility.log as lo
+from utility import messageFactory
 
 LOGGER = lo.get_logger('removeUnused')
 
@@ -53,7 +77,7 @@ if __name__ == '__main__':
                                                e.strerror)
     dirs = os.listdir(args.remove_dir2)
     for dir in dirs:
-        abs = os.path.abspath(args.remove_dir2 + '/' + dir)
+        abs = os.path.abspath('{}/{}'.format(args.remove_dir2, dir))
         if not abs.endswith('yangcat') and not abs.endswith('miott'):
             try:
                 shutil.rmtree(abs)
@@ -61,7 +85,7 @@ if __name__ == '__main__':
                 pass
     dirs = os.listdir(args.remove_dir3)
     for dir in dirs:
-        abs = os.path.abspath(args.remove_dir3 + '/' + dir)
+        abs = os.path.abspath('{}/{}'.format(args.remove_dir3, dir))
         if not abs.endswith('yangcatalog'):
             try:
                 shutil.rmtree(abs)
