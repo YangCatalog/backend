@@ -45,11 +45,11 @@ class MessageFactory:
        a message to a group of admin e-mails
     """
 
-    def __init__(self, config_path='utility/config.ini'):
+    def __init__(self, config_path='/etc/yangcatalog.conf'):
         """Setup Webex teams rooms and smtp
 
             Arguments:
-                :param config_path: (str) path to a config.ini file
+                :param config_path: (str) path to a yangcatalog.conf file
         """
         def list_matching_rooms(a, title_match):
             return [r for r in a.rooms.list() if title_match in r.title]

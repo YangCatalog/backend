@@ -284,7 +284,7 @@ if __name__ == '__main__':
     timeBefore = time.clock()
     LOGGER.info('Starting statistics')
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='../utility/config.ini',
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog.conf',
                         help='Set path to config file')
     LOGGER.info('Loading all configuration')
     args = parser.parse_args()
