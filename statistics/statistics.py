@@ -51,8 +51,6 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-LOGGER = log.get_logger('statistics', '/home/miroslav/log/jobs/yang.log')
-
 NS_MAP = {
     "http://cisco.com/ns/yang/": "cisco",
     "http://www.huawei.com/netconf": "huawei",
@@ -282,11 +280,9 @@ def solve_platforms(path, platform):
 
 if __name__ == '__main__':
     timeBefore = time.clock()
-    LOGGER.info('Starting statistics')
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog.conf',
                         help='Set path to config file')
-    LOGGER.info('Loading all configuration')
     args = parser.parse_args()
     config_path = os.path.abspath('.') + '/' + args.config_path
     config = ConfigParser.ConfigParser()
@@ -300,6 +296,8 @@ if __name__ == '__main__':
     move_to = config.get('Statistics-Section', 'file-location')
     auth = credentials.split(' ')
     is_uwsgi = config.get('General-Section', 'uwsgi')
+    log_directory = config.get('Directory-Section', 'logs')
+    LOGGER = log.get_logger('statistics', log_directory + '/yang.log')
     separator = ':'
     suffix = api_port
     if is_uwsgi == 'True':

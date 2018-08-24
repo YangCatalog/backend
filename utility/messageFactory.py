@@ -45,7 +45,7 @@ class MessageFactory:
        a message to a group of admin e-mails
     """
 
-    def __init__(self, config_path='/etc/yangcatalog.conf'):
+    def __init__(self, config_path='/etc/yangcatalog/yangcatalog.conf'):
         """Setup Webex teams rooms and smtp
 
             Arguments:
