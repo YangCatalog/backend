@@ -58,17 +58,18 @@ if __name__ == "__main__":
                         help='Set weather you want to save a file or load a file. Default is save')
     parser.add_argument('--protocol', type=str, default='https', help='Whether confd-6.6 runs on http or https.'
                                                                      ' Default is set to https')
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                        help='Set path to config file')
 
     args = parser.parse_args()
+    config_path = args.config_path
+    config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
+    config.read(config_path)
+    cache_directory = config.get('Directory-Section', 'cache')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
     if 'save' is args.type:
-        try:
-            os.makedirs('./cache/')
-        except OSError as e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                raise
-        file_save = open('./cache/' + args.name_save + '.json', 'w')
+        file_save = open(cache_directory + args.name_save + '.json', 'w')
         jsn = requests.get(prefix + '/api/config/catalog?deep',
                            auth=(args.credentials[0], args.credentials[1]),
                            headers={
@@ -78,9 +79,9 @@ if __name__ == "__main__":
         file_save.close()
     else:
         if args.name_load:
-            file_load = open(args.name_load)
+            file_load = open(cache_directory + '/' + args.name_load)
         else:
-            list_of_files = glob.glob('./cache/*')
+            list_of_files = glob.glob(cache_directory + '/*')
             latest_file = max(list_of_files, key=os.path.getctime)
             file_load = open(latest_file, 'rw')
         body = json.load(file_load, object_pairs_hook=OrderedDict)
