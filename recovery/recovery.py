@@ -45,8 +45,8 @@ if __name__ == "__main__":
                     'to write all data to yangcatalog.org.')
     parser.add_argument('--port', default=8008, type=int,
                         help='Set port where the confd is started. Default -> 8008')
-    parser.add_argument('--ip', default='::1', type=str,
-                        help='Set ip address where the confd is started. Default -> ::1')
+    parser.add_argument('--ip', default='localhost', type=str,
+                        help='Set ip address where the confd is started. Default -> localhost')
     parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
                                               ' Default parameters are admin admin', nargs=2, default=['admin', 'admin']
                         , type=str)
