@@ -45,8 +45,8 @@ if __name__ == "__main__":
                     'to write all data to yangcatalog.org.')
     parser.add_argument('--port', default=8008, type=int,
                         help='Set port where the confd is started. Default -> 8008')
-    parser.add_argument('--ip', default='127.0.0.1', type=str,
-                        help='Set ip address where the confd is started. Default -> 127.0.0.1')
+    parser.add_argument('--ip', default='::1', type=str,
+                        help='Set ip address where the confd is started. Default -> ::1')
     parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
                                               ' Default parameters are admin admin', nargs=2, default=['admin', 'admin']
                         , type=str)
@@ -56,8 +56,8 @@ if __name__ == "__main__":
                         help='Set name of the file to load. Default will take a last saved file')
     parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
                         help='Set weather you want to save a file or load a file. Default is save')
-    parser.add_argument('--protocol', type=str, default='http', help='Whether confd-6.4 runs on http or https.'
-                                                                     ' Default is set to http')
+    parser.add_argument('--protocol', type=str, default='https', help='Whether confd-6.6 runs on http or https.'
+                                                                     ' Default is set to https')
 
     args = parser.parse_args()
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
