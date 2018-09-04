@@ -17,8 +17,8 @@ with or without duplicates.
 # limitations under the License.
 
 __author__ = 'Benoit Claise'
-__copyright__ = "Copyright(c) 2017, Cisco Systems, Inc."
-__license__ = "New-style BSD"
+__copyright__ = "Copyright(c) 2018, Cisco Systems, Inc."
+__license__ = "Apache License, Version 2.0"
 __email__ = "bclaise@cisco.com"
 
 import argparse
