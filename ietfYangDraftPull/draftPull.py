@@ -69,8 +69,8 @@ if __name__ == "__main__":
     config_email = config.get('General-Section', 'repo-config-email')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
     log_directory = config.get('Directory-Section', 'logs')
-    yang_models_forked_url = config.get('General-Section', 'yang-models-forked-repo-url')
-    yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
+    ietf_models_forked_url = config.get('General-Section', 'ietf-models-forked-repo-url')
+    ietf_models_url_suffix = config.get('General-Section', 'ietf-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     LOGGER = log.get_logger('draftPull', log_directory + '/draft-pull.log')
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Forking repository')
     reponse = requests.post(
-        'https://' + github_credentials + yang_models_url_suffix)
+        'https://' + github_credentials + ietf_models_url_suffix)
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
 
@@ -94,7 +94,7 @@ if __name__ == "__main__":
     except:
         LOGGER.error(
             'Activating Travis - Failed. Removing local directory and deleting forked repository')
-        requests.delete(yang_models_forked_url,
+        requests.delete(ietf_models_forked_url,
                         headers={'Authorization': 'token ' + token})
         repo.remove()
         sys.exit(500)
@@ -180,12 +180,12 @@ if __name__ == "__main__":
         repo.push()
     except TravisError as e:
         LOGGER.error('Error while pushing procedure {}'.format(e.message()))
-        requests.delete(yang_models_url,
+        requests.delete(ietf_models_forked_url,
                         headers={'Authorization': 'token ' + token})
     except:
         LOGGER.error(
             'Error while pushing procedure {}'.format(sys.exc_info()[0]))
-        requests.delete(yang_models_url,
+        requests.delete(ietf_models_forked_url,
                         headers={'Authorization': 'token ' + token})
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
