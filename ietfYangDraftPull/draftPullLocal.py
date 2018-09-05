@@ -216,5 +216,3 @@ if __name__ == "__main__":
         except subprocess.CalledProcessError as e:
             LOGGER.error('Error calling process populate.py {}'.format(e.stdout))
     repo.remove()
-    requests.delete(yang_models_forked_url,
-                        headers={'Authorization': 'token ' + token})
