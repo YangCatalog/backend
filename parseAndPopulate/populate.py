@@ -77,8 +77,8 @@ if __name__ == "__main__":
                                                  "used to populate database.")
     parser.add_argument('--port', default=8008, type=int,
                         help='Set port where the confd is started. Default -> 8008')
-    parser.add_argument('--ip', default='127.0.0.1', type=str,
-                        help='Set ip address where the confd is started. Default -> 127.0.0.1')
+    parser.add_argument('--ip', default='localhost', type=str,
+                        help='Set ip address where the confd is started. Default -> localhost')
     parser.add_argument('--api-port', default=8443, type=int,
                         help='Set port where the api is started. Default -> 8443')
     parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
