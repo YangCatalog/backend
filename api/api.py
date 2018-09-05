@@ -1310,9 +1310,10 @@ def rpc_search_get_one(leaf):
     if modules is None:
         return not_found()
     output = set()
+    resolved = set()
     for module in modules:
         if recursive:
-            search_recursive(output, module, leaf)
+            search_recursive(output, module, leaf, resolved)
         meta_data = module.get(leaf)
         output.add(meta_data)
     if None in output:
@@ -1324,19 +1325,21 @@ def rpc_search_get_one(leaf):
                         mimetype='application/json', status=201)
 
 
-def search_recursive(output, module, leaf):
+def search_recursive(output, module, leaf, resolved):
     r_name = module['name']
-    response = rpc_search({'input':{'dependencies': [{'name': r_name}]}})
-    modules = json.loads(response.get_data()).get('yang-catalog:modules')
-    if modules is None:
-        return
-    modules = modules.get('module')
-    if modules is None:
-        return
-    for mod in modules:
-        search_recursive(output, mod, leaf)
-        meta_data = mod.get(leaf)
-        output.add(meta_data)
+    if r_name not in resolved:
+        resolved.add(r_name)
+        response = rpc_search({'input': {'dependencies': [{'name': r_name}]}})
+        modules = json.loads(response.get_data()).get('yang-catalog:modules')
+        if modules is None:
+            return
+        modules = modules.get('module')
+        if modules is None:
+            return
+        for mod in modules:
+            search_recursive(output, mod, leaf, resolved)
+            meta_data = mod.get(leaf)
+            output.add(meta_data)
 
 
 @application.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
