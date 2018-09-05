@@ -1340,12 +1340,6 @@ def search_recursive(output, module, leaf):
 
 @application.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
 def create_tree(f1, r1):
-    try:
-        os.makedirs(get_curr_dir(__file__) + '/temp')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            return 'Server error - could not create directory'
     path_to_yang = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
     arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', path_to_yang]
     pyang = subprocess.Popen(arguments,
@@ -1362,14 +1356,8 @@ def create_tree(f1, r1):
 
 @application.route('/services/reference/<f1>@<r1>.yang', methods=['GET'])
 def create_reference(f1, r1):
-    try:
-        os.makedirs(get_curr_dir(__file__) + '/temp')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            return 'Server error - could not create directory'
     schema1 = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
-    arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', schema1]
+    arguments = ['cat', schema1]
     pyang = subprocess.Popen(arguments,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
