@@ -104,6 +104,7 @@ if __name__ == "__main__":
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
+    private_url = config.get('General-Section', 'private-url')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
     separator = ':'
     suffix = args.api_port
@@ -136,7 +137,7 @@ if __name__ == "__main__":
                 LOGGER.info('Found directory for sdo {}'.format(search_dir))
                 local_integrity = integrity.Statistics(search_dir)
 
-                capability = cap.Capability(log_directory, search_dir, index, prepare_sdo,
+                capability = cap.Capability(private_url, log_directory, search_dir, index, prepare_sdo,
                                             local_integrity, args.api, sdo,
                                             args.json_dir, args.result_html_dir,
                                             args.save_file_dir, private_credentials)
@@ -176,7 +177,7 @@ if __name__ == "__main__":
                             LOGGER.info('Found xml source {}'.format(filename))
                             prepare_vendor = prepare.Prepare(log_directory, "prepare",
                                                              yangcatalog_api_prefix)
-                            capability = cap.Capability(log_directory, filename, index,
+                            capability = cap.Capability(private_url, log_directory, filename, index,
                                                         prepare_vendor,
                                                         local_integrity, args.api,
                                                         sdo, args.json_dir,
