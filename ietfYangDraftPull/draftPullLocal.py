@@ -142,9 +142,7 @@ if __name__ == "__main__":
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    
-    yang_models_forked_url = config.get('General-Section', 'yang-models-forked-repo-url')
-    yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
+    ietf_models_url_suffix = config.get('General-Section', 'ietf-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/draft-pull-local.log')
