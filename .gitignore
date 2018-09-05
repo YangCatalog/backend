@@ -5,7 +5,6 @@
 *log*.txt
 /build/
 /dist/
-/api/
 tools/**/*.json
 tools/**/*.html
 !tools/api/template/*
