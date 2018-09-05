@@ -56,7 +56,7 @@ def find_first_file(directory, pattern, pattern_with_revision):
 
 
 class Capability:
-    def __init__(self, log_directory, hello_message_file, index, prepare, integrity_checker,
+    def __init__(self, private_url, log_directory, hello_message_file, index, prepare, integrity_checker,
                  api, sdo, json_dir, html_result_dir, save_file_to_dir, credentials,
                  run_integrity=False):
         global LOGGER
@@ -137,7 +137,7 @@ class Capability:
 
         self.parsed_jsons = None
         if not run_integrity:
-            self.parsed_jsons = LoadFiles(credentials, log_directory)
+            self.parsed_jsons = LoadFiles(credentials, log_directory, private_url)
 
     def initialize(self, impl):
         if impl['module-list-file']['path'] in self.hello_message_file:
