@@ -28,12 +28,11 @@ from utility import log
 
 
 class LoadFiles:
-    __prefix = 'https://new.yangcatalog.org/private/'
 
-    def __init__(self, credentials, log_directory):
+    def __init__(self, credentials, log_directory, private_url):
         LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
         LOGGER.debug('Loading Benoit\'s compilation statuses and results')
-        response = requests.get('https://new.yangcatalog.org/private/json_links', auth=(credentials[0], credentials[1]))
+        response = requests.get(private_url + '/json_links', auth=(credentials[0], credentials[1]))
         self.names = []
         if response.status_code == 200:
             self.names = response.text.replace('.json', '').split('\n')
@@ -42,9 +41,9 @@ class LoadFiles:
         self.status = {}
         self.headers = {}
         for name in self.names:
-            self.status[name] = requests.get('{}{}.json'.format(self.__prefix, name)
+            self.status[name] = requests.get('{}{}.json'.format(private_url, name)
                                              , auth=(credentials[0], credentials[1])).json()
-            html = requests.get('{}{}YANGPageCompilation.html'.format(self.__prefix, name)
+            html = requests.get('{}{}YANGPageCompilation.html'.format(private_url, name)
                                 , auth=(credentials[0], credentials[1])).text
 
             ths = html.split('<TH>')
