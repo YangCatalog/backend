@@ -69,6 +69,10 @@ if __name__ == "__main__":
     config_email = config.get('General-Section', 'repo-config-email')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
     log_directory = config.get('Directory-Section', 'logs')
+    yang_models_forked_url = config.get('General-Section', 'yang-models-forked-repo-url')
+    yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
+    ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
+    ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     LOGGER = log.get_logger('draftPull', log_directory + '/draft-pull.log')
     LOGGER.info('Starting Cron job IETF pull request')
     github_credentials = ''
@@ -78,27 +82,26 @@ if __name__ == "__main__":
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Forking repository')
     reponse = requests.post(
-        'https://' + github_credentials + 'api.github.com/repos/YangModels/yang/forks')
+        'https://' + github_credentials + yang_models_url_suffix)
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
 
     LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
     repo.clone(config_name, config_email)
-    yang_models_url = 'https://api.github.com/repos/yang-catalog/yang'
     try:
         LOGGER.info('Activating Travis')
         travis = TravisPy.github_auth(token)
     except:
         LOGGER.error(
             'Activating Travis - Failed. Removing local directory and deleting forked repository')
-        requests.delete(yang_models_url,
+        requests.delete(yang_models_forked_url,
                         headers={'Authorization': 'token ' + token})
         repo.remove()
         sys.exit(500)
     # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
     LOGGER.info(
-        'Loading all files from https://new.yangcatalog.org/private/IETFDraft.json')
-    ietf_draft_json = requests.get('https://new.yangcatalog.org/private/IETFDraft.json'
+        'Loading all files from {}'.format(ietf_draft_url))
+    ietf_draft_json = requests.get(ietf_draft_url
                                    , auth=(private_credentials[0], private_credentials[1])).json()
     try:
         os.makedirs(
@@ -108,8 +111,7 @@ if __name__ == "__main__":
         if e.errno != errno.EEXIST:
             raise
 
-    response = requests.get('https://new.yangcatalog.org/private/YANG-RFC.tgz'
-                            , auth=(private_credentials[0], private_credentials[1]))
+    response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
     zfile = open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz', 'wb')
     zfile.write(response.content)
     zfile.close()
