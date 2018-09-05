@@ -84,7 +84,7 @@ if __name__ == "__main__":
     parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
                         help='Set ip address where the api is started. Default -> yangcatalog.org')
     parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
-                                              ' Default parameters are admin admin', nargs=2, default=['admin', 'admin']
+                                              ' Default parameters are admin admin', nargs=2
                         , type=str)
     parser.add_argument('--dir', default='../../vendor', type=str,
                         help='Set dir where to look for hello message xml files.Default -> ../../vendor')
