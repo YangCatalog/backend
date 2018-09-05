@@ -142,6 +142,11 @@ if __name__ == "__main__":
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
+    
+    yang_models_forked_url = config.get('General-Section', 'yang-models-forked-repo-url')
+    yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
+    ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
+    ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/draft-pull-local.log')
     LOGGER.info('Starting Cron job IETF pull request local')
 
@@ -152,33 +157,31 @@ if __name__ == "__main__":
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Forking repository')
     reponse = requests.post(
-        'https://' + github_credentials + 'api.github.com/repos/YangModels/yang/forks')
+        'https://' + github_credentials + yang_models_url_suffix)
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
 
     LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
     repo.clone(config_name, config_email)
-    yang_models_url = 'https://api.github.com/repos/yang-catalog/yang'
 
-    ietf_draft_json = requests.get('https://new.yangcatalog.org/private/IETFDraft.json'
+    ietf_draft_json = requests.get(ietf_draft_url
                                    , auth=(private_credentials[0], private_credentials[1])).json()
-    response = requests.get('https://new.yangcatalog.org/private/YANG-RFC.tgz'
-                            , auth=(private_credentials[0], private_credentials[1]))
+    response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
     zfile = open(repo.localdir + '/rfc.tgz', 'wb')
     zfile.write(response.content)
     zfile.close()
     tgz = tarfile.open(repo.localdir + '/rfc.tgz')
-    tgz.extractall(repo.localdir + '/../../standard/ietf/RFC')
+    tgz.extractall(repo.localdir + '/standard/ietf/RFC')
     tgz.close()
     os.remove(repo.localdir + '/rfc.tgz')
-    check_name_no_revision_exist(repo.localdir + '/../../standard/ietf/RFC/')
-    check_early_revisions(repo.localdir + '/../../standard/ietf/RFC/')
+    check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/')
+    check_early_revisions(repo.localdir + '/standard/ietf/RFC/')
     with open("log.txt", "wr") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
                          confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
-                         "--dir", repo.localdir + "/../../standard/ietf/RFC", "--result-html-dir", result_html_dir,
+                         "--dir", repo.localdir + "/standard/ietf/RFC", "--result-html-dir", result_html_dir,
                          "--credentials", credentials[0], credentials[1],
                          "--save-file-dir", save_file_dir]
             if notify == 'True':
@@ -187,7 +190,7 @@ if __name__ == "__main__":
         except subprocess.CalledProcessError as e:
             LOGGER.error('Error calling process populate.py {}'.format(e.stdout))
     for key in ietf_draft_json:
-        yang_file = open(repo.localdir + '/../../experimental/ietf-extracted-YANG-modules/' + key, 'w+')
+        yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
         yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
         try:
             yang_raw = requests.get(yang_download_link).text
@@ -196,8 +199,8 @@ if __name__ == "__main__":
             LOGGER.warning('{} - {}'.format(key, yang_download_link))
             yang_file.write('')
         yang_file.close()
-    check_name_no_revision_exist(repo.localdir + '/../../experimental/ietf-extracted-YANG-modules/')
-    check_early_revisions(repo.localdir + '/../../experimental/ietf-extracted-YANG-modules/')
+    check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+    check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
 
     with open("log.txt", "wr") as f:
         try:
@@ -213,3 +216,5 @@ if __name__ == "__main__":
         except subprocess.CalledProcessError as e:
             LOGGER.error('Error calling process populate.py {}'.format(e.stdout))
     repo.remove()
+    requests.delete(yang_models_forked_url,
+                        headers={'Authorization': 'token ' + token})
