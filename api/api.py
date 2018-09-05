@@ -75,8 +75,9 @@ class MyFlask(Flask):
         self.response = None
         self.ys_set = 'set'
         LOGGER.info('Loading all configuration')
-        config_path = os.path.abspath('.') + '/../utility/config.ini'
+        config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
         self.result_dir = config.get('API-Section', 'result-html-dir')
         self.sender = Sender()
