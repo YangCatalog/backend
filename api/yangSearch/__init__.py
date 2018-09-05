@@ -16,21 +16,3 @@ __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
-
-from setuptools import setup, find_packages
-
-setup(
-    name='yang',
-    version='',
-    packages=find_packages(),
-    url='',
-    license='Apache License, Version 2.0',
-    author='Miroslav Kovac',
-    author_email='miroslav.kovac@pantheon.tech',
-    description='',
-    install_requires=['numpy', 'travispy', 'pyOpenSSL', 'configparser', 'requests',
-                      'jinja2', 'pyang', 'gitpython', 'ciscosparkapi', 'mysqlclient',
-                      'flask', 'flask-httpauth', 'pika', 'prometheus-client', 'Crypto',
-                      'pycrypto', 'uwsgi'
-                      ]
-)

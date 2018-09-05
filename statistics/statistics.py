@@ -281,20 +281,21 @@ def solve_platforms(path, platform):
 if __name__ == '__main__':
     timeBefore = time.clock()
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
     args = parser.parse_args()
-    config_path = os.path.abspath('.') + '/' + args.config_path
+    config_path = args.config_path
     config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     protocol = config.get('General-Section', 'protocol-api')
     api_ip = config.get('Statistics-Section', 'api-ip')
     api_port = config.get('General-Section', 'api-port')
     credentials = config.get('General-Section', 'credentials')
+    auth = credentials.split(' ')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     move_to = config.get('Statistics-Section', 'file-location')
-    auth = credentials.split(' ')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger('statistics', log_directory + '/yang.log')
