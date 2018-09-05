@@ -71,6 +71,8 @@ if __name__ == "__main__":
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
+    openconfig_models_forked_url = config.get('General-Section', 'openconfig-models-forked-repo-url')
+    openconfig_models_url_suffix = config.get('General-Section', 'opneconfig-models-repo-url_suffix')
     LOGGER = log.get_logger('openconfigPullLocal', log_directory + '/openconfig-pull.log')
     LOGGER.info('Starting Cron job openconfig pull request local')
 
@@ -87,7 +89,7 @@ if __name__ == "__main__":
 
     LOGGER.info('Forking repository')
     reponse = requests.post(
-        'https://' + github_credentials + 'api.github.com/repos/openconfig/public/forks')
+        'https://' + github_credentials + openconfig_models_url_suffix)
     repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/public.git')
 
     repo.clone(config_name, config_email)
@@ -114,8 +116,7 @@ if __name__ == "__main__":
                                       'repository': 'public'}
                 mods.append(mod)
     output = json.dumps({'modules': {'module': mods}})
-    openconfig_models_url = 'https://api.github.com/repos/yang-catalog/public'
-    requests.delete(openconfig_models_url,
+    requests.delete(openconfig_models_forked_url,
                     headers={'Authorization': 'token ' + token})
     repo.remove()
     api_path = '{}modules'.format(yangcatalog_api_prefix)
