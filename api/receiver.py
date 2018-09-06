@@ -1,3 +1,16 @@
+"""
+Rabbitmq is needed to be installed for this script to work.
+This script is part of messaging algorithm works together
+with sender.py. Api endpoints that take too long time to
+process will send a request to process data to this Receiver
+with some message id. Once receiver is done processing data
+it will send back the response using the message id.
+
+Receiver is used to add, update or remove yang modules.
+This process take a long time depending on the number
+of the yang modules. This script is also used to automatically
+add or update new IETF and Openconfig modules.
+"""
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -222,6 +235,14 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
 
 
 def send_to_indexing(body_to_send, credentials, set_key=None, apiIp=None):
+    """
+    Send a request to index new or deleted yang modules with body that
+    contains path to the modules and name of the modules
+    :param body_to_send: body that contains path to the modules and names of the modules
+    :param credentials: credentials
+    :param set_key: key to sign the body with
+    :param apiIp: ip address of yangcatalog.org api
+    """
     global api_ip
     if apiIp is not None:
         api_ip = apiIp
@@ -486,6 +507,11 @@ def process_module_deletion(arguments, multiple=False):
 
 
 def run_ietf():
+    """
+    Runs ietf and openconfig scripts that should update all the new ietf
+    and openconfig modules
+    :return: response success or failed
+    """
     with open("log.txt", "wr") as f:
         try:
             arguments = ['python', '../ietfYangDraftPull/draftPullLocal.py']
