@@ -167,7 +167,7 @@ def get_specifics(path_dir):
                     passed += 1
                 num_in_catalog += 1
             else:
-                LOGGER.error('module does not exist '.format(mod))
+                LOGGER.error('module {} does not exist'.format(mod))
     return [num_in_catalog, passed]
 
 
@@ -298,7 +298,7 @@ if __name__ == '__main__':
     move_to = config.get('Statistics-Section', 'file-location')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger('statistics', log_directory + '/yang.log')
+    LOGGER = log.get_logger('statistics', log_directory + '/statistics/yang.log')
     separator = ':'
     suffix = api_port
     if is_uwsgi == 'True':
@@ -574,7 +574,7 @@ if __name__ == '__main__':
         time_after = time.clock()
         total_time = time_after - timeBefore
         strin = '{} final time'.format(total_time)
-        print(strin)
+        LOGGER.info(strin)
     except Exception as e:
         repo.remove()
         raise Exception(e)
