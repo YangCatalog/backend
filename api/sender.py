@@ -1,3 +1,18 @@
+"""
+Rabbitmq is needed to be installed for this script to work.
+This script is part of messaging algorithm works together
+with receiver.py. Api endpoints that take too long time to
+process will send a request to process data to the receiver
+with some message id. Sender is used to generate this id
+and send the message with this id and some body which receiver
+should understand.Once receiver is done processing data
+it will send back the response using the message id.
+
+Receiver is used to add, update or remove yang modules.
+This process take a long time depending on the number
+of the yang modules. This script is also used to automatically
+add or update new IETF and Openconfig modules.
+"""
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
