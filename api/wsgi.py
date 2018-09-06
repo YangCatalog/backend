@@ -1,3 +1,6 @@
+"""
+This script serves to load api using uwsgi
+"""
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
