@@ -26,14 +26,12 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import base64
 import datetime
-import errno
 import glob
 import json
 import os
 from collections import OrderedDict
 
 import requests
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
