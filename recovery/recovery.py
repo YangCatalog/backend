@@ -29,9 +29,17 @@ import datetime
 import glob
 import json
 import os
+import sys
 from collections import OrderedDict
 
 import requests
+
+if sys.version_info >= (3, 4):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
+
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
