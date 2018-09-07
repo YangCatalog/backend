@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -30,4 +31,6 @@ def get_logger(name, file_name_path='yang.log'):
     FORMAT = '%(asctime)-15s %(levelname)-8s %(name)5s => %(message)s - %(lineno)d'
     DATEFMT = '%Y-%m-%d %H:%M:%S'
     logging.basicConfig(datefmt=DATEFMT, format=FORMAT, filename=file_name_path, level=logging.INFO)
-    return logging.getLogger(name)
+    logger = logging.getLogger(name)
+    os.chmod(file_name_path, 0o664)
+    return logger
