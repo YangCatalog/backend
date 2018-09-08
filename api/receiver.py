@@ -661,7 +661,7 @@ if __name__ == '__main__':
     global result_dir
     result_dir = config.get('Receiver-Section', 'result-html-dir')
     global save_file_dir
-    save_file_dir = config.get('Receiver-Section', 'save-file-dir')
+    save_file_dir = config.get('Directory-Section', 'backup')
     global is_uwsgi
     is_uwsgi = config.get('General-Section', 'uwsgi')
     if notify_indexing == 'True':
