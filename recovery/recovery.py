@@ -26,13 +26,19 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import base64
 import datetime
-import errno
 import glob
 import json
 import os
+import sys
 from collections import OrderedDict
 
 import requests
+
+if sys.version_info >= (3, 4):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
+
 
 
 if __name__ == "__main__":
@@ -69,13 +75,13 @@ if __name__ == "__main__":
     cache_directory = config.get('Directory-Section', 'cache')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
     if 'save' is args.type:
-        file_save = open(cache_directory + args.name_save + '.json', 'w')
+        file_save = open(cache_directory + '/' + args.name_save + '.json', 'w')
         jsn = requests.get(prefix + '/api/config/catalog?deep',
                            auth=(args.credentials[0], args.credentials[1]),
                            headers={
                                'Accept': 'application/vnd.yang.data+json',
                                'Content-type': 'application/vnd.yang.data+json'}).json()
-        file_save.write(jsn)
+        file_save.write(json.dumps(jsn))
         file_save.close()
     else:
         if args.name_load:
