@@ -22,30 +22,32 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import requests
+import json
 
 from utility import log
 
 
 class LoadFiles:
 
-    def __init__(self, credentials, log_directory, private_url):
+    def __init__(self, private_dir, log_directory):
         LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
-        LOGGER.debug('Loading Benoit\'s compilation statuses and results')
-        response = requests.get(private_url + '/json_links', auth=(credentials[0], credentials[1]))
+        LOGGER.debug('Loading compilation statuses and results')
         self.names = []
-        if response.status_code == 200:
-            self.names = response.text.replace('.json', '').split('\n')
-            if self.names.count(''):
-                self.names.remove('')
+        with open(private_dir + '/json_links', 'r') as f:
+            for line in f:
+                self.names.append(line.replace('.json', '').replace('\n', ''))
+
         self.status = {}
         self.headers = {}
         for name in self.names:
-            self.status[name] = requests.get('{}{}.json'.format(private_url, name)
-                                             , auth=(credentials[0], credentials[1])).json()
-            html = requests.get('{}{}YANGPageCompilation.html'.format(private_url, name)
-                                , auth=(credentials[0], credentials[1])).text
-
+            with open('{}/{}.json'.format(private_dir, name), 'r') as f:
+                self.status[name] = json.load(f)
+            if name == 'IETFYANGRFC':
+                with open('{}/{}.html'.format(private_dir, name)) as f:
+                    html = f.read()
+            else:
+                with open('{}/{}YANGPageCompilation.html'.format(private_dir, name)) as f:
+                    html = f.read()
             ths = html.split('<TH>')
             results = []
             for th in ths:

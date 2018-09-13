@@ -599,8 +599,9 @@ class Modules:
             context)
         file_url = '{}@{}_{}.html'.format(self.name, self.revision,
                                           self.organization)
-        with open(self.html_result_dir + file_url, 'w+') as f:
-            f.write(rendered_html)
+        if self.compilation_status['status'] not in ['unknown', 'pending']:
+            with open('{}/{}'.format(self.html_result_dir, file_url), 'w+') as f:
+                f.write(rendered_html)
         return 'https://yangcatalog.org/results/{}'.format(file_url)
 
     def __resolve_contact(self):
@@ -618,7 +619,7 @@ class Modules:
     def __resolve_namespace(self):
         self.namespace = self.__resolve_submodule_case('namespace')
         if self.namespace == MISSING_ELEMENT:
-            self.__missing_namespace = self.name + ' : ' +  MISSING_ELEMENT
+            self.__missing_namespace = self.name + ' : ' + MISSING_ELEMENT
 
     def __resolve_belongs_to(self):
         if self.module_type == 'submodule':
@@ -782,7 +783,7 @@ class Modules:
                 if name == 'IETFYANGRFC':
                     continue
                 if res == '':
-                    if name == 'IETFYANGDraft':
+                    if name == 'IETFDraft':
                         res = self.__parse_res(w_rev, name, 3)
                     else:
                         res = self.__parse_res(w_rev, name)

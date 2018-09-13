@@ -102,10 +102,10 @@ if __name__ == "__main__":
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+    LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
-    private_url = config.get('General-Section', 'private-url')
-    private_credentials = config.get('General-Section', 'private-secret').split(' ')
+    private_dir = config.get('Web-Section', 'private_directory')
+
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
@@ -137,10 +137,10 @@ if __name__ == "__main__":
                 LOGGER.info('Found directory for sdo {}'.format(search_dir))
                 local_integrity = integrity.Statistics(search_dir)
 
-                capability = cap.Capability(private_url, log_directory, search_dir, index, prepare_sdo,
+                capability = cap.Capability(log_directory, search_dir, index, prepare_sdo,
                                             local_integrity, args.api, sdo,
                                             args.json_dir, args.result_html_dir,
-                                            args.save_file_dir, private_credentials)
+                                            args.save_file_dir, private_dir)
                 LOGGER.info('Starting to parse files in sdo directory')
                 capability.parse_and_dump_sdo()
                 index += 1
@@ -177,13 +177,13 @@ if __name__ == "__main__":
                             LOGGER.info('Found xml source {}'.format(filename))
                             prepare_vendor = prepare.Prepare(log_directory, "prepare",
                                                              yangcatalog_api_prefix)
-                            capability = cap.Capability(private_url, log_directory, filename, index,
+                            capability = cap.Capability(log_directory, filename, index,
                                                         prepare_vendor,
                                                         local_integrity, args.api,
                                                         sdo, args.json_dir,
                                                         args.result_html_dir,
                                                         args.save_file_dir,
-                                                        private_credentials,
+                                                        private_dir,
                                                         args.run_integrity)
                             if 'ietf-yang-library' in pattern:
                                 capability.parse_and_dump_yang_lib()
