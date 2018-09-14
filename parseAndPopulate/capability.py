@@ -56,8 +56,8 @@ def find_first_file(directory, pattern, pattern_with_revision):
 
 
 class Capability:
-    def __init__(self, private_url, log_directory, hello_message_file, index, prepare, integrity_checker,
-                 api, sdo, json_dir, html_result_dir, save_file_to_dir, credentials,
+    def __init__(self, log_directory, hello_message_file, index, prepare, integrity_checker,
+                 api, sdo, json_dir, html_result_dir, save_file_to_dir, private_dir,
                  run_integrity=False):
         global LOGGER
         LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
@@ -137,7 +137,7 @@ class Capability:
 
         self.parsed_jsons = None
         if not run_integrity:
-            self.parsed_jsons = LoadFiles(credentials, log_directory, private_url)
+            self.parsed_jsons = LoadFiles(private_dir, log_directory)
 
     def initialize(self, impl):
         if impl['module-list-file']['path'] in self.hello_message_file:
