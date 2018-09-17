@@ -64,7 +64,7 @@ from flask import Flask, jsonify, abort, make_response, request, Response, \
     redirect
 from flask_httpauth import HTTPBasicAuth
 
-import utility.log as lo
+import utility.log as log
 import api.yangSearch.index as index
 import api.yangSearch.mysql_index as ind
 from api.prometheus.main import monitor
@@ -78,7 +78,6 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-LOGGER = lo.get_logger('api', '/home/miroslav/log/api/yang.log')
 url = 'https://github.com/'
 
 github_api_url = 'https://api.github.com'
@@ -94,13 +93,12 @@ class MyFlask(Flask):
         super(MyFlask, self).__init__(import_name)
         self.response = None
         self.ys_set = 'set'
-        LOGGER.info('Loading all configuration')
+        
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
         self.result_dir = config.get('API-Section', 'result-html-dir')
-        self.sender = Sender()
         self.dbHost = config.get('API-Section', 'dbIp')
         self.dbName = config.get('API-Section', 'dbName')
         self.dbNameSearch = config.get('API-Section', 'dbNameSearch')
@@ -128,6 +126,8 @@ class MyFlask(Flask):
         self.ys_users_dir = config.get('Directory-Section', 'ys_users')
         self.my_uri = config.get('Web-Section', 'my_uri')
         self.yang_models = config.get('Directory-Section', 'yang_models_dir')
+        log_directory = config.get('Directory-Section', 'logs')
+        self.sender = Sender(log_directory)
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
@@ -135,7 +135,9 @@ class MyFlask(Flask):
             suffix = 'api'
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip,
                                                        separator, suffix)
-        LOGGER.debug('Starting api')
+
+        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
+        self.LOGGER.debug('Starting api')
 
     def process_response(self, response):
         self.response = response
@@ -377,13 +379,13 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True):
             for i in range(0, chunks, 1):
                 uwsgi.cache_set('data{}'.format(i), data[i*64000: (i+1)*64000],
                                 0, main_cache)
-            LOGGER.info('all {} chunks are set in uwsgi cache'.format(chunks))
+            application.LOGGER.info('all {} chunks are set in uwsgi cache'.format(chunks))
             uwsgi.cache_set('chunks-data', repr(chunks), 0, cache_chunks)
         else:
             return response, data
     except:
         e = sys.exc_info()[0]
-        LOGGER.error('Could not load json to cache. Error: {}'.format(e))
+        application.LOGGER.error('Could not load json to cache. Error: {}'.format(e))
         return 'Server error - downloading cache', None
     return response, data
 
@@ -423,7 +425,7 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
                 :return whether authorization passed.
     """
     username = request.authorization['username']
-    LOGGER.info('Checking sdo authorization for user {}'.format(username))
+    application.LOGGER.info('Checking sdo authorization for user {}'.format(username))
     accessRigths = None
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
@@ -439,7 +441,7 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
                 break
         db.close()
     except MySQLdb.MySQLError as err:
-        LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     passed = False
     if accessRigths == '/':
@@ -462,7 +464,7 @@ def authorize_for_vendors(request, body):
                     :return whether authorization passed.
     """
     username = request.authorization['username']
-    LOGGER.info('Checking vendor authorization for user {}'.format(username))
+    application.LOGGER.info('Checking vendor authorization for user {}'.format(username))
     accessRigths = None
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
@@ -478,7 +480,7 @@ def authorize_for_vendors(request, body):
                 break
         db.close()
     except MySQLdb.MySQLError as err:
-        LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     rights = accessRigths.split('/')
     check_vendor = None
@@ -555,7 +557,7 @@ def trigger_ietf_pull():
     if username != 'admin':
         return unauthorized
     job_id = application.sender.send('run_ietf')
-    LOGGER.info('job_id {}'.format(job_id))
+    application.LOGGER.info('job_id {}'.format(job_id))
     return make_response(jsonify({'job-id': job_id}), 202)
 
 
@@ -567,15 +569,15 @@ def check_local():
     merge the pull request and remove the repository at yang-catalog repository
             :return response to the request
     """
-    LOGGER.info('Starting pull request job')
+    application.LOGGER.info('Starting pull request job')
     body = json.loads(request.form['payload'])
-    LOGGER.info('Body of travis {}'.format(json.dumps(body)))
-    LOGGER.info('type of job {}'.format(body['type']))
+    application.LOGGER.info('Body of travis {}'.format(json.dumps(body)))
+    application.LOGGER.info('type of job {}'.format(body['type']))
     try:
         check_authorized(request.headers.environ['HTTP_SIGNATURE'], request.form['payload'])
-        LOGGER.info('Authorization successful')
+        application.LOGGER.info('Authorization successful')
     except:
-        LOGGER.critical('Authorization failed.'
+        application.LOGGER.critical('Authorization failed.'
                         ' Request did not come from Travis')
         mf = messageFactory.MessageFactory()
         mf.send_travis_auth_failed()
@@ -584,7 +586,7 @@ def check_local():
     global yang_models_url
 
     verify_commit = False
-    LOGGER.info('Checking commit SHA if it is the commit sent by yang-catalog'
+    application.LOGGER.info('Checking commit SHA if it is the commit sent by yang-catalog'
                 'user.')
     if body['repository']['owner_name'] == 'yang-catalog':
         commit_sha = body['commit']
@@ -600,7 +602,7 @@ def check_local():
         return not_found()
 
     if verify_commit:
-        LOGGER.info('commit verified')
+        application.LOGGER.info('commit verified')
         if body['repository']['owner_name'] == 'yang-catalog':
             if body['result_message'] == 'Passed':
                 if body['type'] == 'push':
@@ -615,13 +617,13 @@ def check_local():
                     r = requests.post(yang_models_url + '/pulls',
                                       json=json_body, headers={'Authorization': 'token ' + application.token})
                     if r.status_code == requests.codes.created:
-                        LOGGER.info('Pull request created successfully')
+                        application.LOGGER.info('Pull request created successfully')
                         return make_response(jsonify({'info': 'Success'}), 201)
                     else:
-                        LOGGER.error('Could not create a pull request {}'.format(r.status_code))
+                        application.LOGGER.error('Could not create a pull request {}'.format(r.status_code))
                         return make_response(jsonify({'Error': 'PR creation failed'}), 400)
             else:
-                LOGGER.warning('Travis job did not pass. Removing forked repository.')
+                application.LOGGER.warning('Travis job did not pass. Removing forked repository.')
                 requests.delete('https://api.github.com/repos/yang-catalog/yang',
                                 headers={'Authorization': 'token ' + application.token})
                 return make_response(jsonify({'info': 'Failed'}), 406)
@@ -630,25 +632,25 @@ def check_local():
                 if body['type'] == 'pull_request':
                     # If build was successful on pull request
                     pull_number = body['pull_request_number']
-                    LOGGER.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
+                    application.LOGGER.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
                     url = 'https://api.github.com/repos/YangModels/yang/pulls/'+ repr(pull_number) +'/reviews'
                     data = json.dumps({
                         'body': 'AUTOMATED YANG CATALOG APPROVAL',
                         'event': 'APPROVE'
                     })
                     response = requests.post(url, data, headers={'Authorization': 'token ' + application.admin_token})
-                    LOGGER.info('review response code {}. Merge response {}.'.format(
+                    application.LOGGER.info('review response code {}. Merge response {}.'.format(
                             response.status_code, response.content))
                     data = json.dumps({'commit-title': 'Travis job passed',
                                        'sha': body['head_commit']})
                     response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/' + repr(pull_number) +
                                  '/merge', data, headers={'Authorization': 'token ' + application.admin_token})
-                    LOGGER.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.content))
+                    application.LOGGER.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.content))
                     requests.delete('https://api.github.com/repos/yang-catalog/yang',
                                     headers={'Authorization': 'token ' + application.token})
                     return make_response(jsonify({'info': 'Success'}), 201)
             else:
-                LOGGER.warning('Travis job did not pass. Removing pull request')
+                application.LOGGER.warning('Travis job did not pass. Removing pull request')
                 pull_number = body['pull_request_number']
                 json_body = json.loads(json.dumps({
                     "title": "Cron job - every day pull and update of ietf draft yang files.",
@@ -658,19 +660,19 @@ def check_local():
                 }))
                 requests.patch('https://api.github.com/repos/YangModels/yang/pulls/' + pull_number, json=json_body,
                                headers={'Authorization': 'token ' + application.token})
-                LOGGER.warning(
+                application.LOGGER.warning(
                     'Travis job did not pass. Removing forked repository.')
                 requests.delete(
                     'https://api.github.com/repos/yang-catalog/yang',
                     headers={'Authorization': 'token ' + application.token})
                 return make_response(jsonify({'info': 'Failed'}), 406)
         else:
-            LOGGER.warning('Owner name verification failed. Owner -> {}'
+            application.LOGGER.warning('Owner name verification failed. Owner -> {}'
                            .format(body['repository']['owner_name']))
             return make_response(jsonify({'Error': 'Owner verfication failed'}),
                                  401)
     else:
-        LOGGER.info('Commit verification failed. Commit sent by someone else.'
+        application.LOGGER.info('Commit verification failed. Commit sent by someone else.'
                     'Not doing anything.')
     return make_response(jsonify({'Error': 'Fails'}), 500)
 
@@ -689,9 +691,9 @@ def delete_module(name, revision, organization):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    LOGGER.info('deleting module with name, revision and organization {} {} {}'.format(name, revision, organization))
+    application.LOGGER.info('deleting module with name, revision and organization {} {} {}'.format(name, revision, organization))
     username = request.authorization['username']
-    LOGGER.debug('Checking authorization for user {}'.format(username))
+    application.LOGGER.debug('Checking authorization for user {}'.format(username))
     accessRigths = None
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
@@ -707,7 +709,7 @@ def delete_module(name, revision, organization):
                 break
         db.close()
     except MySQLdb.MySQLError as err:
-        LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
     response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(
         application.confdPort) + '/api/config/catalog/modules/module/' + name +
                             ',' + revision + ',' + organization,
@@ -729,7 +731,7 @@ def delete_module(name, revision, organization):
                  application.credentials[1], path_to_delete, 'DELETE', application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
 
-    LOGGER.info('job_id {}'.format(job_id))
+    application.LOGGER.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
@@ -747,7 +749,7 @@ def delete_modules():
     if not request.json:
         abort(400)
     username = request.authorization['username']
-    LOGGER.debug('Checking authorization for user {}'.format(username))
+    application.LOGGER.debug('Checking authorization for user {}'.format(username))
     accessRigths = None
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
@@ -763,7 +765,7 @@ def delete_modules():
                 break
         db.close()
     except MySQLdb.MySQLError as err:
-        LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     rpc = request.json
     if rpc.get('input'):
@@ -794,7 +796,7 @@ def delete_modules():
                  application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
 
-    LOGGER.info('job_id {}'.format(job_id))
+    application.LOGGER.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
@@ -810,9 +812,9 @@ def delete_vendor(value):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    LOGGER.info('Deleting vendor on path {}'.format(value))
+    application.LOGGER.info('Deleting vendor on path {}'.format(value))
     username = request.authorization['username']
-    LOGGER.debug('Checking authorization for user {}'.format(username))
+    application.LOGGER.debug('Checking authorization for user {}'.format(username))
     accessRigths = None
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
@@ -828,7 +830,7 @@ def delete_vendor(value):
                 break
         db.close()
     except MySQLdb.MySQLError as err:
-        LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     rights = accessRigths.split('/')
     check_vendor = None
@@ -873,7 +875,7 @@ def delete_vendor(value):
                  application.credentials[1], path_to_delete, 'DELETE', application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
 
-    LOGGER.info('job_id {}'.format(job_id))
+    application.LOGGER.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
@@ -893,7 +895,7 @@ def add_modules():
     if not request.json:
         abort(400)
     body = request.json
-    LOGGER.info('Adding modules with body {}'.format(body))
+    application.LOGGER.info('Adding modules with body {}'.format(body))
     tree_created = False
 
     with open('./prepare-sdo.json', "w") as plat:
@@ -941,7 +943,7 @@ def add_modules():
         directory = '/'.join(sdo['path'].split('/')[:-1])
 
         repo_url = url + sdo['owner'] + '/' + sdo['repository']
-        LOGGER.debug('Cloning repository')
+        application.LOGGER.debug('Cloning repository')
         if repo_url not in repo:
             repo[repo_url] = repoutil.RepoUtil(repo_url)
             repo[repo_url].clone(application.config_name, application.config_email)
@@ -1008,13 +1010,13 @@ def add_modules():
     for key in repo:
         repo[key].remove()
 
-    LOGGER.debug('Sending a new job')
+    application.LOGGER.debug('Sending a new job')
     arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port",
                  repr(application.confdPort), "--dir", direc + "/temp", "--api", "--ip",
                  application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.protocol, application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
-    LOGGER.info('job_id {}'.format(job_id))
+    application.LOGGER.info('job_id {}'.format(job_id))
     if len(warning) > 0:
         return jsonify({'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val}
                                                                                           for val in warning]})
@@ -1038,7 +1040,7 @@ def add_vendors():
     if not request.json:
         abort(400)
     body = request.json
-    LOGGER.info('Adding vendor with body {}'.format(body))
+    application.LOGGER.info('Adding vendor with body {}'.format(body))
     tree_created = False
     resolved_authorization = authorize_for_vendors(request, body)
     if 'passed' != resolved_authorization:
@@ -1116,7 +1118,7 @@ def add_vendors():
                  repr(tree_created), application.integrity_file_location, application.protocol,
                  application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
-    LOGGER.info('job_id {}'.format(job_id))
+    application.LOGGER.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
@@ -1284,7 +1286,7 @@ def search(value):
                 :return response to the request.
     """
     path = value
-    LOGGER.info('Searching for {}'.format(value))
+    application.LOGGER.info('Searching for {}'.format(value))
     split = value.split('/')[:-1]
     key = '/'.join(value.split('/')[:-1])
     value = value.split('/')[-1]
@@ -1405,7 +1407,7 @@ def create_bootstrap_info():
 
 
 def create_bootstrap_warning(tree):
-    LOGGER.info('Rendering bootstrap data')
+    application.LOGGER.info('Rendering bootstrap data')
     context = {'tree': tree}
     path, filename = os.path.split(
         get_curr_dir(__file__) + '/template/warning.html')
@@ -1652,7 +1654,7 @@ def check_semver():
 def rpc_search(body=None):
     if body is None:
         body = request.json
-    LOGGER.info('Searching and filtering modules based on RPC {}'
+    application.LOGGER.info('Searching and filtering modules based on RPC {}'
                 .format(json.dumps(body)))
     active_cache = get_active_cache()
     with active_cache[0]:
@@ -2037,7 +2039,7 @@ def search_vendors(value):
                     ends with /value searched for
                 :return response to the request.
     """
-    LOGGER.info('Searching for specific vendors {}'.format(value))
+    application.LOGGER.info('Searching for specific vendors {}'.format(value))
     path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/vendors/' + value + '?deep'
     data = requests.get(path, auth=(application.credentials[0], application.credentials[1]),
                         headers={'Accept': 'application/vnd.yang.data+json'})
@@ -2061,7 +2063,7 @@ def search_module(name, revision, organization):
     """
     active_cache = get_active_cache()
     with active_cache[0]:
-        LOGGER.info('Searching for module {}, {}, {}'.format(name, revision,
+        application.LOGGER.info('Searching for module {}, {}, {}'.format(name, revision,
                                                              organization))
         if uwsgi.cache_exists(name + '@' + revision + '/' + organization,
                               'cache_chunks{}'.format(active_cache[1])):
@@ -2087,7 +2089,7 @@ def get_modules():
     """
     active_cache = get_active_cache()
     with active_cache[0]:
-        LOGGER.info('Searching for modules')
+        application.LOGGER.info('Searching for modules')
         return Response(json.dumps(modules_data(active_cache[1])), mimetype='application/json')
 
 
@@ -2098,7 +2100,7 @@ def get_vendors():
     """
     active_cache = get_active_cache()
     with active_cache[0]:
-        LOGGER.info('Searching for vendors')
+        application.LOGGER.info('Searching for vendors')
         return Response(json.dumps(vendors_data(active_cache[1])), mimetype='application/json')
 
 
@@ -2107,7 +2109,7 @@ def get_catalog():
     """Search for a all the data populated in confd
                 :return response to the request with all the data
     """
-    LOGGER.info('Searching for catalog data')
+    application.LOGGER.info('Searching for catalog data')
     active_cache = get_active_cache()
     with active_cache[0]:
         data = catalog_data(active_cache[1])
@@ -2122,7 +2124,7 @@ def get_job(job_id):
     """Search for a job_id to see the process of the job
                 :return response to the request with the job
     """
-    LOGGER.info('Searching for job_id {}'.format(job_id))
+    application.LOGGER.info('Searching for job_id {}'.format(job_id))
     result = application.sender.get_response(job_id)
     split = result.split('#split#')
 
@@ -2139,7 +2141,8 @@ def get_job(job_id):
 
 @application.route('/check-platform-metadata', methods=['POST'])
 def trigger_populate():
-    LOGGER.info('Trigger populate if necessary')
+    application.LOGGER.info('Trigger populate if necessary')
+    repoutil.pull(application.yang_models)
     try:
         commits = request.json['commits']
         paths = []
@@ -2162,29 +2165,24 @@ def trigger_populate():
         if len(paths) > 0:
             mf = messageFactory.MessageFactory()
             mf.send_new_modified_platform_metadata(new, mod)
-            LOGGER.info('Forking the repo')
-            repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
+            application.LOGGER.info('Forking the repo')
             try:
-                repo.clone(application.config_name, application.config_email)
-                LOGGER.info('Cloned repo to local directory {}'
-                            .format(repo.localdir))
                 for path in paths:
-                    arguments = ["python", repo.localdir + "/" +
-                                 "tools/parseAndPopulate/populate.py", "--port", repr(application.confdPort), "--ip",
+                    arguments = ["python", "../parseAndPopulate/populate.py",
+                                 "--port", repr(application.confdPort), "--ip",
                                  application.confd_ip, "--api-protocol", application.api_protocol, "--api-port",
                                  repr(application.api_port), "--api-ip", application.ip,
-                                 "--dir", repo.localdir + "/" + path, "--result-html-dir", application.result_dir,
+                                 "--dir", application.yang_models + "/" + path, "--result-html-dir", application.result_dir,
                                  "--credentials", application.credentials[0], application.credentials[1],
                                  "--save-file-dir", application.save_file_dir, "repoLocalDir"]
-                    arguments = arguments + paths + [repo.localdir, "github"]
+                    arguments = arguments + paths + [application.yang_models, "github"]
                     application.sender.send("#".join(arguments))
             except:
-                LOGGER.error('Could not populate after git push')
-                repo.remove()
+                application.LOGGER.error('Could not populate after git push')
             return make_response(jsonify({'info': 'Success'}), 200)
         return make_response(jsonify({'info': 'Success'}), 200)
     except Exception as e:
-        LOGGER.error('Automated github webhook failure - {}'.format(e.message))
+        application.LOGGER.error('Automated github webhook failure - {}'.format(e.message))
         return make_response(jsonify({'info': 'Success'}), 200)
 
 
@@ -2271,14 +2269,14 @@ def load(on_change):
 
         with lock_for_load:
             with lock_uwsgi_cache1:
-                LOGGER.info('Loading cache 1')
+                application.LOGGER.info('Loading cache 1')
                 load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
                 # reset active cache back to 1 since we are done with populating cache 1
                 uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
-            LOGGER.info('Loading cache 2')
+            application.LOGGER.info('Loading cache 2')
             with lock_uwsgi_cache2:
                 load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
-            LOGGER.info('Both caches are loaded')
+            application.LOGGER.info('Both caches are loaded')
     else:
         # if we need to get some data from api
         if active_cache[1] == '1':
@@ -2287,20 +2285,20 @@ def load(on_change):
                 load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
                 # reset active cache back to 1 since we are done with populating cache 1
                 uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
-                LOGGER.info('Using cache 1')
+                application.LOGGER.info('Using cache 1')
         else:
             with lock_uwsgi_cache2:
                 initialized = uwsgi.cache_get('initialized', 'cache_chunks2')
-                LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
+                application.LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
                 if initialized is not None and initialized == 'True':
                     load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
-                    LOGGER.info('Using cache 2')
+                    application.LOGGER.info('Using cache 2')
 
 
 def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
     response = 'work'
     initialized = uwsgi.cache_get('initialized', cache_chunks)
-    LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
+    application.LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
     if initialized is None or initialized == 'False' or on_change:
         uwsgi.cache_clear(cache_chunks)
         uwsgi.cache_clear(main_cache)
@@ -2336,7 +2334,7 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
             uwsgi.cache_set('modules-data{}'.format(i),
                             json.dumps(modules)[i * 64000: (i + 1) * 64000],
                             0, main_cache)
-        LOGGER.info(
+        application.LOGGER.info(
             'all {} modules chunks are set in uwsgi cache'.format(chunks))
         uwsgi.cache_set('chunks-modules', repr(chunks), 0, cache_chunks)
 
@@ -2345,11 +2343,11 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
             uwsgi.cache_set('vendors-data{}'.format(i),
                             json.dumps(vendors)[i * 64000: (i + 1) * 64000],
                             0, main_cache)
-        LOGGER.info(
+        application.LOGGER.info(
             'all {} vendors chunks are set in uwsgi cache'.format(chunks))
         uwsgi.cache_set('chunks-vendor', repr(chunks), 0, cache_chunks)
     if response != 'work':
-        LOGGER.error('Could not load or create cache')
+        application.LOGGER.error('Could not load or create cache')
         sys.exit(500)
     uwsgi.cache_update('initialized', 'True', 0, cache_chunks)
 
@@ -2416,7 +2414,7 @@ def get_password(username):
         return None
 
     except MySQLdb.MySQLError as err:
-        LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
 
 @auth.error_handler

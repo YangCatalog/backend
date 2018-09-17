@@ -73,7 +73,7 @@ if __name__ == "__main__":
     ietf_models_url_suffix = config.get('General-Section', 'ietf-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
-    LOGGER = log.get_logger('draftPull', log_directory + '/draft-pull.log')
+    LOGGER = log.get_logger('draftPull', log_directory + '/jobs/draft-pull.log')
     LOGGER.info('Starting Cron job IETF pull request')
     github_credentials = ''
     if len(username) > 0:

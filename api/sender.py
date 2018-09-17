@@ -39,12 +39,11 @@ import pika
 
 import utility.log as log
 
-LOGGER = log.get_logger(__name__, '/home/miroslav/log/api/yang.log')
-
 
 class Sender:
-    def __init__(self):
-        LOGGER.debug('Initializing sender')
+    def __init__(self, log_directory):
+        self.LOGGER = log.get_logger('sender', log_directory + '/yang.log')
+        self.LOGGER.debug('Initializing sender')
         self.__response_type = ['Failed', 'In progress',
                                 'Finished successfully', 'does not exist']
         self.connection = pika.BlockingConnection(
@@ -64,7 +63,7 @@ class Sender:
                     :return one of the following - 'Failed', 'In progress',
                         'Finished successfully' or 'does not exist'
         """
-        LOGGER.debug('Trying to get response')
+        self.LOGGER.debug('Trying to get response')
 
         f = open('./correlation_ids', 'r')
         lines = f.readlines()
@@ -81,7 +80,7 @@ class Sender:
                     :param arguments: (str) arguments to process in receiver
                     :return job_id
         """
-        LOGGER.info('Sending data to queue with arguments: {}'
+        self.LOGGER.info('Sending data to queue with arguments: {}'
                     .format(arguments))
         corr_id = str(uuid.uuid4())
         self.channel.basic_publish(exchange='',

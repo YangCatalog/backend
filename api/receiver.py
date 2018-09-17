@@ -52,8 +52,6 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-LOGGER = log.get_logger('receiver', '/home/miroslav/log/api/yang.log')
-
 
 def process_sdo(arguments):
     """Processes SDOs. Calls populate script which calls script to parse all the modules
@@ -635,7 +633,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-path', type=str, default='../utility/config.ini',
                         help='Set path to config file')
-    LOGGER.info('Starting receiver')
     args = parser.parse_args()
     config_path = os.path.abspath('.') + '/' + args.config_path
     config = ConfigParser.ConfigParser()
@@ -664,6 +661,11 @@ if __name__ == '__main__':
     save_file_dir = config.get('Directory-Section', 'backup')
     global is_uwsgi
     is_uwsgi = config.get('General-Section', 'uwsgi')
+    log_directory = config.get('Directory-Section', 'logs')
+    global LOGGER
+    LOGGER = log.get_logger('receiver', log_directory + '/yang.log')
+    LOGGER.info('Starting receiver')
+
     if notify_indexing == 'True':
         notify_indexing = True
     else:
