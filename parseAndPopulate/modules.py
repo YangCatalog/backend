@@ -599,8 +599,16 @@ class Modules:
             context)
         file_url = '{}@{}_{}.html'.format(self.name, self.revision,
                                           self.organization)
-        if self.compilation_status['status'] not in ['unknown', 'pending']:
-            with open('{}/{}'.format(self.html_result_dir, file_url), 'w+') as f:
+
+        # Don t override status if it was already written once
+        if os.path.exists(file_url):
+            if self.compilation_status['status'] in ['unknown', 'pending']:
+                self.compilation_status['status'] = None
+            else:
+                with open('{}/{}'.format(self.html_result_dir, file_url), 'w') as f:
+                    f.write(rendered_html)
+        else:
+            with open('{}/{}'.format(self.html_result_dir, file_url), 'w') as f:
                 f.write(rendered_html)
         return 'https://yangcatalog.org/results/{}'.format(file_url)
 
