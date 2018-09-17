@@ -15,7 +15,7 @@ Finally there are endpoints that are used by automated jobs. These
 jobs use basic or http signature authorization.
 
 Documentation for all these endpoints can be found in
-../documentation/source/index.html.md or on the yangcatalog.org/api-docs
+../documentation/source/index.html.md or on the yangcatalog.org/doc
 website
 """
 # Copyright 2018 Cisco and its affiliates
@@ -125,6 +125,9 @@ class MyFlask(Flask):
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.config_name = config.get('General-Section', 'repo-config-name')
         self.config_email = config.get('General-Section', 'repo-config-email')
+        self.ys_users_dir = config.get('Directory-Section', 'ys_users')
+        self.my_uri = config.get('Web-Section', 'my_uri')
+        self.yang_models = config.get('Directory-Section', 'yang_models_dir')
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
@@ -261,10 +264,10 @@ class MyFlask(Flask):
             modules = json_data.get('module')
         if modules:
             if len(modules) > 0:
-                ys_dir = '/home/miott/ysuite/yangsuite/data/users/'
+                ys_dir = self.ys_users_dir
 
                 id = uuid.uuid4().hex
-                ys_dir += id + '/repositories/' + modules[0]['name'].lower()
+                ys_dir += '/' + id + '/repositories/' + modules[0]['name'].lower()
                 try:
                     os.makedirs(ys_dir)
                 except OSError as e:
@@ -304,8 +307,8 @@ class MyFlask(Flask):
                     shutil.copy(self.save_file_dir + '/' + mod, ys_dir)
                     modules.append([mod.split('@')[0], mod.split('@')[1]
                                    .replace('.yang', '')])
-                ys_dir = '/home/miott/ysuite/yangsuite/data/users/'
-                ys_dir += id + '/yangsets'
+                ys_dir = self.ys_users_dir
+                ys_dir += '/' + id + '/yangsets'
                 try:
                     os.makedirs(ys_dir)
                 except OSError as e:
@@ -322,7 +325,7 @@ class MyFlask(Flask):
                     f.write(json.dumps(json_set, indent=4))
                 uid = pwd.getpwnam("miroslav").pw_uid
                 gid = grp.getgrnam("yang").gr_gid
-                path = '/home/miott/ysuite/yangsuite/data/users/' + id
+                path = self.ys_users_dir + '/' + id
                 for root, dirs, files in os.walk(path):
                     for momo in dirs:
                         os.chown(os.path.join(root, momo), uid, gid)
@@ -1074,7 +1077,8 @@ def add_vendors():
         file_name = capability['path'].split('/')[-1]
         if request.method == 'POST':
             repo_split = capability['repository'].split('.')[0]
-            if os.path.isfile(get_curr_dir(__file__) + '/../../api/vendor/' + capability['owner'] + '/' + repo_split + '/' + capability['path']):
+            repoutil.pull(application.yang_models)
+            if os.path.isfile(application.yang_models + '/vendor/' + capability['owner'] + '/' + repo_split + '/' + capability['path']):
                 continue
 
         repo_url = url + capability['owner'] + '/' + capability['repository']
@@ -1426,8 +1430,8 @@ def create_update_from(f1, r1, f2, r2):
             return 'Server error - could not create directory'
     schema1 = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
     schema2 = '{}{}@{}.yang'.format(application.save_file_dir, f2, r2)
-    arguments = ['pyang', '-P', get_curr_dir(__file__) + '/../../.', '-p',
-                 get_curr_dir(__file__) + '/../../.',
+    arguments = ['pyang', '-p',
+                 application.yang_models,
                  schema1, '--check-update-from',
                  schema2]
     pyang = subprocess.Popen(arguments,
@@ -1463,8 +1467,8 @@ def create_diff_file(f1, r1, f2, r2):
     file_name2 = 'schema2.txt'
     with open('{}{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
-    tree1 = 'https://yangcatalog.org/compatibility/{}'.format(file_name1)
-    tree2 = 'https://yangcatalog.org/compatibility/{}'.format(file_name2)
+    tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
+    tree2 = '{}/compatibility/{}'.format(application.my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
@@ -1500,8 +1504,8 @@ def create_diff_tree(f1, r1, f2, r2):
     file_name2 = 'schema2.txt'
     with open('{}{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
-    tree1 = 'https://yangcatalog.org/compatibility/{}'.format(file_name1)
-    tree2 = 'https://yangcatalog.org/compatibility/{}'.format(file_name2)
+    tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
+    tree2 = '{}/compatibility/{}'.format(application.my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)

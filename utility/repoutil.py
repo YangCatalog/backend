@@ -22,6 +22,7 @@ import shutil
 import os
 
 import sys
+from git.cmd import Git
 from git import Repo
 from git.exc import GitCommandError
 
@@ -49,6 +50,16 @@ repo.git.rm([f1, f2, ...])
   left in lace, and then look like untracked files).
 
 '''
+
+
+def pull(repo_dir):
+    """
+    Pull all the new files in the master in specified directory.
+    Directory should contain path where .git file is located.
+    :param repo_dir: directory where .git file is located
+    """
+    g = Git(repo_dir)
+    g.pull()
 
 
 class RepoUtil(object):
