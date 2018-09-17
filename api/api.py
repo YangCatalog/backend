@@ -2142,6 +2142,7 @@ def get_job(job_id):
 @application.route('/check-platform-metadata', methods=['POST'])
 def trigger_populate():
     application.LOGGER.info('Trigger populate if necessary')
+    repoutil.pull(application.yang_models)
     try:
         commits = request.json['commits']
         paths = []
@@ -2165,24 +2166,19 @@ def trigger_populate():
             mf = messageFactory.MessageFactory()
             mf.send_new_modified_platform_metadata(new, mod)
             application.LOGGER.info('Forking the repo')
-            repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
             try:
-                repo.clone(application.config_name, application.config_email)
-                application.LOGGER.info('Cloned repo to local directory {}'
-                            .format(repo.localdir))
                 for path in paths:
-                    arguments = ["python", repo.localdir + "/" +
-                                 "tools/parseAndPopulate/populate.py", "--port", repr(application.confdPort), "--ip",
+                    arguments = ["python", "../parseAndPopulate/populate.py",
+                                 "--port", repr(application.confdPort), "--ip",
                                  application.confd_ip, "--api-protocol", application.api_protocol, "--api-port",
                                  repr(application.api_port), "--api-ip", application.ip,
-                                 "--dir", repo.localdir + "/" + path, "--result-html-dir", application.result_dir,
+                                 "--dir", application.yang_models + "/" + path, "--result-html-dir", application.result_dir,
                                  "--credentials", application.credentials[0], application.credentials[1],
                                  "--save-file-dir", application.save_file_dir, "repoLocalDir"]
-                    arguments = arguments + paths + [repo.localdir, "github"]
+                    arguments = arguments + paths + [application.yang_models, "github"]
                     application.sender.send("#".join(arguments))
             except:
                 application.LOGGER.error('Could not populate after git push')
-                repo.remove()
             return make_response(jsonify({'info': 'Success'}), 200)
         return make_response(jsonify({'info': 'Success'}), 200)
     except Exception as e:
