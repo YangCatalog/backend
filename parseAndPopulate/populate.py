@@ -300,16 +300,10 @@ if __name__ == "__main__":
                                            args.credentials[1]))
             if response.status_code != 201:
                 LOGGER.warning('Could not send a load-cache request')
-            try:
-                shutil.rmtree('../api/cache')
-            except OSError:
-                # Be happy if deleted
-                pass
         if thread is not None:
             thread.join()
         try:
             shutil.rmtree('../parseAndPopulate/' + direc)
-            shutil.rmtree('../api/cache')
         except OSError:
             # Be happy if deleted
             pass
