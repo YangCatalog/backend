@@ -15,7 +15,7 @@ Finally there are endpoints that are used by automated jobs. These
 jobs use basic or http signature authorization.
 
 Documentation for all these endpoints can be found in
-../documentation/source/index.html.md or on the yangcatalog.org/api-docs
+../documentation/source/index.html.md or on the yangcatalog.org/doc
 website
 """
 # Copyright 2018 Cisco and its affiliates
