@@ -72,7 +72,7 @@ if __name__ == "__main__":
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
     openconfig_models_forked_url = config.get('General-Section', 'openconfig-models-forked-repo-url')
-    openconfig_models_url_suffix = config.get('General-Section', 'opneconfig-models-repo-url_suffix')
+    openconfig_models_url_suffix = config.get('General-Section', 'openconfig-models-repo-url_suffix')
     LOGGER = log.get_logger('openconfigPullLocal', log_directory + '/jobs/openconfig-pull.log')
     LOGGER.info('Starting Cron job openconfig pull request local')
 
