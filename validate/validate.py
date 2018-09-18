@@ -25,6 +25,7 @@ and access you are about to give them with yes no option.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from utility.repoutil import pull
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -39,8 +40,6 @@ import sys
 from email.mime.text import MIMEText
 
 import MySQLdb
-
-from utility.util import get_curr_dir
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -106,10 +105,10 @@ def query_create(question):
             else:
                 choice_without_last = choice
 
-        if os.path.isdir(get_curr_dir(__file__) + '/../../' + choice):
+        if os.path.isdir(yang_models + '/' + choice):
             return choice
         else:
-            print ('Path ' + choice_without_last + ' does not exist.')
+            print('Path ' + choice_without_last + ' does not exist.')
             create = query_yes_no('would you like to create path ' + choice)
             if create:
                 try:
@@ -193,6 +192,8 @@ if __name__ == "__main__":
     dbUser = config.get('Validate-Section', 'dbUser')
     dbPass = config.get('Validate-Section', 'dbPassword')
     dbData = connect()
+    yang_models = config.get('Directory-Section', 'yang_models_dir')
+    pull(yang_models)
     vendor_path = None
     sdo_path = None
     for row in dbData:
