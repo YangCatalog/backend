@@ -38,9 +38,9 @@ from utility.util import get_curr_dir, find_first_file
 class ModulesComplicatedAlgorithms:
 
     def __init__(self, log_directory, yangcatalog_api_prefix, credentials, protocol, ip, port,
-                 save_file_dir, direc, all_modules):
+                 save_file_dir, direc, all_modules, yang_models_dir):
         global LOGGER
-        LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
         if all_modules is None:
             with open('../parseAndPopulate/' + direc + '/prepare.json', 'r') as f:
                 self.__all_modules = json.load(f)
@@ -55,6 +55,7 @@ class ModulesComplicatedAlgorithms:
         self.__save_file_dir = save_file_dir
         self.__path = None
         self.__prefix = '{}://{}:{}'.format(protocol, ip, port)
+        self.__yang_models = yang_models_dir
 
     def parse(self):
         LOGGER.info("parsing tree types")
@@ -213,7 +214,7 @@ class ModulesComplicatedAlgorithms:
                 name_of_module = name_of_module.split('-state')[0]
                 coresponding_nmda_file = self.__find_file(name_of_module)
                 if coresponding_nmda_file:
-                    arguments = ["pyang", "-p", get_curr_dir(__file__) + "/../../.", "-f", "tree",
+                    arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree",
                                  coresponding_nmda_file]
                     pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE)
@@ -302,13 +303,13 @@ class ModulesComplicatedAlgorithms:
         x = 0
         for module in self.__all_modules['module']:
             x += 1
-            self.__path = '{}{}@{}.yang'.format(self.__save_file_dir,
+            self.__path = '{}/{}@{}.yang'.format(self.__save_file_dir,
                                                             module['name'],
                                                             module['revision'])
             LOGGER.info('Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
             LOGGER.debug(
                 'Get tree type from tag from module {}'.format(self.__path))
-            arguments = ["pyang", "-p", get_curr_dir(__file__) + "/../../.", "-f", "tree", self.__path]
+            arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree", self.__path]
             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = pyang.communicate()
             if 'error' in stderr and 'is not found' in stderr:
@@ -410,25 +411,25 @@ class ModulesComplicatedAlgorithms:
                             self.__new_modules.append(module)
                             continue
                         else:
-                            schema2 = '{}{}@{}.yang'.format(self.__save_file_dir,
+                            schema2 = '{}/{}@{}.yang'.format(self.__save_file_dir,
                                                             modules[-2]['name'],
                                                             modules[-2]['revision'])
-                            schema1 = '{}{}@{}.yang'.format(self.__save_file_dir,
+                            schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir,
                                                             modules[-1]['name'],
                                                             modules[-1]['revision'])
-                        arguments = ['pyang', '-P', get_curr_dir(__file__) + '/../../.', '-p', get_curr_dir(__file__) + '/../../.',
+                        arguments = ['pyang', '-p', self.__save_file_dir,
                                      schema1, '--check-update-from',
                                      schema2]
                         pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                  stderr=subprocess.PIPE)
                         stdout, stderr = pyang.communicate()
                         if stderr == '':
-                            arguments = ["pyang", '-p', get_curr_dir(__file__) + '/../../.', "-f", "tree",
+                            arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree",
                                          schema1]
                             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                      stderr=subprocess.PIPE)
                             stdout, stderr = pyang.communicate()
-                            arguments = ["pyang", "-p", get_curr_dir(__file__) + "/../../.", "-f", "tree",
+                            arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree",
                                          schema2]
                             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                      stderr=subprocess.PIPE)
@@ -521,27 +522,27 @@ class ModulesComplicatedAlgorithms:
                                 self.__new_modules.append(response)
                                 continue
                             else:
-                                schema2 = '{}{}@{}.yang'.format(
+                                schema2 = '{}/{}@{}.yang'.format(
                                     self.__save_file_dir,
                                     modules[x]['name'],
                                     modules[x]['revision'])
-                                schema1 = '{}{}@{}.yang'.format(
+                                schema1 = '{}/{}@{}.yang'.format(
                                     self.__save_file_dir,
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
-                            arguments = ['pyang', '-p', get_curr_dir(__file__) + '/../../.', '-P', get_curr_dir(__file__) + '/../../.',
+                            arguments = ['pyang', '-p', self.__save_file_dir,
                                          schema2,
                                          '--check-update-from', schema1]
                             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                      stderr=subprocess.PIPE)
                             stdout, stderr = pyang.communicate()
                             if stderr == '':
-                                arguments = ["pyang", '-p', get_curr_dir(__file__) + '/../../.', "-f", "tree",
+                                arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree",
                                              schema1]
                                 pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                          stderr=subprocess.PIPE)
                                 stdout, stderr = pyang.communicate()
-                                arguments = ["pyang", '-p', get_curr_dir(__file__) + '/../../.', "-f", "tree",
+                                arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree",
                                              schema2]
                                 pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                          stderr=subprocess.PIPE)
@@ -666,6 +667,6 @@ class ModulesComplicatedAlgorithms:
                                     name + '.yang'
                                     , name + '@' + revision + '.yang')
         if yang_file is None:
-            yang_file = find_first_file(get_curr_dir(__file__) + '/../../.', name + '.yang',
+            yang_file = find_first_file(self.__yang_models, name + '.yang',
                                         name + '@' + revision + '.yang')
         return yang_file

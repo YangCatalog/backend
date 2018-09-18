@@ -64,7 +64,7 @@ def create_integrity():
     config.read('/etc/yangcatalog/yangcatalog.conf')
     path = config.get('Statistics-Section', 'file-location')
     integrity_file = open('{}/integrity.html'.format(path), 'w')
-    local_integrity.dumps(integrity_file)
+    local_integrity.dumps(integrity_file, yang_models)
     integrity_file.close()
 
 
@@ -105,6 +105,7 @@ if __name__ == "__main__":
     LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     private_dir = config.get('Web-Section', 'private_directory')
+    yang_models = config.get('Directory-Section', 'yang_models_dir')
 
     separator = ':'
     suffix = args.api_port
@@ -125,7 +126,7 @@ if __name__ == "__main__":
     else:
         stats_list = {'vendor': search_dirs}
     if args.run_integrity:
-        stats_list = {'vendor': [get_curr_dir(__file__) + '/../../vendor/cisco']}
+        stats_list = {'vendor': [yang_models + '/vendor/cisco']}
     LOGGER.info('Starting to iterate through files')
     for key in stats_list:
         search_dirs = stats_list[key]
@@ -140,7 +141,7 @@ if __name__ == "__main__":
                 capability = cap.Capability(log_directory, search_dir, index, prepare_sdo,
                                             local_integrity, args.api, sdo,
                                             args.json_dir, args.result_html_dir,
-                                            args.save_file_dir, private_dir)
+                                            args.save_file_dir, private_dir, yang_models)
                 LOGGER.info('Starting to parse files in sdo directory')
                 capability.parse_and_dump_sdo()
                 index += 1
@@ -184,6 +185,7 @@ if __name__ == "__main__":
                                                         args.result_html_dir,
                                                         args.save_file_dir,
                                                         private_dir,
+                                                        yang_models,
                                                         args.run_integrity)
                             if 'ietf-yang-library' in pattern:
                                 capability.parse_and_dump_yang_lib()

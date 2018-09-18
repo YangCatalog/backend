@@ -34,7 +34,7 @@ import requests
 
 import statistic.statistics as stats
 from utility import log, yangParser
-from utility.util import find_first_file, get_curr_dir
+from utility.util import find_first_file
 
 IETF_RFC_MAP = {
     "iana-crypt-hash@2014-08-06.yang": "NETMOD",
@@ -100,7 +100,7 @@ MISSING_ELEMENT = 'missing element'
 
 
 class Modules:
-    def __init__(self, log_directory, path, html_result_dir, jsons, temp_dir,
+    def __init__(self, yang_models_dir, log_directory, path, html_result_dir, jsons, temp_dir,
                  is_vendor=False, is_yang_lib=False, data=None,
                  is_vendor_imp_inc=False, run_integrity=False):
         global LOGGER
@@ -119,6 +119,7 @@ class Modules:
         self.__path = path
         self.features = []
         self.deviations = []
+        self.yang_models = yang_models_dir
 
         if is_vendor:
             if is_yang_lib:
@@ -270,7 +271,7 @@ class Modules:
             self.expired = 'not-applicable'
 
     def __save_file(self, to):
-        file_with_path = '{}{}@{}.yang'.format(to, self.name, self.revision)
+        file_with_path = '{}/{}@{}.yang'.format(to, self.name, self.revision)
         if not os.path.exists(file_with_path):
             with open(self.__path, 'r') as f:
                 with open(file_with_path, 'w') as f2:
@@ -881,7 +882,7 @@ class Modules:
                     self.__missing_submodules.append(name)
                 else:
                     self.__missing_modules.append(name)
-            yang_file = find_first_file(get_curr_dir(__file__) + '/../../.', name + '.yang',
+            yang_file = find_first_file(self.yang_modules, name + '.yang',
                                         name + '@' + revision + '.yang')
         return yang_file
 

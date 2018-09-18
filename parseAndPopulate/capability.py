@@ -58,7 +58,7 @@ def find_first_file(directory, pattern, pattern_with_revision):
 class Capability:
     def __init__(self, log_directory, hello_message_file, index, prepare, integrity_checker,
                  api, sdo, json_dir, html_result_dir, save_file_to_dir, private_dir,
-                 run_integrity=False):
+                 yang_models_dir, run_integrity=False):
         global LOGGER
         LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
         LOGGER.debug('Running constructor')
@@ -73,6 +73,7 @@ class Capability:
         self.parsed_yang = None
         self.api = api
         self.sdo = sdo
+        self.yang_models_dir = yang_models_dir
         # Get hello message root
         if 'xml' in hello_message_file:
             try:
@@ -182,8 +183,8 @@ class Capability:
                     LOGGER.error('File {} sent via API was not downloaded'.format(file_name))
                     continue
                 if '[1]' not in file_name:
-                    yang = Modules(self.log_directory, root + '/' + file_name, self.html_result_dir,
-                                   self.parsed_jsons, self.json_dir)
+                    yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
+                                   self.html_result_dir, self.parsed_jsons, self.json_dir)
                     name = file_name.split('.')[0].split('@')[0]
                     schema = github_raw + self.owner + '/' + self.repo + '/' + self.branch + '/' + repo_file_path
                     yang.parse_all(name,
@@ -201,9 +202,8 @@ class Capability:
                         if '[1]' in file_name:
                             LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                         else:
-                            yang = Modules(self.log_directory, root + '/' + file_name,
-                                           self.html_result_dir,
-                                           self.parsed_jsons, self.json_dir)
+                            yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
+                                           self.html_result_dir, self.parsed_jsons, self.json_dir)
                             name = file_name.split('.')[0].split('@')[0]
                             self.owner = 'YangModels'
                             self.repo = 'yang'
@@ -297,7 +297,8 @@ class Capability:
             yang_lib_info['deviations']['revision'] = revs
 
             try:
-                yang = Modules(self.log_directory, '/'.join(self.split), self.html_result_dir,
+                yang = Modules(self.yang_models_dir, self.log_directory,
+                               '/'.join(self.split), self.html_result_dir,
                                self.parsed_jsons, self.json_dir, True, True,
                                yang_lib_info, run_integrity=self.run_integrity)
 
@@ -393,9 +394,9 @@ class Capability:
                 module_name = module_and_more.split('&')[0]
                 LOGGER.info('Parsing module {}'.format(module_name))
                 try:
-                    yang = Modules(self.log_directory, '/'.join(self.split), self.html_result_dir,
-                                   self.parsed_jsons, self.json_dir,
-                                   True, data=module_and_more,
+                    yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
+                                   self.html_result_dir, self.parsed_jsons,
+                                   self.json_dir, True, data=module_and_more,
                                    run_integrity=self.run_integrity)
 
                     yang.parse_all(module_name,
@@ -448,13 +449,14 @@ class Capability:
                 yang_file = find_first_file('/'.join(self.split[0: -1]),
                                             name + '.yang', name + '@*.yang')
                 if yang_file is None:
-                    yang_file = find_first_file(get_curr_dir(__file__) + '/../../.', name + '.yang',
+                    yang_file = find_first_file(self.yang_models_dir, name + '.yang',
                                                 name + '@*.yang')
                 if yang_file is None:
                     # TODO add integrity that this file is missing
                     return
                 try:
-                    yang = Modules(self.log_directory, yang_file, self.html_result_dir,
+                    yang = Modules(self.yang_models_dir, self.log_directory,
+                                   yang_file, self.html_result_dir,
                                    self.parsed_jsons, self.json_dir,
                                    is_vendor_imp_inc=True,
                                    run_integrity=self.run_integrity)

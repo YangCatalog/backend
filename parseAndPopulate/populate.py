@@ -50,9 +50,9 @@ else:
     import ConfigParser
 
 def run_complicated_algorithms():
-    complicatedAlgorithms = ModulesComplicatedAlgorithms(yangcatalog_api_prefix, args.credentials,
+    complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, args.credentials,
                                                          args.protocol, args.ip, args.port, args.save_file_dir,
-                                                         direc, None)
+                                                         direc, None, yang_models)
     complicatedAlgorithms.parse()
     complicatedAlgorithms.populate()
 
@@ -111,6 +111,7 @@ if __name__ == "__main__":
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
+    yang_models = config.get('Directory-Section', 'yang_models_dir')
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
@@ -140,7 +141,7 @@ if __name__ == "__main__":
         if args.sdo:
             with open("log_api_sdo.txt", "wr") as f:
                 arguments = ["python", "../parseAndPopulate/runCapabilities.py",
-                             "--api", "--sdo", "--dir",args.dir, "--json-dir",
+                             "--api", "--sdo", "--dir", args.dir, "--json-dir",
                              direc, "--result-html-dir", args.result_html_dir,
                              '--save-file-dir', args.save_file_dir, '--api-ip',
                              args.api_ip, '--api-port', repr(args.api_port),
@@ -149,7 +150,7 @@ if __name__ == "__main__":
         else:
             with open("log_api.txt", "wr") as f:
                 arguments = ["python", "../parseAndPopulate/runCapabilities.py",
-                             "--api", "--dir", args.dir,"--json-dir", direc,
+                             "--api", "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
                              '--save-file-dir', args.save_file_dir, '--api-ip',
                              args.api_ip, '--api-port', repr(args.api_port),
