@@ -659,7 +659,7 @@ if __name__ == '__main__':
     global result_dir
     result_dir = config.get('Receiver-Section', 'result-html-dir')
     global save_file_dir
-    save_file_dir = config.get('Directory-Section', 'backup')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir')
     global yang_models
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     global is_uwsgi

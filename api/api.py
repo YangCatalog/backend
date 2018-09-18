@@ -109,7 +109,7 @@ class MyFlask(Flask):
         self.confdPort = int(config.get('General-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol')
         self.save_requests = config.get('API-Section', 'save-requests')
-        self.save_file_dir = config.get('Directory-Section', 'backup')
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.token = config.get('API-Section', 'yang-catalog-token')
         self.admin_token = config.get('API-Section', 'admin-token')
         self.commit_msg_file = config.get('API-Section', 'commit-dir')
