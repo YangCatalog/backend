@@ -40,8 +40,6 @@ from email.mime.text import MIMEText
 
 import MySQLdb
 
-from utility.util import get_curr_dir
-
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
@@ -106,10 +104,10 @@ def query_create(question):
             else:
                 choice_without_last = choice
 
-        if os.path.isdir(get_curr_dir(__file__) + '/../../' + choice):
+        if os.path.isdir(yang_models + '/' + choice):
             return choice
         else:
-            print ('Path ' + choice_without_last + ' does not exist.')
+            print('Path ' + choice_without_last + ' does not exist.')
             create = query_yes_no('would you like to create path ' + choice)
             if create:
                 try:
@@ -193,6 +191,7 @@ if __name__ == "__main__":
     dbUser = config.get('Validate-Section', 'dbUser')
     dbPass = config.get('Validate-Section', 'dbPassword')
     dbData = connect()
+    yang_models = config.get('Directory-Section', 'yang_models_dir')
     vendor_path = None
     sdo_path = None
     for row in dbData:

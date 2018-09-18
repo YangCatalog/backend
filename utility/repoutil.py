@@ -17,13 +17,13 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import tempfile
-import shutil
 import os
-
+import shutil
 import sys
-from git.cmd import Git
+import tempfile
+
 from git import Repo
+from git.cmd import Git
 from git.exc import GitCommandError
 
 '''Notes:
@@ -60,6 +60,10 @@ def pull(repo_dir):
     """
     g = Git(repo_dir)
     g.pull()
+    a = Repo(repo_dir)
+    for s in a.submodules:
+        s.update(recursive=True, init=True)
+
 
 
 class RepoUtil(object):

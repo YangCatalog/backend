@@ -25,6 +25,7 @@ number of yang files in yang-catalog...
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from utility.repoutil import pull
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -297,6 +298,7 @@ if __name__ == '__main__':
     config_email = config.get('General-Section', 'repo-config-email')
     move_to = config.get('Statistics-Section', 'file-location')
     is_uwsgi = config.get('General-Section', 'uwsgi')
+    yang_models = config.get('Directory-Section', 'yang_models_dir')
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger('statistics', log_directory + '/statistics/yang.log')
     separator = ':'
@@ -306,23 +308,22 @@ if __name__ == '__main__':
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip,
                                                    separator, suffix)
-    LOGGER.info('Cloning the repo')
-    repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
+    LOGGER.info('Starting statistics')
+    repo = None
     try:
-        repo.clone(config_name, config_email)
-        repo.updateSubmodule()
+        pull(yang_models)
 
         xr = set()
         nx = set()
         xe = set()
 
-        solve_platforms(repo.localdir + '/vendor/cisco/xr', xr)
-        solve_platforms(repo.localdir + '/vendor/cisco/xe', xe)
-        solve_platforms(repo.localdir + '/vendor/cisco/nx', nx)
+        solve_platforms(yang_models + '/vendor/cisco/xr', xr)
+        solve_platforms(yang_models + '/vendor/cisco/xe', xe)
+        solve_platforms(yang_models + '/vendor/cisco/nx', nx)
 
-        xr_versions = sorted(next(os.walk(repo.localdir + '/vendor/cisco/xr'))[1])
-        nx_versions = sorted(next(os.walk(repo.localdir + '/vendor/cisco/nx'))[1])
-        xe_versions = sorted(next(os.walk(repo.localdir + '/vendor/cisco/xe'))[1])
+        xr_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/xr'))[1])
+        nx_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/nx'))[1])
+        xe_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/xe'))[1])
         xr_values = []
         nx_values = []
         xe_values = []
@@ -330,7 +331,7 @@ if __name__ == '__main__':
         for version in xr_versions:
             j = None
             try:
-                with open(repo.localdir + '/vendor/cisco/xr/' + version + '/platform-metadata.json', 'r') as f:
+                with open(yang_models + '/vendor/cisco/xr/' + version + '/platform-metadata.json', 'r') as f:
                     j = json.load(f)
                     j = j['platforms']['platform']
             except:
@@ -356,7 +357,7 @@ if __name__ == '__main__':
         for version in xe_versions:
             j = None
             try:
-                with open(repo.localdir + '/vendor/cisco/xe/' + version + '/platform-metadata.json', 'r') as f:
+                with open(yang_models + '/vendor/cisco/xe/' + version + '/platform-metadata.json', 'r') as f:
                     j = json.load(f)
                     j = j['platforms']['platform']
             except:
@@ -377,7 +378,7 @@ if __name__ == '__main__':
         for version in nx_versions:
             j = None
             try:
-                with open(repo.localdir + '/vendor/cisco/nx/' + version + '/platform-metadata.json', 'r') as f:
+                with open(yang_models + '/vendor/cisco/nx/' + version + '/platform-metadata.json', 'r') as f:
                     j = json.load(f)
                     j = j['platforms']['platform']
             except:
@@ -417,122 +418,121 @@ if __name__ == '__main__':
         vendor_list = []
 
         process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', repo.localdir + '/vendor/cisco',
+            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/cisco',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, vendor_list, repo.localdir + '/vendor/cisco', 'cisco')
+        process_data(out, vendor_list, yang_models + '/vendor/cisco', 'cisco')
 
         process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', repo.localdir + '/vendor/ciena',
+            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/ciena',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, vendor_list, repo.localdir + '/vendor/ciena', 'ciena')
+        process_data(out, vendor_list, yang_models + '/vendor/ciena', 'ciena')
 
         process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', repo.localdir + '/vendor/juniper',
+            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/juniper',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, vendor_list, repo.localdir + '/vendor/juniper', 'juniper')
+        process_data(out, vendor_list, yang_models + '/vendor/juniper', 'juniper')
 
         process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', repo.localdir + '/vendor/huawei',
+            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/huawei',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, vendor_list, repo.localdir + '/vendor/huawei', 'huawei')
+        process_data(out, vendor_list, yang_models + '/vendor/huawei', 'huawei')
 
         # Vendors all together
         process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', repo.localdir + '/vendor',
+            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
         out = out.decode('utf-8')
-        vendor_modules = out.split(repo.localdir + '/vendor : ')[1].split('\n')[0]
-        vendor_modules_ndp = out.split(repo.localdir + '/vendor (duplicates removed): ')[1].split('\n')[0]
+        vendor_modules = out.split(yang_models + '/vendor : ')[1].split('\n')[0]
+        vendor_modules_ndp = out.split(yang_models + '/vendor (duplicates removed): ')[1].split('\n')[0]
 
         # Standard all together
         process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', repo.localdir + '/standard',
+            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/standard',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
         out = out.decode('utf-8')
-        standard_modules = out.split(repo.localdir + '/standard : ')[1].split('\n')[0]
-        standard_modules_ndp = out.split(repo.localdir + '/standard (duplicates removed): ')[1].split('\n')[0]
+        standard_modules = out.split(yang_models + '/standard : ')[1].split('\n')[0]
+        standard_modules_ndp = out.split(yang_models + '/standard (duplicates removed): ')[1].split('\n')[0]
 
         # Standard separately
         sdo_list = []
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/ietf/RFC', '--removedup', 'True'],
+                                    yang_models + '/standard/ietf/RFC', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/ietf/RFC', 'IETF RFCs')
+        process_data(out, sdo_list, yang_models + '/standard/ietf/RFC', 'IETF RFCs')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/ietf/DRAFT', '--removedup', 'True'],
+                                    yang_models + '/standard/ietf/DRAFT', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/ietf/DRAFT', 'IETF drafts')
+        process_data(out, sdo_list, yang_models + '/standard/ietf/DRAFT', 'IETF drafts')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/experimental/ietf-extracted-YANG-modules', '--removedup', 'True'],
+                                    yang_models + '/experimental/ietf-extracted-YANG-modules', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/experimental/ietf-extracted-YANG-modules',
+        process_data(out, sdo_list, yang_models + '/experimental/ietf-extracted-YANG-modules',
                      'IETF experimental drafts')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/bbf/standard', '--removedup', 'True'],
+                                    yang_models + '/standard/bbf/standard', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/bbf/standard', 'BBF standard')
+        process_data(out, sdo_list, yang_models + '/standard/bbf/standard', 'BBF standard')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/bbf/draft', '--removedup', 'True'],
+                                    yang_models + '/standard/bbf/draft', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/bbf/draft', 'BBF draft')
+        process_data(out, sdo_list, yang_models + '/standard/bbf/draft', 'BBF draft')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/ieee/802.1', '--removedup', 'True'],
+                                    yang_models + '/standard/ieee/802.1', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/ieee/802.1', 'IEEE 802.1 with par')
+        process_data(out, sdo_list, yang_models + '/standard/ieee/802.1', 'IEEE 802.1 with par')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/experimental/ieee/802.1', '--removedup', 'True'],
+                                    yang_models + '/experimental/ieee/802.1', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/experimental/ieee/802.1', 'IEEE 802.1 no par')
+        process_data(out, sdo_list, yang_models + '/experimental/ieee/802.1', 'IEEE 802.1 no par')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/ieee/802.3', '--removedup', 'True'],
+                                    yang_models + '/standard/ieee/802.3', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/ieee/802.3', 'IEEE 802.3 with par')
+        process_data(out, sdo_list, yang_models + '/standard/ieee/802.3', 'IEEE 802.3 with par')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/experimental/ieee/802.3', '--removedup', 'True'],
+                                    yang_models + '/experimental/ieee/802.3', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/experimental/ieee/802.3', 'IEEE 802.3 no par')
+        process_data(out, sdo_list, yang_models + '/experimental/ieee/802.3', 'IEEE 802.3 no par')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/ieee/draft', '--removedup', 'True'],
+                                    yang_models + '/standard/ieee/draft', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/ieee/draft', 'IEEE draft with par')
+        process_data(out, sdo_list, yang_models + '/standard/ieee/draft', 'IEEE draft with par')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/mef/src/model/standard', '--removedup', 'True'],
+                                    yang_models + '/standard/mef/src/model/standard', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/mef/src/model/standard', 'MEF standard')
+        process_data(out, sdo_list, yang_models + '/standard/mef/src/model/standard', 'MEF standard')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/standard/mef/src/model/draft', '--removedup', 'True'],
+                                    yang_models + '/standard/mef/src/model/draft', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/standard/mef/src/model/draft', 'MEF draft')
-        repo.remove()
+        process_data(out, sdo_list, yang_models + '/standard/mef/src/model/draft', 'MEF draft')
 
         # Openconfig is from different repo that s why we need models in github zero
         LOGGER.info('Cloning the repo')
@@ -576,5 +576,6 @@ if __name__ == '__main__':
         strin = '{} final time'.format(total_time)
         LOGGER.info(strin)
     except Exception as e:
-        repo.remove()
+        if repo is not None:
+            repo.remove()
         raise Exception(e)
