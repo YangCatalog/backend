@@ -109,7 +109,7 @@ class MyFlask(Flask):
         self.confdPort = int(config.get('General-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol')
         self.save_requests = config.get('API-Section', 'save-requests')
-        self.save_file_dir = config.get('Directory-Section', 'backup')
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.token = config.get('API-Section', 'yang-catalog-token')
         self.admin_token = config.get('API-Section', 'admin-token')
         self.commit_msg_file = config.get('API-Section', 'commit-dir')
@@ -1370,7 +1370,7 @@ def search_recursive(output, module, leaf, resolved):
 
 @application.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
 def create_tree(f1, r1):
-    path_to_yang = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
+    path_to_yang = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', path_to_yang]
     pyang = subprocess.Popen(arguments,
                              stdout=subprocess.PIPE,
@@ -1386,7 +1386,7 @@ def create_tree(f1, r1):
 
 @application.route('/services/reference/<f1>@<r1>.yang', methods=['GET'])
 def create_reference(f1, r1):
-    schema1 = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
+    schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     arguments = ['cat', schema1]
     pyang = subprocess.Popen(arguments,
                              stdout=subprocess.PIPE,
@@ -1430,8 +1430,8 @@ def create_update_from(f1, r1, f2, r2):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
-    schema2 = '{}{}@{}.yang'.format(application.save_file_dir, f2, r2)
+    schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
+    schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
     arguments = ['pyang', '-p',
                  application.yang_models,
                  schema1, '--check-update-from',
@@ -1452,22 +1452,22 @@ def create_diff_file(f1, r1, f2, r2):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
-    schema2 = '{}{}@{}.yang'.format(application.save_file_dir, f2, r2)
+    schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
+    schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
 
     arguments = ['cat', schema1]
     cat = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
     stdout, stderr = cat.communicate()
     file_name1 = 'schema1.txt'
-    with open('{}{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
+    with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     arguments = ['cat', schema2]
     cat = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
     stdout, stderr = cat.communicate()
     file_name2 = 'schema2.txt'
-    with open('{}{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
+    with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(application.my_uri, file_name2)
@@ -1487,8 +1487,8 @@ def create_diff_tree(f1, r1, f2, r2):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}{}@{}.yang'.format(application.save_file_dir, f1, r1)
-    schema2 = '{}{}@{}.yang'.format(application.save_file_dir, f2, r2)
+    schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
+    schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
 
     arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', schema1]
     pyang = subprocess.Popen(arguments,
@@ -1496,7 +1496,7 @@ def create_diff_tree(f1, r1, f2, r2):
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
     file_name1 = 'schema1.txt'
-    with open('{}{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
+    with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', schema2]
     pyang = subprocess.Popen(arguments,
@@ -1504,7 +1504,7 @@ def create_diff_tree(f1, r1, f2, r2):
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
     file_name2 = 'schema2.txt'
-    with open('{}{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
+    with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(application.my_uri, file_name2)

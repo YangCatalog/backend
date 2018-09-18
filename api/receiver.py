@@ -88,14 +88,14 @@ def process_sdo(arguments):
             return __response_type[0] + '#split#Server error while parsing or populating data'
 
     try:
-        os.makedirs(get_curr_dir(__file__) + '/../../api/sdo/')
+        os.makedirs(get_curr_dir(__file__) + '/../api/sdo/')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return __response_type[0] + '#split#Server error - could not create directory'
 
     if tree_created:
-        subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../../api/sdo/"])
+        subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../api/sdo/"])
         with open('../parseAndPopulate/' + direc + '/prepare.json',
                   'r') as f:
             global all_modules
@@ -151,7 +151,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
         for mod in modules_to_index:
             name, revision_organization = mod.split('@')
             revision, organization = revision_organization.split('/')
-            path_to_delete_local = "{}{}@{}.yang".format(save_file_dir, name,
+            path_to_delete_local = "{}/{}@{}.yang".format(save_file_dir, name,
                                                          revision)
             data = {'input': {'dependents': [{'name': name}]}}
 
@@ -196,7 +196,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                 if force_indexing or (code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
                         path = prefix + module['schema'].split('githubusercontent.com/')[1]
-                        path = os.path.abspath(get_curr_dir(__file__) + '/../../' + path)
+                        path = os.path.abspath(get_curr_dir(__file__) + '/../' + path)
                     else:
                         path = 'module does not exist'
                     post_body[module['name'] + '@' + module['revision'] + '/' + module['organization']] = path
@@ -217,7 +217,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                             code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
                         path = module['schema'].split('master')[1]
-                        path = os.path.abspath(get_curr_dir(__file__) + '/../../' + path)
+                        path = os.path.abspath(yang_models + '/' + path)
                     else:
                         path = 'module does not exist'
                     post_body[module['name'] + '@' + module['revision'] + '/' + module['organization']] = path
@@ -295,14 +295,14 @@ def process_vendor(arguments):
             LOGGER.error('Server error: {}'.format(e))
             return __response_type[0] + '#split#Server error while parsing or populating data'
     try:
-        os.makedirs(get_curr_dir(__file__) + '/../../api/vendor/')
+        os.makedirs(get_curr_dir(__file__) + '/../api/vendor/')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             LOGGER.error('Server error: {}'.format(e))
             return __response_type[0] + '#split#Server error - could not create directory'
 
-    subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../../api/vendor/"])
+    subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../api/vendor/"])
 
     if tree_created:
         with open('../parseAndPopulate/' + direc + '/prepare.json',
@@ -602,9 +602,10 @@ def on_request(ch, method, props, body):
                 final_response = make_cache(credentials, final_response)
 
                 if all_modules:
-                    complicatedAlgorithms = ModulesComplicatedAlgorithms(yangcatalog_api_prefix, credentials,
-                                                                         confd_protocol, confd_ip, confdPort,
-                                                                         save_file_dir, None, all_modules)
+                    complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                                         credentials, confd_protocol, confd_ip,
+                                                                         confdPort, save_file_dir, None, all_modules,
+                                                                         yang_models)
                     complicatedAlgorithms.parse()
                     complicatedAlgorithms.populate()
     except Exception as e:
@@ -631,10 +632,10 @@ def on_request(ch, method, props, body):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='../utility/config.ini',
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
     args = parser.parse_args()
-    config_path = os.path.abspath('.') + '/' + args.config_path
+    config_path = args.config_path
     config = ConfigParser.ConfigParser()
     config.read(config_path)
     global confd_ip
@@ -658,7 +659,9 @@ if __name__ == '__main__':
     global result_dir
     result_dir = config.get('Receiver-Section', 'result-html-dir')
     global save_file_dir
-    save_file_dir = config.get('Directory-Section', 'backup')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir')
+    global yang_models
+    yang_models = config.get('Directory-Section', 'yang_models_dir')
     global is_uwsgi
     is_uwsgi = config.get('General-Section', 'uwsgi')
     log_directory = config.get('Directory-Section', 'logs')

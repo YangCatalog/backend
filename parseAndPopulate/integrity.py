@@ -82,7 +82,7 @@ class Statistics:
             Statistics.useless_modules[key].remove(key + '/' + value)
 
     @staticmethod
-    def dumps(file):
+    def dumps(file, yang_models):
         file.write('<!DOCTYPE html><html><body> <ul>'
                    '<li>Generated on {}</li>'
                    '</ul><h1>Yangcatalog statistics</h1>'
@@ -117,11 +117,11 @@ class Statistics:
             for value in Statistics.missing_wrong_namespaces[key]:
                 file.write('<p>' + str(value) + '</p>')
         missing = []
-        my_files = find_missing_hello(get_curr_dir(__file__) + '/../../vendor/', '*.yang')
+        my_files = find_missing_hello(yang_models + '/vendor/', '*.yang')
         for name in set(my_files):
             if '.incompatible' not in name and 'MIBS' not in name:
                 missing.append(name)
-        missing = ', '.join(missing).replace(get_curr_dir(__file__) + '/../..', '')
+        missing = ', '.join(missing).replace(yang_models, '')
         file.write('<h3>Folders with yang files but missing hello message inside of file:</h3><p>' + missing + '</p>')
         file.write('</body></html>')
 

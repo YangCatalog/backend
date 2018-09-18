@@ -135,7 +135,7 @@ if __name__ == "__main__":
     result_html_dir = config.get('DraftPullLocal-Section', 'result-html-dir')
     protocol = config.get('General-Section', 'protocol-api')
     notify = config.get('DraftPullLocal-Section', 'notify-index')
-    save_file_dir = config.get('Directory-Section', 'backup')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
     token = config.get('DraftPull-Section', 'yang-catalog-token')
     username = config.get('DraftPull-Section', 'username')
