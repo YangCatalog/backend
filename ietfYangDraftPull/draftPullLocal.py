@@ -145,6 +145,7 @@ if __name__ == "__main__":
     ietf_models_url_suffix = config.get('General-Section', 'ietf-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
+    yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/jobs/draft-pull-local.log')
     LOGGER.info('Starting Cron job IETF pull request local')
 
