@@ -98,27 +98,26 @@ class MyFlask(Flask):
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        self.result_dir = config.get('API-Section', 'result-html-dir')
-        self.dbHost = config.get('API-Section', 'dbIp')
-        self.dbName = config.get('API-Section', 'dbName')
-        self.dbNameSearch = config.get('API-Section', 'dbNameSearch')
-        self.dbUser = config.get('API-Section', 'dbUser')
-        self.dbPass = config.get('API-Section', 'dbPassword')
+        self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.dbHost = config.get('DB-Section', 'host')
+        self.dbName = config.get('DB-Section', 'name-users')
+        self.dbNameSearch = config.get('DB-Section', 'name-search')
+        self.dbUser = config.get('DB-Section', 'user')
+        self.dbPass = config.get('DB-Section', 'password')
         self.credentials = config.get('General-Section', 'credentials').split(' ')
         self.confd_ip = config.get('General-Section', 'confd-ip')
         self.confdPort = int(config.get('General-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol')
-        self.save_requests = config.get('API-Section', 'save-requests')
+        self.save_requests = config.get('Directory-Section', 'save-requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.token = config.get('API-Section', 'yang-catalog-token')
         self.admin_token = config.get('API-Section', 'admin-token')
-        self.commit_msg_file = config.get('API-Section', 'commit-dir')
+        self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
         self.integrity_file_location = config.get('API-Section',
                                              'integrity-file-location')
-        self.diff_file_dir = config.get('API-Section', 'save-diff-dir')
+        self.diff_file_dir = config.get('Web-Section', 'save-diff-dir')
         self.ip = config.get('API-Section', 'ip')
         self.api_port = int(config.get('General-Section', 'api-port'))
-        self.log = open('api_log_file.txt', 'w')
         self.api_protocol = config.get('General-Section', 'protocol-api')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.config_name = config.get('General-Section', 'repo-config-name')
@@ -345,7 +344,7 @@ class MyFlask(Flask):
 
 
 application = MyFlask(__name__)
-monitor(application)
+# monitor(application)              # to monitor requests using prometheus
 lock_uwsgi_cache1 = Lock()
 lock_uwsgi_cache2 = Lock()
 lock_for_load = Lock()
@@ -372,7 +371,8 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True):
     """
     try:
         path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog?deep'
-        data = requests.get(path, auth=(credentials[0], credentials[1])).text
+        data = requests.get(path, auth=(credentials[0], credentials[1]),
+                            headers={'Accept': 'application/vnd.yang.data+json'}).text
 
         if is_uwsgi == 'True':
             chunks = int(math.ceil(len(data)/float(64000)))
