@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
     zfile = open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz', 'wb')
-    zfile.write(response.content)
+    zfile.write(response.text)
     zfile.close()
     tgz = tarfile.open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz')
     try:
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         yang_download_link = \
             ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
         try:
-            yang_raw = requests.get(yang_download_link).content
+            yang_raw = requests.get(yang_download_link).text
             yang_file.write(yang_raw)
         except:
             LOGGER.warning('{} - {}'.format(key, yang_download_link))

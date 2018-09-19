@@ -28,14 +28,13 @@ from email.mime.text import MIMEText
 
 from ciscosparkapi import CiscoSparkAPI
 
-import utility.log as lo
+import utility.log as log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
 
-LOGGER = lo.get_logger('Messaging', '/home/miroslav/log/messaging/yang.log')
 GREETINGS = 'Hello from yang-catalog'
 
 
@@ -54,10 +53,12 @@ class MessageFactory:
         def list_matching_rooms(a, title_match):
             return [r for r in a.rooms.list() if title_match in r.title]
 
-        LOGGER.info('Initialising Message')
-        config_path = os.getcwd() + '/' + config_path
         config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
+        log_directory = config.get('Directory-Section', 'logs')
+        LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
+        LOGGER.info('Initialising Message')
         token = config.get('Message-Section', 'access-token')
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')

@@ -20,10 +20,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import fnmatch
 import os
 
-import utility.log as lo
 from utility import yangParser
-
-LOGGER = lo.get_logger('util')
 
 
 def get_curr_dir(f):
@@ -31,7 +28,6 @@ def get_curr_dir(f):
 
             :return path to current directory
     """
-    LOGGER.debug('{}'.format(os.getcwd()))
     return os.getcwd()
 
 

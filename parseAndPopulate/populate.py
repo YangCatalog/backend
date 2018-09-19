@@ -49,12 +49,19 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-def run_complicated_algorithms():
-    complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, args.credentials,
-                                                         args.protocol, args.ip, args.port, args.save_file_dir,
-                                                         direc, None, yang_models)
-    complicatedAlgorithms.parse()
-    complicatedAlgorithms.populate()
+
+def reload_cache_in_parallel():
+    LOGGER.info('Sending request to reload cache in different thread')
+    url = (yangcatalog_api_prefix + 'load-cache')
+    response = requests.post(url, None,
+                             auth=(args.credentials[0],
+                                   args.credentials[1]),
+                             headers={
+                                 'Accept': 'application/vnd.yang.data+json',
+                                 'Content-type': 'application/vnd.yang.data+json'})
+    if response.status_code != 201:
+        LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
+                       .format(response.status_code, response.text))
 
 
 def find_files(directory, pattern):
@@ -109,7 +116,7 @@ if __name__ == "__main__":
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+    LOGGER = log.get_logger('populate', log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     separator = ':'
@@ -139,7 +146,7 @@ if __name__ == "__main__":
     LOGGER.info('Calling runcapabilities script')
     if args.api:
         if args.sdo:
-            with open("log_api_sdo.txt", "wr") as f:
+            with open("log_api_sdo.txt", "w") as f:
                 arguments = ["python", "../parseAndPopulate/runCapabilities.py",
                              "--api", "--sdo", "--dir", args.dir, "--json-dir",
                              direc, "--result-html-dir", args.result_html_dir,
@@ -148,7 +155,7 @@ if __name__ == "__main__":
                              '--api-protocol', args.api_protocol]
                 subprocess.check_call(arguments, stderr=f)
         else:
-            with open("log_api.txt", "wr") as f:
+            with open("log_api.txt", "w") as f:
                 arguments = ["python", "../parseAndPopulate/runCapabilities.py",
                              "--api", "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
@@ -158,7 +165,7 @@ if __name__ == "__main__":
                 subprocess.check_call(arguments, stderr=f)
     else:
         if args.sdo:
-            with open("log_sdo.txt", "wr") as f:
+            with open("log_sdo.txt", "w") as f:
                 arguments = ["python", "../parseAndPopulate/runCapabilities.py",
                              "--sdo", "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
@@ -167,7 +174,7 @@ if __name__ == "__main__":
                              '--api-protocol', args.api_protocol]
                 subprocess.check_call(arguments, stderr=f)
         else:
-            with open("log_no_sdo_api.txt", "wr") as f:
+            with open("log_no_sdo_api.txt", "w") as f:
                 arguments = ["python", "../parseAndPopulate/runCapabilities.py",
                              "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
@@ -179,10 +186,10 @@ if __name__ == "__main__":
     body_to_send = ''
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        prepare_to_indexing(yangcatalog_api_prefix,
-                         '../parseAndPopulate/{}/prepare.json'.format(direc),
-                            args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
-                            from_api=args.api, force_indexing=args.force_indexing)
+        body_to_send = prepare_to_indexing(yangcatalog_api_prefix,
+                                           '../parseAndPopulate/{}/prepare.json'.format(direc),
+                                           args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
+                                           from_api=args.api, force_indexing=args.force_indexing)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open('../parseAndPopulate/{}/prepare.json'.format(direc)) as data_file:
@@ -208,12 +215,12 @@ if __name__ == "__main__":
                 if response.status_code < 200 or response.status_code > 299:
                     LOGGER.error('Request with body {} on path {} failed with {}'
                                  .format(json_modules_data, url,
-                                        response.content))
-    rest = (len(modules_json) / 1000) * 1000
+                                        response.text))
+    rest = (int(len(modules_json) / 1000)) * 1000
     json_modules_data = json.dumps({
         'modules':
             {
-                'module': modules_json[rest: rest + mod]
+                'module': modules_json[int(rest): int(rest + mod)]
             }
     })
     url = prefix + '/api/config/catalog/modules/'
@@ -226,7 +233,7 @@ if __name__ == "__main__":
     if response.status_code < 200 or response.status_code > 299:
         LOGGER.error('Request with body {} on path {} failed with {}'
                      .format(json_modules_data, url,
-                             response.content))
+                             response.text))
 
     # In each json
     LOGGER.info('Starting to add vendors')
@@ -254,8 +261,8 @@ if __name__ == "__main__":
                 if response.status_code < 200 or response.status_code > 299:
                     LOGGER.error('Request with body on path {} failed with {}'.
                                  format(json_implementations_data, url,
-                                        response.content))
-            rest = (len(vendors) / 1000) * 1000
+                                        response.text))
+            rest = (int(len(vendors) / 1000)) * 1000
             json_implementations_data = json.dumps({
                 'vendors':
                     {
@@ -272,27 +279,26 @@ if __name__ == "__main__":
             if response.status_code < 200 or response.status_code > 299:
                 LOGGER.error('Request with body on path {} failed with {}'
                              .format(json_implementations_data, url,
-                                     response.content))
+                                     response.text))
     if body_to_send != '':
         LOGGER.info('Sending files for indexing')
         send_to_indexing(body_to_send, args.credentails, set_key=key, apiIp=args.api_ip)
     if not args.api:
         thread = None
         if not args.force_indexing:
-            LOGGER.info('Sending request to reload cache')
-            url = (yangcatalog_api_prefix + 'load-cache')
-            response = requests.post(url, None,
-                                     auth=(args.credentials[0],
-                                            args.credentials[1]),
-                                     headers={
-                                         'Accept': 'application/vnd.yang.data+json',
-                                         'Content-type': 'application/vnd.yang.data+json'})
-            if response.status_code != 201:
-                LOGGER.warning('Could not send a load-cache request')
-
-            thread = threading.Thread(target=run_complicated_algorithms())
+            thread = threading.Thread(target=reload_cache_in_parallel)
             thread.start()
-
+            LOGGER.info('Run complicated algorithms')
+            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                                 args.credentials,
+                                                                 args.protocol, 'yangcatalog.org', args.port, args.save_file_dir,
+                                                                 direc, None, yang_models)
+            complicatedAlgorithms.parse_non_requests()
+            LOGGER.info('Waiting for cache reload to finish')
+            thread.join()
+            complicatedAlgorithms.parse_requests()
+            LOGGER.info('Populating with new data of complicated algorithms')
+            complicatedAlgorithms.populate()
         else:
             url = (yangcatalog_api_prefix + 'load-cache')
             LOGGER.info('{}'.format(url))
@@ -301,8 +307,7 @@ if __name__ == "__main__":
                                            args.credentials[1]))
             if response.status_code != 201:
                 LOGGER.warning('Could not send a load-cache request')
-        if thread is not None:
-            thread.join()
+
         try:
             shutil.rmtree('../parseAndPopulate/' + direc)
         except OSError:

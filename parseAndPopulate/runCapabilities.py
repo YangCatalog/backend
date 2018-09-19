@@ -102,7 +102,7 @@ if __name__ == "__main__":
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
+    LOGGER = log.get_logger('runCapabilities', log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     private_dir = config.get('Web-Section', 'private_directory')
     yang_models = config.get('Directory-Section', 'yang_models_dir')

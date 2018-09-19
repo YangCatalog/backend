@@ -640,12 +640,12 @@ def check_local():
                     })
                     response = requests.post(url, data, headers={'Authorization': 'token ' + application.admin_token})
                     application.LOGGER.info('review response code {}. Merge response {}.'.format(
-                            response.status_code, response.content))
+                            response.status_code, response.text))
                     data = json.dumps({'commit-title': 'Travis job passed',
                                        'sha': body['head_commit']})
                     response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/' + repr(pull_number) +
                                  '/merge', data, headers={'Authorization': 'token ' + application.admin_token})
-                    application.LOGGER.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.content))
+                    application.LOGGER.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.text))
                     requests.delete('https://api.github.com/repos/yang-catalog/yang',
                                     headers={'Authorization': 'token ' + application.token})
                     return make_response(jsonify({'info': 'Success'}), 201)
@@ -911,7 +911,7 @@ def add_modules():
                                                              'Accept': 'application/vnd.yang.data+json'})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        return create_response(response.content, response.status_code, response.headers.items())
+        return create_response(response.text, response.status_code, response.headers.items())
     repo = {}
     warning = []
 
@@ -1057,7 +1057,7 @@ def add_vendors():
                                                              'Accept': 'application/vnd.yang.data+json'})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        return create_response(response.content, response.status_code, response.headers.items())
+        return create_response(response.text, response.status_code, response.headers.items())
 
     repo = {}
 
@@ -1376,6 +1376,9 @@ def create_tree(f1, r1):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
+    if sys.version_info >= (3, 4):
+        stdout = stdout.decode(encoding='utf-8', errors='strict')
+        stderr = stderr.decode(encoding='utf-8', errors='strict')
     if stdout == '' and stderr != '':
         return create_bootstrap_danger()
     elif stdout != '' and stderr != '':
@@ -1392,6 +1395,9 @@ def create_reference(f1, r1):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
+    if sys.version_info >= (3, 4):
+        stdout = stdout.decode(encoding='utf-8', errors='strict')
+        stderr = stderr.decode(encoding='utf-8', errors='strict')
     if stdout == '' and stderr != '':
         return create_bootstrap_danger()
     elif stdout != '' and stderr != '':
@@ -1440,6 +1446,8 @@ def create_update_from(f1, r1, f2, r2):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
+    if sys.version_info >= (3, 4):
+        stderr = stderr.decode(encoding='utf-8', errors='strict')
     return '<html><body><pre>{}</pre></body></html>'.format(stderr)
 
 
@@ -1459,6 +1467,8 @@ def create_diff_file(f1, r1, f2, r2):
     cat = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
     stdout, stderr = cat.communicate()
+    if sys.version_info >= (3, 4):
+        stdout = stdout.decode(encoding='utf-8', errors='strict')
     file_name1 = 'schema1.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
@@ -1466,6 +1476,8 @@ def create_diff_file(f1, r1, f2, r2):
     cat = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                            stderr=subprocess.PIPE)
     stdout, stderr = cat.communicate()
+    if sys.version_info >= (3, 4):
+        stdout = stdout.decode(encoding='utf-8', errors='strict')
     file_name2 = 'schema2.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
@@ -1476,7 +1488,7 @@ def create_diff_file(f1, r1, f2, r2):
     response = requests.get(diff_url)
     os.remove(application.diff_file_dir + '/' + file_name1)
     os.remove(application.diff_file_dir + '/' + file_name2)
-    return '<html><body>{}</body></html>'.format(response.content)
+    return '<html><body>{}</body></html>'.format(response.text)
 
 
 @application.route('/services/diff-tree/file1=<f1>@<r1>/file2=<f2>@<r2>', methods=['GET'])
@@ -1495,6 +1507,8 @@ def create_diff_tree(f1, r1, f2, r2):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
+    if sys.version_info >= (3, 4):
+        stdout = stdout.decode(encoding='utf-8', errors='strict')
     file_name1 = 'schema1.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
@@ -1503,6 +1517,8 @@ def create_diff_tree(f1, r1, f2, r2):
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
     stdout, stderr = pyang.communicate()
+    if sys.version_info >= (3, 4):
+        stdout = stdout.decode(encoding='utf-8', errors='strict')
     file_name2 = 'schema2.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
@@ -1513,7 +1529,7 @@ def create_diff_tree(f1, r1, f2, r2):
     response = requests.get(diff_url)
     os.remove(application.diff_file_dir + '/' + file_name1)
     os.remove(application.diff_file_dir + '/' + file_name2)
-    return '<html><body>{}</body></html>'.format(response.content)
+    return '<html><body>{}</body></html>'.format(response.text)
 
 
 @application.route('/get-common', methods=['POST'])
@@ -2045,7 +2061,7 @@ def search_vendors(value):
                         headers={'Accept': 'application/vnd.yang.data+json'})
     if data.status_code == 200 or data.status_code == 204:
         data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-            .decode(data.content)
+            .decode(data.text)
         return Response(json.dumps(data), mimetype='application/json')
     else:
         return not_found()

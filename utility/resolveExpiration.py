@@ -17,6 +17,7 @@ expired if it is necessary
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -30,8 +31,10 @@ import requests
 
 import utility.log as log
 
-LOGGER = log.get_logger('ResolveExpiration')
-
+if sys.version_info >= (3, 4):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
 
 def __resolve_expiration(reference, module, args):
     """Walks through all the modules and updates them if necessary
@@ -48,7 +51,7 @@ def __resolve_expiration(reference, module, args):
                + ref + '/?format=json')
         response = requests.get(url)
         if response.status_code == 200:
-            data = json.loads(response.content)
+            data = response.json()
             if '/api/v1/doc/state/2/' in data['states']:
                 expired = module.get('expired')
                 if expired is None or not expired:
@@ -94,7 +97,7 @@ def __resolve_expiration(reference, module, args):
                                   )
         LOGGER.info('Updating module {}@{} with confd response {} - {}'
                     .format(module['name'], module['revision'],
-                            repr(response.status_code), response.content))
+                            repr(response.status_code), response.text))
 
 
 if __name__ == '__main__':
@@ -108,12 +111,20 @@ if __name__ == '__main__':
                              ' Default is set to http')
     parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
                         help='Set ip address where the api is started. Default -> yangcatalog.org')
-
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                        help='Set path to config file')
     args = parser.parse_args()
+    config_path = args.config_path
+    config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
+    config.read(config_path)
+    log_directory = config.get('Directory-Section', 'logs')
+    LOGGER = log.get_logger('populate', log_directory + '/parseAndPopulate.log')
+
     modules = requests.get('{}://{}/api/search/modules'.format(args.api_protocol,
                                                               args.api_ip),
                            auth=(args.credentials[0], args.credentials[1]))
-    modules = json.loads(modules.content)['module']
+    modules = modules.json()['module']
     for mod in modules:
         ref = mod.get('reference')
         __resolve_expiration(ref, mod, args)

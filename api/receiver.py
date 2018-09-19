@@ -159,7 +159,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                                      auth=(credentials[0], credentials[1]),
                                      json={'input': data})
             if response.status_code == 201:
-                modules = json.loads(response.content)
+                modules = response.json()
                 for mod in modules:
                     m_name = mod['name']
                     m_rev = mod['revision']
@@ -393,7 +393,7 @@ def process_vendor_deletion(arguments):
 
                 if response.status_code != 204:
                     LOGGER.error('Couldn\'t delete implementation of module on path {} because of error: {}'
-                                 .format(path + '/implementations/implementation/' + imp_key, response.content))
+                                 .format(path + '/implementations/implementation/' + imp_key, response.text))
                     continue
                 count_deleted += 1
 
@@ -405,7 +405,7 @@ def process_vendor_deletion(arguments):
                     to_add = '{}@{}/{}'.format(name, revision, organization)
                     modules_that_succeeded.append(to_add)
                     if response.status_code != 204:
-                        LOGGER.error('Could not delete module on path {} because of error: {}'.format(path, response.content))
+                        LOGGER.error('Could not delete module on path {} because of error: {}'.format(path, response.text))
                         continue
         except:
             LOGGER.error('Yang file {} doesn\'t exist although it should exist'.format(mod))
@@ -493,8 +493,8 @@ def process_module_deletion(arguments, multiple=False):
         response = requests.delete(path, auth=(credentials[0], credentials[1]))
         if response.status_code != 204:
             LOGGER.error('Couldn\'t delete module on path {}. Error : {}'
-                         .format(path, response.content))
-            return __response_type[0] + '#split#' + response.content
+                         .format(path, response.text))
+            return __response_type[0] + '#split#' + response.text
         name, revision, organization = path.split('/')[-1].split(',')
         modules_to_index.append('{}@{}/{}'.format(name, revision, organization))
     if notify_indexing:
@@ -637,6 +637,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     global confd_ip
     confd_ip = config.get('General-Section', 'confd-ip')
