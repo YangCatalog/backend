@@ -313,4 +313,3 @@ if __name__ == "__main__":
         except OSError:
             # Be happy if deleted
             pass
-

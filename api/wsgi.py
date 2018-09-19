@@ -20,4 +20,4 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-from api.api import application
+from api.yangCatalogApi import application
