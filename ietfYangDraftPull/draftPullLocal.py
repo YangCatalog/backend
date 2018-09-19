@@ -167,7 +167,7 @@ if __name__ == "__main__":
                                    , auth=(private_credentials[0], private_credentials[1])).json()
     response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
     zfile = open(repo.localdir + '/rfc.tgz', 'wb')
-    zfile.write(response.content)
+    zfile.write(response.text)
     zfile.close()
     tgz = tarfile.open(repo.localdir + '/rfc.tgz')
     tgz.extractall(repo.localdir + '/standard/ietf/RFC')

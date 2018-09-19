@@ -16,6 +16,7 @@ users and correlation ids.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -32,7 +33,10 @@ import time
 import utility.log as lo
 from utility import messageFactory
 
-LOGGER = lo.get_logger('removeUnused')
+if sys.version_info >= (3, 4):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -48,7 +52,15 @@ if __name__ == '__main__':
     parser.add_argument('--logs-path', type=str,
                         default='.',
                         help='Set path to config file')
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                        help='Set path to config file')
     args = parser.parse_args()
+    config_path = args.config_path
+    config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
+    config.read(config_path)
+    log_directory = config.get('Directory-Section', 'logs')
+    LOGGER = lo.get_logger('populate', log_directory + '/parseAndPopulate.log')
     mf = messageFactory.MessageFactory()
     LOGGER.info('Removing unused files')
     to_remove = []
@@ -104,3 +116,4 @@ if __name__ == '__main__':
             diff = datetime.datetime.now() - t
             if diff.days == 0:
                 f.write(line)
+    LOGGER.info('Finished with script removeUnused.py')

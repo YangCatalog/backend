@@ -17,30 +17,14 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import MySQLdb
-import MySQLdb.cursors
 import json
 import re
-import utility.log as lo
 
-LOGGER = lo.get_logger('sql')
-# DBF = '/var/yang/yang.db'
+import MySQLdb
+import MySQLdb.cursors
 
 conn = None
-
-# you must create a Cursor object. It will let
-#  you execute all the queries you need
-
 cur = None
-
-# Use all the SQL you like
-# cur.execute("SELECT * FROM YOUR_TABLE_NAME")
-
-# print all the first cell of all the rows
-# for row in cur.fetchall():
-#     print(row[0])
-
-# db.close()
 
 
 def __mysql_regexp(pattern, buf, modifiers=re.I | re.S):

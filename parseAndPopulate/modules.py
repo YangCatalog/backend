@@ -104,7 +104,7 @@ class Modules:
                  is_vendor=False, is_yang_lib=False, data=None,
                  is_vendor_imp_inc=False, run_integrity=False):
         global LOGGER
-        LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger('modules', log_directory + '/parseAndPopulate.log')
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir
         self.__missing_submodules = []
@@ -261,7 +261,7 @@ class Modules:
                    + ref + '/?format=json')
             response = requests.get(url)
             if response.status_code == 200:
-                data = json.loads(response.content)
+                data = response.json()
                 if '/api/v1/doc/state/2/' in data['states']:
                     self.expired = True
                 self.expiration_date = data['expires']

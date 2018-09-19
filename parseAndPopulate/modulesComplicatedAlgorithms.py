@@ -19,6 +19,7 @@ into the database and these metadata will get there later.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -32,7 +33,7 @@ from datetime import datetime
 import requests
 
 from utility import log
-from utility.util import get_curr_dir, find_first_file
+from utility.util import find_first_file
 
 
 class ModulesComplicatedAlgorithms:
@@ -40,7 +41,7 @@ class ModulesComplicatedAlgorithms:
     def __init__(self, log_directory, yangcatalog_api_prefix, credentials, protocol, ip, port,
                  save_file_dir, direc, all_modules, yang_models_dir):
         global LOGGER
-        LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
+        LOGGER = log.get_logger('modulesComplicatedAlgorithms', log_directory + '/parseAndPopulate.log')
         if all_modules is None:
             with open('../parseAndPopulate/' + direc + '/prepare.json', 'r') as f:
                 self.__all_modules = json.load(f)
@@ -57,9 +58,11 @@ class ModulesComplicatedAlgorithms:
         self.__prefix = '{}://{}:{}'.format(protocol, ip, port)
         self.__yang_models = yang_models_dir
 
-    def parse(self):
+    def parse_non_requests(self):
         LOGGER.info("parsing tree types")
         self.__resolve_tree_type()
+
+    def parse_requests(self):
         LOGGER.info("parsing semantic version")
         self.__parse_semver()
         LOGGER.info("parsing dependents")
@@ -80,7 +83,7 @@ class ModulesComplicatedAlgorithms:
                 if response.status_code < 200 or response.status_code > 299:
                     LOGGER.error('Request with body on path {} failed with {}'.
                                  format(json_modules_data, url,
-                                        response.content))
+                                        response.text))
         rest = (len(self.__new_modules) / 250) * 250
         json_modules_data = json.dumps(
             {'modules': {'module': self.__new_modules[rest: rest + mod]}})
@@ -95,7 +98,7 @@ class ModulesComplicatedAlgorithms:
             if response.status_code < 200 or response.status_code > 299:
                 LOGGER.error('Request with body on path {} failed with {}'.
                              format(json_modules_data, url,
-                                    response.content))
+                                    response.text))
         url = (self.__yangcatalog_api_prefix + 'load-cache')
         LOGGER.info('{}'.format(url))
         response = requests.post(url, None,
@@ -219,6 +222,9 @@ class ModulesComplicatedAlgorithms:
                     pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                              stderr=subprocess.PIPE)
                     stdout, stderr = pyang.communicate()
+                    if sys.version_info >= (3, 4):
+                        stdout = stdout.decode(encoding='utf-8', errors='strict')
+                        stderr = stderr.decode(encoding='utf-8', errors='strict')
                     pyang_list_of_rows = stdout.split('\n')[1:]
                     if 'error' in stderr and 'is not found' in stderr:
                         return False
@@ -312,6 +318,9 @@ class ModulesComplicatedAlgorithms:
             arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree", self.__path]
             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
             stdout, stderr = pyang.communicate()
+            if sys.version_info >= (3, 4):
+                stderr = stderr.decode(encoding='utf-8', errors='strict')
+                stdout = stdout.decode(encoding='utf-8', errors='strict')
             if 'error' in stderr and 'is not found' in stderr:
                 LOGGER.debug(
                     'Could not use pyang to generate tree because of error {} on module {}'.
@@ -347,7 +356,7 @@ class ModulesComplicatedAlgorithms:
                 module['derived-semantic-version'] = '1.0.0'
                 self.__new_modules.append(module)
             else:
-                data = json.loads(response.content)
+                data = response.json()
                 rev = module['revision'].split('-')
                 try:
                     date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
@@ -423,6 +432,8 @@ class ModulesComplicatedAlgorithms:
                         pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                  stderr=subprocess.PIPE)
                         stdout, stderr = pyang.communicate()
+                        if sys.version_info >= (3, 4):
+                            stderr = stderr.decode(encoding='utf-8', errors='strict')
                         if stderr == '':
                             arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree",
                                          schema1]
@@ -434,6 +445,9 @@ class ModulesComplicatedAlgorithms:
                             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                      stderr=subprocess.PIPE)
                             stdout2, stderr = pyang.communicate()
+                            if sys.version_info >= (3, 4):
+                                stdout = stdout.decode(encoding='utf-8', errors='strict')
+                                stdout2 = stdout2.decode(encoding='utf-8', errors='strict')
                             if stdout == stdout2:
                                 versions = modules[-2]['semver'].split('.')
                                 ver = int(versions[2])
@@ -474,7 +488,7 @@ class ModulesComplicatedAlgorithms:
                         '{}://{}:{}/api/config/catalog/modules/module/{},{},{}'.format(self.__protocol, self.__ip, self.__port,
                                                                                        mod['name'], mod['revision'], mod['organization']),
                         auth=(self.__credentials[0], self.__credentials[1]), headers={'Accept': 'application/vnd.yang.data+json'})
-                    response = json.loads(response.content)['yang-catalog:module']
+                    response = response.json()['yang-catalog:module']
                     response['derived-semantic-version'] = '1.0.0'
                     self.__new_modules.append(response)
 
@@ -496,8 +510,7 @@ class ModulesComplicatedAlgorithms:
                                     mod['organization']),
                                 auth=(self.__credentials[0], self.__credentials[1]), headers={
                                     'Accept': 'application/vnd.yang.data+json'})
-                            response = json.loads(response.content)[
-                                'yang-catalog:module']
+                            response = response.json()['yang-catalog:module']
                             response['derived-semantic-version'] = upgraded_version
                             self.__new_modules.append(response)
                         else:
@@ -515,8 +528,7 @@ class ModulesComplicatedAlgorithms:
                                     auth=(
                                         self.__credentials[0], self.__credentials[1]), headers={
                                         'Accept': 'application/vnd.yang.data+json'})
-                                response = json.loads(response.content)[
-                                    'yang-catalog:module']
+                                response = response.json()['yang-catalog:module']
                                 response[
                                     'derived-semantic-version'] = upgraded_version
                                 self.__new_modules.append(response)
@@ -536,6 +548,8 @@ class ModulesComplicatedAlgorithms:
                             pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                      stderr=subprocess.PIPE)
                             stdout, stderr = pyang.communicate()
+                            if sys.version_info >= (3, 4):
+                                stderr = stderr.decode(encoding='utf-8', errors='strict')
                             if stderr == '':
                                 arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree",
                                              schema1]
@@ -547,6 +561,9 @@ class ModulesComplicatedAlgorithms:
                                 pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
                                                          stderr=subprocess.PIPE)
                                 stdout2, stderr = pyang.communicate()
+                                if sys.version_info >= (3, 4):
+                                    stdout = stdout.decode(encoding='utf-8', errors='strict')
+                                    stdout2 = stdout2.decode(encoding='utf-8', errors='strict')
                                 if stdout == stdout2:
                                     versions = modules[x - 1]['semver'].split('.')
                                     ver = int(versions[2])
@@ -562,10 +579,8 @@ class ModulesComplicatedAlgorithms:
                                         auth=(self.__credentials[0],
                                               self.__credentials[1]), headers={
                                             'Accept': 'application/vnd.yang.data+json'})
-                                    response = json.loads(response.content)[
-                                        'yang-catalog:module']
-                                    response[
-                                        'derived-semantic-version'] = upgraded_version
+                                    response = response.json()['yang-catalog:module']
+                                    response['derived-semantic-version'] = upgraded_version
                                     self.__new_modules.append(response)
                                 else:
                                     versions = modules[x - 1]['semver'].split('.')
@@ -582,10 +597,8 @@ class ModulesComplicatedAlgorithms:
                                         auth=(self.__credentials[0],
                                               self.__credentials[1]), headers={
                                             'Accept': 'application/vnd.yang.data+json'})
-                                    response = json.loads(response.content)[
-                                        'yang-catalog:module']
-                                    response[
-                                        'derived-semantic-version'] = upgraded_version
+                                    response = response.json()['yang-catalog:module']
+                                    response['derived-semantic-version'] = upgraded_version
                                     self.__new_modules.append(response)
                             else:
                                 versions = modules[x - 1]['semver'].split('.')
@@ -601,10 +614,8 @@ class ModulesComplicatedAlgorithms:
                                     auth=(
                                         self.__credentials[0], self.__credentials[1]), headers={
                                         'Accept': 'application/vnd.yang.data+json'})
-                                response = json.loads(response.content)[
-                                    'yang-catalog:module']
-                                response[
-                                    'derived-semantic-version'] = upgraded_version
+                                response = response.json()['yang-catalog:module']
+                                response['derived-semantic-version'] = upgraded_version
                                 self.__new_modules.append(response)
 
     def __parse_dependents(self):
@@ -625,8 +636,7 @@ class ModulesComplicatedAlgorithms:
                                          auth=(self.__credentials[0], self.__credentials[1]),
                                          json={'input': search})
                 if response.status_code == 200:
-                    mods = json.loads(response.content)['yang-catalog:modules'][
-                        'module']
+                    mods = response.json()['yang-catalog:modules']['module']
                     for m in mods:
                         if m.get('dependents') is None:
                             m['dependents'] = []
@@ -640,7 +650,7 @@ class ModulesComplicatedAlgorithms:
                                      auth=(self.__credentials[0], self.__credentials[1]),
                                      json={'input': {'dependencies': [{'name': name}]}})
             if response.status_code == 200:
-                mods = json.loads(response.content)['yang-catalog:modules']['module']
+                mods = response.json()['yang-catalog:modules']['module']
                 if mod.get('dependents')is None:
                     mod['dependents'] = []
                 for m in mods:

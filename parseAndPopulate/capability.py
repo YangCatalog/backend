@@ -20,6 +20,7 @@ information about them
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from joblib import Parallel, delayed
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -36,7 +37,6 @@ import xml.etree.ElementTree as ET
 import utility.log as log
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
-from utility.util import get_curr_dir
 
 github_raw = 'https://raw.githubusercontent.com/'
 
@@ -60,7 +60,7 @@ class Capability:
                  api, sdo, json_dir, html_result_dir, save_file_to_dir, private_dir,
                  yang_models_dir, run_integrity=False):
         global LOGGER
-        LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger('capability', log_directory + '/parseAndPopulate.log')
         LOGGER.debug('Running constructor')
         self.log_directory = log_directory
         self.run_integrity = run_integrity
