@@ -31,6 +31,6 @@ setup(
     install_requires=['numpy', 'travispy', 'pyOpenSSL', 'configparser', 'requests',
                       'jinja2', 'pyang', 'gitpython', 'ciscosparkapi', 'mysqlclient',
                       'flask', 'flask-httpauth', 'pika', 'prometheus-client', 'Crypto',
-                      'pycrypto', 'uwsgi'
+                      'pycrypto', 'uwsgi', 'joblib'
                       ]
 )

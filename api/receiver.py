@@ -79,7 +79,7 @@ def process_sdo(arguments):
     if notify_indexing:
         arguments.append('--notify-indexing')
 
-    with open("log.txt", "wr") as f:
+    with open("log.txt", "w") as f:
         try:
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
@@ -113,19 +113,23 @@ def create_signature(secret_key, string):
                     hexadecimal ASCII digits.
     """
     string_to_sign = string.encode('utf-8')
+    if sys.version_info >= (3, 4):
+        secret_key = secret_key.encode('utf-8')
     hmac = HMAC.new(secret_key, string_to_sign, SHA)
     return hmac.hexdigest()
 
 
 def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = None,
                         sdo_type=False, delete=False, from_api=True,
-                        force_indexing=True):
+                        force_indexing=True, LOOGER_temp=None):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
     modules. Other situation can be if we need to delete module. In this case we are sending
     list of modules that need to be deleted.
             Arguments:
+                :param apiIp: apiIp in case we can not use receiver s because other module is calling this method
+                :param LOOGER_temp: LOGGER in case we can not use receiver s because other module is calling this method
                 :param yc_api_prefix: (str) prefix for sending request to api
                 :param modules_to_index: (json file) prepare.json file generated while parsing
                     all the modules. This file is used to iterate through all the modules.
@@ -139,9 +143,12 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                 :param force_indexing: (bool) Whether or not we should force indexing even if module exists in cache.
     """
     global api_ip
+    global LOGGER
     if apiIp is not None:
         api_ip = apiIp
-    LOGGER.debug('Sending data for indexing')
+    if LOOGER_temp is not None:
+        LOGGER = LOOGER_temp
+    LOGGER.info('Sending data for indexing')
     mf = messageFactory.MessageFactory()
     if delete:
         body_to_send = json.dumps({'modules-to-delete': modules_to_index},
@@ -221,7 +228,11 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                     else:
                         path = 'module does not exist'
                     post_body[module['name'] + '@' + module['revision'] + '/' + module['organization']] = path
-        body_to_send = json.dumps({'modules-to-index': post_body}, indent=4)
+
+        if len(post_body) == 0:
+            body_to_send = ''
+        else:
+            body_to_send = json.dumps({'modules-to-index': post_body}, indent=4)
         if len(post_body) > 0 and not force_indexing:
             mf.send_added_new_yang_files(body_to_send)
         if load_new_files_to_github:
@@ -248,9 +259,10 @@ def send_to_indexing(body_to_send, credentials, set_key=None, apiIp=None):
         set_key = key
     except NameError:
         pass
-    LOGGER.info('Sending data for indexing with body {}'.format(body_to_send))
+    path = 'https://' + api_ip + '/yang-search/metadata-update.php'
+    LOGGER.info('Sending data for indexing with body {} \n and path {}'.format(body_to_send, path))
 
-    response = requests.post('https://' + api_ip + '/yang-search/metadata-update.php', json=body_to_send,
+    response = requests.post(path, data=body_to_send,
                              auth=(credentials[0], credentials[1]),
                              headers={'Content-Type': 'application/json', 'Accept': 'application/json',
                                       'X-YC-Signature': 'sha1={}'.format(create_signature(set_key, body_to_send))},
@@ -287,7 +299,7 @@ def process_vendor(arguments):
     if notify_indexing:
         arguments.append('--notify-indexing')
 
-    with open("log.txt", "wr") as f:
+    with open("log.txt", "w") as f:
         try:
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
@@ -339,9 +351,9 @@ def process_vendor_deletion(arguments):
     except IOError:
         LOGGER.warning('Cache file does not exist')
         # Try to create a cache if not created yet and load data again
-        response = make_cache(credentials, response)
-        if response != 'work':
-            return response
+        response = make_cache(credentials)
+        if response.status_code != 201:
+            return __response_type[0] + '#split#Server error-> could not reload cache'
         else:
             try:
                 with open('./cache/catalog.json', 'r') as catalog:
@@ -412,7 +424,8 @@ def process_vendor_deletion(arguments):
     if notify_indexing:
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, modules_that_succeeded,
                             credentials, delete=True)
-        send_to_indexing(body_to_send, credentials)
+        if body_to_send != '':
+            send_to_indexing(body_to_send, credentials)
     return __response_type[1]
 
 
@@ -423,7 +436,11 @@ def iterate_in_depth(value, modules):
                 :param modules: (set) set that will contain all the modules that
                  need to be deleted
     """
-    for key, val in value.iteritems():
+    if sys.version_info >= (3, 4):
+        items = value.items()
+    else:
+        items = value.iteritems()
+    for key, val in items:
         if key == 'protocols':
             continue
         if isinstance(val, list):
@@ -440,7 +457,7 @@ def iterate_in_depth(value, modules):
                 iterate_in_depth(val, modules)
 
 
-def make_cache(credentials, response):
+def make_cache(credentials):
     """After we delete or add modules we need to reload all the modules to the file
     for qucker search. This module is then loaded to the memory.
             Arguments:
@@ -452,15 +469,15 @@ def make_cache(credentials, response):
                     it failed.
     """
     path = yangcatalog_api_prefix + 'load-cache'
+    LOGGER.info('Reloading cache using path {} and credentials {} {}'.format(path, credentials[0], credentials[1]))
     response = requests.post(path, auth=(credentials[0], credentials[1]),
                              headers={'Content-Type': 'application/vnd.yang.data+json',
-                                      'Accept':'application/vnd.yang.data+json'}
+                                      'Accept': 'application/vnd.yang.data+json'}
                              )
     code = response.status_code
 
     if code != 200 and code != 201 and code != 204:
         LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
-        return __response_type[0] + '#split#Server error-> loading to memory'
     return response
 
 
@@ -500,7 +517,8 @@ def process_module_deletion(arguments, multiple=False):
     if notify_indexing:
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, modules_to_index, credentials,
                             delete=True)
-        send_to_indexing(body_to_send, credentials)
+        if body_to_send != '':
+            send_to_indexing(body_to_send, credentials)
     return __response_type[1]
 
 
@@ -510,7 +528,7 @@ def run_ietf():
     and openconfig modules
     :return: response success or failed
     """
-    with open("log.txt", "wr") as f:
+    with open("log.txt", "w") as f:
         try:
             arguments = ['python', '../ietfYangDraftPull/draftPullLocal.py']
             subprocess.check_call(arguments, stderr=f)
@@ -535,9 +553,12 @@ def on_request(ch, method, props, body):
                 separated by '#'.
     """
     try:
+        if sys.version_info >= (3, 4):
+            body = body.decode(encoding='utf-8', errors='strict')
         LOGGER.info('Received request with body {}'.format(body))
         arguments = body.split('#')
         if body == 'run_ietf':
+            LOGGER.info('Running all ietf and openconfig modules')
             final_response = run_ietf()
         elif 'github' == arguments[-1]:
             LOGGER.info('Github automated message starting to populate')
@@ -549,7 +570,7 @@ def on_request(ch, method, props, body):
             LOGGER.info('paths {}'.format(paths))
             try:
                 for path in paths:
-                    with open("log_trigger.txt", "wr") as f:
+                    with open("log_trigger.txt", "w") as f:
                         local_dir = paths_plus[-2]
                         arguments = arguments + ["--dir", local_dir + "/" + path]
                         subprocess.check_call(arguments, stderr=f)
@@ -566,7 +587,7 @@ def on_request(ch, method, props, body):
                 except OSError:
                     # Be happy if deleted
                     pass
-                LOGGER.error('check log_trigger.txt Error calling process populate.py {}'.format(e.message))
+                LOGGER.error('check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(e.stdout, e.stderr))
             except:
                 final_response = __response_type[0]
                 try:
@@ -579,6 +600,7 @@ def on_request(ch, method, props, body):
             global all_modules
             all_modules = None
             if arguments[-3] == 'DELETE':
+                LOGGER.info('Deleting single module')
                 if 'http' in arguments[0]:
                     final_response = process_module_deletion(arguments)
                     credentials = arguments[3:5]
@@ -586,6 +608,7 @@ def on_request(ch, method, props, body):
                     final_response = process_vendor_deletion(arguments)
                     credentials = arguments[7:9]
             elif arguments[-3] == 'DELETE_MULTIPLE':
+                LOGGER.info('Deleting multiple modules')
                 final_response = process_module_deletion(arguments, True)
                 credentials = arguments[3:5]
             elif '--sdo' in arguments[2]:
@@ -599,20 +622,22 @@ def on_request(ch, method, props, body):
                 direc = '/'.join(arguments[5].split('/')[0:3])
                 shutil.rmtree(direc)
             if final_response.split('#split#')[0] == __response_type[1]:
-                final_response = make_cache(credentials, final_response)
+                res = make_cache(credentials)
+                if res.status_code != 201:
+                    final_response = __response_type[0] + '#split#Server error-> could not reload cache'
 
                 if all_modules:
                     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                          credentials, confd_protocol, confd_ip,
                                                                          confdPort, save_file_dir, None, all_modules,
                                                                          yang_models)
-                    complicatedAlgorithms.parse()
+                    complicatedAlgorithms.parse_non_requests()
+                    complicatedAlgorithms.parse_requests()
                     complicatedAlgorithms.populate()
     except Exception as e:
         final_response = __response_type[0]
-        LOGGER.error("receiver failed with message {}".format(e.message))
+        LOGGER.error("receiver failed with message {}".format(e))
     LOGGER.info('Receiver is done with id - {} and message = {}'
-
                 .format(props.correlation_id, str(final_response)))
 
     f = open('./correlation_ids', 'r')
@@ -658,7 +683,7 @@ if __name__ == '__main__':
     global notify_indexing
     notify_indexing = config.get('Receiver-Section', 'notify-index')
     global result_dir
-    result_dir = config.get('Receiver-Section', 'result-html-dir')
+    result_dir = config.get('Web-Section', 'result-html-dir')
     global save_file_dir
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     global yang_models
@@ -696,7 +721,7 @@ if __name__ == '__main__':
         try:
             channel.start_consuming()
         except Exception as e:
-            LOGGER.error('Exception: {}'.format(e))
+            LOGGER.error('Exception: {}'.format(str(e)))
             try:
                 channel.close()
             except Exception:

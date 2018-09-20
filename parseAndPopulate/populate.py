@@ -189,7 +189,8 @@ if __name__ == "__main__":
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix,
                                            '../parseAndPopulate/{}/prepare.json'.format(direc),
                                            args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
-                                           from_api=args.api, force_indexing=args.force_indexing)
+                                           from_api=args.api, force_indexing=args.force_indexing,
+                                           LOOGER_temp=LOGGER)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open('../parseAndPopulate/{}/prepare.json'.format(direc)) as data_file:
@@ -282,7 +283,7 @@ if __name__ == "__main__":
                                      response.text))
     if body_to_send != '':
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, args.credentails, set_key=key, apiIp=args.api_ip)
+        send_to_indexing(body_to_send, args.credentials, set_key=key, apiIp=args.api_ip)
     if not args.api:
         thread = None
         if not args.force_indexing:
