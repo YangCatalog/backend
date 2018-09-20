@@ -716,7 +716,7 @@ def delete_module(name, revision, organization):
                             auth=(application.credentials[0], application.credentials[1]),
                             headers={'': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
     if response.status_code != 200 or response.status_code != 201 or response.status_code != 204:
-        return not_found
+        return not_found()
     read = response.json()
     if read['yang-catalog:module']['organization'] != accessRigths and accessRigths != '/':
         return unauthorized()
@@ -905,7 +905,12 @@ def add_modules():
 
     path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/modules'
 
-    base64string = base64.b64encode('%s:%s' % (application.credentials[0], application.credentials[1]))
+    str_to_encode = '%s:%s' % (application.credentials[0], application.credentials[1])
+    if sys.version_info >= (3, 4):
+        str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
+    base64string = base64.b64encode(str_to_encode)
+    if sys.version_info >= (3, 4):
+        base64string = base64string.decode(encoding='utf-8', errors='strict')
     response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic ' + base64string,
                                                              'Content-type': 'application/vnd.yang.data+json',
                                                              'Accept': 'application/vnd.yang.data+json'})
@@ -945,11 +950,10 @@ def add_modules():
         repo_url = url + sdo['owner'] + '/' + sdo['repository']
         application.LOGGER.debug('Cloning repository')
         if repo_url not in repo:
+            application.LOGGER.info('Downloading repo {}'.format(repo_url))
             repo[repo_url] = repoutil.RepoUtil(repo_url)
-            repo[repo_url].clone(application.config_name, application.config_email)
-
-        for submodule in repo[repo_url].repo.submodules:
-            submodule.update(init=True)
+            repo[repo_url].clone()
+            repo[repo_url].updateSubmodule()
 
         if sdo.get('branch'):
             branch = sdo.get('branch')
@@ -1051,7 +1055,12 @@ def add_vendors():
 
     path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/platforms'
 
-    base64string = base64.b64encode('%s:%s' % (application.credentials[0], application.credentials[1]))
+    str_to_encode = '%s:%s' % (application.credentials[0], application.credentials[1])
+    if sys.version_info >= (3, 4):
+        str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
+    base64string = base64.b64encode(str_to_encode)
+    if sys.version_info >= (3, 4):
+        base64string = base64string.decode(encoding='utf-8', errors='strict')
     response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic ' + base64string,
                                                              'Content-type': 'application/vnd.yang.data+json',
                                                              'Accept': 'application/vnd.yang.data+json'})
@@ -1086,11 +1095,10 @@ def add_vendors():
         repo_url = url + capability['owner'] + '/' + capability['repository']
 
         if repo_url not in repo:
+            application.LOGGER.info('Downloading repo {}'.format(repo_url))
             repo[repo_url] = repoutil.RepoUtil(repo_url)
-            repo[repo_url].clone(application.config_name, application.config_email)
-
-        for submodule in repo[repo_url].repo.submodules:
-            submodule.update(init=True)
+            repo[repo_url].clone()
+            repo[repo_url].updateSubmodule()
 
         if capability.get('branch'):
             branch = capability.get('branch')
@@ -1292,7 +1300,7 @@ def search(value):
     value = value.split('/')[-1]
     module_keys = ['ietf/ietf-wg', 'maturity-level', 'document-name', 'author-email', 'compilation-status', 'namespace',
                    'conformance-type', 'module-type', 'organization', 'yang-version', 'name', 'revision', 'tree-type',
-                   'belongs-to', 'generated-from', 'expires', 'expired']
+                   'belongs-to', 'generated-from', 'expires', 'expired', 'prefix']
     for module_key in module_keys:
         if key == module_key:
             active_cache = get_active_cache()
@@ -2087,9 +2095,15 @@ def search_module(name, revision, organization):
                                      'cache_chunks{}'.format(active_cache[1]))
             data = ''
             for i in range(0, int(chunks), 1):
-                data += uwsgi.cache_get(name + '@' + revision + '/' +
-                                        organization + '-' + repr(i),
-                                        'cache_modules{}'.format(active_cache[1]))
+                if sys.version_info >= (3, 4):
+                    data += uwsgi.cache_get(name + '@' + revision + '/' +
+                                            organization + '-' + repr(i),
+                                            'cache_modules{}'.format(active_cache[1]))\
+                        .decode(encoding='utf-8', errors='strict')
+                else:
+                    data += uwsgi.cache_get(name + '@' + revision + '/' +
+                                            organization + '-' + repr(i),
+                                            'cache_modules{}'.format(active_cache[1]))
 
             return Response(json.dumps({
                 'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
@@ -2106,7 +2120,10 @@ def get_modules():
     active_cache = get_active_cache()
     with active_cache[0]:
         application.LOGGER.info('Searching for modules')
-        return Response(json.dumps(modules_data(active_cache[1])), mimetype='application/json')
+        data = json.dumps(modules_data(active_cache[1]))
+        if data is None or data == '{}':
+            return not_found()
+        return Response(data, mimetype='application/json')
 
 
 @application.route('/search/vendors', methods=['GET'])
@@ -2117,7 +2134,10 @@ def get_vendors():
     active_cache = get_active_cache()
     with active_cache[0]:
         application.LOGGER.info('Searching for vendors')
-        return Response(json.dumps(vendors_data(active_cache[1])), mimetype='application/json')
+        data = json.dumps(vendors_data(active_cache[1]))
+        if data is None or data == '{}':
+            return not_found()
+        return Response(data, mimetype='application/json')
 
 
 @application.route('/search/catalog', methods=['GET'])
@@ -2129,7 +2149,7 @@ def get_catalog():
     active_cache = get_active_cache()
     with active_cache[0]:
         data = catalog_data(active_cache[1])
-    if data is None:
+    if data is None or data == '{}':
         return not_found()
     else:
         return Response(json.dumps(data), mimetype='application/json')
@@ -2198,7 +2218,7 @@ def trigger_populate():
             return make_response(jsonify({'info': 'Success'}), 200)
         return make_response(jsonify({'info': 'Success'}), 200)
     except Exception as e:
-        application.LOGGER.error('Automated github webhook failure - {}'.format(e.message))
+        application.LOGGER.error('Automated github webhook failure - {}'.format(e))
         return make_response(jsonify({'info': 'Success'}), 200)
 
 
@@ -2236,7 +2256,11 @@ def modules_data(which_cache):
     chunks = int(uwsgi.cache_get('chunks-modules', 'cache_chunks{}'.format(which_cache)))
     data = ''
     for i in range(0, chunks, 1):
-        data += uwsgi.cache_get('modules-data{}'.format(i), 'main_cache{}'.format(which_cache))
+        if sys.version_info >= (3, 4):
+            data += uwsgi.cache_get('modules-data{}'.format(i), 'main_cache{}'.format(which_cache))\
+                .decode(encoding='utf-8', errors='strict')
+        else:
+            data += uwsgi.cache_get('modules-data{}'.format(i), 'main_cache{}'.format(which_cache))
     json_data = \
         json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
     return json_data
@@ -2246,7 +2270,11 @@ def vendors_data(which_cache):
     chunks = int(uwsgi.cache_get('chunks-vendor', 'cache_chunks{}'.format(which_cache)))
     data = ''
     for i in range(0, chunks, 1):
-        data += uwsgi.cache_get('vendors-data{}'.format(i), 'main_cache{}'.format(which_cache))
+        if sys.version_info >= (3, 4):
+            data += uwsgi.cache_get('vendors-data{}'.format(i), 'main_cache{}'.format(which_cache))\
+                .decode(encoding='utf-8', errors='strict')
+        else:
+            data += uwsgi.cache_get('vendors-data{}'.format(i), 'main_cache{}'.format(which_cache))
     json_data = \
         json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
     return json_data
@@ -2258,7 +2286,11 @@ def catalog_data(which_cache):
         return None
     data = ''
     for i in range(0, chunks, 1):
-        data += uwsgi.cache_get('data{}'.format(i), 'main_cache{}'.format(which_cache))
+        if sys.version_info >= (3, 4):
+            data += uwsgi.cache_get('data{}'.format(i), 'main_cache{}'.format(which_cache))\
+                .decode(encoding='utf-8', errors='strict')
+        else:
+            data += uwsgi.cache_get('data{}'.format(i), 'main_cache{}'.format(which_cache))
     json_data = \
         json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
             .decode(data)
@@ -2270,7 +2302,8 @@ def get_active_cache():
     if active_cache is None:
         return None
     else:
-        if active_cache == '1':
+        active_cache = int(active_cache)
+        if active_cache == 1:
             return lock_uwsgi_cache1, '1'
         else:
             return lock_uwsgi_cache2, '2'
@@ -2305,6 +2338,8 @@ def load(on_change):
         else:
             with lock_uwsgi_cache2:
                 initialized = uwsgi.cache_get('initialized', 'cache_chunks2')
+                if sys.version_info >= (3, 4) and initialized is not None:
+                    initialized = initialized.decode(encoding='utf-8', errors='strict')
                 application.LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
                 if initialized is not None and initialized == 'True':
                     load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
@@ -2314,6 +2349,8 @@ def load(on_change):
 def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
     response = 'work'
     initialized = uwsgi.cache_get('initialized', cache_chunks)
+    if sys.version_info >= (3, 4) and initialized is not None:
+        initialized = initialized.decode(encoding='utf-8', errors='strict')
     application.LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
     if initialized is None or initialized == 'False' or on_change:
         uwsgi.cache_clear(cache_chunks)
@@ -2403,6 +2440,8 @@ def hash_pw(password):
                 :param password: (str) password provided via API
                 :return hashed password
     """
+    if sys.version_info >= (3, 4):
+        password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(password).hexdigest()
 
 

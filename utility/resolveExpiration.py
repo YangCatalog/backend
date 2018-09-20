@@ -119,7 +119,7 @@ if __name__ == '__main__':
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger('populate', log_directory + '/parseAndPopulate.log')
+    LOGGER = log.get_logger('resolveExpiration', log_directory + '/jobs/resolveExpiration.log')
 
     modules = requests.get('{}://{}/api/search/modules'.format(args.api_protocol,
                                                               args.api_ip),

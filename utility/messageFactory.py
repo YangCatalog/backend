@@ -57,19 +57,19 @@ class MessageFactory:
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
         log_directory = config.get('Directory-Section', 'logs')
-        LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
-        LOGGER.info('Initialising Message')
+        self.LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
+        self.LOGGER.info('Initialising Message')
         token = config.get('Message-Section', 'access-token')
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
 
         if len(rooms) == 0:
-            LOGGER.error('Need at least one room')
+            self.LOGGER.error('Need at least one room')
             sys.exit(1)
         if len(rooms) != 1:
             print('Too many rooms! Refine the name:')
             for r in rooms:
-                LOGGER.info('{}'.format(r.title))
+                self.LOGGER.info('{}'.format(r.title))
             sys.exit(1)
 
         # Ok, we should have just one room if we get here
@@ -115,7 +115,7 @@ class MessageFactory:
         self.__smtp.quit()
 
     def send_new_rfc_message(self, new_files, diff_files):
-        LOGGER.info('Sending notification about new IETF RFC modules')
+        self.LOGGER.info('Sending notification about new IETF RFC modules')
         new_files = '\n'.join(new_files)
         diff_files = '\n'.join(diff_files)
         message = ('{}\n\nSome of the files are different'
@@ -131,13 +131,13 @@ class MessageFactory:
         self.__post_to_email(message, to)
 
     def send_travis_auth_failed(self):
-        LOGGER.info('Sending notification about travis authorization failed')
+        self.LOGGER.info('Sending notification about travis authorization failed')
         message = ('Travis pull job not sent because patch was not sent from'
                    ' travis. Key verification failed')
         self.__post_to_spark(message)
 
     def send_automated_procedure_failed(self, procedure, error_message):
-        LOGGER.info('Sending notification about any automated procedure failure'
+        self.LOGGER.info('Sending notification about any automated procedure failure'
                     )
         message = ('Automated procedure - {} - failed with error - {}'
                    .format(procedure, error_message))
@@ -148,7 +148,7 @@ class MessageFactory:
         pass
 
     def send_removed_yang_files(self, removed_yang_files):
-        LOGGER.info('Sending notification about removed yang modules')
+        self.LOGGER.info('Sending notification about removed yang modules')
         message = ("Files have been removed from yangcatalog. See attached"
                    " document")
         text = ("The following files has been removed from yangcatalog.org"
@@ -158,7 +158,7 @@ class MessageFactory:
         self.__post_to_spark(message, True, files=['./log.txt'])
 
     def send_added_new_yang_files(self, added_yang_files):
-        LOGGER.info('Sending notification about added yang modules')
+        self.LOGGER.info('Sending notification about added yang modules')
         message = ("Files have been added to yangcatalog. See attached"
                    " document")
         text = ("The following files has been added to yangcatalog.org"
@@ -169,7 +169,7 @@ class MessageFactory:
         self.__post_to_spark(message, True, files=['./log.txt'])
 
     def send_new_modified_platform_metadata(self, new_files, modified_files):
-        LOGGER.info(
+        self.LOGGER.info(
             'Sending notification about new or modified platform metadata')
         new_files = '\n'.join(new_files)
         modified_files = '\n'.join(modified_files)

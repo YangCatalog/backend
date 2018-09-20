@@ -60,7 +60,7 @@ if __name__ == '__main__':
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = lo.get_logger('populate', log_directory + '/parseAndPopulate.log')
+    LOGGER = lo.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
     mf = messageFactory.MessageFactory()
     LOGGER.info('Removing unused files')
     to_remove = []

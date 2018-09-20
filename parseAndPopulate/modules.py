@@ -206,8 +206,11 @@ class Modules:
             reference = api_sdo_json.get('reference')
             document_name = api_sdo_json.get('document-name')
             generated_from = api_sdo_json.get('generated-from')
-            organization = unicodedata.normalize('NFKD', get_json(
-                api_sdo_json.get('organization'))).encode('ascii', 'ignore')
+            if sys.version_info >= (3, 4):
+                organization = get_json(api_sdo_json.get('organization'))
+            else:
+                organization = unicodedata.normalize('NFKD', get_json(
+                    api_sdo_json.get('organization'))).encode('ascii', 'ignore')
             module_classification = api_sdo_json.get('module-classification')
         else:
             author_email = None
@@ -882,7 +885,7 @@ class Modules:
                     self.__missing_submodules.append(name)
                 else:
                     self.__missing_modules.append(name)
-            yang_file = find_first_file(self.yang_modules, name + '.yang',
+            yang_file = find_first_file(self.yang_models, name + '.yang',
                                         name + '@' + revision + '.yang')
         return yang_file
 

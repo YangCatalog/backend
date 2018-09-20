@@ -20,6 +20,8 @@ information about them
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import sys
+
 from joblib import Parallel, delayed
 
 __author__ = "Miroslav Kovac"
@@ -166,7 +168,7 @@ class Capability:
                 sdos_json = json.load(f)
             sdos_list = sdos_json['modules']['module']
             for sdo in sdos_list:
-                file_name = unicodedata.normalize('NFKD', sdo['source-file']['path'].split('/')[-1])\
+                file_name = unicodedata.normalize('NFKD', sdo['source-file']['path'].split('/')[-1]) \
                     .encode('ascii', 'ignore')
                 LOGGER.info('Parsing sdo file sent via API{}'.format(file_name))
                 self.owner = sdo['source-file']['owner']
@@ -175,10 +177,14 @@ class Capability:
                 if not self.branch:
                     self.branch = 'master'
                 self.repo = sdo['source-file']['repository'].split('.')[0]
-                root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/'\
-                    + '/'.join(repo_file_path.split('/')[:-1])
-                root = self.json_dir + '/temp/'\
-                    + unicodedata.normalize('NFKD', root).encode('ascii', 'ignore')
+                root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/' \
+                       + '/'.join(repo_file_path.split('/')[:-1])
+                root = self.json_dir + '/temp/' + root
+                if sys.version_info < (3, 4):
+                    root = self.json_dir + '/temp/' \
+                           + unicodedata.normalize('NFKD', root).encode('ascii', 'ignore')
+                if sys.version_info >= (3, 4):
+                    file_name = file_name.decode('utf-8', 'strict')
                 if not os.path.isfile(root + '/' + file_name):
                     LOGGER.error('File {} sent via API was not downloaded'.format(file_name))
                     continue
