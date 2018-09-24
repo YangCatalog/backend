@@ -64,13 +64,13 @@ if __name__ == "__main__":
     config.read(config_path)
     token = config.get('DraftPull-Section', 'yang-catalog-token')
     username = config.get('DraftPull-Section', 'username')
-    commit_dir = config.get('DraftPull-Section', 'commit-dir')
+    commit_dir = config.get('Directory-Section', 'commit-dir')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
     log_directory = config.get('Directory-Section', 'logs')
-    ietf_models_forked_url = config.get('General-Section', 'ietf-models-forked-repo-url')
-    ietf_models_url_suffix = config.get('General-Section', 'ietf-models-repo-url_suffix')
+    ietf_models_forked_url = config.get('General-Section', 'yang-models-forked-repo-url')
+    ietf_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     LOGGER = log.get_logger('draftPull', log_directory + '/jobs/draft-pull.log')
@@ -86,8 +86,8 @@ if __name__ == "__main__":
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
 
-    LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
     repo.clone(config_name, config_email)
+    LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
     try:
         LOGGER.info('Activating Travis')
         travis = TravisPy.github_auth(token)
@@ -113,7 +113,7 @@ if __name__ == "__main__":
 
     response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
     zfile = open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz', 'wb')
-    zfile.write(response.text)
+    zfile.write(response.content)
     zfile.close()
     tgz = tarfile.open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz')
     try:
@@ -161,9 +161,9 @@ if __name__ == "__main__":
             yang_file.write('')
         yang_file.close()
     check_name_no_revision_exist(
-        repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+        repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
     check_early_revisions(
-        repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+        repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
     try:
         travis_repo = travis.repo(username + '/yang')
         LOGGER.info('Enabling repo for Travis')

@@ -215,7 +215,12 @@ class Capability:
                             self.repo = 'yang'
                             self.branch = 'master'
                             path = root + '/' + file_name
-                            path = os.path.abspath(path).split('/yang/')[1]
+                            abs_path = os.path.abspath(path)
+                            if '/yang/' in abs_path:
+                                path = abs_path.split('/yang/')[1]
+                            else:
+                                path = abs_path.split('/')[2:]
+                                path = '/'.join(path)
                             schema = (github_raw + self.owner + '/' + self.repo
                                       + '/' + self.branch + '/' + path)
                             yang.parse_all(name,

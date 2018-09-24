@@ -121,7 +121,7 @@ def create_signature(secret_key, string):
 
 def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = None,
                         sdo_type=False, delete=False, from_api=True,
-                        force_indexing=True, LOOGER_temp=None):
+                        force_indexing=True, LOOGER_temp=None, yangModels=None):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
@@ -148,6 +148,8 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
         api_ip = apiIp
     if LOOGER_temp is not None:
         LOGGER = LOOGER_temp
+    if yangModels is not None:
+        yang_models = yangModels
     LOGGER.info('Sending data for indexing')
     mf = messageFactory.MessageFactory()
     if delete:

@@ -85,14 +85,19 @@ if __name__ == "__main__":
         file_save.close()
     else:
         if args.name_load:
-            file_load = open(cache_directory + '/' + args.name_load)
+            file_load = open(cache_directory + '/' + args.name_load, 'r')
         else:
             list_of_files = glob.glob(cache_directory + '/*')
             latest_file = max(list_of_files, key=os.path.getctime)
-            file_load = open(latest_file, 'rw')
+            file_load = open(latest_file, 'r')
         body = json.load(file_load, object_pairs_hook=OrderedDict)
-        base64string = base64.b64encode('%s:%s' % (args.credentials[0], args.credentials[1]))
-        response = requests.put(prefix + '/api/config/catalog', json.dumps(body), headers={
+        str_to_encode = '%s:%s' % (args.credentials[0], args.credentials[1])
+        if sys.version_info >= (3, 4):
+            str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
+        base64string = base64.b64encode(str_to_encode)
+        if sys.version_info >= (3, 4):
+            base64string = base64string.decode(encoding='utf-8', errors='strict')
+        response = requests.patch(prefix + '/api/config/catalog', json.dumps(body), headers={
             'Authorization': 'Basic ' + base64string,
             'Content-type': 'application/vnd.yang.data+json',
             'Accept': 'application/vnd.yang.data+json'})
