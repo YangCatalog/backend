@@ -55,7 +55,7 @@ def get_latest_revision(f):
     return rev.arg
 
 
-def check_name_no_revision_exist(directory):
+def check_name_no_revision_exist(directory, LOGGER_temp):
     """
     This method checks all the modules name format.
     If it contains module with name that has no revision
@@ -64,6 +64,7 @@ def check_name_no_revision_exist(directory):
     in name will be removed
     :param directory: (str) path to directory with yang modules
     """
+    LOGGER = LOGGER_temp
     LOGGER.info('Checking revision for directory: {}'.format(directory))
     for root, dirs, files in os.walk(directory):
         for basename in files:
@@ -79,13 +80,15 @@ def check_name_no_revision_exist(directory):
                         os.remove(directory + yang_file_name)
 
 
-def check_early_revisions(directory):
+def check_early_revisions(directory, LOGGER_temp=None):
     """
     This method check all modules revisions and keeps only
     ones that are the newest. If there are same modules with
     two different revision, older one will be removed
     :param directory: (str) path to directory with yang modules
     """
+    if LOGGER_temp is not None:
+        LOGGER = LOGGER_temp
     for f in os.listdir(directory):
         fname = f.split('.yang')[0].split('@')[0]
         files_to_delete = []
@@ -132,7 +135,7 @@ if __name__ == "__main__":
     confd_ip = config.get('General-Section', 'confd-ip')
     confd_port = config.get('General-Section', 'confd-port')
     credentials = config.get('General-Section', 'credentials').split(' ')
-    result_html_dir = config.get('DraftPullLocal-Section', 'result-html-dir')
+    result_html_dir = config.get('Web-Section', 'result-html-dir')
     protocol = config.get('General-Section', 'protocol-api')
     notify = config.get('DraftPullLocal-Section', 'notify-index')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
@@ -142,7 +145,6 @@ if __name__ == "__main__":
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    ietf_models_url_suffix = config.get('General-Section', 'ietf-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
@@ -160,22 +162,22 @@ if __name__ == "__main__":
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
 
-    LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
     repo.clone(config_name, config_email)
+    LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
 
     ietf_draft_json = requests.get(ietf_draft_url
                                    , auth=(private_credentials[0], private_credentials[1])).json()
     response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
     zfile = open(repo.localdir + '/rfc.tgz', 'wb')
-    zfile.write(response.text)
+    zfile.write(response.content)
     zfile.close()
     tgz = tarfile.open(repo.localdir + '/rfc.tgz')
     tgz.extractall(repo.localdir + '/standard/ietf/RFC')
     tgz.close()
     os.remove(repo.localdir + '/rfc.tgz')
-    check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/')
-    check_early_revisions(repo.localdir + '/standard/ietf/RFC/')
-    with open("log.txt", "wr") as f:
+    check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
+    check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
+    with open("log.txt", "w") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
@@ -198,15 +200,15 @@ if __name__ == "__main__":
             LOGGER.warning('{} - {}'.format(key, yang_download_link))
             yang_file.write('')
         yang_file.close()
-    check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
-    check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+    check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+    check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
 
-    with open("log.txt", "wr") as f:
+    with open("log.txt", "w") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
                          confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
-                         "--dir", repo.localdir + "/../../experimental/ietf-extracted-YANG-modules",
+                         "--dir", repo.localdir + "/experimental/ietf-extracted-YANG-modules",
                          "--result-html-dir", result_html_dir, "--credentials", credentials[0], credentials[1],
                          "--save-file-dir", save_file_dir]
             if notify == 'True':

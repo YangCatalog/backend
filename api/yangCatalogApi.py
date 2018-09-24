@@ -593,7 +593,7 @@ def check_local():
     else:
         commit_sha = body['head_commit']
     try:
-        with open(application.commit_msg_file) as commit_file:
+        with open(application.commit_msg_file, 'r') as commit_file:
             for line in commit_file:
                 if commit_sha in line:
                     verify_commit = True
