@@ -117,7 +117,7 @@ if __name__ == '__main__':
     parser.add_argument('--api-protocol', type=str, default='https',
                         help='Whether api runs on http or https.'
                              ' Default is set to http')
-    parser.add_argument('--api-ip', default='new.yangcatalog.org', type=str,
+    parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
                         help='Set ip address where the api is started. Default -> yangcatalog.org')
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
