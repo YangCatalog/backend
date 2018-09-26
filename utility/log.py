@@ -13,6 +13,7 @@
 # limitations under the License.
 import logging
 import os
+import stat
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
