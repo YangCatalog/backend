@@ -49,7 +49,11 @@ def __resolve_expiration(reference, module, args):
         ref = reference.split('/')[-1]
         url = ('https://datatracker.ietf.org/api/v1/doc/document/'
                + ref + '/?format=json')
-        response = requests.get(url)
+        try:
+            response = requests.get(url)
+        except Exception as e:
+            LOGGER.warning("Failed to get json from datatracker {} with error {}".format(url, e))
+            return
         if response.status_code == 200:
             data = response.json()
             if '/api/v1/doc/state/2/' in data['states']:
@@ -88,13 +92,17 @@ def __resolve_expiration(reference, module, args):
                 'expired': module['expired']
             }
         })
-        response = requests.patch(url, body,
-                                  auth=(args.credentials[0],
-                                        args.credentials[1]),
-                                  headers={
-                                      'Accept': 'application/vnd.yang.data+json',
-                                      'Content-type': 'application/vnd.yang.data+json'}
-                                  )
+        try:
+            response = requests.patch(url, body,
+                                      auth=(args.credentials[0],
+                                            args.credentials[1]),
+                                      headers={
+                                          'Accept': 'application/vnd.yang.data+json',
+                                          'Content-type': 'application/vnd.yang.data+json'}
+                                      )
+        except Exception as e:
+            LOGGER.warning("Failed to push json to confd {} with error {}".format(url, e))
+            return
         LOGGER.info('Updating module {}@{} with confd response {} - {}'
                     .format(module['name'], module['revision'],
                             repr(response.status_code), response.text))
