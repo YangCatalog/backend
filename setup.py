@@ -28,9 +28,9 @@ setup(
     author='Miroslav Kovac',
     author_email='miroslav.kovac@pantheon.tech',
     description='',
-    install_requires=['numpy', 'travispy', 'pyOpenSSL', 'configparser', 'requests',
+    install_requires=['numpy', 'travispy', 'pytest', 'pyOpenSSL', 'configparser', 'requests',
                       'jinja2', 'pyang', 'gitpython', 'ciscosparkapi', 'mysqlclient',
-                      'flask', 'flask-httpauth', 'pika', 'prometheus-client', 'Crypto',
+                      'flask-httpauth', 'flask', 'pika', 'prometheus-client', 'Crypto',
                       'pycrypto', 'uwsgi', 'joblib'
                       ]
 )
