@@ -31,5 +31,5 @@ def get_logger(name, file_name_path='yang.log'):
     DATEFMT = '%Y-%m-%d %H:%M:%S'
     logging.basicConfig(datefmt=DATEFMT, format=FORMAT, filename=file_name_path, level=logging.INFO)
     logger = logging.getLogger(name)
-    os.chmod(file_name_path, 0o664)
+    os.chmod(file_name_path, 0o664 | stat.S_ISGID)
     return logger
