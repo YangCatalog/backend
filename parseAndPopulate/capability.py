@@ -193,7 +193,7 @@ class Capability:
                                    self.html_result_dir, self.parsed_jsons, self.json_dir)
                     name = file_name.split('.')[0].split('@')[0]
                     schema = github_raw + self.owner + '/' + self.repo + '/' + self.branch + '/' + repo_file_path
-                    yang.parse_all(name,
+                    yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
                                    schema, self.to, sdo)
                     self.prepare.add_key_sdo_module(yang)
@@ -223,7 +223,7 @@ class Capability:
                                 path = '/'.join(path)
                             schema = (github_raw + self.owner + '/' + self.repo
                                       + '/' + self.branch + '/' + path)
-                            yang.parse_all(name,
+                            yang.parse_all(self.branch, name,
                                            self.prepare.name_revision_organization,
                                            schema, self.to)
                             self.prepare.add_key_sdo_module(yang)
@@ -313,7 +313,7 @@ class Capability:
                                self.parsed_jsons, self.json_dir, True, True,
                                yang_lib_info, run_integrity=self.run_integrity)
 
-                yang.parse_all(module_name,
+                yang.parse_all(self.branch, module_name,
                                self.prepare.name_revision_organization,
                                schema_part, self.to)
                 yang.add_vendor_information(self.vendor, self.platform_data,
@@ -410,7 +410,7 @@ class Capability:
                                    self.json_dir, True, data=module_and_more,
                                    run_integrity=self.run_integrity)
 
-                    yang.parse_all(module_name,
+                    yang.parse_all(self.branch, module_name,
                                    self.prepare.name_revision_organization,
                                    schema_part, self.to)
                     yang.add_vendor_information(self.vendor, self.platform_data,
@@ -471,7 +471,7 @@ class Capability:
                                    self.parsed_jsons, self.json_dir,
                                    is_vendor_imp_inc=True,
                                    run_integrity=self.run_integrity)
-                    yang.parse_all(name,
+                    yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
                                    schema_part, self.to)
                     yang.add_vendor_information(self.vendor, self.platform_data,
