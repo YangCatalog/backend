@@ -36,12 +36,12 @@ def __mysql_regexp(pattern, buf, modifiers=re.I | re.S):
 
 
 def create_connection(dbHost, dbPass, dbName, dbUser):
-    connection = MySQLdb.connect(host=dbHost,  # your host, usually localhost
+    conn = MySQLdb.connect(host=dbHost,  # your host, usually localhost
                            user=dbUser,  # your username
                            passwd=dbPass,  # your password
                            db=dbName)  # name of the data base
     cursor = conn.cursor(cursorclass=MySQLdb.cursors.DictCursor)
-    return connection, cursor
+    return conn, cursor
 
 
 __schema_types = [

@@ -53,9 +53,9 @@ else:
     import ConfigParser
 
 NS_MAP = {
-    "http://cisco.com/ns/yang/": "cisco",
+    "http://cisco.com/": "cisco",
     "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang/": "openconfig",
+    "http://openconfig.net/yang": "openconfig",
     "http://tail-f.com/": "tail-f",
     "http://yang.juniper.net/": "juniper"
 }

@@ -42,7 +42,7 @@ can be called in here:
    runCapabilities and when that is done it should create temporary json
    files that needs to be populated to confd. After it populates the confd
    it will restart api so it can load all the new metadata to its cache.
-   This script will also alert yang-search/metadata-update.php script about
+   This script will also alert yang-search/metadata_update script about
    new modules so it can parse the modules for it purpose and save those
    data to database. After that, this script will start to run more
    complicated algorithms on just parsed yang files. These metadata are

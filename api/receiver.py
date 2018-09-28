@@ -68,6 +68,8 @@ def process_sdo(arguments):
     tree_created = True if arguments[-4] == 'True' else False
     arguments = arguments[:-4]
     direc = '/'.join(arguments[6].split('/')[0:3])
+    arguments.append('--api-ip')
+    arguments.append(api_ip)
     arguments.append("--result-html-dir")
     arguments.append(result_dir)
     arguments.append('--api-port')
@@ -261,13 +263,14 @@ def send_to_indexing(body_to_send, credentials, set_key=None, apiIp=None):
         set_key = key
     except NameError:
         pass
-    path = 'https://' + api_ip + '/yang-search/metadata-update.php'
+    path = 'https://localhost/yang-search/metadata_update'
     LOGGER.info('Sending data for indexing with body {} \n and path {}'.format(body_to_send, path))
 
     response = requests.post(path, data=body_to_send,
                              auth=(credentials[0], credentials[1]),
                              headers={'Content-Type': 'application/json', 'Accept': 'application/json',
                                       'X-YC-Signature': 'sha1={}'.format(create_signature(set_key, body_to_send))},
+                             verify=False
                              )
     code = response.status_code
 
@@ -294,6 +297,8 @@ def process_vendor(arguments):
 
     arguments = arguments[:-5]
     direc = '/'.join(arguments[5].split('/')[0:3])
+    arguments.append('--api-ip')
+    arguments.append(api_ip)
     arguments.append("--result-html-dir")
     arguments.append(result_dir)
     arguments.append('--save-file-dir')

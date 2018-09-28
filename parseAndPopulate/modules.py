@@ -87,9 +87,9 @@ IETF_RFC_MAP = {
 }
 
 NS_MAP = {
-    "http://cisco.com/ns/yang/": "cisco",
+    "http://cisco.com/": "cisco",
     "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang/": "openconfig",
+    "http://openconfig.net/yang": "openconfig",
     "http://tail-f.com/": "tail-f",
     "http://yang.juniper.net/": "juniper"
 }
@@ -193,7 +193,7 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, name, keys, schema, to, api_sdo_json=None):
+    def parse_all(self, git_branch, name, keys, schema, to, api_sdo_json=None):
         def get_json(js):
             if js:
                 return js
@@ -228,11 +228,11 @@ class Modules:
         self.__resolve_organization(organization)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in keys:
-            self.__resolve_schema(schema)
+            self.__resolve_schema(schema, git_branch)
             self.__resolve_submodule()
             self.__resolve_imports()
             return
-        self.__resolve_schema(schema)
+        self.__resolve_schema(schema, git_branch)
         self.__resolve_submodule()
         self.__resolve_imports()
         if not self.run_integrity:
@@ -369,9 +369,9 @@ class Modules:
                 self.__missing_revision = self.name
                 self.revision = '1970-01-01'
 
-    def __resolve_schema(self, schema):
+    def __resolve_schema(self, schema, git_branch):
         if schema:
-            split_index = '/yang/'
+            split_index = '/{}/'.format(git_branch)
             if '/tmp/' in self.__path:
                 split_index = self.__path.split('/')[1]
             if self.__is_vendor:
