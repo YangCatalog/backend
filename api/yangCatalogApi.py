@@ -31,6 +31,9 @@ website
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from pyang.plugins.tree import emit_tree
+
+from utility.yangParser import create_context
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -1379,18 +1382,27 @@ def search_recursive(output, module, leaf, resolved):
 @application.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
 def create_tree(f1, r1):
     path_to_yang = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
-    arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', path_to_yang]
-    pyang = subprocess.Popen(arguments,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
-    if sys.version_info >= (3, 4):
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
-        stderr = stderr.decode(encoding='utf-8', errors='strict')
-    if stdout == '' and stderr != '':
+    ctx = create_context(application.yang_models)
+    with open(path_to_yang, 'r') as f:
+        a = ctx.add_module(path_to_yang, f.read())
+    if ctx.opts.tree_path is not None:
+        path = ctx.opts.tree_path.split('/')
+        if path[0] == '':
+            path = path[1:]
+    else:
+        path = None
+    with open('pyang_temp.txt', 'w')as f:
+        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                  ctx.opts.tree_line_length, path)
+    with open('pyang_temp.txt', 'r')as f:
+        stdout = f.read()
+    os.unlink('pyang_temp.txt')
+    if stdout == '' and len(ctx.errors) != 0:
         return create_bootstrap_danger()
-    elif stdout != '' and stderr != '':
+    elif stdout != '' and len(ctx.errors) != 0:
         return create_bootstrap_warning(stdout)
+    elif stdout == '' and len(ctx.errors) == 0:
+        create_bootstrap_info()
     else:
         return '<html><body><pre>{}</pre></body></html>'.format(stdout)
 
@@ -1399,10 +1411,10 @@ def create_tree(f1, r1):
 def create_reference(f1, r1):
     schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     arguments = ['cat', schema1]
-    pyang = subprocess.Popen(arguments,
+    cat = subprocess.Popen(arguments,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
+    stdout, stderr = cat.communicate()
     if sys.version_info >= (3, 4):
         stdout = stdout.decode(encoding='utf-8', errors='strict')
         stderr = stderr.decode(encoding='utf-8', errors='strict')
@@ -1509,24 +1521,30 @@ def create_diff_tree(f1, r1, f2, r2):
             return 'Server error - could not create directory'
     schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
-
-    arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', schema1]
-    pyang = subprocess.Popen(arguments,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
-    if sys.version_info >= (3, 4):
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
+    ctx = create_context(application.yang_models)
+    with open(schema1, 'r') as f:
+        a = ctx.add_module(schema1, f.read())
+    if ctx.opts.tree_path is not None:
+        path = ctx.opts.tree_path.split('/')
+        if path[0] == '':
+            path = path[1:]
+    else:
+        path = None
+    with open('pyang_temp.txt', 'w')as f:
+        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                  ctx.opts.tree_line_length, path)
+    with open('pyang_temp.txt', 'r')as f:
+        stdout = f.read()
     file_name1 = 'schema1.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
-    arguments = ['pyang', '-p', application.save_file_dir, '-f', 'tree', schema2]
-    pyang = subprocess.Popen(arguments,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
-    if sys.version_info >= (3, 4):
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
+    with open(schema2, 'r') as f:
+        a = ctx.add_module(schema2, f.read())
+    with open('pyang_temp.txt', 'w')as f:
+        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                  ctx.opts.tree_line_length, path)
+    with open('pyang_temp.txt', 'r')as f:
+        stdout = f.read()
     file_name2 = 'schema2.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
@@ -1537,6 +1555,7 @@ def create_diff_tree(f1, r1, f2, r2):
     response = requests.get(diff_url)
     os.remove(application.diff_file_dir + '/' + file_name1)
     os.remove(application.diff_file_dir + '/' + file_name2)
+    os.unlink('pyang_temp.txt')
     return '<html><body>{}</body></html>'.format(response.text)
 
 

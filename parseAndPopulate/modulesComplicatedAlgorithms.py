@@ -19,7 +19,13 @@ into the database and these metadata will get there later.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import os
 import sys
+
+from pyang.plugins.check_update import check_update
+from pyang.plugins.tree import emit_tree
+
+from utility.yangParser import create_context
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -27,7 +33,6 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
-import subprocess
 from datetime import datetime
 
 import requests
@@ -182,7 +187,7 @@ class ModulesComplicatedAlgorithms:
             return True
 
         def is_combined(rows, output):
-            if output.split('\n')[0].endswith('-state'):
+            if output.split('\n')[1].endswith('-state'):
                 return False
             next_obsolete_or_deprecated = False
             for row in rows:
@@ -211,23 +216,31 @@ class ModulesComplicatedAlgorithms:
             return True
 
         def is_transational(rows, output):
-            if output.split('\n')[0].endswith('-state'):
+            if output.split('\n')[1].endswith('-state'):
                 if '+--rw' in output:
                     return False
                 name_of_module = output.split('\n')[0].split(': ')[1]
                 name_of_module = name_of_module.split('-state')[0]
                 coresponding_nmda_file = self.__find_file(name_of_module)
                 if coresponding_nmda_file:
-                    arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree",
-                                 coresponding_nmda_file]
-                    pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                             stderr=subprocess.PIPE)
-                    stdout, stderr = pyang.communicate()
-                    if sys.version_info >= (3, 4):
-                        stdout = stdout.decode(encoding='utf-8', errors='strict')
-                        stderr = stderr.decode(encoding='utf-8', errors='strict')
-                    pyang_list_of_rows = stdout.split('\n')[1:]
-                    if 'error' in stderr and 'is not found' in stderr:
+                    ctx = create_context(os.path.abspath(self.__yang_models))
+                    with open(coresponding_nmda_file, 'r') as f:
+                        a = ctx.add_module(coresponding_nmda_file, f.read())
+                    if ctx.opts.tree_path is not None:
+                        path = ctx.opts.tree_path.split('/')
+                        if path[0] == '':
+                            path = path[1:]
+                    else:
+                        path = None
+                    with open('pyang_temp.txt', 'w')as f:
+                        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                                  ctx.opts.tree_line_length, path)
+                    with open('pyang_temp.txt', 'r')as f:
+                        stdout = f.read()
+                    os.unlink('pyang_temp.txt')
+
+                    pyang_list_of_rows = stdout.split('\n')[2:]
+                    if len(ctx.errors) != 0 and len(stdout) == 0:
                         return False
                     elif stdout == '':
                         return False
@@ -263,7 +276,7 @@ class ModulesComplicatedAlgorithms:
         def is_split(rows, output):
             failed = False
             row_num = 0
-            if output.split('\n')[0].endswith('-state'):
+            if output.split('\n')[1].endswith('-state'):
                 return False
             for row in rows:
                 if 'x--' in row or 'o--' in row:
@@ -316,21 +329,31 @@ class ModulesComplicatedAlgorithms:
             LOGGER.info('Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
             LOGGER.debug(
                 'Get tree type from tag from module {}'.format(self.__path))
-            arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree", self.__path]
-            pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            stdout, stderr = pyang.communicate()
-            if sys.version_info >= (3, 4):
-                stderr = stderr.decode(encoding='utf-8', errors='strict')
-                stdout = stdout.decode(encoding='utf-8', errors='strict')
-            if 'error' in stderr and 'is not found' in stderr:
+            ctx = create_context(os.path.abspath(self.__yang_models))
+            with open(self.__path, 'r') as f:
+                a = ctx.add_module(self.__path, f.read())
+            if ctx.opts.tree_path is not None:
+                path = ctx.opts.tree_path.split('/')
+                if path[0] == '':
+                    path = path[1:]
+            else:
+                path = None
+            with open('pyang_temp.txt', 'w')as f:
+                emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                          ctx.opts.tree_line_length, path)
+            with open('pyang_temp.txt', 'r')as f:
+                stdout = f.read()
+            os.unlink('pyang_temp.txt')
+
+            if len(ctx.errors) != 0 and len(stdout) == 0:
                 LOGGER.debug(
-                    'Could not use pyang to generate tree because of error {} on module {}'.
-                        format(stderr, self.__path))
+                    'Could not use pyang to generate tree because of errors on module {}'.
+                        format(self.__path))
                 module['tree-type'] = 'unclassified'
             elif stdout == '':
                 module['tree-type'] = 'not-applicable'
             else:
-                pyang_list_of_rows = stdout.split('\n')[1:]
+                pyang_list_of_rows = stdout.split('\n')[2:]
                 if 'submodule' == module['module-type']:
                     LOGGER.debug('Module {} is a submodule'.format(self.__path))
                     module['tree-type'] = 'not-applicable'
@@ -438,28 +461,32 @@ class ModulesComplicatedAlgorithms:
                             schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir,
                                                             modules[-1]['name'],
                                                             modules[-1]['revision'])
-                            arguments = ['pyang', '-p', self.__save_file_dir,
-                                         schema1, '--check-update-from',
-                                         schema2]
-                            pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                                     stderr=subprocess.PIPE)
-                            stdout, stderr = pyang.communicate()
-                            if sys.version_info >= (3, 4):
-                                stderr = stderr.decode(encoding='utf-8', errors='strict')
-                            if stderr == '':
-                                arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree",
-                                             schema1]
-                                pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE)
-                                stdout, stderr = pyang.communicate()
-                                arguments = ["pyang", "-p", self.__save_file_dir, "-f", "tree",
-                                             schema2]
-                                pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE)
-                                stdout2, stderr = pyang.communicate()
-                                if sys.version_info >= (3, 4):
-                                    stdout = stdout.decode(encoding='utf-8', errors='strict')
-                                    stdout2 = stdout2.decode(encoding='utf-8', errors='strict')
+                            ctx = create_context(os.path.abspath(self.__yang_models))
+                            with open(schema1, 'r') as f:
+                                a1 = ctx.add_module(schema1, f.read())
+                            ctx.opts.check_update_from = schema2
+                            check_update(ctx, schema2, a1)
+                            if len(ctx.errors) == 0:
+                                with open(schema2, 'r') as f:
+                                    a2 = ctx.add_module(schema2, f.read())
+                                if ctx.opts.tree_path is not None:
+                                    path = ctx.opts.tree_path.split('/')
+                                    if path[0] == '':
+                                        path = path[1:]
+                                else:
+                                    path = None
+                                with open('pyang_temp.txt', 'w')as f:
+                                    emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
+                                              ctx.opts.tree_line_length, path)
+                                with open('pyang_temp.txt', 'r')as f:
+                                    stdout = f.read()
+                                with open('pyang_temp.txt', 'w')as f:
+                                    emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
+                                              ctx.opts.tree_line_length, path)
+                                with open('pyang_temp.txt', 'r')as f:
+                                    stdout2 = f.read()
+                                os.unlink('pyang_temp.txt')
+
                                 if stdout == stdout2:
                                     versions = modules[-2]['semver'].split('.')
                                     ver = int(versions[2])
@@ -534,25 +561,30 @@ class ModulesComplicatedAlgorithms:
                                     self.__save_file_dir,
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
-                                arguments = ['pyang', '-p', self.__save_file_dir, schema2,
-                                             '--check-update-from', schema1]
-                                pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                                         stderr=subprocess.PIPE)
-                                stdout, stderr = pyang.communicate()
-                                if sys.version_info >= (3, 4):
-                                    stderr = stderr.decode(encoding='utf-8', errors='strict')
-                                if stderr == '':
-                                    arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree", schema1]
-                                    pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                                             stderr=subprocess.PIPE)
-                                    stdout, stderr = pyang.communicate()
-                                    arguments = ["pyang", '-p', self.__save_file_dir, "-f", "tree", schema2]
-                                    pyang = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                                                             stderr=subprocess.PIPE)
-                                    stdout2, stderr = pyang.communicate()
-                                    if sys.version_info >= (3, 4):
-                                        stdout = stdout.decode(encoding='utf-8', errors='strict')
-                                        stdout2 = stdout2.decode(encoding='utf-8', errors='strict')
+                                with open(schema1, 'r') as f:
+                                    a1 = ctx.add_module(schema1, f.read())
+                                ctx.opts.check_update_from = schema2
+                                check_update(ctx, schema2, a1)
+                                if len(ctx.errors) == 0:
+                                    with open(schema2, 'r') as f:
+                                        a2 = ctx.add_module(schema2, f.read())
+                                    if ctx.opts.tree_path is not None:
+                                        path = ctx.opts.tree_path.split('/')
+                                        if path[0] == '':
+                                            path = path[1:]
+                                    else:
+                                        path = None
+                                    with open('pyang_temp.txt', 'w')as f:
+                                        emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
+                                                  ctx.opts.tree_line_length, path)
+                                    with open('pyang_temp.txt', 'r')as f:
+                                        stdout = f.read()
+                                    with open('pyang_temp.txt', 'w')as f:
+                                        emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
+                                                  ctx.opts.tree_line_length, path)
+                                    with open('pyang_temp.txt', 'r')as f:
+                                        stdout2 = f.read()
+                                    os.unlink('pyang_temp.txt')
                                     if stdout == stdout2:
                                         versions = modules[x - 1]['semver'].split('.')
                                         ver = int(versions[2])
