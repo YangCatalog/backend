@@ -67,7 +67,7 @@ class MessageFactory:
             self.LOGGER.error('Need at least one room')
             sys.exit(1)
         if len(rooms) != 1:
-            print('Too many rooms! Refine the name:')
+            self.LOGGER.error('Too many rooms! Refine the name:')
             for r in rooms:
                 self.LOGGER.info('{}'.format(r.title))
             sys.exit(1)
@@ -107,7 +107,7 @@ class MessageFactory:
         if not isinstance(to, list):
             to = [to]
         msg = MIMEText(message)
-        msg['Subject'] = 'Automatic generated message - RFC IETF'
+        msg['Subject'] = 'Automatic generated message - RFC ietf'
         msg['From'] = 'no-reply@yangcatalog.org'
         msg['To'] = ', '.join(to)
 
@@ -119,13 +119,13 @@ class MessageFactory:
         new_files = '\n'.join(new_files)
         diff_files = '\n'.join(diff_files)
         message = ('{}\n\nSome of the files are different'
-                   ' in https://yangcatalog.org/private/IETFYANGRFC.json against'
+                   ' in http://www.yangcatalog.org/private/IETFRFC.json against'
                    ' yangModels/yang repository\n\n'
-                   'Files that are missing in yangModules repo: \n{} \n\n '
+                   'Files that are missing in yangModles repo: \n{} \n\n '
                    'Files that are different then in yangModels repo: \n{}'
                    .format(GREETINGS, new_files, diff_files))
         to = ['bclaise@cisco.com', 'einarnn@cisco.com', 'jclarke@cisco.com',
-              'miroslav.kovac@pantheon.tech', 'evyncke@cisco.com']
+              'mirolsav.kovac@pantheon.tech', 'evyncke@cisco.com']
 
         self.__post_to_spark(message)
         self.__post_to_email(message, to)

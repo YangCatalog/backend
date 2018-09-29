@@ -176,8 +176,7 @@ if __name__ == "__main__":
                         if update:
                             local_integrity = integrity.Statistics(filename)
                             LOGGER.info('Found xml source {}'.format(filename))
-                            prepare_vendor = prepare.Prepare(log_directory, "prepare",
-                                                             yangcatalog_api_prefix)
+
                             capability = cap.Capability(log_directory, filename, index,
                                                         prepare_vendor,
                                                         local_integrity, args.api,

@@ -219,7 +219,10 @@ class ModulesComplicatedAlgorithms:
             if output.split('\n')[1].endswith('-state'):
                 if '+--rw' in output:
                     return False
-                name_of_module = output.split('\n')[0].split(': ')[1]
+                if output.startswith('\n'):
+                    name_of_module = output.split('\n')[1].split(': ')[1]
+                else:
+                    name_of_module = output.split('\n')[0].split(': ')[1]
                 name_of_module = name_of_module.split('-state')[0]
                 coresponding_nmda_file = self.__find_file(name_of_module)
                 if coresponding_nmda_file:
@@ -353,7 +356,10 @@ class ModulesComplicatedAlgorithms:
             elif stdout == '':
                 module['tree-type'] = 'not-applicable'
             else:
-                pyang_list_of_rows = stdout.split('\n')[2:]
+                if stdout.startswith('\n'):
+                    pyang_list_of_rows = stdout.split('\n')[2:]
+                else:
+                    pyang_list_of_rows = stdout.split('\n')[1:]
                 if 'submodule' == module['module-type']:
                     LOGGER.debug('Module {} is a submodule'.format(self.__path))
                     module['tree-type'] = 'not-applicable'
@@ -465,6 +471,8 @@ class ModulesComplicatedAlgorithms:
                             with open(schema1, 'r') as f:
                                 a1 = ctx.add_module(schema1, f.read())
                             ctx.opts.check_update_from = schema2
+                            ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
+                            ctx.opts.verbose = False
                             check_update(ctx, schema2, a1)
                             if len(ctx.errors) == 0:
                                 with open(schema2, 'r') as f:
@@ -561,9 +569,13 @@ class ModulesComplicatedAlgorithms:
                                     self.__save_file_dir,
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
+                                ctx = create_context(os.path.abspath(self.__yang_models))
                                 with open(schema1, 'r') as f:
                                     a1 = ctx.add_module(schema1, f.read())
                                 ctx.opts.check_update_from = schema2
+                                ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
+                                ctx.opts.verbose = False
+
                                 check_update(ctx, schema2, a1)
                                 if len(ctx.errors) == 0:
                                     with open(schema2, 'r') as f:
@@ -637,6 +649,8 @@ class ModulesComplicatedAlgorithms:
                                 new = {'name': name,
                                        'revision': revision,
                                        'schema': mod['schema']}
+                                if module.get('dependents') is None:
+                                    module['dependents'] = []
                                 if new not in module['dependents']:
                                     module['dependents'].append(new)
                                     self.__new_modules.append(module)
@@ -649,6 +663,8 @@ class ModulesComplicatedAlgorithms:
                                         new = {'name': module['name'],
                                                'revision': module['revision'],
                                                'schema': module['schema']}
+                                        if module.get('dependents') is None:
+                                            module['dependents'] = []
                                         if new not in mod['dependents']:
                                             mod['dependents'].append(new)
                                 else:
@@ -656,6 +672,8 @@ class ModulesComplicatedAlgorithms:
                                         new = {'name': module['name'],
                                                'revision': module['revision'],
                                                'schema': module['schema']}
+                                        if module.get('dependents') is None:
+                                            module['dependents'] = []
                                         if new not in mod['dependents']:
                                             mod['dependents'].append(new)
                 if len(mod['dependents']) > 0:
