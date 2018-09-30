@@ -146,6 +146,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
     """
     global api_ip
     global LOGGER
+    global save_file_dir
     if apiIp is not None:
         api_ip = apiIp
     if LOOGER_temp is not None:
@@ -226,11 +227,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                     load_new_files_to_github = True
                 if force_indexing or (
                             code != 200 and code != 201 and code != 204):
-                    if module.get('schema'):
-                        path = module['schema'].split('master')[1]
-                        path = os.path.abspath(yang_models + '/' + path)
-                    else:
-                        path = 'module does not exist'
+                    path = '{}/{}@{}.yang'.format(save_file_dir, module.get('name'), module.get('revision'))
                     post_body[module['name'] + '@' + module['revision'] + '/' + module['organization']] = path
 
         if len(post_body) == 0:
@@ -737,3 +734,4 @@ if __name__ == '__main__':
                 connection.close()
             except Exception:
                 pass
+
