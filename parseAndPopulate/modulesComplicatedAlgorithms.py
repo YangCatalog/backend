@@ -226,7 +226,7 @@ class ModulesComplicatedAlgorithms:
                 name_of_module = name_of_module.split('-state')[0]
                 coresponding_nmda_file = self.__find_file(name_of_module)
                 if coresponding_nmda_file:
-                    ctx = create_context(os.path.abspath(self.__yang_models))
+                    ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
                     with open(coresponding_nmda_file, 'r') as f:
                         a = ctx.add_module(coresponding_nmda_file, f.read())
                     if ctx.opts.tree_path is not None:
@@ -332,7 +332,7 @@ class ModulesComplicatedAlgorithms:
             LOGGER.info('Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
             LOGGER.debug(
                 'Get tree type from tag from module {}'.format(self.__path))
-            ctx = create_context(os.path.abspath(self.__yang_models))
+            ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
             with open(self.__path, 'r') as f:
                 a = ctx.add_module(self.__path, f.read())
             if ctx.opts.tree_path is not None:
@@ -467,7 +467,7 @@ class ModulesComplicatedAlgorithms:
                             schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir,
                                                             modules[-1]['name'],
                                                             modules[-1]['revision'])
-                            ctx = create_context(os.path.abspath(self.__yang_models))
+                            ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
                             with open(schema1, 'r') as f:
                                 a1 = ctx.add_module(schema1, f.read())
                             ctx.opts.check_update_from = schema2
@@ -569,7 +569,7 @@ class ModulesComplicatedAlgorithms:
                                     self.__save_file_dir,
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
-                                ctx = create_context(os.path.abspath(self.__yang_models))
+                                ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
                                 with open(schema1, 'r') as f:
                                     a1 = ctx.add_module(schema1, f.read())
                                 ctx.opts.check_update_from = schema2
