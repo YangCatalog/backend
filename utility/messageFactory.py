@@ -67,7 +67,7 @@ class MessageFactory:
             self.LOGGER.error('Need at least one room')
             sys.exit(1)
         if len(rooms) != 1:
-            print('Too many rooms! Refine the name:')
+            self.LOGGER.error('Too many rooms! Refine the name:')
             for r in rooms:
                 self.LOGGER.info('{}'.format(r.title))
             sys.exit(1)

@@ -216,8 +216,8 @@ class Capability:
                             self.branch = 'master'
                             path = root + '/' + file_name
                             abs_path = os.path.abspath(path)
-                            if '/yang/' in abs_path:
-                                path = abs_path.split('/yang/')[1]
+                            if '/yangmodels/yang/' in abs_path:
+                                path = abs_path.split('/yangmodels/yang/')[1]
                             else:
                                 path = abs_path.split('/')[2:]
                                 path = '/'.join(path)

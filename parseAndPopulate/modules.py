@@ -306,7 +306,7 @@ class Modules:
                 if yang_file is None:
                     dependency.schema = None
                 else:
-                    suffix = os.path.abspath(yang_file).split('/yang/')[1]
+                    suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
                     prefix = self.schema.split('/yang/')[0]
                     dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
                 self.dependencies.append(dependency)
@@ -372,8 +372,8 @@ class Modules:
     def __resolve_schema(self, schema, git_branch):
         if schema:
             split_index = '/{}/'.format(git_branch)
-            if '/tmp/' in self.__path:
-                split_index = self.__path.split('/')[1]
+            if '/yangmodels/yang/' in self.__path:
+                split_index = '/yangmodels/yang/'
             if self.__is_vendor:
                 suffix = os.path.abspath(self.__path).split(split_index)[1]
                 self.schema = schema + suffix

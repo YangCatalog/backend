@@ -193,6 +193,8 @@ if __name__ == "__main__":
     for key in ietf_draft_json:
         yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
         yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
+        yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
+
         try:
             yang_raw = requests.get(yang_download_link).text
             yang_file.write(yang_raw)

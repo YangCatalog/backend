@@ -1133,7 +1133,7 @@ def add_vendors():
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
-@application.route('/index/search', methods=['POST'])
+@application.route('/slow', methods=['POST'])
 def index_search():
     """Search through the YANG keyword index for a given search pattern.
        The arguments are a payload specifying search options and filters.
@@ -1209,7 +1209,7 @@ def index_search():
         return make_response(jsonify({'error': str(e)}), 500)
 
 
-@application.route('/slow', methods=['POST'])
+@application.route('/index/search', methods=['POST'])
 def slow_search():
     """Search through the YANG keyword index for a given search pattern.
        The arguments are a payload specifying search options and filters.
