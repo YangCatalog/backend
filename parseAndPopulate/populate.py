@@ -190,7 +190,7 @@ if __name__ == "__main__":
                                            '../parseAndPopulate/{}/prepare.json'.format(direc),
                                            args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
                                            from_api=args.api, force_indexing=args.force_indexing,
-                                           LOOGER_temp=LOGGER, yangModels=yang_models)
+                                           LOOGER_temp=LOGGER, saveFilesDir=args.save_file_dir)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open('../parseAndPopulate/{}/prepare.json'.format(direc)) as data_file:

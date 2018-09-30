@@ -1382,7 +1382,7 @@ def search_recursive(output, module, leaf, resolved):
 @application.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
 def create_tree(f1, r1):
     path_to_yang = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
-    ctx = create_context(application.yang_models)
+    ctx = create_context(application.yang_models, application.save_file_dir)
     with open(path_to_yang, 'r') as f:
         a = ctx.add_module(path_to_yang, f.read())
     if ctx.opts.tree_path is not None:
@@ -1521,7 +1521,7 @@ def create_diff_tree(f1, r1, f2, r2):
             return 'Server error - could not create directory'
     schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
-    ctx = create_context(application.yang_models)
+    ctx = create_context(application.yang_models, application.save_file_dir)
     with open(schema1, 'r') as f:
         a = ctx.add_module(schema1, f.read())
     if ctx.opts.tree_path is not None:
