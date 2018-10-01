@@ -28,9 +28,15 @@ def get_logger(name, file_name_path='yang.log'):
             :param name :  (str) Set name of the logger.
             :return a logger with the specified name.
     """
+    # check if file exists
+    exists = False
+    if os.path.isfile(file_name_path):
+        exists = True
     FORMAT = '%(asctime)-15s %(levelname)-8s %(name)5s => %(message)s - %(lineno)d'
     DATEFMT = '%Y-%m-%d %H:%M:%S'
     logging.basicConfig(datefmt=DATEFMT, format=FORMAT, filename=file_name_path, level=logging.INFO)
     logger = logging.getLogger(name)
-    os.chmod(file_name_path, 0o664 | stat.S_ISGID)
+    # if file didn t exist we create it and now we can set chmod
+    if not exists:
+        os.chmod(file_name_path, 0o664 | stat.S_ISGID)
     return logger
