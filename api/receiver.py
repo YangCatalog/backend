@@ -719,7 +719,7 @@ if __name__ == '__main__':
         channel.queue_declare(queue='module_queue')
 
         channel.basic_qos(prefetch_count=1)
-        channel.basic_consume(on_request, queue='module_queue', no_ack=True)
+        channel.basic_consume('module_queue', on_request, no_ack=True)
 
         LOGGER.info('Awaiting RPC request')
         try:
