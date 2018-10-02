@@ -35,12 +35,13 @@ added.
 
 To find all the modules missing or wrong revisions, namespaces, imports,
 include or modules that according to capability.xml file should be in
-folder but are missing, we can use runCapabilities script with __integrity__
+folder but are missing, we can use runCapabilities script with `__integrity__`
 option.
 
 #### API
 
-The API module runs as a UWSGI emperor vassal and contains several endpoints. Most
+The API module runs as a UWSGI emperor vassal (using the `yang-catalog.ini`file)
+and contains several endpoints. Most
 of the endpoints serves to find modules in different ways. This is described
 deeper in [API documentation](www.yangcatalog.org/doc). If the user is
 registered, she/he can add modify or delete modules based on pre-approved path.
@@ -50,35 +51,45 @@ process to give the user specific rights so he is able to add, remove or
 update only certain modules.
 
 Some of the requests may take a longer period of time to process. For this
-matter a sender and receiver was made. These scripts are using rabbitMQ
+matter a sender and receiver was made. These scripts use rabbitMQ
 to communicate. API will use sender to send a job to the receiver. While
 receiver is processing this job, user will receive a job-id. User can
 check his job at any time if it has been completed or not. Once a receiver
 is done it will update a job status to either Failed of Finished
 successfully.
 
-Yangcatalog api is also used for some automated jobs. Every time new
+Yangcatalog API is also used by some automated jobs. Every time new
 modules are merged in yangModels/yang repository a job is triggered to
-populate all new modules to yangcatalog database. API is also receiving
+populate all new modules to yangcatalog database. 
+
+The backend API also receives
 IETF Yang models every day and if there are any new drafts it will
 automatically populate yangcatalog database and update the repository
 with all the new IETF modules if travis job passed successfully.
+
+Please note that UWSGI cache is used to improve the performance as compared to
+the ConfD request. At the load of the UWSGI, the cache is pre-populated by 
+issueing one ConfD request per module; during this initial load time, the API
+will probably time-out and the NGINX server will return a 50x error.
 
 #### Jobs
 
 There are several cron jobs that are running every day.
 * Statistics job under statistic module which goes through all the
-modules that are in yangcatalog and generates html file which has
-information about what vendors and sdos modules do we have and amound of
+modules that are in yangcatalog and generates an HTML file which has
+information about what vendors and SDOs modules do we have and amount of
 modules that we have.
-* Resolve expiration job that checks all the ietf draft modules
+* Resolve expiration job that checks all the IETF draft modules
 and their expiration date and update its metadata accordingly.
 * Remove unused job that removes data on the server that are not used
 anymore.
-* In ietfYangDraftPull there are three jobs. DraftPull.py adds new modules
-to yangModels/yang repository if there are any new modules. DraftPullLocall.py
+* In ietfYangDraftPull directory there are three jobs.
+1. DraftPull.py adds new modules
+to yangModels/yang repository if there are any new modules. 
+2. DraftPullLocall.py
 goes through all ietf drafts and rfcs and populates yangcatalog if there
-are any new modules. Finally OpenconfigPullLocall.py populates all the
+are any new modules.
+3. OpenconfigPullLocall.py populates all the
 new openconfig yang modules from their own repository to the yangcatalog.
 * Recovery script which pulls all the data from confd and creates a json
 file which is saved in server as backup. If we loose all the data for
