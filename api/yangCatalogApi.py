@@ -416,7 +416,7 @@ def create_response(body, status, headers=None):
 @application.errorhandler(404)
 def not_found():
     """Error handler for 404"""
-    return make_response(jsonify({'error': 'Not found'}), 404)
+    return make_response(jsonify({'error': 'Not found -- in api code'}), 404)
 
 
 def authorize_for_sdos(request, organizations_sent, organization_parsed):

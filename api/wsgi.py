@@ -21,3 +21,6 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 from api.yangCatalogApi import application
+
+#if __name__ == "__main__":
+#        application.run()

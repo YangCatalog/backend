@@ -247,7 +247,7 @@ class Capability:
                         LOGGER.debug('Getting netconf version')
                     # Parse capability together with version
                     elif ':capability:' in capability:
-                        cap_with_version = capability[1]
+                        cap_with_version = capability
                         capabilities.append(cap_with_version.split('?')[0])
         else:
             if os.path.isfile('/'.join(self.split[:-1]) + '/platform-metadata.json'):
@@ -265,7 +265,7 @@ class Capability:
                                     LOGGER.debug('Getting netconf version')
                                 # Parse capability together with version
                                 elif ':capability:' in capability:
-                                    cap_with_version = capability[1]
+                                    cap_with_version = capability
                                     capabilities.append(
                                         cap_with_version.split('?')[0])
                 json_file.close()
@@ -378,7 +378,7 @@ class Capability:
                                 LOGGER.debug('Getting netconf version')
                             # Parse capability together with version
                             elif ':capability:' in capability:
-                                cap_with_version = capability[1]
+                                cap_with_version = capability
                                 capabilities.append(
                                     cap_with_version.split('?')[0])
             json_file.close()
