@@ -136,7 +136,7 @@ if __name__ == "__main__":
         direc = 0
         while True:
             try:
-                os.makedirs('../parseAndPopulate/' + repr(direc))
+                os.makedirs('{}/{}'.format(temp_dir, repr(direc)))
                 break
             except OSError as e:
                 direc += 1
@@ -188,13 +188,13 @@ if __name__ == "__main__":
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix,
-                                           '../parseAndPopulate/{}/prepare.json'.format(direc),
+                                           '{}/{}/prepare.json'.format(temp_dir, direc),
                                            args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
                                            from_api=args.api, force_indexing=args.force_indexing,
                                            LOOGER_temp=LOGGER, saveFilesDir=args.save_file_dir)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
-    with open('../parseAndPopulate/{}/prepare.json'.format(direc)) as data_file:
+    with open('{}/{}/prepare.json'.format(temp_dir, direc)) as data_file:
         read = data_file.read()
         modules_json = json.loads(read)['module']
         mod = len(modules_json) % 1000
@@ -239,8 +239,8 @@ if __name__ == "__main__":
 
     # In each json
     LOGGER.info('Starting to add vendors')
-    if os.path.exists('../parseAndPopulate/{}/normal.json'.format(direc)):
-        with open('../parseAndPopulate/{}/normal.json'.format(direc)) as data:
+    if os.path.exists('{}/{}/normal.json'.format(temp_dir, direc)):
+        with open('{}/{}/normal.json'.format(temp_dir, direc)) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
 
             mod = len(vendors) % 1000
@@ -311,7 +311,7 @@ if __name__ == "__main__":
                 LOGGER.warning('Could not send a load-cache request')
 
         try:
-            shutil.rmtree('../parseAndPopulate/' + direc)
+            shutil.rmtree('{}/{}'.format(temp_dir, direc))
         except OSError:
             # Be happy if deleted
             pass

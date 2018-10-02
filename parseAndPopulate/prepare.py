@@ -54,7 +54,7 @@ class Prepare:
     def dump_modules(self, directory):
         LOGGER.debug('Creating prepare.json file from sdo information')
 
-        with open('../parseAndPopulate/' + directory + '/' + self.file_name +
+        with open(directory + '/' + self.file_name +
                           '.json', "w") as prepare_model:
             json.dump({'module': [{
                 'name': self.yang_modules[key].name,
@@ -108,7 +108,7 @@ class Prepare:
             } for key in self.name_revision_organization]}, prepare_model)
 
     def dump_vendors(self, directory):
-        with open('../parseAndPopulate/' + directory + '/normal.json',
+        with open(directory + '/normal.json',
                   "w") as ietf_model:
             json.dump({
                 'vendors': {

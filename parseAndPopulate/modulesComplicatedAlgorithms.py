@@ -48,7 +48,7 @@ class ModulesComplicatedAlgorithms:
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', log_directory + '/parseAndPopulate.log')
         if all_modules is None:
-            with open('../parseAndPopulate/' + direc + '/prepare.json', 'r') as f:
+            with open(direc + '/prepare.json', 'r') as f:
                 self.__all_modules = json.load(f)
         else:
             self.__all_modules = all_modules

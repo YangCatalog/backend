@@ -925,11 +925,11 @@ def add_modules():
 
     direc = 0
     while True:
-        if os.path.isdir('../parseAndPopulate/' + repr(direc)):
+        if os.path.isdir('{}/{}'.format(application.temp_dir, repr(direc))):
             direc += 1
         else:
             break
-    direc = '../parseAndPopulate/' + repr(direc)
+    direc = '{}/{}'.format(application.temp_dir, repr(direc))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -1019,7 +1019,7 @@ def add_modules():
 
     application.LOGGER.debug('Sending a new job')
     arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port",
-                 repr(application.confdPort), "--dir", direc + "/temp", "--api", "--ip",
+                 repr(application.confdPort), "--dir", direc, "--api", "--ip",
                  application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.protocol, application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
@@ -1075,11 +1075,11 @@ def add_vendors():
 
     direc = 0
     while True:
-        if os.path.isdir('../parseAndPopulate/' + repr(direc)):
+        if os.path.isdir('{}/{}'.format(application.temp_dir, repr(direc))):
             direc += 1
         else:
             break
-    direc = '../parseAndPopulate/' + repr(direc)
+    direc = '{}/{}'.format(application.temp_dir, repr(direc))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -1124,7 +1124,7 @@ def add_vendors():
     for key in repo:
         repo[key].remove()
     arguments = ["python", "../parseAndPopulate/populate.py", "--port",
-                 repr(application.confdPort), "--dir", direc + "/temp", "--api", "--ip",
+                 repr(application.confdPort), "--dir", direc, "--api", "--ip",
                  application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.integrity_file_location, application.protocol,
                  application.api_protocol, repr(application.api_port)]

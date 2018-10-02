@@ -164,7 +164,7 @@ class Capability:
     def parse_and_dump_sdo(self):
         if self.api:
             LOGGER.debug('Parsing sdo files sent via API')
-            with open('../parseAndPopulate/' + self.json_dir + '/prepare-sdo.json', 'r') as f:
+            with open(self.json_dir + '/prepare-sdo.json', 'r') as f:
                 sdos_json = json.load(f)
             sdos_list = sdos_json['modules']['module']
             for sdo in sdos_list:

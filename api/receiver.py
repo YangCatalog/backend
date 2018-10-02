@@ -67,7 +67,7 @@ def process_sdo(arguments):
     LOGGER.debug('Processing sdo')
     tree_created = True if arguments[-4] == 'True' else False
     arguments = arguments[:-4]
-    direc = '/'.join(arguments[6].split('/')[0:3])
+    direc = arguments[6]
     arguments.append('--api-ip')
     arguments.append(api_ip)
     arguments.append("--result-html-dir")
@@ -98,8 +98,7 @@ def process_sdo(arguments):
 
     if tree_created:
         subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../api/sdo/"])
-        with open('../parseAndPopulate/' + direc + '/prepare.json',
-                  'r') as f:
+        with open(direc + '/prepare.json', 'r') as f:
             global all_modules
             all_modules = json.load(f)
 
@@ -293,7 +292,7 @@ def process_vendor(arguments):
     integrity_file_location = arguments[-4]
 
     arguments = arguments[:-5]
-    direc = '/'.join(arguments[5].split('/')[0:3])
+    direc = arguments[5]
     arguments.append('--api-ip')
     arguments.append(api_ip)
     arguments.append("--result-html-dir")
@@ -321,7 +320,7 @@ def process_vendor(arguments):
     subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../api/vendor/"])
 
     if tree_created:
-        with open('../parseAndPopulate/' + direc + '/prepare.json',
+        with open(direc + '/prepare.json',
                   'r') as f:
             global all_modules
             all_modules = json.load(f)
@@ -618,12 +617,12 @@ def on_request(ch, method, props, body):
             elif '--sdo' in arguments[2]:
                 final_response = process_sdo(arguments)
                 credentials = arguments[11:13]
-                direc = '/'.join(arguments[6].split('/')[0:3])
+                direc = arguments[6]
                 shutil.rmtree(direc)
             else:
                 final_response = process_vendor(arguments)
                 credentials = arguments[10:12]
-                direc = '/'.join(arguments[5].split('/')[0:3])
+                direc = arguments[5]
                 shutil.rmtree(direc)
             if final_response.split('#split#')[0] == __response_type[1]:
                 res = make_cache(credentials)
@@ -634,7 +633,7 @@ def on_request(ch, method, props, body):
                     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                          credentials, confd_protocol, confd_ip,
                                                                          confdPort, save_file_dir, None, all_modules,
-                                                                         yang_models)
+                                                                         yang_models, temp_dir)
                     complicatedAlgorithms.parse_non_requests()
                     complicatedAlgorithms.parse_requests()
                     complicatedAlgorithms.populate()
@@ -697,6 +696,8 @@ if __name__ == '__main__':
     log_directory = config.get('Directory-Section', 'logs')
     global LOGGER
     LOGGER = log.get_logger('receiver', log_directory + '/yang.log')
+    global temp_dir
+    temp_dir = config.get('Directory-Section', 'temp')
     LOGGER.info('Starting receiver')
 
     if notify_indexing == 'True':
