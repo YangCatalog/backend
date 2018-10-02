@@ -116,6 +116,7 @@ class MyFlask(Flask):
         self.token = config.get('API-Section', 'yang-catalog-token')
         self.admin_token = config.get('API-Section', 'admin-token')
         self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
+        self.temp_dir = config.get('Directory-Section', 'temp')
         self.integrity_file_location = config.get('API-Section',
                                              'integrity-file-location')
         self.diff_file_dir = config.get('Web-Section', 'save-diff-dir')
@@ -549,8 +550,7 @@ def yangsuite_redirect(id):
     local_ip = '127.0.0.1'
     if application.is_uwsgi:
         local_ip = 'ys.yangcatalog.org'
-#    return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
-    return redirect('https://ys.yangcatalog.org/yangsuite/ydk/aaa/yangcat')
+    return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
 
 
 @auth.login_required
@@ -1391,12 +1391,12 @@ def create_tree(f1, r1):
             path = path[1:]
     else:
         path = None
-    with open('pyang_temp.txt', 'w')as f:
+    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'w')as f:
         emit_tree(ctx, [a], f, ctx.opts.tree_depth,
                   ctx.opts.tree_line_length, path)
-    with open('pyang_temp.txt', 'r')as f:
+    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
-    os.unlink('pyang_temp.txt')
+    os.unlink('{}/pyang_temp.txt'.format(application.temp_dir))
     if stdout == '' and len(ctx.errors) != 0:
         return create_bootstrap_danger()
     elif stdout != '' and len(ctx.errors) != 0:
@@ -1530,20 +1530,20 @@ def create_diff_tree(f1, r1, f2, r2):
             path = path[1:]
     else:
         path = None
-    with open('pyang_temp.txt', 'w')as f:
+    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'w')as f:
         emit_tree(ctx, [a], f, ctx.opts.tree_depth,
                   ctx.opts.tree_line_length, path)
-    with open('pyang_temp.txt', 'r')as f:
+    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
     file_name1 = 'schema1.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     with open(schema2, 'r') as f:
         a = ctx.add_module(schema2, f.read())
-    with open('pyang_temp.txt', 'w')as f:
+    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'w')as f:
         emit_tree(ctx, [a], f, ctx.opts.tree_depth,
                   ctx.opts.tree_line_length, path)
-    with open('pyang_temp.txt', 'r')as f:
+    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
     file_name2 = 'schema2.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
@@ -1555,7 +1555,7 @@ def create_diff_tree(f1, r1, f2, r2):
     response = requests.get(diff_url)
     os.remove(application.diff_file_dir + '/' + file_name1)
     os.remove(application.diff_file_dir + '/' + file_name2)
-    os.unlink('pyang_temp.txt')
+    os.unlink('{}/pyang_temp.txt'.format(application.temp_dir))
     return '<html><body>{}</body></html>'.format(response.text)
 
 
@@ -2493,7 +2493,7 @@ def get_password(username):
 
 @auth.error_handler
 def unauthorized():
-    """Return unathorized error message"""
+    """Return unauthorized error message"""
     return make_response(jsonify({'error': 'Unauthorized access'}), 401)
 
 

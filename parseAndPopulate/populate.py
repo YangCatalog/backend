@@ -119,6 +119,7 @@ if __name__ == "__main__":
     LOGGER = log.get_logger('populate', log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     yang_models = config.get('Directory-Section', 'yang_models_dir')
+    temp_dir = config.get('Directory-Section', 'temp')
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
@@ -293,7 +294,7 @@ if __name__ == "__main__":
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  args.credentials,
                                                                  args.protocol, 'yangcatalog.org', args.port, args.save_file_dir,
-                                                                 direc, None, yang_models)
+                                                                 direc, None, yang_models, temp_dir)
             complicatedAlgorithms.parse_non_requests()
             LOGGER.info('Waiting for cache reload to finish')
             thread.join()
