@@ -327,7 +327,7 @@ class MyFlask(Flask):
 
                 with open(ys_dir + '/' + defmod.split('@')[0].lower(), 'w') as f:
                     f.write(json.dumps(json_set, indent=4))
-                uid = pwd.getpwnam("miroslav").pw_uid
+                uid = pwd.getpwnam("yang").pw_uid
                 gid = grp.getgrnam("yang").gr_gid
                 path = self.ys_users_dir + '/' + id
                 for root, dirs, files in os.walk(path):
@@ -548,9 +548,9 @@ def check_authorized(signature, payload):
 def yangsuite_redirect(id):
     local_ip = '127.0.0.1'
     if application.is_uwsgi:
-        local_ip = 'yangcatalog.org'
-#    return redirect('http://{}:8000/ydk/aaa/{}'.format(local_ip, id))
-    return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
+        local_ip = 'ys.yangcatalog.org'
+#    return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
+    return redirect('https://ys.yangcatalog.org/yangsuite/ydk/aaa/yangcat')
 
 
 @auth.login_required
