@@ -31,15 +31,12 @@ website
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from pyang.plugins.tree import emit_tree
 
-from utility.yangParser import create_context
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
-
 import base64
 import collections
 import errno
@@ -66,16 +63,19 @@ from OpenSSL.crypto import load_publickey, FILETYPE_PEM, X509, verify
 from flask import Flask, jsonify, abort, make_response, request, Response, \
     redirect
 from flask_httpauth import HTTPBasicAuth
+from pyang.plugins.tree import emit_tree
 
-import utility.log as log
 import api.yangSearch.index as index
 import api.yangSearch.mysql_index as ind
+import utility.log as log
 from api.prometheus.main import monitor
 from api.sender import Sender
-from utility import repoutil, yangParser, messageFactory
-from utility.util import get_curr_dir
 from api.yangSearch.module import Module
 from api.yangSearch.rester import Rester, RestException
+from utility import repoutil, yangParser, messageFactory
+from utility.util import get_curr_dir
+from utility.yangParser import create_context
+
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
@@ -92,7 +92,8 @@ auth = HTTPBasicAuth()
 
 class MyFlask(Flask):
 
-    def __init__(self, import_name): 
+    def __init__(self, import_name):
+        self.loading = True
         super(MyFlask, self).__init__(import_name)
         self.response = None
         self.ys_set = 'set'
@@ -148,6 +149,11 @@ class MyFlask(Flask):
         self.create_response_with_yangsuite_link()
 
         return self.response
+
+    def preprocess_request(self):
+        if self.loading:
+            message = json.dumps({'Error': 'Server is loading. This can take several minutes. Please try again later'})
+            return create_response(message, 503)
 
     def create_response_only_latest_revision(self):
         if request.args.get('latest-revision'):
@@ -2329,40 +2335,18 @@ def get_active_cache():
 
 
 def load(on_change):
-    """Load all the data populated to yang-catalog to memory saved in file in ./cache."""
-    active_cache = get_active_cache()
-    if active_cache is None or on_change:
-        # We should get here only if application was started for the first time (active_cache is None)
-        # or if we need to reload cache (on_change == True)
-
-        with lock_for_load:
-            with lock_uwsgi_cache1:
-                application.LOGGER.info('Loading cache 1')
-                load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
-                # reset active cache back to 1 since we are done with populating cache 1
-                uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
-            application.LOGGER.info('Loading cache 2')
-            with lock_uwsgi_cache2:
-                load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
-            application.LOGGER.info('Both caches are loaded')
-    else:
-        # if we need to get some data from api
-        if active_cache[1] == '1':
-            # From cache 1
-            with lock_uwsgi_cache1:
-                load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
-                # reset active cache back to 1 since we are done with populating cache 1
-                uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
-                application.LOGGER.info('Using cache 1')
-        else:
-            with lock_uwsgi_cache2:
-                initialized = uwsgi.cache_get('initialized', 'cache_chunks2')
-                if sys.version_info >= (3, 4) and initialized is not None:
-                    initialized = initialized.decode(encoding='utf-8', errors='strict')
-                application.LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
-                if initialized is not None and initialized == 'True':
-                    load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
-                    application.LOGGER.info('Using cache 2')
+    """Load to cache from confd all the data populated to yang-catalog."""
+    with lock_for_load:
+        with lock_uwsgi_cache1:
+            application.LOGGER.info('Loading cache 1')
+            load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
+            # reset active cache back to 1 since we are done with populating cache 1
+            uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
+        application.LOGGER.info('Loading cache 2')
+        with lock_uwsgi_cache2:
+            load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
+        application.LOGGER.info('Both caches are loaded')
+        application.loading = False
 
 
 def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
