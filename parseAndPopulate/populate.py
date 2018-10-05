@@ -131,7 +131,8 @@ if __name__ == "__main__":
     key = config.get('Receiver-Section', 'key')
     LOGGER.info('Starting the populate script')
     if args.api:
-        direc = '/'.join(args.dir.split('/')[0:3])
+        direc = args.dir
+        args.dir += '/temp'
     else:
         direc = 0
         while True:
@@ -142,7 +143,7 @@ if __name__ == "__main__":
                 direc += 1
                 if e.errno != errno.EEXIST:
                     raise
-        direc = repr(direc)
+        direc = '{}/{}'.format(temp_dir, repr(direc))
     prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
     LOGGER.info('Calling runcapabilities script')
     if args.api:
