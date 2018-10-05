@@ -643,10 +643,10 @@ def on_request(ch, method, props, body):
     LOGGER.info('Receiver is done with id - {} and message = {}'
                 .format(props.correlation_id, str(final_response)))
 
-    f = open('./correlation_ids', 'r')
+    f = open('{}/correlation_ids'.format(temp_dir), 'r')
     lines = f.readlines()
     f.close()
-    with open('./correlation_ids', 'w') as f:
+    with open('{}/correlation_ids'.format(temp_dir), 'w') as f:
         for line in lines:
             if props.correlation_id in line:
                 new_line = '{} -- {} - {}\n'.format(datetime.now()

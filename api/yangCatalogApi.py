@@ -159,7 +159,11 @@ class MyFlask(Flask):
         if request.args.get('latest-revision'):
             if 'True' == request.args.get('latest-revision'):
                 if self.response.data:
-                    json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(self.response.data)
+                        if sys.version_info >= (3, 4):
+                            decoded_string = self.response.data.decode(encoding='utf-8', errors='strict')
+                        else:
+                            decoded_string = self.response.data
+                        json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(decoded_string)
                 else:
                     return self.response
                 modules = None
@@ -2186,7 +2190,8 @@ def get_job(job_id):
                 :return response to the request with the job
     """
     application.LOGGER.info('Searching for job_id {}'.format(job_id))
-    result = application.sender.get_response(job_id)
+    # EVY result = application.sender.get_response(job_id)
+    result = application.sender.get_response(job_id, application.temp_dir)
     split = result.split('#split#')
 
     reason = None

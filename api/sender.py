@@ -65,7 +65,7 @@ class Sender:
         """
         self.LOGGER.debug('Trying to get response')
 
-        f = open('./correlation_ids', 'r')
+        f = open('{}/correlation_ids'.format(temp_dir), 'r')
         lines = f.readlines()
         f.close()
         for line in lines:
