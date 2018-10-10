@@ -41,7 +41,7 @@ import utility.log as log
 
 
 class Sender:
-    def __init__(self, log_directory):
+    def __init__(self, log_directory, temp_dir):
         self.LOGGER = log.get_logger('sender', log_directory + '/yang.log')
         self.LOGGER.debug('Initializing sender')
         self.__response_type = ['Failed', 'In progress',
@@ -51,11 +51,11 @@ class Sender:
 
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='module_queue')
-
+        self.__temp_dir = temp_dir
         self.__response_file = 'correlation_ids'
 
     def get_response(self, correlation_id):
-        """Get response according to job_id. It can be either 
+        """Get response according to job_id. It can be either
         'Failed', 'In progress', 'Finished successfully' or 'does not exist'
                 Arguments:
                     :param correlation_id: (str) job_id searched between
@@ -63,9 +63,9 @@ class Sender:
                     :return one of the following - 'Failed', 'In progress',
                         'Finished successfully' or 'does not exist'
         """
-        self.LOGGER.debug('Trying to get response')
+        self.LOGGER.debug('Trying to get response from correlation ids')
 
-        f = open('{}/correlation_ids'.format(temp_dir), 'r')
+        f = open('{}/{}'.format(self.__temp_dir, self.__response_file), 'r')
         lines = f.readlines()
         f.close()
         for line in lines:
@@ -89,7 +89,7 @@ class Sender:
                                        correlation_id=corr_id,
                                    ),
                                    body=str(arguments))
-        with open(self.__response_file, 'a') as f:
+        with open('{}/{}'.format(self.__temp_dir, self.__response_file), 'a') as f:
             line = '{} -- {} - {}\n'.format(datetime.datetime.now().ctime(),
                                             corr_id, self.__response_type[1])
             f.write(line)

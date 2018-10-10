@@ -90,14 +90,14 @@ def process_sdo(arguments):
             return __response_type[0] + '#split#Server error while parsing or populating data'
 
     try:
-        os.makedirs(get_curr_dir(__file__) + '/../api/sdo/')
+        os.makedirs(temp_dir + '/sdo/')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return __response_type[0] + '#split#Server error - could not create directory'
 
     if tree_created:
-        subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../api/sdo/"])
+        subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/sdo/"])
         with open(direc + '/prepare.json', 'r') as f:
             global all_modules
             all_modules = json.load(f)
@@ -207,7 +207,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                 if force_indexing or (code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
                         path = prefix + module['schema'].split('githubusercontent.com/')[1]
-                        path = os.path.abspath(get_curr_dir(__file__) + '/../' + path)
+                        path = os.path.abspath(temp_dir + '/' + path)
                     else:
                         path = 'module does not exist'
                     post_body[module['name'] + '@' + module['revision'] + '/' + module['organization']] = path
@@ -310,14 +310,14 @@ def process_vendor(arguments):
             LOGGER.error('Server error: {}'.format(e))
             return __response_type[0] + '#split#Server error while parsing or populating data'
     try:
-        os.makedirs(get_curr_dir(__file__) + '/../api/vendor/')
+        os.makedirs(temp_dir + '/vendor/')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             LOGGER.error('Server error: {}'.format(e))
             return __response_type[0] + '#split#Server error - could not create directory'
 
-    subprocess.call(["cp", "-r", direc + "/temp/.", get_curr_dir(__file__) + "/../api/vendor/"])
+    subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/vendor/"])
 
     if tree_created:
         with open(direc + '/prepare.json',
@@ -715,12 +715,12 @@ if __name__ == '__main__':
     __response_type = ['Failed', 'Finished successfully']
     while True:
         connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host='127.0.0.1', heartbeat_interval=0))
+            host='127.0.0.1', heartbeat=0))
         channel = connection.channel()
         channel.queue_declare(queue='module_queue')
 
         channel.basic_qos(prefetch_count=1)
-        channel.basic_consume('module_queue', on_request, no_ack=True)
+        channel.basic_consume(on_request, queue='module_queue', no_ack=True)
 
         LOGGER.info('Awaiting RPC request')
         try:

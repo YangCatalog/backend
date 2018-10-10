@@ -60,6 +60,7 @@ if __name__ == '__main__':
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
+    temp_dir = config.get('Directory-Section', 'temp')
     LOGGER = lo.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
     mf = messageFactory.MessageFactory()
     LOGGER.info('Removing unused files')
@@ -90,7 +91,7 @@ if __name__ == '__main__':
     dirs = os.listdir(args.remove_dir2)
     for dir in dirs:
         abs = os.path.abspath('{}/{}'.format(args.remove_dir2, dir))
-        if not abs.endswith('yangcat') and not abs.endswith('miott'):
+        if not abs.endswith('yangcat') and not abs.endswith('yang'):
             try:
                 shutil.rmtree(abs)
             except:
@@ -105,10 +106,10 @@ if __name__ == '__main__':
                 pass
 
     # removing correlation ids from file that are older than a day
-    f = open('./../api/correlation_ids', 'r')
+    f = open('{}/api/correlation_ids'.format(temp_dir), 'r')
     lines = f.readlines()
     f.close()
-    with open('./../api/correlation_ids', 'w') as f:
+    with open('{}/api/correlation_ids'.format(temp_dir), 'w') as f:
         for line in lines:
             line_datetime = line.split(' -')[0]
             t = datetime.datetime.strptime(line_datetime,

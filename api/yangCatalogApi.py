@@ -131,7 +131,7 @@ class MyFlask(Flask):
         self.my_uri = config.get('Web-Section', 'my_uri')
         self.yang_models = config.get('Directory-Section', 'yang_models_dir')
         log_directory = config.get('Directory-Section', 'logs')
-        self.sender = Sender(log_directory)
+        self.sender = Sender(log_directory, self.temp_dir)
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
@@ -1591,11 +1591,11 @@ def get_common():
     if response_first.status_code == 404 or response_second.status_code == 404:
         return not_found()
 
-    data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-        .decode(response_first.data)
+    data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
+        .decode(response_first.get_data(as_text=True))
     modules_first = data['yang-catalog:modules']['module']
     data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
-        .decode(response_second.data)
+        .decode(response_second.get_data(as_text=True))
     modules_second = data['yang-catalog:modules']['module']
 
     output_modules_list = []

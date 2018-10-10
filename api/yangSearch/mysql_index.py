@@ -133,8 +133,9 @@ def do_search(options, dbHost, dbName, dbPass,  dbUser):
                     result['node'][nf] = row[__node_data[nf]]
 
             results.append(result)
-
+        conn.close()
         return results
     except MySQLdb.Error as e:
+        conn.close()
         raise Exception("Error searching for {}: {}".format(
             opts['search'], e.args[0]))

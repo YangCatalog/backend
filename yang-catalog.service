@@ -1,0 +1,22 @@
+[Unit]
+Description=Yang Catalog back-end API receiver
+After=network-online.target 
+
+[Service]
+Type=simple
+User=yang
+Group=yang
+UMask=007
+#EnvironmentFile=-/etc/default/ssh
+#ExecStartPre=/usr/sbin/sshd -t
+ExecStart=/home/yang/backend/bin/python /home/yang/backend/backend/api/receiver.py
+#ExecReload=/usr/sbin/sshd -t
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+RestartPreventExitStatus=255
+RuntimeDirectory=/home/yang/backend/backend/api
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target
