@@ -15,7 +15,8 @@ ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 Restart=on-failure
 RestartPreventExitStatus=255
-RuntimeDirectory=/home/yang/backend/backend/api
+# Created in /var/run
+RuntimeDirectory=apiReceiver
 RuntimeDirectoryMode=0755
 
 [Install]
