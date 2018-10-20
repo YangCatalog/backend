@@ -1291,6 +1291,7 @@ def slow_search():
                         'error': 'Search failed at {}: {}'.format(mod_sig, e)}
 
             res.append(res_row)
+        application.LOGGER.info('{}'.format(res))
 
         return jsonify({'results': res})
     except Exception as e:

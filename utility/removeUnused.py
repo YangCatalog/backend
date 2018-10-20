@@ -17,6 +17,7 @@ users and correlation ids.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import sys
+import time
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -25,33 +26,28 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import datetime
-import math
 import os
 import shutil
-import time
 
 import utility.log as lo
-from utility import messageFactory
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
 
+
+def represents_int(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--remove-dir', type=str,
-                        default='.',
-                        help='Set path to config file')
-    parser.add_argument('--remove-dir2', type=str,
-                        default='.',
-                        help='Set path to yangsuite users')
-    parser.add_argument('--remove-dir3', type=str,
-                        default='/home/miroslav/yangsuite-users/',
-                        help='Set path to yangsuite saved users')
-    parser.add_argument('--logs-path', type=str,
-                        default='.',
-                        help='Set path to config file')
+
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
     args = parser.parse_args()
@@ -61,55 +57,31 @@ if __name__ == '__main__':
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
+    ys_users = config.get('Directory-Section', 'ys_users')
     LOGGER = lo.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
-    mf = messageFactory.MessageFactory()
     LOGGER.info('Removing unused files')
-    to_remove = []
-    for root, dirs, files in os.walk(args.remove_dir):
-        for fi_name in files:
-            with open(args.logs_path, 'r') as f:
-                remove = True
-                for line in f:
-                    if fi_name in line:
-                        remove = False
-                        break
-                if remove:
-                    remove_path = '{}/{}'.format(root, fi_name)
-                    st = os.stat(remove_path)
-                    c_time = st.st_ctime
-                    c_time = time.time() - c_time
-                    c_time = c_time / 60 / 60 / 24
-                    if math.floor(c_time) != 0:
-                        to_remove.append(remove_path)
-    mf.send_removed_temp_diff_files()
-    for remove in to_remove:
-        try:
-            os.remove(remove)
-        except OSError as e:
-            mf.send_automated_procedure_failed('Remove unused diff files',
-                                               e.strerror)
-    dirs = os.listdir(args.remove_dir2)
+    current_time = time.time()
+    cutoff = current_time - 86400
+    for dir in next(os.walk(temp_dir))[1]:
+        if represents_int(dir):
+            creation_time = os.path.getctime('{}/{}'.format(temp_dir, dir))
+            if creation_time < cutoff:
+                shutil.rmtree('{}/{}'.format(temp_dir, dir))
+
+    dirs = os.listdir(ys_users)
     for dir in dirs:
-        abs = os.path.abspath('{}/{}'.format(args.remove_dir2, dir))
+        abs = os.path.abspath('{}/{}'.format(ys_users, dir))
         if not abs.endswith('yangcat') and not abs.endswith('yang'):
-            try:
-                shutil.rmtree(abs)
-            except:
-                pass
-    dirs = os.listdir(args.remove_dir3)
-    for dir in dirs:
-        abs = os.path.abspath('{}/{}'.format(args.remove_dir3, dir))
-        if not abs.endswith('yangcatalog'):
             try:
                 shutil.rmtree(abs)
             except:
                 pass
 
     # removing correlation ids from file that are older than a day
-    f = open('{}/api/correlation_ids'.format(temp_dir), 'r')
+    f = open('{}/correlation_ids'.format(temp_dir), 'r')
     lines = f.readlines()
     f.close()
-    with open('{}/api/correlation_ids'.format(temp_dir), 'w') as f:
+    with open('{}/correlation_ids'.format(temp_dir), 'w') as f:
         for line in lines:
             line_datetime = line.split(' -')[0]
             t = datetime.datetime.strptime(line_datetime,
@@ -118,3 +90,4 @@ if __name__ == '__main__':
             if diff.days == 0:
                 f.write(line)
     LOGGER.info('Finished with script removeUnused.py')
+

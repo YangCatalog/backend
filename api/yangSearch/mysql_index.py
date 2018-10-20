@@ -23,9 +23,6 @@ import re
 import MySQLdb
 import MySQLdb.cursors
 
-conn = None
-cur = None
-
 
 def __mysql_regexp(pattern, buf, modifiers=re.I | re.S):
     if pattern is not None and buf is not None:
@@ -74,13 +71,9 @@ __node_data = {
 
 
 def do_search(options, dbHost, dbName, dbPass,  dbUser):
-    global conn, cur
     opts = json.loads(options)
-    if conn is None:
-        conn, cur = create_connection(dbHost, dbPass, dbName, dbUser)
-    else:
-        if not conn.open:
-            conn, cur = create_connection(dbHost, dbPass, dbName, dbUser)
+    conn, cur = create_connection(dbHost, dbPass, dbName, dbUser)
+
     try:
         case_sensitivity = ''
         if 'case-sensitive' in opts and opts['case-sensitive']:
@@ -139,3 +132,4 @@ def do_search(options, dbHost, dbName, dbPass,  dbUser):
         conn.close()
         raise Exception("Error searching for {}: {}".format(
             opts['search'], e.args[0]))
+
