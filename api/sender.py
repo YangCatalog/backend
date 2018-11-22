@@ -47,7 +47,7 @@ class Sender:
         self.__response_type = ['Failed', 'In progress',
                                 'Finished successfully', 'does not exist']
         self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters('127.0.0.1'))
+            pika.ConnectionParameters('127.0.0.1', heartbeat=0))
 
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='module_queue')

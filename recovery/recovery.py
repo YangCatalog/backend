@@ -39,8 +39,6 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='This serves to save or load all information in yangcatalog.org to json in'
@@ -53,9 +51,6 @@ if __name__ == "__main__":
                         help='Set port where the confd is started. Default -> 8008')
     parser.add_argument('--ip', default='localhost', type=str,
                         help='Set ip address where the confd is started. Default -> localhost')
-    parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
-                                              ' Default parameters are admin admin', nargs=2, default=['admin', 'admin']
-                        , type=str)
     parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
                         type=str, help='Set name of the file to save. Default name is date and time in UTC')
     parser.add_argument('--name_load', type=str,
@@ -63,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
                         help='Set weather you want to save a file or load a file. Default is save')
     parser.add_argument('--protocol', type=str, default='https', help='Whether confd-6.6 runs on http or https.'
-                                                                     ' Default is set to https')
+                                                                      ' Default is set to https')
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
 
@@ -73,11 +68,12 @@ if __name__ == "__main__":
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     cache_directory = config.get('Directory-Section', 'cache')
+    credentials = config.get('General-Section', 'credentials').split(' ')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
     if 'save' is args.type:
         file_save = open(cache_directory + '/' + args.name_save + '.json', 'w')
         jsn = requests.get(prefix + '/api/config/catalog?deep',
-                           auth=(args.credentials[0], args.credentials[1]),
+                           auth=(credentials[0], credentials[1]),
                            headers={
                                'Accept': 'application/vnd.yang.data+json',
                                'Content-type': 'application/vnd.yang.data+json'}).json()
@@ -91,7 +87,7 @@ if __name__ == "__main__":
             latest_file = max(list_of_files, key=os.path.getctime)
             file_load = open(latest_file, 'r')
         body = json.load(file_load, object_pairs_hook=OrderedDict)
-        str_to_encode = '%s:%s' % (args.credentials[0], args.credentials[1])
+        str_to_encode = '%s:%s' % (credentials[0], credentials[1])
         if sys.version_info >= (3, 4):
             str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
         base64string = base64.b64encode(str_to_encode)
@@ -102,3 +98,4 @@ if __name__ == "__main__":
             'Content-type': 'application/vnd.yang.data+json',
             'Accept': 'application/vnd.yang.data+json'})
         file_load.close()
+

@@ -339,7 +339,7 @@ class MyFlask(Flask):
                 with open(ys_dir + '/' + defmod.split('@')[0].lower(), 'w') as f:
                     f.write(json.dumps(json_set, indent=4))
                 uid = pwd.getpwnam("yang").pw_uid
-                gid = grp.getgrnam("yang").gr_gid
+                gid = grp.getgrnam("yang-dev").gr_gid
                 path = self.ys_users_dir + '/' + id
                 for root, dirs, files in os.walk(path):
                     for momo in dirs:
@@ -1028,7 +1028,7 @@ def add_modules():
         repo[key].remove()
 
     application.LOGGER.debug('Sending a new job')
-    arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port",
+    arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"), "--sdo", "--port",
                  repr(application.confdPort), "--dir", direc, "--api", "--ip",
                  application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.protocol, application.api_protocol, repr(application.api_port)]
@@ -1133,7 +1133,7 @@ def add_vendors():
 
     for key in repo:
         repo[key].remove()
-    arguments = ["python", "../parseAndPopulate/populate.py", "--port",
+    arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"), "--port",
                  repr(application.confdPort), "--dir", direc, "--api", "--ip",
                  application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.integrity_file_location, application.protocol,
@@ -1291,7 +1291,6 @@ def slow_search():
                         'error': 'Search failed at {}: {}'.format(mod_sig, e)}
 
             res.append(res_row)
-        application.LOGGER.info('{}'.format(res))
 
         return jsonify({'results': res})
     except Exception as e:
@@ -1413,7 +1412,7 @@ def create_tree(f1, r1):
     elif stdout != '' and len(ctx.errors) != 0:
         return create_bootstrap_warning(stdout)
     elif stdout == '' and len(ctx.errors) == 0:
-        create_bootstrap_info()
+        return create_bootstrap_info()
     else:
         return '<html><body><pre>{}</pre></body></html>'.format(stdout)
 
@@ -2192,7 +2191,7 @@ def get_job(job_id):
     """
     application.LOGGER.info('Searching for job_id {}'.format(job_id))
     # EVY result = application.sender.get_response(job_id)
-    result = application.sender.get_response(job_id, application.temp_dir)
+    result = application.sender.get_response(job_id)
     split = result.split('#split#')
 
     reason = None
@@ -2235,7 +2234,7 @@ def trigger_populate():
             application.LOGGER.info('Forking the repo')
             try:
                 for path in paths:
-                    arguments = ["python", "../parseAndPopulate/populate.py",
+                    arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"),
                                  "--port", repr(application.confdPort), "--ip",
                                  application.confd_ip, "--api-protocol", application.api_protocol, "--api-port",
                                  repr(application.api_port), "--api-ip", application.ip,

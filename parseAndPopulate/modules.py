@@ -598,9 +598,9 @@ class Modules:
         result['revision'] = self.revision
         context = {'result': result,
                    'ths': self.compilation_status['ths']}
-        rendered_html = stats.render(
-            '../parseAndPopulate/template/compilationStatusTemplate.html',
-            context)
+        template = os.path.dirname(os.path.realpath(__file__)) + '/template/compilationStatusTemplate.html'
+        LOGGER.info('{}'.format(template))
+        rendered_html = stats.render(template, context)
         file_url = '{}@{}_{}.html'.format(self.name, self.revision,
                                           self.organization)
 

@@ -44,6 +44,7 @@ import pika
 import requests
 
 import utility.log as log
+from distutils.dir_util import copy_tree
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility import messageFactory
 from utility.util import get_curr_dir
@@ -51,6 +52,16 @@ if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
+
+
+def copytree(src, dst):
+    for item in os.listdir(src):
+        s = os.path.join(src, item)
+        d = os.path.join(dst, item)
+        if os.path.isdir(s):
+            copy_tree(s, d)
+        else:
+            shutil.copy2(s, d)
 
 
 def process_sdo(arguments):
@@ -64,7 +75,7 @@ def process_sdo(arguments):
                 :return (__response_type) one of the response types which is either
                     'Failed' or 'Finished successfully' 
     """
-    LOGGER.debug('Processing sdo')
+    LOGGER.info('Processing sdo')
     tree_created = True if arguments[-4] == 'True' else False
     arguments = arguments[:-4]
     direc = arguments[6]
@@ -81,8 +92,9 @@ def process_sdo(arguments):
     if notify_indexing:
         arguments.append('--notify-indexing')
 
-    with open("log.txt", "w") as f:
+    with open(temp_dir + "/log.txt", "w") as f:
         try:
+            LOGGER.info('processing arguments')
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
             shutil.rmtree(direc)
@@ -97,7 +109,8 @@ def process_sdo(arguments):
             return __response_type[0] + '#split#Server error - could not create directory'
 
     if tree_created:
-        subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/sdo/"])
+       # subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/sdo/"])
+        copytree(direc + "/temp/", temp_dir + "/sdo")
         with open(direc + '/prepare.json', 'r') as f:
             global all_modules
             all_modules = json.load(f)
@@ -122,7 +135,8 @@ def create_signature(secret_key, string):
 
 def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = None,
                         sdo_type=False, delete=False, from_api=True,
-                        force_indexing=True, LOOGER_temp=None, saveFilesDir=None):
+                        force_indexing=True, LOOGER_temp=None, saveFilesDir=None,
+                        tempDir=None):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
@@ -146,6 +160,9 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
     global api_ip
     global LOGGER
     global save_file_dir
+    global temp_dir
+    if tempDir is not None:
+        temp_dir = tempDir
     if apiIp is not None:
         api_ip = apiIp
     if LOOGER_temp is not None:
@@ -191,9 +208,9 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
         load_new_files_to_github = False
         if from_api:
             if sdo_type:
-                prefix = 'api/sdo/'
+                prefix = 'sdo/'
             else:
-                prefix = 'api/vendor/'
+                prefix = 'vendor/'
 
             for module in sdos_json['module']:
                 url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
@@ -302,7 +319,7 @@ def process_vendor(arguments):
     if notify_indexing:
         arguments.append('--notify-indexing')
 
-    with open("log.txt", "w") as f:
+    with open(temp_dir + "/log.txt", "w") as f:
         try:
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
@@ -317,7 +334,8 @@ def process_vendor(arguments):
             LOGGER.error('Server error: {}'.format(e))
             return __response_type[0] + '#split#Server error - could not create directory'
 
-    subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/vendor/"])
+    copytree(direc + "/temp/", temp_dir + "/vendor")
+#    subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/vendor/"])
 
     if tree_created:
         with open(direc + '/prepare.json',
@@ -531,12 +549,13 @@ def run_ietf():
     and openconfig modules
     :return: response success or failed
     """
-    with open("log.txt", "w") as f:
+    with open(temp_dir + "/log.txt", "w") as f:
         try:
-            arguments = ['python', '../ietfYangDraftPull/draftPullLocal.py']
+            draft_pull_local = os.path.dirname(os.path.realpath(__file__)) +  '/../ietfYangDraftPull/draftPullLocal.py'
+            arguments = ['python', draft_pull_local]
             subprocess.check_call(arguments, stderr=f)
-            arguments = ['python',
-                         '../ietfYangDraftPull/openconfigPullLocal.py']
+            openconfig_pull_local = os.path.dirname(os.path.realpath(__file__)) + '/../ietfYangDraftPull/openconfigPullLocal.py'
+            arguments = ['python', openconfig_pull_local]
             subprocess.check_call(arguments, stderr=f)
             return __response_type[1]
         except subprocess.CalledProcessError as e:
@@ -573,7 +592,7 @@ def on_request(ch, method, props, body):
             LOGGER.info('paths {}'.format(paths))
             try:
                 for path in paths:
-                    with open("log_trigger.txt", "w") as f:
+                    with open(temp_dir + "/log_trigger.txt", "w") as f:
                         local_dir = paths_plus[-2]
                         arguments = arguments + ["--dir", local_dir + "/" + path]
                         subprocess.check_call(arguments, stderr=f)

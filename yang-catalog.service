@@ -6,18 +6,20 @@ After=network-online.target
 Type=simple
 User=yang
 Group=yang
+# Created in /var/run
+RuntimeDirectory=yang-receiver
+RuntimeDirectoryMode=0755
 UMask=007
-#EnvironmentFile=-/etc/default/ssh
-#ExecStartPre=/usr/sbin/sshd -t
+#
+#Environment=PYTHONPATH="/home/yang/backend/bin/python"
+#Environment=VIRTUAL_ENV="/home/yang/backend"
+Environment=GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
+Environment=PATH="/home/yang/backend/bin:/usr/bin/git:/bin/cp:/home/yang/backend/bin/python:$PATH"
 ExecStart=/home/yang/backend/bin/python /home/yang/backend/backend/api/receiver.py
-#ExecReload=/usr/sbin/sshd -t
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
 Restart=on-failure
 RestartPreventExitStatus=255
-# Created in /var/run
-RuntimeDirectory=apiReceiver
-RuntimeDirectoryMode=0755
 
 [Install]
 WantedBy=multi-user.target

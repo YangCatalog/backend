@@ -107,6 +107,8 @@ if __name__ == "__main__":
     private_dir = config.get('Web-Section', 'private_directory')
     yang_models = config.get('Directory-Section', 'yang_models_dir')
 
+    temp_dir = config.get('Directory-Section', 'temp')
+
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
@@ -156,7 +158,7 @@ if __name__ == "__main__":
                         update = True
                         if not args.api and args.save_modification_date:
                             try:
-                                file_modification = open('fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
+                                file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
                                                          '.txt', 'rw')
                                 time_in_file = file_modification.readline()
                                 if time_in_file in str(time.ctime(os.path.getmtime(filename))):
@@ -169,7 +171,7 @@ if __name__ == "__main__":
                                     file_modification.truncate()
                                     file_modification.close()
                             except IOError:
-                                file_modification = open('fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
+                                file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
                                                          '.txt', 'w')
                                 file_modification.write(str(time.ctime(os.path.getmtime(filename))))
                                 file_modification.close()

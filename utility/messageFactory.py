@@ -62,6 +62,7 @@ class MessageFactory:
         token = config.get('Message-Section', 'access-token')
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
+        self._temp_dir = config.get('Directory-Section', 'temp')
 
         if len(rooms) == 0:
             self.LOGGER.error('Need at least one room')
@@ -153,9 +154,9 @@ class MessageFactory:
                    " document")
         text = ("The following files has been removed from https://yangcatalog.org"
                 " using the API: \n{}\n".format(removed_yang_files))
-        with open('./log.txt', 'w') as f:
+        with open(self._temp_dir + '/message-log.txt', 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=['./log.txt'])
+        self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])
 
     def send_added_new_yang_files(self, added_yang_files):
         self.LOGGER.info('Sending notification about added yang modules')
@@ -164,9 +165,9 @@ class MessageFactory:
         text = ("The following files have been added to https://yangcatalog.org"
                 " using the API as new modules or old modules with new "
                 "revision: \n{}\n".format(added_yang_files))
-        with open('./log.txt', 'w') as f:
+        with open(self._temp_dir + '/message-log.txt', 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=['./log.txt'])
+        self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])
 
     def send_new_modified_platform_metadata(self, new_files, modified_files):
         self.LOGGER.info(
@@ -180,6 +181,6 @@ class MessageFactory:
                 "being processed in following paths:\n\n"
                 "\n New json files: \n {} \n\n Modified json files:\n{}\n"
                 .format(new_files, modified_files))
-        with open('./log.txt', 'w') as f:
+        with open(self._temp_dir + '/message-log.txt', 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=['./log.txt'])
+        self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])

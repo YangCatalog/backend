@@ -336,6 +336,13 @@ class ModulesComplicatedAlgorithms:
             ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
             with open(self.__path, 'r') as f:
                 a = ctx.add_module(self.__path, f.read())
+            if a is None:
+                LOGGER.debug(
+                    'Could not use pyang to generate tree because of errors on module {}'.
+                        format(self.__path))
+                module['tree-type'] = 'unclassified'
+                self.__new_modules.append(module)
+                continue
             if ctx.opts.tree_path is not None:
                 path = ctx.opts.tree_path.split('/')
                 if path[0] == '':
@@ -349,12 +356,7 @@ class ModulesComplicatedAlgorithms:
                 stdout = f.read()
             os.unlink('{}/pyang_temp.txt'.format(self.temp_dir))
 
-            if len(ctx.errors) != 0 and len(stdout) == 0:
-                LOGGER.debug(
-                    'Could not use pyang to generate tree because of errors on module {}'.
-                        format(self.__path))
-                module['tree-type'] = 'unclassified'
-            elif stdout == '':
+            if stdout == '':
                 module['tree-type'] = 'not-applicable'
             else:
                 if stdout.startswith('\n'):
@@ -638,6 +640,7 @@ class ModulesComplicatedAlgorithms:
                 new_dependencies = mod['dependencies']
                 if mod.get('dependents')is None:
                     mod['dependents'] = []
+                # add dependents to already existing modules based on new dependencies from new modules
                 for new_dep in new_dependencies:
                     if new_dep.get('revision'):
                         search = {'name': new_dep['name'], 'revision': new_dep['revision']}
@@ -655,28 +658,36 @@ class ModulesComplicatedAlgorithms:
                                 if new not in module['dependents']:
                                     module['dependents'].append(new)
                                     self.__new_modules.append(module)
-                        if module.get('dependencies') is not None:
-                            for dep in module['dependencies']:
-                                n = dep.get('name')
-                                r = dep.get('revision')
-                                if n is not None and r is not None:
-                                    if n == name and r == revision:
-                                        new = {'name': module['name'],
-                                               'revision': module['revision'],
-                                               'schema': module['schema']}
-                                        if module.get('dependents') is None:
-                                            module['dependents'] = []
-                                        if new not in mod['dependents']:
-                                            mod['dependents'].append(new)
-                                else:
-                                    if n == name:
-                                        new = {'name': module['name'],
-                                               'revision': module['revision'],
-                                               'schema': module['schema']}
-                                        if module.get('dependents') is None:
-                                            module['dependents'] = []
-                                        if new not in mod['dependents']:
-                                            mod['dependents'].append(new)
+                            else:
+                                new = {'name': name,
+                                       'revision': revision,
+                                       'schema': mod['schema']}
+                                if module.get('dependents') is None:
+                                    module['dependents'] = []
+                                if new not in module['dependents']:
+                                    module['dependents'].append(new)
+                                    self.__new_modules.append(module)
+
+                # add dependents to new modules based on existing modules dependencies
+                for module in modules:
+                    if module.get('dependencies') is not None:
+                        for dep in module['dependencies']:
+                            n = dep.get('name')
+                            r = dep.get('revision')
+                            if n is not None and r is not None:
+                                if n == name and r == revision:
+                                    new = {'name': module['name'],
+                                           'revision': module['revision'],
+                                           'schema': module['schema']}
+                                    if new not in mod['dependents']:
+                                        mod['dependents'].append(new)
+                            else:
+                                if n == name:
+                                    new = {'name': module['name'],
+                                           'revision': module['revision'],
+                                           'schema': module['schema']}
+                                    if new not in mod['dependents']:
+                                        mod['dependents'].append(new)
                 if len(mod['dependents']) > 0:
                     self.__new_modules.append(mod)
 
@@ -688,3 +699,4 @@ class ModulesComplicatedAlgorithms:
             yang_file = find_first_file(self.__yang_models, name + '.yang',
                                         name + '@' + revision + '.yang')
         return yang_file
+

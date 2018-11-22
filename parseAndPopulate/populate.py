@@ -146,10 +146,11 @@ if __name__ == "__main__":
         direc = '{}/{}'.format(temp_dir, repr(direc))
     prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
     LOGGER.info('Calling runcapabilities script')
+    run_capabilities = os.path.dirname(os.path.realpath(__file__)) + '/runCapabilities.py'
     if args.api:
         if args.sdo:
-            with open("log_api_sdo.txt", "w") as f:
-                arguments = ["python", "../parseAndPopulate/runCapabilities.py",
+            with open("{}/log_api_sdo.txt".format(temp_dir), "w") as f:
+                arguments = ["python", run_capabilities,
                              "--api", "--sdo", "--dir", args.dir, "--json-dir",
                              direc, "--result-html-dir", args.result_html_dir,
                              '--save-file-dir', args.save_file_dir, '--api-ip',
@@ -157,8 +158,8 @@ if __name__ == "__main__":
                              '--api-protocol', args.api_protocol]
                 subprocess.check_call(arguments, stderr=f)
         else:
-            with open("log_api.txt", "w") as f:
-                arguments = ["python", "../parseAndPopulate/runCapabilities.py",
+            with open("{}/log_api.txt".format(temp_dir), "w") as f:
+                arguments = ["python", run_capabilities,
                              "--api", "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
                              '--save-file-dir', args.save_file_dir, '--api-ip',
@@ -167,8 +168,8 @@ if __name__ == "__main__":
                 subprocess.check_call(arguments, stderr=f)
     else:
         if args.sdo:
-            with open("log_sdo.txt", "w") as f:
-                arguments = ["python", "../parseAndPopulate/runCapabilities.py",
+            with open("{}/log_sdo.txt".format(temp_dir), "w") as f:
+                arguments = ["python", run_capabilities,
                              "--sdo", "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
                              '--save-file-dir', args.save_file_dir, '--api-ip',
@@ -176,8 +177,8 @@ if __name__ == "__main__":
                              '--api-protocol', args.api_protocol]
                 subprocess.check_call(arguments, stderr=f)
         else:
-            with open("log_no_sdo_api.txt", "w") as f:
-                arguments = ["python", "../parseAndPopulate/runCapabilities.py",
+            with open("{}/log_no_sdo_api.txt".format(temp_dir), "w") as f:
+                arguments = ["python", run_capabilities,
                              "--dir", args.dir, "--json-dir", direc,
                              "--result-html-dir", args.result_html_dir,
                              '--save-file-dir', args.save_file_dir,  '--api-ip',
@@ -192,7 +193,8 @@ if __name__ == "__main__":
                                            '{}/prepare.json'.format(direc),
                                            args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
                                            from_api=args.api, force_indexing=args.force_indexing,
-                                           LOOGER_temp=LOGGER, saveFilesDir=args.save_file_dir)
+                                           LOOGER_temp=LOGGER, saveFilesDir=args.save_file_dir,
+                                           tempDir=temp_dir)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open('{}/prepare.json'.format(direc)) as data_file:
