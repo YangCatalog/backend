@@ -32,8 +32,6 @@ uid = yang
 gid = yang
 
 home = /home/yang/backend
-#chdir = /home/yang/backend/backend
-# As on old.yangcatalog.org CWD == /home/miroslav/yang/tools/api
 chdir = /home/yang/backend/backend/api
 
 socket = :8443
