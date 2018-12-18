@@ -17,15 +17,16 @@ expired if it is necessary
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
+import dateutil.parser
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
-
 import argparse
+import datetime
 import json
+import sys
 
 import requests
 
@@ -36,6 +37,7 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+
 def __resolve_expiration(reference, module, args):
     """Walks through all the modules and updates them if necessary
 
@@ -44,68 +46,48 @@ def __resolve_expiration(reference, module, args):
             :param module: (json) all the module metadata
             :param args: (obj) arguments received at the start of this script
     """
-    update = False
     if reference is not None and 'datatracker.ietf.org' in reference:
-        ref = reference.split('/')[-1]
-        url = ('https://datatracker.ietf.org/api/v1/doc/document/'
-               + ref + '/?format=json')
-        try:
-            response = requests.get(url)
-        except Exception as e:
-            LOGGER.warning("Failed to get json from datatracker {} with error {}".format(url, e))
-            return
-        if response.status_code == 200:
-            data = response.json()
-            if '/api/v1/doc/state/2/' in data['states']:
-                expired = module.get('expired')
-                if expired is None or not expired:
-                    update = True
-                    module['expired'] = True
-                if module.get('expires') is not None:
-                    if module['expires'] != data['expires']:
-                        update = True
-                        module['expires'] = data['expires']
+        expires = module.get('expires')
+        if expires is not None:
+            if dateutil.parser.parse(expires).date() < datetime.datetime.now().date():
+                expired = True
             else:
-                expired = module.get('expired')
-                if expired is None or expired:
-                    update = True
-                    module['expires'] = data['expires']
-                    module['expired'] = False
+                expired = False
         else:
-            if module.get('expired') is None:
-                update = True
-                module['expired'] = 'not-applicable'
-                module['expires'] = None
-    elif module.get('expired') is None:
-        update = True
-        module['expired'] = 'not-applicable'
-        module['expires'] = None
-    if update:
-        url = 'http://yangcatalog.org:8008/api/config/catalog/modules/module/{},{},{}' \
-            .format(module['name'], module['revision'],
-                    module['organization'])
-        body = json.dumps({'yang-catalog:module': {
-                'name': module['name'],
-                'revision': module['revision'],
-                'organization': module['organization'],
-                'expires': module.get('expires'),
-                'expired': module['expired']
-            }
-        })
-        try:
-            response = requests.patch(url, body,
+            expired = 'not-applicable'
+            ref = mod.get('reference').split('/')[-1]
+            url = ('https://datatracker.ietf.org/api/v1/doc/document/'
+                   + ref + '/?format=json')
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                expires = data.get('expires')
+                if expires:
+                    if dateutil.parser.parse(expires).date() < datetime.datetime.now().date():
+                        expired = True
+                    else:
+                        expired = False
+
+        if module.get('expires') != expires or module.get('expired') != expired:
+            module['expires'] = expires
+            module['expired'] = expired
+            url = 'https://yangcatalog.org:8888/api/config/catalog/modules/module/{},{},{}' \
+                .format(module['name'], module['revision'],
+                        module['organization'])
+            response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
                                       auth=(args.credentials[0],
                                             args.credentials[1]),
                                       headers={
                                           'Accept': 'application/vnd.yang.data+json',
                                           'Content-type': 'application/vnd.yang.data+json'}
                                       )
-        except Exception as e:
-            LOGGER.warning("Failed to push json to confd {} with error {}".format(url, e))
-            return
-        LOGGER.info('Updating module {}@{} with confd response {} - {}'
-                    .format(module['name'], module['revision'],
-                            repr(response.status_code), response.text))
+            LOGGER.info('module {}@{} updated with code {}'.format(module['name'], module['revision'],
+                                                                   response.status_code))
+            return True
+        else:
+            return False
+    else:
+        return False
 
 
 if __name__ == '__main__':
@@ -128,14 +110,20 @@ if __name__ == '__main__':
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger('resolveExpiration', log_directory + '/jobs/resolveExpiration.log')
+    updated = False
 
     modules = requests.get('{}://{}/api/search/modules'.format(args.api_protocol,
-                                                              args.api_ip),
+                                                               args.api_ip),
                            auth=(args.credentials[0], args.credentials[1]))
     modules = modules.json()['module']
     for mod in modules:
         ref = mod.get('reference')
-        __resolve_expiration(ref, mod, args)
-    url = (args.api_protocol + '://' + args.api_ip + '/api/load-cache')
-    response = requests.post(url, None, auth=(args.credentials[0],
-                                              args.credentials[1]))
+        ret = __resolve_expiration(ref, mod, args)
+        if not updated:
+            updated = ret
+    if updated:
+        url = (args.api_protocol + '://' + args.api_ip + '/api/load-cache')
+        response = requests.post(url, None, auth=(args.credentials[0],
+                                                  args.credentials[1]))
+        LOGGER.info('Cache loaded with status {}'.format(response.status_code))
+

@@ -69,6 +69,7 @@ if __name__ == "__main__":
     config_email = config.get('General-Section', 'repo-config-email')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
     log_directory = config.get('Directory-Section', 'logs')
+    exceptions = config.get('Directory-Section', 'exceptions')
     ietf_models_forked_url = config.get('General-Section', 'yang-models-forked-repo-url')
     ietf_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
@@ -142,6 +143,13 @@ if __name__ == "__main__":
                     new_files.append(file_name)
     shutil.rmtree(repo.localdir + '/standard/ietf/RFCtemp')
     os.remove(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz')
+
+    with open(exceptions, 'r') as exceptions_file:
+        remove_from_new = exceptions_file.read().split('\n')
+    for remove in remove_from_new:
+        if remove in new_files:
+            new_files.remove(remove)
+
     if len(new_files) > 0 or len(diff_files) > 0:
         LOGGER.warning('new or modified RFC files found. Sending an E-mail')
         mf = messageFactory.MessageFactory()
@@ -191,3 +199,4 @@ if __name__ == "__main__":
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()
+

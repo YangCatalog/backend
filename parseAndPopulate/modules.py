@@ -245,7 +245,6 @@ class Modules:
             self.__resolve_description()
             self.__resolve_document_name_and_reference(document_name, reference)
             self.__resolve_tree()
-            self.__resolve_expiration()
             self.__resolve_module_classification(module_classification)
             self.__resolve_working_group()
             self.__resolve_author_email(author_email)
@@ -256,22 +255,6 @@ class Modules:
         if self.module_type == 'module':
             self.tree = 'services/tree/{}@{}.yang'.format(self.name,
                                                           self.revision)
-
-    def __resolve_expiration(self):
-        if self.reference and 'datatracker.ietf.org' in self.reference:
-            ref = self.reference.split('/')[-1]
-            url = ('https://datatracker.ietf.org/api/v1/doc/document/'
-                   + ref + '/?format=json')
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json()
-                if '/api/v1/doc/state/2/' in data['states']:
-                    self.expired = True
-                self.expiration_date = data['expires']
-            else:
-                self.expired = 'not-applicable'
-        else:
-            self.expired = 'not-applicable'
 
     def __save_file(self, to):
         file_with_path = '{}/{}@{}.yang'.format(to, self.name, self.revision)
@@ -605,7 +588,7 @@ class Modules:
                                           self.organization)
 
         # Don t override status if it was already written once
-        if os.path.exists(file_url):
+        if os.path.exists('{}/{}'.format(self.html_result_dir, file_url)):
             if self.compilation_status['status'] in ['unknown', 'pending']:
                 self.compilation_status['status'] = None
             else:
@@ -684,7 +667,7 @@ class Modules:
             self.organization = organization
         else:
             try:
-                temp_organization = self.__parsed_yang.search('organization')[0].arg
+                temp_organization = self.__parsed_yang.search('organization')[0].arg.lower()
                 if 'cisco' in temp_organization or 'CISCO' in temp_organization:
                     self.organization = 'cisco'
                     return
@@ -698,15 +681,15 @@ class Modules:
                     self.organization = org
                     return
             if self.organization is None:
-                if 'urn:' in self.namespace:
-                    self.organization = \
-                        self.namespace.split('urn:')[1].split(':')[0]
-                    return
-                elif 'cisco' in self.namespace or 'CISCO' in self.namespace:
+                if 'cisco' in self.namespace or 'CISCO' in self.namespace:
                     self.organization = 'cisco'
                     return
                 elif 'ietf' in self.namespace or 'IETF' in self.namespace:
-                    self.organization = 'cisco'
+                    self.organization = 'ietf'
+                    return
+                elif 'urn:' in self.namespace:
+                    self.organization = \
+                        self.namespace.split('urn:')[1].split(':')[0]
                     return
             if self.organization is None:
                 self.organization = 'independent'

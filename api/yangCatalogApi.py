@@ -3,7 +3,7 @@ This is an API script that holds several endpoints for
 various usage. Contributors can use this for adding,
 updating and deleting of the yang modules. For this they
 need to sign up first and use their credentials. Their
-credentials needs to be aprooved by one of the yangcatalog.org
+credentials needs to be approved by one of the yangcatalog.org
 admin users. Otherwise they will not be able to contribute to
 the database.
 
@@ -31,7 +31,6 @@ website
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -67,6 +66,7 @@ from pyang.plugins.tree import emit_tree
 
 import api.yangSearch.index as index
 import api.yangSearch.mysql_index as ind
+import api.yangSearch.elasticsearchIndex as inde
 import utility.log as log
 from api.prometheus.main import monitor
 from api.sender import Sender
@@ -130,6 +130,9 @@ class MyFlask(Flask):
         self.ys_users_dir = config.get('Directory-Section', 'ys_users')
         self.my_uri = config.get('Web-Section', 'my_uri')
         self.yang_models = config.get('Directory-Section', 'yang_models_dir')
+        self.es_host = config.get('DB-Section', 'es-host')
+        self.es_port = config.get('DB-Section', 'es-port')
+        self.es_protocol = config.get('DB-Section', 'es-protocol')
         log_directory = config.get('Directory-Section', 'logs')
         self.sender = Sender(log_directory, self.temp_dir)
         separator = ':'
@@ -1297,6 +1300,90 @@ def slow_search():
         return make_response(jsonify({'error': str(e)}), 500)
 
 
+@application.route('/fast', methods=['POST'])
+def fast_search():
+    """Search through the YANG keyword index for a given search pattern.
+       The arguments are a payload specifying search options and filters.
+    """
+    if not request.json:
+        abort(400)
+
+    limit = 10000
+    payload = request.json
+    if 'search' not in payload:
+        return make_response(jsonify({'error': 'You must specify a "search" argument'}), 400)
+    try:
+        count = 0
+        search_res = inde.do_search(payload, application.es_host,
+                                    application.es_protocol, application.es_port,
+                                    application.LOGGER)
+        res = []
+        found_modules = {}
+        rejects = []
+        not_founds = []
+
+        for row in search_res:
+            count +=1
+            res_row = {}
+            res_row['node'] = row['node']
+            if 'filter' not in payload or 'module' in payload['filter']:
+                m_name = row['module']['name']
+                m_revision = row['module']['revision']
+                m_organization = row['module']['organization']
+                mod_sig = '{}@{}/{}'.format(m_name, m_revision, m_organization)
+                if mod_sig in rejects:
+                    continue
+
+                mod_meta = None
+                try:
+                    if mod_sig not in not_founds:
+                        if mod_sig in found_modules:
+                            mod_meta = found_modules[mod_sig]
+                        else:
+                            mod_meta = search_module(m_name, m_revision, m_organization)
+                            if mod_meta.status_code == 404:
+                                not_founds.append(mod_sig)
+                                application.LOGGER.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
+                                res_row = {'module': {'error': 'no {}@{} in API'.format(m_name, m_revision)}}
+                                res.append(res_row)
+                                continue
+                            else:
+                                mod_meta = mod_meta.json['module'][0]
+                                found_modules[mod_sig] = mod_meta
+
+                    if 'include-mibs' not in payload or payload['include-mibs'] is False:
+                        if re.search('yang:smiv2:', mod_meta.get('namespace')):
+                            rejects.append(mod_sig)
+                            continue
+
+                    if mod_meta is not None and 'yang-versions' in payload and len(payload['yang-versions']) > 0:
+                        if mod_meta.get('yang-version') not in payload['yang-versions']:
+                            rejects.append(mod_sig)
+                            continue
+
+                    if mod_meta is not None:
+                        if 'filter' not in payload:
+                            # If the filter is not specified, return all
+                            # fields.
+                            res_row['module'] = mod_meta
+                        elif 'module' in payload['filter']:
+                            res_row['module'] = {}
+                            for field in payload['filter']['module']:
+                                if field in mod_meta:
+                                    res_row['module'][field] = mod_meta[field]
+                except Exception as e:
+                    count -= 1
+                    res_row['module'] = {
+                        'error': 'Search failed at {}: {}'.format(mod_sig, e)}
+
+            res.append(res_row)
+            if count >= limit:
+                break
+        return jsonify({'results': res})
+    except Exception as e:
+        return make_response(jsonify({'error': str(e)}), 500)
+
+
 @application.route('/search/<path:value>', methods=['GET'])
 def search(value):
     """Search for a specific leaf from yang-catalog.yang module in modules
@@ -2083,6 +2170,45 @@ def rpc_search(body=None):
             400)
 
 
+@application.route('/search/vendor/<org>', methods=['GET'])
+def search_vendor_statistics(org):
+    vendor = org
+
+    active_cache = get_active_cache()
+    with active_cache[0]:
+        application.LOGGER.info('Searching for vendors')
+        data = vendors_data(active_cache[1], False)
+    ven_data = None
+    for d in data['vendor']:
+        if d['name'] == vendor:
+            ven_data = d
+            break
+
+    os_type = {}
+    for plat in ven_data['platforms']['platform']:
+        version_list = set()
+        os = {}
+        for ver in plat['software-versions']['software-version']:
+            for flav in ver['software-flavors']['software-flavor']:
+                os[ver['name']] = flav['modules']['module'][0]['os-type']
+                if os[ver['name']] not in os_type:
+                    os_type[os[ver['name']]] = {}
+                break
+            if ver['name'] not in os_type[os[ver['name']]]:
+                os_type[os[ver['name']]][ver['name']] = set()
+
+            version_list.add(ver['name'])
+        for ver in version_list:
+            os_type[os[ver]][ver].add(plat['name'])
+
+    os_types = {}
+    for key, vals in os_type.items():
+        os_types[key] = {}
+        for key2, val in os_type[key].items():
+            os_types[key][key2] = list(os_type[key][key2])
+    return Response(json.dumps(os_types), mimetype='application/json')
+
+
 @application.route('/search/vendors/<path:value>', methods=['GET'])
 def search_vendors(value):
     """Search for a specific vendor, platform, os-type, os-version depending on
@@ -2296,7 +2422,7 @@ def modules_data(which_cache):
     return json_data
 
 
-def vendors_data(which_cache):
+def vendors_data(which_cache, clean_data=True):
     chunks = int(uwsgi.cache_get('chunks-vendor', 'cache_chunks{}'.format(which_cache)))
     data = ''
     for i in range(0, chunks, 1):
@@ -2305,8 +2431,11 @@ def vendors_data(which_cache):
                 .decode(encoding='utf-8', errors='strict')
         else:
             data += uwsgi.cache_get('vendors-data{}'.format(i), 'main_cache{}'.format(which_cache))
-    json_data = \
-        json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
+    if clean_data:
+        json_data = \
+            json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
+    else:
+        json_data = json.loads(data)
     return json_data
 
 

@@ -35,7 +35,7 @@ import json
 import os
 import unicodedata
 import xml.etree.ElementTree as ET
-
+import re
 import utility.log as log
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
@@ -219,8 +219,7 @@ class Capability:
                             if '/yangmodels/yang/' in abs_path:
                                 path = abs_path.split('/yangmodels/yang/')[1]
                             else:
-                                path = abs_path.split('/')[2:]
-                                path = '/'.join(path)
+                                path = re.split('tmp\/\w*\/', abs_path)[1]
                             schema = (github_raw + self.owner + '/' + self.repo
                                       + '/' + self.branch + '/' + path)
                             yang.parse_all(self.branch, name,

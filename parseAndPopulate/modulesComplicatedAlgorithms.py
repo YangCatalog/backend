@@ -19,26 +19,24 @@ into the database and these metadata will get there later.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import os
-import sys
-
-from pyang.plugins.check_update import check_update
-from pyang.plugins.tree import emit_tree
-
-from utility.yangParser import create_context
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
-
 import json
+import os
+import sys
 from datetime import datetime
 
+import dateutil.parser
 import requests
+from pyang.plugins.check_update import check_update
+from pyang.plugins.tree import emit_tree
 
 from utility import log
 from utility.util import find_first_file
+from utility.yangParser import create_context
 
 
 class ModulesComplicatedAlgorithms:
@@ -74,6 +72,8 @@ class ModulesComplicatedAlgorithms:
         self.__parse_semver(modules)
         LOGGER.info("parsing dependents")
         self.__parse_dependents(modules)
+        LOGGER.info('parsing expiration')
+        self.__parse_expire(modules)
 
     def populate(self):
         LOGGER.info('populate with module complicated data. amount of new data is {}'.format(len(self.__new_modules)))
@@ -690,6 +690,55 @@ class ModulesComplicatedAlgorithms:
                                         mod['dependents'].append(new)
                 if len(mod['dependents']) > 0:
                     self.__new_modules.append(mod)
+
+    def __parse_expire(self, modules):
+        x = 0
+        if modules is not None:
+            for mod in self.__all_modules['module']:
+                x += 1
+                LOGGER.info('Searching expiration for {}. {} out of {}'.format(mod['name'], x,
+                                                                               len(self.__all_modules['module'])))
+                exists = False
+                existing_module = None
+                for module in modules:
+                    if module['name'] == mod['name'] and module['revision'] == mod['revision'] and \
+                            module['organization'] == mod['organization']:
+                        exists = True
+                        existing_module = module
+                        break
+                expiration_date = None
+                if exists:
+                    if existing_module.get('reference') and 'datatracker.ietf.org' in existing_module.get('reference'):
+                        expiration_date = existing_module.get('expires')
+                        if expiration_date:
+                            if dateutil.parser.parse(expiration_date).date() < datetime.now().date():
+                                expired = True
+                            else:
+                                expired = False
+                        else:
+                            expired = 'not-applicable'
+                    else:
+                        expired = 'not-applicable'
+                else:
+                    if mod.get('reference') and 'datatracker.ietf.org' in mod.get('reference'):
+                        ref = mod.get('reference').split('/')[-1]
+                        url = ('https://datatracker.ietf.org/api/v1/doc/document/'
+                               + ref + '/?format=json')
+                        response = requests.get(url)
+                        if response.status_code == 200:
+                            data = response.json()
+                            expiration_date = data['expires']
+                            if dateutil.parser.parse(expiration_date).date() < datetime.now().date():
+                                expired = True
+                            else:
+                                expired = False
+                        else:
+                            expired = 'not-applicable'
+                    else:
+                        expired = 'not-applicable'
+                mod['expires'] = expiration_date
+                mod['expired'] = expired
+                self.__new_modules.append(mod)
 
     def __find_file(self, name, revision='*'):
         yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]),
