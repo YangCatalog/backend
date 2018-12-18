@@ -32,13 +32,11 @@ uid = yang
 gid = yang
 
 home = /home/yang/backend
-#chdir = /home/yang/backend/backend
-# As on old.yangcatalog.org CWD == /home/miroslav/yang/tools/api
 chdir = /home/yang/backend/backend/api
 
 socket = :8443
 #socket = /var/run/yang/yang-catalog.sock
-chmod-socket = 666
+#chmod-socket = 666
 vacuum = true
 
 die-on-term = true

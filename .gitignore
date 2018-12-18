@@ -16,4 +16,6 @@ yang.egg-info
 /parseAndPopulate/**/*.xml
 !/parseAndPopulate/template/compilationStatusTemplate.html
 !/parseAndPopulateTest/testJson/prepare.json
-
+# Ignore local version
+*/yang-catalog.ini
+*/yang-catalog.service

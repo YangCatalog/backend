@@ -101,4 +101,45 @@ data.
 For every new module that has been added to yangcatalog database, yang admin
 users are informed about this using a Cisco Webex teams room and by email.
 
+## Installing
 
+### Pre-requisites
+
+RabbitMQ must be installed. The default port of 5672 is assumed.
+
+### API code
+
+The next step is to install all the API code (Python 3.4 or more recent is required):
+```
+ virtualenv-3.4 -p /usr/bin/python3.4 --system-site-packages backend
+ 
+ git clone https://github.com/YangCatalog/backend.git 
+ source bin/activate
+ cd backend
+ 
+ pip install -r requirements.txt
+ ./setup.py install
+```
+
+The file `/etc/uwsgi/vassals/yang-catalog.ini` must be a link or a copy of a localized `yang-catalog.ini-dist`.
+
+### Documentation
+
+See the README.md file in the `documentation/` directory.
+
+### NGINX Configuration
+
+To be localized to your configuration.
+
+```
+        location /doc {
+            alias /home/yang/slate/build;
+        }
+
+        location /api {
+            rewrite /api(/.*)$ $1 break;
+            include uwsgi_params;
+            uwsgi_pass 127.0.0.1:8443;
+            uwsgi_read_timeout 900;
+        }
+```
