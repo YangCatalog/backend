@@ -2337,7 +2337,7 @@ def trigger_populate():
     repoutil.pull(application.yang_models)
     try:
         commits = request.json['commits']
-        paths = []
+        paths = set()
         new = []
         mod = []
         if commits:
@@ -2346,29 +2346,28 @@ def trigger_populate():
                 if added:
                     for add in added:
                         if 'platform-metadata.json' in add:
-                            paths.append('/'.join(add.split('/')[:-1]))
+                            paths.add('/'.join(add.split('/')[:-1]))
                             new.append('/'.join(add.split('/')[:-1]))
                 modified = commit.get('modified')
                 if modified:
                     for m in modified:
                         if 'platform-metadata.json' in m:
-                            paths.append('/'.join(m.split('/')[:-1]))
+                            paths.add('/'.join(m.split('/')[:-1]))
                             mod.append('/'.join(m.split('/')[:-1]))
         if len(paths) > 0:
             mf = messageFactory.MessageFactory()
             mf.send_new_modified_platform_metadata(new, mod)
             application.LOGGER.info('Forking the repo')
             try:
-                for path in paths:
-                    arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"),
-                                 "--port", repr(application.confdPort), "--ip",
-                                 application.confd_ip, "--api-protocol", application.api_protocol, "--api-port",
-                                 repr(application.api_port), "--api-ip", application.ip,
-                                 "--dir", application.yang_models + "/" + path, "--result-html-dir", application.result_dir,
-                                 "--credentials", application.credentials[0], application.credentials[1],
-                                 "--save-file-dir", application.save_file_dir, "repoLocalDir"]
-                    arguments = arguments + paths + [application.yang_models, "github"]
-                    application.sender.send("#".join(arguments))
+                arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"),
+                             "--port", repr(application.confdPort), "--ip",
+                             application.confd_ip, "--api-protocol", application.api_protocol, "--api-port",
+                             repr(application.api_port), "--api-ip", application.ip,
+                             "--result-html-dir", application.result_dir,
+                             "--credentials", application.credentials[0], application.credentials[1],
+                             "--save-file-dir", application.save_file_dir, "repoLocalDir"]
+                arguments = arguments + list(paths) + [application.yang_models, "github"]
+                application.sender.send("#".join(arguments))
             except:
                 application.LOGGER.error('Could not populate after git push')
             return make_response(jsonify({'info': 'Success'}), 200)

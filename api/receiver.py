@@ -596,27 +596,12 @@ def on_request(ch, method, props, body):
                         local_dir = paths_plus[-2]
                         arguments = arguments + ["--dir", local_dir + "/" + path]
                         subprocess.check_call(arguments, stderr=f)
-                try:
-                    shutil.rmtree(paths_plus[-2])
-                except OSError:
-                    # Be happy if deleted
-                    pass
                 final_response = __response_type[1]
             except subprocess.CalledProcessError as e:
                 final_response = __response_type[0]
-                try:
-                    shutil.rmtree(paths_plus[-2])
-                except OSError:
-                    # Be happy if deleted
-                    pass
                 LOGGER.error('check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(e.stdout, e.stderr))
             except:
                 final_response = __response_type[0]
-                try:
-                    shutil.rmtree(paths_plus[-2])
-                except OSError:
-                    # Be happy if deleted
-                    pass
                 LOGGER.error("check log_trigger.txt failed to process github message with error {}".format(sys.exc_info()[0]))
         else:
             global all_modules
