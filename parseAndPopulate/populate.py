@@ -78,48 +78,55 @@ def unicode_normalize(variable):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Parse hello messages and yang files to json dictionary. These"
-                                                 " dictionaries are used for populating a yangcatalog. This script runs"
-                                                 " first a runCapabilities.py script to create a Json files which are "
-                                                 "used to populate database.")
-    parser.add_argument('--port', default=8008, type=int,
-                        help='Set port where the confd is started. Default -> 8008')
-    parser.add_argument('--ip', default='localhost', type=str,
-                        help='Set ip address where the confd is started. Default -> localhost')
-    parser.add_argument('--api-port', default=8443, type=int,
-                        help='Set port where the api is started. Default -> 8443')
-    parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
-                        help='Set ip address where the api is started. Default -> yangcatalog.org')
-    parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
-                                              ' Default parameters are admin admin', nargs=2
-                        , type=str)
-    parser.add_argument('--dir', default='../../vendor', type=str,
-                        help='Set dir where to look for hello message xml files.Default -> ../../vendor')
-    parser.add_argument('--api', action='store_true', default=False, help='If we are doing apis')
-    parser.add_argument('--sdo', action='store_true', default=False, help='If we are sneding SDOs only')
-    parser.add_argument('--notify-indexing', action='store_true', default=False, help='Weather to send files for'
-                                                                                      ' indexing')
-    parser.add_argument('--protocol', type=str, default='http', help='Whether confd-6.4 runs on http or https.'
-                                                                     ' Default is set to http')
-    parser.add_argument('--api-protocol', type=str, default='https', help='Whether api runs on http or https.'
-                                                                          ' Default is set to http')
-    parser.add_argument('--result-html-dir', default='/home/miroslav/results/', type=str,
-                        help='Set dir where to write html result files. Default -> /home/miroslav/results/')
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    parser.add_argument('--force-indexing', action='store_true', default=False, help='Force to index files')
-    parser.add_argument('--save-file-dir', default='/home/miroslav/results/',
-                        type=str, help='Directory where the file will be saved')
-    args = parser.parse_args()
-    config_path = args.config_path
+    config_path = '/etc/yangcatalog/yangcatalog.conf'
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
+    credentials = config.get('General-Section', 'credentials').split()
+    confd_protocol = config.get('General-Section', 'protocol')
+    confd_port = config.get('General-Section', 'confd-port')
+    confd_host = config.get('General-Section', 'confd-ip')
+    api_protocol = config.get('General-Section', 'protocol-api')
+    api_port = config.get('General-Section', 'api-port')
+    api_host = config.get('DraftPullLocal-Section', 'api-ip')
     LOGGER = log.get_logger('populate', log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     temp_dir = config.get('Directory-Section', 'temp')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir')
+    result_dir = config.get('Web-Section', 'result-html-dir')
+    parser = argparse.ArgumentParser(description="Parse hello messages and YANG files to JSON dictionary. These"
+                                                 " dictionaries are used for populating a yangcatalog. This script runs"
+                                                 " first a runCapabilities.py script to create a JSON files which are"
+                                                 " used to populate database.")
+    parser.add_argument('--ip', default=confd_host, type=str,
+                        help='Set host where the Confd is started. Default: ' + confd_host)
+    parser.add_argument('--port', default=confd_port, type=int,
+                        help='Set port where the Confd is started. Default: ' + confd_port)
+    parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether Confd runs on http or https.'
+                         ' Default: ' + confd_protocol)
+    parser.add_argument('--api-ip', default=api_host, type=str,
+                        help='Set host where the API is started. Default: ' + api_host)
+    parser.add_argument('--api-port', default=api_port, type=int,
+                        help='Set port where the API is started. Default: ' + api_port)
+    parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
+                                                                          ' Default: ' + api_protocol)
+    parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
+                                              ' Default parameters are ' + str(credentials), nargs=2,
+                                        default=credentials, type=str)
+    parser.add_argument('--dir', default='../../vendor', type=str,
+                        help='Set dir where to look for hello message xml files. Default: ../../vendor')
+    parser.add_argument('--api', action='store_true', default=False, help='If we are doing APIs')
+    parser.add_argument('--sdo', action='store_true', default=False, help='If we are sending SDOs only')
+    parser.add_argument('--notify-indexing', action='store_true', default=False, help='Whether to send files for'
+                                                                                      ' indexing')
+    parser.add_argument('--result-html-dir', default=result_dir, type=str,
+                        help='Set dir where to write HTML result files. Default: ' + result_dir)
+    parser.add_argument('--force-indexing', action='store_true', default=False, help='Force to index files')
+    parser.add_argument('--save-file-dir', default=save_file_dir,
+                        type=str, help='Directory where the file will be saved. Default: ' + save_file_dir)
+    args = parser.parse_args()
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
