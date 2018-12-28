@@ -78,9 +78,13 @@ if __name__ == '__main__':
                 pass
 
     # removing correlation ids from file that are older than a day
-    f = open('{}/correlation_ids'.format(temp_dir), 'r')
-    lines = f.readlines()
-    f.close()
+    # Be lenient to missing files
+    try:
+        f = open('{}/correlation_ids'.format(temp_dir), 'r')
+        lines = f.readlines()
+        f.close()
+    except IOError:
+        lines = []
     with open('{}/correlation_ids'.format(temp_dir), 'w') as f:
         for line in lines:
             line_datetime = line.split(' -')[0]
