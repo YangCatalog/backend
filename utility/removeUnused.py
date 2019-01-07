@@ -18,6 +18,9 @@ users and correlation ids.
 # limitations under the License.
 import sys
 import time
+from operator import itemgetter
+
+from elasticsearch import Elasticsearch
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -89,5 +92,16 @@ if __name__ == '__main__':
             diff = datetime.datetime.now() - t
             if diff.days == 0:
                 f.write(line)
+    LOGGER.info('Removing old elasticsearch snapshots')
+    repo_name = config.get('General-Section', 'elk-repo-name')
+
+    es_host = config.get('DB-Section', 'es-host')
+    es_port = config.get('DB-Section', 'es-port')
+    es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+    snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
+    sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))
+
+    for snapshot in sorted_snapshots[:-5]:
+        es.snapshot.delete(repository=repo_name, snapshot=snapshot['snapshot'])
     LOGGER.info('Finished with script removeUnused.py')
 

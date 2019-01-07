@@ -137,12 +137,12 @@ class MessageFactory:
                    ' travis. Key verification failed')
         self.__post_to_spark(message)
 
-    def send_automated_procedure_failed(self, procedure, error_message):
-        self.LOGGER.info('Sending notification about any automated procedure failure'
-                    )
-        message = ('Automated procedure - {} - failed with error - {}'
-                   .format(procedure, error_message))
-        self.__post_to_spark(message)
+    def send_automated_procedure_failed(self, procedure, file):
+        self.LOGGER.info('Sending notification about any automated procedure failure')
+        message = ('Automated procedure with arguments:\n {} \nfailed with error.'
+                   ' Please see attached document'
+                   .format(procedure))
+        self.__post_to_spark(message, True, files=[file])
 
     def send_removed_temp_diff_files(self):
         # TODO send spark message about removed searched diff files

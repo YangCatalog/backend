@@ -599,6 +599,8 @@ def on_request(ch, method, props, body):
                 final_response = __response_type[1]
             except subprocess.CalledProcessError as e:
                 final_response = __response_type[0]
+                mf = messageFactory.MessageFactory()
+                mf.send_automated_procedure_failed(arguments, temp_dir + "/log_no_sdo_api.txt")
                 LOGGER.error('check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(e.stdout, e.stderr))
             except:
                 final_response = __response_type[0]

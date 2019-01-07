@@ -58,21 +58,15 @@ import MySQLdb
 import jinja2
 import requests
 import uwsgi as uwsgi
-from OpenSSL.crypto import load_publickey, FILETYPE_PEM, X509, verify
-from flask import Flask, jsonify, abort, make_response, request, Response, \
-    redirect
+from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
+from flask import Flask, Response, abort, jsonify, make_response, redirect, request
 from flask_httpauth import HTTPBasicAuth
 from pyang.plugins.tree import emit_tree
 
-import api.yangSearch.index as index
-import api.yangSearch.mysql_index as ind
 import api.yangSearch.elasticsearchIndex as inde
 import utility.log as log
-from api.prometheus.main import monitor
 from api.sender import Sender
-from api.yangSearch.module import Module
-from api.yangSearch.rester import Rester, RestException
-from utility import repoutil, yangParser, messageFactory
+from utility import messageFactory, repoutil, yangParser
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
@@ -192,11 +186,19 @@ class MyFlask(Flask):
                                     year = int(temp_module['revision'].split('-')[0])
                                     month = int(temp_module['revision'].split('-')[1])
                                     day = int(temp_module['revision'].split('-')[2])
-                                    revisions.append(datetime(year, month, day))
+                                    try:
+                                        revisions.append(datetime(year, month, day))
+                                    except ValueError:
+                                        if day == 29 and month == 2:
+                                            revisions.append(datetime(year, month, 28))
                                     year = int(mod['revision'].split('-')[0])
                                     month = int(mod['revision'].split('-')[1])
                                     day = int(mod['revision'].split('-')[2])
-                                    revisions.append(datetime(year, month, day))
+                                    try:
+                                        revisions.append(datetime(year, month, day))
+                                    except ValueError:
+                                        if day == 29 and month == 2:
+                                            revisions.append(datetime(year, month, 28))
                                     latest = revisions.index(max(revisions))
                                     if latest == 0:
                                         modules_to_remove.append(mod['index'])
@@ -375,7 +377,7 @@ NS_MAP = {
 }
 
 
-def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True):
+def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, data=None):
     """After we delete or add modules we need to reload all the modules to the file
     for quicker search. This module is then loaded to the memory.
             Arguments:
@@ -387,9 +389,10 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True):
                     why it failed.
     """
     try:
-        path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog?deep'
-        data = requests.get(path, auth=(credentials[0], credentials[1]),
-                            headers={'Accept': 'application/vnd.yang.data+json'}).text
+        if data is None:
+            path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog?deep'
+            data = requests.get(path, auth=(credentials[0], credentials[1]),
+                                headers={'Accept': 'application/vnd.yang.data+json'}).text
 
         if is_uwsgi == 'True':
             chunks = int(math.ceil(len(data)/float(64000)))
@@ -1146,160 +1149,6 @@ def add_vendors():
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
-@application.route('/slow', methods=['POST'])
-def index_search():
-    """Search through the YANG keyword index for a given search pattern.
-       The arguments are a payload specifying search options and filters.
-    """
-    if not request.json:
-        abort(400)
-
-    payload = request.json
-    if 'search' not in payload:
-        return make_response(jsonify({'error': 'You must specify a "search" argument'}), 400)
-    try:
-        search_res = index.do_search(json.dumps(payload))
-        res = []
-        rest = Rester(application.yangcatalog_api_prefix)
-        rejects = {}
-        not_founds = {}
-
-        for row in search_res:
-            res_row = {}
-            res_row['node'] = row['node']
-            if 'filter' not in payload or 'module' in payload['filter']:
-                mod_obj = Module.module_factory(rest, row['module']['name'], row['module'][
-                                                'revision'], row['module']['organization'])
-                mod_sig = mod_obj.get_mod_sig()
-                if mod_sig in rejects:
-                    continue
-
-                if 'latest-revisions' in payload and payload['latest-revisions'] is True:
-                    if row['module']['revision'] != row['module']['latest_revision']:
-                        rejects[mod_sig] = True
-                        continue
-
-                mod_meta = None
-                try:
-                    if mod_sig not in not_founds:
-                        try:
-                            mod_meta = mod_obj.to_dict()
-                        except RestException as reste:
-                            if reste.get_response_code() == 404:
-                                not_founds[mod_sig] = True
-                            else:
-                                res_row['module'] = {
-                                    'error': 'Search failed at {}: {}'.format(mod_sig, reste)}
-
-                    if mod_meta is not None and ('include-mibs' not in payload or payload['include-mibs'] is False):
-                        if re.search('yang:smiv2:', mod_obj.get('namespace')):
-                            rejects[mod_sig] = True
-                            continue
-
-                    if mod_meta is not None and 'yang-versions' in payload and len(payload['yang-versions']) > 0:
-                        if mod_obj.get('yang-version') not in payload['yang-versions']:
-                            rejects[mod_sig] = True
-                            continue
-
-                    if mod_meta is not None:
-                        if 'filter' not in payload:
-                            # If the filter is not specified, return all
-                            # fields.
-                            res_row['module'] = mod_meta
-                        elif 'module' in payload['filter']:
-                            res_row['module'] = {}
-                            for field in payload['filter']['module']:
-                                if field in mod_meta:
-                                    res_row['module'][field] = mod_meta[field]
-                except Exception as e:
-                    res_row['module'] = {
-                        'error': 'Search failed at {}: {}'.format(mod_sig, e)}
-
-            res.append(res_row)
-
-        return jsonify({'results': res})
-    except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
-
-
-@application.route('/index/search', methods=['POST'])
-def slow_search():
-    """Search through the YANG keyword index for a given search pattern.
-       The arguments are a payload specifying search options and filters.
-    """
-    if not request.json:
-        abort(400)
-
-    payload = request.json
-    if 'search' not in payload:
-        return make_response(jsonify({'error': 'You must specify a "search" argument'}), 400)
-    try:
-        search_res = ind.do_search(json.dumps(payload), application.dbHost,
-                                   application.dbNameSearch, application.dbPass,
-                                   application.dbUser)
-        res = []
-        rest = Rester(application.yangcatalog_api_prefix)
-        rejects = {}
-        not_founds = {}
-
-        for row in search_res:
-            res_row = {}
-            res_row['node'] = row['node']
-            if 'filter' not in payload or 'module' in payload['filter']:
-                mod_obj = Module.module_factory(rest, row['module']['name'], row['module'][
-                                                'revision'], row['module']['organization'])
-                mod_sig = mod_obj.get_mod_sig()
-                if mod_sig in rejects:
-                    continue
-
-                if 'latest-revisions' in payload and payload['latest-revisions'] is True:
-                    if row['module']['revision'] != row['module']['latest_revision']:
-                        rejects[mod_sig] = True
-                        continue
-
-                mod_meta = None
-                try:
-                    if mod_sig not in not_founds:
-                        try:
-                            mod_meta = mod_obj.to_dict()
-                        except RestException as reste:
-                            if reste.get_response_code() == 404:
-                                not_founds[mod_sig] = True
-                            else:
-                                res_row['module'] = {
-                                    'error': 'Search failed at {}: {}'.format(mod_sig, reste)}
-
-                    if mod_meta is not None and ('include-mibs' not in payload or payload['include-mibs'] is False):
-                        if re.search('yang:smiv2:', mod_obj.get('namespace')):
-                            rejects[mod_sig] = True
-                            continue
-
-                    if mod_meta is not None and 'yang-versions' in payload and len(payload['yang-versions']) > 0:
-                        if mod_obj.get('yang-version') not in payload['yang-versions']:
-                            rejects[mod_sig] = True
-                            continue
-
-                    if mod_meta is not None:
-                        if 'filter' not in payload:
-                            # If the filter is not specified, return all
-                            # fields.
-                            res_row['module'] = mod_meta
-                        elif 'module' in payload['filter']:
-                            res_row['module'] = {}
-                            for field in payload['filter']['module']:
-                                if field in mod_meta:
-                                    res_row['module'][field] = mod_meta[field]
-                except Exception as e:
-                    res_row['module'] = {
-                        'error': 'Search failed at {}: {}'.format(mod_sig, e)}
-
-            res.append(res_row)
-
-        return jsonify({'results': res})
-    except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
-
-
 @application.route('/fast', methods=['POST'])
 def fast_search():
     """Search through the YANG keyword index for a given search pattern.
@@ -1310,6 +1159,7 @@ def fast_search():
 
     limit = 10000
     payload = request.json
+    application.LOGGER.info(payload)
     if 'search' not in payload:
         return make_response(jsonify({'error': 'You must specify a "search" argument'}), 400)
     try:
@@ -1323,65 +1173,189 @@ def fast_search():
         not_founds = []
 
         for row in search_res:
-            count +=1
             res_row = {}
             res_row['node'] = row['node']
-            if 'filter' not in payload or 'module' in payload['filter']:
-                m_name = row['module']['name']
-                m_revision = row['module']['revision']
-                m_organization = row['module']['organization']
-                mod_sig = '{}@{}/{}'.format(m_name, m_revision, m_organization)
-                if mod_sig in rejects:
-                    continue
+            m_name = row['module']['name']
+            m_revision = row['module']['revision']
+            m_organization = row['module']['organization']
+            mod_sig = '{}@{}/{}'.format(m_name, m_revision, m_organization)
+            if mod_sig in rejects:
+                continue
 
-                mod_meta = None
-                try:
-                    if mod_sig not in not_founds:
-                        if mod_sig in found_modules:
-                            mod_meta = found_modules[mod_sig]
+            mod_meta = None
+            try:
+                if mod_sig not in not_founds:
+                    if mod_sig in found_modules:
+                        mod_meta = found_modules[mod_sig]
+                    else:
+                        mod_meta = search_module(m_name, m_revision, m_organization)
+                        if mod_meta.status_code == 404:
+                            not_founds.append(mod_sig)
+                            application.LOGGER.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
+                            res_row = {'module': {'error': 'no {}@{} in API'.format(m_name, m_revision)}}
+                            res.append(res_row)
+                            continue
                         else:
-                            mod_meta = search_module(m_name, m_revision, m_organization)
-                            if mod_meta.status_code == 404:
-                                not_founds.append(mod_sig)
-                                application.LOGGER.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
-                                res_row = {'module': {'error': 'no {}@{} in API'.format(m_name, m_revision)}}
-                                res.append(res_row)
-                                continue
-                            else:
-                                mod_meta = mod_meta.json['module'][0]
-                                found_modules[mod_sig] = mod_meta
+                            mod_meta = mod_meta.json['module'][0]
+                            found_modules[mod_sig] = mod_meta
 
-                    if 'include-mibs' not in payload or payload['include-mibs'] is False:
-                        if re.search('yang:smiv2:', mod_meta.get('namespace')):
-                            rejects.append(mod_sig)
-                            continue
+                if 'include-mibs' not in payload or payload['include-mibs'] is False:
+                    if re.search('yang:smiv2:', mod_meta.get('namespace')):
+                        rejects.append(mod_sig)
+                        continue
 
-                    if mod_meta is not None and 'yang-versions' in payload and len(payload['yang-versions']) > 0:
-                        if mod_meta.get('yang-version') not in payload['yang-versions']:
-                            rejects.append(mod_sig)
-                            continue
+                if mod_meta is not None and 'yang-versions' in payload and len(payload['yang-versions']) > 0:
+                    if mod_meta.get('yang-version') not in payload['yang-versions']:
+                        rejects.append(mod_sig)
+                        continue
 
-                    if mod_meta is not None:
-                        if 'filter' not in payload:
-                            # If the filter is not specified, return all
-                            # fields.
-                            res_row['module'] = mod_meta
-                        elif 'module' in payload['filter']:
-                            res_row['module'] = {}
-                            for field in payload['filter']['module']:
-                                if field in mod_meta:
-                                    res_row['module'][field] = mod_meta[field]
-                except Exception as e:
-                    count -= 1
-                    res_row['module'] = {
-                        'error': 'Search failed at {}: {}'.format(mod_sig, e)}
+                if mod_meta is not None:
+                    if 'filter' not in payload or 'module-metadata' not in payload['filter']:
+                        # If the filter is not specified, return all
+                        # fields.
+                        res_row['module'] = mod_meta
+                    elif 'module-metadata' in payload['filter']:
+                        res_row['module'] = {}
+                        for field in payload['filter']['module-metadata']:
+                            if field in mod_meta:
+                                res_row['module'][field] = mod_meta[field]
+            except Exception as e:
+                count -= 1
+                res_row['module'] = {
+                    'error': 'Search failed at {}: {}'.format(mod_sig, e)}
 
-            res.append(res_row)
+            if not filter_using_api(res_row, payload):
+                count += 1
+                res.append(res_row)
+            else:
+                rejects.append(mod_sig)
             if count >= limit:
                 break
         return jsonify({'results': res})
     except Exception as e:
         return make_response(jsonify({'error': str(e)}), 500)
+
+
+def filter_using_api(res_row, payload):
+    try:
+        if 'filter' not in payload or 'module-metadata-filter' not in payload['filter']:
+            reject = False
+        else:
+            reject = False
+            keywords = payload['filter']['module-metadata-filter']
+            for key, value in keywords.items():
+                # Module doesn not contain such key as searched for, then reject
+                if res_row['module'].get(key) is None:
+                    reject = True
+                    break
+                if isinstance(res_row['module'][key], dict):
+                    # This means the key is either implementations or ietf (for WG)
+                    if key == 'implementations':
+                        exists = True
+                        if res_row['module'][key].get('implementations') is not None:
+                            for val in value['implementation']:
+                                val_found = False
+                                for impl in res_row['module'][key]['implementations']['implementation']:
+                                    vendor = impl.get('vendor')
+                                    software_version = impl.get('software_version')
+                                    software_flavor = impl.get('software_flavor')
+                                    platform = impl.get('platform')
+                                    os_version = impl.get('os_version')
+                                    feature_set = impl.get('feature_set')
+                                    os_type = impl.get('os_type')
+                                    conformance_type = impl.get('conformance_type')
+                                    local_exist = True
+                                    if val.get('vendor') is not None:
+                                        if vendor != val['vendor']:
+                                            local_exist = False
+                                    if val.get('software-version') is not None:
+                                        if software_version != val['software-version']:
+                                            local_exist = False
+                                    if val.get('software-flavor') is not None:
+                                        if software_flavor != val['software-flavor']:
+                                            local_exist = False
+                                    if val.get('platform') is not None:
+                                        if platform != val['platform']:
+                                            local_exist = False
+                                    if val.get('os-version') is not None:
+                                        if os_version != val['os-version']:
+                                            local_exist = False
+                                    if val.get('feature-set') is not None:
+                                        if feature_set != val['feature-set']:
+                                            local_exist = False
+                                    if val.get('os-type') is not None:
+                                        if os_type != val['os-type']:
+                                            local_exist = False
+                                    if val.get('conformance-type') is not None:
+                                        if conformance_type != val['conformance-type']:
+                                            local_exist = False
+                                    if local_exist:
+                                        val_found = True
+                                        break
+                                if not val_found:
+                                    exists = False
+                                    break
+                            if not exists:
+                                reject = True
+                                break
+                        else:
+                            # No implementations that is searched for, reject
+                            reject = True
+                            break
+                    elif key == 'ietf':
+                        values = value.split(',')
+                        reject = True
+                        for val in values:
+                            if res_row['module'][key].get('ietf-wg') is not None:
+                                if res_row['module'][key]['ietf-wg'] == val['ietf-wg']:
+                                    reject = False
+                                    break
+                        if reject:
+                            break
+                elif isinstance(res_row['module'][key], list):
+                    # this means the key is either dependencies or dependents
+                    exists = True
+                    for val in value:
+                        val_found = False
+                        for dep in res_row['module'][key]:
+                            name = dep.get('name')
+                            rev = dep.get('revision')
+                            schema = dep.get('schema')
+                            local_exist = True
+                            if val.get('name') is not None:
+                                if name != val['name']:
+                                    local_exist = False
+                            if val.get('revision') is not None:
+                                if rev != val['revision']:
+                                    local_exist = False
+                            if val.get('schema') is not None:
+                                if schema != val['schema']:
+                                    local_exist = False
+                            if local_exist:
+                                val_found = True
+                                break
+                        if not val_found:
+                            exists = False
+                            break
+                    if not exists:
+                        reject = True
+                        break
+                else:
+                    # Module key has different value then serached for then reject
+                    values = value.split(',')
+                    reject = True
+                    for val in values:
+                        if res_row['module'].get(key) is not None:
+                            if res_row['module'][key] == val:
+                                reject = False
+                                break
+                    if reject:
+                        break
+
+        return reject
+    except Exception as e:
+        res_row['module'] = {'error': 'Metadata search failed with: {}'.format(e)}
+        return False
 
 
 @application.route('/search/<path:value>', methods=['GET'])
@@ -1697,6 +1671,59 @@ def get_common():
         return not_found()
     return Response(json.dumps({'output': output_modules_list}),
                     mimetype='application/json')
+
+
+@application.route('/compare', methods=['POST'])
+def compare():
+    body = request.json
+    if body is None:
+        return make_response(jsonify({'error': 'body of request is empty'}), 400)
+    if body.get('input') is None:
+        return make_response(jsonify
+                             ({'error':
+                                   'body of request need to start with input'}),
+                             400)
+    if body['input'].get('old') is None or body['input'].get('new') is None:
+        return make_response(jsonify
+                             ({'error':
+                                   'body of request need to contain new'
+                                   ' and old container'}),
+                             400)
+    response_new = rpc_search({'input': body['input']['new']})
+    response_old = rpc_search({'input': body['input']['old']})
+
+    if response_new.status_code == 404 or response_old.status_code == 404:
+        return not_found()
+
+    data = json.loads(response_new.data)
+    modules_new = data['yang-catalog:modules']['module']
+    data = json.loads(response_old.data)
+    modules_old = data['yang-catalog:modules']['module']
+
+    new_mods = []
+    for mod_new in modules_new:
+        new_rev = mod_new['revision']
+        new_name = mod_new['name']
+        found = False
+        new_rev_found = False
+        for mod_old in modules_old:
+            old_rev = mod_old['revision']
+            old_name = mod_old['name']
+            if new_name == old_name and new_rev == old_rev:
+                found = True
+                break
+            if new_name == old_name and new_rev != old_rev:
+                new_rev_found = True
+        if not found:
+            mod_new['reason-to-show'] = 'New module'
+            new_mods.append(mod_new)
+        if new_rev_found:
+            mod_new['reason-to-show'] = 'Different revision'
+            new_mods.append(mod_new)
+    if len(new_mods) == 0:
+        return not_found()
+    output = {'output': new_mods}
+    return make_response(jsonify(output), 200)
 
 
 @application.route('/check-semantic-version', methods=['POST'])
@@ -2472,17 +2499,20 @@ def load(on_change):
     with lock_for_load:
         with lock_uwsgi_cache1:
             application.LOGGER.info('Loading cache 1')
-            load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
+            modules_text, modules, vendors_text, data =\
+                load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
             # reset active cache back to 1 since we are done with populating cache 1
             uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
         application.LOGGER.info('Loading cache 2')
         with lock_uwsgi_cache2:
-            load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change)
+            load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change,
+                             modules_text, modules, vendors_text, data)
         application.LOGGER.info('Both caches are loaded')
         application.loading = False
 
 
-def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
+def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change,
+                     modules_text=None, modules=None, vendors_text=None, data=None):
     response = 'work'
     initialized = uwsgi.cache_get('initialized', cache_chunks)
     if sys.version_info >= (3, 4) and initialized is not None:
@@ -2496,16 +2526,17 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
             # set active cache to 2 until we work on cache 1
             uwsgi.cache_set('active_cache', '2', 0, 'cache_chunks1')
         uwsgi.cache_set('initialized', 'False', 0, cache_chunks)
-        response, data = make_cache(application.credentials, response, cache_chunks, main_cache, is_uwsgi=application.is_uwsgi)
-
-        cat = \
-            json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-                .decode(data)['yang-catalog:catalog']
-        modules = cat['modules']
-        if cat.get('vendors'):
-            vendors = cat['vendors']
-        else:
-            vendors = {}
+        response, data = make_cache(application.credentials, response, cache_chunks, main_cache,
+                                    is_uwsgi=application.is_uwsgi, data=data)
+        vendors = {}
+        if modules is None or vendors_text is None:
+            cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
+                    .decode(data)['yang-catalog:catalog']
+            modules = cat['modules']
+            if cat.get('vendors'):
+                vendors = cat['vendors']
+            else:
+                vendors = {}
         if len(modules) != 0:
             for i, mod in enumerate(modules['module']):
                 key = mod['name'] + '@' + mod['revision'] + '/' + mod[
@@ -2518,19 +2549,23 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
                                     value[j * 20000: (j + 1) * 20000], 0,
                                     cache_modules)
 
-        chunks = int(math.ceil(len(json.dumps(modules)) / float(64000)))
+        if modules_text is None:
+            modules_text = json.dumps(modules)
+        chunks = int(math.ceil(len(modules_text) / float(64000)))
         for i in range(0, chunks, 1):
             uwsgi.cache_set('modules-data{}'.format(i),
-                            json.dumps(modules)[i * 64000: (i + 1) * 64000],
+                            modules_text[i * 64000: (i + 1) * 64000],
                             0, main_cache)
         application.LOGGER.info(
             'all {} modules chunks are set in uwsgi cache'.format(chunks))
         uwsgi.cache_set('chunks-modules', repr(chunks), 0, cache_chunks)
 
-        chunks = int(math.ceil(len(json.dumps(vendors)) / float(64000)))
+        if vendors_text is None:
+            vendors_text = json.dumps(vendors)
+        chunks = int(math.ceil(len(vendors_text) / float(64000)))
         for i in range(0, chunks, 1):
             uwsgi.cache_set('vendors-data{}'.format(i),
-                            json.dumps(vendors)[i * 64000: (i + 1) * 64000],
+                            vendors_text[i * 64000: (i + 1) * 64000],
                             0, main_cache)
         application.LOGGER.info(
             'all {} vendors chunks are set in uwsgi cache'.format(chunks))
@@ -2539,6 +2574,7 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change):
         application.LOGGER.error('Could not load or create cache')
         sys.exit(500)
     uwsgi.cache_update('initialized', 'True', 0, cache_chunks)
+    return modules_text, modules, vendors_text, data
 
 
 def process(data, passed_data, value, module, split, count):
@@ -2612,6 +2648,5 @@ def get_password(username):
 def unauthorized():
     """Return unauthorized error message"""
     return make_response(jsonify({'error': 'Unauthorized access'}), 401)
-
 
 load(False)
