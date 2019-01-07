@@ -33,6 +33,16 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+
+def create_register_elk_repo(name, is_compress, elk):
+    body = {}
+    body['type'] = 'fs'
+    body['settings'] = {}
+    body['settings']['location'] = name
+    body['settings']['compress'] = is_compress
+    elk.snapshot.create_repository(name, body)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description='This serves to save or load all information in yangcatalog.org in elk.'
@@ -70,18 +80,13 @@ if __name__ == "__main__":
         save = False
 
     if save:
-        body = {}
-        body['type'] = 'fs'
-        body['settings'] = {}
-        body['settings']['location'] = repo_name
-        body['settings']['compress'] = args.compress
-
-        es.snapshot.create_repository(repo_name, body)
+        create_register_elk_repo(repo_name, args.compress, es)
         index_body = {
             'indices': '_all'
         }
         es.snapshot.create(repository=repo_name, snapshot=args.name_save, body=index_body)
     else:
+        create_register_elk_repo(repo_name, args.compress, es)
         index_body = {
             'indices': '_all'
         }
