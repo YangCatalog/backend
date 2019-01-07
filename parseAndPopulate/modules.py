@@ -259,12 +259,12 @@ class Modules:
     def __save_file(self, to):
         file_with_path = '{}/{}@{}.yang'.format(to, self.name, self.revision)
         if not os.path.exists(file_with_path):
-            with open(self.__path, 'r') as f:
-                with open(file_with_path, 'w') as f2:
+            with open(self.__path, 'r', encoding='utf-8') as f:
+                with open(file_with_path, 'w', encoding='utf-8') as f2:
                     f2.write(f.read())
 
     def __resolve_semver(self):
-        yang_file = open(self.__path)
+        yang_file = open(self.__path, encoding='utf-8')
         for line in yang_file:
             if re.search('oc-ext:openconfig-version .*;', line):
                 self.semver = re.findall('[0-9]+.[0-9]+.[0-9]+', line).pop()
@@ -592,10 +592,10 @@ class Modules:
             if self.compilation_status['status'] in ['unknown', 'pending']:
                 self.compilation_status['status'] = None
             else:
-                with open('{}/{}'.format(self.html_result_dir, file_url), 'w') as f:
+                with open('{}/{}'.format(self.html_result_dir, file_url), 'w', encoding='utf-8') as f:
                     f.write(rendered_html)
         else:
-            with open('{}/{}'.format(self.html_result_dir, file_url), 'w') as f:
+            with open('{}/{}'.format(self.html_result_dir, file_url), 'w', encoding='utf-8') as f:
                 f.write(rendered_html)
         return 'https://yangcatalog.org/results/{}'.format(file_url)
 
@@ -626,7 +626,7 @@ class Modules:
     def __resolve_module_type(self):
         LOGGER.debug('Searching for module type')
         try:
-            file_input = open(self.__path, "r")
+            file_input = open(self.__path, "r", encoding='utf-8')
         except:
             LOGGER.critical(
                 'Could not open a file {}. Maybe a path is set wrongly'.format(

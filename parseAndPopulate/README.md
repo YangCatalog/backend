@@ -1,11 +1,10 @@
-Parse and Populate
-==================
+# Parse and Populate
 
 This package contains a python scripts to parse yang files
 and consequently to populate them to confd. Two main scripts
 can be called in here:
 
-1. runCapabilites script
+## runCapabilites script
 
    This script can be called if we don t want top populate parsed
    metadata to confd right away but we just want to see what metadata
@@ -30,7 +29,7 @@ can be called in here:
    file to get all the vendor information like platform, version, flavor
    etc...
 
-2. populate script
+## populate script
 
    This script is called either by admin user to manually populate data
    on certain directory or by api when other users would like to contribute
@@ -53,3 +52,12 @@ can be called in here:
    Look for options in [populate](populate.py) before starting to parse
    and populate yang modules. Make sure that all the ports, protocols
    and ip addresses are set correctly.
+
+For example for all SDO (known in December 2018):
+```
+python populate.py --sdo  --dir /var/yang/nonietf/yangmodels/yang/standard/bbf--notify-indexing --force-indexing
+python populate.py --sdo  --dir /var/yang/nonietf/yangmodels/yang/standard/ieee --notify-indexing --force-indexing
+python populate.py --sdo  --dir /var/yang/nonietf/yangmodels/yang/standard/ietf --notify-indexing --force-indexing
+python populate.py --sdo  --dir /var/yang/nonietf/yangmodels/yang/standard/mef --notify-indexing --force-indexing
+python populate.py --sdo  --dir /var/yang/nonietf/yangmodels/yang/standard/odp --notify-indexing --force-indexing
+```

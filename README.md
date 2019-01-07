@@ -107,11 +107,14 @@ users are informed about this using a Cisco Webex teams room and by email.
 
 RabbitMQ must be installed. The default port of 5672 is assumed.
 
+ConfD Premium must also be installed.
+
 ### API code
 
 The next step is to install all the API code (Python 3.4 or more recent is required):
 ```
  virtualenv-3.4 -p /usr/bin/python3.4 --system-site-packages backend
+ cd backend
  
  git clone https://github.com/YangCatalog/backend.git 
  source bin/activate
@@ -123,9 +126,20 @@ The next step is to install all the API code (Python 3.4 or more recent is requi
 
 The file `/etc/uwsgi/vassals/yang-catalog.ini` must be a link or a copy of a localized `yang-catalog.ini-dist`.
 
+The file `/etc/systemd/system/yang-catalog.service`must be a link or a copy of a localized `yang-catalog.service-dist`. The backend service should then be enabled and started with `systemctl`:
+```
+systemctl daemon-reload
+systemctl enable yang-catalog
+systemctl start yang-catalog
+```
+
 ### Documentation
 
 See the README.md file in the `documentation/` directory.
+
+### Fill the ConfD database
+
+Using the `backend/recovery/recovery.py --type load /var/yang/cache/<latest>.json`.
 
 ### NGINX Configuration
 
