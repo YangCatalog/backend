@@ -156,7 +156,7 @@ if __name__ == "__main__":
         github_credentials = username + ':' + token + '@'
 
     # Fork and clone the repository YangModles/yang
-    LOGGER.info('Forking repository')
+    LOGGER.info('Cloning repository')
     reponse = requests.post(
         'https://' + github_credentials + yang_models_url_suffix)
     repo = repoutil.RepoUtil(
@@ -189,7 +189,7 @@ if __name__ == "__main__":
                 arguments.append("--notify-indexing")
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
-            LOGGER.error('Error calling process populate.py {}'.format(e.stdout))
+            LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
     for key in ietf_draft_json:
         yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
         yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
@@ -217,5 +217,5 @@ if __name__ == "__main__":
                 arguments.append("--notify-indexing")
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
-            LOGGER.error('Error calling process populate.py {}'.format(e.stdout))
+            LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
     repo.remove()

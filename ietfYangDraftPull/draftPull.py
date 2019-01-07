@@ -81,7 +81,7 @@ if __name__ == "__main__":
         github_credentials = username + ':' + token + '@'
 
     # Fork and clone the repository YangModles/yang
-    LOGGER.info('Forking repository')
+    LOGGER.info('Cloning repository')
     reponse = requests.post(
         'https://' + github_credentials + ietf_models_url_suffix)
     repo = repoutil.RepoUtil(
