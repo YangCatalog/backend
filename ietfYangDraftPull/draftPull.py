@@ -84,10 +84,12 @@ if __name__ == "__main__":
     LOGGER.info('Cloning repository')
     reponse = requests.post(
         'https://' + github_credentials + ietf_models_url_suffix)
+    
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
-
+    LOGGER.info('https://' + token + '@github.com/' + username + '/yang.git')
     repo.clone(config_name, config_email)
+   
     LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
     try:
         LOGGER.info('Activating Travis')

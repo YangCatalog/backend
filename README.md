@@ -58,6 +58,8 @@ check his job at any time if it has been completed or not. Once a receiver
 is done it will update a job status to either Failed of Finished
 successfully.
 
+_Note about rabbitMQ: on some Linux, you need to add `HOSTNAME=localhost in file /etc/rabbitmq/rabbitmq-env.conf`...._
+
 Yangcatalog API is also used by some automated jobs. Every time new
 modules are merged in yangModels/yang repository a job is triggered to
 populate all new modules to yangcatalog database. 
