@@ -8,13 +8,13 @@ User=yang
 Group=yang
 # Created in /var/run
 RuntimeDirectory=yang-receiver
-RuntimeDirectoryMode=0755
+RuntimeDirectoryMode=0775
 UMask=007
 #
-#Environment=PYTHONPATH="/home/yang/backend/bin/python"
-#Environment=VIRTUAL_ENV="/home/yang/backend"
+Environment=PYTHONPATH=/home/yang/backend/bin/python
+Environment=VIRTUAL_ENV=/home/yang/backend
 Environment=GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
-Environment=PATH="/home/yang/backend/bin:/usr/bin/git:/bin/cp:/home/yang/backend/bin/python:$PATH"
+Environment=PATH=/home/yang/backend/bin:/usr/bin:/bin:/home/yang/backend/backend:$PATH
 ExecStart=/home/yang/backend/bin/python /home/yang/backend/backend/api/receiver.py
 ExecReload=/bin/kill -HUP $MAINPID
 KillMode=process
