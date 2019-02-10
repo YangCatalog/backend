@@ -25,7 +25,6 @@ number of yang files in yang-catalog...
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from utility.repoutil import pull
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -311,7 +310,7 @@ if __name__ == '__main__':
     LOGGER.info('Starting statistics')
     repo = None
     try:
-        pull(yang_models)
+        # pull(yang_models) no need to pull https://github.com/YangModels/yang as it is daily done via SDO_analysis module
 
         xr = set()
         nx = set()
@@ -403,6 +402,7 @@ if __name__ == '__main__':
             nx_values.append(values)
 
         path = yangcatalog_api_prefix + 'search/modules'
+        # TODO handle properly the case when the request to YangCatalog failed...
         all_modules_data = (requests.get(path, auth=(auth[0], auth[1]),
                                          headers={'Accept': 'application/json'})
                             .json())
