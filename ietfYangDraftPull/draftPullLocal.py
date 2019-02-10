@@ -148,6 +148,7 @@ if __name__ == "__main__":
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
+    temp_dir = config.get('Directory-Section', 'temp')
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/jobs/draft-pull-local.log')
     LOGGER.info('Starting Cron job IETF pull request local')
 
@@ -177,7 +178,7 @@ if __name__ == "__main__":
     os.remove(repo.localdir + '/rfc.tgz')
     check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
     check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-    with open("log.txt", "w") as f:
+    with open(temp_dir + "/log-pull-local.txt", "w") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
@@ -205,7 +206,7 @@ if __name__ == "__main__":
     check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
     check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
 
-    with open("log.txt", "w") as f:
+    with open(temp_dir + "/log-pull-local2.txt", "w") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
