@@ -310,7 +310,7 @@ class MyFlask(Flask):
                     or 'ietf-interfaces' in inset)
                     and 'iana-if-type' not in inset):
                     resp = requests.get(
-                        'https://yangcatalog.org/api/search/name/iana-if-type?latest-revision=True',
+                        '{}search/name/iana-if-type?latest-revision=True'.format(self.yangcatalog_api_prefix),
                         headers={
                             'Content-type': 'application/json',
                             'Accept': 'application/json'})
@@ -565,7 +565,7 @@ def check_authorized(signature, payload):
 def yangsuite_redirect(id):
     local_ip = '127.0.0.1'
     if application.is_uwsgi:
-        local_ip = 'ys.yangcatalog.org'
+        local_ip = 'ys.{}'.format(application.ip)
     return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
 
 

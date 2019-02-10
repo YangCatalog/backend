@@ -289,9 +289,19 @@ class Modules:
                 if yang_file is None:
                     dependency.schema = None
                 else:
-                    suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
-                    prefix = self.schema.split('/yang/')[0]
-                    dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
+                    try:
+                        if '/yangmodels/yang/' in yang_file:
+                            suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
+                            prefix = self.schema.split('/yang/')[0]
+                            dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
+                        elif branch in yang_file:
+                            prefix = self.schema.split('/{}/'.format(branch))[0]
+                            suffix = os.path.abspath(yang_file).split('/{}/'.format(branch))[1]
+                            dependency.schema = '{}/master/{}'.format(prefix, suffix)
+                    except:
+                        LOGGER.ERROR('Unable to resolve schema for {}@{}.yang'.format(self.name, self.revision))
+                        dependency.schema = None
+                        self.dependencies.append(dependency)
                 self.dependencies.append(dependency)
         except:
             return
