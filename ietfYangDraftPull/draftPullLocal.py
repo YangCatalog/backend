@@ -46,8 +46,10 @@ def get_latest_revision(f):
     :param f: yang file
     :return: revision of the file "f"
     """
+    print('EVY Start of get_latest_revision(' + f + ')')
     stmt = yangParser.parse(f)
-
+    if stmt is None: # In case of invalid YANG syntax, None is returned
+        return None
     rev = stmt.search_one('revision')
     if rev is None:
         return None
@@ -57,11 +59,11 @@ def get_latest_revision(f):
 
 def check_name_no_revision_exist(directory, LOGGER_temp):
     """
-    This method checks all the modules name format.
-    If it contains module with name that has no revision
+    This function checks the format of all the modules filename.
+    If it contains module with a filename without revision,
     we check if there is a module that has revision in
-    its name. If such module exist module with no revision
-    in name will be removed
+    its filename. If such module exists, then module with no revision
+    in filename will be removed.
     :param directory: (str) path to directory with yang modules
     """
     LOGGER = LOGGER_temp
@@ -82,19 +84,24 @@ def check_name_no_revision_exist(directory, LOGGER_temp):
 
 def check_early_revisions(directory, LOGGER_temp=None):
     """
-    This method check all modules revisions and keeps only
-    ones that are the newest. If there are same modules with
-    two different revision, older one will be removed
+    This function checks all modules revisions and keeps only
+    ones that are the newest. If there are two modules with
+    two different revisions, then the older one is removed.
     :param directory: (str) path to directory with yang modules
     """
     if LOGGER_temp is not None:
         LOGGER = LOGGER_temp
     for f in os.listdir(directory):
         fname = f.split('.yang')[0].split('@')[0]
+        if fname == '':
+            continue
         files_to_delete = []
         revisions = []
         for f2 in os.listdir(directory):
+            if f2 == f:     # Skip myself
+                continue
             if f2.split('.yang')[0].split('@')[0] == fname:
+                print('EVY*fname = ' + fname + ', f2 = ' + f2)
                 if f2.split(fname)[1].startswith('.') or f2.split(fname)[1].startswith('@'):
                     files_to_delete.append(f2)
                     revision = f2.split(fname)[1].split('.')[0].replace('@', '')
@@ -102,10 +109,11 @@ def check_early_revisions(directory, LOGGER_temp=None):
                         revision = get_latest_revision(os.path.abspath(directory + f2))
                         if revision is None:
                             continue
-                    year = int(revision.split('-')[0])
-                    month = int(revision.split('-')[1])
-                    day = int(revision.split('-')[2])
                     try:
+                        # Basic date extraction can fail if there are alphanumeric characters in the revision filename part
+                        year = int(revision.split('-')[0])  
+                        month = int(revision.split('-')[1])
+                        day = int(revision.split('-')[2])
                         revisions.append(datetime(year, month, day))
                     except Exception:
                         LOGGER.error('Failed to process revision for {}: (rev: {})'.format(f2, revision))
@@ -149,7 +157,7 @@ if __name__ == "__main__":
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
     yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/jobs/draft-pull-local.log')
-    LOGGER.info('Starting Cron job IETF pull request local')
+    LOGGER.info('Starting cron job IETF pull request local')
 
     github_credentials = ''
     if len(username) > 0:
@@ -177,7 +185,7 @@ if __name__ == "__main__":
     os.remove(repo.localdir + '/rfc.tgz')
     check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
     check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-    with open("log.txt", "w") as f:
+    with open(repo.localdir + "/log-pull-local.txt", "w") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
@@ -202,10 +210,12 @@ if __name__ == "__main__":
             LOGGER.warning('{} - {}'.format(key, yang_download_link))
             yang_file.write('')
         yang_file.close()
+    LOGGER.info('Checking module filenames without revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
     check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+    LOGGER.info('Checking for early revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
     check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
 
-    with open("log.txt", "w") as f:
+    with open(repo.localdir + "/log-pull-local2.txt", "w") as f:
         try:
             LOGGER.info('Calling populate script')
             arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
