@@ -99,9 +99,9 @@ class RepoUtil(object):
         self.localdir = tempfile.mkdtemp()
         self.repo = Repo.clone_from(self.repourl, self.localdir)
         if config_user_name:
-            config = self.repo.config_writer()
-            config.set_value('user', 'email', config_user_email)
-            config.set_value('user', 'name', config_user_name)
+            with self.repo.config_writer() as config:
+                config.set_value('user', 'email', config_user_email)
+                config.set_value('user', 'name', config_user_name)
 
     def updateSubmodule(self, recursive=True, init=True):
         """Clone submodules of a git repository"""

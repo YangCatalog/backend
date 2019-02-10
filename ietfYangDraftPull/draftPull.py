@@ -86,7 +86,7 @@ if __name__ == "__main__":
         'https://' + github_credentials + ietf_models_url_suffix)
     repo = repoutil.RepoUtil(
         'https://' + token + '@github.com/' + username + '/yang.git')
-
+    LOGGER.info('https://' + token + '@github.com/' + username + '/yang.git')
     repo.clone(config_name, config_email)
     LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
     try:
@@ -113,10 +113,10 @@ if __name__ == "__main__":
             raise
 
     response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
-    zfile = open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz', 'wb')
+    zfile = open(repo.localdir + '/rfc.tgz', 'wb')
     zfile.write(response.content)
     zfile.close()
-    tgz = tarfile.open(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz')
+    tgz = tarfile.open(repo.localdir + '/rfc.tgz')
     try:
         os.makedirs(
             repo.localdir + '/standard/ietf/RFCtemp')
@@ -142,7 +142,7 @@ if __name__ == "__main__":
                 else:
                     new_files.append(file_name)
     shutil.rmtree(repo.localdir + '/standard/ietf/RFCtemp')
-    os.remove(repo.localdir + '/tools/ietfYangDraftPull/rfc.tgz')
+    os.remove(repo.localdir + '/rfc.tgz')
 
     with open(exceptions, 'r') as exceptions_file:
         remove_from_new = exceptions_file.read().split('\n')
