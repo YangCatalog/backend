@@ -46,7 +46,6 @@ def get_latest_revision(f):
     :param f: yang file
     :return: revision of the file "f"
     """
-    print('EVY Start of get_latest_revision(' + f + ')')
     stmt = yangParser.parse(f)
     if stmt is None: # In case of invalid YANG syntax, None is returned
         return None
@@ -101,7 +100,6 @@ def check_early_revisions(directory, LOGGER_temp=None):
             if f2 == f:     # Skip myself
                 continue
             if f2.split('.yang')[0].split('@')[0] == fname:
-                print('EVY*fname = ' + fname + ', f2 = ' + f2)
                 if f2.split(fname)[1].startswith('.') or f2.split(fname)[1].startswith('@'):
                     files_to_delete.append(f2)
                     revision = f2.split(fname)[1].split('.')[0].replace('@', '')
