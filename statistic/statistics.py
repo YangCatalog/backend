@@ -401,11 +401,26 @@ if __name__ == '__main__':
                     values.append('<i class="fa fa-times"></i>')
             nx_values.append(values)
 
+        # Fetch the list of all modules known by YangCatalog
         path = yangcatalog_api_prefix + 'search/modules'
         # TODO handle properly the case when the request to YangCatalog failed...
-        all_modules_data = (requests.get(path, auth=(auth[0], auth[1]),
-                                         headers={'Accept': 'application/json'})
-                            .json())
+        try:
+            response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+            if response.status_code != 200:
+                print("Cannot access " + path + ', response code: ' + str(response.status_code))
+                LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
+                sys.exit(1)
+            else:
+                all_modules_data = response.json()
+        except requests.exceptions.RequestException:
+            print("Cannot access " + path + ', response code: ' + str(response.status_code))
+            LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
+            # Let's try again, who knows?
+            time.sleep(120)
+            response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+            all_modules_data = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+            all_modules_data = response.json()
+            LOGGER.error("After a while, OK to access " + path)
         all_modules_data_unique = {}
         for mod in all_modules_data['module']:
             name = mod['name']
@@ -414,7 +429,7 @@ if __name__ == '__main__':
             all_modules_data_unique['{}@{}_{}'.format(name, revision, org)] = mod
         all_modules_data = len(all_modules_data['module'])
 
-        # Vendors sparately
+        # Vendors separately
         vendor_list = []
 
         process = subprocess.Popen(
