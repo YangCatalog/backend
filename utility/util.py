@@ -60,3 +60,19 @@ def find_first_file(directory, pattern, pattern_with_revision):
                         return filename
                 else:
                     return filename
+
+
+def change_permissions_recursive(path):
+    """
+    Change permission to  rwxrwxr--
+    :param path: path to file or folder we need to change permission on
+    """
+    if os.path.isdir(path):
+        for root, dirs, files in os.walk(path, topdown=False):
+            for dir in [os.path.join(root,d) for d in dirs]:
+                os.chmod(dir, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR| stat.S_IXUSR |stat.S_IROTH)
+            for file in [os.path.join(root, f) for f in files]:
+                    os.chmod(file, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR| stat.S_IXUSR |stat.S_IROTH)
+    else:
+        os.chmod(path, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
+

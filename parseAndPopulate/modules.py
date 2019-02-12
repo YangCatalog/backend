@@ -230,11 +230,11 @@ class Modules:
         if key in keys:
             self.__resolve_schema(schema, git_branch)
             self.__resolve_submodule()
-            self.__resolve_imports()
+            self.__resolve_imports(git_branch)
             return
         self.__resolve_schema(schema, git_branch)
         self.__resolve_submodule()
-        self.__resolve_imports()
+        self.__resolve_imports(git_branch)
         if not self.run_integrity:
             self.__save_file(to)
             self.__resolve_generated_from(generated_from)
@@ -270,7 +270,7 @@ class Modules:
                 self.semver = re.findall('[0-9]+.[0-9]+.[0-9]+', line).pop()
         yang_file.close()
 
-    def __resolve_imports(self):
+    def __resolve_imports(self, branch):
         try:
             self.imports = self.__parsed_yang.search('import')
             if len(self.imports) == 0:
@@ -289,9 +289,18 @@ class Modules:
                 if yang_file is None:
                     dependency.schema = None
                 else:
-                    suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
-                    prefix = self.schema.split('/yang/')[0]
-                    dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
+                    try:
+                        if '/yangmodels/yang/' in yang_file:
+                            suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
+                            prefix = self.schema.split('/yang/')[0]
+                            dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
+                        elif branch in yang_file:
+                            prefix = self.schema.split('/{}/'.format(branch))[0]
+                            suffix = os.path.abspath(yang_file).split('/{}/'.format(branch))[1]
+                            dependency.schema = '{}/master/{}'.format(prefix, suffix)
+                    except:
+                        dependency.schema = None
+                        self.dependencies.append(dependency)
                 self.dependencies.append(dependency)
         except:
             return
@@ -582,7 +591,6 @@ class Modules:
         context = {'result': result,
                    'ths': self.compilation_status['ths']}
         template = os.path.dirname(os.path.realpath(__file__)) + '/template/compilationStatusTemplate.html'
-        LOGGER.info('{}'.format(template))
         rendered_html = stats.render(template, context)
         file_url = '{}@{}_{}.html'.format(self.name, self.revision,
                                           self.organization)
