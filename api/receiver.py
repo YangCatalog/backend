@@ -94,7 +94,7 @@ def process_sdo(arguments):
 
     with open(temp_dir + "/log.txt", "w") as f:
         try:
-            LOGGER.info('processing arguments')
+            LOGGER.info('processing arguments {}'.format(arguments))
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
             shutil.rmtree(direc)

@@ -299,6 +299,7 @@ class Modules:
                             suffix = os.path.abspath(yang_file).split('/{}/'.format(branch))[1]
                             dependency.schema = '{}/master/{}'.format(prefix, suffix)
                     except:
+                        LOGGER.ERROR('Unable to resolve schema for {}@{}.yang'.format(self.name, self.revision))
                         dependency.schema = None
                         self.dependencies.append(dependency)
                 self.dependencies.append(dependency)
