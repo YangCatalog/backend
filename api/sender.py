@@ -1,7 +1,7 @@
 """
 Rabbitmq is needed to be installed for this script to work.
 This script is part of messaging algorithm works together
-with receiver.py. Api endpoints that take too long time to
+with receiver.py. API endpoints that take too long time to
 process will send a request to process data to the receiver
 with some message id. Sender is used to generate this id
 and send the message with this id and some body which receiver
@@ -53,6 +53,7 @@ class Sender:
         self.channel.queue_declare(queue='module_queue')
         self.__temp_dir = temp_dir
         self.__response_file = 'correlation_ids'
+        self.LOGGER.debug('Sender initialized')
 
     def get_response(self, correlation_id):
         """Get response according to job_id. It can be either

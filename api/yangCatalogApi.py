@@ -128,17 +128,17 @@ class MyFlask(Flask):
         self.es_port = config.get('DB-Section', 'es-port')
         self.es_protocol = config.get('DB-Section', 'es-protocol')
         log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
+        self.LOGGER.debug('Starting API')
         self.sender = Sender(log_directory, self.temp_dir)
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
             separator = '/'
             suffix = 'api'
-        self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip,
-                                                       separator, suffix)
+        self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+        self.LOGGER.debug('API initialized at ' + self.yangcatalog_api_prefix)
 
-        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
-        self.LOGGER.debug('Starting api')
 
     def process_response(self, response):
         self.response = response
@@ -310,7 +310,7 @@ class MyFlask(Flask):
                     or 'ietf-interfaces' in inset)
                     and 'iana-if-type' not in inset):
                     resp = requests.get(
-                        'https://yangcatalog.org/api/search/name/iana-if-type?latest-revision=True',
+                        '{}search/name/iana-if-type?latest-revision=True'.format(self.yangcatalog_api_prefix),
                         headers={
                             'Content-type': 'application/json',
                             'Accept': 'application/json'})
@@ -565,7 +565,7 @@ def check_authorized(signature, payload):
 def yangsuite_redirect(id):
     local_ip = '127.0.0.1'
     if application.is_uwsgi:
-        local_ip = 'ys.yangcatalog.org'
+        local_ip = 'ys.{}'.format(application.ip)
     return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
 
 
