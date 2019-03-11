@@ -891,6 +891,7 @@ class Modules:
         def __init__(self):
             self.name = None
             self.revision = None
+            self.schema = None
 
     class Implementations:
         def __init__(self):
