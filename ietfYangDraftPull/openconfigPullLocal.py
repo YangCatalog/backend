@@ -121,5 +121,5 @@ if __name__ == "__main__":
     repo.remove()
     LOGGER.info(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)
-    requests.post(api_path, output, auth=(credentials[0], credentials[1]),
+    requests.put(api_path, output, auth=(credentials[0], credentials[1]),
                   headers={'Content-Type': 'application/json'})

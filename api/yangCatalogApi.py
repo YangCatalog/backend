@@ -1569,7 +1569,7 @@ def create_diff_file(f1, r1, f2, r2):
     stdout, stderr = cat.communicate()
     if sys.version_info >= (3, 4):
         stdout = stdout.decode(encoding='utf-8', errors='strict')
-    file_name1 = 'schema1.txt'
+    file_name1 = 'schema1-file-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     arguments = ['cat', schema2]
@@ -1578,7 +1578,7 @@ def create_diff_file(f1, r1, f2, r2):
     stdout, stderr = cat.communicate()
     if sys.version_info >= (3, 4):
         stdout = stdout.decode(encoding='utf-8', errors='strict')
-    file_name2 = 'schema2.txt'
+    file_name2 = 'schema2-file-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
@@ -1618,7 +1618,7 @@ def create_diff_tree(f1, r1, f2, r2):
                   ctx.opts.tree_line_length, path)
     with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
-    file_name1 = 'schema1.txt'
+    file_name1 = 'schema1-tree-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     with open(schema2, 'r') as f:
@@ -1628,7 +1628,7 @@ def create_diff_tree(f1, r1, f2, r2):
                   ctx.opts.tree_line_length, path)
     with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
-    file_name2 = 'schema2.txt'
+    file_name2 = 'schema2-tree-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)

@@ -167,7 +167,7 @@ def create_context(path='.', *options, **kwargs):
     return ctx
 
 
-def parse(text, ctx=None):
+def parse(text, ctx = None):
     """Parse a YANG statement into an Abstract Syntax subtree.
 
     Arguments:
@@ -186,7 +186,7 @@ def parse(text, ctx=None):
         It is also well known that ``parse`` function cannot solve
         YANG deviations yet.
     """
-    parser = YangParser()
+    parser = YangParser() # Similar names, but, this one is from PYANG library
 
     filename = 'parser-input'
 
@@ -195,8 +195,6 @@ def parse(text, ctx=None):
     if isfile(text):
         filename = text
         text = codecs.open(filename, encoding="utf-8").read()
-        #with open(filename, 'r') as fp:
-        #    text = fp.read()
 
     # ensure reported errors are just from parsing
     # old_errors = ctx_.errors
