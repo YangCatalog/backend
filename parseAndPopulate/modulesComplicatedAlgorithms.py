@@ -476,6 +476,8 @@ class ModulesComplicatedAlgorithms:
                             ctx.opts.check_update_from = schema2
                             ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
                             ctx.opts.verbose = False
+                            ctx.opts.old_path = []
+                            ctx.opts.old_deviation = []
                             check_update(ctx, schema2, a1)
                             if len(ctx.errors) == 0:
                                 with open(schema2, 'r') as f:
@@ -578,7 +580,8 @@ class ModulesComplicatedAlgorithms:
                                 ctx.opts.check_update_from = schema2
                                 ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
                                 ctx.opts.verbose = False
-
+                                ctx.opts.old_path = []
+                                ctx.opts.old_deviation = []
                                 check_update(ctx, schema2, a1)
                                 if len(ctx.errors) == 0:
                                     with open(schema2, 'r') as f:
