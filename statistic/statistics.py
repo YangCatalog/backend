@@ -403,8 +403,7 @@ if __name__ == '__main__':
             nx_values.append(values)
 
         path = yangcatalog_api_prefix + 'search/modules'
-        all_modules_data = (requests.get(path, auth=(auth[0], auth[1]),
-                                         headers={'Accept': 'application/json'})
+        all_modules_data = (requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
                             .json())
         all_modules_data_unique = {}
         for mod in all_modules_data['module']:
