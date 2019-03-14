@@ -60,7 +60,10 @@ import requests
 import uwsgi as uwsgi
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 from flask import Flask, Response, abort, jsonify, make_response, redirect, request
+from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
+from flask_wtf.csrf import CSRFProtect
+#from flask.ext.cors import cross_origin
 from pyang.plugins.tree import emit_tree
 
 import api.yangSearch.elasticsearchIndex as inde
@@ -82,7 +85,6 @@ github_repos_url = github_api_url + '/repos'
 yang_models_url = github_repos_url + '/YangModels/yang'
 
 auth = HTTPBasicAuth()
-
 
 class MyFlask(Flask):
 
@@ -141,10 +143,12 @@ class MyFlask(Flask):
 
 
     def process_response(self, response):
+        response.headers['Access-Control-Allow-Headers'] = 'content-type'
         self.response = response
         self.create_response_only_latest_revision()
         self.create_response_with_yangsuite_link()
-
+        
+        self.LOGGER.info(response.headers)
         return self.response
 
     def preprocess_request(self):
@@ -363,6 +367,8 @@ class MyFlask(Flask):
 
 
 application = MyFlask(__name__)
+CORS(application)
+csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_uwsgi_cache1 = Lock()
 lock_uwsgi_cache2 = Lock()
@@ -375,7 +381,6 @@ NS_MAP = {
     "http://tail-f.com/": "tail-f",
     "http://yang.juniper.net/": "juniper"
 }
-
 
 def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, data=None):
     """After we delete or add modules we need to reload all the modules to the file
@@ -952,7 +957,9 @@ def add_modules():
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
+    application.LOGGER.info('{}'.format(body['modules']['module']))
     for mod in body['modules']['module']:
+        application.LOGGER.info('{}'.format(mod))
         sdo = mod['source-file']
         orgz = mod['organization']
         if request.method == 'POST':
@@ -1157,14 +1164,14 @@ def fast_search():
     if not request.json:
         abort(400)
 
-    limit = 10000
+    limit = 1000000
     payload = request.json
     application.LOGGER.info(payload)
     if 'search' not in payload:
         return make_response(jsonify({'error': 'You must specify a "search" argument'}), 400)
     try:
         count = 0
-        search_res = inde.do_search(payload, application.es_host,
+        search_res, limit_reached = inde.do_search(payload, application.es_host,
                                     application.es_protocol, application.es_port,
                                     application.LOGGER)
         res = []
@@ -1189,6 +1196,8 @@ def fast_search():
                         mod_meta = found_modules[mod_sig]
                     else:
                         mod_meta = search_module(m_name, m_revision, m_organization)
+                        if mod_meta.status_code == 404 and m_revision.endswith('02-28'):
+                            mod_meta = search_module(m_name, m_revision.replace('02-28', '02-29'), m_organization)
                         if mod_meta.status_code == 404:
                             not_founds.append(mod_sig)
                             application.LOGGER.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
@@ -1231,7 +1240,7 @@ def fast_search():
                 rejects.append(mod_sig)
             if count >= limit:
                 break
-        return jsonify({'results': res})
+        return jsonify({'results': res, 'limit_reched': limit_reached})
     except Exception as e:
         return make_response(jsonify({'error': str(e)}), 500)
 
@@ -1560,7 +1569,7 @@ def create_diff_file(f1, r1, f2, r2):
     stdout, stderr = cat.communicate()
     if sys.version_info >= (3, 4):
         stdout = stdout.decode(encoding='utf-8', errors='strict')
-    file_name1 = 'schema1.txt'
+    file_name1 = 'schema1-file-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     arguments = ['cat', schema2]
@@ -1569,7 +1578,7 @@ def create_diff_file(f1, r1, f2, r2):
     stdout, stderr = cat.communicate()
     if sys.version_info >= (3, 4):
         stdout = stdout.decode(encoding='utf-8', errors='strict')
-    file_name2 = 'schema2.txt'
+    file_name2 = 'schema2-file-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
@@ -1593,8 +1602,11 @@ def create_diff_tree(f1, r1, f2, r2):
     schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
     ctx = create_context('{}:{}'.format(application.yang_models, application.save_file_dir))
+    ctx.lax_quote_checks = True
+    ctx.lax_xpath_checks = True
     with open(schema1, 'r') as f:
         a = ctx.add_module(schema1, f.read())
+    ctx.errors = []
     if ctx.opts.tree_path is not None:
         path = ctx.opts.tree_path.split('/')
         if path[0] == '':
@@ -1606,7 +1618,7 @@ def create_diff_tree(f1, r1, f2, r2):
                   ctx.opts.tree_line_length, path)
     with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
-    file_name1 = 'schema1.txt'
+    file_name1 = 'schema1-tree-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     with open(schema2, 'r') as f:
@@ -1616,7 +1628,7 @@ def create_diff_tree(f1, r1, f2, r2):
                   ctx.opts.tree_line_length, path)
     with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
         stdout = f.read()
-    file_name2 = 'schema2.txt'
+    file_name2 = 'schema2-tree-diff.txt'
     with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
@@ -1727,6 +1739,7 @@ def compare():
 
 
 @application.route('/check-semantic-version', methods=['POST'])
+#@cross_origin(headers='Content-Type')
 def check_semver():
     body = request.json
     if body is None:
@@ -1792,12 +1805,12 @@ def check_semver():
                         reason = ('pyang --check-update-from output: {}'.
                                   format(file_name))
 
-                        diff = (
-                            '{}/services/diff-tree/file1={}@{}/file2={}@{}'.
-                                format(application.yangcatalog_api_prefix, name_old,
-                                       revision_old, name_new, revision_new))
+                    diff = (
+                        '{}/services/diff-tree/file1={}@{}/file2={}@{}'.
+                            format(application.yangcatalog_api_prefix, name_old,
+                                   revision_old, name_new, revision_new))
 
-                        output_mod['yang-module-pyang-tree-diff'] = diff
+                    output_mod['yang-module-pyang-tree-diff'] = diff
 
                     output_mod['name'] = name_old
                     output_mod['revision-old'] = revision_old
