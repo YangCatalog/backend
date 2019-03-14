@@ -96,16 +96,14 @@ if __name__ == "__main__":
         travis = TravisPy.github_auth(token)
     except:
         LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
-        requests.delete(ietf_models_forked_url,
-                        headers={'Authorization': 'token ' + token})
+        requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
         repo.remove()
         sys.exit(500)
     # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
     LOGGER.info('Loading all files from {}'.format(ietf_draft_url))
     ietf_draft_json = requests.get(ietf_draft_url , auth=(private_credentials[0], private_credentials[1])).json()
     try:
-        os.makedirs(
-            repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+        os.makedirs(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
@@ -155,11 +153,8 @@ if __name__ == "__main__":
         mf.send_new_rfc_message(new_files, diff_files)
 
     for key in ietf_draft_json:
-        yang_file = open(
-            repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key,
-            'w+')
-        yang_download_link = \
-            ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
+        yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
+        yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
         yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
         try:
             yang_raw = requests.get(yang_download_link).text
@@ -168,10 +163,8 @@ if __name__ == "__main__":
             LOGGER.warning('{} - {}'.format(key, yang_download_link))
             yang_file.write('')
         yang_file.close()
-    check_name_no_revision_exist(
-        repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
-    check_early_revisions(
-        repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+    check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+    check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
     try:
         travis_repo = travis.repo(username + '/yang')
         LOGGER.info('Enabling repo for Travis')
@@ -193,9 +186,7 @@ if __name__ == "__main__":
     except:
         LOGGER.error(
             'Error while pushing procedure {}'.format(sys.exc_info()[0]))
-        requests.delete(ietf_models_forked_url,
-                        headers={'Authorization': 'token ' + token})
+        requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()
-
