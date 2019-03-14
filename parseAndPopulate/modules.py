@@ -17,6 +17,7 @@ will get the rest of the metadata.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+from backend.parseAndPopulate.parseException import ParseException
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -179,8 +180,7 @@ class Modules:
             self.json_submodules = json.dumps([])
             self.__parsed_yang = yangParser.parse(os.path.abspath(self.__path))
             if self.__parsed_yang is None:
-                pass
-                # TODO file has wrong format. probably end with CODE END
+                raise ParseException(path)
         else:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path.split('&')[0])
             # TODO file does not exist
@@ -891,6 +891,7 @@ class Modules:
         def __init__(self):
             self.name = None
             self.revision = None
+            self.schema = None
 
     class Implementations:
         def __init__(self):
