@@ -94,7 +94,9 @@ def check_early_revisions(directory, LOGGER_temp=None):
         LOGGER = LOGGER_temp
     for f in os.listdir(directory):
         # Extract the YANG module name from the filename
-        mname = f.split('.yang')[0].split('@')[0]
+        mname = f.split('.yang')[0].split('@')[0]   # Beware of some invalid file names such as '@2015-03-09.yang'
+        if mname == '':
+            continue
         files_to_delete = []
         revisions = []
         for f2 in os.listdir(directory):
