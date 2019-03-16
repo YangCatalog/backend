@@ -24,6 +24,8 @@ import sys
 
 from joblib import Parallel, delayed
 
+from backend.parseAndPopulate.parseException import ParseException
+
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
@@ -189,8 +191,12 @@ class Capability:
                     LOGGER.error('File {} sent via API was not downloaded'.format(file_name))
                     continue
                 if '[1]' not in file_name:
-                    yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
+                    try:
+                        yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
                                    self.html_result_dir, self.parsed_jsons, self.json_dir)
+                    except ParseException as e:
+                        LOGGER.error(e.msg)
+                        continue
                     name = file_name.split('.')[0].split('@')[0]
                     schema = github_raw + self.owner + '/' + self.repo + '/' + self.branch + '/' + repo_file_path
                     yang.parse_all(self.branch, name,
@@ -208,8 +214,12 @@ class Capability:
                         if '[1]' in file_name:
                             LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                         else:
-                            yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
-                                           self.html_result_dir, self.parsed_jsons, self.json_dir)
+                            try:
+                                yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
+                                               self.html_result_dir, self.parsed_jsons, self.json_dir)
+                            except ParseException as e:
+                                LOGGER.error(e.msg)
+                                continue
                             name = file_name.split('.')[0].split('@')[0]
                             self.owner = 'YangModels'
                             self.repo = 'yang'
@@ -307,10 +317,14 @@ class Capability:
             yang_lib_info['deviations']['revision'] = revs
 
             try:
-                yang = Modules(self.yang_models_dir, self.log_directory,
+                try:
+                    yang = Modules(self.yang_models_dir, self.log_directory,
                                '/'.join(self.split), self.html_result_dir,
                                self.parsed_jsons, self.json_dir, True, True,
                                yang_lib_info, run_integrity=self.run_integrity)
+                except ParseException as e:
+                    LOGGER.error(e.msg)
+                    continue
 
                 yang.parse_all(self.branch, module_name,
                                self.prepare.name_revision_organization,
@@ -404,11 +418,14 @@ class Capability:
                 module_name = module_and_more.split('&')[0]
                 LOGGER.info('Parsing module {}'.format(module_name))
                 try:
-                    yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
-                                   self.html_result_dir, self.parsed_jsons,
-                                   self.json_dir, True, data=module_and_more,
-                                   run_integrity=self.run_integrity)
-
+                    try:
+                        yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
+                                       self.html_result_dir, self.parsed_jsons,
+                                       self.json_dir, True, data=module_and_more,
+                                       run_integrity=self.run_integrity)
+                    except ParseException as e:
+                        LOGGER.error(e.msg)
+                        continue
                     yang.parse_all(self.branch, module_name,
                                    self.prepare.name_revision_organization,
                                    schema_part, self.to)
@@ -465,11 +482,15 @@ class Capability:
                     # TODO add integrity that this file is missing
                     return
                 try:
-                    yang = Modules(self.yang_models_dir, self.log_directory,
-                                   yang_file, self.html_result_dir,
-                                   self.parsed_jsons, self.json_dir,
-                                   is_vendor_imp_inc=True,
-                                   run_integrity=self.run_integrity)
+                    try:
+                        yang = Modules(self.yang_models_dir, self.log_directory,
+                                       yang_file, self.html_result_dir,
+                                       self.parsed_jsons, self.json_dir,
+                                       is_vendor_imp_inc=True,
+                                       run_integrity=self.run_integrity)
+                    except ParseException as e:
+                        LOGGER.error(e.msg)
+                        continue
                     yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
                                    schema_part, self.to)
