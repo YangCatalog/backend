@@ -272,8 +272,15 @@ def solve_platforms(path, platform):
         for filename in fnmatch.filter(filenames, 'platform-metadata.json'):
             matches.append(os.path.join(root, filename))
     for match in matches:
-        with open(match) as f:
-            js_objs = json.load(f)['platforms']['platform']
+       with open(match, encoding = 'utf-8') as f:
+            try:
+                js_objs = json.load(f)['platforms']['platform']
+            except ValueError as e:  # Legacy Python
+                print("JSON file {} cannot be parsed, skipping it ({})".format(match, e))
+                continue
+            except json.decoder.JSONDecodeError as e:  # Better messages with Python 3.5 and above
+                print("File {} has an invalid JSON layout, skipping it ({})".format(match, e))
+                continue
             for js_obj in js_objs:
                 platform.add(js_obj['name'])
 
