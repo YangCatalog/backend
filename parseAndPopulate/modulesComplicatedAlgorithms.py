@@ -206,7 +206,7 @@ class ModulesComplicatedAlgorithms:
                 if len(row.split('+--')[0]) == 4:
                     if '-state' in row and '+--ro' in row:
                         return False
-                if len(row.split('augment')[0]) == 2:
+                if 'augment' in row and len(row.split('augment')[0]) == 2:
                     part = row.strip(' ').split('/')[1]
                     if '-state' in part:
                         next_obsolete_or_deprecated = True
@@ -236,11 +236,15 @@ class ModulesComplicatedAlgorithms:
                             path = path[1:]
                     else:
                         path = None
-                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
-                        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                                  ctx.opts.tree_line_length, path)
-                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
-                        stdout = f.read()
+
+                    try:
+                        with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
+                            emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                                      ctx.opts.tree_line_length, path)
+                        with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
+                            stdout = f.read()
+                    except:
+                        stdout = ""
                     os.unlink('{}/pyang_temp.txt'.format(self.temp_dir))
 
                     pyang_list_of_rows = stdout.split('\n')[2:]
@@ -349,11 +353,15 @@ class ModulesComplicatedAlgorithms:
                     path = path[1:]
             else:
                 path = None
-            with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
-                emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                          ctx.opts.tree_line_length, path)
-            with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
-                stdout = f.read()
+            try:
+                with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
+                    emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                              ctx.opts.tree_line_length, path)
+                with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
+                    stdout = f.read()
+            except:
+                module['tree-type'] = 'not-applicable'
+                continue
             os.unlink('{}/pyang_temp.txt'.format(self.temp_dir))
 
             if stdout == '':
@@ -431,9 +439,9 @@ class ModulesComplicatedAlgorithms:
                         if int(rev[1]) == 2 and int(rev[2]) == 29:
                             module_temp['date'] = datetime(int(rev[0]), int(rev[1]), 28)
                     module_temp['name'] = mod['name']
-                    module_temp['organization'] = mod['organization']
+                    module_temp['organization'] = mod.get('organization')
                     module_temp['schema'] = mod.get('schema')
-                    module_temp['compilation'] = mod['compilation-status']
+                    module_temp['compilation'] = mod.get('compilation-status')
                     module_temp['semver'] = mod.get('derived-semantic-version')
                     if module_temp['semver'] is None:
                         semver_exist = False
@@ -488,16 +496,23 @@ class ModulesComplicatedAlgorithms:
                                         path = path[1:]
                                 else:
                                     path = None
-                                with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
-                                    emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
-                                              ctx.opts.tree_line_length, path)
-                                with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
-                                    stdout = f.read()
-                                with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
-                                    emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
-                                              ctx.opts.tree_line_length, path)
-                                with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
-                                    stdout2 = f.read()
+                                try:
+                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
+                                        emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
+                                                  ctx.opts.tree_line_length, path)
+                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
+                                        stdout = f.read()
+                                except:
+                                    stdout = ""
+                                    
+                                try:
+                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
+                                        emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
+                                                  ctx.opts.tree_line_length, path)
+                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
+                                        stdout2 = f.read()
+                                except:
+                                    stdout2 = "2"
                                 os.unlink('{}/pyang_temp.txt'.format(self.temp_dir))
 
                                 if stdout == stdout2:
@@ -592,16 +607,23 @@ class ModulesComplicatedAlgorithms:
                                             path = path[1:]
                                     else:
                                         path = None
-                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
-                                        emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
-                                                  ctx.opts.tree_line_length, path)
-                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
-                                        stdout = f.read()
-                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
-                                        emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
-                                                  ctx.opts.tree_line_length, path)
-                                    with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
-                                        stdout2 = f.read()
+                                    try:
+                                        with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
+                                            emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
+                                                      ctx.opts.tree_line_length, path)
+                                        with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
+                                            stdout = f.read()
+                                    except:
+                                        stdout = ""
+                                        
+                                    try:
+                                        with open('{}/pyang_temp.txt'.format(self.temp_dir), 'w')as f:
+                                            emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
+                                                      ctx.opts.tree_line_length, path)
+                                        with open('{}/pyang_temp.txt'.format(self.temp_dir), 'r')as f:
+                                            stdout2 = f.read()
+                                    except:
+                                        stdout2 = "2"
                                     os.unlink('{}/pyang_temp.txt'.format(self.temp_dir))
                                     if stdout == stdout2:
                                         versions = modules[x - 1]['semver'].split('.')

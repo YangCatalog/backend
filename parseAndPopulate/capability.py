@@ -20,11 +20,6 @@ information about them
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
-
-from joblib import Parallel, delayed
-
-from backend.parseAndPopulate.parseException import ParseException
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -35,12 +30,15 @@ import fileinput
 import fnmatch
 import json
 import os
+import re
+import sys
 import unicodedata
 import xml.etree.ElementTree as ET
-import re
+
 import utility.log as log
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
+from parseAndPopulate.parseException import ParseException
 
 github_raw = 'https://raw.githubusercontent.com/'
 

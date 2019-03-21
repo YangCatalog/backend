@@ -272,7 +272,7 @@ def solve_platforms(path, platform):
         for filename in fnmatch.filter(filenames, 'platform-metadata.json'):
             matches.append(os.path.join(root, filename))
     for match in matches:
-       with open(match, encoding = 'utf-8') as f:
+        with open(match, encoding = 'utf-8') as f:
             try:
                 js_objs = json.load(f)['platforms']['platform']
             except ValueError as e:  # Legacy Python

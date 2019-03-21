@@ -36,6 +36,7 @@ __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
+
 import base64
 import collections
 import errno
@@ -93,7 +94,7 @@ class MyFlask(Flask):
         super(MyFlask, self).__init__(import_name)
         self.response = None
         self.ys_set = 'set'
-        
+
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -141,14 +142,16 @@ class MyFlask(Flask):
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
         self.LOGGER.debug('API initialized at ' + self.yangcatalog_api_prefix)
 
+        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
+        self.LOGGER.debug('Starting api')
 
     def process_response(self, response):
         response.headers['Access-Control-Allow-Headers'] = 'content-type'
         self.response = response
         self.create_response_only_latest_revision()
         self.create_response_with_yangsuite_link()
-        
-        self.LOGGER.info(response.headers)
+
+        self.LOGGER.debug(response.headers)
         return self.response
 
     def preprocess_request(self):

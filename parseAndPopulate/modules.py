@@ -17,7 +17,6 @@ will get the rest of the metadata.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from backend.parseAndPopulate.parseException import ParseException
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -30,10 +29,12 @@ import os
 import re
 import sys
 import unicodedata
+from datetime import datetime
 
-import requests
+import dateutil.parser
 
 import statistic.statistics as stats
+from parseAndPopulate.parseException import ParseException
 from utility import log, yangParser
 from utility.util import find_first_file
 
@@ -352,7 +353,10 @@ class Modules:
             self.implementation.append(implementation)
 
     def __resolve_name(self, name):
-        self.name = name
+        if self.__parsed_yang.arg is not None or self.__parsed_yang.arg != '':
+            self.name = self.__parsed_yang.arg
+        else:
+            self.name = name
 
     def __resolve_revision(self):
         if self.revision == '*':
@@ -361,6 +365,13 @@ class Modules:
             except:
                 self.__missing_revision = self.name
                 self.revision = '1970-01-01'
+            try:
+                dateutil.parser.parse(self.revision)
+            except ValueError as e:
+                if self.revision[-2:] == '29' and self.revision[-5:-3] == '02':
+                    self.revision = self.revision.replace('02-29', '02-28')
+            rev_parts = self.revision.split('-')
+            self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
 
     def __resolve_schema(self, schema, git_branch):
         if schema:

@@ -26,6 +26,8 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
 
+import requests
+
 import utility.log as log
 
 
@@ -50,6 +52,14 @@ class Prepare:
 
             self.name_revision_organization.add(key)
             self.yang_modules[key] = yang
+            if self.yang_modules[key].compilation_status is None:
+                try:
+                    self.yang_modules[key].compilation_status = requests.get('{}search/modules/{},{},{}'.format(
+                                                                             self.yangcatalog_api_prefix,
+                                                                             yang.name, yang.revision,
+                                                                             yang.organization)).json()["module"][0].get('compilation-status')
+                except:
+                    self.yang_modules[key].compilation_status = 'unknown'
 
     def dump_modules(self, directory):
         LOGGER.debug('Creating prepare.json file from sdo information')
