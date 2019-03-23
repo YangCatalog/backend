@@ -34,7 +34,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import datetime
 import uuid
-
+import time
 import pika
 
 import utility.log as log
@@ -46,9 +46,17 @@ class Sender:
         self.LOGGER.debug('Initializing sender')
         self.__response_type = ['Failed', 'In progress',
                                 'Finished successfully', 'does not exist']
-        self.connection = pika.BlockingConnection(
-            pika.ConnectionParameters('127.0.0.1', heartbeat=0))
 
+        # Let try to connect to RabbitMQ until success..
+        while (True):
+            try:
+                self.connection = pika.BlockingConnection(
+                    pika.ConnectionParameters('127.0.0.1', heartbeat=0))
+                break
+            except pika.exceptions.ConnectionClosed:
+                self.LOGGER.debug('Cannot connect to rabbitMQ, trying after a sleep')
+                time.sleep(60)
+            
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='module_queue')
         self.__temp_dir = temp_dir
