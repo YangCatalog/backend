@@ -12,7 +12,7 @@ flask-httpauth==3.2.4
 pika==1.0.0b2
 prometheus-client==0.6.0
 Crypto==1.4.1
-pycrypto==2.6.1
+pycryptodome==3.7.3
 uwsgi==2.0.18
 joblib==0.13.2
 python-dateutil==2.8.0
