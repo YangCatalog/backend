@@ -65,7 +65,6 @@ def pull(repo_dir):
         s.update(recursive=True, init=True)
 
 
-
 class RepoUtil(object):
     """Simple class for rolling up some git operations as part of file
     manipulation. The user should create the object with the URL to

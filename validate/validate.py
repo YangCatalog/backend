@@ -25,7 +25,6 @@ and access you are about to give them with yes no option.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from utility.repoutil import pull
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -40,6 +39,8 @@ import sys
 from email.mime.text import MIMEText
 
 import MySQLdb
+
+from utility.repoutil import pull
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

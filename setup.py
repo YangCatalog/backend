@@ -21,21 +21,18 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 from setuptools import setup, find_packages
 
+with open('requirements.txt') as f:
+    requirements = f.read().splitlines()
+
 setup(
     name='yang',
     version='',
     packages=find_packages(),
     url='',
-#    package_data={'': ['*.html']},
     include_package_data=True,
-#    data_files=[('parseAndPopulate', ['template/*.html'])],
     license='Apache License, Version 2.0',
     author='Miroslav Kovac',
     author_email='miroslav.kovac@pantheon.tech',
     description='',
-    install_requires=['numpy', 'travispy', 'pytest', 'pyOpenSSL', 'configparser', 'requests',
-                      'jinja2', 'pyang', 'gitpython', 'ciscosparkapi', 'mysqlclient',
-                      'flask-httpauth', 'flask', 'pika', 'prometheus-client', 'Crypto',
-                      'pycrypto', 'uwsgi', 'joblib'
-                      ]
+    install_requires=requirements
 )

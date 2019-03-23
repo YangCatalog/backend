@@ -34,14 +34,14 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import threading
 import unicodedata
-import sys
 
 import requests
-from api.receiver import prepare_to_indexing, send_to_indexing
 
 import utility.log as log
+from api.receiver import prepare_to_indexing, send_to_indexing
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 if sys.version_info >= (3, 4):

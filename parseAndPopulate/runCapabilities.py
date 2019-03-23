@@ -32,9 +32,8 @@ import time
 
 import utility.log as log
 from parseAndPopulate import capability as cap
-from parseAndPopulate import prepare
 from parseAndPopulate import integrity
-from utility.util import get_curr_dir
+from parseAndPopulate import prepare
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

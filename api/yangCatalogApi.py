@@ -64,7 +64,6 @@ from flask import Flask, Response, abort, jsonify, make_response, redirect, requ
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
 from flask_wtf.csrf import CSRFProtect
-#from flask.ext.cors import cross_origin
 from pyang.plugins.tree import emit_tree
 
 import api.yangSearch.elasticsearchIndex as inde

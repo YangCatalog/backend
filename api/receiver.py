@@ -37,17 +37,17 @@ import os
 import shutil
 import subprocess
 import sys
-from Crypto.Hash import SHA, HMAC
 from datetime import datetime
+from distutils.dir_util import copy_tree
 
 import pika
 import requests
+from Crypto.Hash import HMAC, SHA
 
 import utility.log as log
-from distutils.dir_util import copy_tree
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility import messageFactory
-from utility.util import get_curr_dir
+
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:

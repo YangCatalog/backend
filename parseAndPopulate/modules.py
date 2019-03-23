@@ -31,8 +31,6 @@ import sys
 import unicodedata
 from datetime import datetime
 
-import dateutil.parser
-
 import statistic.statistics as stats
 from parseAndPopulate.parseException import ParseException
 from utility import log, yangParser
@@ -365,13 +363,12 @@ class Modules:
             except:
                 self.__missing_revision = self.name
                 self.revision = '1970-01-01'
-            try:
-                dateutil.parser.parse(self.revision)
-            except ValueError as e:
-                if self.revision[-2:] == '29' and self.revision[-5:-3] == '02':
-                    self.revision = self.revision.replace('02-29', '02-28')
             rev_parts = self.revision.split('-')
-            self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
+            try:
+                self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
+            except ValueError as e:
+                if int(rev_parts[2]) == 29 and int(rev_parts[1]) == 2:
+                    self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
 
     def __resolve_schema(self, schema, git_branch):
         if schema:

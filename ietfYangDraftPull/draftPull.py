@@ -41,9 +41,8 @@ from travispy import TravisPy
 from travispy.errors import TravisError
 
 import utility.log as log
-from ietfYangDraftPull.draftPullLocal import check_name_no_revision_exist, \
-    check_early_revisions
-from utility import repoutil, messageFactory
+from ietfYangDraftPull.draftPullLocal import check_early_revisions, check_name_no_revision_exist
+from utility import messageFactory, repoutil
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

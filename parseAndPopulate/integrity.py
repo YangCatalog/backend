@@ -34,8 +34,6 @@ import os
 
 import time
 
-from utility.util import get_curr_dir
-
 
 def find_missing_hello(directory, pattern):
     for root, dirs, files in os.walk(directory):

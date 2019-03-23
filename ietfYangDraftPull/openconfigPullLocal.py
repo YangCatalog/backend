@@ -21,10 +21,10 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import sys
 import argparse
 import json
 import os
+import sys
 
 import requests
 

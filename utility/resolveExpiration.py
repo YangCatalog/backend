@@ -17,17 +17,18 @@ expired if it is necessary
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import dateutil.parser
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
+
 import argparse
 import datetime
 import json
 import sys
 
+import dateutil.parser
 import requests
 
 import utility.log as log

@@ -32,7 +32,7 @@ from datetime import datetime
 import requests
 
 import utility.log as log
-from utility import yangParser, repoutil
+from utility import repoutil, yangParser
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

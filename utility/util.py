@@ -11,7 +11,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import stat
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -20,6 +19,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import fnmatch
 import os
+import stat
 
 from utility import yangParser
 
