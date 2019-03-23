@@ -92,7 +92,7 @@ def process_sdo(arguments):
     if notify_indexing:
         arguments.append('--notify-indexing')
 
-    with open(temp_dir + "/log.txt", "w") as f:
+    with open(temp_dir + "/process-sdo-api-stderr.txt", "w") as f:
         try:
             LOGGER.info('processing arguments {}'.format(arguments))
             subprocess.check_call(arguments, stderr=f)
@@ -319,7 +319,7 @@ def process_vendor(arguments):
     if notify_indexing:
         arguments.append('--notify-indexing')
 
-    with open(temp_dir + "/log.txt", "w") as f:
+    with open(temp_dir + "/process-vendor-api-stderr.txt", "w") as f:
         try:
             subprocess.check_call(arguments, stderr=f)
         except subprocess.CalledProcessError as e:
@@ -549,18 +549,19 @@ def run_ietf():
     and openconfig modules
     :return: response success or failed
     """
-    with open(temp_dir + "/log.txt", "w") as f:
-        try:
+    try:
+        with open(temp_dir + "/run-ietf-api-stderr.txt", "w") as f:
             draft_pull_local = os.path.dirname(os.path.realpath(__file__)) +  '/../ietfYangDraftPull/draftPullLocal.py'
             arguments = ['python', draft_pull_local]
             subprocess.check_call(arguments, stderr=f)
+        with open(temp_dir + "/run-openconfig-api-stderr.txt", "w") as f:
             openconfig_pull_local = os.path.dirname(os.path.realpath(__file__)) + '/../ietfYangDraftPull/openconfigPullLocal.py'
             arguments = ['python', openconfig_pull_local]
             subprocess.check_call(arguments, stderr=f)
-            return __response_type[1]
-        except subprocess.CalledProcessError as e:
-            LOGGER.error('Server error: {}'.format(e))
-            return __response_type[0]
+        return __response_type[1]
+    except subprocess.CalledProcessError as e:
+        LOGGER.error('Server error: {}'.format(e))
+        return __response_type[0]
 
 
 def on_request(ch, method, props, body):
