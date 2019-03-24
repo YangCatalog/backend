@@ -129,10 +129,21 @@ class MyFlask(Flask):
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')
         self.es_protocol = config.get('DB-Section', 'es-protocol')
+        self.rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+        self.rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+        self.rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
+        self.rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
+        self.rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
         log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
         self.LOGGER.debug('Starting API')
-        self.sender = Sender(log_directory, self.temp_dir)
+        self.sender = Sender(log_directory, self.temp_dir,
+                             rabbitmq_host=self.rabbitmq_host,
+                             rabbitmq_port=self.rabbitmq_port,
+                             rabbitmq_virtual_host=self.rabbitmq_virtual_host,
+                             rabbitmq_username=self.rabbitmq_username,
+                             rabbitmq_password=self.rabbitmq_password,
+        )
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':

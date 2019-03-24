@@ -699,6 +699,18 @@ if __name__ == '__main__':
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     global is_uwsgi
     is_uwsgi = config.get('General-Section', 'uwsgi')
+
+    global rabbitmq_host
+    rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+    global rabbitmq_port
+    rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+    global rabbitmq_virtual_host
+    rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
+    global rabbitmq_username
+    rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
+    global rabbitmq_password
+    rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
+
     log_directory = config.get('Directory-Section', 'logs')
     global LOGGER
     LOGGER = log.get_logger('receiver', log_directory + '/yang.log')
@@ -719,9 +731,15 @@ if __name__ == '__main__':
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_ip,
                                                    separator, suffix)
     __response_type = ['Failed', 'Finished successfully']
+    credentials = pika.PlainCredentials(
+        username=rabbitmq_username,
+        password=rabbitmq_password)
     while True:
         connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host='127.0.0.1', heartbeat=0))
+            host=rabbitmq_host,
+            port=rabbitmq_port,
+            heartbeat=0,
+            credentials=credentials))
         channel = connection.channel()
         channel.queue_declare(queue='module_queue')
 
