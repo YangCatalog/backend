@@ -41,22 +41,35 @@ import utility.log as log
 
 
 class Sender:
-    def __init__(self, log_directory, temp_dir):
+    def __init__(self, log_directory, temp_dir,
+                 rabbitmq_host='127.0.0.1',
+                 rabbitmq_port=None,
+                 rabbitmq_virtual_host=None,
+                 rabbitmq_username='guest',
+                 rabbitmq_password='guest'):
         self.LOGGER = log.get_logger('sender', log_directory + '/yang.log')
         self.LOGGER.debug('Initializing sender')
         self.__response_type = ['Failed', 'In progress',
                                 'Finished successfully', 'does not exist']
 
+        credentials = pika.PlainCredentials(
+            username=rabbitmq_username,
+            password=rabbitmq_password)
         # Let try to connect to RabbitMQ until success..
         while (True):
             try:
                 self.connection = pika.BlockingConnection(
-                    pika.ConnectionParameters('127.0.0.1', heartbeat=0))
+                    pika.ConnectionParameters(
+                        host=rabbitmq_host,
+                        port=rabbitmq_port,
+                        virtual_host=rabbitmq_virtual_host,
+                        credentials=credentials,
+                        heartbeat=0))
                 break
             except pika.exceptions.ConnectionClosed:
                 self.LOGGER.debug('Cannot connect to rabbitMQ, trying after a sleep')
                 time.sleep(60)
-            
+
         self.channel = self.connection.channel()
         self.channel.queue_declare(queue='module_queue')
         self.__temp_dir = temp_dir
