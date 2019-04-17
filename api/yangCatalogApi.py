@@ -751,7 +751,7 @@ def delete_module(name, revision, organization):
         application.confdPort) + '/api/config/catalog/modules/module/' + name +
                             ',' + revision + ',' + organization,
                             auth=(application.credentials[0], application.credentials[1]),
-                            headers={'': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
+                            headers={'Content-type': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
     if response.status_code != 200 or response.status_code != 201 or response.status_code != 204:
         return not_found()
     read = response.json()
@@ -812,7 +812,7 @@ def delete_modules():
     for mod in modules:
         response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/modules/module/' + mod['name'] +
             ',' + mod['revision'] + ',' + mod['organization'],auth=(application.credentials[0], application.credentials[1]),
-                        headers={'': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
+                        headers={'Content-type': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
         if response.status_code != 200 or response.status_code != 201 or response.status_code != 204:
             return not_found()
         read = response.json()
@@ -1396,7 +1396,7 @@ def search(value):
     value = value.split('/')[-1]
     module_keys = ['ietf/ietf-wg', 'maturity-level', 'document-name', 'author-email', 'compilation-status', 'namespace',
                    'conformance-type', 'module-type', 'organization', 'yang-version', 'name', 'revision', 'tree-type',
-                   'belongs-to', 'generated-from', 'expires', 'expired', 'prefix']
+                   'belongs-to', 'generated-from', 'expires', 'expired', 'prefix', 'reference']
     for module_key in module_keys:
         if key == module_key:
             active_cache = get_active_cache()
