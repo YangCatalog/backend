@@ -752,7 +752,7 @@ def delete_module(name, revision, organization):
                             ',' + revision + ',' + organization,
                             auth=(application.credentials[0], application.credentials[1]),
                             headers={'Content-type': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
-    if response.status_code != 200 or response.status_code != 201 or response.status_code != 204:
+    if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return not_found()
     read = response.json()
     if read['yang-catalog:module']['organization'] != accessRigths and accessRigths != '/':
@@ -813,7 +813,7 @@ def delete_modules():
         response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/modules/module/' + mod['name'] +
             ',' + mod['revision'] + ',' + mod['organization'],auth=(application.credentials[0], application.credentials[1]),
                         headers={'Content-type': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
-        if response.status_code != 200 or response.status_code != 201 or response.status_code != 204:
+        if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
             return not_found()
         read = response.json()
 
