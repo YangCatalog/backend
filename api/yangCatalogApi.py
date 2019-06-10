@@ -642,7 +642,7 @@ def check_local():
         application.LOGGER.info('commit verified')
         if body['repository']['owner_name'] == 'yang-catalog':
             if body['result_message'] == 'Passed':
-                if body['type'] == 'push':
+                if body['type'] in ['push', 'api']:
                     # After build was successful only locally
                     json_body = json.loads(json.dumps({
                         "title": "Cronjob - every day pull and update of ietf draft yang files.",

@@ -48,11 +48,22 @@ def represents_int(s):
         return False
 
 
+def create_register_elk_repo(name, is_compress, elk):
+    body = {}
+    body['type'] = 'fs'
+    body['settings'] = {}
+    body['settings']['location'] = name
+    body['settings']['compress'] = is_compress
+    elk.snapshot.create_repository(name, body)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
+    parser.add_argument('--compress', action='store_true', default=True,
+                        help='Set weather to compress snapshot files. Default is True')
     args = parser.parse_args()
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
@@ -102,6 +113,7 @@ if __name__ == '__main__':
     es_host = config.get('DB-Section', 'es-host')
     es_port = config.get('DB-Section', 'es-port')
     es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+    create_register_elk_repo(repo_name, args.compress, es)
     snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
     sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))
 

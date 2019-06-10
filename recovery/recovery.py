@@ -30,9 +30,11 @@ import glob
 import json
 import os
 import sys
+import time
 from collections import OrderedDict
 
 import requests
+import utility.log as log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -67,6 +69,9 @@ if __name__ == "__main__":
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
+    log_directory = config.get('Directory-Section', 'logs')
+    LOGGER = log.get_logger('runCapabilities', log_directory + '/parseAndPopulate.log')
+
     cache_directory = config.get('Directory-Section', 'cache')
     credentials = config.get('General-Section', 'credentials').split(' ')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
@@ -93,9 +98,26 @@ if __name__ == "__main__":
         base64string = base64.b64encode(str_to_encode)
         if sys.version_info >= (3, 4):
             base64string = base64string.decode(encoding='utf-8', errors='strict')
-        response = requests.patch(prefix + '/api/config/catalog', json.dumps(body), headers={
-            'Authorization': 'Basic ' + base64string,
-            'Content-type': 'application/vnd.yang.data+json',
-            'Accept': 'application/vnd.yang.data+json'})
+        code = 500
+        failed = True
+        counter = 5
+        while failed:
+            if not str(code).startswith('2'):
+                time.sleep(10)
+                counter -= 1
+                try:
+                    response = requests.patch(prefix + '/api/config/catalog', json.dumps(body), headers={
+                        'Authorization': 'Basic ' + base64string,
+                        'Content-type': 'application/vnd.yang.data+json',
+                        'Accept': 'application/vnd.yang.data+json'})
+                    code = response.status_code
+                except:
+                    counter -= 1
+            else:
+                failed = False
+            if counter == 0:
+                LOGGER.error('failed to load data')
+                break
+
         file_load.close()
 

@@ -1,0 +1,15 @@
+MAILTO=evyncke@cisco.com,miroslav.kovac@pantheon.tech
+SHELL=/bin/bash
+#
+# For more information see the manual pages of crontab(5) and cron(8)
+#
+# m h  dom mon dow   command
+#
+# Backend API maintenance
+#
+5 3 * * * (cd ~ ; source bin/activate ; cd statistic ; python statistics.py)
+5 4 * * * (cd ~ ; source bin/activate ; cd utility ; python resolveExpiration.py --credentials "admin" "Y@ng_adm1n->(paSS)")
+5 18 * * * (cd ~ ; source bin/activate ; cd ietfYangDraftPull ; python draftPull.py )
+5 22 * * * (cd ~ ; source bin/activate ; cd ietfYangDraftPull ; python draftPullLocal.py )
+17 18 * * * (cd ~ ; source bin/activate ; cd  recovery ; python recovery.py --protocol http)
+30 15 * * * (cd ~ ; source bin/activate ; cd  utility ; removeUnused.py)
