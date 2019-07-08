@@ -470,13 +470,10 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM `users`")
-        data = cursor.fetchall()
-
-        for row in data:
-            if row[1] == username:
-                accessRigths = row[7]
-                break
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
+        if results_num == 1:
+            data = cursor.fetchone()
+            accessRigths = data[7]
         db.close()
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
@@ -509,13 +506,10 @@ def authorize_for_vendors(request, body):
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM `users`")
-        data = cursor.fetchall()
-
-        for row in data:
-            if row[1] == username:
-                accessRigths = row[8]
-                break
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
+        if results_num == 1:
+            data = cursor.fetchone()
+            accessRigths = data[8]
         db.close()
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
@@ -737,13 +731,10 @@ def delete_module(name, revision, organization):
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM `users`")
-        data = cursor.fetchall()
-
-        for row in data:
-            if row[1] == username:
-                accessRigths = row[7]
-                break
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
+        if results_num == 1:
+            data = cursor.fetchone()
+            accessRigths = data[7]
         db.close()
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
@@ -793,13 +784,10 @@ def delete_modules():
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM `users`")
-        data = cursor.fetchall()
-
-        for row in data:
-            if row[1] == username:
-                accessRigths = row[7]
-                break
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
+        if results_num == 1:
+            data = cursor.fetchone()
+            accessRigths = data[7]
         db.close()
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
@@ -858,13 +846,10 @@ def delete_vendor(value):
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM `users`")
-        data = cursor.fetchall()
-
-        for row in data:
-            if row[1] == username:
-                accessRigths = row[8]
-                break
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
+        if results_num == 1:
+            data = cursor.fetchone()
+            accessRigths = data[8]
         db.close()
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
@@ -2656,18 +2641,17 @@ def get_password(username):
         cursor = db.cursor()
 
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM `users`")
-
-        data = cursor.fetchall()
-
-        for row in data:
-            if username in row[1]:
-                return row[2]
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
         db.close()
-        return None
+        if results_num == 0:
+            return None
+        else:
+            data = cursor.fetchone()
+            return data[2]
 
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return None
 
 
 @auth.error_handler
