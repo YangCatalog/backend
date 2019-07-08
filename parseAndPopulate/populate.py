@@ -303,7 +303,7 @@ if __name__ == "__main__":
             LOGGER.info('Run complicated algorithms')
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  args.credentials,
-                                                                 args.protocol, 'yangcatalog.org', args.port, args.save_file_dir,
+                                                                 args.protocol, args.ip, args.port, args.save_file_dir,
                                                                  direc, None, yang_models, temp_dir)
             complicatedAlgorithms.parse_non_requests()
             LOGGER.info('Waiting for cache reload to finish')

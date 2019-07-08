@@ -4,7 +4,7 @@ pyOpenSSL==19.0.0
 configparser==3.7.4
 requests==2.21.0
 jinja2>=2.10.1
-pyang>=1.7.8
+pyang==1.7.8
 gitpython==2.1.11
 ciscosparkapi==0.10.1
 mysqlclient==1.4.2.post1
