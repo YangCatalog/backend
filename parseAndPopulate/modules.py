@@ -4,6 +4,7 @@ metadata we can get out of the module. From this class parse_all
 method is called which will call all the other methods that
 will get the rest of the metadata.
 """
+# Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache Licparse_allense, Version 2.0 (the "License");
@@ -19,7 +20,7 @@ will get the rest of the metadata.
 # limitations under the License.
 
 __author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 

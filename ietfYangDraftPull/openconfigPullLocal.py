@@ -2,6 +2,7 @@
 This python script is a tool to parse and populate
 all new openconfig modules.
 """
+# Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@ all new openconfig modules.
 # limitations under the License.
 
 __author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 

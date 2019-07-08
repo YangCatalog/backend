@@ -9,6 +9,7 @@ we have yang files in the directory that are not
 mentioned in capability xml file and/or are not
 included or imported by some module.
 """
+# Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -24,7 +25,7 @@ included or imported by some module.
 # limitations under the License.
 
 __author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 

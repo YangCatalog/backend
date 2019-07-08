@@ -7,6 +7,7 @@ in the directory if there is none xml or json files mentioned above
 and it will store them as sdos since we don t have any vendor
 information about them
 """
+# Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,7 +23,7 @@ information about them
 # limitations under the License.
 
 __author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates"
+__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 

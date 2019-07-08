@@ -2,6 +2,7 @@
 This script counts all yang modules on provided path
 with or without duplicates.
 """
+# Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -17,7 +18,7 @@ with or without duplicates.
 # limitations under the License.
 
 __author__ = 'Benoit Claise'
-__copyright__ = "Copyright(c) 2018, Cisco Systems, Inc."
+__copyright__ = "Copyright(c) 2018, Cisco Systems, Inc., Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "bclaise@cisco.com"
 
