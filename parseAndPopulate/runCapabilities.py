@@ -1,10 +1,3 @@
-"""
-Python script to start parsing all the yang files.
-Based on the provided directory and boolean option
-sdo (default true) this script will start to look
-for xml files or it will start to parse all the yang
-files in the directory ignoring all the vendor metadata
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -19,6 +12,14 @@ files in the directory ignoring all the vendor metadata
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+Python script to start parsing all the yang files.
+Based on the provided directory and boolean option
+sdo (default true) this script will start to look
+for xml files or it will start to parse all the yang
+files in the directory ignoring all the vendor metadata
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

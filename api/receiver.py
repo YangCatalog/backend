@@ -1,16 +1,3 @@
-"""
-Rabbitmq is needed to be installed for this script to work.
-This script is part of messaging algorithm works together
-with sender.py. Api endpoints that take too long time to
-process will send a request to process data to this Receiver
-with some message id. Once receiver is done processing data
-it will send back the response using the message id.
-
-Receiver is used to add, update or remove yang modules.
-This process take a long time depending on the number
-of the yang modules. This script is also used to automatically
-add or update new IETF and Openconfig modules.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -25,6 +12,20 @@ add or update new IETF and Openconfig modules.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+Rabbitmq is needed to be installed for this script to work.
+This script is part of messaging algorithm works together
+with sender.py. Api endpoints that take too long time to
+process will send a request to process data to this Receiver
+with some message id. Once receiver is done processing data
+it will send back the response using the message id.
+
+Receiver is used to add, update or remove yang modules.
+This process take a long time depending on the number
+of the yang modules. This script is also used to automatically
+add or update new IETF and Openconfig modules.
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

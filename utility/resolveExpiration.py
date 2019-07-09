@@ -1,9 +1,3 @@
-"""
-This script is run by a cronjob and it
-finds all the modules that have expiration
-metadata and updates them based on a date to
-expired if it is necessary
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -18,6 +12,13 @@ expired if it is necessary
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This script is run by a cronjob and it
+finds all the modules that have expiration
+metadata and updates them based on a date to
+expired if it is necessary
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

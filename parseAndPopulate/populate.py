@@ -1,13 +1,3 @@
-"""
-This script calls runCapabilities.py script with
-option based on if we are populating sdos or vendors
-and if this script was called via api or directly by
-yangcatalog admin user. Once the metatadata are parsed
-and json files are created it will populate the confd
-with all the parsed metadata reloads api and starts to
-parse metadata that needs to use complicated algorthms.
-For this we use class ModulesComplicatedAlgorithms.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -22,6 +12,17 @@ For this we use class ModulesComplicatedAlgorithms.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This script calls runCapabilities.py script with
+option based on if we are populating sdos or vendors
+and if this script was called via api or directly by
+yangcatalog admin user. Once the metatadata are parsed
+and json files are created it will populate the confd
+with all the parsed metadata reloads api and starts to
+parse metadata that needs to use complicated algorthms.
+For this we use class ModulesComplicatedAlgorithms.
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

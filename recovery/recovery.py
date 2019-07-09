@@ -1,9 +1,3 @@
-"""
-This script will save or load all the modules that
-we currently have in our yangcatalog. This script
-should be run every day so we always have backup of
-all the modules
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -18,6 +12,13 @@ all the modules
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This script will save or load all the modules that
+we currently have in our yangcatalog. This script
+should be run every day so we always have backup of
+all the modules
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

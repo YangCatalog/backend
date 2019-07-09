@@ -1,17 +1,3 @@
-"""
-This script will find all the sdos and vendors and creates a
-html file with statistics for specific organizations.
-
-The statistics include number of modules in github,
-number of modules in catalog, percentage that passes
-compilation and for vendor Cisco we have information
-about what platforms are supported for specific version
-of specific OS-type
-
-The html file also contains general statistics like
-number of vendor yang files, number of unique yang files,
-number of yang files in yang-catalog...
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -26,6 +12,21 @@ number of yang files in yang-catalog...
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This script will find all the sdos and vendors and creates a
+html file with statistics for specific organizations.
+
+The statistics include number of modules in github,
+number of modules in catalog, percentage that passes
+compilation and for vendor Cisco we have information
+about what platforms are supported for specific version
+of specific OS-type
+
+The html file also contains general statistics like
+number of vendor yang files, number of unique yang files,
+number of yang files in yang-catalog...
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

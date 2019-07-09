@@ -1,11 +1,3 @@
-"""
-This is a class of a single module to parse all the more complicated
-metadata that we can get out of the module. From this class parse
-method is called which will call all the other methods that
-will get the rest of the metadata. This is parsed separately to
-make sure that metadata that are quickly parsed are already pushed
-into the database and these metadata will get there later.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -20,6 +12,15 @@ into the database and these metadata will get there later.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This is a class of a single module to parse all the more complicated
+metadata that we can get out of the module. From this class parse
+method is called which will call all the other methods that
+will get the rest of the metadata. This is parsed separately to
+make sure that metadata that are quickly parsed are already pushed
+into the database and these metadata will get there later.
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

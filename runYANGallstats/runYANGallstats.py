@@ -1,7 +1,3 @@
-"""
-This script counts all yang modules on provided path
-with or without duplicates.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -16,6 +12,11 @@ with or without duplicates.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This script counts all yang modules on provided path
+with or without duplicates.
+"""
 
 __author__ = 'Benoit Claise'
 __copyright__ = "Copyright(c) 2018, Cisco Systems, Inc., Copyright The IETF Trust 2019, All Rights Reserved"

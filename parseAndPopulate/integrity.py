@@ -1,14 +1,3 @@
-"""
-This class serves to create integrity of yang files.
-It stores all the missing modules that are not in
-the directory and are in xml file or modules that
-have incorrect namespace, or modules with missing
-revision or missing submodules or even if we have
-extra files in the vendor directory - meaning that
-we have yang files in the directory that are not
-mentioned in capability xml file and/or are not
-included or imported by some module.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -23,6 +12,18 @@ included or imported by some module.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This class serves to create integrity of yang files.
+It stores all the missing modules that are not in
+the directory and are in xml file or modules that
+have incorrect namespace, or modules with missing
+revision or missing submodules or even if we have
+extra files in the vendor directory - meaning that
+we have yang files in the directory that are not
+mentioned in capability xml file and/or are not
+included or imported by some module.
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

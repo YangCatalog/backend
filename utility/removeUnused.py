@@ -1,8 +1,3 @@
-"""
-This script is run by a cronjob every day and it
-automatically removes unused diff files, yangsuite
-users and correlation ids.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -17,11 +12,12 @@ users and correlation ids.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import sys
-import time
-from operator import itemgetter
 
-from elasticsearch import Elasticsearch
+"""
+This script is run by a cronjob every day and it
+automatically removes unused diff files, yangsuite
+users and correlation ids.
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
@@ -32,8 +28,12 @@ import argparse
 import datetime
 import os
 import shutil
+import sys
+import time
+from operator import itemgetter
 
 import utility.log as lo
+from elasticsearch import Elasticsearch
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

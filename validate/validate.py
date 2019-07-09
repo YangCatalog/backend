@@ -1,17 +1,3 @@
-"""
-This tool let us decide what user has access to which part
-of the tree from yangcatalog.yang module, by prompting us
-with several questions.
-
-Do they need vendor access
-   if yes what is their vendor branch (example Cisco)
-
-Do they need sdo (model) access?
-   if yes what is their model organization
-
-Finally it will create recapitulation with user name
-and access you are about to give them with yes no option.
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -26,6 +12,21 @@ and access you are about to give them with yes no option.
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This tool let us decide what user has access to which part
+of the tree from yangcatalog.yang module, by prompting us
+with several questions.
+
+Do they need vendor access
+   if yes what is their vendor branch (example Cisco)
+
+Do they need sdo (model) access?
+   if yes what is their model organization
+
+Finally it will create recapitulation with user name
+and access you are about to give them with yes no option.
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

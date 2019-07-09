@@ -1,7 +1,3 @@
-"""
-This script will json file to populate elasticsearch
-from all the modules saved in confd database
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,6 +11,11 @@ from all the modules saved in confd database
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This script will json file to populate elasticsearch
+from all the modules saved in confd database
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright The IETF Trust 2019, All Rights Reserved"

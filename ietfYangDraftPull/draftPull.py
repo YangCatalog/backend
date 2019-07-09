@@ -1,14 +1,3 @@
-"""
-Cronjob tool that automatically pushes new ietf
-draft yang modules to github repository old ones
-are removed and naming is corrected to
-<name>@<revision>.yang. New ietf RFC modules are
-checked too but they are not automatically added.
-E-mail is sent to yangcatalog admin users if such
-thing occurs. Message about new RFC or DRAFT modules
-is also sent to Cisco webex teams yangcatalog admin
-room
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -23,6 +12,18 @@ room
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+Cronjob tool that automatically pushes new ietf
+draft yang modules to github repository old ones
+are removed and naming is corrected to
+<name>@<revision>.yang. New ietf RFC modules are
+checked too but they are not automatically added.
+E-mail is sent to yangcatalog admin users if such
+thing occurs. Message about new RFC or DRAFT modules
+is also sent to Cisco webex teams yangcatalog admin
+room
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

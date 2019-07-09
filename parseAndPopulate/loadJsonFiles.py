@@ -1,8 +1,3 @@
-"""
-This class will load all the json files from the yangcatalog
-private. These files are then used for module compilation status
-and results
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
@@ -17,6 +12,12 @@ and results
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
+"""
+This class will load all the json files from the yangcatalog
+private. These files are then used for module compilation status
+and results
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"

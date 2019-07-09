@@ -1,7 +1,3 @@
-"""
-This script will save or load all the records saved in
-Elasticsearch database
-"""
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2019 Cisco and its affiliates
 #
@@ -16,9 +12,11 @@ Elasticsearch database
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from operator import itemgetter
 
-from elasticsearch import Elasticsearch
+"""
+This script will save or load all the records saved in
+Elasticsearch database
+"""
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
@@ -28,6 +26,9 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import datetime
 import sys
+from operator import itemgetter
+
+from elasticsearch import Elasticsearch
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
