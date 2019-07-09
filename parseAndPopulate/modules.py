@@ -292,7 +292,7 @@ class Modules:
                     try:
                         if '/yangmodels/yang/' in yang_file:
                             suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
-                            prefix = self.schema.split('/yang/')[0]
+                            prefix = 'https://raw.githubusercontent.com/yangmodels'
                             dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
                         elif branch in yang_file:
                             prefix = self.schema.split('/{}/'.format(branch))[0]
