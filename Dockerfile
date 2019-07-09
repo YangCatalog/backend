@@ -1,5 +1,7 @@
 FROM python:3
+ARG YANG_ID_GID
 
+ENV YANG_ID_GID "$YANG_ID_GID"
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
@@ -10,7 +12,7 @@ RUN apt-get -y install cron \
   && apt-get autoremove -y
 
 RUN groupadd -r yang \
-  && useradd --no-log-init -r -g yang -u 1016 -d $VIRTUAL_ENV yang \
+  && useradd --no-log-init -r -g yang -u ${YANG_ID_GID} -d $VIRTUAL_ENV yang \
   && pip install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p \
@@ -42,7 +44,7 @@ ENV UWSGI_THREADS=20
 COPY crontab /etc/cron.d/yang-cron
 
 RUN chown yang:yang /etc/cron.d/yang-cron
-USER 1016:0
+USER ${YANG_ID_GID}:0
 
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
