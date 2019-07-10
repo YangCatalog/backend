@@ -683,7 +683,7 @@ class Modules:
 
     def __resolve_organization(self, organization=None):
         if organization:
-            self.organization = organization
+            self.organization = organization.lower()
         else:
             try:
                 temp_organization = self.__parsed_yang.search('organization')[0].arg.lower()
