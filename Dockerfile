@@ -44,11 +44,12 @@ ENV UWSGI_THREADS=20
 COPY crontab /etc/cron.d/yang-cron
 
 RUN chown yang:yang /etc/cron.d/yang-cron
+RUN chown -R yang:yang $VIRTUAL_ENV
 USER ${YANG_ID_GID}:0
 
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
-
+WORKDIR $VIRTUAL_ENV/api
 
 CMD exec uwsgi -s :3031 --plugins python3 --protocol uwsgi \
   -H $VIRTUAL_ENV \
