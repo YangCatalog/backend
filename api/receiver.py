@@ -492,7 +492,6 @@ def make_cache(credentials):
                     it failed.
     """
     path = yangcatalog_api_prefix + 'load-cache'
-    LOGGER.info('Reloading cache using path {} and credentials {} {}'.format(path, credentials[0], credentials[1]))
     response = requests.post(path, auth=(credentials[0], credentials[1]),
                              headers={'Content-Type': 'application/vnd.yang.data+json',
                                       'Accept': 'application/vnd.yang.data+json'}

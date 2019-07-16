@@ -1178,6 +1178,7 @@ def fast_search():
         found_modules = {}
         rejects = []
         not_founds = []
+        errors = []
 
         for row in search_res:
             res_row = {}
@@ -1230,8 +1231,10 @@ def fast_search():
                                 res_row['module'][field] = mod_meta[field]
             except Exception as e:
                 count -= 1
-                res_row['module'] = {
-                    'error': 'Search failed at {}: {}'.format(mod_sig, e)}
+                if mod_sig not in errors:
+                    res_row['module'] = {
+                        'error': 'Search failed at {}: {}'.format(mod_sig, e)}
+                    errors.append(mod_sig)
 
             if not filter_using_api(res_row, payload):
                 count += 1
