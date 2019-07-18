@@ -68,6 +68,7 @@ class Capability:
         global LOGGER
         LOGGER = log.get_logger('capability', log_directory + '/parseAndPopulate.log')
         LOGGER.debug('Running constructor')
+        self.logger = log.get_logger('repoutil', log_directory + '/parseAndPopulate.log')
         self.log_directory = log_directory
         self.run_integrity = run_integrity
         self.to = save_file_to_dir
@@ -117,7 +118,7 @@ class Capability:
                 LOGGER.debug('Setting metadata concerning whole directory')
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                 repo.clone()
                 self.path = None
                 self.branch = 'master'
@@ -164,7 +165,7 @@ class Capability:
             self.repo = impl['module-list-file']['repository'].split('.')[0]
             self.path = impl['module-list-file']['path']
             self.branch = impl['module-list-file'].get('branch')
-            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
             repo.clone()
             if not self.branch:
                 self.branch = 'master'
@@ -185,7 +186,7 @@ class Capability:
                 LOGGER.info('Parsing sdo file sent via API{}'.format(file_name))
                 self.owner = sdo['source-file']['owner']
                 repo_file_path = sdo['source-file']['path']
-                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                 repo.clone()
                 self.branch = sdo['source-file'].get('branch')
                 if not self.branch:
@@ -237,7 +238,7 @@ class Capability:
                             name = file_name.split('.')[0].split('@')[0]
                             self.owner = 'YangModels'
                             self.repo = 'yang'
-                            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+                            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                             repo.clone()
                             self.branch = 'master'
                             self.branch = repo.get_commit_hash(self.branch)
