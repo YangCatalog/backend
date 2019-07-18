@@ -72,14 +72,27 @@ class RepoUtil(object):
     the repository and an appropriate set of credentials. At this
     """
 
-    def __init__(self, repourl):
+    def __init__(self, repourl, logger=None):
         self.repourl = repourl
         self.localdir = None
         self.repo = None
+        self.logger = logger
 
     def get_repo_dir(self):
         """Return the repository directory name from the URL"""
         return os.path.basename(self.repourl)
+
+    def get_commit_hash(self, branch='master'):
+        if branch == 'master':
+            return self.repo.head.commit.hexsha
+        else:
+            refs = self.repo.refs
+            for ref in refs:
+                if ref == branch or ref == 'origin/{}'.format(branch):
+                    return ref.commit.hexsha
+        if self.logger is not None:
+            self.logger.error('Git branch - {} - could not be resovled'.format(branch))
+        return branch
 
     def get_repo_owner(self):
         """Return the root directory name of the repo.  In GitHub

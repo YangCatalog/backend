@@ -340,7 +340,7 @@ class ModulesComplicatedAlgorithms:
             LOGGER.debug(
                 'Get tree type from tag from module {}'.format(self.__path))
             ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
-            with open(self.__path, 'r') as f:
+            with open(self.__path, 'r', errors='ignore') as f:
                 a = ctx.add_module(self.__path, f.read())
             if a is None:
                 LOGGER.debug(
@@ -481,7 +481,7 @@ class ModulesComplicatedAlgorithms:
                                                             modules[-1]['name'],
                                                             modules[-1]['revision'])
                             ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
-                            with open(schema1, 'r') as f:
+                            with open(schema1, 'r', errors='ignore') as f:
                                 a1 = ctx.add_module(schema1, f.read())
                             ctx.opts.check_update_from = schema2
                             ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
@@ -490,7 +490,7 @@ class ModulesComplicatedAlgorithms:
                             ctx.opts.old_deviation = []
                             check_update(ctx, schema2, a1)
                             if len(ctx.errors) == 0:
-                                with open(schema2, 'r') as f:
+                                with open(schema2, 'r', errors='ignore') as f:
                                     a2 = ctx.add_module(schema2, f.read())
                                 if ctx.opts.tree_path is not None:
                                     path = ctx.opts.tree_path.split('/')
@@ -592,7 +592,7 @@ class ModulesComplicatedAlgorithms:
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
                                 ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
-                                with open(schema1, 'r') as f:
+                                with open(schema1, 'r', errors='ignore') as f:
                                     a1 = ctx.add_module(schema1, f.read())
                                 ctx.opts.check_update_from = schema2
                                 ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
@@ -601,7 +601,7 @@ class ModulesComplicatedAlgorithms:
                                 ctx.opts.old_deviation = []
                                 check_update(ctx, schema2, a1)
                                 if len(ctx.errors) == 0:
-                                    with open(schema2, 'r') as f:
+                                    with open(schema2, 'r', errors='ignore') as f:
                                         a2 = ctx.add_module(schema2, f.read())
                                     if ctx.opts.tree_path is not None:
                                         path = ctx.opts.tree_path.split('/')

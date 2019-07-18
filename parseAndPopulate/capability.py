@@ -38,11 +38,13 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 import utility.log as log
+from utility import repoutil
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.parseException import ParseException
 
 github_raw = 'https://raw.githubusercontent.com/'
+github_url = 'https://github.com/'
 
 
 # searching for file based on pattern or pattern_with_revision
@@ -115,8 +117,12 @@ class Capability:
                 LOGGER.debug('Setting metadata concerning whole directory')
                 self.owner = 'YangModels'
                 self.repo = 'yang'
+                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+                repo.clone()
                 self.path = None
                 self.branch = 'master'
+                self.branch = repo.get_commit_hash(self.branch)
+                repo.remove()
                 self.feature_set = 'ALL'
                 self.software_version = self.split[5]
                 self.vendor = self.split[3]
@@ -158,8 +164,12 @@ class Capability:
             self.repo = impl['module-list-file']['repository'].split('.')[0]
             self.path = impl['module-list-file']['path']
             self.branch = impl['module-list-file'].get('branch')
+            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+            repo.clone()
             if not self.branch:
                 self.branch = 'master'
+            self.branch = repo.get_commit_hash(self.branch)
+            repo.remove()
             self.platform_data.append({'software-flavor': self.software_flavor,
                                        'platform': self.platform})
 
@@ -175,9 +185,13 @@ class Capability:
                 LOGGER.info('Parsing sdo file sent via API{}'.format(file_name))
                 self.owner = sdo['source-file']['owner']
                 repo_file_path = sdo['source-file']['path']
+                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+                repo.clone()
                 self.branch = sdo['source-file'].get('branch')
                 if not self.branch:
                     self.branch = 'master'
+                self.branch = repo.get_commit_hash(self.branch)
+                repo.remove()
                 self.repo = sdo['source-file']['repository'].split('.')[0]
                 root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/' \
                        + '/'.join(repo_file_path.split('/')[:-1])
@@ -223,7 +237,11 @@ class Capability:
                             name = file_name.split('.')[0].split('@')[0]
                             self.owner = 'YangModels'
                             self.repo = 'yang'
+                            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo))
+                            repo.clone()
                             self.branch = 'master'
+                            self.branch = repo.get_commit_hash(self.branch)
+                            repo.remove()
                             path = root + '/' + file_name
                             abs_path = os.path.abspath(path)
                             if '/yangmodels/yang/' in abs_path:
