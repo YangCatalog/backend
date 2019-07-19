@@ -161,7 +161,7 @@ class MyFlask(Flask):
         response.headers['Access-Control-Allow-Headers'] = 'content-type'
         self.response = response
         self.create_response_only_latest_revision()
-        self.create_response_with_yangsuite_link()
+        #self.create_response_with_yangsuite_link()
 
         self.LOGGER.debug(response.headers)
         return self.response
