@@ -186,6 +186,7 @@ class Capability:
                 LOGGER.info('Parsing sdo file sent via API{}'.format(file_name))
                 self.owner = sdo['source-file']['owner']
                 repo_file_path = sdo['source-file']['path']
+                self.repo = sdo['source-file']['repository'].split('.')[0]
                 repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                 repo.clone()
                 self.branch = sdo['source-file'].get('branch')
@@ -193,7 +194,6 @@ class Capability:
                     self.branch = 'master'
                 self.branch = repo.get_commit_hash(self.branch)
                 repo.remove()
-                self.repo = sdo['source-file']['repository'].split('.')[0]
                 root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/' \
                        + '/'.join(repo_file_path.split('/')[:-1])
                 root = self.json_dir + '/temp/' + root
@@ -208,7 +208,7 @@ class Capability:
                 if '[1]' not in file_name:
                     try:
                         yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
-                                   self.html_result_dir, self.parsed_jsons, self.json_dir)
+                                       self.html_result_dir, self.parsed_jsons, self.json_dir)
                     except ParseException as e:
                         LOGGER.error(e.msg)
                         continue
