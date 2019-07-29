@@ -175,6 +175,7 @@ class Capability:
                                        'platform': self.platform})
 
     def parse_and_dump_sdo(self):
+        repo = None
         if self.api:
             LOGGER.debug('Parsing sdo files sent via API')
             with open(self.json_dir + '/prepare-sdo.json', 'r') as f:
@@ -187,13 +188,13 @@ class Capability:
                 self.owner = sdo['source-file']['owner']
                 repo_file_path = sdo['source-file']['path']
                 self.repo = sdo['source-file']['repository'].split('.')[0]
-                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
-                repo.clone()
+                if repo is None:
+                    repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
+                    repo.clone()
                 self.branch = sdo['source-file'].get('branch')
                 if not self.branch:
                     self.branch = 'master'
                 self.branch = repo.get_commit_hash(self.branch)
-                repo.remove()
                 root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/' \
                        + '/'.join(repo_file_path.split('/')[:-1])
                 root = self.json_dir + '/temp/' + root
@@ -238,11 +239,11 @@ class Capability:
                             name = file_name.split('.')[0].split('@')[0]
                             self.owner = 'YangModels'
                             self.repo = 'yang'
-                            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
-                            repo.clone()
+                            if repo is None:
+                                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
+                                repo.clone()
                             self.branch = 'master'
                             self.branch = repo.get_commit_hash(self.branch)
-                            repo.remove()
                             path = root + '/' + file_name
                             abs_path = os.path.abspath(path)
                             if '/yangmodels/yang/' in abs_path:
@@ -255,6 +256,7 @@ class Capability:
                                            self.prepare.name_revision_organization,
                                            schema, self.to)
                             self.prepare.add_key_sdo_module(yang)
+        repo.remove()
 
     # parse capability xml and save to file
     def parse_and_dump_yang_lib(self):
