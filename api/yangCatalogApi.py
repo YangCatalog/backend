@@ -485,7 +485,7 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
         if organization_parsed != organizations_sent:
             return "module`s organization is not the same as organization provided"
         return True
-    if organizations_sent in accessRigths:
+    if organizations_sent in accessRigths.split(','):
         if organization_parsed != organizations_sent:
             return "module`s organization is not the same as organization provided"
         passed = True
