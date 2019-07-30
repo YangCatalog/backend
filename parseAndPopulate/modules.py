@@ -373,7 +373,10 @@ class Modules:
                     self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
 
     def __resolve_schema(self, schema, git_branch):
-        if schema:
+        if self.organization == 'etsi':
+            suffix = self.__path.split('SOL006')[-1]
+            self.schema = 'https://forge.etsi.org/gitlab/nfv/SOL006/raw/master/{}'.format(suffix)
+        elif schema:
             split_index = '/{}/'.format(git_branch)
             if '/yangmodels/yang/' in self.__path:
                 split_index = '/yangmodels/yang/'

@@ -985,6 +985,7 @@ def add_modules():
             branch = sdo.get('branch')
         else:
             branch = 'master'
+        branch = repo[repo_url].get_commit_hash(branch)
         save_to = direc + '/temp/' + sdo['owner'] + '/' + sdo['repository'].split('.')[0] \
                   + '/' + branch + '/' + directory
         try:
@@ -1130,6 +1131,7 @@ def add_vendors():
             branch = capability.get('branch')
         else:
             branch = 'master'
+        branch = repo[repo_url].get_commit_hash(branch)
         directory = '/'.join(capability['path'].split('/')[:-1])
         save_to = direc + '/temp/' + capability['owner'] + '/' \
                   + capability['repository'].split('.')[0] + '/' + branch + '/' + directory
