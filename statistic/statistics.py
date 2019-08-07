@@ -427,7 +427,6 @@ if __name__ == '__main__':
             # Let's try again, who knows?
             time.sleep(120)
             response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
-            all_modules_data = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
             all_modules_data = response.json()
             LOGGER.error("After a while, OK to access " + path)
         all_modules_data_unique = {}
@@ -441,29 +440,14 @@ if __name__ == '__main__':
         # Vendors separately
         vendor_list = []
 
-        process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/cisco',
-             '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, vendor_list, yang_models + '/vendor/cisco', 'cisco')
-
-        process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/ciena',
-             '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, vendor_list, yang_models + '/vendor/ciena', 'ciena')
-
-        process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/juniper',
-             '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, vendor_list, yang_models + '/vendor/juniper', 'juniper')
-
-        process = subprocess.Popen(
-            ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor/huawei',
-             '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, vendor_list, yang_models + '/vendor/huawei', 'huawei')
+        for direc in next(os.walk(yang_models + '/vendor'))[1]:
+            vendor_direc = yang_models + '/vendor/' + direc
+            if os.path.isdir(vendor_direc):
+                process = subprocess.Popen(
+                    ['python', '../runYANGallstats/runYANGallstats.py', '--rootdir', vendor_direc,
+                    '--removedup', 'True'], stdout=subprocess.PIPE)
+                out, err = process.communicate()
+                process_data(out, vendor_list, vendor_direc, direc)
 
         # Vendors all together
         process = subprocess.Popen(
@@ -511,40 +495,43 @@ if __name__ == '__main__':
         process_data(out, sdo_list, yang_models + '/standard/bbf/standard', 'BBF standard')
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                                    yang_models + '/standard/etsi/SOL006', '--removedup', 'True'],
+                                   stdout=subprocess.PIPE)
+        out, err = process.communicate()
+        process_data(out, sdo_list, yang_models + '/standard/etsi/SOL006', 'ETSI standard')
+
+        process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/bbf/draft', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/standard/bbf/draft', 'BBF draft')
 
-        process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/ieee/802.1', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/ieee/802.1', 'IEEE 802.1 with par')
+        for direc in next(os.walk(yang_models + '/standard/ieee/published'))[1]:
+            ieee_direc = yang_models + '/standard/ieee/published/' + direc
+            if os.path.isdir(ieee_direc):
+                process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                                            ieee_direc, '--removedup', 'True'],
+                                           stdout=subprocess.PIPE)
+                out, err = process.communicate()
+                process_data(out, sdo_list, ieee_direc, 'IEEE {} with par'.format(direc))
 
-        process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/experimental/ieee/802.1', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/experimental/ieee/802.1', 'IEEE 802.1 no par')
+        for direc in next(os.walk(yang_models + '/standard/ieee/draft'))[1]:
+            ieee_direc = yang_models + '/standard/ieee/draft/' + direc
+            if os.path.isdir(ieee_direc):
+                process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                                            ieee_direc, '--removedup', 'True'],
+                                           stdout=subprocess.PIPE)
+                out, err = process.communicate()
+                process_data(out, sdo_list, ieee_direc, 'IEEE draft {} with par'.format(direc))
 
-        process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/ieee/802.3', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/ieee/802.3', 'IEEE 802.3 with par')
-
-        process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/experimental/ieee/802.3', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/experimental/ieee/802.3', 'IEEE 802.3 no par')
-
-        process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/ieee/draft', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/ieee/draft', 'IEEE draft with par')
+        for direc in next(os.walk(yang_models + '/experimental/ieee'))[1]:
+            ieee_direc = yang_models + '/experimental/ieee/' + direc
+            if os.path.isdir(ieee_direc):
+                process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                                            ieee_direc, '--removedup', 'True'],
+                                           stdout=subprocess.PIPE)
+                out, err = process.communicate()
+                process_data(out, sdo_list, ieee_direc, 'IEEE {} no par'.format(direc))
 
         process = subprocess.Popen(['python', '../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/mef/src/model/standard', '--removedup', 'True'],
