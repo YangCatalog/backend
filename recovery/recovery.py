@@ -72,11 +72,12 @@ if __name__ == "__main__":
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger('runCapabilities', log_directory + '/parseAndPopulate.log')
+    LOGGER = log.get_logger('recovery', log_directory + '/yang.log')
 
     cache_directory = config.get('Directory-Section', 'cache')
     credentials = config.get('General-Section', 'credentials').split(' ')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
+    LOGGER.info('Starting {} process of confd database'.format(args.type))
     if 'save' is args.type:
         file_save = open(cache_directory + '/' + args.name_save + '.json', 'w')
         jsn = requests.get(prefix + '/api/config/catalog?deep',
@@ -86,6 +87,7 @@ if __name__ == "__main__":
                                'Content-type': 'application/vnd.yang.data+json'}).json()
         file_save.write(json.dumps(jsn))
         file_save.close()
+        LOGGER.info('Save completed successfully')
     else:
         if args.name_load:
             file_load = open(cache_directory + '/' + args.name_load, 'r')
@@ -93,6 +95,7 @@ if __name__ == "__main__":
             list_of_files = glob.glob(cache_directory + '/*')
             latest_file = max(list_of_files, key=os.path.getctime)
             file_load = open(latest_file, 'r')
+        LOGGER.info('Loading file {}'.format(file_load.name))
         body = json.load(file_load, object_pairs_hook=OrderedDict)
         str_to_encode = '%s:%s' % (credentials[0], credentials[1])
         if sys.version_info >= (3, 4):
@@ -113,6 +116,7 @@ if __name__ == "__main__":
                         'Content-type': 'application/vnd.yang.data+json',
                         'Accept': 'application/vnd.yang.data+json'})
                     code = response.status_code
+                    LOGGER.info('Confd recoverd with status code {}'.format(code))
                 except:
                     counter -= 1
             else:
