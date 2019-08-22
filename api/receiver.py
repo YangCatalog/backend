@@ -740,7 +740,7 @@ if __name__ == '__main__':
         connection = pika.BlockingConnection(pika.ConnectionParameters(
             host=rabbitmq_host,
             port=rabbitmq_port,
-            heartbeat=0,
+            heartbeat=10,
             credentials=credentials))
         channel = connection.channel()
         channel.queue_declare(queue='module_queue')
