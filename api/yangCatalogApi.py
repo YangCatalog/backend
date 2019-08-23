@@ -1425,7 +1425,7 @@ def rpc_search_get_one(leaf):
     if recursive:
         rpc['input'].pop('recursive')
     response = rpc_search(rpc)
-    modules = json.loads(response.get_data()).get('yang-catalog:modules')
+    modules = json.loads(response.get_data(as_text=True)).get('yang-catalog:modules')
     if modules is None:
         return not_found()
     modules = modules.get('module')
@@ -1452,7 +1452,7 @@ def search_recursive(output, module, leaf, resolved):
     if r_name not in resolved:
         resolved.add(r_name)
         response = rpc_search({'input': {'dependencies': [{'name': r_name}]}})
-        modules = json.loads(response.get_data()).get('yang-catalog:modules')
+        modules = json.loads(response.get_data(as_text=True)).get('yang-catalog:modules')
         if modules is None:
             return
         modules = modules.get('module')
