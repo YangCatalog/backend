@@ -17,7 +17,18 @@ __copyright__ = "Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
+import json
+
+
 class ParseException(Exception):
 
     def __init__(self, path):
+        #TODO absolute path to json file should be received from yangcatalog.conf config file
         self.msg = "Failed to parse module on path {}".format(path)
+        with open('/var/yang/unparsable-modules.json', 'r') as f:
+            modules = json.load(f)
+        module = path.split('/')[-1]
+        if module not in modules:
+            modules.append(module)
+        with open('/var/yang/unparsable-modules.json', 'w') as f:
+            json.dump(modules, f)
