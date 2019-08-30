@@ -1,8 +1,10 @@
+lxml;python_version!="3.4"
+lxml<=4.3.5;python_version=="3.4"
 numpy==1.16.2
 travispy==0.3.5
 pyOpenSSL==19.0.0
 configparser==3.7.4
-requests==2.21.0
+requests==2.22.0
 jinja2>=2.10.1
 pyang==1.7.8
 gitpython==2.1.11
