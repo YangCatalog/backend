@@ -408,10 +408,13 @@ class ModulesComplicatedAlgorithms:
                     date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
                 except Exception as e:
                     LOGGER.error('Failed to process revision for {}: (rev: {})'.format(module['name'], rev))
-                    if int(rev[1]) == 2 and int(rev[2]) == 29:
-                        date = datetime(int(rev[0]), int(rev[1]), 28)
-                    else:
-                        raise Exception(e)
+                    try:
+                        if int(rev[1]) == 2 and int(rev[2]) == 29:
+                            date = datetime(int(rev[0]), int(rev[1]), 28)
+                        else:
+                            date = datetime(1970, 1, 1)
+                    except Exception:
+                        date = datetime(1970, 1, 1)
                 module_temp = {}
                 module_temp['name'] = module['name']
                 module_temp['revision'] = module['revision']
@@ -438,8 +441,13 @@ class ModulesComplicatedAlgorithms:
                         module_temp['date'] = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
                     except Exception:
                         LOGGER.warning('Failed to process revision for {}: (rev: {}) setting it to 28th'.format(module['name'], rev))
-                        if int(rev[1]) == 2 and int(rev[2]) == 29:
-                            module_temp['date'] = datetime(int(rev[0]), int(rev[1]), 28)
+                        try:
+                            if int(rev[1]) == 2 and int(rev[2]) == 29:
+                                module_temp['date'] = datetime(int(rev[0]), int(rev[1]), 28)
+                            else:
+                                module_temp['date'] = datetime(1970, 1, 1)
+                        except Exception:
+                            module_temp['date'] = datetime(1970, 1, 1)
                     module_temp['name'] = mod['name']
                     module_temp['organization'] = mod.get('organization')
                     module_temp['schema'] = mod.get('schema')

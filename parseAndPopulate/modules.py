@@ -369,8 +369,12 @@ class Modules:
             try:
                 self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
             except ValueError as e:
-                if int(rev_parts[2]) == 29 and int(rev_parts[1]) == 2:
-                    self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
+                try:
+                    if int(rev_parts[2]) == 29 and int(rev_parts[1]) == 2:
+                        self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
+                except ValueError as e2:
+                    self.revision = '1970-01-01'
+                    self.__missing_revision = self.name
 
     def __resolve_schema(self, schema, git_branch):
         if self.organization == 'etsi':
