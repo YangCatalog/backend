@@ -134,10 +134,11 @@ def get_specifics(path_dir):
         x += 1
         LOGGER.info("{} out of {} getting specifics from {}".format(x, yang_modules_length, path_dir))
         try:
-            revision = yangParser.parse(os.path.abspath(mod_git)).search('revision')[0].arg
+            parsed_yang = yangParser.parse(os.path.abspath(mod_git))
+            revision = parsed_yang.search('revision')[0].arg
         except:
             continue
-        organization = resolve_organization(mod_git)
+        organization = resolve_organization(mod_git, parsed_yang)
         name = mod_git.split('/')[-1].split('.')[0].split('@')[0]
         if revision is None:
             revision = '1970-01-01'
@@ -173,63 +174,80 @@ def get_specifics(path_dir):
     return [num_in_catalog, passed]
 
 
-def resolve_organization(path):
+def resolve_organization(path, parsed_yang):
     """Parse yang file and resolve organization out of the module. If the module
     is a submodule find it's parent and resolve its organization
-            Arguments: 
+            Arguments:
                 :param path: (str) path to a file to parse and resolve a organization
+                :param parsed_yang (object) pyang parsed yang file object
                 :return: list containing amount of yang files and amount that pass
                     compilation respectively
     """
     organization = ''
     try:
-        namespace = yangParser.parse(os.path.abspath(path)) \
-            .search('namespace')[0].arg
-
+        temp_organization = parsed_yang.search('organization')[0].arg.lower()
+        if 'cisco' in temp_organization or 'CISCO' in temp_organization:
+            organization = 'cisco'
+        elif 'ietf' in temp_organization or 'IETF' in temp_organization:
+            organization = 'ietf'
+    except:
+        pass
+    try:
+        namespace = parsed_yang.search('namespace')[0].arg
         for ns, org in NS_MAP.items():
             if ns in namespace:
                 organization = org
         if organization == '':
-            if 'urn:' in namespace:
+            if 'cisco' in namespace or 'CISCO' in namespace:
+                organization = 'cisco'
+            elif 'ietf' in namespace or 'IETF' in namespace:
+                organization = 'ietf'
+            elif 'urn:' in namespace:
                 organization = namespace.split('urn:')[1].split(':')[0]
         if organization == '':
             organization = MISSING_ELEMENT
     except:
-        while True:
+        try:
+            belongs_to = parsed_yang.search('belongs-to')[0].arg
+        except:
+            organization = MISSING_ELEMENT
+            return organization
+        try:
+            yang_file = find_first_file('/'.join(path.split('/')[:-1]), belongs_to + '.yang'
+                                        , belongs_to + '@*.yang')
+            namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
+            for ns, org in NS_MAP.items():
+                if ns in namespace:
+                    organization = org
+            if organization == '':
+                if 'cisco' in namespace or 'CISCO' in namespace:
+                    organization = 'cisco'
+                elif 'ietf' in namespace or 'IETF' in namespace:
+                    organization = 'ietf'
+                elif 'urn:' in namespace:
+                    organization = namespace.split('urn:')[1].split(':')[0]
+            if organization == '':
+                organization = MISSING_ELEMENT
+            return organization
+        except:
             try:
-                belongs_to = yangParser.parse(os.path.abspath(path)) \
-                    .search('belongs-to')[0].arg
-            except:
-                break
-            try:
-                yang_file = find_first_file('/'.join(path.split('/')[:-1]), belongs_to + '.yang'
+                yang_file = find_first_file('/'.join(path.split('/')[:-2]), belongs_to + '.yang'
                                             , belongs_to + '@*.yang')
                 namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
                 for ns, org in NS_MAP.items():
                     if ns in namespace:
                         organization = org
                 if organization == '':
-                    if 'urn:' in namespace:
+                    if 'cisco' in namespace or 'CISCO' in namespace:
+                        organization = 'cisco'
+                    elif 'ietf' in namespace or 'IETF' in namespace:
+                        organization = 'ietf'
+                    elif 'urn:' in namespace:
                         organization = namespace.split('urn:')[1].split(':')[0]
                 if organization == '':
                     organization = MISSING_ELEMENT
-                break
             except:
-                try:
-                    yang_file = find_first_file('/'.join(path.split('/')[:-2]), belongs_to + '.yang'
-                                                , belongs_to + '@*.yang')
-                    namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
-                    for ns, org in NS_MAP.items():
-                        if ns in namespace:
-                            organization = org
-                    if organization == '':
-                        if 'urn:' in namespace:
-                            organization = namespace.split('urn:')[1].split(':')[0]
-                    if organization == '':
-                        organization = MISSING_ELEMENT
-                    break
-                except:
-                    organization = MISSING_ELEMENT
+                organization = MISSING_ELEMENT
     return organization
 
 
