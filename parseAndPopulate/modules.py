@@ -105,6 +105,28 @@ class Modules:
     def __init__(self, yang_models_dir, log_directory, path, html_result_dir, jsons, temp_dir,
                  is_vendor=False, is_yang_lib=False, data=None,
                  is_vendor_imp_inc=False, run_integrity=False):
+        """
+        Preset Modules class to parse yang module and save data to it.
+        :param yang_models_dir:     (str) directory with all yang modules from
+                                    github https://github.com/YangModels/yang
+        :param log_directory:       (str) directory where the log file is saved
+        :param path:                (str) path to yang file being parsed
+        :param html_result_dir:     (str) path to directory with html result
+                                    files
+        :param jsons:               (obj) LoadFiles class containing all the json
+                                    and html files with parsed results
+        :param temp_dir:            (str) path to temporary directory
+        :param is_vendor:           (boolean) if we parsing vendor files (cisco, huawei, ..)
+                                    or sdo files (ietf, ieee, ...)
+        :param is_yang_lib:         (boolean) if we are parsing file from yang_lib
+                                    capability file
+        :param data:                (dict) data from yang_lib capability file with additional
+                                    information
+        :param is_vendor_imp_inc:   (boolean) Obsolete
+        :param run_integrity        (boolean) if we are running integrity as well. If true
+                                    part of the data parsed are not needed and therefor not
+                                    parsed
+        """
         global LOGGER
         LOGGER = log.get_logger('modules', log_directory + '/parseAndPopulate.log')
         self.run_integrity = run_integrity
@@ -194,7 +216,17 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, git_branch, name, keys, schema, to, api_sdo_json=None):
+    def parse_all(self, git_commit_hash, name, keys, schema, to, api_sdo_json=None):
+        """
+        Parse all data that we can from the module.
+        :param git_commit_hash: (str) name of the git commit hash where we can find the module
+        :param name:            (str) name of the module (not parsed out of the module)
+        :param keys:            (set) set of keys labeled as "<name>@<revision>/<organization>"
+        :param schema:          (str) full url to raw github module
+        :param to:              (str) Where to save the module at. This is a directory
+        :param api_sdo_json:    (dict) some aditional information about module given from client
+                                using yangcatalog api
+        """
         def get_json(js):
             if js:
                 return js
@@ -229,13 +261,13 @@ class Modules:
         self.__resolve_organization(organization)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in keys:
-            self.__resolve_schema(schema, git_branch)
+            self.__resolve_schema(schema, git_commit_hash)
             self.__resolve_submodule()
-            self.__resolve_imports(git_branch)
+            self.__resolve_imports(git_commit_hash)
             return
-        self.__resolve_schema(schema, git_branch)
+        self.__resolve_schema(schema, git_commit_hash)
         self.__resolve_submodule()
-        self.__resolve_imports(git_branch)
+        self.__resolve_imports(git_commit_hash)
         if not self.run_integrity:
             self.__save_file(to)
             self.__resolve_generated_from(generated_from)
@@ -271,7 +303,7 @@ class Modules:
                 self.semver = re.findall('[0-9]+.[0-9]+.[0-9]+', line).pop()
         yang_file.close()
 
-    def __resolve_imports(self, branch):
+    def __resolve_imports(self, git_commit_hash):
         try:
             self.imports = self.__parsed_yang.search('import')
             if len(self.imports) == 0:
@@ -295,9 +327,9 @@ class Modules:
                             suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
                             prefix = 'https://raw.githubusercontent.com/yangmodels'
                             dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
-                        elif branch in yang_file:
-                            prefix = self.schema.split('/{}/'.format(branch))[0]
-                            suffix = os.path.abspath(yang_file).split('/{}/'.format(branch))[1]
+                        elif git_commit_hash in yang_file:
+                            prefix = self.schema.split('/{}/'.format(git_commit_hash))[0]
+                            suffix = os.path.abspath(yang_file).split('/{}/'.format(git_commit_hash))[1]
                             dependency.schema = '{}/master/{}'.format(prefix, suffix)
                     except:
                         LOGGER.ERROR('Unable to resolve schema for {}@{}.yang'.format(self.name, self.revision))
@@ -376,12 +408,12 @@ class Modules:
                     self.revision = '1970-01-01'
                     self.__missing_revision = self.name
 
-    def __resolve_schema(self, schema, git_branch):
+    def __resolve_schema(self, schema, git_commit_hash):
         if self.organization == 'etsi':
             suffix = self.__path.split('SOL006')[-1]
-            self.schema = 'https://forge.etsi.org/gitlab/nfv/SOL006/raw/master/{}'.format(suffix)
+            self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw/raw/master/{}'.format(suffix)
         elif schema:
-            split_index = '/{}/'.format(git_branch)
+            split_index = '/{}/'.format(git_commit_hash)
             if '/yangmodels/yang/' in self.__path:
                 split_index = '/yangmodels/yang/'
             if self.__is_vendor:
