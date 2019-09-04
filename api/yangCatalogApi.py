@@ -754,6 +754,25 @@ def delete_module(name, revision, organization):
     if read['yang-catalog:module'].get('implementations') is not None:
         return make_response(jsonify({'error': 'This module has reference in vendors branch'}), 400)
 
+    all_mods = requests.get('{}search/modules'.format(application.yangcatalog_api_prefix)).json()
+
+    for existing_module in all_mods['module']:
+        if existing_module.get('dependencies') is not None:
+            dependency = existing_module['dependencies']
+            for dep in dependency:
+                if dep['name'] == name and dep.get('revision') == revision:
+                    return make_response(jsonify(
+                        {'error': '{}@{} module has reference in another module dependency: {}@{}'
+                            .format(name, revision, existing_module['name'], existing_module['revision'])}),
+                        400)
+        if existing_module.get('submodule') is not None:
+            submodule = existing_module['submodule']
+            for sub in submodule:
+                if sub['name'] == name and sub.get('revision') == revision:
+                    return make_response(jsonify(
+                        {'error': '{}@{} module has reference in another module submodule: {}@{}'.format(
+                            name, revision, existing_module['name'],existing_module['revision'])}),
+                        400)
     path_to_delete = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/modules/module/' \
                      + name + ',' + revision + ',' + organization
 
@@ -815,6 +834,40 @@ def delete_modules():
             return make_response(jsonify(
                 {'error': 'This module has reference in vendors branch'}),
                                  400)
+
+    all_mods = requests.get('{}search/modules'.format(application.yangcatalog_api_prefix)).json()
+
+    for mod in modules:
+        for existing_module in all_mods['module']:
+            if existing_module.get('dependencies') is not None:
+                dependency = existing_module['dependencies']
+                for dep in dependency:
+                    if dep['name'] == mod['name'] and dep.get('revision') == mod['revision']:
+                        will_be_deleted = False
+                        for mod2 in modules:
+                            if mod2['name'] == existing_module['name'] and mod2['revision'] == existing_module['revision']:
+                                will_be_deleted = True
+                                break
+                        if not will_be_deleted:
+                            return make_response(jsonify(
+                                {'error': '{}@{} module has reference in another module dependency: {}@{}'
+                                    .format(mod['name'], mod['revision'],
+                                    existing_module['name'], existing_module['revision'])}),
+                            400)
+            if existing_module.get('submodule') is not None:
+                submodule = existing_module['submodule']
+                for sub in submodule:
+                    if sub['name'] == mod['name'] and sub.get('revision') == mod['revision']:
+                        will_be_deleted = False
+                        for mod2 in modules:
+                            if mod2['name'] == existing_module['name'] and mod2['revision'] == existing_module['revision']:
+                                will_be_deleted = True
+                                break
+                        if not will_be_deleted:
+                            return make_response(jsonify(
+                                {'error': '{}@{} module has reference in another module submodule: {}@{}'.format(
+                                    mod['name'], mod['revision'], existing_module['name'], existing_module['revision'])}),
+                                400)
 
     path_to_delete = json.dumps(rpc['input'])
 

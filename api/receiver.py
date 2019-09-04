@@ -444,6 +444,24 @@ def process_vendor_deletion(arguments):
                         continue
         except:
             LOGGER.error('Yang file {} doesn\'t exist although it should exist'.format(mod))
+    all_mods = requests.get('{}search/modules'.format(yangcatalog_api_prefix)).json()
+
+    for mod in modules:
+        name_rev_org_with_commas = mod.split('/')[-1]
+        name, rev, org = name_rev_org_with_commas.split(',')
+        for existing_module in all_mods['module']:
+            if existing_module.get('dependents') is not None:
+                dependents = existing_module['dependents']
+                for dep in dependents:
+                    if dep['name'] == name and dep['revision'] == rev:
+                        path = '{}://{}:{}/api/config/catalog/modules/module/{},{},{}/dependents/{}'
+                        response = requests.delete(path.format(confd_protocol, confd_ip, confdPort,
+                                                               existing_module['name'], existing_module['revision'],
+                                                               existing_module['organization'], dep['name']))
+                        if response.status_code != 204:
+                            LOGGER.error('Couldn\'t delete module on path {}. Error : {}'
+                                         .format(path, response.text))
+                            return __response_type[0] + '#split#' + response.text
     if notify_indexing:
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, modules_that_succeeded,
                             credentials, delete=True)
@@ -526,7 +544,26 @@ def process_module_deletion(arguments, multiple=False):
                          + mod['name'] + ',' + mod['revision'] + ',' + mod[
                              'organization'])
     else:
+        name_rev_org_with_commas = path_to_delete.split('/')[-1]
+        name, rev, org = name_rev_org_with_commas.split(',')
+        modules = [{'name': name, 'revision': rev, 'organization': org}]
         paths = [path_to_delete]
+    all_mods = requests.get('{}search/modules'.format(yangcatalog_api_prefix)).json()
+
+    for mod in modules:
+        for existing_module in all_mods['module']:
+            if existing_module.get('dependents') is not None:
+                dependents = existing_module['dependents']
+                for dep in dependents:
+                    if dep['name'] == mod['name'] and dep['revision'] == mod['revision']:
+                        path = '{}://{}:{}/api/config/catalog/modules/module/{},{},{}/dependents/{}'
+                        response = requests.delete(path.format(confd_protocol, confd_ip, confdPort,
+                                                               existing_module['name'], existing_module['revision'],
+                                                               existing_module['organization'], dep['name']))
+                        if response.status_code != 204:
+                            LOGGER.error('Couldn\'t delete module on path {}. Error : {}'
+                                         .format(path, response.text))
+                            return __response_type[0] + '#split#' + response.text
     modules_to_index = []
     for path in paths:
         response = requests.delete(path, auth=(credentials[0], credentials[1]))
