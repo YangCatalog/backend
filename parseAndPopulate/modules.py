@@ -411,7 +411,7 @@ class Modules:
     def __resolve_schema(self, schema, git_commit_hash):
         if self.organization == 'etsi':
             suffix = self.__path.split('SOL006')[-1]
-            self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw/raw/master/{}'.format(suffix)
+            self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw//master/{}'.format(suffix)
         elif schema:
             split_index = '/{}/'.format(git_commit_hash)
             if '/yangmodels/yang/' in self.__path:

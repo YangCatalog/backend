@@ -194,7 +194,7 @@ class Capability:
                 self.branch = sdo['source-file'].get('branch')
                 if not self.branch:
                     self.branch = 'master'
-                self.branch = repo.get_commit_hash(self.branch)
+                self.branch = repo.get_commit_hash('/'.join(repo_file_path.split('/')[:-1]), self.branch)
                 root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/' \
                        + '/'.join(repo_file_path.split('/')[:-1])
                 root = self.json_dir + '/temp/' + root
@@ -243,13 +243,13 @@ class Capability:
                                 repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                                 repo.clone()
                             self.branch = 'master'
-                            self.branch = repo.get_commit_hash(self.branch)
                             path = root + '/' + file_name
                             abs_path = os.path.abspath(path)
                             if '/yangmodels/yang/' in abs_path:
                                 path = abs_path.split('/yangmodels/yang/')[1]
                             else:
                                 path = re.split('tmp\/\w*\/', abs_path)[1]
+                            self.branch = repo.get_commit_hash(path, self.branch)
                             schema = (github_raw + self.owner + '/' + self.repo
                                       + '/' + self.branch + '/' + path)
                             yang.parse_all(self.branch, name,

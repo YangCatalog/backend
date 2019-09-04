@@ -82,11 +82,16 @@ class RepoUtil(object):
         """Return the repository directory name from the URL"""
         return os.path.basename(self.repourl)
 
-    def get_commit_hash(self, branch='master'):
+    def get_commit_hash(self, path=None, branch='master'):
+        self.updateSubmodule()
+        repo_temp = self
+        for submodule in self.repo.submodules and path is not None:
+            if path in submodule.path:
+                repo_temp = RepoUtil(submodule._url)
         if branch == 'master':
-            return self.repo.head.commit.hexsha
+            return repo_temp.repo.head.commit.hexsha
         else:
-            refs = self.repo.refs
+            refs = repo_temp.repo.refs
             for ref in refs:
                 if ref == branch or ref == 'origin/{}'.format(branch):
                     return ref.commit.hexsha
