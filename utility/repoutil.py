@@ -85,9 +85,10 @@ class RepoUtil(object):
     def get_commit_hash(self, path=None, branch='master'):
         self.updateSubmodule()
         repo_temp = self
-        for submodule in self.repo.submodules and path is not None:
-            if path in submodule.path:
-                repo_temp = RepoUtil(submodule._url)
+        if path is not None:
+            for submodule in self.repo.submodules:
+                if path in submodule.path:
+                    repo_temp = RepoUtil(submodule._url)
         if branch == 'master':
             return repo_temp.repo.head.commit.hexsha
         else:
