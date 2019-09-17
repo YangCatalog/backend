@@ -1,4 +1,4 @@
-# Copyright 2019 Cisco and its affiliates
+# Copyright The IETF Trust 2019, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 __author__ = "Stanislav Chlebec"
-__copyright__ = "Copyright 2019 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
+__copyright__ = "Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "stanislav.chlebec@pantheon.tech"
 
@@ -23,8 +23,6 @@ from repoutil import RepoUtil
 import os
 
 test_repo_dir = '~/work/yang'
-
-
 
 
 class TestRepoutil(unittest.TestCase):
