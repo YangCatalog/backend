@@ -155,7 +155,9 @@ class RepoUtil(object):
 
     def remove(self):
         """Remove the temporary storage."""
-        shutil.rmtree(self.localdir)
+        if self.localdir is not None:
+        	shutil.rmtree(self.localdir)
+        #shutil.rmtree(self.localdir)
         self.localdir = None
         self.repo = None
 
