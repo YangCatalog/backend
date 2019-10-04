@@ -96,7 +96,7 @@ class RepoUtil(object):
         else:
             refs = repo_temp.repo.refs
             for ref in refs:
-                if ref == branch or ref == 'origin/{}'.format(branch):
+                if ref.name == branch or ref.name == 'origin/{}'.format(branch):
                     return ref.commit.hexsha
         if path is not None:
             repo_temp.remove()
