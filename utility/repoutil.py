@@ -96,7 +96,7 @@ class RepoUtil(object):
         else:
             refs = repo_temp.repo.refs
             for ref in refs:
-                if ref == branch or ref == 'origin/{}'.format(branch):
+                if str(ref) == branch or str(ref) == 'origin/{}'.format(branch):
                     return ref.commit.hexsha
         if path is not None:
             repo_temp.remove()
@@ -161,7 +161,6 @@ class RepoUtil(object):
         """Remove the temporary storage."""
         if self.localdir is not None:
         	shutil.rmtree(self.localdir)
-        #shutil.rmtree(self.localdir)
         self.localdir = None
         self.repo = None
 

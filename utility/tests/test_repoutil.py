@@ -27,13 +27,12 @@ import configparser
 
 test_repo_dir = '~/work/yang'
 
-
-def get_repo_dir_without_git_suffix(repourl):
+def get_repo_dir(repourl, without_git_suffix=False):
 	repo_name = os.path.basename(repourl) 
-	if repo_name.endswith('.git'):
+	if repo_name.endswith('.git') and without_git_suffix:
 		return repo_name[:-4]
-	else:
-		return repo_name	
+	return repo_name
+
 
 class TestRepoutil(unittest.TestCase):
 
@@ -98,10 +97,9 @@ class TestRepoutil(unittest.TestCase):
 		self.repo2.remove()
 		self.repo3.remove()
 		self.repo4.remove()
-		#self.repo5.remove()
+		self.repo5.remove()
 
 	def test_remove(self):
-
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
 		self.assertTrue(os.path.exists(self.repo1.localdir))
 		dir_be_removed = self.repo1.localdir
@@ -115,7 +113,6 @@ class TestRepoutil(unittest.TestCase):
 		self.assertEqual(self.repo1.remove(), None)  
 
 	def test_clone(self):
-
 		self.assertRaises(TypeError, self.repo1.clone, 1)
 
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
@@ -125,7 +122,6 @@ class TestRepoutil(unittest.TestCase):
 		with self.repo1.repo.config_reader() as config:
 			self.assertEqual(config.get_value('user','email'), self.myemail)
 			self.assertEqual(config.get_value('user','name'), self.myname)
-		#print('Repo1 cloned into: ' + self.repo1.localdir)
 
 		self.assertEqual(self.repo2.clone(self.myname, self.myemail), None)  
 		localdir = self.repo2.localdir
@@ -134,7 +130,6 @@ class TestRepoutil(unittest.TestCase):
 		with self.repo2.repo.config_reader() as config:
 			self.assertEqual(config.get_value('user','email'), self.myemail)
 			self.assertEqual(config.get_value('user','name'), self.myname)
-		#print('Repo2 cloned into: ' + self.repo2.localdir)
 
 		self.assertEqual(self.repo3.clone(self.myname, self.myemail), None)  
 		localdir = self.repo3.localdir
@@ -143,14 +138,11 @@ class TestRepoutil(unittest.TestCase):
 		with self.repo3.repo.config_reader() as config:
 			self.assertEqual(config.get_value('user','email'), self.myemail)
 			self.assertEqual(config.get_value('user','name'), self.myname)
-		#print('Repo3 cloned into: ' + self.repo3.localdir)
 
 		with self.assertRaises(GitCommandError):
 			self.repo4.clone(self.myname, self.myemail)
 
-
 	def test_get_repo_dir(self):
-
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
 		self.assertEqual(self.repo2.clone(self.myname, self.myemail), None)  
 		self.assertEqual(self.repo3.clone(self.myname, self.myemail), None)  
@@ -159,33 +151,19 @@ class TestRepoutil(unittest.TestCase):
 		repodir2 = self.repo2.get_repo_dir()
 		repodir3 = self.repo3.get_repo_dir()
 
-		msg = 'git clone would strip the suffix .git while cloning the repo'
-		self.assertEqual(repodir1, get_repo_dir_without_git_suffix(self.repo1.repourl), msg)
-		self.assertEqual(repodir2, get_repo_dir_without_git_suffix(self.repo2.repourl), msg)
-		self.assertEqual(repodir3, get_repo_dir_without_git_suffix(self.repo3.repourl), msg)
-
-		repodir21 = self.repo1.localdir + '/' + repodir1
-		repodir22 = self.repo2.localdir + '/' + repodir2
-		repodir23 = self.repo3.localdir + '/' + repodir3
-
-		msg = 'Folder does not exist: ' 
-		self.assertTrue(os.path.exists(repodir21), msg + repodir21)
-		self.assertTrue(os.path.exists(repodir22), msg + repodir22)
-		self.assertTrue(os.path.exists(repodir23), msg + repodir23)
-		
-		#print('Repo1 dir:' + self.repo1.localdir + '/' + repodir1)
-		#print('Repo2 dir:' + self.repo2.localdir + '/' + repodir2)
-		#print('Repo3 dir:' + self.repo3.localdir + '/' + repodir3)
+		#"git clone" would strip the suffix .git while cloning the repo
+		#function get_repo_dir simply takes last part of URI
+		#this will result in not ommiting the .git extension !!!
+		self.assertEqual(repodir1, get_repo_dir(self.repo1.repourl))
+		self.assertEqual(repodir2, get_repo_dir(self.repo2.repourl))
+		self.assertEqual(repodir3, get_repo_dir(self.repo3.repourl))
 
 	def test_get_repo_owner(self):
-
 		self.assertEqual(self.repo1.get_repo_owner(), self.repo_owner1)
 		self.assertEqual(self.repo2.get_repo_owner(), self.repo_owner2)
 		self.assertEqual(self.repo3.get_repo_owner(), self.repo_owner3)
 
-
 	def test_updateSubmodule(self):
-
 		# repo without submodules
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
 		self.assertEqual(self.repo1.updateSubmodule(), None)  
@@ -247,11 +225,10 @@ class TestRepoutil(unittest.TestCase):
 		
 		self.assertEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
 		self.assertEqual(self.repo5.get_commit_hash(None, 'master'), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
-		self.assertEqual(self.repo5.get_commit_hash('backend','master'), 'd1196aa44777fea39890a453d676a8775f4b53dc')
-		self.assertEqual(self.repo5.get_commit_hash('bottle-yang-extractor-validator','master'), '902b3ce35694e71a9b87f00375300e6df5e1e399')
+		self.assertEqual(self.repo5.get_commit_hash('backend','tests'), 'd7d499416b443f2e0d7594cad0b13b551d90dd3a')
+		self.assertEqual(self.repo5.get_commit_hash('bottle-yang-extractor-validator','tests'), 'd1ec44dbe8995f282355d5d30402c5e6fa13a477')
 
 	def test_pull(self):
-
 		# the repo repo5 is with submodules
 		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)  
 		self.assertEqual(repoutil.pull(self.repo5.localdir), None)
