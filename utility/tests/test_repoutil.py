@@ -24,6 +24,7 @@ import os
 from git.exc import GitCommandError
 import logging
 import configparser
+from git import Repo
 
 test_repo_dir = '~/work/yang'
 
@@ -40,8 +41,8 @@ class TestRepoutil(unittest.TestCase):
 		repourl1 = 'https://github.com/stanislav-chlebec/docs'
 		repourl2 = 'https://github.com/stanislav-chlebec/docker-kafka'
 		repourl3 = 'https://github.com/YangCatalog/backend.git'
-		repourl4 = 'https://sergej-testerko:anabela123456@github.com/XangXatalog/Xackend.XXX' # does not exist
-		repourl5 = 'https://sergej-testerko:anabela123456@github.com/Sergej-Testerko/deployment'
+		repourl4 = 'https://sergej-testerko:40163869885ca113ce4b7f10d070aaa155b755a3@github.com/XangXatalog/Xackend.XXX' # does not exist
+		repourl5 = 'https://sergej-testerko:40163869885ca113ce4b7f10d070aaa155b755a3@github.com/Sergej-Testerko/deployment'
 
 		self.repo_owner1 = 'stanislav-chlebec'
 		self.repo_owner2 = 'stanislav-chlebec'
