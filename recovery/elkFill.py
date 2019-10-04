@@ -55,8 +55,8 @@ if __name__ == "__main__":
         if name == '' or org == '' or revision == '':
             print('module: {} wrong data'.format(module))
             continue
-        left = '{}@{}/{}'.format(name,revision,org)
-        right = '/var/yang/all_modules/{}@{}.yang'.format(name,revision)
-        create_dict[left] = right
-    with open('my_json.json', 'w') as f:
+        key = '{}@{}/{}'.format(name, revision, org)
+        value = '/var/yang/all_modules/{}@{}.yang'.format(name, revision)
+        create_dict[key] = value
+    with open('elasticsearch_data.json', 'w') as f:
         json.dump(create_dict, f)

@@ -89,6 +89,8 @@ class RepoUtil(object):
             for submodule in self.repo.submodules:
                 if path in submodule.path:
                     repo_temp = RepoUtil(submodule._url)
+                    repo_temp.clone()
+                    break
         if branch == 'master':
             return repo_temp.repo.head.commit.hexsha
         else:
@@ -96,6 +98,8 @@ class RepoUtil(object):
             for ref in refs:
                 if ref == branch or ref == 'origin/{}'.format(branch):
                     return ref.commit.hexsha
+        if path is not None:
+            repo_temp.remove()
         if self.logger is not None:
             self.logger.error('Git branch - {} - could not be resovled'.format(branch))
         return branch

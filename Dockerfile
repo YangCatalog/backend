@@ -11,7 +11,7 @@ RUN apt-get update
 RUN apt-get -y install cron \
   && apt-get autoremove -y
 
-RUN groupadd -r yang \
+RUN groupadd -g ${YANG_ID_GID} -r yang \
   && useradd --no-log-init -r -g yang -u ${YANG_ID_GID} -d $VIRTUAL_ENV yang \
   && pip install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
@@ -45,7 +45,7 @@ COPY crontab /etc/cron.d/yang-cron
 
 RUN chown yang:yang /etc/cron.d/yang-cron
 RUN chown -R yang:yang $VIRTUAL_ENV
-USER ${YANG_ID_GID}:0
+USER ${YANG_ID_GID}:${YANG_ID_GID}
 
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
