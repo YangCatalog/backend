@@ -95,13 +95,6 @@ class TestRepoutil(unittest.TestCase):
 		self.myname5 = 'Sergej Testerko'
 		self.myemail5 = 'sergejtesterko@yandex.com'
 
-	def tearDown(self):
-		self.repo1.remove()
-		self.repo2.remove()
-		self.repo3.remove()
-		self.repo4.remove()
-		self.repo5.remove()
-
 	def test_remove(self):
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
 		self.assertTrue(os.path.exists(self.repo1.localdir))
@@ -117,6 +110,7 @@ class TestRepoutil(unittest.TestCase):
 
 	def test_clone(self):
 		self.assertRaises(TypeError, self.repo1.clone, 1)
+		self.repo1.remove()
 
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
 		localdir = self.repo1.localdir
@@ -145,6 +139,11 @@ class TestRepoutil(unittest.TestCase):
 		with self.assertRaises(GitCommandError):
 			self.repo4.clone(self.myname, self.myemail)
 
+		self.repo1.remove()
+		self.repo2.remove()
+		self.repo3.remove()
+		self.repo4.remove()
+
 	def test_get_repo_dir(self):
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)  
 		self.assertEqual(self.repo2.clone(self.myname, self.myemail), None)  
@@ -160,6 +159,10 @@ class TestRepoutil(unittest.TestCase):
 		self.assertEqual(repodir1, get_repo_dir(self.repo1.repourl))
 		self.assertEqual(repodir2, get_repo_dir(self.repo2.repourl))
 		self.assertEqual(repodir3, get_repo_dir(self.repo3.repourl))
+
+		self.repo1.remove()
+		self.repo2.remove()
+		self.repo3.remove()
 
 	def test_get_repo_owner(self):
 		self.assertEqual(self.repo1.get_repo_owner(), self.repo_owner1)
@@ -220,6 +223,9 @@ class TestRepoutil(unittest.TestCase):
 
 		self.assertEqual(self.repo5.updateSubmodule(True, True), None)  
 		self.assertEqual(self.repo5.updateSubmodule(False, True), None)  
+
+		self.repo1.remove()
+		self.repo5.remove()
 			
 	def test_get_commit_hash(self):
 		# the repo repo5 is with submodules
@@ -232,10 +238,14 @@ class TestRepoutil(unittest.TestCase):
 		self.assertEqual(self.repo5.get_commit_hash('backend','tests'), 'd7d499416b443f2e0d7594cad0b13b551d90dd3a')
 		self.assertEqual(self.repo5.get_commit_hash('bottle-yang-extractor-validator','tests'), 'd1ec44dbe8995f282355d5d30402c5e6fa13a477')
 
+		self.repo5.remove()
+
 	def test_pull(self):
 		# the repo repo5 is with submodules
 		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)  
 		self.assertEqual(repoutil.pull(self.repo5.localdir), None)
+
+		self.repo5.remove()
 
 	def test_add_all_untracked(self):
 		# the repo repo5 is with submodules
@@ -282,6 +292,8 @@ class TestRepoutil(unittest.TestCase):
 		self.assertEqual(self.repo5.add_all_untracked(), None)
 		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "renamed:.*' + myfile + '.*->.*' + newdir + '/' + myfile + '"'
 		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		self.repo5.remove()
 
 if __name__ == '__main__':
 	unittest.main()
