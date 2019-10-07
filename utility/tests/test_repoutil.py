@@ -25,6 +25,7 @@ from git.exc import GitCommandError
 import logging
 import configparser
 from git import Repo
+import subprocess
 
 test_repo_dir = '~/work/yang'
 
@@ -48,6 +49,7 @@ class TestRepoutil(unittest.TestCase):
 		self.repo_owner2 = 'stanislav-chlebec'
 		self.repo_owner3 = 'YangCatalog'
 		self.repo_owner4 = 'XangXatalog'
+		self.repo_owner5 = 'Sergej-Testerko'
 
 		logger = logging.getLogger(__name__)
 		f_handler = logging.FileHandler('test_repoutil.log')
@@ -163,6 +165,7 @@ class TestRepoutil(unittest.TestCase):
 		self.assertEqual(self.repo1.get_repo_owner(), self.repo_owner1)
 		self.assertEqual(self.repo2.get_repo_owner(), self.repo_owner2)
 		self.assertEqual(self.repo3.get_repo_owner(), self.repo_owner3)
+		self.assertEqual(self.repo5.get_repo_owner(), self.repo_owner5)
 
 	def test_updateSubmodule(self):
 		# repo without submodules
@@ -233,6 +236,52 @@ class TestRepoutil(unittest.TestCase):
 		# the repo repo5 is with submodules
 		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)  
 		self.assertEqual(repoutil.pull(self.repo5.localdir), None)
+
+	def test_add_all_untracked(self):
+		# the repo repo5 is with submodules
+		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)
+		repodir = self.repo5.localdir
+		repo5 = Repo(repodir)
+
+		# let us create a new file
+		myfile = "a_new_file"
+		f = open(repodir + "/" + myfile,"w+")
+		f.write("This is a new file")
+		f.close()
+
+		self.assertEqual(myfile, repo5.untracked_files[0])
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		self.assertFalse(repo5.untracked_files, "should be empty after succesful adding")
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "new file:.*' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		# let us modify some file
+		myfile = "README.md"
+		f = open(repodir + "/" + myfile,"a+")
+		f.write("This is added to the end of README.md file")
+		f.close()
+
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "modified:.*' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		# let us delete some file
+		myfile = "LICENSE"
+		os.remove(repodir + '/' + myfile)
+
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "deleted:.*' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		# let us move some file
+		myfile = "docker-compose.yml"
+		newdir = "DOK"
+		os.mkdir(repodir + '/' + newdir)
+		os.rename(repodir + '/' + myfile, repodir + '/' + newdir  + '/' + myfile)
+
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "renamed:.*' + myfile + '.*->.*' + newdir + '/' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
 
 if __name__ == '__main__':
 	unittest.main()
