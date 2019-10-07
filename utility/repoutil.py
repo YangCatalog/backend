@@ -92,14 +92,18 @@ class RepoUtil(object):
                     repo_temp.clone()
                     break
         if branch == 'master':
+            if path is not None:
+                repo_temp.remove()
             return repo_temp.repo.head.commit.hexsha
         else:
             refs = repo_temp.repo.refs
             for ref in refs:
                 if ref.name == branch or ref.name == 'origin/{}'.format(branch):
-                    return ref.commit.hexsha
-        if path is not None:
-            repo_temp.remove()
+                    foundhash = ref.commit.hexsha
+            if foundhash is not None:
+                if path is not None:
+                    repo_temp.remove()
+                return foundhash
         if self.logger is not None:
             self.logger.error('Git branch - {} - could not be resovled'.format(branch))
         return branch
