@@ -46,10 +46,10 @@ logto = /var/yang/logs/uwsgi/%n.log
 #
 # Optimization
 #
-cache2 = name=main_cache1,items=5000
-cache2 = name=main_cache2,items=5000
-cache2 = name=cache_modules1,items=20000,blocksize=20100
-cache2 = name=cache_modules2,items=20000,blocksize=20100
-cache2 = name=cache_chunks1,items=20000,blocksize=100
-cache2 = name=cache_chunks2,items=20000,blocksize=100
+cache2 = name=main_cache1,items=10000
+cache2 = name=main_cache2,items=10000
+cache2 = name=cache_modules1,items=40000,blocksize=20100
+cache2 = name=cache_modules2,items=40000,blocksize=20100
+cache2 = name=cache_chunks1,items=40000,blocksize=100
+cache2 = name=cache_chunks2,items=40000,blocksize=100
 
