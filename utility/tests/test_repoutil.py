@@ -44,9 +44,8 @@ class TestRepoutil(unittest.TestCase):
 		repourl2 = 'https://github.com/stanislav-chlebec/docker-kafka'
 		repourl3 = 'https://github.com/YangCatalog/backend.git'
 		repourl4 = 'https://sergej-testerko:40163869885ca113ce4b7f10d070aaa155b755a3@github.com/XangXatalog/Xackend.XXX' # does not exist
-		repourl5 = 'https://sergej-testerko:40163869885ca113ce4b7f10d070aaa155b755a3@github.com/Sergej-Testerko/deployment'
-		repourl5 = 'https://sergej-testerko:bb7d5d45171a8e69d21bdaa465cf0b5bf4488075@github.com/Sergej-Testerko/deployment'
-		repourl6 = repourl5 # the same repo - for testing pull method
+		repourl5 = 'https://sergej-testerko:7500e4f5b2d30730ec083d108402dd25bac2a147@github.com/Sergej-Testerko/deployment'
+		repourl6 = 'https://sergej-testerko:6ccea3e4edd54bcd332a1d84cad6b3a8451bf815@github.com/Sergej-Testerko/deployment' # the same repo - for testing pull method
 
 		self.repo_owner1 = 'stanislav-chlebec'
 		self.repo_owner2 = 'stanislav-chlebec'
