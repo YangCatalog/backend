@@ -25,6 +25,7 @@ from git.exc import GitCommandError
 import logging
 import configparser
 from git import Repo
+import git
 import subprocess
 
 test_repo_dir = '~/work/yang'
@@ -43,13 +44,15 @@ class TestRepoutil(unittest.TestCase):
 		repourl2 = 'https://github.com/stanislav-chlebec/docker-kafka'
 		repourl3 = 'https://github.com/YangCatalog/backend.git'
 		repourl4 = 'https://sergej-testerko:40163869885ca113ce4b7f10d070aaa155b755a3@github.com/XangXatalog/Xackend.XXX' # does not exist
-		repourl5 = 'https://sergej-testerko:40163869885ca113ce4b7f10d070aaa155b755a3@github.com/Sergej-Testerko/deployment'
+		repourl5 = 'https://sergej-testerko:7500e4f5b2d30730ec083d108402dd25bac2a147@github.com/Sergej-Testerko/deployment'
+		repourl6 = 'https://sergej-testerko:6ccea3e4edd54bcd332a1d84cad6b3a8451bf815@github.com/Sergej-Testerko/deployment' # the same repo - for testing pull method
 
 		self.repo_owner1 = 'stanislav-chlebec'
 		self.repo_owner2 = 'stanislav-chlebec'
 		self.repo_owner3 = 'YangCatalog'
 		self.repo_owner4 = 'XangXatalog'
 		self.repo_owner5 = 'Sergej-Testerko'
+		self.repo_owner6 = self.repo_owner5
 
 		logger = logging.getLogger(__name__)
 		f_handler = logging.FileHandler('test_repoutil.log')
@@ -63,6 +66,7 @@ class TestRepoutil(unittest.TestCase):
 		self.repo3 = RepoUtil(repourl3)
 		self.repo4 = RepoUtil(repourl4)
 		self.repo5 = RepoUtil(repourl5)
+		self.repo6 = RepoUtil(repourl6)
 
 		self.assertEqual(self.repo1.repourl, repourl1)
 		self.assertEqual(self.repo2.repourl, repourl2)
@@ -293,6 +297,122 @@ class TestRepoutil(unittest.TestCase):
 		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "renamed:.*' + myfile + '.*->.*' + newdir + '/' + myfile + '"'
 		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
 
+		self.repo5.remove()
+
+	def test_commit_all(self):
+		# the repo repo5 is with submodules
+		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)
+		repodir = self.repo5.localdir
+
+		# let us modify some file
+		myfile = "README.md"
+		f = open(repodir + "/" + myfile,"a+")
+		f.write("This is added to the end of README.md file")
+		f.close()
+
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "modified:.*' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		self.assertEqual(self.repo5.commit_all(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "Your branch is ahead of \'origin/master\' by 1 commit."'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+		bashCommand = 'cd ' + repodir  + ' && git log -1 | grep -q "RepoUtil Commit"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		# let us modify some file
+		myfile = "README.md"
+		f = open(repodir + "/" + myfile,"a+")
+		f.write("This is 2nd line added to the end of README.md file")
+		f.close()
+
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "modified:.*' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		self.assertEqual(self.repo5.commit_all("add the 2nd line to README.md file"), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "Your branch is ahead of \'origin/master\' by 2 commits."'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+		bashCommand = 'cd ' + repodir  + ' && git log -1 | grep -q "add the 2nd line to README.md file"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		self.repo5.remove()
+
+	def test_pull(self):
+		# the repo repo5 is with submodules
+
+		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)
+		repodir_push = self.repo5.localdir
+		current_tip = self.repo5.get_commit_hash() # '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a'
+		self.assertEqual(self.repo6.clone(self.myname5, self.myemail5), None)
+		repodir_pull = self.repo6.localdir
+		current_tip = self.repo6.get_commit_hash() # '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a'
+
+		# let us modify some file in repo5 
+		myfile = "README.md"
+		f = open(repodir_push + "/" + myfile,"a+")
+		f.write("This is added to the end of README.md file")
+		f.close()
+
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		self.assertEqual(self.repo5.commit_all(), None)
+		self.assertEqual(self.repo5.push(), None)
+		self.assertNotEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
+		current_pushed_tip = self.repo5.get_commit_hash()
+
+		# make pull in the second repo	
+		self.assertEqual(repoutil.pull(repodir_pull), None)
+		self.assertNotEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
+		self.assertEqual(self.repo5.get_commit_hash(), current_pushed_tip)
+
+		# TEARDOWN - REVERT PUSH 
+		repo5 = Repo(repodir_push)
+		repo5.git.reset('--hard',current_tip)	
+		repo5.git.push(force=True)
+		self.assertEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
+		self.repo5.remove()
+		self.repo6.remove()
+
+	def test_push(self):
+		# the repo repo5 is with submodules
+
+		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)
+		repodir = self.repo5.localdir
+		current_tip = self.repo5.get_commit_hash() # '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a'
+
+		# let us modify some file
+		myfile = "README.md"
+		f = open(repodir + "/" + myfile,"a+")
+		f.write("This is added to the end of README.md file")
+		f.close()
+
+		# add
+		self.assertEqual(self.repo5.add_all_untracked(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "modified:.*' + myfile + '"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		# commit
+		self.assertEqual(self.repo5.commit_all(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "Your branch is ahead of \'origin/master\' by 1 commit."'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+		bashCommand = 'cd ' + repodir  + ' && git log -1 | grep -q "RepoUtil Commit"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+
+		# push
+		self.assertEqual(self.repo5.push(), None)
+		bashCommand = 'cd ' + repodir  + ' && git status | grep -q "Your branch is up to date with \'origin/master\'."'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+		bashCommand = 'cd ' + repodir  + ' && git log -1 | grep -q "RepoUtil Commit"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+		bashCommand = 'cd ' + repodir  + ' && git log -1 --decorate=short | grep -q "origin"'
+		self.assertEqual(subprocess.call(bashCommand, shell = True), 0)
+		self.assertNotEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
+
+		# TEARDOWN - REVERT PUSH 
+		repo5 = Repo(repodir)
+		repo5.git.reset('--hard',current_tip)	
+		repo5.git.push(force=True)
+		self.assertEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
 		self.repo5.remove()
 
 if __name__ == '__main__':
