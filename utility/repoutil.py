@@ -91,17 +91,21 @@ class RepoUtil(object):
                     repo_temp = RepoUtil(submodule._url)
                     repo_temp.clone()
                     break
+        found_hash = None
         if branch == 'master':
-            return repo_temp.repo.head.commit.hexsha
+            found_hash = repo_temp.repo.head.commit.hexsha
         else:
             refs = repo_temp.repo.refs
             for ref in refs:
                 if ref.name == branch or ref.name == 'origin/{}'.format(branch):
-                    return ref.commit.hexsha
+                    found_hash = ref.commit.hexsha
+                    break
         if path is not None:
             repo_temp.remove()
+        if found_hash is not None:
+            return found_hash
         if self.logger is not None:
-            self.logger.error('Git branch - {} - could not be resovled'.format(branch))
+            self.logger.error('Git branch - {} - could not be resolved'.format(branch))
         return branch
 
     def get_repo_owner(self):
@@ -159,7 +163,8 @@ class RepoUtil(object):
 
     def remove(self):
         """Remove the temporary storage."""
-        shutil.rmtree(self.localdir)
+        if self.localdir is not None:
+        	shutil.rmtree(self.localdir)
         self.localdir = None
         self.repo = None
 
