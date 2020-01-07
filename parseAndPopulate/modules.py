@@ -216,7 +216,7 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, git_commit_hash, name, keys, schema, to, api_sdo_json=None):
+    def parse_all(self, git_commit_hash, name, keys, schema, schema_start, to, api_sdo_json=None):
         """
         Parse all data that we can from the module.
         :param git_commit_hash: (str) name of the git commit hash where we can find the module
@@ -261,11 +261,11 @@ class Modules:
         self.__resolve_organization(organization)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in keys:
-            self.__resolve_schema(schema, git_commit_hash)
+            self.__resolve_schema(schema, git_commit_hash, schema_start)
             self.__resolve_submodule()
             self.__resolve_imports(git_commit_hash)
             return
-        self.__resolve_schema(schema, git_commit_hash)
+        self.__resolve_schema(schema, git_commit_hash, schema_start)
         self.__resolve_submodule()
         self.__resolve_imports(git_commit_hash)
         if not self.run_integrity:
@@ -408,7 +408,7 @@ class Modules:
                     self.revision = '1970-01-01'
                     self.__missing_revision = self.name
 
-    def __resolve_schema(self, schema, git_commit_hash):
+    def __resolve_schema(self, schema, git_commit_hash, schema_start):
         if self.organization == 'etsi':
             suffix = self.__path.split('SOL006')[-1]
             self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw//master/{}'.format(suffix)
@@ -418,6 +418,10 @@ class Modules:
                 split_index = '/yangmodels/yang/'
             if self.__is_vendor:
                 suffix = os.path.abspath(self.__path).split(split_index)[1]
+                if schema_start is not None:
+                    git_root_dir = schema_start.split('/')[0]
+                    if len(suffix.split(git_root_dir)) > 1:
+                        suffix = git_root_dir + suffix.split(git_root_dir)[1]
                 self.schema = schema + suffix
             else:
                 self.schema = schema
@@ -990,3 +994,4 @@ class Modules:
                         break
 
         integrity_checker.add_namespace(key2, self.__missing_namespace)
+

@@ -217,7 +217,7 @@ class Capability:
                     schema = github_raw + self.owner + '/' + self.repo + '/' + self.branch + '/' + repo_file_path
                     yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
-                                   schema, self.to, sdo)
+                                   schema, self.path, self.to, sdo)
                     self.prepare.add_key_sdo_module(yang)
 
         else:
@@ -254,7 +254,7 @@ class Capability:
                                       + '/' + self.branch + '/' + path)
                             yang.parse_all(self.branch, name,
                                            self.prepare.name_revision_organization,
-                                           schema, self.to)
+                                           schema, self.path, self.to)
                             self.prepare.add_key_sdo_module(yang)
         repo.remove()
 
@@ -349,7 +349,7 @@ class Capability:
 
                 yang.parse_all(self.branch, module_name,
                                self.prepare.name_revision_organization,
-                               schema_part, self.to)
+                               schema_part, self.path, self.to)
                 yang.add_vendor_information(self.vendor, self.platform_data,
                                             self.software_version,
                                             self.os_version, self.feature_set,
@@ -449,7 +449,7 @@ class Capability:
                         continue
                     yang.parse_all(self.branch, module_name,
                                    self.prepare.name_revision_organization,
-                                   schema_part, self.to)
+                                   schema_part, self.path, self.to)
                     yang.add_vendor_information(self.vendor, self.platform_data,
                                                 self.software_version,
                                                 self.os_version,
@@ -514,7 +514,7 @@ class Capability:
                         continue
                     yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
-                                   schema_part, self.to)
+                                   schema_part, self.path, self.to)
                     yang.add_vendor_information(self.vendor, self.platform_data,
                                                 self.software_version,
                                                 self.os_version,
@@ -536,3 +536,4 @@ class Capability:
                                                       [name])
                     LOGGER.warning('File {} not found in the repository'
                                    .format(name))
+
