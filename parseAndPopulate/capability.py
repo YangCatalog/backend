@@ -80,6 +80,7 @@ class Capability:
         self.parsed_yang = None
         self.api = api
         self.sdo = sdo
+        self.path = None
         self.yang_models_dir = yang_models_dir
         # Get hello message root
         if 'xml' in hello_message_file:
