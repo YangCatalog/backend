@@ -85,11 +85,13 @@ class RepoUtil(object):
     def get_commit_hash(self, path=None, branch='master'):
         self.updateSubmodule()
         repo_temp = self
+        remove_temp_repo = False
         if path is not None:
             for submodule in self.repo.submodules:
                 if path in submodule.path:
                     repo_temp = RepoUtil(submodule._url)
                     repo_temp.clone()
+                    remove_temp_repo = True
                     break
         found_hash = None
         if branch == 'master':
@@ -100,7 +102,7 @@ class RepoUtil(object):
                 if ref.name == branch or ref.name == 'origin/{}'.format(branch):
                     found_hash = ref.commit.hexsha
                     break
-        if path is not None:
+        if remove_temp_repo:
             repo_temp.remove()
         if found_hash is not None:
             return found_hash
@@ -275,3 +277,4 @@ if __name__ == '__main__':
         r.remove()
     except GitCommandError as e:
         print('Git Exception as expected: ' + e.stderr)
+

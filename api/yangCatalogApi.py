@@ -33,6 +33,7 @@ Documentation for all these endpoints can be found in
 ../documentation/source/index.html.md or on the yangcatalog.org/doc
 website
 """
+import io
 
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
@@ -1529,12 +1530,11 @@ def create_tree(f1, r1):
             path = path[1:]
     else:
         path = None
-    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'w')as f:
-        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                  ctx.opts.tree_line_length, path)
-    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
-        stdout = f.read()
-    os.unlink('{}/pyang_temp.txt'.format(application.temp_dir))
+
+    ctx.validate()
+    f = io.StringIO()
+    emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
+    stdout = f.getvalue()
     if stdout == '' and len(ctx.errors) != 0:
         return create_bootstrap_danger()
     elif stdout != '' and len(ctx.errors) != 0:
@@ -1662,8 +1662,8 @@ def create_diff_tree(f1, r1, f2, r2):
     ctx = create_context('{}:{}'.format(application.yang_models, application.save_file_dir))
     ctx.lax_quote_checks = True
     ctx.lax_xpath_checks = True
-    with open(schema1, 'r') as f:
-        a = ctx.add_module(schema1, f.read())
+    with open(schema1, 'r') as ff:
+        a = ctx.add_module(schema1, ff.read())
     ctx.errors = []
     if ctx.opts.tree_path is not None:
         path = ctx.opts.tree_path.split('/')
@@ -1671,32 +1671,32 @@ def create_diff_tree(f1, r1, f2, r2):
             path = path[1:]
     else:
         path = None
-    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'w')as f:
-        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                  ctx.opts.tree_line_length, path)
-    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
-        stdout = f.read()
+
+    ctx.validate()
+    f = io.StringIO()
+    emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
+    stdout = f.getvalue()
     file_name1 = 'schema1-tree-diff.txt'
-    with open('{}/{}'.format(application.diff_file_dir, file_name1), 'w+') as f:
-        f.write('<pre>{}</pre>'.format(stdout))
-    with open(schema2, 'r') as f:
-        a = ctx.add_module(schema2, f.read())
-    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'w')as f:
-        emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                  ctx.opts.tree_line_length, path)
-    with open('{}/pyang_temp.txt'.format(application.temp_dir), 'r')as f:
-        stdout = f.read()
+    full_path_file1 = '{}/{}'.format(application.diff_file_dir, file_name1)
+    with open(full_path_file1, 'w+') as ff:
+        ff.write('<pre>{}</pre>'.format(stdout))
+    with open(schema2, 'r') as ff:
+        a = ctx.add_module(schema2, ff.read())
+    ctx.validate()
+    f = io.StringIO()
+    emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
+    stdout = f.getvalue()
     file_name2 = 'schema2-tree-diff.txt'
-    with open('{}/{}'.format(application.diff_file_dir, file_name2), 'w+') as f:
-        f.write('<pre>{}</pre>'.format(stdout))
+    full_path_file2 = '{}/{}'.format(application.diff_file_dir, file_name2)
+    with open(full_path_file2, 'w+') as ff:
+        ff.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(application.my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(application.my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
-    os.remove(application.diff_file_dir + '/' + file_name1)
-    os.remove(application.diff_file_dir + '/' + file_name2)
-    os.unlink('{}/pyang_temp.txt'.format(application.temp_dir))
+    os.unlink(full_path_file1)
+    os.unlink(full_path_file2)
     return '<html><body>{}</body></html>'.format(response.text)
 
 
@@ -2720,3 +2720,4 @@ def unauthorized():
     return make_response(jsonify({'error': 'Unauthorized access'}), 401)
 
 load(False)
+
