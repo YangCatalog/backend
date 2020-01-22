@@ -8,7 +8,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install cron \
+RUN apt-get -y install cron uwsgi uwsgi-plugin-python3 \
   && apt-get autoremove -y
 
 RUN groupadd -g ${YANG_ID_GID} -r yang \
@@ -43,23 +43,33 @@ ENV UWSGI_THREADS=20
 # Add crontab file in the cron directory
 COPY crontab /etc/cron.d/yang-cron
 
+COPY yang-catalog.ini-dist $VIRTUAL_ENV/yang-catalog.ini
+RUN mkdir /var/run/yang
+
 RUN chown yang:yang /etc/cron.d/yang-cron
 RUN chown -R yang:yang $VIRTUAL_ENV
+RUN chown -R yang:yang /var/run/yang
+
 USER ${YANG_ID_GID}:${YANG_ID_GID}
 
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
-WORKDIR $VIRTUAL_ENV/api
+#WORKDIR $VIRTUAL_ENV/api
 
-CMD exec uwsgi -s :3031 --plugins python3 --protocol uwsgi \
-  -H $VIRTUAL_ENV \
-  --cache2 name=main_cache1,items=3000 \
-  --cache2 name=main_cache2,items=3000 \
-  --cache2 name=cache_modules1,items=10000,blocksize=20100 \
-  --cache2 name=cache_modules2,items=10000,blocksize=20100 \
-  --cache2 name=cache_chunks1,items=10000,blocksize=100 \
-  --cache2 name=cache_chunks2,items=10000,blocksize=100 \
-  --processes $UWSGI_PROCS --threads $UWSGI_THREADS \
-  --wsgi api.wsgi --need-app
+#CMD exec uwsgi -s :3031 --plugins python3 --protocol uwsgi \
+#  -H $VIRTUAL_ENV \
+#  --cache2 name=main_cache1,items=3000 \
+#  --cache2 name=main_cache2,items=3000 \
+#  --cache2 name=cache_modules1,items=10000,blocksize=20100 \
+#  --cache2 name=cache_modules2,items=10000,blocksize=20100 \
+#  --cache2 name=cache_chunks1,items=10000,blocksize=100 \
+#  --cache2 name=cache_chunks2,items=10000,blocksize=100 \
+#  --processes $UWSGI_PROCS --threads $UWSGI_THREADS \
+#  --wsgi api.wsgi --need-app
+
+USER root:root
+
+CMD cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
 EXPOSE 3031
+

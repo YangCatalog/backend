@@ -16,12 +16,13 @@
 #limitations under the License.
 #
 [uwsgi]
-base = /home/yang/backend
+base = /backend
 
 app = api
-module = wsgi
-virtualenv = /home/yang/backend
+module = %(app).wsgi:application
+virtualenv = /backend
 
+plugins-dir = /usr/lib/uwsgi/plugins
 plugin=python3
 
 master = true
@@ -31,12 +32,14 @@ threads = 20
 uid = yang
 gid = yang
 
-home = /home/yang/backend
-chdir = /home/yang/backend/backend/api
+home = /backend
+chdir = /backend
 
-socket = :8443
+callable = app
+
+socket = :3031
 #socket = /var/run/yang/yang-catalog.sock
-#chmod-socket = 666
+chmod-socket = 666
 vacuum = true
 
 die-on-term = true
@@ -52,4 +55,5 @@ cache2 = name=cache_modules1,items=40000,blocksize=20100
 cache2 = name=cache_modules2,items=40000,blocksize=20100
 cache2 = name=cache_chunks1,items=40000,blocksize=100
 cache2 = name=cache_chunks2,items=40000,blocksize=100
+
 
