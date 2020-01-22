@@ -15,16 +15,8 @@ RUN groupadd -g ${YANG_ID_GID} -r yang \
   && useradd --no-log-init -r -g yang -u ${YANG_ID_GID} -d $VIRTUAL_ENV yang \
   && pip install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
-  && mkdir -p \
-   #    /var/yang/tmp /var/yang/logs \
-   #    /var/yang/cache /var/yang/backup \
-   #    /var/yang/all_modules \
-   #    /var/yang/requests \
-   #    /var/yang/commit_dir \
-   #    /var/yang/ytrees \
-   #    /var/yang/nonietf/yangmodels/yang \
-        /etc/yangcatalog
- # && chown -R yang:yang /var/yang
+  && mkdir -p /etc/yangcatalog
+
 COPY . $VIRTUAL_ENV
 
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
@@ -54,22 +46,11 @@ USER ${YANG_ID_GID}:${YANG_ID_GID}
 
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
-#WORKDIR $VIRTUAL_ENV/api
-
-#CMD exec uwsgi -s :3031 --plugins python3 --protocol uwsgi \
-#  -H $VIRTUAL_ENV \
-#  --cache2 name=main_cache1,items=3000 \
-#  --cache2 name=main_cache2,items=3000 \
-#  --cache2 name=cache_modules1,items=10000,blocksize=20100 \
-#  --cache2 name=cache_modules2,items=10000,blocksize=20100 \
-#  --cache2 name=cache_chunks1,items=10000,blocksize=100 \
-#  --cache2 name=cache_chunks2,items=10000,blocksize=100 \
-#  --processes $UWSGI_PROCS --threads $UWSGI_THREADS \
-#  --wsgi api.wsgi --need-app
 
 USER root:root
 
 CMD cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
 EXPOSE 3031
+
 
