@@ -35,6 +35,8 @@ website
 """
 import io
 
+from pyang import plugin
+
 __author__ = "Miroslav Kovac"
 __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
@@ -1521,7 +1523,13 @@ def search_recursive(output, module, leaf, resolved):
 @application.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
 def create_tree(f1, r1):
     path_to_yang = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
+    plugin.init([])
     ctx = create_context('{}:{}'.format(application.yang_models, application.save_file_dir))
+    ctx.opts.lint_namespace_prefixes = []
+    ctx.opts.lint_modulename_prefixes = []
+
+    for p in plugin.plugins:
+        p.setup_ctx(ctx)
     with open(path_to_yang, 'r') as f:
         a = ctx.add_module(path_to_yang, f.read())
     if ctx.opts.tree_path is not None:
@@ -1659,9 +1667,15 @@ def create_diff_tree(f1, r1, f2, r2):
             return 'Server error - could not create directory'
     schema1 = '{}/{}@{}.yang'.format(application.save_file_dir, f1, r1)
     schema2 = '{}/{}@{}.yang'.format(application.save_file_dir, f2, r2)
+    plugin.init([])
     ctx = create_context('{}:{}'.format(application.yang_models, application.save_file_dir))
+    ctx.opts.lint_namespace_prefixes = []
+    ctx.opts.lint_modulename_prefixes = []
     ctx.lax_quote_checks = True
     ctx.lax_xpath_checks = True
+    for p in plugin.plugins:
+        p.setup_ctx(ctx)
+
     with open(schema1, 'r') as ff:
         a = ctx.add_module(schema1, ff.read())
     ctx.errors = []
