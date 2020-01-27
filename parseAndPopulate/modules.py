@@ -650,15 +650,19 @@ class Modules:
                                           self.organization)
 
         # Don t override status if it was already written once
-        if os.path.exists('{}/{}'.format(self.html_result_dir, file_url)):
+        file_path = '{}/{}'.format(self.html_result_dir, file_url)
+        if os.path.exists(file_path):
             if self.compilation_status['status'] in ['unknown', 'pending']:
                 self.compilation_status['status'] = None
             else:
-                with open('{}/{}'.format(self.html_result_dir, file_url), 'w', encoding='utf-8') as f:
+                with open(file_path, 'w', encoding='utf-8') as f:
                     f.write(rendered_html)
+                os.chmod(file_path, 0o664)
         else:
-            with open('{}/{}'.format(self.html_result_dir, file_url), 'w', encoding='utf-8') as f:
+            with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(rendered_html)
+            os.chmod(file_path, 0o664)
+
         return 'https://yangcatalog.org/results/{}'.format(file_url)
 
     def __resolve_contact(self):
