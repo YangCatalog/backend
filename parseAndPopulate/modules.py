@@ -38,6 +38,11 @@ from parseAndPopulate.parseException import ParseException
 from utility import log, yangParser
 from utility.util import find_first_file
 
+if sys.version_info >= (3, 4):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
+
 IETF_RFC_MAP = {
     "iana-crypt-hash@2014-08-06.yang": "NETMOD",
     "iana-if-type@2014-05-08.yang": "NETMOD",
@@ -129,6 +134,11 @@ class Modules:
         """
         global LOGGER
         LOGGER = log.get_logger('modules', log_directory + '/parseAndPopulate.log')
+        config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(config_path)
+        self.__web_uri = config.get('Web-Section', 'my_uri', fallback="https://yangcatalog.org")
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir
         self.__missing_submodules = []
@@ -663,7 +673,7 @@ class Modules:
                 f.write(rendered_html)
             os.chmod(file_path, 0o664)
 
-        return 'https://yangcatalog.org/results/{}'.format(file_url)
+        return '{}/results/{}'.format(self.__web_uri, file_url)
 
     def __resolve_contact(self):
         try:

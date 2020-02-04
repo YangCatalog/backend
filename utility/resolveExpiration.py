@@ -74,8 +74,9 @@ def __resolve_expiration(reference, module, args):
         if module.get('expires') != expires or module.get('expired') != expired:
             module['expires'] = expires
             module['expired'] = expired
-            url = 'https://yangcatalog.org:8888/api/config/catalog/modules/module/{},{},{}' \
-                .format(module['name'], module['revision'],
+            prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
+            url = '{}/api/config/catalog/modules/module/{},{},{}' \
+                .format(prefix, module['name'], module['revision'],
                         module['organization'])
             response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
                                       auth=(args.credentials[0],
@@ -94,29 +95,49 @@ def __resolve_expiration(reference, module, args):
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--credentials',
-                        help='Set authorization parameters username password respectively.'
-                             ' Default parameters are admin admin', nargs=2,
-                        default=['admin', 'admin'], type=str)
-    parser.add_argument('--api-protocol', type=str, default='https',
-                        help='Whether api runs on http or https.'
-                             ' Default is set to http')
-    parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
-                        help='Set ip address where the api is started. Default -> yangcatalog.org')
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    args = parser.parse_args()
-    config_path = args.config_path
+    config_path = '/etc/yangcatalog/yangcatalog.conf'
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger('resolveExpiration', log_directory + '/jobs/resolveExpiration.log')
+    is_uwsgi = config.get('General-Section', 'uwsgi')
+    confd_protocol = config.get('General-Section', 'protocol')
+    confd_port = config.get('General-Section', 'confd-port')
+    confd_host = config.get('General-Section', 'confd-ip')
+    api_protocol = config.get('General-Section', 'protocol-api')
+    api_port = config.get('General-Section', 'api-port')
+    api_host = config.get('DraftPullLocal-Section', 'api-ip')
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--credentials',
+                        help='Set authorization parameters username password respectively.'
+                             ' Default parameters are admin admin', nargs=2,
+                        default=['admin', 'admin'], type=str)
+    parser.add_argument('--ip', default=confd_host, type=str,
+                        help='Set host where the Confd is started. Default: ' + confd_host)
+    parser.add_argument('--port', default=confd_port, type=int,
+                        help='Set port where the Confd is started. Default: ' + confd_port)
+    parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether Confd runs on http or https.'
+                         ' Default: ' + confd_protocol)
+    parser.add_argument('--api-ip', default=api_host, type=str,
+                        help='Set host where the API is started. Default: ' + api_host)
+    parser.add_argument('--api-port', default=api_port, type=int,
+                        help='Set port where the API is started. Default: ' + api_port)
+    parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
+                                                                          ' Default: ' + api_protocol)
+    args = parser.parse_args()
+
+    separator = ':'
+    suffix = args.api_port
+    if is_uwsgi == 'True':
+        separator = '/'
+        suffix = 'api'
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
+                                                   args.api_ip, separator,
+                                                   suffix)
     updated = False
 
-    modules = requests.get('{}://{}/api/search/modules'.format(args.api_protocol,
-                                                               args.api_ip),
+    modules = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
                            auth=(args.credentials[0], args.credentials[1]))
     modules = modules.json()['module']
     for mod in modules:
@@ -125,7 +146,7 @@ if __name__ == '__main__':
         if not updated:
             updated = ret
     if updated:
-        url = (args.api_protocol + '://' + args.api_ip + '/api/load-cache')
+        url = ('{}load-cache'.format(yangcatalog_api_prefix))
         response = requests.post(url, None, auth=(args.credentials[0],
                                                   args.credentials[1]))
         LOGGER.info('Cache loaded with status {}'.format(response.status_code))
