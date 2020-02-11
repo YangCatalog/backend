@@ -111,7 +111,6 @@ def process_sdo(arguments):
             return __response_type[0] + '#split#Server error - could not create directory'
 
     if tree_created:
-       # subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/sdo/"])
         copytree(direc + "/temp/", temp_dir + "/sdo")
         with open(direc + '/prepare.json', 'r') as f:
             global all_modules
@@ -640,7 +639,7 @@ def on_request(ch, method, props, body):
                 final_response = __response_type[0]
                 mf = messageFactory.MessageFactory()
                 mf.send_automated_procedure_failed(arguments, temp_dir + "/log_no_sdo_api.txt")
-                LOGGER.error('check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(e.stdout, e.stderr))
+                LOGGER.error('check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(e.output, e.stderr))
             except:
                 final_response = __response_type[0]
                 LOGGER.error("check log_trigger.txt failed to process github message with error {}".format(sys.exc_info()[0]))
