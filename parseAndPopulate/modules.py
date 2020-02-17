@@ -395,12 +395,14 @@ class Modules:
             self.implementation.append(implementation)
 
     def __resolve_name(self, name):
+        LOGGER.debug("Resolving name")
         if self.__parsed_yang.arg is not None or self.__parsed_yang.arg != '':
             self.name = self.__parsed_yang.arg
         else:
             self.name = name
 
     def __resolve_revision(self):
+        LOGGER.debug("Resolving revision")
         if self.revision == '*':
             try:
                 self.revision = self.__parsed_yang.search('revision')[0].arg
@@ -419,6 +421,7 @@ class Modules:
                     self.__missing_revision = self.name
 
     def __resolve_schema(self, schema, git_commit_hash, schema_start):
+        LOGGER.debug("Resolving schema")
         if self.organization == 'etsi':
             suffix = self.__path.split('SOL006')[-1]
             self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw//master/{}'.format(suffix)
@@ -439,12 +442,14 @@ class Modules:
             self.schema = None
 
     def __resolve_module_classification(self, module_classification=None):
+        LOGGER.debug("Resolving module classification")
         if module_classification:
             self.module_classification = module_classification
         else:
             self.module_classification = 'unknown'
 
     def __resolve_maturity_level(self, maturity_level=None):
+        LOGGER.debug("Resolving maturity level")
         if maturity_level:
             self.maturity_level = maturity_level
         else:
@@ -483,6 +488,7 @@ class Modules:
             self.maturity_level = None
 
     def __resolve_author_email(self, author_email=None):
+        LOGGER.debug("Resolving author email")
         if author_email:
             self.author_email = author_email
         else:
@@ -517,6 +523,7 @@ class Modules:
             self.author_email = None
 
     def __resolve_working_group(self):
+        LOGGER.debug("Resolving working group")
         if self.organization == 'ietf':
             yang_name = self.name + '.yang'
             yang_name_rev = self.name + '@' + self.revision + '.yang'
@@ -549,6 +556,7 @@ class Modules:
 
     def __resolve_document_name_and_reference(self, document_name=None,
                                               reference=None):
+        LOGGER.debug("Resolving document name and reference")
         if document_name:
             self.document_name = document_name
         if reference:
@@ -559,6 +567,7 @@ class Modules:
                 self.__parse_document_reference()
 
     def __resolve_submodule(self):
+        LOGGER.debug("Resolving submodule")
         try:
             submodules = self.__parsed_yang.search('include')
         except:
@@ -605,6 +614,7 @@ class Modules:
                                            range(0, len(self.submodule))])
 
     def __resolve_yang_version(self):
+        LOGGER.debug("Resolving yang version")
         try:
             self.yang_version = self.__parsed_yang.search('yang-version')[0].arg
         except:
@@ -613,6 +623,7 @@ class Modules:
             self.yang_version = '1.0'
 
     def __resolve_generated_from(self, generated_from=None):
+        LOGGER.debug("Resolving generated from")
         if generated_from:
             self.generated_from = generated_from
         else:
@@ -624,6 +635,7 @@ class Modules:
                 self.generated_from = 'not-applicable'
 
     def __resolve_compilation_status_and_result(self):
+        LOGGER.debug("Resolving compiation status and result")
         self.compilation_status = self.__parse_status()
         if self.compilation_status['status'] not in ['passed', 'passed-with-warnings', 'failed', 'pending', 'unknown']:
             self.compilation_status['status'] = 'unknown'
@@ -645,6 +657,7 @@ class Modules:
         self.compilation_status = self.compilation_status['status']
 
     def __create_compilation_result_file(self):
+        LOGGER.debug("Resolving compilation status")
         if self.compilation_status['status'] == 'passed' \
                 and self.compilation_result['pyang_lint'] == '':
             return ''
@@ -676,23 +689,27 @@ class Modules:
         return '{}/results/{}'.format(self.__web_uri, file_url)
 
     def __resolve_contact(self):
+        LOGGER.debug("Resolving contact")
         try:
             self.contact = self.__parsed_yang.search('contact')[0].arg
         except:
             self.contact = None
 
     def __resolve_description(self):
+        LOGGER.debug("Resolving description")
         try:
             self.description = self.__parsed_yang.search('description')[0].arg
         except:
             self.description = None
 
     def __resolve_namespace(self):
+        LOGGER.debug("Resolving namespace")
         self.namespace = self.__resolve_submodule_case('namespace')
         if self.namespace == MISSING_ELEMENT:
             self.__missing_namespace = self.name + ' : ' + MISSING_ELEMENT
 
     def __resolve_belongs_to(self):
+        LOGGER.debug("Resolving belongs to")
         if self.module_type == 'submodule':
             try:
                 self.belongs_to = self.__parsed_yang.search('belongs-to')[0].arg
@@ -700,7 +717,7 @@ class Modules:
                 self.belongs_to = None
 
     def __resolve_module_type(self):
-        LOGGER.debug('Searching for module type')
+        LOGGER.debug("Resolving module type")
         try:
             file_input = open(self.__path, "r", encoding='utf-8')
         except:
@@ -739,6 +756,7 @@ class Modules:
         self.module_type = None
 
     def __resolve_organization(self, organization=None):
+        LOGGER.debug("Resolving organization")
         if organization:
             self.organization = organization.lower()
         else:
@@ -771,6 +789,7 @@ class Modules:
                 self.organization = 'independent'
 
     def __resolve_prefix(self):
+        LOGGER.debug("Resolving prefix")
         self.prefix = self.__resolve_submodule_case('prefix')
 
     def __resolve_submodule_case(self, field):

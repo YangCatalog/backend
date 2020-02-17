@@ -177,6 +177,7 @@ class Capability:
 
     def parse_and_dump_sdo(self):
         repo = None
+        branch = None
         if self.api:
             LOGGER.debug('Parsing sdo files sent via API')
             with open(self.json_dir + '/prepare-sdo.json', 'r') as f:
@@ -195,8 +196,9 @@ class Capability:
                 self.branch = sdo['source-file'].get('branch')
                 if not self.branch:
                     self.branch = 'master'
-                self.branch = repo.get_commit_hash('/'.join(repo_file_path.split('/')[:-1]), self.branch)
-                root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + self.branch + '/' \
+                if branch is None:
+                    branch = repo.get_commit_hash('/'.join(repo_file_path.split('/')[:-1]), self.branch)
+                root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + branch + '/' \
                        + '/'.join(repo_file_path.split('/')[:-1])
                 root = self.json_dir + '/temp/' + root
                 if sys.version_info < (3, 4):
@@ -215,8 +217,8 @@ class Capability:
                         LOGGER.error(e.msg)
                         continue
                     name = file_name.split('.')[0].split('@')[0]
-                    schema = github_raw + self.owner + '/' + self.repo + '/' + self.branch + '/' + repo_file_path
-                    yang.parse_all(self.branch, name,
+                    schema = github_raw + self.owner + '/' + self.repo + '/' + branch + '/' + repo_file_path
+                    yang.parse_all(branch, name,
                                    self.prepare.name_revision_organization,
                                    schema, self.path, self.to, sdo)
                     self.prepare.add_key_sdo_module(yang)
@@ -250,10 +252,11 @@ class Capability:
                                 path = abs_path.split('/yangmodels/yang/')[1]
                             else:
                                 path = re.split('tmp\/\w*\/', abs_path)[1]
-                            self.branch = repo.get_commit_hash(path, self.branch)
+                            if branch is None:
+                                branch = repo.get_commit_hash(path, self.branch)
                             schema = (github_raw + self.owner + '/' + self.repo
-                                      + '/' + self.branch + '/' + path)
-                            yang.parse_all(self.branch, name,
+                                      + '/' + branch + '/' + path)
+                            yang.parse_all(branch, name,
                                            self.prepare.name_revision_organization,
                                            schema, self.path, self.to)
                             self.prepare.add_key_sdo_module(yang)
