@@ -63,9 +63,11 @@ class ModulesComplicatedAlgorithms:
         self.__prefix = '{}://{}:{}'.format(protocol, ip, port)
         self.__yang_models = yang_models_dir
         self.temp_dir = temp_dir
+        self.recursion_limit = sys.getrecursionlimit()
 
     def parse_non_requests(self):
         LOGGER.info("parsing tree types")
+        sys.setrecursionlimit(10000)
         self.__resolve_tree_type()
 
     def parse_requests(self):
@@ -77,6 +79,7 @@ class ModulesComplicatedAlgorithms:
         self.__parse_semver(modules)
         LOGGER.info("parsing dependents")
         self.__parse_dependents(modules)
+        sys.setrecursionlimit(self.recursion_limit)
         LOGGER.info('parsing expiration')
         self.__parse_expire(modules)
 
@@ -252,7 +255,7 @@ class ModulesComplicatedAlgorithms:
                     try:
                         f = io.StringIO()
                         emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                                      ctx.opts.tree_line_length, path)
+                                  ctx.opts.tree_line_length, path)
                         stdout = f.getvalue()
                     except:
                         stdout = ""
@@ -342,9 +345,10 @@ class ModulesComplicatedAlgorithms:
         for module in self.__all_modules['module']:
             x += 1
             self.__path = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                            module['name'],
-                                                            module['revision'])
-            LOGGER.info('Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
+                                                 module['name'],
+                                                 module['revision'])
+            LOGGER.info(
+                'Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
             LOGGER.debug(
                 'Get tree type from tag from module {}'.format(self.__path))
             plugin.init([])
@@ -368,7 +372,15 @@ class ModulesComplicatedAlgorithms:
                     path = path[1:]
             else:
                 path = None
-            ctx.validate()
+            retry = 5
+            while retry:
+                try:
+                    ctx.validate()
+                    break
+                except Exception as e:
+                    retry -= 1
+                    if retry == 0:
+                        raise e
             try:
                 f = io.StringIO()
                 emit_tree(ctx, [a], f, ctx.opts.tree_depth,
@@ -410,7 +422,8 @@ class ModulesComplicatedAlgorithms:
                     if m['revision'] != module['revision']:
                         data['{}@{}'.format(m['name'], m['revision'])] = m
 
-            LOGGER.info('Searching semver for {}. {} out of {}'.format(module['name'], z, len(self.__all_modules['module'])))
+            LOGGER.info(
+                'Searching semver for {}. {} out of {}'.format(module['name'], z, len(self.__all_modules['module'])))
             if len(data) == 0:
                 module['derived-semantic-version'] = '1.0.0'
                 self.__new_modules.append(module)
@@ -452,7 +465,9 @@ class ModulesComplicatedAlgorithms:
                     try:
                         module_temp['date'] = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
                     except Exception:
-                        LOGGER.warning('Failed to process revision for {}: (rev: {}) setting it to 28th'.format(module['name'], rev))
+                        LOGGER.warning(
+                            'Failed to process revision for {}: (rev: {}) setting it to 28th'.format(module['name'],
+                                                                                                     rev))
                         try:
                             if int(rev[1]) == 2 and int(rev[2]) == 29:
                                 module_temp['date'] = datetime(int(rev[0]), int(rev[1]), 28)
@@ -495,13 +510,14 @@ class ModulesComplicatedAlgorithms:
                             continue
                         else:
                             schema2 = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                            modules[-2]['name'],
-                                                            modules[-2]['revision'])
+                                                             modules[-2]['name'],
+                                                             modules[-2]['revision'])
                             schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                            modules[-1]['name'],
-                                                            modules[-1]['revision'])
+                                                             modules[-1]['name'],
+                                                             modules[-1]['revision'])
                             plugin.init([])
-                            ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
+                            ctx = create_context(
+                                '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
                             ctx.opts.lint_namespace_prefixes = []
                             ctx.opts.lint_modulename_prefixes = []
                             for p in plugin.plugins:
@@ -513,8 +529,16 @@ class ModulesComplicatedAlgorithms:
                             ctx.opts.verbose = False
                             ctx.opts.old_path = []
                             ctx.opts.old_deviation = []
-                            ctx.validate()
-                            check_update(ctx, schema2, a1)
+                            retry = 5
+                            while retry:
+                                try:
+                                    ctx.validate()
+                                    check_update(ctx, schema2, a1)
+                                    break
+                                except Exception as e:
+                                    retry -= 1
+                                    if retry == 0:
+                                        raise e
                             if len(ctx.errors) == 0:
                                 with open(schema2, 'r', errors='ignore') as f:
                                     a2 = ctx.add_module(schema2, f.read())
@@ -524,7 +548,15 @@ class ModulesComplicatedAlgorithms:
                                         path = path[1:]
                                 else:
                                     path = None
-                                ctx.validate()
+                                retry = 5
+                                while retry:
+                                    try:
+                                        ctx.validate()
+                                        break
+                                    except Exception as e:
+                                        retry -= 1
+                                        if retry == 0:
+                                            raise e
                                 try:
                                     f = io.StringIO()
                                     emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
@@ -616,7 +648,8 @@ class ModulesComplicatedAlgorithms:
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
                                 plugin.init([])
-                                ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
+                                ctx = create_context(
+                                    '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
                                 ctx.opts.lint_namespace_prefixes = []
                                 ctx.opts.lint_modulename_prefixes = []
                                 for p in plugin.plugins:
@@ -628,8 +661,16 @@ class ModulesComplicatedAlgorithms:
                                 ctx.opts.verbose = False
                                 ctx.opts.old_path = []
                                 ctx.opts.old_deviation = []
-                                ctx.validate()
-                                check_update(ctx, schema2, a1)
+                                retry = 5
+                                while retry:
+                                    try:
+                                        ctx.validate()
+                                        check_update(ctx, schema2, a1)
+                                        break
+                                    except Exception as e:
+                                        retry -= 1
+                                        if retry == 0:
+                                            raise e
                                 if len(ctx.errors) == 0:
                                     with open(schema2, 'r', errors='ignore') as f:
                                         a2 = ctx.add_module(schema2, f.read())
@@ -639,7 +680,15 @@ class ModulesComplicatedAlgorithms:
                                             path = path[1:]
                                     else:
                                         path = None
-                                    ctx.validate()
+                                    retry = 5
+                                    while retry:
+                                        try:
+                                            ctx.validate()
+                                            break
+                                        except Exception as e:
+                                            retry -= 1
+                                            if retry == 0:
+                                                raise e
                                     try:
                                         f = io.StringIO()
                                         emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
@@ -647,12 +696,11 @@ class ModulesComplicatedAlgorithms:
                                         stdout = f.getvalue()
                                     except:
                                         stdout = ""
-                                        
                                     try:
                                         f = io.StringIO()
 
                                         emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
-                                                      ctx.opts.tree_line_length, path)
+                                                  ctx.opts.tree_line_length, path)
                                         stdout2 = f.getvalue()
                                     except:
                                         stdout2 = "2"
@@ -694,7 +742,7 @@ class ModulesComplicatedAlgorithms:
                 name = mod['name']
                 revision = mod['revision']
                 new_dependencies = mod['dependencies']
-                if mod.get('dependents')is None:
+                if mod.get('dependents') is None:
                     mod['dependents'] = []
                 # add dependents to already existing modules based on new dependencies from new modules
                 for new_dep in new_dependencies:
