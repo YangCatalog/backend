@@ -193,13 +193,13 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                     m_name = mod['name']
                     m_rev = mod['revision']
                     m_org = mod['organization']
-                    url = ('{}://{}:{}/api/config/catalog/modules/module/'
+                    url = ('{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/'
                            '{},{},{}/dependents/{}'.format(confd_protocol,
                                                            confd_ip,
                                                            confdPort, m_name,
                                                            m_rev, m_org, name))
                     requests.delete(url, auth=(credentials[0], credentials[1]),
-                                    headers={'Content-Type': 'application/vnd.yang.data+json'})
+                                    headers={'Content-Type': 'application/yang-data+json'})
             if os.path.exists(path_to_delete_local):
                 os.remove(path_to_delete_local)
     else:
@@ -219,8 +219,8 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                                                          module['revision'],
                                                          module['organization'])
                 response = requests.get(url, auth=(credentials[0], credentials[1]),
-                                        headers={'Content-Type': 'application/vnd.yang.data+json',
-                                                 'Accept': 'application/vnd.yang.data+json'})
+                                        headers={'Content-Type': 'application/yang-data+json',
+                                                 'Accept': 'application/yang-data+json'})
                 code = response.status_code
                 if force_indexing or (code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
@@ -236,8 +236,8 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
                                                          module['revision'],
                                                          module['organization'])
                 response = requests.get(url, auth=(credentials[0], credentials[1]),
-                                        headers={'Content-Type': 'application/vnd.yang.data+json',
-                                                 'Accept': 'application/vnd.yang.data+json'})
+                                        headers={'Content-Type': 'application/yang-data+json',
+                                                 'Accept': 'application/yang-data+json'})
                 code = response.status_code
 
                 if code != 200 and code != 201 and code != 204:
@@ -395,11 +395,11 @@ def process_vendor_deletion(arguments):
 
     for mod in modules:
         try:
-            path = protocol + '://' + confd_ip + ':' + repr(confdPort) + '/api/config/catalog/modules/module/' \
+            path = protocol + '://' + confd_ip + ':' + repr(confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' \
                    + mod
-            modules_data = requests.get(path + '?deep', auth=(credentials[0], credentials[1]),
-                                        headers={'Content-Type': 'application/vnd.yang.data+json',
-                                                 'Accept': 'application/vnd.yang.data+json'}).json()
+            modules_data = requests.get(path, auth=(credentials[0], credentials[1]),
+                                        headers={'Content-Type': 'application/yang-data+json',
+                                                 'Accept': 'application/yang-data+json'}).json()
             implementations = modules_data['yang-catalog:module']['implementations']['implementation']
             count_of_implementations = len(implementations)
             count_deleted = 0
@@ -453,7 +453,7 @@ def process_vendor_deletion(arguments):
                 dependents = existing_module['dependents']
                 for dep in dependents:
                     if dep['name'] == name and dep['revision'] == rev:
-                        path = '{}://{}:{}/api/config/catalog/modules/module/{},{},{}/dependents/{}'
+                        path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}/dependents/{}'
                         response = requests.delete(path.format(confd_protocol, confd_ip, confdPort,
                                                                existing_module['name'], existing_module['revision'],
                                                                existing_module['organization'], dep['name']))
@@ -510,8 +510,8 @@ def make_cache(credentials):
     """
     path = yangcatalog_api_prefix + 'load-cache'
     response = requests.post(path, auth=(credentials[0], credentials[1]),
-                             headers={'Content-Type': 'application/vnd.yang.data+json',
-                                      'Accept': 'application/vnd.yang.data+json'}
+                             headers={'Content-Type': 'application/yang-data+json',
+                                      'Accept': 'application/yang-data+json'}
                              )
     code = response.status_code
 
@@ -539,7 +539,7 @@ def process_module_deletion(arguments, multiple=False):
         modules = json.loads(path_to_delete)['modules']
         for mod in modules:
             paths.append(confd_protocol + '://' + confd_ip + ':' + repr(
-                confdPort) + '/api/config/catalog/modules/module/' \
+                confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' \
                          + mod['name'] + ',' + mod['revision'] + ',' + mod[
                              'organization'])
     else:
@@ -555,7 +555,7 @@ def process_module_deletion(arguments, multiple=False):
                 dependents = existing_module['dependents']
                 for dep in dependents:
                     if dep['name'] == mod['name'] and dep['revision'] == mod['revision']:
-                        path = '{}://{}:{}/api/config/catalog/modules/module/{},{},{}/dependents/{}'
+                        path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}/dependents/{}'
                         response = requests.delete(path.format(confd_protocol, confd_ip, confdPort,
                                                                existing_module['name'], existing_module['revision'],
                                                                existing_module['organization'], dep['name']))

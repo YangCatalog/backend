@@ -148,8 +148,8 @@ def get_specifics(path_dir):
             organization = organization.replace(' ', '%20')
             path = '{}search/name/{}'.format(yangcatalog_api_prefix, name)
             module_exist = requests.get(path, auth=(auth[0], auth[1]),
-                                        headers={'Accept': 'application/vnd.yang.data+json',
-                                                 'Content-Type': 'application/vnd.yang.data+json'})
+                                        headers={'Accept': 'application/yang-data+json',
+                                                 'Content-Type': 'application/yang-data+json'})
             if repr(module_exist.status_code).startswith('20'):
                 data = module_exist.json()
                 org = data['yang-catalog:modules']['module'][0]['organization']

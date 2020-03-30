@@ -75,15 +75,15 @@ def __resolve_expiration(reference, module, args):
             module['expires'] = expires
             module['expired'] = expired
             prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
-            url = '{}/api/config/catalog/modules/module/{},{},{}' \
+            url = '{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}' \
                 .format(prefix, module['name'], module['revision'],
                         module['organization'])
             response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
                                       auth=(args.credentials[0],
                                             args.credentials[1]),
                                       headers={
-                                          'Accept': 'application/vnd.yang.data+json',
-                                          'Content-type': 'application/vnd.yang.data+json'}
+                                          'Accept': 'application/yang-data+json',
+                                          'Content-type': 'application/yang-data+json'}
                                       )
             LOGGER.info('module {}@{} updated with code {}'.format(module['name'], module['revision'],
                                                                    response.status_code))

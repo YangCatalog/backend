@@ -59,8 +59,8 @@ def reload_cache_in_parallel():
                              auth=(args.credentials[0],
                                    args.credentials[1]),
                              headers={
-                                 'Accept': 'application/vnd.yang.data+json',
-                                 'Content-type': 'application/vnd.yang.data+json'})
+                                 'Accept': 'application/yang-data+json',
+                                 'Content-type': 'application/yang-data+json'})
     if response.status_code != 201:
         LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                        .format(response.status_code, response.text))
@@ -219,13 +219,13 @@ if __name__ == "__main__":
             })
 
             if '{"module": []}' not in read:
-                url = prefix + '/api/config/catalog/modules/'
+                url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
                 response = requests.patch(url, json_modules_data,
                                           auth=(args.credentials[0],
                                                 args.credentials[1]),
                                           headers={
-                                              'Accept': 'application/vnd.yang.data+json',
-                                              'Content-type': 'application/vnd.yang.data+json'})
+                                              'Accept': 'application/yang-data+json',
+                                              'Content-type': 'application/yang-data+json'})
                 if response.status_code < 200 or response.status_code > 299:
                     LOGGER.error('Request with body {} on path {} failed with {}'
                                  .format(json_modules_data, url,
@@ -237,13 +237,13 @@ if __name__ == "__main__":
                 'module': modules_json[int(rest): int(rest + mod)]
             }
     })
-    url = prefix + '/api/config/catalog/modules/'
+    url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
     response = requests.patch(url, json_modules_data,
                               auth=(args.credentials[0],
                                     args.credentials[1]),
                               headers={
-                                  'Accept': 'application/vnd.yang.data+json',
-                                  'Content-type': 'application/vnd.yang.data+json'})
+                                  'Accept': 'application/yang-data+json',
+                                  'Content-type': 'application/yang-data+json'})
     if response.status_code < 200 or response.status_code > 299:
         LOGGER.error('Request with body {} on path {} failed with {}'
                      .format(json_modules_data, url,
@@ -265,13 +265,13 @@ if __name__ == "__main__":
                 })
 
                 # Make a PATCH request to create a root for each file
-                url = prefix + '/api/config/catalog/vendors/'
+                url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'
                 response = requests.patch(url, json_implementations_data,
                                           auth=(args.credentials[0],
                                                 args.credentials[1]),
                                           headers={
-                                              'Accept': 'application/vnd.yang.data+json',
-                                              'Content-type': 'application/vnd.yang.data+json'})
+                                              'Accept': 'application/yang-data+json',
+                                              'Content-type': 'application/yang-data+json'})
                 if response.status_code < 200 or response.status_code > 299:
                     LOGGER.error('Request with body on path {} failed with {}'.
                                  format(json_implementations_data, url,
@@ -283,13 +283,13 @@ if __name__ == "__main__":
                         'vendor': vendors[rest: rest + mod]
                     }
             })
-            url = prefix + '/api/config/catalog/vendors/'
+            url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'
             response = requests.patch(url, json_implementations_data,
                                       auth=(args.credentials[0],
                                             args.credentials[1]),
                                       headers={
-                                          'Accept': 'application/vnd.yang.data+json',
-                                          'Content-type': 'application/vnd.yang.data+json'})
+                                          'Accept': 'application/yang-data+json',
+                                          'Content-type': 'application/yang-data+json'})
             if response.status_code < 200 or response.status_code > 299:
                 LOGGER.error('Request with body on path {} failed with {}'
                              .format(json_implementations_data, url,

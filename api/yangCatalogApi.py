@@ -413,9 +413,9 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
     """
     try:
         if data is None:
-            path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog?deep'
+            path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
             data = requests.get(path, auth=(credentials[0], credentials[1]),
-                                headers={'Accept': 'application/vnd.yang.data+json'}).text
+                                headers={'Accept': 'application/yang-data+json'}).text
 
         if is_uwsgi == 'True':
             chunks = int(math.ceil(len(data)/float(64000)))
@@ -744,10 +744,10 @@ def delete_module(name, revision, organization):
     except MySQLdb.MySQLError as err:
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
     response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(
-        application.confdPort) + '/api/config/catalog/modules/module/' + name +
+        application.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' + name +
                             ',' + revision + ',' + organization,
                             auth=(application.credentials[0], application.credentials[1]),
-                            headers={'Content-type': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
+                            headers={'Content-type': 'application/yang-data+json', 'Accept': 'application/yang-data+json'})
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return not_found()
     read = response.json()
@@ -776,7 +776,7 @@ def delete_module(name, revision, organization):
                         {'error': '{}@{} module has reference in another module submodule: {}@{}'.format(
                             name, revision, existing_module['name'],existing_module['revision'])}),
                         400)
-    path_to_delete = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/modules/module/' \
+    path_to_delete = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' \
                      + name + ',' + revision + ',' + organization
 
     arguments = [application.protocol, application.confd_ip, repr(application.confdPort), application.credentials[0],
@@ -822,9 +822,9 @@ def delete_modules():
     else:
         return not_found()
     for mod in modules:
-        response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/modules/module/' + mod['name'] +
+        response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' + mod['name'] +
             ',' + mod['revision'] + ',' + mod['organization'],auth=(application.credentials[0], application.credentials[1]),
-                        headers={'Content-type': 'application/vnd.yang.data+json', 'Accept': 'application/vnd.yang.data+json'})
+                        headers={'Content-type': 'application/yang-data+json', 'Accept': 'application/yang-data+json'})
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
             return not_found()
         read = response.json()
@@ -926,7 +926,7 @@ def delete_vendor(value):
         if len(rights) > 4:
             check_software_flavor = rights[4]
 
-    path_to_delete = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/vendors/' \
+    path_to_delete = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog/vendors/' \
                      + value + '?deep'
 
     vendor = 'None'
@@ -952,7 +952,7 @@ def delete_vendor(value):
         return unauthorized()
 
     arguments = [vendor, platform, software_version, software_flavor, application.protocol, application.confd_ip, repr(application.confdPort), application.credentials[0],
-                 application.credentials[1], path_to_delete, 'DELETE', application.api_protocol, repr(application.api_port)]
+                 application.credentials[1], path_to_delete.replace('?deep', ''), 'DELETE', application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
 
     application.LOGGER.info('job_id {}'.format(job_id))
@@ -983,7 +983,7 @@ def add_modules():
     shutil.copy('./prepare-sdo.json', application.save_requests + '/sdo-'
                 + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
 
-    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/modules'
+    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:modules'
 
     str_to_encode = '%s:%s' % (application.credentials[0], application.credentials[1])
     if sys.version_info >= (3, 4):
@@ -992,8 +992,8 @@ def add_modules():
     if sys.version_info >= (3, 4):
         base64string = base64string.decode(encoding='utf-8', errors='strict')
     response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic ' + base64string,
-                                                             'Content-type': 'application/vnd.yang.data+json',
-                                                             'Accept': 'application/vnd.yang.data+json'})
+                                                             'Content-type': 'application/yang-data+json',
+                                                             'Accept': 'application/yang-data+json'})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return create_response(response.text, response.status_code, response.headers.items())
@@ -1020,10 +1020,10 @@ def add_modules():
         orgz = mod['organization']
         if request.method == 'POST':
             path = application.protocol + '://' + application.confd_ip + ':' + repr(
-                application.confdPort) + '/api/config/catalog/modules/module/' + \
+                application.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' + \
                    mod['name'] + ',' + mod['revision'] + ',' + mod['organization']
             response = requests.get(path, auth=(application.credentials[0], application.credentials[1]),
-                                    headers={'Accept':'application/vnd.yang.data+json'})
+                                    headers={'Accept':'application/yang-data+json'})
             if response.status_code != 404:
                 continue
 
@@ -1136,7 +1136,7 @@ def add_vendors():
               '-UTC.json', "w") as plat:
         json.dump(body, plat)
 
-    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/platforms'
+    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:platforms'
 
     str_to_encode = '%s:%s' % (application.credentials[0], application.credentials[1])
     if sys.version_info >= (3, 4):
@@ -1145,8 +1145,8 @@ def add_vendors():
     if sys.version_info >= (3, 4):
         base64string = base64string.decode(encoding='utf-8', errors='strict')
     response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic ' + base64string,
-                                                             'Content-type': 'application/vnd.yang.data+json',
-                                                             'Accept': 'application/vnd.yang.data+json'})
+                                                             'Content-type': 'application/yang-data+json',
+                                                             'Accept': 'application/yang-data+json'})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return create_response(response.text, response.status_code, response.headers.items())
@@ -2331,9 +2331,9 @@ def search_vendors(value):
                 :return response to the request.
     """
     application.LOGGER.info('Searching for specific vendors {}'.format(value))
-    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/api/config/catalog/vendors/' + value + '?deep'
+    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog/vendors/' + value
     data = requests.get(path, auth=(application.credentials[0], application.credentials[1]),
-                        headers={'Accept': 'application/vnd.yang.data+json'})
+                        headers={'Accept': 'application/yang-data+json'})
     if data.status_code == 200 or data.status_code == 204:
         data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
             .decode(data.text)

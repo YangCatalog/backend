@@ -89,13 +89,13 @@ class ModulesComplicatedAlgorithms:
         for x in range(0, int(len(self.__new_modules) / 250)):
             json_modules_data = json.dumps({'modules': {'module': self.__new_modules[x * 250: (x * 250) + 250]}})
             if '{"module": []}' not in json_modules_data:
-                url = self.__prefix + '/api/config/catalog/modules/'
+                url = self.__prefix + '/restconf/data/yang-catalog:catalog/modules/'
                 response = requests.patch(url, data=json_modules_data,
                                           auth=(self.__credentials[0],
                                                 self.__credentials[1]),
                                           headers={
-                                              'Accept': 'application/vnd.yang.data+json',
-                                              'Content-type': 'application/vnd.yang.data+json'})
+                                              'Accept': 'application/yang-data+json',
+                                              'Content-type': 'application/yang-data+json'})
                 if response.status_code < 200 or response.status_code > 299:
                     LOGGER.error('Request with body on path {} failed with {}'.
                                  format(json_modules_data, url,
@@ -104,13 +104,13 @@ class ModulesComplicatedAlgorithms:
         json_modules_data = json.dumps(
             {'modules': {'module': self.__new_modules[rest: rest + mod]}})
         if '{"module": []}' not in json_modules_data:
-            url = self.__prefix + '/api/config/catalog/modules/'
+            url = self.__prefix + '/restconf/data/yang-catalog:catalog/modules/'
             response = requests.patch(url, data=json_modules_data,
                                       auth=(self.__credentials[0],
                                             self.__credentials[1]),
                                       headers={
-                                          'Accept': 'application/vnd.yang.data+json',
-                                          'Content-type': 'application/vnd.yang.data+json'})
+                                          'Accept': 'application/yang-data+json',
+                                          'Content-type': 'application/yang-data+json'})
             if response.status_code < 200 or response.status_code > 299:
                 LOGGER.error('Request with body on path {} failed with {}'.
                              format(json_modules_data, url,

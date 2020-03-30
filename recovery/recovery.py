@@ -80,11 +80,11 @@ if __name__ == "__main__":
     LOGGER.info('Starting {} process of confd database'.format(args.type))
     if 'save' is args.type:
         file_save = open(cache_directory + '/' + args.name_save + '.json', 'w')
-        jsn = requests.get(prefix + '/api/config/catalog?deep',
+        jsn = requests.get(prefix + '/restconf/data/yang-catalog:catalog',
                            auth=(credentials[0], credentials[1]),
                            headers={
-                               'Accept': 'application/vnd.yang.data+json',
-                               'Content-type': 'application/vnd.yang.data+json'}).json()
+                               'Accept': 'application/yang-data+json',
+                               'Content-type': 'application/yang-data+json'}).json()
         file_save.write(json.dumps(jsn))
         file_save.close()
         LOGGER.info('Save completed successfully')
@@ -111,10 +111,10 @@ if __name__ == "__main__":
                 time.sleep(10)
                 counter -= 1
                 try:
-                    response = requests.patch(prefix + '/api/config/catalog', json.dumps(body), headers={
+                    response = requests.patch(prefix + '/restconf/data/yang-catalog:catalog', json.dumps(body), headers={
                         'Authorization': 'Basic ' + base64string,
-                        'Content-type': 'application/vnd.yang.data+json',
-                        'Accept': 'application/vnd.yang.data+json'})
+                        'Content-type': 'application/yang-data+json',
+                        'Accept': 'application/yang-data+json'})
                     code = response.status_code
                     LOGGER.info('Confd recoverd with status code {}'.format(code))
                 except:
