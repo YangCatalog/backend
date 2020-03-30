@@ -8,8 +8,10 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install cron uwsgi uwsgi-plugin-python3 \
+RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 \
   && apt-get autoremove -y
+
+RUN gem install bundler
 
 RUN groupadd -g ${YANG_ID_GID} -r yang \
   && useradd --no-log-init -r -g yang -u ${YANG_ID_GID} -d $VIRTUAL_ENV yang \
@@ -44,13 +46,24 @@ RUN chown -R yang:yang /var/run/yang
 
 USER ${YANG_ID_GID}:${YANG_ID_GID}
 
+RUN git clone https://github.com/slatedocs/slate.git
+
+WORKDIR $VIRTUAL_ENV/slate
+
+RUN rm -rf source
+RUN cp -R ../documentation/source .
+
+WORKDIR $VIRTUAL_ENV
+
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
 
 USER root:root
-
+WORKDIR $VIRTUAL_ENV/slate
+RUN bundle install
+CMD bundle exec middleman build --clean
+WORKDIR $VIRTUAL_ENV
+CMD cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 CMD cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
 EXPOSE 3031
-
-
