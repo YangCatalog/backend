@@ -31,6 +31,7 @@ import datetime
 import glob
 import json
 import os
+from dateutil.parser import parse
 import sys
 import time
 from collections import OrderedDict
@@ -93,8 +94,16 @@ if __name__ == "__main__":
             file_load = open(cache_directory + '/' + args.name_load, 'r')
         else:
             list_of_files = glob.glob(cache_directory + '/*')
-            latest_file = max(list_of_files, key=os.path.getctime)
-            file_load = open(latest_file, 'r')
+            list_of_files = [i.split('/')[-1][:-5].replace('_', ' ')[:-4] for i in list_of_files]
+            list_of_dates = []
+            for f in list_of_files:
+                try:
+                    datetime_parsed = parse(f)
+                    list_of_dates.append(datetime_parsed)
+                except ValueError as e:
+                    pass
+            list_of_dates = sorted(list_of_dates)
+            file_load = open(str(list_of_dates[-1]).replace(' ', '_') + '-UTC', 'r')
         LOGGER.info('Loading file {}'.format(file_load.name))
         body = json.load(file_load, object_pairs_hook=OrderedDict)
         str_to_encode = '%s:%s' % (credentials[0], credentials[1])
