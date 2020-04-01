@@ -103,7 +103,8 @@ if __name__ == "__main__":
                 except ValueError as e:
                     pass
             list_of_dates = sorted(list_of_dates)
-            file_load = open(str(list_of_dates[-1]).replace(' ', '_') + '-UTC.json', 'r')
+            file_name = '{}/{}-UTC.json'.format(cache_directory, str(list_of_dates[-1]).replace(' ', '_'))
+            file_load = open(file_name, 'r')
         LOGGER.info('Loading file {}'.format(file_load.name))
         body = json.load(file_load, object_pairs_hook=OrderedDict)
         str_to_encode = '%s:%s' % (credentials[0], credentials[1])
