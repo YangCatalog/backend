@@ -64,6 +64,6 @@ RUN bundle install
 CMD bundle exec middleman build --clean
 WORKDIR $VIRTUAL_ENV
 CMD cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
-CMD cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
+CMD chown -R yang:yang /var/run/yang && cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
 EXPOSE 3031

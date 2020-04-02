@@ -98,6 +98,9 @@ if __name__ == "__main__":
             list_of_dates = []
             for f in list_of_files:
                 try:
+                    file_name = '{}/{}-UTC.json'.format(cache_directory, f.replace(' ', '_'))
+                    if os.stat(file_name).st_size == 0:
+                        continue
                     datetime_parsed = parse(f)
                     list_of_dates.append(datetime_parsed)
                 except ValueError as e:
