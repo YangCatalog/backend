@@ -44,6 +44,8 @@ RUN chown yang:yang /etc/cron.d/yang-cron
 RUN chown -R yang:yang $VIRTUAL_ENV
 RUN chown -R yang:yang /var/run/yang
 
+COPY yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
+
 USER ${YANG_ID_GID}:${YANG_ID_GID}
 
 RUN git clone https://github.com/slatedocs/slate.git

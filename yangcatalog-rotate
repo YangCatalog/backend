@@ -1,0 +1,17 @@
+/var/yang/logs/*.log {
+    rotate 7
+    daily
+    compress
+    missingok
+    copytruncate
+    su yang yang
+}
+
+/var/yang/logs/*/*.log {
+    rotate 7
+    daily
+    compress
+    missingok
+    copytruncate
+    su yang yang
+}
