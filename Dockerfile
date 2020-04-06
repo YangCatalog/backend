@@ -1,7 +1,9 @@
 FROM python:3
-ARG YANG_ID_GID
+ARG YANG_ID
+ARG YANG_GID
 
-ENV YANG_ID_GID "$YANG_ID_GID"
+ENV YANG_ID "$YANG_ID"
+ENV YANG_GID "$YANG_GID"
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
@@ -13,8 +15,8 @@ RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python
 
 RUN gem install bundler
 
-RUN groupadd -g ${YANG_ID_GID} -r yang \
-  && useradd --no-log-init -r -g yang -u ${YANG_ID_GID} -d $VIRTUAL_ENV yang \
+RUN groupadd -g ${YANG_GID} -r yang \
+  && useradd --no-log-init -r -g yang -u ${YANG_ID} -d $VIRTUAL_ENV yang \
   && pip install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
@@ -46,7 +48,7 @@ RUN chown -R yang:yang /var/run/yang
 
 COPY yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
-USER ${YANG_ID_GID}:${YANG_ID_GID}
+USER ${YANG_ID}:${YANG_GID}
 
 RUN git clone https://github.com/slatedocs/slate.git
 
