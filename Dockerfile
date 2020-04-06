@@ -8,7 +8,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 \
+RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate \
   && apt-get autoremove -y
 
 RUN gem install bundler
