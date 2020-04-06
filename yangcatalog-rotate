@@ -4,6 +4,7 @@
     compress
     missingok
     copytruncate
+    dateext
     su yang yang
 }
 
@@ -13,5 +14,6 @@
     compress
     missingok
     copytruncate
+    dateext
     su yang yang
 }
