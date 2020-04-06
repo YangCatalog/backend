@@ -194,8 +194,9 @@ if __name__ == '__main__':
                 else:
                     to_remove.append(last_two_months.get(currently_processed_file_hash))
             last_two_months[currently_processed_file_hash] = date_file
-    LOGGER.info('removing following files {}'.format(to_remove))
-    # for remove in to_remove:
-    #    shutil.rmtree('{}/{}-UTC.json'.format(cache_directory, str(remove).replace(' ', '_')))
+    for remove in to_remove:
+        json_file_to_remove = '{}/{}-UTC.json'.format(cache_directory, str(remove).replace(' ', '_'))
+        if json_file_to_remove != file_name_latest:
+            shutil.rmtree(json_file_to_remove)
     LOGGER.info('Finished with script removeUnused.py')
 
