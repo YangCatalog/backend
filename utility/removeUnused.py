@@ -33,6 +33,7 @@ import shutil
 import sys
 import time
 from operator import itemgetter
+from os import unlink
 
 import utility.log as lo
 from dateutil.parser import parse
@@ -197,6 +198,6 @@ if __name__ == '__main__':
     for remove in to_remove:
         json_file_to_remove = '{}/{}-UTC.json'.format(cache_directory, str(remove).replace(' ', '_'))
         if json_file_to_remove != file_name_latest:
-            shutil.rmtree(json_file_to_remove)
+            unlink(json_file_to_remove)
     LOGGER.info('Finished with script removeUnused.py')
 
