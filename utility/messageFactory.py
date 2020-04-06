@@ -62,6 +62,8 @@ class MessageFactory:
         self.LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
         self.LOGGER.info('Initialising Message')
         token = config.get('Message-Section', 'access-token')
+        self.__email_from = config.get('Message-Section', 'email-from')
+        self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self._temp_dir = config.get('Directory-Section', 'temp')
@@ -99,7 +101,7 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message, to):
+    def __post_to_email(self, message):
         """Send message to a e-mail
 
             Arguments:
@@ -107,14 +109,12 @@ class MessageFactory:
                 :param to: (str/list) list of people to whom we
                     need to send a message.
         """
-        if not isinstance(to, list):
-            to = [to]
         msg = MIMEText(message)
         msg['Subject'] = 'Automatic generated message - RFC IETF'
-        msg['From'] = 'no-reply@yangcatalog.org'
-        msg['To'] = ', '.join(to)
+        msg['From'] = self.__email_from
+        msg['To'] = ', '.join(self.__email_to)
 
-        self.__smtp.sendmail('no-reply@yangcatalog.org', to, msg.as_string())
+        self.__smtp.sendmail(self.__email_from, self.__email_to, msg.as_string())
         self.__smtp.quit()
 
     def send_new_rfc_message(self, new_files, diff_files):
@@ -127,11 +127,9 @@ class MessageFactory:
                    'Files that are missing in yangModels/yang repository: \n{} \n\n '
                    'Files that are different than in yangModels repository: \n{}'
                    .format(GREETINGS, new_files, diff_files))
-        to = ['bclaise@cisco.com', 'einarnn@cisco.com', 'jclarke@cisco.com',
-              'miroslav.kovac@pantheon.tech', 'evyncke@cisco.com']
 
         self.__post_to_spark(message)
-        self.__post_to_email(message, to)
+        self.__post_to_email(message)
 
     def send_travis_auth_failed(self):
         self.LOGGER.info('Sending notification about travis authorization failed')
