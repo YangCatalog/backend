@@ -67,6 +67,8 @@ class MessageFactory:
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self._temp_dir = config.get('Directory-Section', 'temp')
+        self.__me = config.get('Web-Section', 'my_uri')
+        self.__me = self.__me.split('/')[-1]
 
         if len(rooms) == 0:
             self.LOGGER.error('Need at least one room')
@@ -91,6 +93,7 @@ class MessageFactory:
                 :param files: (list) list of paths to files that
                     need to be attache with a message. Default None
         """
+        msg += '\n\nMessage sent from {}'.format(self.__me)
         if markdown:
             self.__api.messages.create(self.__room.id, markdown=msg
                                        , files=files)
@@ -109,7 +112,7 @@ class MessageFactory:
                 :param to: (str/list) list of people to whom we
                     need to send a message.
         """
-        msg = MIMEText(message)
+        msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me))
         msg['Subject'] = 'Automatic generated message - RFC IETF'
         msg['From'] = self.__email_from
         msg['To'] = ', '.join(self.__email_to)
@@ -125,7 +128,7 @@ class MessageFactory:
                    ' in https://yangcatalog.org/private/IETFYANGRFC.json against'
                    ' yangModels/yang repository\n\n'
                    'Files that are missing in yangModels/yang repository: \n{} \n\n '
-                   'Files that are different than in yangModels repository: \n{}'
+                   'Files that are different than in yangModels repository: \n{} '
                    .format(GREETINGS, new_files, diff_files))
 
         self.__post_to_spark(message)
