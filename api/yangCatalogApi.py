@@ -63,6 +63,7 @@ from threading import Lock
 import MySQLdb
 import jinja2
 import requests
+import time
 import uwsgi as uwsgi
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 from flask import Flask, Response, abort, jsonify, make_response, redirect, request
@@ -400,6 +401,7 @@ NS_MAP = {
     "http://yang.juniper.net/": "juniper"
 }
 
+
 def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, data=None):
     """After we delete or add modules we need to reload all the modules to the file
     for quicker search. This module is then loaded to the memory.
@@ -413,10 +415,15 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
     """
     try:
         if data is None:
-            path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
-            data = requests.get(path, auth=(credentials[0], credentials[1]),
-                                headers={'Accept': 'application/yang-data+json'}).text
-
+            data = ''
+            while len(data) == 0:
+                path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
+                data = requests.get(path, auth=(credentials[0], credentials[1]),
+                                    headers={'Accept': 'application/yang-data+json'}).text
+                if len(data) == 0:
+                    secs = 30
+                    application.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
+                    time.sleep(secs)
         if is_uwsgi == 'True':
             chunks = int(math.ceil(len(data)/float(64000)))
             for i in range(0, chunks, 1):
