@@ -71,7 +71,7 @@ WORKDIR $VIRTUAL_ENV/slate
 RUN bundle install
 RUN bundle exec middleman build --clean
 WORKDIR $VIRTUAL_ENV
-RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
+CMD cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 
 CMD chown -R yang:yang /var/run/yang && cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
