@@ -108,11 +108,12 @@ if __name__ == '__main__':
     api_protocol = config.get('General-Section', 'protocol-api')
     api_port = config.get('General-Section', 'api-port')
     api_host = config.get('DraftPullLocal-Section', 'api-ip')
+    credentials = config.get('General-Section', 'credentials').split()
     parser = argparse.ArgumentParser()
     parser.add_argument('--credentials',
                         help='Set authorization parameters username password respectively.'
-                             ' Default parameters are admin admin', nargs=2,
-                        default=['admin', 'admin'], type=str)
+                             ' Default parameters are {}'.format(str(credentials)), nargs=2,
+                        default=credentials, type=str)
     parser.add_argument('--ip', default=confd_host, type=str,
                         help='Set host where the Confd is started. Default: ' + confd_host)
     parser.add_argument('--port', default=confd_port, type=int,
