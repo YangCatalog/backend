@@ -17,3 +17,13 @@
     dateext
     su yang yang
 }
+
+/var/yang/logs/*.access {
+    rotate 7
+    daily
+    compress
+    missingok
+    copytruncate
+    dateext
+    su yang yang
+}

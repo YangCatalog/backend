@@ -78,6 +78,7 @@ from api.sender import Sender
 from utility import messageFactory, repoutil, yangParser
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
+from validate.validate as validate
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -2494,6 +2495,40 @@ def trigger_populate():
     except Exception as e:
         application.LOGGER.error('Automated github webhook failure - {}'.format(e))
         return make_response(jsonify({'info': 'Success'}), 200)
+
+@application.route('/validate', methods=['POST'])
+@auth.login_required
+def validate_post():
+    body = request.json
+    validated = validate.main(body['vendor_access'], body['vendor_path'], body['sdo_access'], body['sdo_path'])
+    if validated:
+        return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
+    else:
+        return make_response(jsonify({'info': 'Failed to validate data and write to MySQL database'}), 200)
+
+@application.route('/validate', methods=['GET'])
+@auth.login_required
+def validate_get():
+    try:
+        db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        # execute SQL query using execute() method.
+        cursor.execute("SELECT * FROM users_temp")
+        data = cursor.fetchall()
+        db.close()
+
+    except MySQLdb.MySQLError as err:
+        application.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+    ret = []
+    for row in data:
+        data_set = {}
+        data_set['name'] = row[5]
+        data_set['org'] = row[1]
+        data_set['surname'] = row[6]
+        data_set['nick_name'] = row[4]
+        ret.append(data_set)
+    return make_response(jsonify(ret), 200)
 
 
 @application.route('/load-cache', methods=['POST'])

@@ -10,7 +10,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate \
+RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate exim4-daemon-light \
   && apt-get autoremove -y
 
 RUN gem install bundler
@@ -69,9 +69,19 @@ RUN crontab /etc/cron.d/yang-cron
 USER root:root
 WORKDIR $VIRTUAL_ENV/slate
 RUN bundle install
-CMD bundle exec middleman build --clean
+RUN bundle exec middleman build --clean
 WORKDIR $VIRTUAL_ENV
-CMD cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
+RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
+
+COPY entrypoint.sh /bin/
+COPY set-exim4-update-conf /bin/
+
+RUN chmod a+x /bin/entrypoint.sh && \
+    chmod a+x /bin/set-exim4-update-conf
+
+EXPOSE 25
+ENTRYPOINT["/bin/entrypoint.sh"]
+
 CMD chown -R yang:yang /var/run/yang && cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
 EXPOSE 3031

@@ -42,12 +42,15 @@ from email.mime.text import MIMEText
 
 import MySQLdb
 
+import utility.log as log
 from utility.repoutil import pull
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
+
+USE_LOGGER = False
 
 
 def query_yes_no(question, default=None):
@@ -83,7 +86,7 @@ def query_yes_no(question, default=None):
                              "(or 'y' or 'n').\n")
 
 
-def query_create(question):
+def query_create(question, yang_models, LOGGER):
     """Ask a path like question via raw_input() and return their answer.
 
     "question" is a string that is presented to the user.
@@ -111,7 +114,7 @@ def query_create(question):
         if os.path.isdir(yang_models + '/' + choice):
             return choice
         else:
-            print('Path ' + choice_without_last + ' does not exist.')
+            local_print('Path ' + choice_without_last + ' does not exist.', LOGGER)
             create = query_yes_no('would you like to create path ' + choice)
             if create:
                 try:
@@ -123,7 +126,7 @@ def query_create(question):
                 return choice
 
 
-def connect():
+def connect(dbHost, dbName, dbUser, dbPass, LOGGER):
     try:
         db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
         # prepare a cursor object using cursor() method
@@ -135,10 +138,10 @@ def connect():
 
         return data
     except MySQLdb.MySQLError as err:
-        print("Cannot connect to database. MySQL error: " + str(err))
+        local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def delete():
+def delete(dbHost, dbName, dbPass, dbUser, row, LOGGER):
     try:
         db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
         # prepare a cursor object using cursor() method
@@ -148,10 +151,10 @@ def delete():
         db.commit()
         db.close()
     except MySQLdb.MySQLError as err:
-        print("Cannot connect to database. MySQL error: " + str(err))
+        local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def copy():
+def copy(dbHost, dbName, dbPass, dbUser, row, vendor_path, sdo_path, LOGGER):
     try:
         db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
         # prepare a cursor object using cursor() method
@@ -167,47 +170,57 @@ def copy():
         db.commit()
         db.close()
     except MySQLdb.MySQLError as err:
-        print("Cannot connect to database. MySQL error: " + str(err))
+        local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def send_email(to, vendor, sdo):
+def send_email(to, vendor, sdo, email_from):
     msg = MIMEText('Your rights were granted ')
     msg['Subject'] = 'Access rights granted for vendor path ' + vendor + ' and organization for sdo ' + sdo
-    msg['From'] = 'info@yangcatalog.org'
+    msg['From'] = email_from
     msg['To'] = to
 
     s = smtplib.SMTP('localhost')
-    s.sendmail('info@yangcatalog.org', to, msg.as_string())
+    s.sendmail(email_from, to, msg.as_string())
     s.quit()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    args = parser.parse_args()
-    config_path = args.config_path
+def local_print(text, LOGGER):
+    if USE_LOGGER:
+        LOGGER.info(text)
+    else:
+        print(text)
+
+
+def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None, config_path='/etc/yangcatalog/yangcatalog.conf'):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
+    log_directory = config.get('Directory-Section', 'logs')
+    global USE_LOGGER
+    if vendor_access is None:
+        USE_LOGGER = False
+    else:
+        USE_LOGGER = True
+    LOGGER = log.get_logger('validate', log_directory + '/user-validation.log')
     dbHost = config.get('Validate-Section', 'dbIp')
     dbName = config.get('Validate-Section', 'dbName')
     dbUser = config.get('Validate-Section', 'dbUser')
     dbPass = config.get('Validate-Section', 'dbPassword')
-    dbData = connect()
+    dbData = connect(dbHost, dbName, dbPass, dbUser, LOGGER)
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     pull(yang_models)
     vendor_path = None
     sdo_path = None
     for row in dbData:
         while True:
-            print ('The user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' is from organization ' + row[4])
+            local_print('The user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' is from organization ' + row[4],
+                        LOGGER)
             vendor_access = query_yes_no('Do they need vendor access?')
             if vendor_access:
-                vendor_path = query_create('What is their vendor branch ')
+                vendor_path = query_create('What is their vendor branch ', yang_models, LOGGER)
             sdo_access = query_yes_no('Do they need sdo (model) access?')
             if sdo_access:
-                sdo_path = query_create('What is their model organization ')
+                sdo_path = query_create('What is their model organization ', yang_models, LOGGER)
             want_to_create = False
             if sdo_path or vendor_path:
                 want_to_create = query_yes_no('Do you want to create user ' + row[5] + ' ' + row[6] + ' (' + row[1]
@@ -218,13 +231,23 @@ if __name__ == "__main__":
                     sdo_path = ''
                 if vendor_path is None:
                     vendor_path = ''
-                copy()
-                delete()
-                send_email(row[3], repr(vendor_path), repr(sdo_path))
+                copy(dbHost, dbName, dbPass, dbUser, row, vendor_path, sdo_path, LOGGER)
+                delete(dbHost, dbName, dbPass, dbUser, row, LOGGER)
+                email_from = config.get('Message-Section', 'email-from')
+                send_email(row[3], repr(vendor_path), repr(sdo_path), email_from)
                 break
             else:
-                print('Skipping user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' from organization ' + row[4]
-                      + ' has no path set.')
+                local_print('Skipping user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' from organization ' + row[4]
+                      + ' has no path set.', LOGGER)
                 if query_yes_no('Would you like to delete this user from temporary database?'):
-                    delete()
+                    delete(dbHost, dbName, dbPass, dbUser, row, LOGGER)
                 break
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
+    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                        help='Set path to config file')
+    args = parser.parse_args()
+    config_path = args.config_path
+    main(config_path=config_path)
