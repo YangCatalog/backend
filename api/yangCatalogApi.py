@@ -78,7 +78,7 @@ from api.sender import Sender
 from utility import messageFactory, repoutil, yangParser
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
-from validate.validate as validate
+from validate.validate import validate
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser

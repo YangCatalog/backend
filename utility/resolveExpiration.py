@@ -135,10 +135,15 @@ if __name__ == '__main__':
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
                                                    args.api_ip, separator,
                                                    suffix)
+    LOGGER.info('requesting {}'.format(yangcatalog_api_prefix))
     updated = False
 
     modules = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
                            auth=(args.credentials[0], args.credentials[1]))
+    if modules.status_code < 200 or modules.status_code > 299:
+        LOGGER.error('Request on path {} failed with {}'
+                     .format(yangcatalog_api_prefix,
+                             modules.text))
     modules = modules.json()['module']
     for mod in modules:
         ref = mod.get('reference')

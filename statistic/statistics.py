@@ -306,7 +306,7 @@ def solve_platforms(path, platform):
 
 
 if __name__ == '__main__':
-    timeBefore = time.clock()
+    timeBefore = time.time()
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
@@ -600,10 +600,9 @@ if __name__ == '__main__':
             if os.path.exists(file_to):
                 os.remove(file_to)
             shutil.move(file_from, file_to)
-        time_after = time.clock()
+        time_after = time.time()
         total_time = time_after - timeBefore
-        strin = '{} final time'.format(total_time)
-        LOGGER.info(strin)
+        LOGGER.info('Final time in seconds to produce statistics {}'.format(total_time))
     except Exception as e:
         if repo is not None:
             repo.remove()
