@@ -31,6 +31,7 @@ import json
 import requests
 
 import utility.log as log
+from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 
 
 class Prepare:
@@ -117,7 +118,7 @@ class Prepare:
                     } for implementation in
                         self.yang_modules[key].implementation],
                 }
-            } for key in self.name_revision_organization]}, prepare_model)
+            } for key in self.name_revision_organization]}, prepare_model, cls=NullJsonEncoder)
 
     def dump_vendors(self, directory):
         with open(directory + '/normal.json',
@@ -171,7 +172,7 @@ class Prepare:
                     } for key in self.name_revision_organization for impl in
                         self.yang_modules[key].implementation]
                 }
-            }, ietf_model)
+            }, ietf_model, cls=NullJsonEncoder)
 
     @staticmethod
     def __get_deviations(deviations):

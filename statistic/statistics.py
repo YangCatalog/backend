@@ -263,7 +263,7 @@ def process_data(out, save_list, path, name):
     LOGGER.info('Getting info from {}'.format(name))
     out = out.decode('utf-8')
     table_sdo = {}
-    if name is 'openconfig':
+    if name == 'openconfig':
         modules = 0
     else:
         modules = out.split(path + ' : ')[1].split('\n')[0]

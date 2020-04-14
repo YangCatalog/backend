@@ -532,7 +532,7 @@ def authorize_for_vendors(request, body):
     check_platform = None
     check_software_version = None
     check_software_flavor = None
-    if rights[1] is '':
+    if rights[1] == '':
         return 'passed'
     else:
         check_vendor = rights[1]
@@ -925,7 +925,7 @@ def delete_vendor(value):
     check_platform = None
     check_software_version = None
     check_software_flavor = None
-    if not rights[1] is '':
+    if not rights[1] == '':
         check_vendor = rights[1]
         if len(rights) > 2:
             check_platform = rights[2]

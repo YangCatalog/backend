@@ -169,7 +169,13 @@ if __name__ == "__main__":
     try:
         travis_repo = travis.repo(username + '/yang')
         LOGGER.info('Enabling repo for Travis')
-        travis_repo.enable()  # Switch is now on
+        travis_enabled = travis_repo.enable()  # Switch is now on
+        travis_enabled_retry = 3
+        while not travis_enabled:
+            LOGGER.warn('Travis repo not enabled retrying')
+            travis_enabled -= 1
+            if travis_enabled == 0:
+                break
         # Add commit and push to the forked repository
         LOGGER.info('Adding all untracked files locally')
         repo.add_all_untracked()

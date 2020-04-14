@@ -296,7 +296,7 @@ if __name__ == "__main__":
                                      response.text))
     if body_to_send != '':
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, args.credentials, set_key=key, apiIp=args.api_ip)
+        send_to_indexing(body_to_send, args.credentials, args.protocol, set_key=key, apiIp=args.api_ip)
     if not args.api:
         thread = None
         if not args.force_indexing:

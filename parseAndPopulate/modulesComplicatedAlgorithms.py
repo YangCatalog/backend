@@ -840,7 +840,8 @@ class ModulesComplicatedAlgorithms:
                             expired = 'not-applicable'
                     else:
                         expired = 'not-applicable'
-                mod['expires'] = expiration_date
+                if expiration_date is not None:
+                    mod['expires'] = expiration_date
                 mod['expired'] = expired
                 self.__new_modules.append(mod)
 

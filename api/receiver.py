@@ -261,7 +261,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, apiIp = No
     return body_to_send
 
 
-def send_to_indexing(body_to_send, credentials, set_key=None, apiIp=None):
+def send_to_indexing(body_to_send, credentials, protocol, set_key=None, apiIp=None):
     """
     Send a request to index new or deleted yang modules with body that
     contains path to the modules and name of the modules
@@ -277,7 +277,7 @@ def send_to_indexing(body_to_send, credentials, set_key=None, apiIp=None):
         set_key = key
     except NameError:
         pass
-    path = 'https://localhost/yang-search/metadata_update'
+    path = '{}://localhost/yang-search/metadata_update'.format(protocol)
     LOGGER.info('Sending data for indexing with body {} \n and path {}'.format(body_to_send, path))
 
     response = requests.post(path, data=body_to_send,
@@ -366,7 +366,6 @@ def process_vendor_deletion(arguments):
     credentials = arguments[7:9]
     path_to_delete = arguments[9]
 
-    response = 'work'
     try:
         with open('./cache/catalog.json', 'r') as catalog:
             vendors_data = json.load(catalog)['yang-catalog:catalog']['vendors']
@@ -465,7 +464,7 @@ def process_vendor_deletion(arguments):
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, modules_that_succeeded,
                             credentials, delete=True)
         if body_to_send != '':
-            send_to_indexing(body_to_send, credentials)
+            send_to_indexing(body_to_send, credentials, api_protocol)
     return __response_type[1]
 
 
@@ -576,7 +575,7 @@ def process_module_deletion(arguments, multiple=False):
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, modules_to_index, credentials,
                             delete=True)
         if body_to_send != '':
-            send_to_indexing(body_to_send, credentials)
+            send_to_indexing(body_to_send, credentials, api_protocol)
     return __response_type[1]
 
 
