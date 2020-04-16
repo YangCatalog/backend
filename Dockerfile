@@ -10,8 +10,12 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate \
-  && apt-get autoremove -y
+RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate
+
+RUN echo postfix postfix/mailname string yang2.amsl.com | debconf-set-selections; \
+    echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
+    apt-get -y install postfix
+RUN apt-get autoremove -y
 
 RUN gem install bundler
 
@@ -22,7 +26,7 @@ RUN groupadd -g ${YANG_GID} -r yang \
   && mkdir -p /etc/yangcatalog
 
 COPY . $VIRTUAL_ENV
-
+COPY main.cf /etc/postfix/main.cf
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
@@ -73,6 +77,6 @@ RUN bundle exec middleman build --clean
 WORKDIR $VIRTUAL_ENV
 CMD cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 
-CMD chown -R yang:yang /var/run/yang && cron && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
+CMD chown -R yang:yang /var/run/yang && cron && service postfix start && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
 
 EXPOSE 3031
