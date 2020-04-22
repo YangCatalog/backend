@@ -39,12 +39,14 @@ import sys
 import tarfile
 
 import requests
+from git_review.cmd import GitConfigException
 from travispy import TravisPy
 from travispy.errors import TravisError
 
 import utility.log as log
 from ietfYangDraftPull.draftPullLocal import check_early_revisions, check_name_no_revision_exist
 from utility import messageFactory, repoutil
+from git.exc import GitCommandError
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -190,6 +192,10 @@ if __name__ == "__main__":
         LOGGER.error('Error while pushing procedure {}'.format(e.message()))
         requests.delete(ietf_models_forked_url,
                         headers={'Authorization': 'token ' + token})
+    except GitCommandError as e:
+        LOGGER.error(
+            'Error while pushing procedure - git command error: {}'.format(e.stderr))
+        requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
     except:
         LOGGER.error(
             'Error while pushing procedure {}'.format(sys.exc_info()[0]))
