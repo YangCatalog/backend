@@ -39,7 +39,6 @@ import sys
 import tarfile
 
 import requests
-from git_review.cmd import GitConfigException
 from travispy import TravisPy
 from travispy.errors import TravisError
 
