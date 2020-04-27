@@ -173,7 +173,7 @@ if __name__ == "__main__":
         travis_enabled = travis_repo.enable()  # Switch is now on
         travis_enabled_retry = 3
         while not travis_enabled:
-            LOGGER.warn('Travis repo not enabled retrying')
+            LOGGER.warning('Travis repo not enabled retrying')
             travis_enabled -= 1
             if travis_enabled == 0:
                 break
