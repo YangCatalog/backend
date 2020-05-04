@@ -37,6 +37,7 @@ import os
 import shutil
 import sys
 import tarfile
+from tarfile import ReadError
 
 import requests
 from travispy import TravisPy
@@ -115,44 +116,52 @@ if __name__ == "__main__":
     zfile = open(repo.localdir + '/rfc.tgz', 'wb')
     zfile.write(response.content)
     zfile.close()
-    tgz = tarfile.open(repo.localdir + '/rfc.tgz')
+    tar_opened = False
+    tgz = ''
     try:
-        os.makedirs(
-            repo.localdir + '/standard/ietf/RFCtemp')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            raise
-    tgz.extractall(repo.localdir + '/standard/ietf/RFCtemp')
-    tgz.close()
-    diff_files = []
-    new_files = []
+        tgz = tarfile.open(repo.localdir + '/rfc.tgz')
+        tar_opened = True
+    except ReadError as e:
+        LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
+                       ' Did the sdo_analysis cron job run already?')
+    if tar_opened:
+        try:
+            os.makedirs(
+                repo.localdir + '/standard/ietf/RFCtemp')
+        except OSError as e:
+            # be happy if someone already created the path
+            if e.errno != errno.EEXIST:
+                raise
+        tgz.extractall(repo.localdir + '/standard/ietf/RFCtemp')
+        tgz.close()
+        diff_files = []
+        new_files = []
 
-    for root, subdirs, sdos in os.walk(
-                    repo.localdir + '/standard/ietf/RFCtemp'):
-        for file_name in sdos:
-            if '.yang' in file_name:
-                if os.path.exists(repo.localdir + '/standard/ietf/RFC/'
-                                          + file_name):
-                    same = filecmp.cmp(repo.localdir + '/standard/ietf/RFC/'
-                                       + file_name, root + '/' + file_name)
-                    if not same:
-                        diff_files.append(file_name)
-                else:
-                    new_files.append(file_name)
-    shutil.rmtree(repo.localdir + '/standard/ietf/RFCtemp')
-    os.remove(repo.localdir + '/rfc.tgz')
+        for root, subdirs, sdos in os.walk(
+                        repo.localdir + '/standard/ietf/RFCtemp'):
+            for file_name in sdos:
+                if '.yang' in file_name:
+                    if os.path.exists(repo.localdir + '/standard/ietf/RFC/'
+                                              + file_name):
+                        same = filecmp.cmp(repo.localdir + '/standard/ietf/RFC/'
+                                           + file_name, root + '/' + file_name)
+                        if not same:
+                            diff_files.append(file_name)
+                    else:
+                        new_files.append(file_name)
+        shutil.rmtree(repo.localdir + '/standard/ietf/RFCtemp')
+        os.remove(repo.localdir + '/rfc.tgz')
 
-    with open(exceptions, 'r') as exceptions_file:
-        remove_from_new = exceptions_file.read().split('\n')
-    for remove in remove_from_new:
-        if remove in new_files:
-            new_files.remove(remove)
+        with open(exceptions, 'r') as exceptions_file:
+            remove_from_new = exceptions_file.read().split('\n')
+        for remove in remove_from_new:
+            if remove in new_files:
+                new_files.remove(remove)
 
-    if len(new_files) > 0 or len(diff_files) > 0:
-        LOGGER.warning('new or modified RFC files found. Sending an E-mail')
-        mf = messageFactory.MessageFactory()
-        mf.send_new_rfc_message(new_files, diff_files)
+        if len(new_files) > 0 or len(diff_files) > 0:
+            LOGGER.warning('new or modified RFC files found. Sending an E-mail')
+            mf = messageFactory.MessageFactory()
+            mf.send_new_rfc_message(new_files, diff_files)
 
     for key in ietf_draft_json:
         yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
