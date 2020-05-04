@@ -31,13 +31,15 @@ import datetime
 import glob
 import json
 import os
-from dateutil.parser import parse
 import sys
 import time
 from collections import OrderedDict
+from time import sleep
 
 import requests
 import utility.log as log
+from dateutil.parser import parse
+from requests import ConnectionError
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -79,6 +81,19 @@ if __name__ == "__main__":
     cache_directory = config.get('Directory-Section', 'cache')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
     LOGGER.info('Starting {} process of confd database'.format(args.type))
+
+    tries = 4
+    try:
+        response = requests.head(prefix + '/restconf/data',
+                                 auth=(credentials[0], credentials[1]))
+        LOGGER.info("status code for hear request {} ".format(response.status_code))
+    except ConnectionError as e:
+        if tries == 0:
+            LOGGER.error('unnable to connect to conf for over a {} minuts'.format(tries))
+            raise e
+        tries -= 1
+        sleep(60)
+
     if 'save' == args.type:
         file_save = open(cache_directory + '/' + args.name_save + '.json', 'w')
         jsn = requests.get(prefix + '/restconf/data/yang-catalog:catalog',
