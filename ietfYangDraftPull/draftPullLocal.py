@@ -183,25 +183,33 @@ if __name__ == "__main__":
     zfile = open(repo.localdir + '/rfc.tgz', 'wb')
     zfile.write(response.content)
     zfile.close()
-    tgz = tarfile.open(repo.localdir + '/rfc.tgz')
-    tgz.extractall(repo.localdir + '/standard/ietf/RFC')
-    tgz.close()
-    os.remove(repo.localdir + '/rfc.tgz')
-    check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-    check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-    with open(temp_dir + "/log-pull-local.txt", "w") as f:
-        try:
-            LOGGER.info('Calling populate script')
-            arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
-                         confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
-                         "--dir", repo.localdir + "/standard/ietf/RFC", "--result-html-dir", result_html_dir,
-                         "--credentials", credentials[0], credentials[1],
-                         "--save-file-dir", save_file_dir]
-            if notify == 'True':
-                arguments.append("--notify-indexing")
-            subprocess.check_call(arguments, stderr=f)
-        except subprocess.CalledProcessError as e:
-            LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
+    tar_opened = False
+    tgz = ''
+    try:
+        tgz = tarfile.open(repo.localdir + '/rfc.tgz')
+        tar_opened = True
+    except tarfile.ReadError as e:
+        LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
+                       ' Did the sdo_analysis cron job run already?')
+    if tar_opened:
+        tgz.extractall(repo.localdir + '/standard/ietf/RFC')
+        tgz.close()
+        os.remove(repo.localdir + '/rfc.tgz')
+        check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
+        check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
+        with open(temp_dir + "/log-pull-local.txt", "w") as f:
+            try:
+                LOGGER.info('Calling populate script')
+                arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
+                             confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
+                             "--dir", repo.localdir + "/standard/ietf/RFC", "--result-html-dir", result_html_dir,
+                             "--credentials", credentials[0], credentials[1],
+                             "--save-file-dir", save_file_dir]
+                if notify == 'True':
+                    arguments.append("--notify-indexing")
+                subprocess.check_call(arguments, stderr=f)
+            except subprocess.CalledProcessError as e:
+                LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
     for key in ietf_draft_json:
         yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
         yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
