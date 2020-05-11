@@ -59,6 +59,9 @@ if __name__ == "__main__":
     parser.add_argument('--config-path', type=str,
                         default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
+    parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
+                                                                                   ' to cisco webex teams and to'
+                                                                                   ' emails')
     args = parser.parse_args()
 
     config_path = args.config_path
@@ -158,10 +161,11 @@ if __name__ == "__main__":
             if remove in new_files:
                 new_files.remove(remove)
 
-        if len(new_files) > 0 or len(diff_files) > 0:
-            LOGGER.warning('new or modified RFC files found. Sending an E-mail')
-            mf = messageFactory.MessageFactory()
-            mf.send_new_rfc_message(new_files, diff_files)
+        if args.send_message:
+            if len(new_files) > 0 or len(diff_files) > 0:
+                LOGGER.warning('new or modified RFC files found. Sending an E-mail')
+                mf = messageFactory.MessageFactory()
+                mf.send_new_rfc_message(new_files, diff_files)
 
     for key in ietf_draft_json:
         yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
