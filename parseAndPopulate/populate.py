@@ -206,15 +206,15 @@ if __name__ == "__main__":
                                            tempDir=temp_dir)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
+    x = 0
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
         modules_json = json.loads(read)['module']
-        mod = len(modules_json) % 1000
         for x in range(0, int(len(modules_json) / 1000)):
             json_modules_data = json.dumps({
                 'modules':
                     {
-                        'module': modules_json[x*1000: (x*1000)+1000]
+                        'module': modules_json[x * 1000: (x * 1000) + 1000]
                     }
             })
 
@@ -230,11 +230,10 @@ if __name__ == "__main__":
                     LOGGER.error('Request with body {} on path {} failed with {}'
                                  .format(json_modules_data, url,
                                         response.text))
-    rest = (int(len(modules_json) / 1000)) * 1000
     json_modules_data = json.dumps({
         'modules':
             {
-                'module': modules_json[int(rest): int(rest + mod)]
+                'module': modules_json[(x * 1000) + 1000:]
             }
     })
     url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
@@ -252,10 +251,9 @@ if __name__ == "__main__":
     # In each json
     LOGGER.info('Starting to add vendors')
     if os.path.exists('{}/normal.json'.format(direc)):
+        x = 0
         with open('{}/normal.json'.format(direc)) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
-
-            mod = len(vendors) % 1000
             for x in range(0, int(len(vendors) / 1000)):
                 json_implementations_data = json.dumps({
                     'vendors':
@@ -276,11 +274,10 @@ if __name__ == "__main__":
                     LOGGER.error('Request with body on path {} failed with {}'.
                                  format(json_implementations_data, url,
                                         response.text))
-            rest = (int(len(vendors) / 1000)) * 1000
             json_implementations_data = json.dumps({
                 'vendors':
                     {
-                        'vendor': vendors[rest: rest + mod]
+                        'vendor': vendors[(x * 1000) + 1000:]
                     }
             })
             url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'

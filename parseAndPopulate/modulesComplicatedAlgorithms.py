@@ -85,7 +85,7 @@ class ModulesComplicatedAlgorithms:
 
     def populate(self):
         LOGGER.info('populate with module complicated data. amount of new data is {}'.format(len(self.__new_modules)))
-        mod = len(self.__new_modules) % 250
+        x = 0
         for x in range(0, int(len(self.__new_modules) / 250)):
             json_modules_data = json.dumps({'modules': {'module': self.__new_modules[x * 250: (x * 250) + 250]}})
             if '{"module": []}' not in json_modules_data:
@@ -100,9 +100,9 @@ class ModulesComplicatedAlgorithms:
                     LOGGER.error('Request with body on path {} failed with {}'.
                                  format(json_modules_data, url,
                                         response.text))
-        rest = int(len(self.__new_modules) / 250) * 250
+
         json_modules_data = json.dumps(
-            {'modules': {'module': self.__new_modules[rest: rest + mod]}})
+            {'modules': {'module': self.__new_modules[int(len(self.__new_modules) / 250):]}})
         if '{"module": []}' not in json_modules_data:
             url = self.__prefix + '/restconf/data/yang-catalog:catalog/modules/'
             response = requests.patch(url, data=json_modules_data,
