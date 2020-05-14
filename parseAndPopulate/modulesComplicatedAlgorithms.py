@@ -102,7 +102,7 @@ class ModulesComplicatedAlgorithms:
                                         response.text))
 
         json_modules_data = json.dumps(
-            {'modules': {'module': self.__new_modules[int(len(self.__new_modules) / 250):]}})
+            {'modules': {'module': self.__new_modules[(x * 250) + 250:]}})
         if '{"module": []}' not in json_modules_data:
             url = self.__prefix + '/restconf/data/yang-catalog:catalog/modules/'
             response = requests.patch(url, data=json_modules_data,
