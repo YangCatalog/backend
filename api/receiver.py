@@ -277,7 +277,7 @@ def send_to_indexing(body_to_send, credentials, protocol, set_key=None, apiIp=No
         set_key = key
     except NameError:
         pass
-    path = '{}://localhost/yang-search/metadata_update'.format(protocol)
+    path = '{}://{}/yang-search/metadata_update'.format(protocol, api_ip)
     LOGGER.info('Sending data for indexing with body {} \n and path {}'.format(body_to_send, path))
 
     response = requests.post(path, data=body_to_send,
