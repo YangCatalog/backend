@@ -37,6 +37,7 @@ import errno
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 from datetime import datetime
@@ -44,9 +45,8 @@ from distutils.dir_util import copy_tree
 
 import pika
 import requests
-from Crypto.Hash import HMAC, SHA
-
 import utility.log as log
+from Crypto.Hash import HMAC, SHA
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility import messageFactory
 
@@ -271,14 +271,15 @@ def send_to_indexing(body_to_send, credentials, protocol, set_key=None, apiIp=No
     :param apiIp: ip address of yangcatalog.org api
     """
     global api_ip
-    LOGGER.info("apiIp is {} and api_ip is {}".format(apiIp, api_ip))
     if apiIp is not None:
         api_ip = apiIp
     try:
         set_key = key
     except NameError:
         pass
-    path = '{}://{}/yang-search/metadata_update'.format(protocol, api_ip)
+    ip_addr = socket.gethostbyname(api_ip)
+    LOGGER.info("ip address from hostname {} is {}".format(api_ip, ip_addr))
+    path = '{}://{}/yang-search/metadata_update'.format(protocol, ip_addr)
     LOGGER.info('Sending data for indexing with body {} \n and path {}'.format(body_to_send, path))
 
     response = requests.post(path, data=body_to_send,
