@@ -271,6 +271,7 @@ def send_to_indexing(body_to_send, credentials, protocol, set_key=None, apiIp=No
     :param apiIp: ip address of yangcatalog.org api
     """
     global api_ip
+    LOGGER.info("apiIp is {} and api_ip is {}".format(apiIp, api_ip))
     if apiIp is not None:
         api_ip = apiIp
     try:

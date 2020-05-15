@@ -64,6 +64,7 @@ class ModulesComplicatedAlgorithms:
         self.__yang_models = yang_models_dir
         self.temp_dir = temp_dir
         self.recursion_limit = sys.getrecursionlimit()
+        self.__direc = direc
 
     def parse_non_requests(self):
         LOGGER.info("parsing tree types")
@@ -97,8 +98,11 @@ class ModulesComplicatedAlgorithms:
                                               'Accept': 'application/yang-data+json',
                                               'Content-type': 'application/yang-data+json'})
                 if response.status_code < 200 or response.status_code > 299:
-                    LOGGER.error('Request with body on path {} failed with {}'.
-                                 format(json_modules_data, url,
+                    path_to_file = '{}/modulesComplicatedAlgorithms-data-{}'.format(self.__direc, x)
+                    with open(path_to_file, 'w') as f:
+                        json.dump(json_modules_data, f)
+                    LOGGER.error('Request with body {} on path {} failed with {}'.
+                                 format(path_to_file, url,
                                         response.text))
 
         json_modules_data = json.dumps(
@@ -112,8 +116,11 @@ class ModulesComplicatedAlgorithms:
                                           'Accept': 'application/yang-data+json',
                                           'Content-type': 'application/yang-data+json'})
             if response.status_code < 200 or response.status_code > 299:
-                LOGGER.error('Request with body on path {} failed with {}'.
-                             format(json_modules_data, url,
+                path_to_file = '{}/modulesComplicatedAlgorithms-data-rest'.format(self.__direc)
+                with open(path_to_file, 'w') as f:
+                    json.dump(json_modules_data, f)
+                LOGGER.error('Request with body {} on path {} failed with {}'.
+                             format(path_to_file, url,
                                     response.text))
         url = (self.__yangcatalog_api_prefix + 'load-cache')
         response = requests.post(url, None,

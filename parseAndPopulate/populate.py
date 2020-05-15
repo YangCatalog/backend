@@ -227,8 +227,11 @@ if __name__ == "__main__":
                                               'Accept': 'application/yang-data+json',
                                               'Content-type': 'application/yang-data+json'})
                 if response.status_code < 200 or response.status_code > 299:
+                    path_to_file = '{}/modules-confd-data-{}'.format(direc, x)
+                    with open(path_to_file, 'w') as f:
+                        json.dump(json_modules_data, f)
                     LOGGER.error('Request with body {} on path {} failed with {}'
-                                 .format(json_modules_data, url,
+                                 .format(path_to_file, url,
                                         response.text))
     json_modules_data = json.dumps({
         'modules':
@@ -243,9 +246,13 @@ if __name__ == "__main__":
                               headers={
                                   'Accept': 'application/yang-data+json',
                                   'Content-type': 'application/yang-data+json'})
+
     if response.status_code < 200 or response.status_code > 299:
+        path_to_file = '{}/modules-confd-data-rest'.format(direc)
+        with open(path_to_file, 'w') as f:
+            json.dump(json_modules_data, f)
         LOGGER.error('Request with body {} on path {} failed with {}'
-                     .format(json_modules_data, url,
+                     .format(path_to_file, url,
                              response.text))
 
     # In each json
@@ -271,8 +278,11 @@ if __name__ == "__main__":
                                               'Accept': 'application/yang-data+json',
                                               'Content-type': 'application/yang-data+json'})
                 if response.status_code < 200 or response.status_code > 299:
-                    LOGGER.error('Request with body on path {} failed with {}'.
-                                 format(json_implementations_data, url,
+                    path_to_file = '{}/vendors-confd-data-{}'.format(direc, x)
+                    with open(path_to_file, 'w') as f:
+                        json.dump(json_modules_data, f)
+                    LOGGER.error('Request with body {} on path {} failed with {}'.
+                                 format(path_to_file, url,
                                         response.text))
             json_implementations_data = json.dumps({
                 'vendors':
@@ -288,7 +298,10 @@ if __name__ == "__main__":
                                           'Accept': 'application/yang-data+json',
                                           'Content-type': 'application/yang-data+json'})
             if response.status_code < 200 or response.status_code > 299:
-                LOGGER.error('Request with body on path {} failed with {}'
+                path_to_file = '{}/vendors-confd-data-rest'.format(direc)
+                with open(path_to_file, 'w') as f:
+                    json.dump(json_modules_data, f)
+                LOGGER.error('Request with body {} on path {} failed with {}'
                              .format(json_implementations_data, url,
                                      response.text))
     if body_to_send != '':
