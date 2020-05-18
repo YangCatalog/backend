@@ -30,6 +30,10 @@ class NullJsonEncoder(json.JSONEncoder):
         ret_obj = self.__remove_null_dict(o)
         return super().encode(ret_obj)
 
+    def iterencode(self, o, _one_shot=False):
+        ret_obj = self.__remove_null_dict(o)
+        return super().iterencode(ret_obj)
+
     def __remove_null_dict(self, obj):
         ret_obj = {}
         for key, val in obj.items():
