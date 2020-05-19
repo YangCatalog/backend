@@ -37,8 +37,8 @@ chdir = /backend
 
 callable = app
 
-socket = :3031
-#socket = /var/run/yang/yang-catalog.sock
+#socket = :3031
+socket = /var/run/yang/yang-catalog.sock
 chmod-socket = 666
 vacuum = true
 
