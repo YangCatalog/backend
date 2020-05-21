@@ -26,7 +26,7 @@ RUN groupadd -g ${YANG_GID} -r yang \
   && mkdir -p /etc/yangcatalog
 
 COPY . $VIRTUAL_ENV
-COPY main.cf /etc/postfix/main.cf
+#COPY main.cf /etc/postfix/main.cf
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
