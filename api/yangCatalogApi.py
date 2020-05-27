@@ -144,6 +144,8 @@ class MyFlask(Flask):
         log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
         self.LOGGER.debug('Starting API')
+        self.waiting_for_reload = False
+        self.response_waiting = None
         self.sender = Sender(log_directory, self.temp_dir,
                              rabbitmq_host=self.rabbitmq_host,
                              rabbitmq_port=self.rabbitmq_port,
@@ -167,7 +169,14 @@ class MyFlask(Flask):
         self.response = response
         self.create_response_only_latest_revision()
         #self.create_response_with_yangsuite_link()
-
+        try:
+            if request.special_id == 1 and 'reload-cache' in str(list(self.url_map.iter_rules())[0]):
+                if self.waiting_for_reload:
+                    self.response_waiting = response
+                    self.waiting_for_reload = False
+                    print(request.special_id)
+        except:
+            pass
         self.LOGGER.debug(response.headers)
         return self.response
 
@@ -2623,6 +2632,18 @@ def get_active_cache():
 
 def load(on_change):
     """Load to cache from confd all the data populated to yang-catalog."""
+    if application.waiting_for_reload:
+        while True:
+            time.sleep(5)
+            if not application.waiting_for_reload:
+                code = application.response_waiting.status_code
+                body = application.response_waiting.json
+                body['extra-info'] = "this message was generated with previous reload-cache reponse"
+                return make_response(jsonify(body), code)
+    else:
+        if lock_for_load.locked():
+            application.waiting_for_reload = True
+            request.special_id = 1
     with lock_for_load:
         with lock_uwsgi_cache1:
             application.LOGGER.info('Loading cache 1')
