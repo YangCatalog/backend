@@ -33,6 +33,7 @@ Documentation for all these endpoints can be found in
 ../documentation/source/index.html.md or on the yangcatalog.org/doc
 website
 """
+import fnmatch
 import io
 
 from pyang import plugin
@@ -117,6 +118,7 @@ class MyFlask(Flask):
         self.protocol = config.get('General-Section', 'protocol')
         self.save_requests = config.get('Directory-Section', 'save-requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.logs_dir = config.get('Directory-Section', 'logs')
         self.token = config.get('API-Section', 'yang-catalog-token')
         self.admin_token = config.get('API-Section', 'admin-token')
         self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
@@ -2505,6 +2507,86 @@ def trigger_populate():
         application.LOGGER.error('Automated github webhook failure - {}'.format(e))
         return make_response(jsonify({'info': 'Success'}), 200)
 
+
+@application.route('/logs', methods=['POST'])
+@auth.login_required
+def validate_post():
+
+    def find_files(directory, pattern):
+        for root, dirs, files in os.walk(directory):
+            for basename in files:
+                if fnmatch.fnmatch(basename, pattern):
+                    filename = os.path.join(root, basename)
+                    yield filename
+    body = request.json
+    number_of_lines_per_page = body.get('lines-per-page', 1000)
+    page_num = body.get('page', 1)
+    filter = body.get('filter')
+    from_date_timestamp = body.get('from-date', None)
+    file_name = body.get('file-name', 'yang')
+    log_files = []
+    if from_date_timestamp is None:
+        log_files.append('{}/{}.log'.format(application.logs_dir, body.get('file-name')))
+    else:
+        files = find_files(application.logs_dir, file_name)
+        for f in files:
+            if os.path.getmtime(f) >= from_date_timestamp:
+                log_files.append(f)
+    send_out = []
+    if from_date_timestamp is None:
+        with open(log_files[0], 'r') as f:
+            for line in f.readlines():
+                if from_date_timestamp is None:
+                    d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
+                    t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
+                    from_date_timestamp = datetime.strptime("{} {}".format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+
+    whole_line = ''
+    for log_file in log_files:
+        with open(log_file, 'r') as f:
+            for line in reversed(f.readlines()):
+                line_timestamp = None
+                try:
+                    d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
+                    t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
+                    line_beginning = "{} {}".format(d, t)
+                    line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
+                except:
+                    # ignore and accept
+                    pass
+                if line_timestamp is None or not line.startswith(line_beginning):
+                    whole_line = '{}{}'.format(line, whole_line)
+                    continue
+                if line_timestamp >= from_date_timestamp:
+                    if filter is not None:
+                        match_case = filter.get('match-case', False)
+                        searched_string = filter.get('search-for', '')
+                        level = filter.get('level', '')
+                        if level in line:
+                            if match_case and searched_string in line:
+                                send_out.append(line)
+                            elif not match_case and searched_string in line.lower():
+                                send_out.append(line)
+                    else:
+                        send_out.append(line)
+                whole_line = ''
+
+    pages = math.ceil(len(send_out) / number_of_lines_per_page)
+    metadata = {'file-name': file_name,
+                'from-date': from_date_timestamp,
+                'lines-per-page': number_of_lines_per_page,
+                'page': page_num,
+                'pages': pages,
+                'filter': filter}
+    from_line = (page_num - 1) * number_of_lines_per_page
+    if page_num * number_of_lines_per_page > len(send_out):
+        output = send_out[from_line:]
+    else:
+        output = send_out[from_line : page_num * number_of_lines_per_page]
+    return make_response(jsonify({'meta': metadata,
+                                  'output': ''.join(output)}), 200)
+
+
 @application.route('/validate', methods=['POST'])
 @auth.login_required
 def validate_post():
@@ -2514,6 +2596,7 @@ def validate_post():
         return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
     else:
         return make_response(jsonify({'info': 'Failed to validate data and write to MySQL database'}), 200)
+
 
 @application.route('/validate', methods=['GET'])
 @auth.login_required
