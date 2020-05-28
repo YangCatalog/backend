@@ -22,6 +22,7 @@ import logging
 import os
 import stat
 
+
 def get_logger(name, file_name_path='yang.log'):
     """Create formated logger with name of file yang.log
         Arguments:
@@ -35,7 +36,7 @@ def get_logger(name, file_name_path='yang.log'):
         exists = True
     FORMAT = '%(asctime)-15s %(levelname)-8s %(name)5s => %(message)s - %(lineno)d'
     DATEFMT = '%Y-%m-%d %H:%M:%S'
-    logging.basicConfig(datefmt=DATEFMT, format=FORMAT, filename=file_name_path, level=logging.INFO)
+    logging.basicConfig(datefmt=DATEFMT, format=FORMAT, filename=file_name_path, level=logging.DEBUG)
     logger = logging.getLogger(name)
     # if file didn t exist we create it and now we can set chmod
     if not exists:

@@ -31,14 +31,12 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import errno
-import fnmatch
 import json
 import os
 import shutil
 import subprocess
 import sys
 import threading
-import unicodedata
 
 import requests
 
@@ -66,19 +64,6 @@ def reload_cache_in_parallel():
                        .format(response.status_code, response.text))
 
 
-def find_files(directory, pattern):
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
-                yield filename
-
-
-# Unicode to string
-def unicode_normalize(variable):
-    return unicodedata.normalize('NFKD', variable).encode('ascii', 'ignore')
-
-
 if __name__ == "__main__":
     config_path = '/etc/yangcatalog/yangcatalog.conf'
     config = ConfigParser.ConfigParser()
@@ -98,6 +83,7 @@ if __name__ == "__main__":
     temp_dir = config.get('Directory-Section', 'temp')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     result_dir = config.get('Web-Section', 'result-html-dir')
+    private_dir = config.get('Web-Section', 'private_directory')
     parser = argparse.ArgumentParser(description="Parse hello messages and YANG files to JSON dictionary. These"
                                                  " dictionaries are used for populating a yangcatalog. This script runs"
                                                  " first a runCapabilities.py script to create a JSON files which are"
@@ -156,44 +142,18 @@ if __name__ == "__main__":
     prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
     LOGGER.info('Calling runcapabilities script')
     run_capabilities = os.path.dirname(os.path.realpath(__file__)) + '/runCapabilities.py'
+    run_capabilities_args = ["python", run_capabilities, "--json-dir", direc, "--result-html-dir",
+                             args.result_html_dir, "--dir", args.dir, '--save-file-dir',
+                             args.save_file_dir, '--api-ip', args.api_ip, '--api-port',
+                             repr(args.api_port), '--api-protocol', args.api_protocol]
     if args.api:
-        if args.sdo:
-            with open("{}/log_api_sdo.txt".format(temp_dir), "w") as f:
-                arguments = ["python", run_capabilities,
-                             "--api", "--sdo", "--dir", args.dir, "--json-dir",
-                             direc, "--result-html-dir", args.result_html_dir,
-                             '--save-file-dir', args.save_file_dir, '--api-ip',
-                             args.api_ip, '--api-port', repr(args.api_port),
-                             '--api-protocol', args.api_protocol]
-                subprocess.check_call(arguments, stderr=f)
-        else:
-            with open("{}/log_api.txt".format(temp_dir), "w") as f:
-                arguments = ["python", run_capabilities,
-                             "--api", "--dir", args.dir, "--json-dir", direc,
-                             "--result-html-dir", args.result_html_dir,
-                             '--save-file-dir', args.save_file_dir, '--api-ip',
-                             args.api_ip, '--api-port', repr(args.api_port),
-                             '--api-protocol', args.api_protocol]
-                subprocess.check_call(arguments, stderr=f)
-    else:
-        if args.sdo:
-            with open("{}/log_sdo.txt".format(temp_dir), "w") as f:
-                arguments = ["python", run_capabilities,
-                             "--sdo", "--dir", args.dir, "--json-dir", direc,
-                             "--result-html-dir", args.result_html_dir,
-                             '--save-file-dir', args.save_file_dir, '--api-ip',
-                             args.api_ip, '--api-port', repr(args.api_port),
-                             '--api-protocol', args.api_protocol]
-                subprocess.check_call(arguments, stderr=f)
-        else:
-            with open("{}/log_no_sdo_api.txt".format(temp_dir), "w") as f:
-                arguments = ["python", run_capabilities,
-                             "--dir", args.dir, "--json-dir", direc,
-                             "--result-html-dir", args.result_html_dir,
-                             '--save-file-dir', args.save_file_dir,  '--api-ip',
-                             args.api_ip, '--api-port', repr(args.api_port),
-                             '--api-protocol', args.api_protocol]
-                subprocess.check_call(arguments, stderr=f)
+        run_capabilities_args.append("--api")
+    if args.sdo:
+        run_capabilities_args.append("--sdo")
+    with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "w") as f:
+        subprocess.check_call(run_capabilities_args, stderr=f)
+    with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "r") as f:
+        LOGGER.error("run capabilities error:\n{}".format(f.read()))
 
     body_to_send = ''
     if args.notify_indexing:

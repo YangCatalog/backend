@@ -349,19 +349,18 @@ class Modules:
         except:
             return
 
-    def add_vendor_information(self, vendor, platform_data, software_version,
-                               os_version, feature_set, os_type,
+    def add_vendor_information(self, platform_data,
                                confarmance_type, capability, netconf_version,
                                integrity_checker, split):
         for data in platform_data:
             implementation = self.Implementations()
-            implementation.vendor = vendor
+            implementation.vendor = data['vendor']
             implementation.platform = data['platform']
-            implementation.software_version = software_version
+            implementation.software_version = data['software-version']
             implementation.software_flavor = data['software-flavor']
-            implementation.os_version = os_version
-            implementation.feature_set = feature_set
-            implementation.os_type = os_type
+            implementation.os_version = data['os-version']
+            implementation.feature_set = data['feature-set']
+            implementation.os_type = data['os']
             implementation.feature = self.features
             implementation.capability = capability
             implementation.netconf_version = netconf_version
@@ -1000,7 +999,7 @@ class Modules:
                 self.revision = None
                 self.schema = None
 
-    def resolve_integrity(self, integrity_checker, split, os_version):
+    def resolve_integrity(self, integrity_checker, split):
         key = '/'.join(split[0:-1])
         key2 = key + '/' + split[-1]
         if self.name not in self.__missing_modules:
@@ -1011,20 +1010,12 @@ class Modules:
 
         if self.__missing_namespace is None:
             for ns, org in NS_MAP.items():
-                if os_version is '1651':
-                    if 'urn:' not in self.namespace\
-                            and ns not in self.namespace:
-                        self.__missing_namespace = self.name + ' : ' + self.namespace
-                    else:
-                        self.__missing_namespace = None
-                        break
+                if (ns not in self.namespace and 'urn:' not in self.namespace)\
+                        or 'urn:cisco' in self.namespace:
+                    self.__missing_namespace = self.name + ' : ' + self.namespace
                 else:
-                    if (ns not in self.namespace and 'urn:' not in self.namespace)\
-                            or 'urn:cisco' in self.namespace:
-                        self.__missing_namespace = self.name + ' : ' + self.namespace
-                    else:
-                        self.__missing_namespace = None
-                        break
+                    self.__missing_namespace = None
+                    break
 
         integrity_checker.add_namespace(key2, self.__missing_namespace)
 

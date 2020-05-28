@@ -38,10 +38,10 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 import utility.log as log
-from utility import repoutil
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.parseException import ParseException
+from utility import repoutil
 
 github_raw = 'https://raw.githubusercontent.com/'
 github_url = 'https://github.com/'
@@ -62,7 +62,8 @@ def find_first_file(directory, pattern, pattern_with_revision):
 
 
 class Capability:
-    def __init__(self, log_directory, hello_message_file, index, prepare, integrity_checker,
+
+    def __init__(self, log_directory, hello_message_file, prepare, integrity_checker,
                  api, sdo, json_dir, html_result_dir, save_file_to_dir, private_dir,
                  yang_models_dir, run_integrity=False):
         global LOGGER
@@ -74,12 +75,9 @@ class Capability:
         self.to = save_file_to_dir
         self.html_result_dir = html_result_dir
         self.json_dir = json_dir
-        self.index = index
         self.prepare = prepare
         self.integrity_checker = integrity_checker
-        self.parsed_yang = None
         self.api = api
-        self.sdo = sdo
         self.path = None
         self.yang_models_dir = yang_models_dir
         # Get hello message root
@@ -99,14 +97,13 @@ class Capability:
         self.split = hello_message_file.split('/')
         self.hello_message_file = hello_message_file
 
-        if self.api and not self.sdo:
+        if self.api and not sdo:
             self.platform_data = []
             json_file = open(hello_message_file.split('.xml')[0] + '.json')
             impl = json.load(json_file)
             self.initialize(impl)
             json_file.close()
-
-        if not self.api and not self.sdo:
+        if not self.api and not sdo:
             if os.path.isfile('/'.join(self.split[:-1]) + '/platform-metadata.json'):
                 self.platform_data = []
                 json_file = open('/'.join(self.split[:-1]) + '/platform-metadata.json')
@@ -125,28 +122,29 @@ class Capability:
                 self.branch = 'master'
                 self.branch = repo.get_commit_hash(self.branch)
                 repo.remove()
-                self.feature_set = 'ALL'
-                self.software_version = self.split[5]
-                self.vendor = self.split[3]
                 # Solve for os-type
                 if 'nx' in self.split[4]:
-                    self.os = 'NX-OS'
-                    self.platform = self.split[6].split('-')[0]
+                    os = 'NX-OS'
+                    platform = self.split[6].split('-')[0]
                 elif 'xe' in self.split[4]:
-                    self.os = 'IOS-XE'
-                    self.platform = self.split[6].split('-')[0]
+                    os = 'IOS-XE'
+                    platform = self.split[6].split('-')[0]
                 elif 'xr' in self.split[4]:
-                    self.os = 'IOS-XR'
-                    self.platform = self.split[6].split('-')[1]
+                    os = 'IOS-XR'
+                    platform = self.split[6].split('-')[1]
                 else:
-                    self.os = 'Unknown'
-                    self.platform = 'Unknown'
-                self.os_version = self.split[5]
-                self.software_flavor = 'ALL'
+                    os = 'Unknown'
+                    platform = 'Unknown'
                 self.platform_data.append(
-                    {'software-flavor': self.software_flavor,
-                     'platform': self.platform})
-            integrity_checker.add_platform('/'.join(self.split[:-2]), self.platform)
+                    {'software-flavor': 'ALL',
+                     'platform': platform,
+                     'software-version': self.split[5],
+                     'os-version': self.split[5],
+                     'feature-set': "ALL",
+                     'os' : os,
+                     'vendor': self.split[3]})
+            for data in self.platform_data:
+                integrity_checker.add_platform('/'.join(self.split[:-2]), data['platform'])
 
         self.parsed_jsons = None
         if not run_integrity:
@@ -155,13 +153,6 @@ class Capability:
     def initialize(self, impl):
         if impl['module-list-file']['path'] in self.hello_message_file:
             LOGGER.info('Parsing a received json file')
-            self.feature_set = 'ALL'
-            self.os_version = impl['software-version']
-            self.software_flavor = impl['software-flavor']
-            self.vendor = impl['vendor']
-            self.platform = impl['name']
-            self.os = impl['os-type']
-            self.software_version = impl['software-version']
             self.owner = impl['module-list-file']['owner']
             self.repo = impl['module-list-file']['repository'].split('.')[0]
             self.path = impl['module-list-file']['path']
@@ -172,8 +163,13 @@ class Capability:
                 self.branch = 'master'
             self.branch = repo.get_commit_hash(self.branch)
             repo.remove()
-            self.platform_data.append({'software-flavor': self.software_flavor,
-                                       'platform': self.platform})
+            self.platform_data.append({'software-flavor': impl['software-flavor'],
+                                       'platform': impl['name'],
+                                       'os-version': impl['software-version'],
+                                       'software-version': impl['software-version'],
+                                       'feature-set': "ALL",
+                                       'vendor': impl['vendor'],
+                                       'os': impl['os-type']})
 
     def parse_and_dump_sdo(self):
         repo = None
@@ -354,16 +350,13 @@ class Capability:
                 yang.parse_all(self.branch, module_name,
                                self.prepare.name_revision_organization,
                                schema_part, self.path, self.to)
-                yang.add_vendor_information(self.vendor, self.platform_data,
-                                            self.software_version,
-                                            self.os_version, self.feature_set,
-                                            self.os, conformance_type,
+                yang.add_vendor_information(self.platform_data,
+                                            conformance_type,
                                             capabilities, netconf_version,
                                             self.integrity_checker,
                                             self.split)
                 if self.run_integrity:
-                    yang.resolve_integrity(self.integrity_checker, self.split,
-                                           self.os_version)
+                    yang.resolve_integrity(self.integrity_checker, self.split)
                 self.prepare.add_key_sdo_module(yang)
                 keys.add('{}@{}/{}'.format(yang.name, yang.revision,
                                            yang.organization))
@@ -454,18 +447,14 @@ class Capability:
                     yang.parse_all(self.branch, module_name,
                                    self.prepare.name_revision_organization,
                                    schema_part, self.path, self.to)
-                    yang.add_vendor_information(self.vendor, self.platform_data,
-                                                self.software_version,
-                                                self.os_version,
-                                                self.feature_set,
-                                                self.os, 'implement',
+                    yang.add_vendor_information(self.platform_data,
+                                                'implement',
                                                 capabilities,
                                                 netconf_version,
                                                 self.integrity_checker,
                                                 self.split)
                     if self.run_integrity:
-                        yang.resolve_integrity(self.integrity_checker,
-                                               self.split, self.os_version)
+                        yang.resolve_integrity(self.integrity_checker, self.split)
                     self.prepare.add_key_sdo_module(yang)
                     key = '{}@{}/{}'.format(yang.name, yang.revision,
                                             yang.organization)
@@ -519,17 +508,13 @@ class Capability:
                     yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
                                    schema_part, self.path, self.to)
-                    yang.add_vendor_information(self.vendor, self.platform_data,
-                                                self.software_version,
-                                                self.os_version,
-                                                self.feature_set, self.os,
+                    yang.add_vendor_information(self.platform_data,
                                                 conformance_type, capabilities,
                                                 netconf_version,
                                                 self.integrity_checker,
                                                 self.split)
                     if self.run_integrity:
-                        yang.resolve_integrity(self.integrity_checker,
-                                               self.split, self.os_version)
+                        yang.resolve_integrity(self.integrity_checker, self.split)
                     self.prepare.add_key_sdo_module(yang)
                     self.parse_imp_inc(yang.submodule, set_of_names, True,
                                        schema_part, capabilities, netconf_version)

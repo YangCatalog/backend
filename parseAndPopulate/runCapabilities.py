@@ -35,7 +35,7 @@ import time
 import utility.log as log
 from parseAndPopulate import capability as cap
 from parseAndPopulate import integrity
-from parseAndPopulate import prepare
+from parseAndPopulate.prepare import Prepare
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -119,84 +119,66 @@ if __name__ == "__main__":
                                                    args.api_ip, separator,
                                                    suffix)
     start = time.time()
-    index = 1
-    local_integrity = None
-    sdo = args.sdo
+    local_integrity = integrity.Statistics(args.dir)
+    prepare = Prepare(log_directory, "prepare", yangcatalog_api_prefix)
     search_dirs = [args.dir]
 
-    if sdo:
-        stats_list = {'sdo': search_dirs}
-    else:
-        stats_list = {'vendor': search_dirs}
     if args.run_integrity:
         stats_list = {'vendor': [yang_models + '/vendor/cisco']}
     LOGGER.info('Starting to iterate through files')
-    for key in stats_list:
-        search_dirs = stats_list[key]
-        if key == 'sdo':
-            sdo = True
-            prepare_sdo = prepare.Prepare(log_directory, "prepare", yangcatalog_api_prefix)
-            for search_dir in search_dirs:
+    if args.sdo:
+        LOGGER.info('Found directory for sdo {}'.format(args.dir))
 
-                LOGGER.info('Found directory for sdo {}'.format(search_dir))
-                local_integrity = integrity.Statistics(search_dir)
+        capability = cap.Capability(log_directory, args.dir, prepare,
+                                    local_integrity, args.api, args.sdo,
+                                    args.json_dir, args.result_html_dir,
+                                    args.save_file_dir, private_dir, yang_models)
+        LOGGER.info('Starting to parse files in sdo directory')
+        capability.parse_and_dump_sdo()
+        prepare.dump_modules(args.json_dir)
+    else:
+        patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']
+        for pattern in patterns:
+            for filename in find_files(args.dir, pattern):
+                update = True
+                if not args.api and args.save_modification_date:
+                    try:
+                        file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
+                                                 '.txt', 'rw')
+                        time_in_file = file_modification.readline()
+                        if time_in_file in str(time.ctime(os.path.getmtime(filename))):
+                            update = False
+                            LOGGER.info('{} is not modified. Skipping this file'.format(filename))
+                            file_modification.close()
+                        else:
+                            file_modification.seek(0)
+                            file_modification.write(time.ctime(os.path.getmtime(filename)))
+                            file_modification.truncate()
+                            file_modification.close()
+                    except IOError:
+                        file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
+                                                 '.txt', 'w')
+                        file_modification.write(str(time.ctime(os.path.getmtime(filename))))
+                        file_modification.close()
+                    if update:
+                        LOGGER.info('Found xml source {}'.format(filename))
 
-                capability = cap.Capability(log_directory, search_dir, index, prepare_sdo,
-                                            local_integrity, args.api, sdo,
-                                            args.json_dir, args.result_html_dir,
-                                            args.save_file_dir, private_dir, yang_models)
-                LOGGER.info('Starting to parse files in sdo directory')
-                capability.parse_and_dump_sdo()
-                index += 1
-            prepare_sdo.dump_modules(args.json_dir)
-        else:
-            sdo = False
-            prepare_vendor = prepare.Prepare(log_directory, "prepare", yangcatalog_api_prefix)
-            for search_dir in search_dirs:
-                patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']
-                for pattern in patterns:
-                    for filename in find_files(search_dir, pattern):
-                        update = True
-                        if not args.api and args.save_modification_date:
-                            try:
-                                file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
-                                                         '.txt', 'rw')
-                                time_in_file = file_modification.readline()
-                                if time_in_file in str(time.ctime(os.path.getmtime(filename))):
-                                    update = False
-                                    LOGGER.info('{} is not modified. Skipping this file'.format(filename))
-                                    file_modification.close()
-                                else:
-                                    file_modification.seek(0)
-                                    file_modification.write(time.ctime(os.path.getmtime(filename)))
-                                    file_modification.truncate()
-                                    file_modification.close()
-                            except IOError:
-                                file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
-                                                         '.txt', 'w')
-                                file_modification.write(str(time.ctime(os.path.getmtime(filename))))
-                                file_modification.close()
-                        if update:
-                            local_integrity = integrity.Statistics(filename)
-                            LOGGER.info('Found xml source {}'.format(filename))
-
-                            capability = cap.Capability(log_directory, filename, index,
-                                                        prepare_vendor,
-                                                        local_integrity, args.api,
-                                                        sdo, args.json_dir,
-                                                        args.result_html_dir,
-                                                        args.save_file_dir,
-                                                        private_dir,
-                                                        yang_models,
-                                                        args.run_integrity)
-                            if 'ietf-yang-library' in pattern:
-                                capability.parse_and_dump_yang_lib()
-                            else:
-                                capability.parse_and_dump()
-                            index += 1
-            if not args.run_integrity:
-                prepare_vendor.dump_modules(args.json_dir)
-                prepare_vendor.dump_vendors(args.json_dir)
+                        capability = cap.Capability(log_directory, filename,
+                                                    prepare,
+                                                    local_integrity, args.api,
+                                                    args.sdo, args.json_dir,
+                                                    args.result_html_dir,
+                                                    args.save_file_dir,
+                                                    private_dir,
+                                                    yang_models,
+                                                    args.run_integrity)
+                        if 'ietf-yang-library' in pattern:
+                            capability.parse_and_dump_yang_lib()
+                        else:
+                            capability.parse_and_dump()
+        if not args.run_integrity:
+            prepare.dump_modules(args.json_dir)
+            prepare.dump_vendors(args.json_dir)
 
     if local_integrity is not None and args.run_integrity:
         create_integrity()

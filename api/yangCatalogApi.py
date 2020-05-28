@@ -2510,7 +2510,7 @@ def trigger_populate():
 
 @application.route('/logs', methods=['POST'])
 @auth.login_required
-def validate_post():
+def get_logs():
 
     def find_files(directory, pattern):
         for root, dirs, files in os.walk(directory):
