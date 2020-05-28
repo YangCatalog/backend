@@ -2519,6 +2519,8 @@ def get_logs():
                     filename = os.path.join(root, basename)
                     yield filename
     body = request.json
+    if body is None:
+        body = {}
     number_of_lines_per_page = body.get('lines-per-page', 1000)
     page_num = body.get('page', 1)
     filter = body.get('filter')
