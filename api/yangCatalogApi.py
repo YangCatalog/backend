@@ -2518,9 +2518,10 @@ def get_logs():
                 if fnmatch.fnmatch(basename, pattern):
                     filename = os.path.join(root, basename)
                     yield filename
-    body = request.json['input']
+    body = request.json.get('input')
+
     if body is None:
-        body = {}
+        return make_response(jsonify({'error': 'bar-request - body has to start with input and can not be empty'}), 400)
     number_of_lines_per_page = body.get('lines-per-page', 1000)
     page_num = body.get('page', 1)
     filter = body.get('filter')
@@ -2535,15 +2536,21 @@ def get_logs():
             if os.path.getmtime(f) >= from_date_timestamp:
                 log_files.append(f)
     send_out = []
+    application.LOGGER.debug(from_date_timestamp)
     if from_date_timestamp is None:
         with open(log_files[0], 'r') as f:
             for line in f.readlines():
                 if from_date_timestamp is None:
-                    d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
-                    t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
-                    from_date_timestamp = datetime.strptime("{} {}".format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+                    try:
+                        d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
+                        t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
+                        from_date_timestamp = datetime.strptime("{} {}".format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+                    except:
+                        # ignore and accept
+                        pass
 
     whole_line = ''
+    application.LOGGER.debug(from_date_timestamp)
     for log_file in log_files:
         with open(log_file, 'r') as f:
             for line in reversed(f.readlines()):
@@ -2563,17 +2570,22 @@ def get_logs():
                     if filter is not None:
                         match_case = filter.get('match-case', False)
                         match_whole_words = filter.get("match-words", False)
+                        filter_out = filter.get("fiter-out", None)
                         searched_string = filter.get('search-for', '')
-                        level = filter.get('level', '')
+                        level = filter.get('level', '').upper()
+                        if level != '':
+                            level = ' {} '.format(level)
                         if match_whole_words:
-                            if level != '':
-                                level = ' {} '.format(level)
                             if searched_string != '':
                                 searched_string = ' {} '.format(searched_string)
                         if level in line:
                             if match_case and searched_string in line:
+                                if filter_out is not None and filter_out in line:
+                                    continue
                                 send_out.append(line)
                             elif not match_case and searched_string in line.lower():
+                                if filter_out is not None and filter_out in line.lower():
+                                    continue
                                 send_out.append(line)
                     else:
                         send_out.append(line)
