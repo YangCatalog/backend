@@ -748,9 +748,8 @@ class ModulesComplicatedAlgorithms:
                                                                                len(self.__all_modules['module'])))
                 name = mod['name']
                 revision = mod['revision']
-                new_dependencies = mod['dependencies']
-                if mod.get('dependents') is None:
-                    mod['dependents'] = []
+                new_dependencies = mod.get('dependencies', [])
+                mod['dependents'] = mod.get('dependents', [])
                 # add dependents to already existing modules based on new dependencies from new modules
                 for new_dep in new_dependencies:
                     if new_dep.get('revision'):

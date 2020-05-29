@@ -2518,7 +2518,7 @@ def get_logs():
                 if fnmatch.fnmatch(basename, pattern):
                     filename = os.path.join(root, basename)
                     yield filename
-    body = request.json
+    body = request.json['input']
     if body is None:
         body = {}
     number_of_lines_per_page = body.get('lines-per-page', 1000)
@@ -2528,9 +2528,9 @@ def get_logs():
     file_name = body.get('file-name', 'yang')
     log_files = []
     if from_date_timestamp is None:
-        log_files.append('{}/{}.log'.format(application.logs_dir, body.get('file-name')))
+        log_files.append('{}/{}.log'.format(application.logs_dir, body.get('file-name', 'yang')))
     else:
-        files = find_files(application.logs_dir, file_name)
+        files = find_files(application.logs_dir, "{}*".format(file_name))
         for f in files:
             if os.path.getmtime(f) >= from_date_timestamp:
                 log_files.append(f)
@@ -2562,8 +2562,14 @@ def get_logs():
                 if line_timestamp >= from_date_timestamp:
                     if filter is not None:
                         match_case = filter.get('match-case', False)
+                        match_whole_words = filter.get("match-words", False)
                         searched_string = filter.get('search-for', '')
                         level = filter.get('level', '')
+                        if match_whole_words:
+                            if level != '':
+                                level = ' {} '.format(level)
+                            if searched_string != '':
+                                searched_string = ' {} '.format(searched_string)
                         if level in line:
                             if match_case and searched_string in line:
                                 send_out.append(line)
