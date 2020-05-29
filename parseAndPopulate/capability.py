@@ -124,16 +124,16 @@ class Capability:
                 repo.remove()
                 # Solve for os-type
                 if 'nx' in self.split[4]:
-                    os = 'NX-OS'
+                    os_type = 'NX-OS'
                     platform = self.split[6].split('-')[0]
                 elif 'xe' in self.split[4]:
-                    os = 'IOS-XE'
+                    os_type = 'IOS-XE'
                     platform = self.split[6].split('-')[0]
                 elif 'xr' in self.split[4]:
-                    os = 'IOS-XR'
+                    os_type = 'IOS-XR'
                     platform = self.split[6].split('-')[1]
                 else:
-                    os = 'Unknown'
+                    os_type = 'Unknown'
                     platform = 'Unknown'
                 self.platform_data.append(
                     {'software-flavor': 'ALL',
@@ -141,7 +141,7 @@ class Capability:
                      'software-version': self.split[5],
                      'os-version': self.split[5],
                      'feature-set': "ALL",
-                     'os' : os,
+                     'os' : os_type,
                      'vendor': self.split[3]})
             for data in self.platform_data:
                 integrity_checker.add_platform('/'.join(self.split[:-2]), data['platform'])
