@@ -160,22 +160,22 @@ if __name__ == "__main__":
                                                  '.txt', 'w')
                         file_modification.write(str(time.ctime(os.path.getmtime(filename))))
                         file_modification.close()
-                    if update:
-                        LOGGER.info('Found xml source {}'.format(filename))
+                if update:
+                    LOGGER.info('Found xml source {}'.format(filename))
 
-                        capability = cap.Capability(log_directory, filename,
-                                                    prepare,
-                                                    local_integrity, args.api,
-                                                    args.sdo, args.json_dir,
-                                                    args.result_html_dir,
-                                                    args.save_file_dir,
-                                                    private_dir,
-                                                    yang_models,
-                                                    args.run_integrity)
-                        if 'ietf-yang-library' in pattern:
-                            capability.parse_and_dump_yang_lib()
-                        else:
-                            capability.parse_and_dump()
+                    capability = cap.Capability(log_directory, filename,
+                                                prepare,
+                                                local_integrity, args.api,
+                                                args.sdo, args.json_dir,
+                                                args.result_html_dir,
+                                                args.save_file_dir,
+                                                private_dir,
+                                                yang_models,
+                                                args.run_integrity)
+                    if 'ietf-yang-library' in pattern:
+                        capability.parse_and_dump_yang_lib()
+                    else:
+                        capability.parse_and_dump()
         if not args.run_integrity:
             prepare.dump_modules(args.json_dir)
             prepare.dump_vendors(args.json_dir)

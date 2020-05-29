@@ -153,7 +153,9 @@ if __name__ == "__main__":
     with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "w") as f:
         subprocess.check_call(run_capabilities_args, stderr=f)
     with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "r") as f:
-        LOGGER.error("run capabilities error:\n{}".format(f.read()))
+        error = f.read()
+        if error != "":
+            LOGGER.error("run capabilities error:\n{}".format(error))
 
     body_to_send = ''
     if args.notify_indexing:
