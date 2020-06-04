@@ -409,12 +409,12 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'not-applicable'
                 elif is_combined(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'nmda-compatible'
-                elif is_transational(pyang_list_of_rows, stdout):
-                    module['tree-type'] = 'transitional-extra'
                 elif is_openconfig(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'openconfig'
                 elif is_split(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'split'
+                elif is_transational(pyang_list_of_rows, stdout):
+                    module['tree-type'] = 'transitional-extra'
                 else:
                     module['tree-type'] = 'unclassified'
             self.__new_modules.append(module)

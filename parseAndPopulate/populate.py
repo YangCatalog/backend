@@ -37,6 +37,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 
 import requests
 
@@ -125,6 +126,7 @@ if __name__ == "__main__":
                                                    suffix)
     key = config.get('Receiver-Section', 'key')
     LOGGER.info('Starting the populate script')
+    start = time.time()
     if args.api:
         direc = args.dir
         args.dir += '/temp'
@@ -284,6 +286,8 @@ if __name__ == "__main__":
             thread.join()
             complicatedAlgorithms.parse_requests()
             LOGGER.info('Populating with new data of complicated algorithms')
+            end = time.time()
+            LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(end - start))
             complicatedAlgorithms.populate()
         else:
             url = (yangcatalog_api_prefix + 'load-cache')
