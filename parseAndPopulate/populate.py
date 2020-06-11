@@ -32,17 +32,17 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import errno
 import json
+import multiprocessing
 import os
 import shutil
 import subprocess
 import sys
-import threading
 import time
 
 import requests
 
 import utility.log as log
-from api.receiver import prepare_to_indexing, send_to_indexing
+from api.rabbitMqCommunicators.receiver import prepare_to_indexing, send_to_indexing
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 if sys.version_info >= (3, 4):
@@ -63,6 +63,7 @@ def reload_cache_in_parallel():
     if response.status_code != 201:
         LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                        .format(response.status_code, response.text))
+    LOGGER.info("cache reloaded")
 
 
 if __name__ == "__main__":
@@ -170,7 +171,7 @@ if __name__ == "__main__":
                                            tempDir=temp_dir)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
-    x = 0
+    x = -1
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
         modules_json = json.loads(read)['module']
@@ -222,7 +223,7 @@ if __name__ == "__main__":
     # In each json
     LOGGER.info('Starting to add vendors')
     if os.path.exists('{}/normal.json'.format(direc)):
-        x = 0
+        x = -1
         with open('{}/normal.json'.format(direc)) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
             for x in range(0, int(len(vendors) / 1000)):
@@ -272,19 +273,20 @@ if __name__ == "__main__":
         LOGGER.info('Sending files for indexing')
         send_to_indexing(body_to_send, args.credentials, args.protocol, set_key=key, apiIp=args.api_ip)
     if not args.api:
-        thread = None
         if not args.force_indexing:
-            thread = threading.Thread(target=reload_cache_in_parallel)
-            thread.start()
+            process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel)
+            process_reload_cache.start()
             LOGGER.info('Run complicated algorithms')
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  args.credentials,
                                                                  args.protocol, args.ip, args.port, args.save_file_dir,
                                                                  direc, None, yang_models, temp_dir)
-            complicatedAlgorithms.parse_non_requests()
+            process_non_request = multiprocessing.Process(target=complicatedAlgorithms.parse_non_requests)
+            process_non_request.start()
             LOGGER.info('Waiting for cache reload to finish')
-            thread.join()
+            process_reload_cache.join()
             complicatedAlgorithms.parse_requests()
+            process_non_request.join()
             LOGGER.info('Populating with new data of complicated algorithms')
             end = time.time()
             LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(end - start))
