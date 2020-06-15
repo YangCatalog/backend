@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-This script will json file to populate elasticsearch
+This script will create json file to populate elasticsearch
 from all the modules saved in confd database
 """
 

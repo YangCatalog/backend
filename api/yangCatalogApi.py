@@ -2611,11 +2611,18 @@ def get_logs():
 @auth.login_required
 def validate_post():
     body = request.json
-    validated = validate.main(body['vendor_access'], body['vendor_path'], body['sdo_access'], body['sdo_path'])
-    if validated:
-        return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
-    else:
-        return make_response(jsonify({'info': 'Failed to validate data and write to MySQL database'}), 200)
+    if body.get('vendor-access') is None and body.get('sdo-access'):
+        return make_response(jsonify({'info': 'Failed to validate - at least one of vendor-access or sdo-access'
+                                              'must be filled in'}), 400)
+    if body.get('vendor-access') is not None and body.get('vendor-path') is None:
+        return make_response(jsonify({'info': 'Failed to validate - vendor-access True but no vendor-path given'}), 400)
+    if body.get('sdo-access') is not None and body.get('sdo-path') is None:
+        return make_response(jsonify({'info': 'Failed to validate - sdo-access True but no sdo-path given'}), 400)
+    if body.get('row-id') is None or body.get('user-email') is None:
+        return make_response(jsonify({'info': 'Failed to validate - user-email and row-id must exist'}), 400)
+    validate.main(body.get('vendor-access'), body.get('vendor-path'), body.get('sdo-access'), body.get('sdo-path'),
+                  body['row-id'], body['user-email'])
+    return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
 
 
 @application.route('/validate', methods=['GET'])

@@ -141,13 +141,13 @@ def connect(dbHost, dbName, dbUser, dbPass, LOGGER):
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def delete(dbHost, dbName, dbPass, dbUser, row, LOGGER):
+def delete(dbHost, dbName, dbPass, dbUser, row_id, LOGGER):
     try:
         db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("""DELETE FROM users_temp WHERE Id=%s LIMIT 1""", (row[0], ))
+        cursor.execute("""DELETE FROM users_temp WHERE Id=%s LIMIT 1""", (row_id, ))
         db.commit()
         db.close()
     except MySQLdb.MySQLError as err:
@@ -191,7 +191,19 @@ def local_print(text, LOGGER):
         print(text)
 
 
-def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None, config_path='/etc/yangcatalog/yangcatalog.conf'):
+def create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email):
+    if sdo_path is None:
+        sdo_path = ''
+    if vendor_path is None:
+        vendor_path = ''
+    copy(dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER)
+    delete(dbHost, dbName, dbPass, dbUser, row_id, LOGGER)
+    email_from = config.get('Message-Section', 'email-from')
+    send_email(user_email, repr(vendor_path), repr(sdo_path), email_from)
+
+
+def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None,
+         row_id=None, user_email=None,config_path='/etc/yangcatalog/yangcatalog.conf'):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
@@ -209,6 +221,8 @@ def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None, c
     dbData = connect(dbHost, dbName, dbPass, dbUser, LOGGER)
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     pull(yang_models)
+    if vendor_access or sdo_access is not None:
+        create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email)
     vendor_path = None
     sdo_path = None
     for row in dbData:
@@ -227,20 +241,13 @@ def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None, c
                                               + ')' + ' from organization ' + row[4] + ' with path for vendor '
                                               + repr(vendor_path) + ' and organization for sdo ' + repr(sdo_path))
             if want_to_create:
-                if sdo_path is None:
-                    sdo_path = ''
-                if vendor_path is None:
-                    vendor_path = ''
-                copy(dbHost, dbName, dbPass, dbUser, row, vendor_path, sdo_path, LOGGER)
-                delete(dbHost, dbName, dbPass, dbUser, row, LOGGER)
-                email_from = config.get('Message-Section', 'email-from')
-                send_email(row[3], repr(vendor_path), repr(sdo_path), email_from)
+                create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row[0], LOGGER, config, row[3])
                 break
             else:
                 local_print('Skipping user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' from organization ' + row[4]
                       + ' has no path set.', LOGGER)
                 if query_yes_no('Would you like to delete this user from temporary database?'):
-                    delete(dbHost, dbName, dbPass, dbUser, row, LOGGER)
+                    delete(dbHost, dbName, dbPass, dbUser, row[0], LOGGER)
                 break
 
 
