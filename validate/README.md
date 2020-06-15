@@ -27,3 +27,5 @@ Questions are as follows:
 Finally it will create recapitulation with user name and access you are about to give them with yes no option.
 If you choose yes it will move the user from temporary database table to real database table and it will write
 provided access to the database.
+
+This can be done from admin yangcatalog UI as well
