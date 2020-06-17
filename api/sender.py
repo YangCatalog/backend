@@ -66,7 +66,7 @@ class Sender:
                         port=rabbitmq_port,
                         virtual_host=rabbitmq_virtual_host,
                         credentials=credentials,
-                        heartbeat=0))
+                        heartbeat=10))
                 break
             except pika.exceptions.ConnectionClosed:
                 self.LOGGER.debug('Cannot connect to rabbitMQ, trying after a sleep')

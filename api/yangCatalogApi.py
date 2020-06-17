@@ -500,6 +500,8 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
             accessRigths = data[7]
         db.close()
     except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     passed = False
@@ -536,6 +538,8 @@ def authorize_for_vendors(request, body):
             accessRigths = data[8]
         db.close()
     except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     rights = accessRigths.split('/')
@@ -761,6 +765,8 @@ def delete_module(name, revision, organization):
             accessRigths = data[7]
         db.close()
     except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
     response = requests.get(application.protocol + '://' + application.confd_ip + ':' + repr(
         application.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' + name +
@@ -833,6 +839,8 @@ def delete_modules():
             accessRigths = data[7]
         db.close()
     except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     rpc = request.json
@@ -929,6 +937,8 @@ def delete_vendor(value):
             accessRigths = data[8]
         db.close()
     except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     rights = accessRigths.split('/')
@@ -2508,7 +2518,7 @@ def trigger_populate():
         return make_response(jsonify({'info': 'Success'}), 200)
 
 
-@application.route('/logs', methods=['POST'])
+@application.route('/admin/logs', methods=['POST'])
 @auth.login_required
 def get_logs():
 
@@ -2607,7 +2617,7 @@ def get_logs():
                                   'output': ''.join(output)}), 200)
 
 
-@application.route('/validate', methods=['POST'])
+@application.route('/admin/validate', methods=['POST'])
 @auth.login_required
 def validate_post():
     body = request.json
@@ -2625,27 +2635,124 @@ def validate_post():
     return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
 
 
-@application.route('/validate', methods=['GET'])
+@application.route('/admin/sql-tables', methods=['GET'])
 @auth.login_required
-def validate_get():
+def get_sql_tables():
+    return make_response(jsonify(['users', 'users_temp']), 200)
+
+
+@application.route('/admin/sql-tables/<table>', methods=['POST'])
+@auth.login_required
+def create_sql_row(table):
+    if table not in ['users', 'users_temp']:
+        return make_response(jsonify({'error': 'table {} not implemented use only users or users_temp'.format(table)}),
+                             501)
+    body = request.json.get('input')
+    if body is None:
+        return make_response(jsonify({'error': 'bad request - did you not start with input json container?'}), 400)
+    username = body.get('username')
+    name = body.get('first-name')
+    last_name = body.get('last-name')
+    email = body.get('email')
+    password = body.get('password')
+    if body is None or username is None or name is None or last_name is None or email is None or password is None:
+        return make_response(jsonify({'error': 'username - {}, firstname - {}, last-name - {},'
+                                               ' email - {} and password - {} must be specified'.format(username,
+                                                                                                        name,
+                                                                                                        last_name,
+                                                                                                        email,
+                                                                                                        password)}),
+                             400)
+    models_provider = body.get('models-provider', '')
+    sdo_access = body.get('access-rights-sdo', '')
+    vendor_access = body.get('access-rights-vendor', '')
+    if sdo_access == '' and vendor_access == '':
+        return make_response(jsonify({'error': 'access-rights-sdo or access-rights-vendor must be specified.'}), 400)
+    try:
+        db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
+         FirstName, LastName, AccessRightsSdo, AccessRightsVendor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"""\
+            .format(table)
+        cursor.execute(sql, (username, password, email, models_provider,
+                             name, last_name, sdo_access, vendor_access, ))
+        db.commit()
+        db.close()
+        response = {'info': 'data successfully added to database',
+                    'data': body}
+        return make_response(jsonify(response), 201)
+    except MySQLdb.MySQLError as err:
+        if err.args[0] not in [1049, 2013]:
+            db.close()
+        application.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+
+
+@application.route('/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
+@auth.login_required
+def delete_sql_row(table, unique_id):
+    try:
+        db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        sql = """SELECT * FROM `{}` WHERE Id = %s""".format(table)
+        cursor.execute(sql, (unique_id, ))
+
+        data = cursor.fetchall()
+
+        found = False
+        for x in data:
+            if x[0] == int(unique_id):
+                found = True
+        if found:
+            # execute SQL query using execute() method.
+            cursor = db.cursor()
+            sql = """DELETE FROM `{}` WHERE Id = %s""".format(table)
+            cursor.execute(sql, (unique_id, ))
+            db.commit()
+
+        db.close()
+    except MySQLdb.MySQLError as err:
+        if err.args[0] not in [1049, 2013]:
+            db.close()
+        application.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+    if found:
+        return make_response(jsonify({'info': 'id {} deleted successfully'.format(unique_id)}), 200)
+    else:
+        return make_response(jsonify({'error': 'id {} not found in table {}'.format(unique_id, table)}), 404)
+
+
+@application.route('/admin/sql-tables/<table>', methods=['GET'])
+@auth.login_required
+def get_sql_rows(table):
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM users_temp")
+        sql = """SELECT * FROM {}""".format(table)
+        cursor.execute(sql)
         data = cursor.fetchall()
         db.close()
 
     except MySQLdb.MySQLError as err:
         application.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        if err.args[0] not in [1049, 2013]:
+            db.close()
+        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     ret = []
     for row in data:
-        data_set = {}
-        data_set['name'] = row[5]
-        data_set['org'] = row[1]
-        data_set['surname'] = row[6]
-        data_set['nick_name'] = row[4]
+        data_set = {'id': row[0],
+                    'username': row[1],
+                    #'password': row[2], do not share this hashed password
+                    'email': row[3],
+                    'models-provider': row[4],
+                    'first-name': row[5],
+                    'last-name': row[6],
+                    'access-rights-sdo': row[7],
+                    'access-rights-vendor': row[8]}
         ret.append(data_set)
     return make_response(jsonify(ret), 200)
 
@@ -2897,6 +3004,8 @@ def get_password(username):
             return data[2]
 
     except MySQLdb.MySQLError as err:
+        if err.args[0] not in [1049, 2013]:
+            db.close()
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         return None
 
