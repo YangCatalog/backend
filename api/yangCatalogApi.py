@@ -2556,7 +2556,7 @@ def get_log_files():
     files = find_files(application.logs_dir, '*.log*')
     resp = set()
     for f in files:
-        resp.add(f.split('/')[-1])
+        resp.add(f.split('/')[-1].split('.')[0])
     return make_response(jsonify({'info': 'success',
                                   'data': list(resp)}), 200)
 
