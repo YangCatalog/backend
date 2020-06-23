@@ -102,10 +102,10 @@ class MyFlask(Flask):
         self.response = None
         self.ys_set = 'set'
 
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
+        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config.read(self.config_path)
         self.result_dir = config.get('Web-Section', 'result-html-dir')
         self.dbHost = config.get('DB-Section', 'host')
         self.dbName = config.get('DB-Section', 'name-users')
@@ -2518,6 +2518,49 @@ def trigger_populate():
         return make_response(jsonify({'info': 'Success'}), 200)
 
 
+@application.route('/admin/yangcatalog-config', methods=['GET'])
+@auth.login_required
+def read_yangcatalog_config():
+    with open(application.config_path, 'r') as f:
+        yangcatalog_config = f.read()
+    response = {'info': 'Success',
+                'data': yangcatalog_config}
+    return make_response(jsonify(response), 200)
+
+
+@application.route('/admin/yangcatalog-config', methods=['PUT'])
+@auth.login_required
+def update_yangcatalog_config():
+    body = request.json
+    input = body.get('input')
+    if input is None or input.get('data') is None:
+        return make_response(jsonify({'error': 'payload needs to have body with input and data container'}), 400)
+    with open(application.config_path, 'w') as f:
+        f.write(input['data'])
+    response = {'info': 'Success',
+                'new-data': input['data']}
+    return make_response(jsonify(response), 200)
+
+
+@application.route('/admin/logs', methods=['GET'])
+@auth.login_required
+def get_log_files():
+
+    def find_files(directory, pattern):
+        for root, dirs, files in os.walk(directory):
+            for basename in files:
+                if fnmatch.fnmatch(basename, pattern):
+                    filename = os.path.join(root, basename)
+                    yield filename
+
+    files = find_files(application.logs_dir, '*.log*')
+    resp = set()
+    for f in files:
+        resp.add(f.split('/')[-1])
+    return make_response(jsonify({'info': 'success',
+                                  'data': list(resp)}), 200)
+
+
 @application.route('/admin/logs', methods=['POST'])
 @auth.login_required
 def get_logs():
@@ -2593,8 +2636,8 @@ def get_logs():
                                 if filter_out is not None and filter_out in line:
                                     continue
                                 send_out.append(line)
-                            elif not match_case and searched_string in line.lower():
-                                if filter_out is not None and filter_out in line.lower():
+                            elif not match_case and searched_string.lower() in line.lower():
+                                if filter_out is not None and filter_out.lower() in line.lower():
                                     continue
                                 send_out.append(line)
                     else:

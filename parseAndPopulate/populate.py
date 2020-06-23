@@ -42,7 +42,7 @@ import time
 import requests
 
 import utility.log as log
-from api.rabbitMqCommunicators.receiver import prepare_to_indexing, send_to_indexing
+from api.receiver import prepare_to_indexing, send_to_indexing
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 if sys.version_info >= (3, 4):
