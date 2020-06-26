@@ -35,8 +35,9 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import datetime
-import uuid
 import time
+import uuid
+
 import pika
 
 import utility.log as log
@@ -53,27 +54,14 @@ class Sender:
         self.LOGGER.debug('Initializing sender')
         self.__response_type = ['Failed', 'In progress',
                                 'Finished successfully', 'does not exist']
-
-        credentials = pika.PlainCredentials(
+        self.__rabbitmq_host = rabbitmq_host
+        self.__rabbitmq_port = rabbitmq_port
+        self.__rabbitmq_virtual_host = rabbitmq_virtual_host
+        self.__credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
         # Let try to connect to RabbitMQ until success..
-        while (True):
-            try:
-                self.connection = pika.BlockingConnection(
-                    pika.ConnectionParameters(
-                        host=rabbitmq_host,
-                        port=rabbitmq_port,
-                        virtual_host=rabbitmq_virtual_host,
-                        credentials=credentials,
-                        heartbeat=10))
-                break
-            except pika.exceptions.ConnectionClosed:
-                self.LOGGER.debug('Cannot connect to rabbitMQ, trying after a sleep')
-                time.sleep(60)
 
-        self.channel = self.connection.channel()
-        self.channel.queue_declare(queue='module_queue')
         self.__temp_dir = temp_dir
         self.__response_file = 'correlation_ids'
         self.LOGGER.debug('Sender initialized')
@@ -104,18 +92,32 @@ class Sender:
                     :param arguments: (str) arguments to process in receiver
                     :return job_id
         """
-        self.LOGGER.info('Sending data to queue with arguments: {}'
-                    .format(arguments))
+        self.LOGGER.info('Sending data to queue with arguments: {}'.format(arguments))
+        while (True):
+            try:
+                connection = pika.BlockingConnection(
+                    pika.ConnectionParameters(
+                        host=self.__rabbitmq_host,
+                        port=self.__rabbitmq_port,
+                        virtual_host=self.__rabbitmq_virtual_host,
+                        credentials=self.__credentials))
+                channel = connection.channel()
+                channel.queue_declare(queue='module_queue')
+                break
+            except pika.exceptions.ConnectionClosed:
+                self.LOGGER.debug('Cannot connect to rabbitMQ, trying after a sleep')
+                time.sleep(3)
         corr_id = str(uuid.uuid4())
-        self.channel.basic_publish(exchange='',
+        channel.basic_publish(exchange='',
                                    routing_key='module_queue',
+                                   body=str(arguments),
                                    properties=pika.BasicProperties(
                                        correlation_id=corr_id,
-                                   ),
-                                   body=str(arguments))
+                                   )
+                              )
         with open('{}/{}'.format(self.__temp_dir, self.__response_file), 'a') as f:
             line = '{} -- {} - {}\n'.format(datetime.datetime.now().ctime(),
                                             corr_id, self.__response_type[1])
             f.write(line)
-
+        connection.close()
         return corr_id

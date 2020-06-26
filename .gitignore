@@ -22,3 +22,4 @@ yang-catalog.service
 */yang-catalog.ini
 */yang-catalog.service
 /venv/
+/api/test.py

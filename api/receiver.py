@@ -35,18 +35,21 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import errno
 import json
+import multiprocessing
 import os
 import shutil
 import socket
 import subprocess
 import sys
+import time
 from datetime import datetime
 from distutils.dir_util import copy_tree
 
 import pika
 import requests
-import utility.log as log
 from Crypto.Hash import HMAC, SHA
+
+import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility import messageFactory
 
@@ -603,6 +606,11 @@ def run_ietf():
 
 
 def on_request(ch, method, props, body):
+    process_reload_cache = multiprocessing.Process(target=on_request_thread_safe, args=(ch, method, props, body,))
+    process_reload_cache.start()
+
+
+def on_request_thread_safe(ch, method, props, body):
     """Function called when something was sent from API sender. This function
     will process all the requests that would take too long to process for API.
     When the processing is done we will sent back the result of the request
@@ -774,22 +782,24 @@ if __name__ == '__main__':
         username=rabbitmq_username,
         password=rabbitmq_password)
     while True:
-        connection = pika.BlockingConnection(pika.ConnectionParameters(
-            host=rabbitmq_host,
-            port=rabbitmq_port,
-            heartbeat=10,
-            credentials=credentials))
-        channel = connection.channel()
-        channel.queue_declare(queue='module_queue')
-
-        channel.basic_qos(prefetch_count=1)
-        channel.basic_consume(on_request, queue='module_queue', no_ack=True)
-
-        LOGGER.info('Awaiting RPC request')
         try:
+            connection = pika.BlockingConnection(pika.ConnectionParameters(
+                host=rabbitmq_host,
+                port=rabbitmq_port,
+                heartbeat=10,
+                credentials=credentials))
+            channel = connection.channel()
+            channel.queue_declare(queue='module_queue')
+
+            channel.basic_qos(prefetch_count=1)
+            channel.basic_consume('module_queue', on_request, auto_ack=True)
+
+            LOGGER.info('Awaiting RPC request')
+
             channel.start_consuming()
         except Exception as e:
             LOGGER.error('Exception: {}'.format(str(e)))
+            time.sleep(10)
             try:
                 channel.close()
             except Exception:

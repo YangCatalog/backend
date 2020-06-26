@@ -80,7 +80,7 @@ from utility import messageFactory, repoutil, yangParser
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
 from validate import validate
-
+from git.exc import GitCommandError
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
@@ -93,6 +93,7 @@ github_repos_url = github_api_url + '/repos'
 yang_models_url = github_repos_url + '/YangModels/yang'
 
 auth = HTTPBasicAuth()
+
 
 class MyFlask(Flask):
 
@@ -138,22 +139,22 @@ class MyFlask(Flask):
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')
         self.es_protocol = config.get('DB-Section', 'es-protocol')
-        self.rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
-        self.rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        self.rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
-        self.rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
-        self.rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
+        rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+        rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+        rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
+        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
+        rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
         log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
         self.LOGGER.debug('Starting API')
         self.waiting_for_reload = False
         self.response_waiting = None
         self.sender = Sender(log_directory, self.temp_dir,
-                             rabbitmq_host=self.rabbitmq_host,
-                             rabbitmq_port=self.rabbitmq_port,
-                             rabbitmq_virtual_host=self.rabbitmq_virtual_host,
-                             rabbitmq_username=self.rabbitmq_username,
-                             rabbitmq_password=self.rabbitmq_password,
+                             rabbitmq_host=rabbitmq_host,
+                             rabbitmq_port=rabbitmq_port,
+                             rabbitmq_virtual_host=rabbitmq_virtual_host,
+                             rabbitmq_username=rabbitmq_username,
+                             rabbitmq_password=rabbitmq_password,
         )
         separator = ':'
         suffix = self.api_port
@@ -955,21 +956,22 @@ def delete_vendor(value):
         if len(rights) > 4:
             check_software_flavor = rights[4]
 
-    path_to_delete = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog/vendors/' \
-                     + value + '?deep'
+    path_to_delete = '{}://{}:{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(application.protocol,
+                                                                                       application.confd_ip,
+                                                                                       application.confdPort, value)
 
     vendor = 'None'
     platform = 'None'
     software_version = 'None'
     software_flavor = 'None'
     if '/vendor/' in path_to_delete:
-        vendor = path_to_delete.split('?deep')[0].split('/vendor/')[1].split('/')[0]
+        vendor = path_to_delete.split('/vendor/')[1].split('/')[0]
     if '/platform/' in path_to_delete:
-        platform = path_to_delete.split('?deep')[0].split('/platform/')[1].split('/')[0]
+        platform = path_to_delete.split('/platform/')[1].split('/')[0]
     if '/software-version/' in path_to_delete:
-        software_version = path_to_delete.split('?deep')[0].split('/software-version/')[1].split('/')[0]
+        software_version = path_to_delete.split('/software-version/')[1].split('/')[0]
     if 'software-version/' in path_to_delete:
-        software_flavor = path_to_delete.split('?deep')[0].split('/software-version/')[1].split('/')[0]
+        software_flavor = path_to_delete.split('/software-version/')[1].split('/')[0]
 
     if check_platform and platform != check_platform:
         return unauthorized()
@@ -981,7 +983,7 @@ def delete_vendor(value):
         return unauthorized()
 
     arguments = [vendor, platform, software_version, software_flavor, application.protocol, application.confd_ip, repr(application.confdPort), application.credentials[0],
-                 application.credentials[1], path_to_delete.replace('?deep', ''), 'DELETE', application.api_protocol, repr(application.api_port)]
+                 application.credentials[1], path_to_delete, 'DELETE', application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
 
     application.LOGGER.info('job_id {}'.format(job_id))
@@ -1002,8 +1004,16 @@ def add_modules():
                     see if the job is still on or Failed or Finished successfully
     """
     if not request.json:
-        abort(400)
+        return make_response(jsonify({'error': 'bad request - you need to input json body that conforms with'
+                                               ' module-metadata.yang module. Received no json'}), 400)
     body = request.json
+    modules_cont = body.get('modules')
+    if modules_cont is None:
+        return make_response(jsonify({'error': 'bad request - "modules" json object is missing and is mandatory'}), 400)
+    module_list = modules_cont.get('module')
+    if module_list is None:
+        return make_response(jsonify({'error': 'bad request - "module" json list is missing and is mandatory'}), 400)
+
     application.LOGGER.info('Adding modules with body {}'.format(body))
     tree_created = False
 
@@ -1012,7 +1022,7 @@ def add_modules():
     shutil.copy('./prepare-sdo.json', application.save_requests + '/sdo-'
                 + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
 
-    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:modules'
+    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/module-metadata:modules'
 
     str_to_encode = '%s:%s' % (application.credentials[0], application.credentials[1])
     if sys.version_info >= (3, 4):
@@ -1031,60 +1041,96 @@ def add_modules():
 
     direc = 0
     while True:
-        if os.path.isdir('{}/{}'.format(application.temp_dir, repr(direc))):
+        if os.path.isdir('{}/{}'.format(application.temp_dir, direc)):
             direc += 1
         else:
             break
-    direc = '{}/{}'.format(application.temp_dir, repr(direc))
+    direc = '{}/{}'.format(application.temp_dir, direc)
     try:
         os.makedirs(direc)
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
-    application.LOGGER.info('{}'.format(body['modules']['module']))
-    for mod in body['modules']['module']:
+    for mod in module_list:
         application.LOGGER.info('{}'.format(mod))
-        sdo = mod['source-file']
-        orgz = mod['organization']
+        sdo = mod.get('source-file')
+        if sdo is None:
+            return make_response(jsonify({'error': 'bad request - at least one of modules "source-file" is missing and is mandatory'}),
+                                 400)
+        orgz = mod.get('organization')
+        if orgz is None:
+            return make_response(jsonify({'error': 'bad request - at least one of modules "organization" is missing and is mandatory'}),
+                                 400)
+        mod_name = mod.get('name')
+        if mod_name is None:
+            return make_response(
+                jsonify({'error': 'bad request - at least one of modules "name" is missing and is mandatory'}),
+                400)
+        mod_revision = mod.get('revision')
+        if mod_revision is None:
+            return make_response(
+                jsonify({'error': 'bad request - at least one of modules "revision" is missing and is mandatory'}),
+                400)
         if request.method == 'POST':
-            path = application.protocol + '://' + application.confd_ip + ':' + repr(
-                application.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' + \
-                   mod['name'] + ',' + mod['revision'] + ',' + mod['organization']
+            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}'.format(application.protocol,
+                                                                                                  application.confd_ip,
+                                                                                                  application.confdPort,
+                                                                                                  mod_name,
+                                                                                                  mod_revision, orgz)
             response = requests.get(path, auth=(application.credentials[0], application.credentials[1]),
                                     headers={'Accept':'application/yang-data+json'})
             if response.status_code != 404:
                 continue
+        sdo_path = sdo.get('path')
+        if sdo_path is None:
+            return make_response(
+                jsonify({'error': 'bad request - at least one of modules source file "path" is missing and is mandatory'}),
+                400)
+        sdo_repo = sdo.get('repository')
+        if sdo_repo is None:
+            return make_response(
+                jsonify({'error': 'bad request - at least one of modules source file "repository" is missing and is mandatory'}),
+                400)
+        sdo_owner = sdo.get('owner')
+        if sdo_owner is None:
+            return make_response(
+                jsonify({'error': 'bad request - at least one of modules source file "owner" is missing and is mandatory'}),
+                400)
+        directory = '/'.join(sdo_path.split('/')[:-1])
 
-        directory = '/'.join(sdo['path'].split('/')[:-1])
-
-        repo_url = url + sdo['owner'] + '/' + sdo['repository']
+        repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
         application.LOGGER.debug('Cloning repository')
         if repo_url not in repo:
             application.LOGGER.info('Downloading repo {}'.format(repo_url))
-            repo[repo_url] = repoutil.RepoUtil(repo_url)
-            repo[repo_url].clone()
-            repo[repo_url].updateSubmodule()
+            try:
+                repo[repo_url] = repoutil.RepoUtil(repo_url)
+                repo[repo_url].clone()
+                repo[repo_url].updateSubmodule()
+            except GitCommandError as e:
+                return make_response(
+                    jsonify({
+                                'error': 'bad request - cound not clone the github repository. Please check owner,'
+                                         ' repository and path of the request - {}'.format(e.stderr)}), 400)
 
         if sdo.get('branch'):
             branch = sdo.get('branch')
         else:
             branch = 'master'
         branch = repo[repo_url].get_commit_hash(directory, branch)
-        save_to = direc + '/temp/' + sdo['owner'] + '/' + sdo['repository'].split('.')[0] \
-                  + '/' + branch + '/' + directory
+        save_to = '{}/temp/{}/{}/{}/{}'.format(direc, sdo_owner, sdo_repo.split('.')[0], branch, directory)
         try:
             os.makedirs(save_to)
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        shutil.copy(repo[repo_url].localdir + '/' + sdo['path'], save_to)
+        shutil.copy('{}/{}'.format(repo[repo_url].localdir, sdo_path), save_to)
 
         tree_created = True
         organization = ''
         try:
-            namespace = yangParser.parse(os.path.abspath(save_to + '/' + sdo['path'].split('/')[-1])) \
+            namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, sdo_path.split('/')[-1]))) \
                 .search('namespace')[0].arg
 
             for ns, org in NS_MAP.items():
@@ -1096,13 +1142,15 @@ def add_modules():
         except:
             while True:
                 try:
-                    belongs_to = yangParser.parse(os.path.abspath(repo[repo_url].localdir + '/' + sdo['path'])) \
+                    belongs_to = yangParser.parse(os.path.abspath('{}/{}'.format(repo[repo_url].localdir, sdo_path))) \
                         .search('belongs-to')[0].arg
                 except:
                     break
                 try:
-                    namespace = yangParser.parse(os.path.abspath(repo[repo_url].localdir + '/' + '/'.join(
-                        sdo['path'].split('/')[:-1]) + '/' + belongs_to + '.yang')).search('namespace')[0].arg
+                    namespace = yangParser.parse(os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
+                                                                                        '/'.join(sdo_path.split('/')[:-1]),
+                                                                                        belongs_to))) \
+                    .search('namespace')[0].arg
                     for ns, org in NS_MAP.items():
                         if ns in namespace:
                             organization = org
@@ -1119,7 +1167,7 @@ def add_modules():
                 repo[key].remove()
             return unauthorized()
         if 'organization' in repr(resolved_authorization):
-            warning.append(sdo['path'].split('/')[-1] + ' ' + resolved_authorization)
+            warning.append('{} {}'.format(sdo['path'].split('/')[-1], resolved_authorization))
 
     if os.path.isfile('./prepare-sdo.json'):
         shutil.move('./prepare-sdo.json', direc)
@@ -1127,9 +1175,9 @@ def add_modules():
         repo[key].remove()
 
     application.LOGGER.debug('Sending a new job')
-    arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"), "--sdo", "--port",
-                 repr(application.confdPort), "--dir", direc, "--api", "--ip",
-                 application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
+    populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../parseAndPopulate/populate.py")
+    arguments = ["python", populate_path, "--sdo", "--port", repr(application.confdPort), "--dir", direc, "--api",
+                 "--ip", application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.protocol, application.api_protocol, repr(application.api_port)]
     job_id = application.sender.send('#'.join(arguments))
     application.LOGGER.info('job_id {}'.format(job_id))
@@ -1154,8 +1202,17 @@ def add_vendors():
                     see if the job is still on or Failed or Finished successfully
     """
     if not request.json:
-        abort(400)
+        return make_response(jsonify({'error': 'bad request - you need to input json body that conforms with'
+                                               ' platform-implementation-metadata.yang module. Received no json'}), 400)
     body = request.json
+
+    platforms_cont = body.get('platforms')
+    if platforms_cont is None:
+        return make_response(jsonify({'error': 'bad request - "platforms" json object is missing and is mandatory'}), 400)
+    platform_list = platforms_cont.get('platform')
+    if platform_list is None:
+        return make_response(jsonify({'error': 'bad request - "platform" json list is missing and is mandatory'}), 400)
+
     application.LOGGER.info('Adding vendor with body {}'.format(body))
     tree_created = False
     resolved_authorization = authorize_for_vendors(request, body)
@@ -1165,7 +1222,7 @@ def add_vendors():
               '-UTC.json', "w") as plat:
         json.dump(body, plat)
 
-    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:platforms'
+    path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/platform-implementation-metadata:platforms'
 
     str_to_encode = '%s:%s' % (application.credentials[0], application.credentials[1])
     if sys.version_info >= (3, 4):
@@ -1195,31 +1252,51 @@ def add_vendors():
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
-    for platform in body['platforms']['platform']:
-        capability = platform['module-list-file']
-        file_name = capability['path'].split('/')[-1]
+
+    for platform in platform_list:
+        capability = platform.get('module-list-file')
+        if capability is None:
+            return make_response(jsonify({'error': 'bad request - at least on of platform "module-list-file" is missing and is mandatory'}), 400)
+        capability_path = capability.get('path')
+        if capability_path is None:
+            return make_response(jsonify({'error': 'bad request - at least on of platform module-list-file "path" for module is missing and is mandatory'}), 400)
+        file_name = capability_path.split('/')[-1]
+        repository = capability.get('repository')
+        if repository is None:
+            return make_response(
+                jsonify({'error': 'bad request - at least on of platform module-list-file  "repository" for module is missing and is mandatory'}),
+                400)
+        owner = capability.get('owner')
+        if owner is None:
+            return make_response(jsonify({'error': 'bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory'}),
+                                 400)
         if request.method == 'POST':
-            repo_split = capability['repository'].split('.')[0]
+            repo_split = repository.split('.')[0]
             repoutil.pull(application.yang_models)
-            if os.path.isfile(application.yang_models + '/vendor/' + capability['owner'] + '/' + repo_split + '/' + capability['path']):
+            if os.path.isfile(application.yang_models + '/vendor/' + owner + '/' + repo_split + '/' + capability_path):
                 continue
 
-        repo_url = url + capability['owner'] + '/' + capability['repository']
+        repo_url = '{}{}/{}'.format(url, owner, repository)
 
         if repo_url not in repo:
             application.LOGGER.info('Downloading repo {}'.format(repo_url))
-            repo[repo_url] = repoutil.RepoUtil(repo_url)
-            repo[repo_url].clone()
-            repo[repo_url].updateSubmodule()
+            try:
+                repo[repo_url] = repoutil.RepoUtil(repo_url)
+                repo[repo_url].clone()
+                repo[repo_url].updateSubmodule()
+            except GitCommandError as e:
+                return make_response(
+                    jsonify({
+                                'error': 'bad request - cound not clone the github repository. Please check owner,'
+                                         ' repository and path of the request - {}'.format(e.stderr)}), 400)
 
         if capability.get('branch'):
             branch = capability.get('branch')
         else:
             branch = 'master'
-        directory = '/'.join(capability['path'].split('/')[:-1])
+        directory = '/'.join(capability_path.split('/')[:-1])
         branch = repo[repo_url].get_commit_hash(directory, branch)
-        save_to = direc + '/temp/' + capability['owner'] + '/' \
-                  + capability['repository'].split('.')[0] + '/' + branch + '/' + directory
+        save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
 
         try:
             shutil.copytree(repo[repo_url].localdir + '/' + directory, save_to,
@@ -1233,8 +1310,8 @@ def add_vendors():
 
     for key in repo:
         repo[key].remove()
-    arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"), "--port",
-                 repr(application.confdPort), "--dir", direc, "--api", "--ip",
+    populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../parseAndPopulate/populate.py")
+    arguments = ["python", populate_path, "--port", repr(application.confdPort), "--dir", direc, "--api", "--ip",
                  application.confd_ip, "--credentials", application.credentials[0], application.credentials[1],
                  repr(tree_created), application.integrity_file_location, application.protocol,
                  application.api_protocol, repr(application.api_port)]
@@ -2500,8 +2577,9 @@ def trigger_populate():
             mf.send_new_modified_platform_metadata(new, mod)
             application.LOGGER.info('Forking the repo')
             try:
-                arguments = ["python", os.path.abspath("../parseAndPopulate/populate.py"),
-                             "--port", repr(application.confdPort), "--ip",
+                populate_path = os.path.abspath(
+                    os.path.dirname(os.path.realpath(__file__)) + "/../parseAndPopulate/populate.py")
+                arguments = ["python", populate_path, "--port", repr(application.confdPort), "--ip",
                              application.confd_ip, "--api-protocol", application.api_protocol, "--api-port",
                              repr(application.api_port), "--api-ip", application.ip,
                              "--result-html-dir", application.result_dir,
@@ -2556,7 +2634,7 @@ def get_log_files():
     files = find_files(application.logs_dir, '*.log*')
     resp = set()
     for f in files:
-        resp.add(f.split('/')[-1].split('.')[0])
+        resp.add(f.split('/logs/')[-1].split('.')[0])
     return make_response(jsonify({'info': 'success',
                                   'data': list(resp)}), 200)
 
@@ -2584,7 +2662,8 @@ def get_logs():
     if from_date_timestamp is None:
         log_files.append('{}/{}.log'.format(application.logs_dir, body.get('file-name', 'yang')))
     else:
-        files = find_files(application.logs_dir, "{}*".format(file_name))
+        files = find_files('{}/{}'.format(application.logs_dir, '/'.join(file_name.split('/')[:-1])),
+                           "{}.log*".format(file_name.split('/')[:-1]))
         for f in files:
             if os.path.getmtime(f) >= from_date_timestamp:
                 log_files.append(f)
@@ -2604,60 +2683,84 @@ def get_logs():
 
     whole_line = ''
     application.LOGGER.debug(from_date_timestamp)
-    for log_file in log_files:
-        with open(log_file, 'r') as f:
-            for line in reversed(f.readlines()):
-                line_timestamp = None
-                try:
-                    d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
-                    t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
-                    line_beginning = "{} {}".format(d, t)
-                    line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
-                except:
-                    # ignore and accept
-                    pass
-                if line_timestamp is None or not line.startswith(line_beginning):
-                    whole_line = '{}{}'.format(line, whole_line)
-                    continue
-                if line_timestamp >= from_date_timestamp:
-                    if filter is not None:
-                        match_case = filter.get('match-case', False)
-                        match_whole_words = filter.get("match-words", False)
-                        filter_out = filter.get("fiter-out", None)
-                        searched_string = filter.get('search-for', '')
-                        level = filter.get('level', '').upper()
-                        if level != '':
-                            level = ' {} '.format(level)
-                        if match_whole_words:
-                            if searched_string != '':
-                                searched_string = ' {} '.format(searched_string)
-                        if level in line:
-                            if match_case and searched_string in line:
-                                if filter_out is not None and filter_out in line:
-                                    continue
-                                send_out.append(line)
-                            elif not match_case and searched_string.lower() in line.lower():
-                                if filter_out is not None and filter_out.lower() in line.lower():
-                                    continue
-                                send_out.append(line)
-                    else:
-                        send_out.append(line)
-                whole_line = ''
+    with open(log_files[0], 'r') as f:
+        file_stream = f.read()
+        hits = re.findall('(([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])) (?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)[ ][A-Z]{4,10}\s*(\S*.)\s*[=][>])', file_stream)
+        if len(hits) > 1:
+            format_text = True
+        else:
+            send_out.append(file_stream)
+            format_text = False
 
-    pages = math.ceil(len(send_out) / number_of_lines_per_page)
+    if format_text:
+        for log_file in log_files:
+            with open(log_file, 'r') as f:
+                for line in reversed(f.readlines()):
+                    line_timestamp = None
+                    try:
+                        d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
+                        t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
+                        line_beginning = "{} {}".format(d, t)
+                        line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
+                    except:
+                        # ignore and accept
+                        pass
+                    if line_timestamp is None or not line.startswith(line_beginning):
+                        whole_line = '{}{}'.format(line, whole_line)
+                        continue
+                    if line_timestamp >= from_date_timestamp:
+                        if filter is not None:
+                            match_case = filter.get('match-case', False)
+                            match_whole_words = filter.get("match-words", False)
+                            filter_out = filter.get("filter-out", None)
+                            searched_string = filter.get('search-for', '')
+                            level = filter.get('level', '').upper()
+                            if level != '':
+                                level = ' {} '.format(level)
+                            if match_whole_words:
+                                if searched_string != '':
+                                    searched_string = ' {} '.format(searched_string)
+                            if level in line:
+                                if match_case and searched_string in line:
+                                    if filter_out is not None and filter_out in line:
+                                        whole_line = ''
+                                        continue
+                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
+                                elif not match_case and searched_string.lower() in line.lower():
+                                    if filter_out is not None and filter_out.lower() in line.lower():
+                                        whole_line = ''
+                                        continue
+                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
+                        else:
+                            send_out.append('{}{}'.format(line, whole_line).rstrip())
+                    whole_line = ''
+
+    if format_text:
+        pages = math.ceil(len(send_out) / number_of_lines_per_page)
+        len_send_out = len(send_out)
+    else:
+        pages = math.ceil(len(send_out[0].split('\n')) / number_of_lines_per_page)
+        len_send_out = len(send_out[0])
     metadata = {'file-name': file_name,
                 'from-date': from_date_timestamp,
                 'lines-per-page': number_of_lines_per_page,
                 'page': page_num,
                 'pages': pages,
-                'filter': filter}
+                'filter': filter,
+                'format': format_text}
     from_line = (page_num - 1) * number_of_lines_per_page
-    if page_num * number_of_lines_per_page > len(send_out):
-        output = send_out[from_line:]
+    if page_num * number_of_lines_per_page > len_send_out:
+        if format_text:
+            output = send_out[from_line:]
+        else:
+            output = send_out[0].split('/n')[from_line:]
     else:
-        output = send_out[from_line : page_num * number_of_lines_per_page]
+        if format_text:
+            output = send_out[from_line: page_num * number_of_lines_per_page]
+        else:
+            output = send_out[0].split('/n')[from_line: page_num * number_of_lines_per_page]
     return make_response(jsonify({'meta': metadata,
-                                  'output': ''.join(output)}), 200)
+                                  'output': output}), 200)
 
 
 @application.route('/admin/validate', methods=['POST'])
@@ -2710,7 +2813,7 @@ def create_sql_row(table):
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     if sdo_access == '' and vendor_access == '':
-        return make_response(jsonify({'error': 'access-rights-sdo or access-rights-vendor must be specified.'}), 400)
+        return make_response(jsonify({'error': 'access-rights-sdo OR access-rights-vendor must be specified.'}), 400)
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
         # prepare a cursor object using cursor() method
@@ -2938,6 +3041,7 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change,
                                     is_uwsgi=application.is_uwsgi, data=data)
         vendors = {}
         if modules is None or vendors_text is None:
+            application.LOGGER.info('{}'.format(data))
             cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
                     .decode(data)['yang-catalog:catalog']
             modules = cat['modules']
@@ -2947,8 +3051,7 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change,
                 vendors = {}
         if len(modules) != 0:
             for i, mod in enumerate(modules['module']):
-                key = mod['name'] + '@' + mod['revision'] + '/' + mod[
-                    'organization']
+                key = mod['name'] + '@' + mod['revision'] + '/' + mod['organization']
                 value = json.dumps(mod)
                 chunks = int(math.ceil(len(value) / float(20000)))
                 uwsgi.cache_set(key, repr(chunks), 0, cache_chunks)
