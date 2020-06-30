@@ -455,8 +455,8 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
                 path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
                 data = requests.get(path, auth=(credentials[0], credentials[1]),
                                     headers={'Accept': 'application/yang-data+json'}).text
-                application.LOGGER.info('data {} type {}'.format(data, type(data)))
-                if len(data) == 0:
+                application.LOGGER.info('path {} data {} type {}'.format(path, data, type(data)))
+                if len(data) == 0 or not isinstance(data, dict):
                     secs = 30
                     application.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
