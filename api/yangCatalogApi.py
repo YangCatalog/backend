@@ -67,14 +67,15 @@ import requests
 import time
 import uwsgi as uwsgi
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
-from flask import Flask, Response, abort, jsonify, make_response, redirect, request
+from flask import Flask, Response, abort, jsonify, make_response, redirect, request, g, session
 from flask_cors import CORS
 from flask_httpauth import HTTPBasicAuth
-from flask_wtf.csrf import CSRFProtect
+#from flask_wtf.csrf import CSRFProtect
 from pyang.plugins.tree import emit_tree
 
 import api.yangSearch.elasticsearchIndex as inde
 import utility.log as log
+from api.adminUser import AdminUser
 from api.sender import Sender
 from utility import messageFactory, repoutil, yangParser
 from utility.util import get_curr_dir
@@ -107,6 +108,7 @@ class MyFlask(Flask):
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(self.config_path)
+        self.secret_key = config.get('API-Section', 'secret-key')
         self.result_dir = config.get('Web-Section', 'result-html-dir')
         self.dbHost = config.get('DB-Section', 'host')
         self.dbName = config.get('DB-Section', 'name-users')
@@ -168,22 +170,43 @@ class MyFlask(Flask):
         self.LOGGER.debug('Starting api')
 
     def process_response(self, response):
-        response.headers['Access-Control-Allow-Headers'] = 'content-type'
+        super().make_response(response)
+        response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, x-auth'
         self.response = response
         self.create_response_only_latest_revision()
         #self.create_response_with_yangsuite_link()
         try:
-            if request.special_id == 1 and 'reload-cache' in str(list(self.url_map.iter_rules())[0]):
+            self.LOGGER.debug('after request response processing have {} and path {}'.format(request.special_id, str(list(self.url_map.iter_rules())[0])))
+            if request.special_id == 1 and 'load-cache' in str(list(self.url_map.iter_rules())[0]):
                 if self.waiting_for_reload:
                     self.response_waiting = response
                     self.waiting_for_reload = False
-                    print(request.special_id)
         except:
             pass
         self.LOGGER.debug(response.headers)
         return self.response
 
     def preprocess_request(self):
+        super().preprocess_request()
+        self.LOGGER.info(request.path)
+        if 'admin' in request.path:
+            g.user = None
+            if 'user_id' in session:
+                try:
+                    db = MySQLdb.connect(host=self.dbHost, db=self.dbName, user=self.dbUser,
+                                         passwd=self.dbPass)
+                    # prepare a cursor object using cursor() method
+                    cursor = db.cursor()
+                    # execute SQL query using execute() method.
+                    results_num = cursor.execute("""SELECT * FROM `admin_users` where Id=%s""", (session['user_id'],))
+                    if results_num == 1:
+                        data = cursor.fetchone()
+                        g.user = AdminUser(data[0], data[1])
+                    db.close()
+                except MySQLdb.MySQLError as err:
+                    if err.args[0] != 1049:
+                        db.close()
+                    application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         if self.loading:
             message = json.dumps({'Error': 'Server is loading. This can take several minutes. Please try again later'})
             return create_response(message, 503)
@@ -399,8 +422,8 @@ class MyFlask(Flask):
 
 
 application = MyFlask(__name__)
-CORS(application)
-csrf = CSRFProtect(application)
+CORS(application, supports_credentials=True)
+#csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_uwsgi_cache1 = Lock()
 lock_uwsgi_cache2 = Lock()
@@ -2596,9 +2619,79 @@ def trigger_populate():
         return make_response(jsonify({'info': 'Success'}), 200)
 
 
+@application.route('/admin/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        session.pop('user_id', None)
+        body = request.json
+        input = body.get('input')
+        if input is None:
+            return make_response(jsonify({'error': 'missing "input" root json object'}), 400)
+        username = input.get('username')
+        password = hash_pw(input.get('password'))
+        if username is None:
+            return make_response(jsonify({'error': 'missing "userame" in json object'}), 400)
+        if password is None:
+            return make_response(jsonify({'error': 'missing "password" in json object'}), 400)
+        try:
+            db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser,
+                                 passwd=application.dbPass)
+            # prepare a cursor object using cursor() method
+            cursor = db.cursor()
+            # execute SQL query using execute() method.
+            results_num = cursor.execute("""SELECT * FROM `admin_users` where Username=%s""", (username,))
+            if results_num == 1:
+                data = cursor.fetchone()
+                if data[2] == password:
+                    session['user_id'] = data[0]
+                    application.LOGGER.info('session id {}'.format(session))
+                    return make_response(jsonify({'info': 'Success'}), 200)
+            db.close()
+        except MySQLdb.MySQLError as err:
+            if err.args[0] != 1049:
+                db.close()
+            application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return make_response(jsonify({'info': 'Bad authorization - username or password not correct'}), 401)
+
+
+@application.route('/admin/logout', methods=['POST'])
+def logout():
+    session.pop('user_id', None)
+    return make_response(jsonify({'info': 'Success'}), 200)
+
+
+@application.route('/admin/create_user', methods=['POST'])
+def create_admin_user():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+    body = request.json
+    input = body.get('input')
+    if input is None:
+        return make_response(jsonify({'error': 'missing "input" root json object'}), 400)
+    username = input.get('username')
+    password = hash_pw(input.get('password'))
+    if username is None:
+        return make_response(jsonify({'error': 'missing "userame" in json object'}), 400)
+    if password is None:
+        return make_response(jsonify({'error': 'missing "password" in json object'}), 400)
+    try:
+        db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser,
+                             passwd=application.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        # execute SQL query using execute() method.
+
+        cursor.execute("""INSERT INTO admin_users(Username, Password) VALUES (%s, %s)""", (username, password,))
+        db.commit()
+        db.close()
+    except MySQLdb.MySQLError as err:
+        application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+
+
 @application.route('/admin/yangcatalog-config', methods=['GET'])
-@auth.login_required
 def read_yangcatalog_config():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     with open(application.config_path, 'r') as f:
         yangcatalog_config = f.read()
     response = {'info': 'Success',
@@ -2607,8 +2700,9 @@ def read_yangcatalog_config():
 
 
 @application.route('/admin/yangcatalog-config', methods=['PUT'])
-@auth.login_required
 def update_yangcatalog_config():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     body = request.json
     input = body.get('input')
     if input is None or input.get('data') is None:
@@ -2621,9 +2715,9 @@ def update_yangcatalog_config():
 
 
 @application.route('/admin/logs', methods=['GET'])
-@auth.login_required
 def get_log_files():
-
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     def find_files(directory, pattern):
         for root, dirs, files in os.walk(directory):
             for basename in files:
@@ -2640,8 +2734,9 @@ def get_log_files():
 
 
 @application.route('/admin/logs', methods=['POST'])
-@auth.login_required
 def get_logs():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
 
     def find_files(directory, pattern):
         for root, dirs, files in os.walk(directory):
@@ -2649,6 +2744,10 @@ def get_logs():
                 if fnmatch.fnmatch(basename, pattern):
                     filename = os.path.join(root, basename)
                     yield filename
+
+    if request.json is None:
+        return make_response(jsonify({'error': 'bar-request - body has to start with input and can not be empty'}), 400)
+
     body = request.json.get('input')
 
     if body is None:
@@ -2753,19 +2852,20 @@ def get_logs():
         if format_text:
             output = send_out[from_line:]
         else:
-            output = send_out[0].split('/n')[from_line:]
+            output = ['\n'.join(send_out[0].split('\n')[from_line:])]
     else:
         if format_text:
             output = send_out[from_line: page_num * number_of_lines_per_page]
         else:
-            output = send_out[0].split('/n')[from_line: page_num * number_of_lines_per_page]
+            output = ['\n'.join(send_out[0].split('\n')[from_line: page_num * number_of_lines_per_page])]
     return make_response(jsonify({'meta': metadata,
                                   'output': output}), 200)
 
 
 @application.route('/admin/validate', methods=['POST'])
-@auth.login_required
 def validate_post():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     body = request.json
     if body.get('vendor-access') is None and body.get('sdo-access'):
         return make_response(jsonify({'info': 'Failed to validate - at least one of vendor-access or sdo-access'
@@ -2782,14 +2882,16 @@ def validate_post():
 
 
 @application.route('/admin/sql-tables', methods=['GET'])
-@auth.login_required
 def get_sql_tables():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     return make_response(jsonify(['users', 'users_temp']), 200)
 
 
 @application.route('/admin/sql-tables/<table>', methods=['POST'])
-@auth.login_required
 def create_sql_row(table):
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     if table not in ['users', 'users_temp']:
         return make_response(jsonify({'error': 'table {} not implemented use only users or users_temp'.format(table)}),
                              501)
@@ -2836,8 +2938,9 @@ def create_sql_row(table):
 
 
 @application.route('/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
-@auth.login_required
 def delete_sql_row(table, unique_id):
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
         # prepare a cursor object using cursor() method
@@ -2871,8 +2974,9 @@ def delete_sql_row(table, unique_id):
 
 
 @application.route('/admin/sql-tables/<table>', methods=['GET'])
-@auth.login_required
 def get_sql_rows(table):
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     try:
         db = MySQLdb.connect(host=application.dbHost, db=application.dbName, user=application.dbUser, passwd=application.dbPass)
         # prepare a cursor object using cursor() method
@@ -2998,13 +3102,16 @@ def load(on_change):
     if application.waiting_for_reload:
         while True:
             time.sleep(5)
+            application.LOGGER.info('application wating for reload')
             if not application.waiting_for_reload:
                 code = application.response_waiting.status_code
                 body = application.response_waiting.json
                 body['extra-info'] = "this message was generated with previous reload-cache reponse"
                 return make_response(jsonify(body), code)
     else:
+        application.LOGGER.info('application locked for reload')
         if lock_for_load.locked():
+            application.LOGGER.info('application not locked anymore for reload')
             application.waiting_for_reload = True
             request.special_id = 1
     with lock_for_load:
@@ -3041,7 +3148,6 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change,
                                     is_uwsgi=application.is_uwsgi, data=data)
         vendors = {}
         if modules is None or vendors_text is None:
-            application.LOGGER.info('{}'.format(data))
             cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
                     .decode(data)['yang-catalog:catalog']
             modules = cat['modules']
