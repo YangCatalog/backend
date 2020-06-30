@@ -170,7 +170,7 @@ class MyFlask(Flask):
         self.LOGGER.debug('Starting api')
 
     def process_response(self, response):
-        super().make_response(response)
+        super().process_response(response)
         response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, x-auth'
         self.response = response
         self.create_response_only_latest_revision()
@@ -455,6 +455,7 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
                 path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
                 data = requests.get(path, auth=(credentials[0], credentials[1]),
                                     headers={'Accept': 'application/yang-data+json'}).text
+                application.LOGGER.info('data {} type {}'.format(data, type(data)))
                 if len(data) == 0:
                     secs = 30
                     application.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
