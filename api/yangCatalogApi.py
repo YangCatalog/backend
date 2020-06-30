@@ -453,9 +453,14 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
             data = ''
             while data is None or len(data) == 0 or data == 'None':
                 path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
-                data = requests.get(path, auth=(credentials[0], credentials[1]),
-                                    headers={'Accept': 'application/yang-data+json'}).text
-                application.LOGGER.info('path {} data {} type {}'.format(path, data, type(data)))
+                try:
+                    data = requests.get(path, auth=(credentials[0], credentials[1]),
+                                        headers={'Accept': 'application/yang-data+json'}).json()
+                    data = json.dumps(data)
+                except ValueError as e:
+                    application.LOGGER.warning('not valid json returned')
+                    data = ''
+                application.LOGGER.info('path {} data type {}'.format(path, type(data)))
                 if data is None or len(data) == 0 or data == 'None':
                     secs = 30
                     application.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
@@ -463,9 +468,7 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
         application.LOGGER.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
         if is_uwsgi == 'True':
             chunks = int(math.ceil(len(data)/float(64000)))
-            application.LOGGER.info('start of cycle')
             for i in range(0, chunks, 1):
-                application.LOGGER.info('in cycle')
                 uwsgi.cache_set('data{}'.format(i), data[i*64000: (i+1)*64000],
                                 0, main_cache)
             application.LOGGER.info('all {} chunks are set in uwsgi cache'.format(chunks))
