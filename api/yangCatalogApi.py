@@ -176,8 +176,8 @@ class MyFlask(Flask):
         self.create_response_only_latest_revision()
         #self.create_response_with_yangsuite_link()
         try:
-            self.LOGGER.debug('after request response processing have {} and path {}'.format(request.special_id, str(list(self.url_map.iter_rules())[0])))
-            if request.special_id == 1 and 'load-cache' in str(list(self.url_map.iter_rules())[0]):
+            self.LOGGER.debug('after request response processing have {}'.format(request.special_id))
+            if request.special_id == 1:
                 if self.waiting_for_reload:
                     self.response_waiting = response
                     self.waiting_for_reload = False
@@ -187,6 +187,7 @@ class MyFlask(Flask):
 
     def preprocess_request(self):
         super().preprocess_request()
+        request.special_id = 0
         self.LOGGER.info(request.path)
         if 'admin' in request.path:
             g.user = None
@@ -421,6 +422,10 @@ class MyFlask(Flask):
 
 
 application = MyFlask(__name__)
+application.config.update(
+    SESSION_COOKIE_HTTPONLY=False
+)
+
 CORS(application, supports_credentials=True)
 #csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
