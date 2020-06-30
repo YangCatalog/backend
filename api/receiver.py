@@ -762,7 +762,7 @@ if __name__ == '__main__':
     log_directory = config.get('Directory-Section', 'logs')
     global LOGGER
     LOGGER = log.get_logger('receiver', log_directory + '/yang.log')
-    LOGGER.getLogger("pika").setLevel(logging.INFO)
+    logging.getLogger('pika').setLevel(logging.INFO)
     global temp_dir
     temp_dir = config.get('Directory-Section', 'temp')
     LOGGER.info('Starting receiver')

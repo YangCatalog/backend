@@ -52,7 +52,7 @@ class Sender:
                  rabbitmq_username='guest',
                  rabbitmq_password='guest'):
         self.LOGGER = log.get_logger('sender', log_directory + '/yang.log')
-        self.LOGGER.getLogger("pika").setLevel(logging.INFO)
+        logging.getLogger('pika').setLevel(logging.INFO)
         self.LOGGER.debug('Initializing sender')
         self.__response_type = ['Failed', 'In progress',
                                 'Finished successfully', 'does not exist']
