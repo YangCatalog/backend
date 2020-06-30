@@ -183,7 +183,6 @@ class MyFlask(Flask):
                     self.waiting_for_reload = False
         except:
             pass
-        self.LOGGER.debug(response.headers)
         return self.response
 
     def preprocess_request(self):
@@ -452,7 +451,7 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
     try:
         if data is None:
             data = ''
-            while len(data) == 0:
+            while len(data) == 0 or not isinstance(data, dict):
                 path = application.protocol + '://' + application.confd_ip + ':' + repr(application.confdPort) + '/restconf/data/yang-catalog:catalog'
                 data = requests.get(path, auth=(credentials[0], credentials[1]),
                                     headers={'Accept': 'application/yang-data+json'}).text
@@ -460,9 +459,12 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
                     secs = 30
                     application.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
+        application.LOGGER.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
         if is_uwsgi == 'True':
             chunks = int(math.ceil(len(data)/float(64000)))
+            application.LOGGER.info('start of cycle')
             for i in range(0, chunks, 1):
+                application.LOGGER.info('in cycle')
                 uwsgi.cache_set('data{}'.format(i), data[i*64000: (i+1)*64000],
                                 0, main_cache)
             application.LOGGER.info('all {} chunks are set in uwsgi cache'.format(chunks))
@@ -3109,12 +3111,12 @@ def load(on_change):
                 body['extra-info'] = "this message was generated with previous reload-cache reponse"
                 return make_response(jsonify(body), code)
     else:
-        application.LOGGER.info('application locked for reload')
         if lock_for_load.locked():
-            application.LOGGER.info('application not locked anymore for reload')
+            application.LOGGER.info('application locked for reload')
             application.waiting_for_reload = True
             request.special_id = 1
     with lock_for_load:
+        application.LOGGER.info('application not locked for reload')
         with lock_uwsgi_cache1:
             application.LOGGER.info('Loading cache 1')
             modules_text, modules, vendors_text, data =\
