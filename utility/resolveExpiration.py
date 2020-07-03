@@ -108,7 +108,7 @@ if __name__ == '__main__':
     api_protocol = config.get('General-Section', 'protocol-api')
     api_port = config.get('General-Section', 'api-port')
     api_host = config.get('DraftPullLocal-Section', 'api-ip')
-    credentials = config.get('General-Section', 'credentials').split()
+    credentials = config.get('General-Section', 'credentials').strip('"').split()
     parser = argparse.ArgumentParser()
     parser.add_argument('--credentials',
                         help='Set authorization parameters username password respectively.'

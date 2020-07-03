@@ -318,7 +318,7 @@ if __name__ == '__main__':
     protocol = config.get('General-Section', 'protocol-api')
     api_ip = config.get('Statistics-Section', 'api-ip')
     api_port = config.get('General-Section', 'api-port')
-    credentials = config.get('General-Section', 'credentials')
+    credentials = config.get('General-Section', 'credentials').strip('"')
     auth = credentials.split(' ')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')

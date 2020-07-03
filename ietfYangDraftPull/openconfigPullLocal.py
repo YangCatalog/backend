@@ -65,7 +65,7 @@ if __name__ == "__main__":
     config.read(config_path)
     api_ip = config.get('DraftPullLocal-Section', 'api-ip')
     api_port = int(config.get('General-Section', 'api-port'))
-    credentials = config.get('General-Section', 'credentials').split(' ')
+    credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
     token = config.get('DraftPull-Section', 'yang-catalog-token')
     username = config.get('DraftPull-Section', 'username')
     api_protocol = config.get('General-Section', 'protocol-api')

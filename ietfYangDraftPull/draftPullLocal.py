@@ -147,7 +147,7 @@ if __name__ == "__main__":
     api_port = config.get('General-Section', 'api-port')
     confd_ip = config.get('General-Section', 'confd-ip')
     confd_port = config.get('General-Section', 'confd-port')
-    credentials = config.get('General-Section', 'credentials').split(' ')
+    credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
     result_html_dir = config.get('Web-Section', 'result-html-dir')
     protocol = config.get('General-Section', 'protocol-api')
     notify = config.get('DraftPullLocal-Section', 'notify-index')

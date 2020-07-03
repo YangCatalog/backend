@@ -115,7 +115,7 @@ class MyFlask(Flask):
         self.dbNameSearch = config.get('DB-Section', 'name-search')
         self.dbUser = config.get('DB-Section', 'user')
         self.dbPass = config.get('DB-Section', 'password')
-        self.credentials = config.get('General-Section', 'credentials').split(' ')
+        self.credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
         self.confd_ip = config.get('General-Section', 'confd-ip')
         self.confdPort = int(config.get('General-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol')

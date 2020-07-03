@@ -72,7 +72,7 @@ if __name__ == "__main__":
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    credentials = config.get('General-Section', 'credentials').split()
+    credentials = config.get('General-Section', 'credentials').strip('"').split()
     confd_protocol = config.get('General-Section', 'protocol')
     confd_port = config.get('General-Section', 'confd-port')
     confd_host = config.get('General-Section', 'confd-ip')
