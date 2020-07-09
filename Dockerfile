@@ -10,7 +10,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate
+RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate curl
 
 RUN echo postfix postfix/mailname string yang2.amsl.com | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \

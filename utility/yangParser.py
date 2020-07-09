@@ -24,14 +24,10 @@ import codecs
 import io
 from os.path import isfile
 
-from pyang import Context, FileRepository
+from pyang.context import Context
 from pyang.error import error_codes
+from pyang.repository import FileRepository
 from pyang.yang_parser import YangParser
-
-
-#logging.basicConfig(level=logging.INFO)
-#logging.captureWarnings(True)
-#LOGGER = logging.getLogger(__name__)
 
 DEFAULT_OPTIONS = {
     'path': [],
@@ -169,7 +165,7 @@ def create_context(path='.', *options, **kwargs):
     return ctx
 
 
-def parse(text, ctx = None):
+def parse(text, ctx=None):
     """Parse a YANG statement into an Abstract Syntax subtree.
 
     Arguments:

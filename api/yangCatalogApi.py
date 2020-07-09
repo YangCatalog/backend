@@ -78,7 +78,7 @@ import utility.log as log
 from api.adminUser import AdminUser
 from api.sender import Sender
 from utility import messageFactory, repoutil, yangParser
-from utility.util import get_curr_dir
+from utility.util import get_curr_dir, create_signature
 from utility.yangParser import create_context
 from validate import validate
 from git.exc import GitCommandError
@@ -104,6 +104,70 @@ class MyFlask(Flask):
         self.response = None
         self.ys_set = 'set'
 
+        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(self.config_path)
+        self.search_key = config.get('Receiver-Section', 'key')
+        self.secret_key = config.get('API-Section', 'secret-key')
+        self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.dbHost = config.get('DB-Section', 'host')
+        self.dbName = config.get('DB-Section', 'name-users')
+        self.dbNameSearch = config.get('DB-Section', 'name-search')
+        self.dbUser = config.get('DB-Section', 'user')
+        self.dbPass = config.get('DB-Section', 'password')
+        self.credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
+        self.confd_ip = config.get('General-Section', 'confd-ip')
+        self.confdPort = int(config.get('General-Section', 'confd-port'))
+        self.protocol = config.get('General-Section', 'protocol')
+        self.save_requests = config.get('Directory-Section', 'save-requests')
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.logs_dir = config.get('Directory-Section', 'logs')
+        self.token = config.get('API-Section', 'yang-catalog-token')
+        self.admin_token = config.get('API-Section', 'admin-token')
+        self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
+        self.temp_dir = config.get('Directory-Section', 'temp')
+        self.integrity_file_location = config.get('API-Section',
+                                             'integrity-file-location')
+        self.diff_file_dir = config.get('Web-Section', 'save-diff-dir')
+        self.ip = config.get('API-Section', 'ip')
+        self.api_port = int(config.get('General-Section', 'api-port'))
+        self.api_protocol = config.get('General-Section', 'protocol-api')
+        self.is_uwsgi = config.get('General-Section', 'uwsgi')
+        self.config_name = config.get('General-Section', 'repo-config-name')
+        self.config_email = config.get('General-Section', 'repo-config-email')
+        self.ys_users_dir = config.get('Directory-Section', 'ys_users')
+        self.my_uri = config.get('Web-Section', 'my_uri')
+        self.yang_models = config.get('Directory-Section', 'yang_models_dir')
+        self.es_host = config.get('DB-Section', 'es-host')
+        self.es_port = config.get('DB-Section', 'es-port')
+        self.es_protocol = config.get('DB-Section', 'es-protocol')
+        rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+        rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+        rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
+        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
+        rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
+        log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
+        self.waiting_for_reload = False
+        self.response_waiting = None
+        self.sender = Sender(log_directory, self.temp_dir,
+                             rabbitmq_host=rabbitmq_host,
+                             rabbitmq_port=rabbitmq_port,
+                             rabbitmq_virtual_host=rabbitmq_virtual_host,
+                             rabbitmq_username=rabbitmq_username,
+                             rabbitmq_password=rabbitmq_password,
+        )
+        separator = ':'
+        suffix = self.api_port
+        if self.is_uwsgi == 'True':
+            separator = '/'
+            suffix = 'api'
+        self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+        self.LOGGER.debug('API initialized at ' + self.yangcatalog_api_prefix)
+        self.LOGGER.debug('Starting api')
+
+    def load_config(self):
         self.config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -148,7 +212,6 @@ class MyFlask(Flask):
         rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
         log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
-        self.LOGGER.debug('Starting API')
         self.waiting_for_reload = False
         self.response_waiting = None
         self.sender = Sender(log_directory, self.temp_dir,
@@ -156,18 +219,15 @@ class MyFlask(Flask):
                              rabbitmq_port=rabbitmq_port,
                              rabbitmq_virtual_host=rabbitmq_virtual_host,
                              rabbitmq_username=rabbitmq_username,
-                             rabbitmq_password=rabbitmq_password,
-        )
+                             rabbitmq_password=rabbitmq_password
+                            )
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
             separator = '/'
             suffix = 'api'
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
-        self.LOGGER.debug('API initialized at ' + self.yangcatalog_api_prefix)
-
-        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
-        self.LOGGER.debug('Starting api')
+        self.LOGGER.info('yangcatalog configuration reloaded')
 
     def process_response(self, response):
         super().process_response(response)
@@ -643,6 +703,10 @@ def yangsuite_redirect(id):
         local_ip = 'ys.{}'.format(application.ip)
     return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
 
+
+@application.route('/healthcheck', methods=['GET'])
+def health_check():
+    return make_response(jsonify({'info': 'success'}), 201)
 
 @auth.login_required
 @application.route('/ietf', methods=['GET'])
@@ -2718,9 +2782,32 @@ def update_yangcatalog_config():
     input = body.get('input')
     if input is None or input.get('data') is None:
         return make_response(jsonify({'error': 'payload needs to have body with input and data container'}), 400)
+
     with open(application.config_path, 'w') as f:
         f.write(input['data'])
-    response = {'info': 'Success',
+    resp = {'api': 'error loading data',
+            'yang-search': 'error loading data',
+            'receiver': 'error loading data'}
+    application.load_config()
+    resp['api'] = 'data loaded successfully'
+    application.sender.send('reload_config')
+    resp['receiver'] = 'data loaded succesfully'
+    path = '{}://{}/yang-search/reload_config'.format(application.api_protocol, '18.157.73.108')
+    application.LOGGER.info(json.dumps(input))
+    signature = create_signature(application.search_key, json.dumps(input))
+    application.LOGGER.info('{}'.format(signature))
+
+    response = requests.post(path, data=json.dumps(input),
+                             headers={'Content-Type': 'application/json', 'Accept': 'application/json',
+                                      'X-YC-Signature': 'sha1={}'.format(signature)},verify=False)
+    code = response.status_code
+
+    if code != 200 and code != 201 and code != 204:
+        application.LOGGER.error('could not send data to realod config. Reason: {}'
+                     .format(response.text))
+    else:
+        resp['yang-search'] = response.json()['info']
+    response = {'info': resp,
                 'new-data': input['data']}
     return make_response(jsonify(response), 200)
 

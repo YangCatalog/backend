@@ -658,7 +658,7 @@ class ModulesComplicatedAlgorithms:
                             while retry:
                                 try:
                                     ctx.validate()
-                                    check_update(ctx, schema2, a1)
+                                    check_update(ctx, a1)
                                     break
                                 except Exception as e:
                                     retry -= 1
@@ -815,13 +815,12 @@ class ModulesComplicatedAlgorithms:
                                 ctx.opts.check_update_from = schema2
                                 ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
                                 ctx.opts.verbose = False
-                                ctx.opts.old_path = []
                                 ctx.opts.old_deviation = []
                                 retry = 5
                                 while retry:
                                     try:
                                         ctx.validate()
-                                        check_update(ctx, schema2, a1)
+                                        check_update(ctx, a1)
                                         break
                                     except Exception as e:
                                         retry -= 1

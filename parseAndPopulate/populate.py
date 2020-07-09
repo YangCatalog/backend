@@ -42,8 +42,8 @@ import time
 import requests
 
 import utility.log as log
-from api.receiver import prepare_to_indexing, send_to_indexing
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+from utility.util import prepare_to_indexing, send_to_indexing
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -163,12 +163,9 @@ if __name__ == "__main__":
     body_to_send = ''
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix,
-                                           '{}/prepare.json'.format(direc),
-                                           args.credentials, apiIp=args.api_ip, sdo_type=args.sdo,
-                                           from_api=args.api, force_indexing=args.force_indexing,
-                                           LOOGER_temp=LOGGER, saveFilesDir=args.save_file_dir,
-                                           tempDir=temp_dir)
+        body_to_send = prepare_to_indexing(yangcatalog_api_prefix,'{}/prepare.json'.format(direc), args.credentials,
+                                           LOGGER, args.save_file_dir, temp_dir, args.protocol, args.ip, args.port,
+                                           sdo_type=args.sdo, from_api=args.api, force_indexing=args.force_indexing)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     x = -1
@@ -271,7 +268,7 @@ if __name__ == "__main__":
                                      response.text))
     if body_to_send != '':
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, args.credentials, args.protocol, set_key=key, apiIp=args.api_ip)
+        send_to_indexing(body_to_send, args.credentials, args.api_protocol, LOGGER, key, args.api_ip)
     if not args.api:
         if not args.force_indexing:
             process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel)
