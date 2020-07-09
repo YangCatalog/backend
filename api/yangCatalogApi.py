@@ -2792,10 +2792,8 @@ def update_yangcatalog_config():
     resp['api'] = 'data loaded successfully'
     application.sender.send('reload_config')
     resp['receiver'] = 'data loaded succesfully'
-    path = '{}://{}/yang-search/reload_config'.format(application.api_protocol, '18.157.73.108')
-    application.LOGGER.info(json.dumps(input))
+    path = '{}://{}/yang-search/reload_config'.format(application.api_protocol, application.ip)
     signature = create_signature(application.search_key, json.dumps(input))
-    application.LOGGER.info('{}'.format(signature))
 
     response = requests.post(path, data=json.dumps(input),
                              headers={'Content-Type': 'application/json', 'Accept': 'application/json',
