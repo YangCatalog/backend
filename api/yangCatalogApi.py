@@ -164,6 +164,9 @@ class MyFlask(Flask):
             separator = '/'
             suffix = 'api'
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+        self.special_id = None
+        self.special_id_counter = {}
+        self.release_locked = []
         self.LOGGER.debug('API initialized at ' + self.yangcatalog_api_prefix)
         self.LOGGER.debug('Starting api')
 
@@ -237,8 +240,9 @@ class MyFlask(Flask):
         #self.create_response_with_yangsuite_link()
         try:
             self.LOGGER.debug('after request response processing have {}'.format(request.special_id))
-            if request.special_id == 1:
-                if self.waiting_for_reload:
+            if request.special_id != 0:
+                if request.special_id not in self.release_locked:
+                    self.release_locked.append(request.special_id)
                     self.response_waiting = response
                     self.waiting_for_reload = False
         except:
@@ -1150,6 +1154,7 @@ def add_modules():
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
+    repo_url_dir_branch = {}
     for mod in module_list:
         application.LOGGER.info('{}'.format(mod))
         sdo = mod.get('source-file')
@@ -1204,18 +1209,26 @@ def add_modules():
             try:
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
-                repo[repo_url].updateSubmodule()
             except GitCommandError as e:
                 return make_response(
-                    jsonify({
-                                'error': 'bad request - cound not clone the github repository. Please check owner,'
-                                         ' repository and path of the request - {}'.format(e.stderr)}), 400)
+                    jsonify({'error': 'bad request - cound not clone the github repository. Please check owner,'
+                                      ' repository and path of the request - {}'.format(e.stderr)}), 400)
 
-        if sdo.get('branch'):
-            branch = sdo.get('branch')
-        else:
-            branch = 'master'
-        branch = repo[repo_url].get_commit_hash(directory, branch)
+        try:
+            if sdo.get('branch'):
+                branch = sdo.get('branch')
+            else:
+                branch = 'master'
+            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url_dir_branch, directory, branch)
+            if repo_url_dir_branch.get(repo_url_dir_branch_temp) is None:
+                branch = repo[repo_url].get_commit_hash(directory, branch)
+                repo_url_dir_branch[repo_url_dir_branch_temp] = branch
+            else:
+                branch = repo_url_dir_branch[repo_url_dir_branch_temp]
+        except GitCommandError as e:
+            return make_response(
+                jsonify({'error': 'bad request - cound not clone the github repository. Please check owner,'
+                                  ' repository and path of the request - {}'.format(e.stderr)}), 400)
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, sdo_owner, sdo_repo.split('.')[0], branch, directory)
         try:
             os.makedirs(save_to)
@@ -1351,6 +1364,7 @@ def add_vendors():
         if e.errno != errno.EEXIST:
             raise
 
+    repo_url_dir_branch = {}
     for platform in platform_list:
         capability = platform.get('module-list-file')
         if capability is None:
@@ -1374,6 +1388,7 @@ def add_vendors():
             if os.path.isfile(application.yang_models + '/vendor/' + owner + '/' + repo_split + '/' + capability_path):
                 continue
 
+        directory = '/'.join(capability_path.split('/')[:-1])
         repo_url = '{}{}/{}'.format(url, owner, repository)
 
         if repo_url not in repo:
@@ -1381,19 +1396,25 @@ def add_vendors():
             try:
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
-                repo[repo_url].updateSubmodule()
             except GitCommandError as e:
                 return make_response(
-                    jsonify({
-                                'error': 'bad request - cound not clone the github repository. Please check owner,'
-                                         ' repository and path of the request - {}'.format(e.stderr)}), 400)
-
-        if capability.get('branch'):
-            branch = capability.get('branch')
-        else:
-            branch = 'master'
-        directory = '/'.join(capability_path.split('/')[:-1])
-        branch = repo[repo_url].get_commit_hash(directory, branch)
+                    jsonify({'error': 'bad request - cound not clone the github repository. Please check owner,'
+                                      ' repository and path of the request - {}'.format(e.stderr)}), 400)
+        try:
+            if capability.get('branch'):
+                branch = capability.get('branch')
+            else:
+                branch = 'master'
+            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url_dir_branch, directory, branch)
+            if repo_url_dir_branch.get(repo_url_dir_branch_temp) is None:
+                branch = repo[repo_url].get_commit_hash(directory, branch)
+                repo_url_dir_branch[repo_url_dir_branch_temp] = branch
+            else:
+                branch = repo_url_dir_branch[repo_url_dir_branch_temp]
+        except GitCommandError as e:
+            return make_response(
+                jsonify({'error': 'bad request - cound not clone the github repository. Please check owner,'
+                                  ' repository and path of the request - {}'.format(e.stderr)}), 400)
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
 
         try:
@@ -3196,19 +3217,29 @@ def get_active_cache():
 def load(on_change):
     """Load to cache from confd all the data populated to yang-catalog."""
     if application.waiting_for_reload:
+        special_id = application.special_id
+        application.special_id_counter[special_id] += 1
         while True:
             time.sleep(5)
-            application.LOGGER.info('application wating for reload')
-            if not application.waiting_for_reload:
+            application.LOGGER.info('application wating for reload with id - {}'.format(special_id))
+            if special_id in application.release_locked:
                 code = application.response_waiting.status_code
                 body = application.response_waiting.json
-                body['extra-info'] = "this message was generated with previous reload-cache reponse"
+                body['extra-info'] = "this message was generated with previous reload-cache response"
+                application.special_id_counter[special_id] -= 1
+                if application.special_id_counter[special_id] == 0:
+                    application.special_id_counter.pop(special_id)
+                    application.release_locked.remove(special_id)
                 return make_response(jsonify(body), code)
     else:
         if lock_for_load.locked():
             application.LOGGER.info('application locked for reload')
             application.waiting_for_reload = True
-            request.special_id = 1
+            special_id = str(uuid.uuid4())
+            request.special_id = special_id
+            application.special_id = special_id
+            application.special_id_counter[special_id] = 0
+            application.LOGGER.info('Special ids {}'.format(application.special_id_counter))
     with lock_for_load:
         application.LOGGER.info('application not locked for reload')
         with lock_uwsgi_cache1:
