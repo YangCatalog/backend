@@ -216,7 +216,7 @@ if __name__ == "__main__":
                                 if response.status_code < 200 or response.status_code > 299:
                                     LOGGER.info('Request with body on path {} failed with {}'.
                                           format(url, response.text))
-
+                    code = 200
                     LOGGER.info('Confd recoverd with status code')
                 except:
                     counter -= 1
