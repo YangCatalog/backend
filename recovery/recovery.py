@@ -139,12 +139,85 @@ if __name__ == "__main__":
                 time.sleep(10)
                 counter -= 1
                 try:
-                    response = requests.patch(prefix + '/restconf/data/yang-catalog:catalog', json.dumps(body), headers={
-                        'Authorization': 'Basic ' + base64string,
-                        'Content-type': 'application/yang-data+json',
-                        'Accept': 'application/yang-data+json'})
-                    code = response.status_code
-                    LOGGER.info('Confd recoverd with status code {}'.format(code))
+                    catalog = body.get('yang-catalog:catalog')
+
+                    modules_json = catalog['modules']['module']
+                    x = -1
+                    for x in range(0, int(len(modules_json) / 1000)):
+                        LOGGER.info('{} out of {}'.format(x, int(len(modules_json) / 1000)))
+                        json_modules_data = json.dumps({
+                            'modules':
+                                {
+                                    'module': modules_json[x * 1000: (x * 1000) + 1000]
+                                }
+                        })
+
+                        url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
+                        response = requests.patch(url, json_modules_data,
+                                                  headers={
+                                                      'Authorization': 'Basic ' + base64string,
+                                                      'Accept': 'application/yang-data+json',
+                                                      'Content-type': 'application/yang-data+json'})
+                        if response.status_code < 200 or response.status_code > 299:
+                            LOGGER.info('Request with body on path {} failed with {}'
+                                  .format(url, response.text))
+                    json_modules_data = json.dumps({
+                        'modules':
+                            {
+                                'module': modules_json[(x * 1000) + 1000:]
+                            }
+                    })
+                    url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
+                    response = requests.patch(url, json_modules_data,
+                                              headers={
+                                                  'Authorization': 'Basic ' + base64string,
+                                                  'Accept': 'application/yang-data+json',
+                                                  'Content-type': 'application/yang-data+json'})
+
+                    if response.status_code < 200 or response.status_code > 299:
+                        LOGGER.info('Request with body on path {} failed with {}'
+                              .format(url,
+                                      response.text))
+
+                    # In each json
+                    LOGGER.info('Starting to add vendors')
+                    x = -1
+                    vendors = catalog['vendors']['vendor']
+                    for v in vendors:
+                        name = v['name']
+                        for p in v['platforms']['platform']:
+                            pname = p['name']
+                            for s in p['software-versions']['software-version']:
+                                LOGGER.info('{} out of {}'.format(name, len(p['software-versions']['software-version'])))
+                                json_implementations_data = json.dumps({
+                                    'vendors':
+                                        {
+                                            'vendor': [{
+                                                'name': name,
+                                                'platforms': {
+                                                    'platform': [{
+                                                        'name': pname,
+                                                        'software-versions': {
+                                                            'software-version': [s]
+                                                        }
+                                                    }]
+                                                }
+                                            }]
+                                        }
+                                })
+
+                                # Make a PATCH request to create a root for each file
+                                url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'
+                                response = requests.patch(url, json_implementations_data,
+                                                          headers={
+                                                              'Authorization': 'Basic ' + base64string,
+                                                              'Accept': 'application/yang-data+json',
+                                                              'Content-type': 'application/yang-data+json'})
+                                if response.status_code < 200 or response.status_code > 299:
+                                    LOGGER.info('Request with body on path {} failed with {}'.
+                                          format(url, response.text))
+
+                    LOGGER.info('Confd recoverd with status code')
                 except:
                     counter -= 1
             else:
