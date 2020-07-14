@@ -227,4 +227,29 @@ if __name__ == "__main__":
                 break
 
         file_load.close()
+        separator = ':'
+        api_port = config.get('General-Section', 'api-port')
+        suffix = api_port
+        is_uwsgi = config.get('General-Section', 'uwsgi')
+        api_protocol = config.get('General-Section', 'protocol-api')
+        api_host = config.get('DraftPullLocal-Section', 'api-ip')
+        if is_uwsgi == 'True':
+            separator = '/'
+            suffix = 'api'
+        yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol,
+                                                       api_host, separator,
+                                                       suffix)
+        url = (yangcatalog_api_prefix + 'load-cache')
+        credentials = config.get('General-Section', 'credentials').strip('"').split()
+
+        response = requests.post(url, None,
+                                 auth=(credentials[0],
+                                       credentials[1]),
+                                 headers={
+                                     'Accept': 'application/yang-data+json',
+                                     'Content-type': 'application/yang-data+json'})
+        if response.status_code != 201:
+            LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
+                           .format(response.status_code, response.text))
+        LOGGER.info("cache reloaded")
 
