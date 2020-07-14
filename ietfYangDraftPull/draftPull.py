@@ -86,132 +86,137 @@ if __name__ == "__main__":
     if len(username) > 0:
         github_credentials = username + ':' + token + '@'
 
+    requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Cloning repository')
-    reponse = requests.post(
-        'https://' + github_credentials + ietf_models_url_suffix)
-    
-    repo = repoutil.RepoUtil(
-        'https://' + token + '@github.com/' + username + '/yang.git')
-    LOGGER.info('https://' + token + '@github.com/' + username + '/yang.git')
-    repo.clone(config_name, config_email)
-   
-    LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
+    reponse = requests.post('https://' + github_credentials + ietf_models_url_suffix)
+    repo = None
     try:
-        LOGGER.info('Activating Travis')
-        travis = TravisPy.github_auth(token)
-    except:
-        LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
-        requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
-        repo.remove()
-        sys.exit(500)
-    # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
-    LOGGER.info('Loading all files from {}'.format(ietf_draft_url))
-    ietf_draft_json = requests.get(ietf_draft_url , auth=(private_credentials[0], private_credentials[1])).json()
-    try:
-        os.makedirs(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            raise
+        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/yang.git')
+        LOGGER.info('https://' + token + '@github.com/' + username + '/yang.git')
+        repo.clone(config_name, config_email)
 
-    response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
-    zfile = open(repo.localdir + '/rfc.tgz', 'wb')
-    zfile.write(response.content)
-    zfile.close()
-    tar_opened = False
-    tgz = ''
-    try:
-        tgz = tarfile.open(repo.localdir + '/rfc.tgz')
-        tar_opened = True
-    except ReadError as e:
-        LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
-                       ' Did the sdo_analysis cron job run already?')
-    if tar_opened:
+        LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
         try:
-            os.makedirs(
-                repo.localdir + '/standard/ietf/RFCtemp')
+            LOGGER.info('Activating Travis')
+            travis = TravisPy.github_auth(token)
+        except:
+            LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
+            requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+            repo.remove()
+            sys.exit(500)
+        # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
+        LOGGER.info('Loading all files from {}'.format(ietf_draft_url))
+        ietf_draft_json = requests.get(ietf_draft_url , auth=(private_credentials[0], private_credentials[1])).json()
+        try:
+            os.makedirs(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        tgz.extractall(repo.localdir + '/standard/ietf/RFCtemp')
-        tgz.close()
-        diff_files = []
-        new_files = []
 
-        for root, subdirs, sdos in os.walk(
-                        repo.localdir + '/standard/ietf/RFCtemp'):
-            for file_name in sdos:
-                if '.yang' in file_name:
-                    if os.path.exists(repo.localdir + '/standard/ietf/RFC/'
-                                              + file_name):
-                        same = filecmp.cmp(repo.localdir + '/standard/ietf/RFC/'
-                                           + file_name, root + '/' + file_name)
-                        if not same:
-                            diff_files.append(file_name)
-                    else:
-                        new_files.append(file_name)
-        shutil.rmtree(repo.localdir + '/standard/ietf/RFCtemp')
-        os.remove(repo.localdir + '/rfc.tgz')
-
-        with open(exceptions, 'r') as exceptions_file:
-            remove_from_new = exceptions_file.read().split('\n')
-        for remove in remove_from_new:
-            if remove in new_files:
-                new_files.remove(remove)
-
-        if args.send_message:
-            if len(new_files) > 0 or len(diff_files) > 0:
-                LOGGER.warning('new or modified RFC files found. Sending an E-mail')
-                mf = messageFactory.MessageFactory()
-                mf.send_new_rfc_message(new_files, diff_files)
-
-    for key in ietf_draft_json:
-        yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
-        yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
-        yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
+        response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
+        zfile = open(repo.localdir + '/rfc.tgz', 'wb')
+        zfile.write(response.content)
+        zfile.close()
+        tar_opened = False
+        tgz = ''
         try:
-            yang_raw = requests.get(yang_download_link).text
-            yang_file.write(yang_raw)
+            tgz = tarfile.open(repo.localdir + '/rfc.tgz')
+            tar_opened = True
+        except ReadError as e:
+            LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
+                           ' Did the sdo_analysis cron job run already?')
+        if tar_opened:
+            try:
+                os.makedirs(
+                    repo.localdir + '/standard/ietf/RFCtemp')
+            except OSError as e:
+                # be happy if someone already created the path
+                if e.errno != errno.EEXIST:
+                    raise
+            tgz.extractall(repo.localdir + '/standard/ietf/RFCtemp')
+            tgz.close()
+            diff_files = []
+            new_files = []
+
+            for root, subdirs, sdos in os.walk(
+                            repo.localdir + '/standard/ietf/RFCtemp'):
+                for file_name in sdos:
+                    if '.yang' in file_name:
+                        if os.path.exists(repo.localdir + '/standard/ietf/RFC/'
+                                                  + file_name):
+                            same = filecmp.cmp(repo.localdir + '/standard/ietf/RFC/'
+                                               + file_name, root + '/' + file_name)
+                            if not same:
+                                diff_files.append(file_name)
+                        else:
+                            new_files.append(file_name)
+            shutil.rmtree(repo.localdir + '/standard/ietf/RFCtemp')
+            os.remove(repo.localdir + '/rfc.tgz')
+
+            with open(exceptions, 'r') as exceptions_file:
+                remove_from_new = exceptions_file.read().split('\n')
+            for remove in remove_from_new:
+                if remove in new_files:
+                    new_files.remove(remove)
+
+            if args.send_message:
+                if len(new_files) > 0 or len(diff_files) > 0:
+                    LOGGER.warning('new or modified RFC files found. Sending an E-mail')
+                    mf = messageFactory.MessageFactory()
+                    mf.send_new_rfc_message(new_files, diff_files)
+
+        for key in ietf_draft_json:
+            yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
+            yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
+            yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
+            try:
+                yang_raw = requests.get(yang_download_link).text
+                yang_file.write(yang_raw)
+            except:
+                LOGGER.warning('{} - {}'.format(key, yang_download_link))
+                yang_file.write('')
+            yang_file.close()
+        check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+        check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+        try:
+            travis_repo = travis.repo(username + '/yang')
+            LOGGER.info('Enabling repo for Travis')
+            travis_enabled = travis_repo.enable()  # Switch is now on
+            travis_enabled_retry = 3
+            while not travis_enabled:
+                LOGGER.warning('Travis repo not enabled retrying')
+                travis_enabled -= 1
+                if travis_enabled == 0:
+                    break
+            # Add commit and push to the forked repository
+            LOGGER.info('Adding all untracked files locally')
+            repo.add_all_untracked()
+            LOGGER.info('Committing all files locally')
+            repo.commit_all('Cronjob - every day pull of ietf draft yang files.')
+            LOGGER.info('Pushing files to forked repository')
+            LOGGER.info('Commit hash {}'.format(repo.repo.head.commit))
+            with open(commit_dir, 'w+') as f:
+                f.write('{}\n'.format(repo.repo.head.commit))
+            repo.push()
+        except TravisError as e:
+            LOGGER.error('Error while pushing procedure {}'.format(e.message()))
+            requests.delete(ietf_models_forked_url,
+                            headers={'Authorization': 'token ' + token})
+        except GitCommandError as e:
+            LOGGER.error(
+                'Error while pushing procedure - git command error: {}'.format(e.stderr))
+            requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
         except:
-            LOGGER.warning('{} - {}'.format(key, yang_download_link))
-            yang_file.write('')
-        yang_file.close()
-    check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
-    check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
-    try:
-        travis_repo = travis.repo(username + '/yang')
-        LOGGER.info('Enabling repo for Travis')
-        travis_enabled = travis_repo.enable()  # Switch is now on
-        travis_enabled_retry = 3
-        while not travis_enabled:
-            LOGGER.warning('Travis repo not enabled retrying')
-            travis_enabled -= 1
-            if travis_enabled == 0:
-                break
-        # Add commit and push to the forked repository
-        LOGGER.info('Adding all untracked files locally')
-        repo.add_all_untracked()
-        LOGGER.info('Committing all files locally')
-        repo.commit_all('Cronjob - every day pull of ietf draft yang files.')
-        LOGGER.info('Pushing files to forked repository')
-        LOGGER.info('Commit hash {}'.format(repo.repo.head.commit))
-        with open(commit_dir, 'w+') as f:
-            f.write('{}\n'.format(repo.repo.head.commit))
-        repo.push()
-    except TravisError as e:
-        LOGGER.error('Error while pushing procedure {}'.format(e.message()))
-        requests.delete(ietf_models_forked_url,
-                        headers={'Authorization': 'token ' + token})
-    except GitCommandError as e:
-        LOGGER.error(
-            'Error while pushing procedure - git command error: {}'.format(e.stderr))
+            LOGGER.error(
+                'Error while pushing procedure {}'.format(sys.exc_info()[0]))
+            requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+    except Exception as e:
+        LOGGER.error("Exception found while draftPull script was running")
         requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
-    except:
-        LOGGER.error(
-            'Error while pushing procedure {}'.format(sys.exc_info()[0]))
-        requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+        repo.remove()
+        raise e
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()

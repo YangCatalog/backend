@@ -89,37 +89,44 @@ if __name__ == "__main__":
     if len(username) > 0:
         github_credentials = username + ':' + token + '@'
 
+    requests.delete(openconfig_models_forked_url, headers={'Authorization': 'token ' + token})
     LOGGER.info('Forking repository')
-    reponse = requests.post(
-        'https://' + github_credentials + openconfig_models_url_suffix)
-    repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/public.git')
+    reponse = requests.post('https://' + github_credentials + openconfig_models_url_suffix)
+    repo = None
+    try:
+        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/public.git')
 
-    repo.clone(config_name, config_email)
-    LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
+        repo.clone(config_name, config_email)
+        LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
 
-    mods = []
+        mods = []
 
-    for root, dirs, files in os.walk(repo.localdir + '/release/models/'):
-        for basename in files:
-            if '.yang' in basename:
-                mod = {}
-                name = basename.split('.')[0].split('@')[0]
-                mod['generated-from'] = 'not-applicable'
-                mod['module-classification'] = 'unknown'
-                mod['name'] = name
-                mod['revision'] = resolve_revision('{}/{}'.format(root,
-                                                                  basename))
-                path = root.split(repo.localdir)[1].replace('/', '', 1)
-                if not path.endswith('/'):
-                    path += '/'
-                path += basename
-                mod['organization'] = 'openconfig'
-                mod['source-file'] = {'owner': 'openconfig', 'path': path,
-                                      'repository': 'public'}
-                mods.append(mod)
-    output = json.dumps({'modules': {'module': mods}})
-    requests.delete(openconfig_models_forked_url,
-                    headers={'Authorization': 'token ' + token})
+        for root, dirs, files in os.walk(repo.localdir + '/release/models/'):
+            for basename in files:
+                if '.yang' in basename:
+                    mod = {}
+                    name = basename.split('.')[0].split('@')[0]
+                    mod['generated-from'] = 'not-applicable'
+                    mod['module-classification'] = 'unknown'
+                    mod['name'] = name
+                    mod['revision'] = resolve_revision('{}/{}'.format(root,
+                                                                      basename))
+                    path = root.split(repo.localdir)[1].replace('/', '', 1)
+                    if not path.endswith('/'):
+                        path += '/'
+                    path += basename
+                    mod['organization'] = 'openconfig'
+                    mod['source-file'] = {'owner': 'openconfig', 'path': path,
+                                          'repository': 'public'}
+                    mods.append(mod)
+        output = json.dumps({'modules': {'module': mods}})
+    except Exception as e:
+        LOGGER.error("Exception found while running openconfigPullLocal script running")
+        requests.delete(openconfig_models_forked_url, headers={'Authorization': 'token ' + token})
+        if repo is not None:
+            repo.remove()
+        raise e
+    requests.delete(openconfig_models_forked_url, headers={'Authorization': 'token ' + token})
     repo.remove()
     LOGGER.info(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)

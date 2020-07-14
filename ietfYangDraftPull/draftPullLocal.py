@@ -172,72 +172,78 @@ if __name__ == "__main__":
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Cloning repository')
     reponse = requests.post('https://' + github_credentials + yang_models_url_suffix)
-    repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/yang.git')
-
-    repo.clone(config_name, config_email)
-    LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
-
-    ietf_draft_json = requests.get(ietf_draft_url
-                                   , auth=(private_credentials[0], private_credentials[1])).json()
-    response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
-    zfile = open(repo.localdir + '/rfc.tgz', 'wb')
-    zfile.write(response.content)
-    zfile.close()
-    tar_opened = False
-    tgz = ''
+    repo = None
     try:
-        tgz = tarfile.open(repo.localdir + '/rfc.tgz')
-        tar_opened = True
-    except tarfile.ReadError as e:
-        LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
-                       ' Did the sdo_analysis cron job run already?')
-    if tar_opened:
-        tgz.extractall(repo.localdir + '/standard/ietf/RFC')
-        tgz.close()
-        os.remove(repo.localdir + '/rfc.tgz')
-        check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-        check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-        with open(temp_dir + "/log-pull-local.txt", "w") as f:
+        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/yang.git')
+
+        repo.clone(config_name, config_email)
+        LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
+
+        ietf_draft_json = requests.get(ietf_draft_url
+                                       , auth=(private_credentials[0], private_credentials[1])).json()
+        response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
+        zfile = open(repo.localdir + '/rfc.tgz', 'wb')
+        zfile.write(response.content)
+        zfile.close()
+        tar_opened = False
+        tgz = ''
+        try:
+            tgz = tarfile.open(repo.localdir + '/rfc.tgz')
+            tar_opened = True
+        except tarfile.ReadError as e:
+            LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
+                           ' Did the sdo_analysis cron job run already?')
+        if tar_opened:
+            tgz.extractall(repo.localdir + '/standard/ietf/RFC')
+            tgz.close()
+            os.remove(repo.localdir + '/rfc.tgz')
+            check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
+            check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
+            with open(temp_dir + "/log-pull-local.txt", "w") as f:
+                try:
+                    LOGGER.info('Calling populate script')
+                    arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
+                                 confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
+                                 "--dir", repo.localdir + "/standard/ietf/RFC", "--result-html-dir", result_html_dir,
+                                 "--credentials", credentials[0], credentials[1],
+                                 "--save-file-dir", save_file_dir]
+                    if notify == 'True':
+                        arguments.append("--notify-indexing")
+                    subprocess.check_call(arguments, stderr=f)
+                except subprocess.CalledProcessError as e:
+                    LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
+        for key in ietf_draft_json:
+            yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
+            yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
+            yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
+
+            try:
+                yang_raw = requests.get(yang_download_link).text
+                yang_file.write(yang_raw)
+            except:
+                LOGGER.warning('{} - {}'.format(key, yang_download_link))
+                yang_file.write('')
+            yang_file.close()
+        LOGGER.info('Checking module filenames without revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+        check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+        LOGGER.info('Checking for early revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
+        check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
+
+        with open(temp_dir + "/log-pull-local2.txt", "w") as f:
             try:
                 LOGGER.info('Calling populate script')
                 arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
                              confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
-                             "--dir", repo.localdir + "/standard/ietf/RFC", "--result-html-dir", result_html_dir,
-                             "--credentials", credentials[0], credentials[1],
+                             "--dir", repo.localdir + "/experimental/ietf-extracted-YANG-modules",
+                             "--result-html-dir", result_html_dir, "--credentials", credentials[0], credentials[1],
                              "--save-file-dir", save_file_dir]
                 if notify == 'True':
                     arguments.append("--notify-indexing")
                 subprocess.check_call(arguments, stderr=f)
             except subprocess.CalledProcessError as e:
                 LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
-    for key in ietf_draft_json:
-        yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
-        yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
-        yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
-
-        try:
-            yang_raw = requests.get(yang_download_link).text
-            yang_file.write(yang_raw)
-        except:
-            LOGGER.warning('{} - {}'.format(key, yang_download_link))
-            yang_file.write('')
-        yang_file.close()
-    LOGGER.info('Checking module filenames without revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
-    check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
-    LOGGER.info('Checking for early revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
-    check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
-
-    with open(temp_dir + "/log-pull-local2.txt", "w") as f:
-        try:
-            LOGGER.info('Calling populate script')
-            arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
-                         confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
-                         "--dir", repo.localdir + "/experimental/ietf-extracted-YANG-modules",
-                         "--result-html-dir", result_html_dir, "--credentials", credentials[0], credentials[1],
-                         "--save-file-dir", save_file_dir]
-            if notify == 'True':
-                arguments.append("--notify-indexing")
-            subprocess.check_call(arguments, stderr=f)
-        except subprocess.CalledProcessError as e:
-            LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
+    except Exception as e:
+        LOGGER.error("Exception found while draftPullLocal script was running")
+        repo.remove()
+        raise e
     repo.remove()
