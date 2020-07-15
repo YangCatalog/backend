@@ -111,6 +111,7 @@ class MyFlask(Flask):
         self.search_key = config.get('Receiver-Section', 'key')
         self.secret_key = config.get('API-Section', 'secret-key')
         self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.nginx_dir = config.get('API-Section', 'nginx-conf')
         self.dbHost = config.get('DB-Section', 'host')
         self.dbName = config.get('DB-Section', 'name-users')
         self.dbNameSearch = config.get('DB-Section', 'name-search')
@@ -122,6 +123,8 @@ class MyFlask(Flask):
         self.protocol = config.get('General-Section', 'protocol')
         self.save_requests = config.get('Directory-Section', 'save-requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.var_yang = config.get('Directory-Section', 'var')
+
         self.logs_dir = config.get('Directory-Section', 'logs')
         self.token = config.get('API-Section', 'yang-catalog-token')
         self.admin_token = config.get('API-Section', 'admin-token')
@@ -529,6 +532,9 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
                 except ValueError as e:
                     application.LOGGER.warning('not valid json returned')
                     data = ''
+                except Exception:
+                    application.LOGGER.warning('exception during loading data from confd')
+                    data = None
                 application.LOGGER.info('path {} data type {}'.format(path, type(data)))
                 if data is None or len(data) == 0 or data == 'None':
                     secs = 30
@@ -2784,10 +2790,62 @@ def create_admin_user():
         application.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
 
+@application.route('/admin/directory-structure', methods=['GET'])
+def get_var_yang_directory_structure():
+    def walk_through_dir(path):
+        structure = {'children': []}
+        for root, dirs, files in os.walk(path):
+            structure['name'] = os.path.basename(root)
+            for f in files:
+                b = {}
+                b['name'] = f
+                structure['children'].append(b)
+            for dir in dirs:
+                structure['children'].append(walk_through_dir('{}/{}'.format(path, dir)))
+            break
+        return structure
+    application.LOGGER.info('Getting directory structure')
+
+    ret = {'name': 'root', 'children': []}
+    ret['children'].append(walk_through_dir('/var/yang'))
+    response = {'info': 'Success',
+                'data': ret}
+    return make_response(jsonify(response), 200)
+
+
+@application.route('/admin/yangcatalog-nginx', methods=['GET'])
+def read_yangcatalog_nginx_files():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+    application.LOGGER.info('Getting list of nginx files')
+    files = os.listdir('{}/sites-enabled'.format(application.nginx_dir))
+    files_final = ['sites-enabled/' + sub for sub in files]
+    files_final.append('nginx.conf')
+    files = os.listdir('{}/conf.d'.format(application.nginx_dir))
+    files_final.extend(['conf.d/' + sub for sub in files])
+    response = {'info': 'Success',
+                'data': files_final}
+    return make_response(jsonify(response), 200)
+
+
+@application.route('/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
+def read_yangcatalog_nginx(nginx_file):
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+    application.LOGGER.info('Reading nginx file {}'.format(nginx_file))
+    with open('{}/{}'.format(application.nginx_dir, nginx_file), 'r') as f:
+        nginx_config = f.read()
+    response = {'info': 'Success',
+                'data': nginx_config}
+    return make_response(jsonify(response), 200)
+
+
 @application.route('/admin/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
     if 'user_id' not in session:
         return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+    application.LOGGER.info('Reading yangcatalog config file')
+
     with open(application.config_path, 'r') as f:
         yangcatalog_config = f.read()
     response = {'info': 'Success',
@@ -2799,6 +2857,7 @@ def read_yangcatalog_config():
 def update_yangcatalog_config():
     if 'user_id' not in session:
         return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+    application.LOGGER.info('Updating yangcatalog config file')
     body = request.json
     input = body.get('input')
     if input is None or input.get('data') is None:
@@ -2842,6 +2901,8 @@ def get_log_files():
                     filename = os.path.join(root, basename)
                     yield filename
 
+    application.LOGGER.info('Getting yangcatalog log files')
+
     files = find_files(application.logs_dir, '*.log*')
     resp = set()
     for f in files:
@@ -2862,6 +2923,7 @@ def get_logs():
                     filename = os.path.join(root, basename)
                     yield filename
 
+    application.LOGGER.info('Reading yangcatalog log file')
     if request.json is None:
         return make_response(jsonify({'error': 'bar-request - body has to start with input and can not be empty'}), 400)
 
@@ -3275,8 +3337,7 @@ def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change,
                                     is_uwsgi=application.is_uwsgi, data=data)
         vendors = {}
         if modules is None or vendors_text is None:
-            cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-                    .decode(data)['yang-catalog:catalog']
+            cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
             modules = cat['modules']
             if cat.get('vendors'):
                 vendors = cat['vendors']
