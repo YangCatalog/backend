@@ -35,6 +35,40 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+class ScriptConfig():
+    def __init__(self):
+        parser = argparse.ArgumentParser(
+            description='This serves to save or load all information in yangcatalog.org in elk.'
+                        'in case the server will go down and we would lose all the information we'
+                        ' have got. We have two options in here.')
+        parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_').replace(':', '-') + '-utc',
+                            type=str, help='Set name of the file to save. Default name is date and time in UTC')
+        parser.add_argument('--name_load', type=str, default='',
+                            help='Set name of the file to load. Default will take a last saved file')
+        parser.add_argument('--save', action='store_true', default=True,
+                            help='Set weather you want to create snapshot. Default is True')
+        parser.add_argument('--load', action='store_true', default=False,
+                            help='Set weather you want to load from snapshot. Default is False')
+        parser.add_argument('--latest', action='store_true', default=True,
+                            help='Set weather to load the latest snapshot')
+        parser.add_argument('--compress', action='store_true', default=True,
+                            help='Set weather to compress snapshot files. Default is True')
+        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                            help='Set path to config file')
+
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
+
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
 
 def create_register_elk_repo(name, is_compress, elk):
     body = {}
@@ -45,27 +79,11 @@ def create_register_elk_repo(name, is_compress, elk):
     elk.snapshot.create_repository(name, body)
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description='This serves to save or load all information in yangcatalog.org in elk.'
-                    'in case the server will go down and we would lose all the information we'
-                    ' have got. We have two options in here.')
-    parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_').replace(':', '-') + '-utc',
-                        type=str, help='Set name of the file to save. Default name is date and time in UTC')
-    parser.add_argument('--name_load', type=str,
-                        help='Set name of the file to load. Default will take a last saved file')
-    parser.add_argument('--save', action='store_true', default=True,
-                        help='Set weather you want to create snapshot. Default is True')
-    parser.add_argument('--load', action='store_true', default=False,
-                        help='Set weather you want to load from snapshot. Default is False')
-    parser.add_argument('--latest', action='store_true', default=True,
-                        help='Set weather to load the latest snapshot')
-    parser.add_argument('--compress', action='store_true', default=True,
-                        help='Set weather to compress snapshot files. Default is True')
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
 
-    args = parser.parse_args()
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -99,3 +117,5 @@ if __name__ == "__main__":
         else:
             es.snapshot.restore(repository=repo_name, snapshot=args.name_load, body=index_body)
 
+if __name__ == "__main__":
+    main()

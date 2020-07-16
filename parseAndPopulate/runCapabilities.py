@@ -42,6 +42,47 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+class ScriptConfig():
+    def __init__(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--dir', default='../../vendor', type=str,
+                            help='Set dir where to look for hello message xml files. Default -> ../../vendor')
+        parser.add_argument('--save-modification-date', action='store_true', default=False,
+                            help='if True than it will create a file with modification date and also it will check if '
+                                'file was modified from last time if not it will skip it.')
+        parser.add_argument('--api', action='store_true', default=False, help='if we are doing apis')
+        parser.add_argument('--sdo', action='store_true', default=False, help='if we are doing sdos')
+        parser.add_argument('--run-integrity', action='store_true', default=False,
+                            help='If we are running integrity tool')
+        parser.add_argument('--json-dir', default='/var/yang/tmp/', type=str, help='Directory where json files to populate confd will be stored')
+        parser.add_argument('--result-html-dir', default='/home/miroslav/results/', type=str,
+                            help='Set dir where to write html result files. Default -> /home/miroslav/results/')
+        parser.add_argument('--save-file-dir', default='/home/miroslav/results/',
+                            type=str, help='Directory where the file will be saved')
+        parser.add_argument('--api-protocol', type=str, default='https',
+                            help='Whether api runs on http or https.'
+                                ' Default is set to http')
+        parser.add_argument('--api-port', default=8443, type=int,
+                            help='Set port where the api is started. Default -> 8443')
+        parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
+                            help='Set ip address where the api is started. Default -> yangcatalog.org')
+        parser.add_argument('--config-path', type=str,
+                            default='/etc/yangcatalog/yangcatalog.conf',
+                            help='Set path to config file')
+
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
+
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
 
 def find_missing_hello(directory, pattern):
     for root, dirs, files in os.walk(directory):
@@ -69,34 +110,10 @@ def create_integrity():
     integrity_file.close()
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--dir', default='../../vendor', type=str,
-                        help='Set dir where to look for hello message xml files. Default -> ../../vendor')
-    parser.add_argument('--save-modification-date', action='store_true', default=False,
-                        help='if True than it will create a file with modification date and also it will check if '
-                             'file was modified from last time if not it will skip it.')
-    parser.add_argument('--api', action='store_true', default=False, help='if we are doing apis')
-    parser.add_argument('--sdo', action='store_true', default=False, help='if we are doing sdos')
-    parser.add_argument('--run-integrity', action='store_true', default=False,
-                        help='If we are running integrity tool')
-    parser.add_argument('--json-dir', type=str, help='Directory where json files to populate confd will be stored')
-    parser.add_argument('--result-html-dir', default='/home/miroslav/results/', type=str,
-                        help='Set dir where to write html result files. Default -> /home/miroslav/results/')
-    parser.add_argument('--save-file-dir', default='/home/miroslav/results/',
-                        type=str, help='Directory where the file will be saved')
-    parser.add_argument('--api-protocol', type=str, default='https',
-                        help='Whether api runs on http or https.'
-                             ' Default is set to http')
-    parser.add_argument('--api-port', default=8443, type=int,
-                        help='Set port where the api is started. Default -> 8443')
-    parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
-                        help='Set ip address where the api is started. Default -> yangcatalog.org')
-    parser.add_argument('--config-path', type=str,
-                        default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-
-    args = parser.parse_args()
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
 
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
@@ -184,3 +201,6 @@ if __name__ == "__main__":
         create_integrity()
     end = time.time()
     LOGGER.info('Time taken to parse all the files {} seconds'.format(end - start))
+
+if __name__ == "__main__":
+    main()

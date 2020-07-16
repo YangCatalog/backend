@@ -62,6 +62,24 @@ NS_MAP = {
 }
 MISSING_ELEMENT = 'independent'
 
+class ScriptConfig():
+    def __init__(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                            help='Set path to config file')
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
+
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
 
 def find_first_file(directory, pattern, pattern_with_revision):
     """Search for yang file on path
@@ -253,9 +271,9 @@ def resolve_organization(path, parsed_yang):
 
 def process_data(out, save_list, path, name):
     """Process all the data out of output from runYANGallstats and Yang files themself
-        Arguments: 
+        Arguments:
             :param out: (str) output from runYANGallstats
-            :param save_list: (list) list to which we are saving all the informations 
+            :param save_list: (list) list to which we are saving all the informations
             :param path: (str) path to a directory to which we are creating statistics
             :param name: (str) name of the vendor or organization that we are creating
                 statistics for
@@ -305,12 +323,12 @@ def solve_platforms(path, platform):
                 platform.add(js_obj['name'])
 
 
-if __name__ == '__main__':
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
     timeBefore = time.time()
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    args = parser.parse_args()
+    args = scriptConf.args
+
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -326,6 +344,8 @@ if __name__ == '__main__':
     is_uwsgi = config.get('General-Section', 'uwsgi')
     yang_models = config.get('Directory-Section', 'yang_models_dir')
     log_directory = config.get('Directory-Section', 'logs')
+
+    global LOGGER
     LOGGER = log.get_logger('statistics', log_directory + '/statistics/yang.log')
     separator = ':'
     suffix = api_port
@@ -447,6 +467,7 @@ if __name__ == '__main__':
             response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
             all_modules_data = response.json()
             LOGGER.error("After a while, OK to access " + path)
+        global all_modules_data_unique
         all_modules_data_unique = {}
         for mod in all_modules_data['module']:
             name = mod['name']
@@ -607,3 +628,6 @@ if __name__ == '__main__':
         if repo is not None:
             repo.remove()
         raise Exception(e)
+
+if __name__ == "__main__":
+    main()

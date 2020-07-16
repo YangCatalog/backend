@@ -558,6 +558,8 @@ class Receiver:
                 final_response = self.run_ietf()
             elif body == 'reload_config':
                 self.load_config()
+            elif 'run_script' == arguments[0]:
+                final_response = self.run_script(arguments[1:])
             elif 'github' == arguments[-1]:
                 self.LOGGER.info('Github automated message starting to populate')
                 paths_plus = arguments[arguments.index('repoLocalDir'):]
@@ -673,6 +675,27 @@ class Receiver:
                 except Exception:
                     pass
 
+    def run_script(self, arguments):
+        module_name = arguments[0]
+        script_name = arguments[1]
+        body_input = json.loads(arguments[2])
+        try:
+            with open(self.temp_dir + "/run-script-api-stderr.txt", "w") as f:
+                # Load submodule and its config
+                module = __import__(module_name, fromlist=[script_name])
+                submodule = getattr(module, script_name)
+                script_conf = submodule.ScriptConfig()
+                script_args_list = script_conf.get_args_list()
+
+                for key in script_args_list:
+                    if (key != 'credentials' and body_input[key] != script_args_list[key]['default']):
+                        script_conf.args.__setattr__(key, body_input[key])
+
+                submodule.main(script_conf)
+            return self.__response_type[1]
+        except subprocess.CalledProcessError as e:
+            self.LOGGER.error('Server error: {}'.format(e))
+            return self.__response_type[0]
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

@@ -23,3 +23,4 @@ yang-catalog.service
 */yang-catalog.service
 /venv/
 /api/test.py
+/.vscode/
