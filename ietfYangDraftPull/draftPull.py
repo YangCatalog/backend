@@ -53,16 +53,33 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+class ScriptConfig():
+    def __init__(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--config-path', type=str,
+                            default='/etc/yangcatalog/yangcatalog.conf',
+                            help='Set path to config file')
+        parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
+                                                                                    ' to cisco webex teams and to'
+                                                                                    ' emails')
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str,
-                        default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
-                                                                                   ' to cisco webex teams and to'
-                                                                                   ' emails')
-    args = parser.parse_args()
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
+
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
 
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
@@ -225,3 +242,6 @@ if __name__ == "__main__":
     LOGGER.info('Removing tmp directory')
     repo.remove()
     requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
+
+if __name__ == "__main__":
+    main()

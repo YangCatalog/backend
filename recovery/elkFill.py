@@ -33,26 +33,51 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-if __name__ == "__main__":
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
-    api_protocol = config.get('General-Section', 'protocol-api')
-    api_port = config.get('General-Section', 'api-port')
-    api_host = config.get('DraftPullLocal-Section', 'api-ip')
-    is_uwsgi = config.get('General-Section', 'uwsgi')
-    parser = argparse.ArgumentParser(
-        description='This serves to save or load all information in yangcatalog.org in elk.'
-                    'in case the server will go down and we would lose all the information we'
-                    ' have got. We have two options in here.')
-    parser.add_argument('--api-ip', default=api_host, type=str,
-                        help='Set host where the API is started. Default: ' + api_host)
-    parser.add_argument('--api-port', default=api_port, type=int,
-                        help='Set port where the API is started. Default: ' + api_port)
-    parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
-                                                                               ' Default: ' + api_protocol)
-    args = parser.parse_args()
+class ScriptConfig():
+    def __init__(self):
+        config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(config_path)
+        api_protocol = config.get('General-Section', 'protocol-api')
+        api_port = config.get('General-Section', 'api-port')
+        api_host = config.get('DraftPullLocal-Section', 'api-ip')
+        save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        temp = config.get('Directory-Section', 'temp')
+        self.is_uwsgi = config.get('General-Section', 'uwsgi')
+        parser = argparse.ArgumentParser(
+            description='This serves to save or load all information in yangcatalog.org in elk.'
+                        'in case the server will go down and we would lose all the information we'
+                        ' have got. We have two options in here.')
+        parser.add_argument('--api-ip', default=api_host, type=str,
+                            help='Set host where the API is started. Default: ' + api_host)
+        parser.add_argument('--api-port', default=api_port, type=int,
+                            help='Set port where the API is started. Default: ' + api_port)
+        parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
+                                                                                ' Default: ' + api_protocol)
+        parser.add_argument('--save-file-dir', default=save_file_dir, type=str,
+                            help='Directory for all yang modules lookup. Default: ' + save_file_dir)
+        parser.add_argument('--temp', default=temp, type=str,
+                            help='Path to yangcatalog temporary directory. Default: ' + temp)
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
+
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
+
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
+    is_uwsgi = scriptConf.is_uwsgi
 
     separator = ':'
     suffix = args.api_port
@@ -72,7 +97,10 @@ if __name__ == "__main__":
             print('module: {} wrong data'.format(module))
             continue
         key = '{}@{}/{}'.format(name, revision, org)
-        value = '/var/yang/all_modules/{}@{}.yang'.format(name, revision)
+        value = '{}/{}@{}.yang'.format(args.save_file_dir, name, revision)
         create_dict[key] = value
-    with open('elasticsearch_data.json', 'w') as f:
+    with open('{}/elasticsearch_data.json'.format(args.temp), 'w') as f:
         json.dump(create_dict, f)
+
+if __name__ == "__main__":
+    main()

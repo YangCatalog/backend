@@ -57,6 +57,7 @@ import shutil
 import subprocess
 import sys
 import uuid
+import importlib
 from copy import deepcopy
 from datetime import datetime
 from threading import Lock
@@ -2925,12 +2926,12 @@ def get_logs():
 
     application.LOGGER.info('Reading yangcatalog log file')
     if request.json is None:
-        return make_response(jsonify({'error': 'bar-request - body has to start with input and can not be empty'}), 400)
+        return make_response(jsonify({'error': 'bad-request - body has to start with input and can not be empty'}), 400)
 
     body = request.json.get('input')
 
     if body is None:
-        return make_response(jsonify({'error': 'bar-request - body has to start with input and can not be empty'}), 400)
+        return make_response(jsonify({'error': 'bad-request - body has to start with input and can not be empty'}), 400)
     number_of_lines_per_page = body.get('lines-per-page', 1000)
     page_num = body.get('page', 1)
     filter = body.get('filter')
@@ -3184,6 +3185,73 @@ def get_sql_rows(table):
                     'access-rights-vendor': row[8]}
         ret.append(data_set)
     return make_response(jsonify(ret), 200)
+
+
+def get_module_name(script_name):
+    if script_name == 'populate' or script_name == 'runCapabilities':
+        return 'parseAndPopulate'
+    elif script_name == 'draftPull' or script_name == 'draftPullLocal' or script_name == 'openconfigPullLocal':
+        return 'ietfYangDraftPull'
+    elif script_name == 'recovery' or script_name == 'elkRecovery' or script_name == 'elkFill':
+        return 'recovery'
+    elif script_name == 'statistics':
+        return 'statistic'
+    elif script_name == 'resolveExpiration':
+        return 'utility'
+    elif script_name == 'validate':
+        return 'validate'
+    else:
+        return None
+
+
+@application.route('/admin/scripts/<script>', methods=['GET'])
+def get_script_details(script):
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+
+    module_name = get_module_name(script)
+    if module_name is None:
+        return make_response(jsonify({'error': '"{}" is not valid script name'.format(script)}), 400)
+
+    module = __import__(module_name, fromlist=[script])
+    submodule = getattr(module, script)
+    script_conf = submodule.ScriptConfig()
+    script_args_list = script_conf.get_args_list()
+    script_args_list.pop('credentials', None)
+    return make_response(jsonify({'data': script_args_list}), 200)
+
+
+@application.route('/admin/scripts/<script>', methods=['POST'])
+def run_script_with_args(script):
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+
+    module_name = get_module_name(script)
+    if module_name is None:
+        return make_response(jsonify({'error': '"{}" is not valid script name'.format(script)}), 400)
+
+    body = request.json
+
+    if body is None:
+        return make_response(jsonify({'error': 'body of request is empty'}), 400)
+    if body.get('input') is None:
+        return make_response(jsonify({'error':'body of request need to start with input'}), 400)
+
+    arguments = ['run_script', module_name, script, json.dumps(body['input'])]
+    job_id = application.sender.send('#'.join(arguments))
+
+    application.LOGGER.info('job_id {}'.format(job_id))
+    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}), 202)
+
+
+@application.route('/admin/scripts', methods=['GET'])
+def get_script_names():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+
+    scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
+                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'validate']
+    return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
 
 
 @application.route('/load-cache', methods=['POST'])
@@ -3456,4 +3524,3 @@ def unauthorized():
     return make_response(jsonify({'error': 'Unauthorized access'}), 401)
 
 load(False)
-

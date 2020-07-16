@@ -50,6 +50,18 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+class ScriptConfig():
+    def __init__(self):
+        parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
+        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+                            help='Set path to config file')
+        self.args = parser.parse_args()
+
+    def get_args_list(self):
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+        return dict(zip(keys, types))
+
 USE_LOGGER = False
 
 
@@ -204,6 +216,10 @@ def create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER
 
 def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None,
          row_id=None, user_email=None,config_path='/etc/yangcatalog/yangcatalog.conf'):
+    scriptConf = ScriptConfig()
+    args = scriptConf.args
+    config_path = args.config_path
+
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
@@ -250,11 +266,5 @@ def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None,
                     delete(dbHost, dbName, dbPass, dbUser, row[0], LOGGER)
                 break
 
-
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    args = parser.parse_args()
-    config_path = args.config_path
-    main(config_path=config_path)
+    main()

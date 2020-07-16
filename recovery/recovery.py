@@ -46,39 +46,69 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-if __name__ == "__main__":
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
-    credentials = config.get('General-Section', 'credentials').strip('"').split()
-    confd_protocol = config.get('General-Section', 'protocol')
-    confd_port = config.get('General-Section', 'confd-port')
-    confd_host = config.get('General-Section', 'confd-ip')
-    log_directory = config.get('Directory-Section', 'logs')
-    parser = argparse.ArgumentParser(
-        description='This serves to save or load all information in yangcatalog.org to json in'
-                    ' case the server will go down and we would lose all the information we'
-                    ' have got. We have two options in here. Saving makes a GET request to '
-                    'file with name that would be set as a argument or it will be set to '
-                    'a current time and date. Load will read the file and make a PUT request '
-                    'to write all data to yangcatalog.org.')
-    parser.add_argument('--port', default=confd_port, type=int,
-                        help='Set port where the confd is started. Default -> {}'.format(confd_port))
-    parser.add_argument('--ip', default=confd_host, type=str,
-                        help='Set ip address where the confd is started. Default -> {}'.format(confd_host))
-    parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
-                        type=str, help='Set name of the file to save. Default name is date and time in UTC')
-    parser.add_argument('--name_load', type=str,
-                        help='Set name of the file to load. Default will take a last saved file')
-    parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
-                        help='Set weather you want to save a file or load a file. Default is save')
-    parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether confd-6.6 runs on http or https.'
-                                                                             ' Default is set to {}'.format(confd_protocol))
+class ScriptConfig():
+    def __init__(self):
+        config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(config_path)
+        self.credentials = config.get('General-Section', 'credentials').strip('"').split()
+        confd_protocol = config.get('General-Section', 'protocol')
+        confd_port = config.get('General-Section', 'confd-port')
+        confd_host = config.get('General-Section', 'confd-ip')
+        self.log_directory = config.get('Directory-Section', 'logs')
+        self.cache_directory = config.get('Directory-Section', 'cache')
+        self.api_port = config.get('General-Section', 'api-port')
+        self.is_uwsgi = config.get('General-Section', 'uwsgi')
+        self.api_protocol = config.get('General-Section', 'protocol-api')
+        self.api_host = config.get('DraftPullLocal-Section', 'api-ip')
+        parser = argparse.ArgumentParser(
+            description='This serves to save or load all information in yangcatalog.org to json in'
+                        ' case the server will go down and we would lose all the information we'
+                        ' have got. We have two options in here. Saving makes a GET request to '
+                        'file with name that would be set as a argument or it will be set to '
+                        'a current time and date. Load will read the file and make a PUT request '
+                        'to write all data to yangcatalog.org.')
+        parser.add_argument('--port', default=confd_port, type=int,
+                            help='Set port where the confd is started. Default -> {}'.format(confd_port))
+        parser.add_argument('--ip', default=confd_host, type=str,
+                            help='Set ip address where the confd is started. Default -> {}'.format(confd_host))
+        parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
+                            type=str, help='Set name of the file to save. Default name is date and time in UTC')
+        parser.add_argument('--name_load', type=str, default='',
+                            help='Set name of the file to load. Default will take a last saved file')
+        parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
+                            help='Set weather you want to save a file or load a file. Default is save')
+        parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether confd-6.6 runs on http or https.'
+                                                                                ' Default is set to {}'.format(confd_protocol))
 
-    args = parser.parse_args()
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
+
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
+
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
+    cache_directory = scriptConf.cache_directory
+    credentials = scriptConf.credentials
+    log_directory = scriptConf.log_directory
+    api_port = scriptConf.api_port
+    is_uwsgi = scriptConf.is_uwsgi
+    api_protocol = scriptConf.api_protocol
+    api_host = scriptConf.api_host
+
     LOGGER = log.get_logger('recovery', log_directory + '/yang.log')
-    cache_directory = config.get('Directory-Section', 'cache')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
     LOGGER.info('Starting {} process of confd database'.format(args.type))
 
@@ -228,11 +258,7 @@ if __name__ == "__main__":
 
         file_load.close()
         separator = ':'
-        api_port = config.get('General-Section', 'api-port')
         suffix = api_port
-        is_uwsgi = config.get('General-Section', 'uwsgi')
-        api_protocol = config.get('General-Section', 'protocol-api')
-        api_host = config.get('DraftPullLocal-Section', 'api-ip')
         if is_uwsgi == 'True':
             separator = '/'
             suffix = 'api'
@@ -240,7 +266,6 @@ if __name__ == "__main__":
                                                        api_host, separator,
                                                        suffix)
         url = (yangcatalog_api_prefix + 'load-cache')
-        credentials = config.get('General-Section', 'credentials').strip('"').split()
 
         response = requests.post(url, None,
                                  auth=(credentials[0],
@@ -253,3 +278,5 @@ if __name__ == "__main__":
                            .format(response.status_code, response.text))
         LOGGER.info("cache reloaded")
 
+if __name__ == "__main__":
+    main()

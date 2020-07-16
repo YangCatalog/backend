@@ -38,6 +38,25 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+class ScriptConfig():
+    def __init__(self):
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--config-path', type=str,
+                            default='/etc/yangcatalog/yangcatalog.conf',
+                            help='Set path to config file')
+        self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
+
+    def get_args_list(self):
+        args_dict = {}
+        keys = [key for key in self.args.__dict__.keys()]
+        types = [type(value).__name__ for value in self.args.__dict__.values()]
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
 
 def resolve_revision(yang_file):
     """
@@ -53,12 +72,11 @@ def resolve_revision(yang_file):
     return revision
 
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str,
-                        default='/etc/yangcatalog/yangcatalog.conf',
-                        help='Set path to config file')
-    args = parser.parse_args()
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
+
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -136,3 +154,6 @@ if __name__ == "__main__":
     api_path = '{}modules'.format(yangcatalog_api_prefix)
     requests.put(api_path, output, auth=(credentials[0], credentials[1]),
                   headers={'Content-Type': 'application/json'})
+
+if __name__ == "__main__":
+    main()
