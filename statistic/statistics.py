@@ -617,10 +617,11 @@ def main(scriptConf=None):
 
         file_from = os.path.abspath('./statistics.html')
         file_to = os.path.abspath(move_to) + '/statistics.html'
+        resolved_path_file_to = os.path.realpath(file_to)
         if move_to != './':
-            if os.path.exists(file_to):
-                os.remove(file_to)
-            shutil.move(file_from, file_to)
+            if os.path.exists(resolved_path_file_to):
+                os.remove(resolved_path_file_to)
+            shutil.move(file_from, resolved_path_file_to)
         time_after = time.time()
         total_time = time_after - timeBefore
         LOGGER.info('Final time in seconds to produce statistics {}'.format(total_time))

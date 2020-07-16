@@ -86,14 +86,15 @@ if __name__ == "__main__":
     if len(username) > 0:
         github_credentials = username + ':' + token + '@'
 
-    requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+    requests.delete('{}/yang'.format(ietf_models_forked_url), headers={'Authorization': 'token ' + token})
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Cloning repository')
-    reponse = requests.post('https://' + github_credentials + ietf_models_url_suffix)
+    response = requests.post('https://' + github_credentials + ietf_models_url_suffix)
+    repo_name = response.json()['name']
     repo = None
     try:
-        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/yang.git')
-        LOGGER.info('https://' + token + '@github.com/' + username + '/yang.git')
+        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
+        LOGGER.info('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
         repo.clone(config_name, config_email)
 
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
@@ -102,7 +103,8 @@ if __name__ == "__main__":
             travis = TravisPy.github_auth(token)
         except:
             LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
-            requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+                            headers={'Authorization': 'token ' + token})
             repo.remove()
             sys.exit(500)
         # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
@@ -202,21 +204,24 @@ if __name__ == "__main__":
             repo.push()
         except TravisError as e:
             LOGGER.error('Error while pushing procedure {}'.format(e.message()))
-            requests.delete(ietf_models_forked_url,
+            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
         except GitCommandError as e:
             LOGGER.error(
                 'Error while pushing procedure - git command error: {}'.format(e.stderr))
-            requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+                            headers={'Authorization': 'token ' + token})
         except:
             LOGGER.error(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
-            requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+                            headers={'Authorization': 'token ' + token})
     except Exception as e:
         LOGGER.error("Exception found while draftPull script was running")
-        requests.delete(ietf_models_forked_url, headers={'Authorization': 'token ' + token})
+        requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
         repo.remove()
         raise e
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()
+    requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
