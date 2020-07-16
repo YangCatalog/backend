@@ -680,18 +680,17 @@ class Receiver:
         script_name = arguments[1]
         body_input = json.loads(arguments[2])
         try:
-            with open(self.temp_dir + "/run-script-api-stderr.txt", "w") as f:
-                # Load submodule and its config
-                module = __import__(module_name, fromlist=[script_name])
-                submodule = getattr(module, script_name)
-                script_conf = submodule.ScriptConfig()
-                script_args_list = script_conf.get_args_list()
+            # Load submodule and its config
+            module = __import__(module_name, fromlist=[script_name])
+            submodule = getattr(module, script_name)
+            script_conf = submodule.ScriptConfig()
+            script_args_list = script_conf.get_args_list()
 
-                for key in script_args_list:
-                    if (key != 'credentials' and body_input[key] != script_args_list[key]['default']):
-                        script_conf.args.__setattr__(key, body_input[key])
+            for key in script_args_list:
+                if (key != 'credentials' and body_input[key] != script_args_list[key]['default']):
+                    script_conf.args.__setattr__(key, body_input[key])
 
-                submodule.main(script_conf)
+            submodule.main(script_conf)
             return self.__response_type[1]
         except subprocess.CalledProcessError as e:
             self.LOGGER.error('Server error: {}'.format(e))

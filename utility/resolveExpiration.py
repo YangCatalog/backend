@@ -86,7 +86,7 @@ class ScriptConfig():
             i += 1
         return args_dict
 
-def __resolve_expiration(reference, module, args):
+def __resolve_expiration(reference, module, args, LOGGER):
     """Walks through all the modules and updates them if necessary
 
         Arguments:
@@ -143,9 +143,9 @@ def main(scriptConf=None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
-    global LOGGER
-    LOGGER = log.get_logger('resolveExpiration', scriptConf.log_directory + '/jobs/resolveExpiration.log')
+    log_directory = scriptConf.log_directory
     is_uwsgi = scriptConf.is_uwsgi
+    LOGGER = log.get_logger('resolveExpiration', log_directory + '/jobs/resolveExpiration.log')
 
     separator = ':'
     suffix = args.api_port
@@ -167,7 +167,7 @@ def main(scriptConf=None):
     modules = modules.json()['module']
     for mod in modules:
         ref = mod.get('reference')
-        ret = __resolve_expiration(ref, mod, args)
+        ret = __resolve_expiration(ref, mod, args, LOGGER)
         if not updated:
             updated = ret
     if updated:
