@@ -89,12 +89,14 @@ if __name__ == "__main__":
     if len(username) > 0:
         github_credentials = username + ':' + token + '@'
 
-    requests.delete(openconfig_models_forked_url, headers={'Authorization': 'token ' + token})
+    requests.delete('{}/public'.format(openconfig_models_forked_url), headers={'Authorization': 'token ' + token})
     LOGGER.info('Forking repository')
-    reponse = requests.post('https://' + github_credentials + openconfig_models_url_suffix)
+    response = requests.post('https://' + github_credentials + openconfig_models_url_suffix)
+    repo_name = response.json()['name']
+
     repo = None
     try:
-        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/public.git')
+        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
 
         repo.clone(config_name, config_email)
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
@@ -122,11 +124,13 @@ if __name__ == "__main__":
         output = json.dumps({'modules': {'module': mods}})
     except Exception as e:
         LOGGER.error("Exception found while running openconfigPullLocal script running")
-        requests.delete(openconfig_models_forked_url, headers={'Authorization': 'token ' + token})
+        requests.delete('{}/{}'.format(openconfig_models_forked_url, repo_name),
+                        headers={'Authorization': 'token ' + token})
         if repo is not None:
             repo.remove()
         raise e
-    requests.delete(openconfig_models_forked_url, headers={'Authorization': 'token ' + token})
+    requests.delete('{}/{}'.format(openconfig_models_forked_url, repo_name),
+                    headers={'Authorization': 'token ' + token})
     repo.remove()
     LOGGER.info(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)

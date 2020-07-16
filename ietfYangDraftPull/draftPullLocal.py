@@ -153,31 +153,20 @@ if __name__ == "__main__":
     notify = config.get('DraftPullLocal-Section', 'notify-index')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     private_credentials = config.get('General-Section', 'private-secret').split(' ')
-    token = config.get('DraftPull-Section', 'yang-catalog-token')
-    username = config.get('DraftPull-Section', 'username')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
     ietf_draft_url = config.get('General-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('General-Section', 'ietf-RFC-tar-private-url')
-    yang_models_url_suffix = config.get('General-Section', 'yang-models-repo-url_suffix')
     temp_dir = config.get('Directory-Section', 'temp')
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/jobs/draft-pull-local.log')
     LOGGER.info('Starting cron job IETF pull request local')
 
-    github_credentials = ''
-    if len(username) > 0:
-        github_credentials = username + ':' + token + '@'
-
-    # Fork and clone the repository YangModles/yang
-    LOGGER.info('Cloning repository')
-    reponse = requests.post('https://' + github_credentials + yang_models_url_suffix)
     repo = None
     try:
-        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/yang.git')
-
-        repo.clone(config_name, config_email)
+        repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
         LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
+        repo.clone(config_name, config_email)
 
         ietf_draft_json = requests.get(ietf_draft_url
                                        , auth=(private_credentials[0], private_credentials[1])).json()
