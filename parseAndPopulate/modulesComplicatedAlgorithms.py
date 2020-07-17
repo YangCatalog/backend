@@ -66,7 +66,6 @@ class ModulesComplicatedAlgorithms:
         self.__prefix = '{}://{}:{}'.format(protocol, ip, port)
         self.__yang_models = yang_models_dir
         self.temp_dir = temp_dir
-        self.recursion_limit = sys.getrecursionlimit()
         self.__direc = direc
         self.__trees = dict()
         LOGGER.info('get all existing modules')
@@ -79,7 +78,6 @@ class ModulesComplicatedAlgorithms:
 
     def parse_non_requests(self):
         LOGGER.info("parsing tree types")
-        sys.setrecursionlimit(10000)
         self.__resolve_tree_type()
 
     def parse_requests(self):
@@ -95,7 +93,6 @@ class ModulesComplicatedAlgorithms:
         process_expire.join()
         process_dependents.join()
         process_semver.join()
-        sys.setrecursionlimit(self.recursion_limit)
 
     def merge_modules_and_remove_not_updated(self):
         start = time.time()

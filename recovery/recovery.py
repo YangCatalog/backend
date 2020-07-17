@@ -247,7 +247,7 @@ def main(scriptConf=None):
                                     LOGGER.info('Request with body on path {} failed with {}'.
                                           format(url, response.text))
                     code = 200
-                    LOGGER.info('Confd recoverd with status code')
+                    LOGGER.info('Confd recoverd with status code 200')
                 except:
                     counter -= 1
             else:
@@ -277,6 +277,7 @@ def main(scriptConf=None):
             LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                            .format(response.status_code, response.text))
         LOGGER.info("cache reloaded")
+
 
 if __name__ == "__main__":
     main()
