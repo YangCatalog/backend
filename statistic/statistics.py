@@ -148,16 +148,27 @@ def get_specifics(path_dir):
     yang_modules = list_of_yang_modules_in_subdir(path_dir)
     yang_modules_length = len(yang_modules)
     x = 0
+    checked = {}
     for mod_git in yang_modules:
         x += 1
         LOGGER.info("{} out of {} getting specifics from {}".format(x, yang_modules_length, path_dir))
+        m_name_revision = mod_git.split('/')[-1]
+        if m_name_revision in checked.keys():
+            if checked[m_name_revision]['passed']:
+                passed += 1
+            if checked[m_name_revision]['in-catalog']:
+                num_in_catalog += 1
+            continue
+        checked[m_name_revision] = {}
+        checked[m_name_revision]['passed'] = False
+        checked[m_name_revision]['in-catalog'] = False
         try:
             parsed_yang = yangParser.parse(os.path.abspath(mod_git))
             revision = parsed_yang.search('revision')[0].arg
         except:
             continue
         organization = resolve_organization(mod_git, parsed_yang)
-        name = mod_git.split('/')[-1].split('.')[0].split('@')[0]
+        name = m_name_revision.split('.')[0].split('@')[0]
         if revision is None:
             revision = '1970-01-01'
         if name is None or organization is None:
@@ -166,8 +177,8 @@ def get_specifics(path_dir):
             organization = organization.replace(' ', '%20')
             path = '{}search/name/{}'.format(yangcatalog_api_prefix, name)
             module_exist = requests.get(path, auth=(auth[0], auth[1]),
-                                        headers={'Accept': 'application/yang-data+json',
-                                                 'Content-Type': 'application/yang-data+json'})
+                                        headers={'Accept': 'application/json',
+                                                 'Content-Type': 'application/json'})
             if repr(module_exist.status_code).startswith('20'):
                 data = module_exist.json()
                 org = data['yang-catalog:modules']['module'][0]['organization']
@@ -186,6 +197,8 @@ def get_specifics(path_dir):
             if data is not None:
                 if 'passed' == data.get('compilation-status'):
                     passed += 1
+                    checked[m_name_revision]['passed'] = True
+                checked[m_name_revision]['in-catalog'] = True
                 num_in_catalog += 1
             else:
                 LOGGER.error('module {} does not exist'.format(mod))

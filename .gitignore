@@ -10,6 +10,7 @@ api/standard
 **/*.json
 **/*.html
 !api/template/*
+/venv
 !statistics/template/stats.html
 yang.egg-info
 /parseAndPopulate/**/*.yang
