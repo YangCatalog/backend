@@ -3042,25 +3042,6 @@ def get_logs():
                                   'output': output}), 200)
 
 
-@application.route('/admin/validate', methods=['POST'])
-def validate_post():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
-    body = request.json
-    if body.get('vendor-access') is None and body.get('sdo-access'):
-        return make_response(jsonify({'info': 'Failed to validate - at least one of vendor-access or sdo-access'
-                                              'must be filled in'}), 400)
-    if body.get('vendor-access') is not None and body.get('vendor-path') is None:
-        return make_response(jsonify({'info': 'Failed to validate - vendor-access True but no vendor-path given'}), 400)
-    if body.get('sdo-access') is not None and body.get('sdo-path') is None:
-        return make_response(jsonify({'info': 'Failed to validate - sdo-access True but no sdo-path given'}), 400)
-    if body.get('row-id') is None or body.get('user-email') is None:
-        return make_response(jsonify({'info': 'Failed to validate - user-email and row-id must exist'}), 400)
-    validate.main(body.get('vendor-access'), body.get('vendor-path'), body.get('sdo-access'), body.get('sdo-path'),
-                  body['row-id'], body['user-email'])
-    return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
-
-
 @application.route('/admin/sql-tables', methods=['GET'])
 def get_sql_tables():
     if 'user_id' not in session:
@@ -3236,12 +3217,18 @@ def run_script_with_args(script):
         return make_response(jsonify({'error': 'body of request is empty'}), 400)
     if body.get('input') is None:
         return make_response(jsonify({'error':'body of request need to start with input'}), 400)
+    if script == 'validate':
+        try:
+            if not body['input']['row_id'] or not body['input']['user_email']:
+                return make_response(jsonify({'error': 'row-id and user-email cannot be empty strings'}), 400)
+        except:
+            return make_response(jsonify({'error': 'row-id and user-email are required arguments'}), 400)
 
     arguments = ['run_script', module_name, script, json.dumps(body['input'])]
     job_id = application.sender.send('#'.join(arguments))
 
     application.LOGGER.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}), 202)
+    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
 @application.route('/admin/scripts', methods=['GET'])

@@ -55,12 +55,25 @@ class ScriptConfig():
         parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
+        parser.add_argument('--vendor-access', action='store_true', default=False, help='If user need vendor access')
+        parser.add_argument('--vendor-path', type=str, default='', help='What is vendor branch of user')
+        parser.add_argument('--sdo-access', action='store_true', default=False, help='If user need sdo access')
+        parser.add_argument('--sdo-path', type=str, default='', help='What is model organization of user')
+        parser.add_argument('--row-id', type=str, default='', help='Row ID of user in temporary db')
+        parser.add_argument('--user-email', type=str, default='', help='Email of user')
         self.args = parser.parse_args()
+        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
+        args_dict = {}
         keys = [key for key in self.args.__dict__.keys()]
         types = [type(value).__name__ for value in self.args.__dict__.values()]
-        return dict(zip(keys, types))
+
+        i = 0
+        for key in keys:
+            args_dict[key] = dict(type=types[i], default=self.defaults[i])
+            i += 1
+        return args_dict
 
 USE_LOGGER = False
 
@@ -110,7 +123,7 @@ def query_create(question, yang_models, LOGGER):
         sys.stdout.write(question)
         choice = input().lower()
 
-        if choice.startswith('/'):
+        if choice.startswith('/') and len(choice) > 1:
             choice = choice[1:]
         if choice.endswith('/'):
             choice = choice[:-1]
@@ -162,11 +175,12 @@ def delete(dbHost, dbName, dbPass, dbUser, row_id, LOGGER):
         cursor.execute("""DELETE FROM users_temp WHERE Id=%s LIMIT 1""", (row_id, ))
         db.commit()
         db.close()
+        local_print('User ID: {} has been removed from users_temp table'.format(row_id), LOGGER)
     except MySQLdb.MySQLError as err:
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def copy(dbHost, dbName, dbPass, dbUser, row, vendor_path, sdo_path, LOGGER):
+def copy(dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER):
     try:
         db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
         # prepare a cursor object using cursor() method
@@ -174,13 +188,14 @@ def copy(dbHost, dbName, dbPass, dbUser, row, vendor_path, sdo_path, LOGGER):
         # execute SQL query using execute() method.
 
         cursor.execute("""UPDATE users_temp SET AccessRightsVendor=%s, AccessRightsSdo=%s WHERE Id=%s""",
-                       (vendor_path, sdo_path, row[0],))
+                       (vendor_path, sdo_path, str(row_id), ))
         cursor.execute("""INSERT INTO users(Username, Password, Email, ModelsProvider, FirstName, LastName,
                           AccessRightsVendor, AccessRightsSdo) SELECT Username, Password, Email, ModelsProvider,
                           FirstName, LastName, AccessRightsVendor, AccessRightsSdo FROM users_temp WHERE Id=%s""",
-                       (row[0],))
+                       (str(row_id), ))
         db.commit()
         db.close()
+        local_print('User ID: {} has been copied to the users table'.format(row_id), LOGGER)
     except MySQLdb.MySQLError as err:
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
@@ -203,21 +218,27 @@ def local_print(text, LOGGER):
         print(text)
 
 
-def create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email):
+def create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email, email_from):
     if sdo_path is None:
         sdo_path = ''
     if vendor_path is None:
         vendor_path = ''
     copy(dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER)
     delete(dbHost, dbName, dbPass, dbUser, row_id, LOGGER)
-    email_from = config.get('Message-Section', 'email-from')
     send_email(user_email, repr(vendor_path), repr(sdo_path), email_from)
 
 
-def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None,
-         row_id=None, user_email=None,config_path='/etc/yangcatalog/yangcatalog.conf'):
-    scriptConf = ScriptConfig()
+def main(scriptConf=None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
     args = scriptConf.args
+    vendor_access = args.vendor_access
+    vendor_path = args.vendor_path
+    sdo_access = args.sdo_access
+    sdo_path = args.sdo_path
+    row_id = args.row_id
+    user_email = args.user_email
+
     config_path = args.config_path
 
     config = ConfigParser.ConfigParser()
@@ -225,46 +246,49 @@ def main(vendor_access=None, vendor_path=None, sdo_access=None, sdo_path=None,
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     global USE_LOGGER
-    if vendor_access is None:
+    if vendor_access is False:
         USE_LOGGER = False
     else:
         USE_LOGGER = True
     LOGGER = log.get_logger('validate', log_directory + '/user-validation.log')
+    email_from = config.get('Message-Section', 'email-from')
     dbHost = config.get('Validate-Section', 'dbIp')
     dbName = config.get('Validate-Section', 'dbName')
     dbUser = config.get('Validate-Section', 'dbUser')
     dbPass = config.get('Validate-Section', 'dbPassword')
-    dbData = connect(dbHost, dbName, dbPass, dbUser, LOGGER)
     yang_models = config.get('Directory-Section', 'yang_models_dir')
+    dbData = connect(dbHost, dbName, dbUser, dbPass, LOGGER)
     pull(yang_models)
-    if vendor_access or sdo_access is not None:
-        create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email)
-    vendor_path = None
-    sdo_path = None
-    for row in dbData:
-        while True:
-            local_print('The user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' is from organization ' + row[4],
-                        LOGGER)
-            vendor_access = query_yes_no('Do they need vendor access?')
-            if vendor_access:
-                vendor_path = query_create('What is their vendor branch ', yang_models, LOGGER)
-            sdo_access = query_yes_no('Do they need sdo (model) access?')
-            if sdo_access:
-                sdo_path = query_create('What is their model organization ', yang_models, LOGGER)
-            want_to_create = False
-            if sdo_path or vendor_path:
-                want_to_create = query_yes_no('Do you want to create user ' + row[5] + ' ' + row[6] + ' (' + row[1]
-                                              + ')' + ' from organization ' + row[4] + ' with path for vendor '
-                                              + repr(vendor_path) + ' and organization for sdo ' + repr(sdo_path))
-            if want_to_create:
-                create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row[0], LOGGER, config, row[3])
-                break
-            else:
-                local_print('Skipping user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' from organization ' + row[4]
-                      + ' has no path set.', LOGGER)
-                if query_yes_no('Would you like to delete this user from temporary database?'):
-                    delete(dbHost, dbName, dbPass, dbUser, row[0], LOGGER)
-                break
+    if (vendor_access and vendor_path) or (sdo_access and sdo_path):
+        create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email, email_from)
+        local_print('User ID: {} has been validated based on arguments'.format(row_id), LOGGER)
+    else:
+        vendor_path = None
+        sdo_path = None
+        for row in dbData:
+            while True:
+                local_print('The user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' is from organization ' + row[4],
+                            LOGGER)
+                vendor_access = query_yes_no('Do they need vendor access?')
+                if vendor_access:
+                    vendor_path = query_create('What is their vendor branch ', yang_models, LOGGER)
+                sdo_access = query_yes_no('Do they need sdo (model) access?')
+                if sdo_access:
+                    sdo_path = query_create('What is their model organization ', yang_models, LOGGER)
+                want_to_create = False
+                if sdo_path or vendor_path:
+                    want_to_create = query_yes_no('Do you want to create user ' + row[5] + ' ' + row[6] + ' (' + row[1]
+                                                + ')' + ' from organization ' + row[4] + ' with path for vendor '
+                                                + repr(vendor_path) + ' and organization for sdo ' + repr(sdo_path))
+                if want_to_create:
+                    create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row[0], LOGGER, config, row[3], email_from)
+                    break
+                else:
+                    local_print('Skipping user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' from organization ' + row[4]
+                        + ' has no path set.', LOGGER)
+                    if query_yes_no('Would you like to delete this user from temporary database?'):
+                        delete(dbHost, dbName, dbPass, dbUser, row[0], LOGGER)
+                    break
 
 if __name__ == "__main__":
     main()

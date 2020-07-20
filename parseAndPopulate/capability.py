@@ -81,7 +81,7 @@ class Capability:
         self.path = None
         self.yang_models_dir = yang_models_dir
         # Get hello message root
-        if 'xml' in hello_message_file:
+        if hello_message_file.endswith('.xml'):
             try:
                 LOGGER.debug('Checking for xml hello message file')
                 self.root = ET.parse(hello_message_file).getroot()
@@ -525,4 +525,3 @@ class Capability:
                                                       [name])
                     LOGGER.warning('File {} not found in the repository'
                                    .format(name))
-
