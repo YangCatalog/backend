@@ -100,7 +100,7 @@ def find_files(directory, pattern):
                 yield filename
 
 
-def create_integrity():
+def create_integrity(yang_models):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read('/etc/yangcatalog/yangcatalog.conf')
@@ -136,6 +136,7 @@ def main(scriptConf=None):
                                                    args.api_ip, separator,
                                                    suffix)
     start = time.time()
+    global local_integrity
     local_integrity = integrity.Statistics(args.dir)
     prepare = Prepare(log_directory, "prepare", yangcatalog_api_prefix)
     search_dirs = [args.dir]
@@ -198,7 +199,7 @@ def main(scriptConf=None):
             prepare.dump_vendors(args.json_dir)
 
     if local_integrity is not None and args.run_integrity:
-        create_integrity()
+        create_integrity(yang_models)
     end = time.time()
     LOGGER.info('Time taken to parse all the files {} seconds'.format(end - start))
 
