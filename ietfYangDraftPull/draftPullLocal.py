@@ -254,6 +254,8 @@ def main(scriptConf=None):
         repo.remove()
         raise e
     repo.remove()
+    LOGGER.info("Job finished successfully")
+
 
 if __name__ == "__main__":
     main()

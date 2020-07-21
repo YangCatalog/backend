@@ -644,6 +644,8 @@ def main(scriptConf=None):
         if repo is not None:
             repo.remove()
         raise Exception(e)
+    LOGGER.info("Job finished successfully")
+
 
 if __name__ == "__main__":
     main()

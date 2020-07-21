@@ -175,6 +175,8 @@ def main(scriptConf=None):
         response = requests.post(url, None, auth=(args.credentials[0],
                                                   args.credentials[1]))
         LOGGER.info('Cache loaded with status {}'.format(response.status_code))
+    LOGGER.info("Job finished successfully")
+
 
 if __name__ == "__main__":
     main()

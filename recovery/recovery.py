@@ -277,6 +277,7 @@ def main(scriptConf=None):
             LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                            .format(response.status_code, response.text))
         LOGGER.info("cache reloaded")
+    LOGGER.info("Job finished successfully")
 
 
 if __name__ == "__main__":

@@ -199,5 +199,4 @@ if __name__ == '__main__':
         json_file_to_remove = '{}/{}-UTC.json'.format(cache_directory, str(remove).replace(' ', '_'))
         if json_file_to_remove != file_name_latest:
             unlink(json_file_to_remove)
-    LOGGER.info('Finished with script removeUnused.py')
-
+    LOGGER.info("Job finished successfully")

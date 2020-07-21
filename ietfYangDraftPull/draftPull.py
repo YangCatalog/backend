@@ -241,7 +241,10 @@ def main(scriptConf=None):
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()
+    LOGGER.info('Removing {}/{} repository'.format(ietf_models_forked_url, repo_name))
     requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
+    LOGGER.info("Job finished successfully")
+
 
 if __name__ == "__main__":
     main()

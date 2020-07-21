@@ -147,13 +147,16 @@ def main(scriptConf=None):
         if repo is not None:
             repo.remove()
         raise e
+    LOGGER.info('Removing {}/{} repository'.format(openconfig_models_forked_url, repo_name))
     requests.delete('{}/{}'.format(openconfig_models_forked_url, repo_name),
                     headers={'Authorization': 'token ' + token})
     repo.remove()
-    LOGGER.info(output)
+    LOGGER.debug(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)
     requests.put(api_path, output, auth=(credentials[0], credentials[1]),
                   headers={'Content-Type': 'application/json'})
+    LOGGER.info("Job finished successfully")
+
 
 if __name__ == "__main__":
     main()
