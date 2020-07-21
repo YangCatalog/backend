@@ -1,5 +1,4 @@
-# Copyright The IETF Trust 2019, All Rights Reserved
-# Copyright 2018 Cisco and its affiliates
+# Copyright The IETF Trust 2020, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,6 +13,12 @@
 # limitations under the License.
 
 __author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
+__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
+
+class AdminUser:
+
+    def __init__(self, id, username):
+        self.id = id
+        self.username = username

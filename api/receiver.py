@@ -273,7 +273,7 @@ class Receiver:
         for mod in modules:
             try:
                 path = self.__confd_protocol + '://' + self.__confd_ip + ':' + repr(
-                    self.__confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' \
+                    self.__confdPort) + '/restconf/data/yang-catalog:catalog/modules/module=' \
                        + mod
                 modules_data = requests.get(path, auth=(credentials[0], credentials[1]),
                                             headers={'Content-Type': 'application/yang-data+json',
@@ -300,12 +300,12 @@ class Receiver:
                     else:
                         imp_key += ',' + imp['software-flavor']
 
-                    url = path + '/implementations/implementation/' + imp_key
+                    url = path + '/implementations/implementation=' + imp_key
                     response = requests.delete(url, auth=(credentials[0], credentials[1]))
 
                     if response.status_code != 204:
                         self.LOGGER.error('Couldn\'t delete implementation of module on path {} because of error: {}'
-                                          .format(path + '/implementations/implementation/' + imp_key, response.text))
+                                          .format(path + '/implementations/implementation=' + imp_key, response.text))
                         continue
                     count_deleted += 1
 
@@ -332,7 +332,7 @@ class Receiver:
                     dependents = existing_module['dependents']
                     for dep in dependents:
                         if dep['name'] == name and dep['revision'] == rev:
-                            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}/dependents/{}'
+                            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'
                             response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confdPort,
                                                                    existing_module['name'], existing_module['revision'],
                                                                    existing_module['organization'], dep['name']))
@@ -388,8 +388,8 @@ class Receiver:
         """
         path = self.__yangcatalog_api_prefix + 'load-cache'
         response = requests.post(path, auth=(credentials[0], credentials[1]),
-                                 headers={'Content-Type': 'application/yang-data+json',
-                                          'Accept': 'application/yang-data+json'}
+                                 headers={'Content-Type': 'application/json',
+                                          'Accept': 'application/json'}
                                  )
         code = response.status_code
 
@@ -432,7 +432,7 @@ class Receiver:
                     dependents = existing_module['dependents']
                     for dep in dependents:
                         if dep['name'] == mod['name'] and dep['revision'] == mod['revision']:
-                            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}/dependents/{}'
+                            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'
                             response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confdPort,
                                                                    existing_module['name'], existing_module['revision'],
                                                                    existing_module['organization'], dep['name']))
@@ -695,6 +695,7 @@ class Receiver:
         except subprocess.CalledProcessError as e:
             self.LOGGER.error('Server error: {}'.format(e))
             return self.__response_type[0]
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

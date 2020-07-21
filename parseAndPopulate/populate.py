@@ -70,7 +70,6 @@ class ScriptConfig():
         api_host = config.get('DraftPullLocal-Section', 'api-ip')
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
-        private_dir = config.get('Web-Section', 'private_directory')
 
         parser = argparse.ArgumentParser(description="Parse hello messages and YANG files to JSON dictionary. These"
                                                     " dictionaries are used for populating a yangcatalog. This script runs"
@@ -123,8 +122,8 @@ def reload_cache_in_parallel(credentials, yangcatalog_api_prefix):
                              auth=(credentials[0],
                                    credentials[1]),
                              headers={
-                                 'Accept': 'application/yang-data+json',
-                                 'Content-type': 'application/yang-data+json'})
+                                 'Accept': 'application/json',
+                                 'Content-type': 'application/json'})
     if response.status_code != 201:
         LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                        .format(response.status_code, response.text))
@@ -299,6 +298,8 @@ def main(scriptConf=None):
             process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel, args=(args.credentials, yangcatalog_api_prefix, ))
             process_reload_cache.start()
             LOGGER.info('Run complicated algorithms')
+            recursion_limit = sys.getrecursionlimit()
+            sys.setrecursionlimit(50000)
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  args.credentials,
                                                                  args.protocol, args.ip, args.port, args.save_file_dir,
@@ -309,6 +310,7 @@ def main(scriptConf=None):
             process_reload_cache.join()
             complicatedAlgorithms.parse_requests()
             process_non_request.join()
+            sys.setrecursionlimit(recursion_limit)
             LOGGER.info('Populating with new data of complicated algorithms')
             end = time.time()
             LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(end - start))
@@ -327,6 +329,7 @@ def main(scriptConf=None):
         except OSError:
             # Be happy if deleted
             pass
+
 
 if __name__ == "__main__":
     main()

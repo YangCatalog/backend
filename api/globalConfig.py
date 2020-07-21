@@ -1,0 +1,162 @@
+# Copyright The IETF Trust 2020, All Rights Reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = "Miroslav Kovac"
+__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
+__license__ = "Apache License, Version 2.0"
+__email__ = "miroslav.kovac@pantheon.tech"
+
+import sys
+from threading import Lock
+
+from api.sender import Sender
+from utility import log
+
+if sys.version_info >= (3, 4):
+    import configparser as ConfigParser
+else:
+    import ConfigParser
+
+class YangCatalogApiGlobalConfig():
+
+    loading = True
+
+    def __init__(self):
+        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(self.config_path)
+        self.lock_uwsgi_cache1 = Lock()
+        self.lock_uwsgi_cache2 = Lock()
+        self.search_key = config.get('Receiver-Section', 'key')
+        self.secret_key = config.get('API-Section', 'secret-key')
+        self.nginx_dir = config.get('API-Section', 'nginx-conf')
+        self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.dbHost = config.get('DB-Section', 'host')
+        self.dbName = config.get('DB-Section', 'name-users')
+        self.dbNameSearch = config.get('DB-Section', 'name-search')
+        self.dbUser = config.get('DB-Section', 'user')
+        self.dbPass = config.get('DB-Section', 'password')
+        self.credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
+        self.confd_ip = config.get('General-Section', 'confd-ip')
+        self.confdPort = int(config.get('General-Section', 'confd-port'))
+        self.protocol = config.get('General-Section', 'protocol')
+        self.save_requests = config.get('Directory-Section', 'save-requests')
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.var_yang = config.get('Directory-Section', 'var')
+
+        self.logs_dir = config.get('Directory-Section', 'logs')
+        self.token = config.get('API-Section', 'yang-catalog-token')
+        self.admin_token = config.get('API-Section', 'admin-token')
+        self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
+        self.temp_dir = config.get('Directory-Section', 'temp')
+        self.integrity_file_location = config.get('API-Section',
+                                                  'integrity-file-location')
+        self.diff_file_dir = config.get('Web-Section', 'save-diff-dir')
+        self.ip = config.get('API-Section', 'ip')
+        self.api_port = int(config.get('General-Section', 'api-port'))
+        self.api_protocol = config.get('General-Section', 'protocol-api')
+        self.is_uwsgi = config.get('General-Section', 'uwsgi')
+        self.config_name = config.get('General-Section', 'repo-config-name')
+        self.config_email = config.get('General-Section', 'repo-config-email')
+        self.ys_users_dir = config.get('Directory-Section', 'ys_users')
+        self.my_uri = config.get('Web-Section', 'my_uri')
+        self.yang_models = config.get('Directory-Section', 'yang_models_dir')
+        self.es_host = config.get('DB-Section', 'es-host')
+        self.es_port = config.get('DB-Section', 'es-port')
+        self.es_protocol = config.get('DB-Section', 'es-protocol')
+        rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+        rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+        rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
+        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
+        rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
+        log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
+
+        self.sender = Sender(log_directory, self.temp_dir,
+                             rabbitmq_host=rabbitmq_host,
+                             rabbitmq_port=rabbitmq_port,
+                             rabbitmq_virtual_host=rabbitmq_virtual_host,
+                             rabbitmq_username=rabbitmq_username,
+                             rabbitmq_password=rabbitmq_password,
+                             )
+        separator = ':'
+        suffix = self.api_port
+        if self.is_uwsgi == 'True':
+            separator = '/'
+            suffix = 'api'
+        self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+
+    def load_config(self):
+        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(self.config_path)
+        self.secret_key = config.get('API-Section', 'secret-key')
+        self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.nginx_dir = config.get('API-Section', 'nginx-conf')
+        self.dbHost = config.get('DB-Section', 'host')
+        self.dbName = config.get('DB-Section', 'name-users')
+        self.dbNameSearch = config.get('DB-Section', 'name-search')
+        self.dbUser = config.get('DB-Section', 'user')
+        self.dbPass = config.get('DB-Section', 'password')
+        self.credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
+        self.confd_ip = config.get('General-Section', 'confd-ip')
+        self.confdPort = int(config.get('General-Section', 'confd-port'))
+        self.protocol = config.get('General-Section', 'protocol')
+        self.save_requests = config.get('Directory-Section', 'save-requests')
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.logs_dir = config.get('Directory-Section', 'logs')
+        self.token = config.get('API-Section', 'yang-catalog-token')
+        self.admin_token = config.get('API-Section', 'admin-token')
+        self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
+        self.temp_dir = config.get('Directory-Section', 'temp')
+        self.integrity_file_location = config.get('API-Section',
+                                             'integrity-file-location')
+        self.diff_file_dir = config.get('Web-Section', 'save-diff-dir')
+        self.ip = config.get('API-Section', 'ip')
+        self.api_port = int(config.get('General-Section', 'api-port'))
+        self.api_protocol = config.get('General-Section', 'protocol-api')
+        self.is_uwsgi = config.get('General-Section', 'uwsgi')
+        self.config_name = config.get('General-Section', 'repo-config-name')
+        self.config_email = config.get('General-Section', 'repo-config-email')
+        self.ys_users_dir = config.get('Directory-Section', 'ys_users')
+        self.my_uri = config.get('Web-Section', 'my_uri')
+        self.yang_models = config.get('Directory-Section', 'yang_models_dir')
+        self.es_host = config.get('DB-Section', 'es-host')
+        self.es_port = config.get('DB-Section', 'es-port')
+        self.es_protocol = config.get('DB-Section', 'es-protocol')
+        rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+        rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+        rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual_host', fallback='/')
+        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
+        rabbitmq_password = config.get('RabbitMQ-Section', 'password', fallback='guest')
+        log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('api', log_directory + '/yang.log')
+        self.sender = Sender(log_directory, self.temp_dir,
+                             rabbitmq_host=rabbitmq_host,
+                             rabbitmq_port=rabbitmq_port,
+                             rabbitmq_virtual_host=rabbitmq_virtual_host,
+                             rabbitmq_username=rabbitmq_username,
+                             rabbitmq_password=rabbitmq_password
+                            )
+        separator = ':'
+        suffix = self.api_port
+        if self.is_uwsgi == 'True':
+            separator = '/'
+            suffix = 'api'
+        self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+        self.LOGGER.info('yangcatalog configuration reloaded')
+
+yc_gc = YangCatalogApiGlobalConfig()

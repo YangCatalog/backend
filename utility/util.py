@@ -171,8 +171,8 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, LOGGER, sa
                     m_name = mod['name']
                     m_rev = mod['revision']
                     m_org = mod['organization']
-                    url = ('{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module/'
-                           '{},{},{}/dependents/{}'.format(confd_protocol,
+                    url = ('{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module='
+                           '{},{},{}/dependents={}'.format(confd_protocol,
                                                            confd_ip,
                                                            confd_port, m_name,
                                                            m_rev, m_org, name))
@@ -197,8 +197,8 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, LOGGER, sa
                                                          module['revision'],
                                                          module['organization'])
                 response = requests.get(url, auth=(credentials[0], credentials[1]),
-                                        headers={'Content-Type': 'application/yang-data+json',
-                                                 'Accept': 'application/yang-data+json'})
+                                        headers={'Content-Type': 'application/json',
+                                                 'Accept': 'application/json'})
                 code = response.status_code
                 if force_indexing or (code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
