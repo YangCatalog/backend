@@ -575,13 +575,18 @@ def run_script_with_args(script):
         return make_response(jsonify({'error': 'body of request is empty'}), 400)
     if body.get('input') is None:
         return make_response(jsonify({'error': 'body of request need to start with input'}), 400)
+    if script == 'validate':
+        try:
+            if not body['input']['row_id'] or not body['input']['user_email']:
+                return make_response(jsonify({'info': 'Failed to validate - user-email and row-id cannot be empty strings'}), 400)
+        except:
+            return make_response(jsonify({'info': 'Failed to validate - user-email and row-id must exist'}), 400)
 
     arguments = ['run_script', module_name, script, json.dumps(body['input'])]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     yc_gc.LOGGER.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}),
-                         202)
+    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}), 202)
 
 
 @app.route('/scripts', methods=['GET'])
