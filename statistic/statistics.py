@@ -337,6 +337,7 @@ def main(scriptConf=None):
     api_ip = config.get('Statistics-Section', 'api-ip')
     api_port = config.get('General-Section', 'api-port')
     credentials = config.get('General-Section', 'credentials').strip('"')
+    global auth
     auth = credentials.split(' ')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
@@ -352,6 +353,7 @@ def main(scriptConf=None):
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
+    global yangcatalog_api_prefix
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip,
                                                    separator, suffix)
     LOGGER.info('Starting statistics')

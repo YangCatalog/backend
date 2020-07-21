@@ -686,11 +686,11 @@ class Receiver:
             script_conf = submodule.ScriptConfig()
             script_args_list = script_conf.get_args_list()
 
-            for key in script_args_list:
+            for key in body_input:
                 if (key != 'credentials' and body_input[key] != script_args_list[key]['default']):
                     script_conf.args.__setattr__(key, body_input[key])
 
-            submodule.main(script_conf)
+            submodule.main(scriptConf=script_conf)
             return self.__response_type[1]
         except subprocess.CalledProcessError as e:
             self.LOGGER.error('Server error: {}'.format(e))

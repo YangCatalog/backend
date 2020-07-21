@@ -115,12 +115,12 @@ class ScriptConfig():
             i += 1
         return args_dict
 
-def reload_cache_in_parallel():
+def reload_cache_in_parallel(credentials, yangcatalog_api_prefix):
     LOGGER.info('Sending request to reload cache in different thread')
     url = (yangcatalog_api_prefix + 'load-cache')
     response = requests.post(url, None,
-                             auth=(args.credentials[0],
-                                   args.credentials[1]),
+                             auth=(credentials[0],
+                                   credentials[1]),
                              headers={
                                  'Accept': 'application/json',
                                  'Content-type': 'application/json'})
@@ -295,7 +295,7 @@ def main(scriptConf=None):
         send_to_indexing(body_to_send, args.credentials, args.api_protocol, LOGGER, key, args.api_ip)
     if not args.api:
         if not args.force_indexing:
-            process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel)
+            process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel, args=(args.credentials, yangcatalog_api_prefix, ))
             process_reload_cache.start()
             LOGGER.info('Run complicated algorithms')
             recursion_limit = sys.getrecursionlimit()
