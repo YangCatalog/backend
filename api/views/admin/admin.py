@@ -116,6 +116,15 @@ def logout():
     return make_response(jsonify({'info': 'Success'}), 200)
 
 
+@app.route('/ping', methods=['GET'])
+def ping():
+    if 'user_id' not in session:
+        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
+    else:
+        response = {'info': 'Success'}
+        return make_response(jsonify(response), 200)
+
+
 @app.route('/create_user', methods=['POST'])
 def create_admin_user():
     if 'user_id' not in session:
