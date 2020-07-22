@@ -347,16 +347,16 @@ def main(scriptConf=None):
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     protocol = config.get('General-Section', 'protocol-api')
-    api_ip = config.get('Statistics-Section', 'api-ip')
-    api_port = config.get('General-Section', 'api-port')
-    credentials = config.get('General-Section', 'credentials').strip('"')
+    api_ip = config.get('Web-Section', 'ip')
+    api_port = config.get('Web-Section', 'api-port')
+    credentials = config.get('Secrets-Section', 'confd-credentials').strip('"')
     global auth
     auth = credentials.split(' ')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
-    move_to = config.get('Statistics-Section', 'file-location')
+    move_to = '{}/.'.format(config.get('Web-Section', 'public-directory'))
     is_uwsgi = config.get('General-Section', 'uwsgi')
-    yang_models = config.get('Directory-Section', 'yang_models_dir')
+    yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
 
     global LOGGER

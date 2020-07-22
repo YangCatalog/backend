@@ -88,8 +88,6 @@ def main(scriptConf=None):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
-    cache_directory = config.get('Directory-Section', 'cache')
-    credentials = config.get('General-Section', 'credentials').strip('"').split(' ')
     repo_name = config.get('General-Section', 'elk-repo-name')
 
     es_host = config.get('DB-Section', 'es-host')

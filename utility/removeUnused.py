@@ -77,7 +77,7 @@ if __name__ == '__main__':
     config.read(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
-    ys_users = config.get('Directory-Section', 'ys_users')
+    ys_users = config.get('Directory-Section', 'ys-users')
     cache_directory = config.get('Directory-Section', 'cache')
     LOGGER = lo.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
     LOGGER.info('Removing unused files')

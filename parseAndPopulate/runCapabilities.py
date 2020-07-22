@@ -104,7 +104,7 @@ def create_integrity(yang_models):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read('/etc/yangcatalog/yangcatalog.conf')
-    path = config.get('Statistics-Section', 'file-location')
+    path = '{}/.'.format(config.get('Web-Section', 'public-directory'))
     integrity_file = open('{}/integrity.html'.format(path), 'w')
     local_integrity.dumps(integrity_file, yang_models)
     integrity_file.close()
@@ -122,8 +122,8 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger('runCapabilities', log_directory + '/parseAndPopulate.log')
     is_uwsgi = config.get('General-Section', 'uwsgi')
-    private_dir = config.get('Web-Section', 'private_directory')
-    yang_models = config.get('Directory-Section', 'yang_models_dir')
+    private_dir = config.get('Web-Section', 'private-directory')
+    yang_models = config.get('Directory-Section', 'yang-models-dir')
 
     temp_dir = config.get('Directory-Section', 'temp')
 

@@ -138,7 +138,7 @@ class Modules:
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        self.__web_uri = config.get('Web-Section', 'my_uri', fallback="https://yangcatalog.org")
+        self.__web_uri = config.get('Web-Section', 'my-uri', fallback="https://yangcatalog.org")
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir
         self.__missing_submodules = []

@@ -61,13 +61,13 @@ class MessageFactory:
         log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
         self.LOGGER.info('Initialising Message')
-        token = config.get('Message-Section', 'access-token')
+        token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self._temp_dir = config.get('Directory-Section', 'temp')
-        self.__me = config.get('Web-Section', 'my_uri')
+        self.__me = config.get('Web-Section', 'my-uri')
         self.__me = self.__me.split('/')[-1]
 
         if len(rooms) == 0:

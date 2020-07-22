@@ -52,16 +52,16 @@ class ScriptConfig():
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        self.credentials = config.get('General-Section', 'credentials').strip('"').split()
-        confd_protocol = config.get('General-Section', 'protocol')
-        confd_port = config.get('General-Section', 'confd-port')
-        confd_host = config.get('General-Section', 'confd-ip')
+        self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+        confd_protocol = config.get('General-Section', 'protocol-confd')
+        confd_port = config.get('Web-Section', 'confd-port')
+        confd_host = config.get('Web-Section', 'confd-ip')
         self.log_directory = config.get('Directory-Section', 'logs')
         self.cache_directory = config.get('Directory-Section', 'cache')
-        self.api_port = config.get('General-Section', 'api-port')
+        self.api_port = config.get('Web-Section', 'api-port')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.api_protocol = config.get('General-Section', 'protocol-api')
-        self.api_host = config.get('DraftPullLocal-Section', 'api-ip')
+        self.api_host = config.get('Web-Section', 'ip')
         parser = argparse.ArgumentParser(
             description='This serves to save or load all information in yangcatalog.org to json in'
                         ' case the server will go down and we would lose all the information we'

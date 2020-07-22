@@ -252,11 +252,11 @@ def main(scriptConf=None):
         USE_LOGGER = True
     LOGGER = log.get_logger('validate', log_directory + '/user-validation.log')
     email_from = config.get('Message-Section', 'email-from')
-    dbHost = config.get('Validate-Section', 'dbIp')
-    dbName = config.get('Validate-Section', 'dbName')
-    dbUser = config.get('Validate-Section', 'dbUser')
-    dbPass = config.get('Validate-Section', 'dbPassword')
-    yang_models = config.get('Directory-Section', 'yang_models_dir')
+    dbHost = config.get('DB-Section', 'host')
+    dbName = config.get('DB-Section', 'name-users')
+    dbUser = config.get('DB-Section', 'user')
+    dbPass = config.get('Secrets-Section', 'mysql-password')
+    yang_models = config.get('Directory-Section', 'yang-models-dir')
     dbData = connect(dbHost, dbName, dbUser, dbPass, LOGGER)
     pull(yang_models)
     if (vendor_access and vendor_path) or (sdo_access and sdo_path):
