@@ -1318,7 +1318,7 @@ def catalog_data(which_cache):
 
 
 def create_bootstrap_info():
-    with open(get_curr_dir(__file__) + '/template/info.html', 'r') as f:
+    with open(get_curr_dir(__file__) + '/../../template/info.html', 'r') as f:
         template = f.read()
     return template
 
@@ -1327,12 +1327,12 @@ def create_bootstrap_warning(tree):
     yc_gc.LOGGER.info('Rendering bootstrap data')
     context = {'tree': tree}
     path, filename = os.path.split(
-        get_curr_dir(__file__) + '/template/warning.html')
+        get_curr_dir(__file__) + '/../../template/warning.html')
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)
 
 
 def create_bootstrap_danger():
-    with open(get_curr_dir(__file__) + '/template/danger.html', 'r') as f:
+    with open(get_curr_dir(__file__) + '/../../template/danger.html', 'r') as f:
         template = f.read()
     return template
