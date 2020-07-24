@@ -84,15 +84,12 @@ def main(scriptConf=None):
     api_ip = config.get('Web-Section', 'ip')
     api_port = int(config.get('Web-Section', 'api-port'))
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
-    token = config.get('Secrets-Section', 'yang-catalog-token')
-    username = config.get('General-Section', 'repository-username')
     api_protocol = config.get('General-Section', 'protocol-api')
     is_uwsgi = config.get('General-Section', 'uwsgi')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    openconfig_models_forked_url = config.get('Web-Section', 'openconfig-models-forked-repo-url')
-    openconfig_models_url_suffix = config.get('Web-Section', 'openconfig-models-repo-url-suffix')
+    openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
     LOGGER = log.get_logger('openconfigPullLocal', log_directory + '/jobs/openconfig-pull.log')
     LOGGER.info('Starting Cron job openconfig pull request local')
 
@@ -103,18 +100,10 @@ def main(scriptConf=None):
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_ip,
                                                    separator, suffix)
-    github_credentials = ''
-    if len(username) > 0:
-        github_credentials = username + ':' + token + '@'
-
-    requests.delete('{}/public'.format(openconfig_models_forked_url), headers={'Authorization': 'token ' + token})
-    LOGGER.info('Forking repository')
-    response = requests.post('https://' + github_credentials + openconfig_models_url_suffix)
-    repo_name = response.json()['name']
 
     repo = None
     try:
-        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
+        repo = repoutil.RepoUtil(openconfig_repo_url)
 
         repo.clone(config_name, config_email)
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
@@ -142,14 +131,9 @@ def main(scriptConf=None):
         output = json.dumps({'modules': {'module': mods}})
     except Exception as e:
         LOGGER.error("Exception found while running openconfigPullLocal script running")
-        requests.delete('{}/{}'.format(openconfig_models_forked_url, repo_name),
-                        headers={'Authorization': 'token ' + token})
         if repo is not None:
             repo.remove()
         raise e
-    LOGGER.info('Removing {}/{} repository'.format(openconfig_models_forked_url, repo_name))
-    requests.delete('{}/{}'.format(openconfig_models_forked_url, repo_name),
-                    headers={'Authorization': 'token ' + token})
     repo.remove()
     LOGGER.debug(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)

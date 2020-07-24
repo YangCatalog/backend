@@ -37,7 +37,9 @@ import os
 import shutil
 import sys
 import tarfile
+import time
 from tarfile import ReadError
+from time import time
 
 import requests
 from travispy import TravisPy
@@ -103,24 +105,35 @@ def main(scriptConf=None):
     if len(username) > 0:
         github_credentials = username + ':' + token + '@'
 
-    requests.delete('{}/yang'.format(ietf_models_forked_url), headers={'Authorization': 'token ' + token})
+    requests.delete('{}yang'.format(ietf_models_forked_url), headers={'Authorization': 'token ' + token})
+    time.sleep(20)
     # Fork and clone the repository YangModles/yang
     LOGGER.info('Cloning repository')
     response = requests.post('https://' + github_credentials + ietf_models_url_suffix)
+
     repo_name = response.json()['name']
     repo = None
     try:
-        repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
-        LOGGER.info('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
-        repo.clone(config_name, config_email)
-
+        retry = 3
+        while True:
+            try:
+                repo = repoutil.RepoUtil('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
+                LOGGER.info('https://' + token + '@github.com/' + username + '/{}.git'.format(repo_name))
+                repo.clone(config_name, config_email)
+                break
+            except:
+                retry -= 1
+                LOGGER.warning("repository not ready yet")
+                time.sleep(10)
+                if retry == 0:
+                    raise Exception()
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
         try:
             LOGGER.info('Activating Travis')
             travis = TravisPy.github_auth(token)
         except:
             LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
-            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
             repo.remove()
             sys.exit(500)
@@ -200,15 +213,17 @@ def main(scriptConf=None):
         check_name_no_revision_exist(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
         check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
         try:
-            travis_repo = travis.repo(username + '/yang')
+            travis_repo = travis.repo(username + '/' + repo_name)
             LOGGER.info('Enabling repo for Travis')
             travis_enabled = travis_repo.enable()  # Switch is now on
             travis_enabled_retry = 3
             while not travis_enabled:
                 LOGGER.warning('Travis repo not enabled retrying')
-                travis_enabled -= 1
-                if travis_enabled == 0:
-                    break
+                time.sleep(3)
+                travis_enabled_retry -= 1
+                travis_enabled = travis_repo.enable()
+                if travis_enabled_retry == 0:
+                    raise Exception()
             # Add commit and push to the forked repository
             LOGGER.info('Adding all untracked files locally')
             repo.add_all_untracked()
@@ -221,28 +236,27 @@ def main(scriptConf=None):
             repo.push()
         except TravisError as e:
             LOGGER.error('Error while pushing procedure {}'.format(e.message()))
-            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
         except GitCommandError as e:
             LOGGER.error(
                 'Error while pushing procedure - git command error: {}'.format(e.stderr))
-            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
         except:
             LOGGER.error(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
-            requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name),
+            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
     except Exception as e:
         LOGGER.error("Exception found while draftPull script was running")
-        requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
+        requests.delete('{}{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
         repo.remove()
         raise e
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()
-    LOGGER.info('Removing {}/{} repository'.format(ietf_models_forked_url, repo_name))
-    requests.delete('{}/{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
+    # we can not remove forked repository here since there could be new modules added
     LOGGER.info("Job finished successfully")
 
 
