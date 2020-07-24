@@ -18,11 +18,16 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import fnmatch
+import grp
 import json
 import math
 import os
+import pwd
 import re
+import shutil
+import stat
 from datetime import datetime
+from pathlib import Path
 
 import MySQLdb
 import requests
@@ -148,25 +153,113 @@ def create_admin_user():
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
 
-@app.route('/directory-structure', methods=['GET'])
-def get_var_yang_directory_structure():
+@app.route('/directory-structure/read/<path:direc>', methods=['GET'])
+def read_admin_file(direc):
+    yc_gc.LOGGER.info('Reading admin file {}'.format(direc))
+    try:
+        file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
+    except:
+        file_exist = False
+    if file_exist:
+        with open('{}/{}'.format(yc_gc.var_yang, direc), 'r') as f:
+            processed_file = f.read()
+        response = {'info': 'Success',
+                    'data': processed_file}
+        return make_response(jsonify(response), 200)
+    else:
+        return abort(400, description='error - file does not exist')
+
+
+@app.route("/directory-structure", defaults={"direc": ""}, methods=['DELETE'])
+@app.route('/directory-structure/<path:direc>', methods=['DELETE'])
+def delete_admin_file(direc):
+    yc_gc.LOGGER.info('Deleting admin file {}'.format(direc))
+    try:
+        exist = os.path.exists('{}/{}'.format(yc_gc.var_yang, direc))
+    except:
+        exist = False
+    if exist:
+        if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
+            os.unlink('{}/{}'.format(yc_gc.var_yang, direc))
+        else:
+            shutil.rmtree('{}/{}'.format(yc_gc.var_yang, direc))
+        response = {'info': 'Success',
+                    'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(yc_gc.var_yang, direc))}
+        return make_response(jsonify(response), 200)
+    else:
+        return abort(400, description='error - file or folder does not exist')
+
+
+@app.route('/directory-structure/<path:direc>', methods=['PUT'])
+def write_to_directory_structure(direc):
+    yc_gc.LOGGER.info("Updating file on path {}".format(direc))
+
+    body = request.json
+    input = body.get('input')
+    if input is None or input.get('data') is None:
+        return make_response(jsonify({'error': 'payload needs to have body with input and data container'}), 400)
+
+    try:
+        file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
+    except:
+        file_exist = False
+    if file_exist:
+        with open('{}/{}'.format(yc_gc.var_yang, direc), 'w') as f:
+            f.write(input['data'])
+        response = {'info': 'Success',
+                    'data': input['data']}
+        return make_response(jsonify(response), 200)
+    else:
+        return abort(400, description='error - file does not exist')
+
+
+@app.route("/directory-structure", defaults={"direc": ""}, methods=['GET'])
+@app.route('/directory-structure/<path:direc>', methods=['GET'])
+def get_var_yang_directory_structure(direc):
+
     def walk_through_dir(path):
-        structure = {'children': []}
+        structure = {'folders': [], 'files': []}
         for root, dirs, files in os.walk(path):
             structure['name'] = os.path.basename(root)
             for f in files:
-                b = {}
-                b['name'] = f
-                structure['children'].append(b)
-            for dir in dirs:
-                structure['children'].append(walk_through_dir('{}/{}'.format(path, dir)))
+                file_structure = {'name': f}
+                file_stat = Path('{}/{}'.format(path, f)).stat()
+                file_structure['size'] = file_stat.st_size
+                try:
+                    file_structure['group'] = grp.getgrgid(file_stat.st_gid).gr_name
+                except:
+                    file_structure['group'] = file_stat.st_gid
+
+                try:
+                    file_structure['user'] = pwd.getpwuid(file_stat.st_uid).pw_name
+                except:
+                    file_structure['user'] = file_stat.st_uid
+                file_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, f)).st_mode))
+
+                structure['files'].append(file_structure)
+            for directory in dirs:
+                dir_structure = {'name': directory}
+                p = Path('{}/{}'.format(path, directory))
+                dir_size = sum(f.stat().st_size for f in p.glob('**/*') if f.is_file())
+                dir_stat = p.stat()
+                try:
+                    dir_structure['group'] = grp.getgrgid(dir_stat.st_gid).gr_name
+                except:
+                    dir_structure['group'] = dir_stat.st_gid
+
+                try:
+                    dir_structure['user'] = pwd.getpwuid(dir_stat.st_uid).pw_name
+                except:
+                    dir_structure['user'] = dir_stat.st_uid
+                dir_structure['size'] = dir_size
+                dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, directory)).st_mode))
+                structure['folders'].append(dir_structure)
             break
         return structure
 
     yc_gc.LOGGER.info('Getting directory structure')
 
-    ret = {'name': 'root', 'children': []}
-    ret['children'].append(walk_through_dir('/var/yang'))
+    ret = walk_through_dir('/var/yang/{}'.format(direc))
     response = {'info': 'Success',
                 'data': ret}
     return make_response(jsonify(response), 200)
