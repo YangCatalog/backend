@@ -22,21 +22,21 @@ from flask import Blueprint, make_response, jsonify
 app = Blueprint('error-handling', __name__)
 
 
-@app.errorhandler(404)
+@app.app_errorhandler(404)
 def not_found(e):
     """Error handler for 404"""
     return make_response(jsonify({'error': 'Not found -- in api code',
                                   'description': e.description}), 404)
 
 
-@app.errorhandler(401)
+@app.app_errorhandler(401)
 def unauthorized(e):
     """Return unauthorized error message"""
     return make_response(jsonify({'error': 'Unauthorized access',
                                   'description': e.description}), 401)
 
 
-@app.errorhandler(400)
+@app.app_errorhandler(400)
 def bad_request(e):
     """Return message that can not be resolved"""
     return make_response(jsonify({'error': 'YangCatalog did not understand the message you have sent',
