@@ -1047,8 +1047,11 @@ def create_tree(f1, r1):
 
     for p in plugin.plugins:
         p.setup_ctx(ctx)
-    with open(path_to_yang, 'r') as f:
-        a = ctx.add_module(path_to_yang, f.read())
+    try:
+        with open(path_to_yang, 'r') as f:
+            a = ctx.add_module(path_to_yang, f.read())
+    except:
+        abort(400, descritpion='File {} was not found'.format(path_to_yang))
     if ctx.opts.tree_path is not None:
         path = ctx.opts.tree_path.split('/')
         if path[0] == '':

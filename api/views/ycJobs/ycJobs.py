@@ -138,8 +138,6 @@ def check_local():
                     response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/' + repr(pull_number) +
                                  '/merge', data, headers={'Authorization': 'token ' + yc_gc.admin_token})
                     yc_gc.LOGGER.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.text))
-                    requests.delete('https://api.github.com/repos/yang-catalog/yang',
-                                    headers={'Authorization': 'token ' + yc_gc.token})
                     return make_response(jsonify({'info': 'Success'}), 201)
             else:
                 yc_gc.LOGGER.warning('Travis job did not pass. Removing pull request')
