@@ -74,6 +74,10 @@ class ModulesComplicatedAlgorithms:
         existing_modules = response.json().get('module')
         self.__existing_modules_dict = {}
         for m in existing_modules:
+            sem_ver = m.get('derived-semantic-version')
+            tree_type = m.get('tree-type')
+            if sem_ver is None or sem_ver == '' or tree_type is None or tree_type == '':
+                continue
             self.__existing_modules_dict['{}@{}'.format(m['name'], m['revision'])] = m
 
     def parse_non_requests(self):
@@ -82,17 +86,11 @@ class ModulesComplicatedAlgorithms:
 
     def parse_requests(self):
         LOGGER.info("parsing semantic version")
-        process_semver = multiprocessing.Process(target=self.__parse_semver)
-        process_semver.start()
+        self.__parse_semver()
         LOGGER.info("parsing dependents")
-        process_dependents = multiprocessing.Process(target=self.__parse_dependents)
-        process_dependents.start()
+        self.__parse_dependents()
         LOGGER.info('parsing expiration')
-        process_expire = multiprocessing.Process(target=self.__parse_expire)
-        process_expire.start()
-        process_expire.join()
-        process_dependents.join()
-        process_semver.join()
+        self.__parse_expire()
 
     def merge_modules_and_remove_not_updated(self):
         start = time.time()

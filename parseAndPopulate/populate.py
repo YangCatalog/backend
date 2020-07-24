@@ -304,12 +304,10 @@ def main(scriptConf=None):
                                                                  args.credentials,
                                                                  args.protocol, args.ip, args.port, args.save_file_dir,
                                                                  direc, None, yang_models, temp_dir)
-            process_non_request = multiprocessing.Process(target=complicatedAlgorithms.parse_non_requests)
-            process_non_request.start()
+            complicatedAlgorithms.parse_non_requests()
             LOGGER.info('Waiting for cache reload to finish')
             process_reload_cache.join()
             complicatedAlgorithms.parse_requests()
-            process_non_request.join()
             sys.setrecursionlimit(recursion_limit)
             LOGGER.info('Populating with new data of complicated algorithms')
             end = time.time()
