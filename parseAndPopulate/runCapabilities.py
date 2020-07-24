@@ -137,7 +137,10 @@ def main(scriptConf=None):
                                                    suffix)
     start = time.time()
     global local_integrity
-    local_integrity = integrity.Statistics(args.dir)
+    if args.run_integrity:
+        local_integrity = integrity.Statistics(args.dir)
+    else:
+        local_integrity = None
     prepare = Prepare(log_directory, "prepare", yangcatalog_api_prefix)
     search_dirs = [args.dir]
 
@@ -202,6 +205,7 @@ def main(scriptConf=None):
         create_integrity(yang_models)
     end = time.time()
     LOGGER.info('Time taken to parse all the files {} seconds'.format(end - start))
+
 
 if __name__ == "__main__":
     main()

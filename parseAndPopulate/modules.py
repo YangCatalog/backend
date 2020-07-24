@@ -383,7 +383,8 @@ class Modules:
                         try:
                             s = yang_file.split('/')
                             key = '/'.join(split[0:-1])
-                            integrity_checker.remove_one(key, s[-1])
+                            if self.run_integrity:
+                                integrity_checker.remove_one(key, s[-1])
                             devs.revision = yangParser.parse(os.path.abspath(yang_file)) \
                                 .search('revision')[0].arg
                         except:

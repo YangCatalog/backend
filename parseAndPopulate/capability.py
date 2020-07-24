@@ -144,7 +144,8 @@ class Capability:
                      'os' : os_type,
                      'vendor': self.split[3]})
             for data in self.platform_data:
-                integrity_checker.add_platform('/'.join(self.split[:-2]), data['platform'])
+                if self.run_integrity:
+                    integrity_checker.add_platform('/'.join(self.split[:-2]), data['platform'])
 
         self.parsed_jsons = None
         if not run_integrity:
@@ -362,9 +363,9 @@ class Capability:
                                            yang.organization))
                 set_of_names.add(yang.name)
             except FileNotFoundError:
-
-                self.integrity_checker.add_module('/'.join(self.split),
-                                                  [module_name])
+                if self.run_integrity:
+                    self.integrity_checker.add_module('/'.join(self.split),
+                                                      [module_name])
                 LOGGER.warning('File {} not found in the repository'
                                .format(module_name))
 
@@ -461,9 +462,8 @@ class Capability:
                     keys.add(key)
                     set_of_names.add(yang.name)
                 except FileNotFoundError:
-                    self.integrity_checker.add_module('/'.join(self.split),
-                                                      [module_and_more.split(
-                                                          '&')[0]])
+                    if self.run_integrity:
+                        self.integrity_checker.add_module('/'.join(self.split), [module_and_more.split('&')[0]])
                     LOGGER.warning('File {} not found in the repository'
                                    .format(module_name))
 
@@ -521,7 +521,7 @@ class Capability:
                     self.parse_imp_inc(yang.imports, set_of_names, False,
                                        schema_part, capabilities, netconf_version)
                 except FileNotFoundError:
-                    self.integrity_checker.add_module('/'.join(self.split),
-                                                      [name])
+                    if self.run_integrity:
+                        self.integrity_checker.add_module('/'.join(self.split), [name])
                     LOGGER.warning('File {} not found in the repository'
                                    .format(name))
