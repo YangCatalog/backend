@@ -26,7 +26,7 @@ from datetime import datetime
 
 import MySQLdb
 import requests
-from flask import Blueprint, request, make_response, jsonify, g, session
+from flask import Blueprint, request, make_response, jsonify, g, session, abort
 
 from api.globalConfig import yc_gc
 from api.views.admin.adminUser import AdminUser
@@ -42,36 +42,35 @@ class YangCatalogAdminBlueprint(Blueprint):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
 
-    def before_request(self, f):
-        if 'admin' in request.path:
-            g.user = None
-            if 'user_id' in session:
-                try:
-                    db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
-                                         passwd=yc_gc.dbPass)
-                    # prepare a cursor object using cursor() method
-                    cursor = db.cursor()
-                    # execute SQL query using execute() method.
-                    results_num = cursor.execute("""SELECT * FROM `admin_users` where Id=%s""", (session['user_id'],))
-                    if results_num == 1:
-                        data = cursor.fetchone()
-                        g.user = AdminUser(data[0], data[1])
-                    db.close()
-                except MySQLdb.MySQLError as err:
-                    if err.args[0] != 1049:
-                        db.close()
-                    yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return super().before_request(f)
-
-
 app = YangCatalogAdminBlueprint('admin', __name__)
+
+@app.before_request
+def before_request():
+    if 'admin' in request.path:
+        g.user = None
+        if 'user_id' in session:
+            try:
+                db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
+                                        passwd=yc_gc.dbPass)
+                # prepare a cursor object using cursor() method
+                cursor = db.cursor()
+                # execute SQL query using execute() method.
+                results_num = cursor.execute("""SELECT * FROM `admin_users` where Id=%s""", (session['user_id'],))
+                if results_num == 1:
+                    data = cursor.fetchone()
+                    g.user = AdminUser(data[0], data[1])
+                db.close()
+            except MySQLdb.MySQLError as err:
+                if err.args[0] != 1049:
+                    db.close()
+                yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        elif 'login' not in request.path:
+            return abort(401, description='not yet Authorized')
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @app.route('/healthcheck', methods=['GET'])
 def health_check():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     return make_response(jsonify({'info': 'success'}), 201)
 
 
@@ -82,13 +81,13 @@ def login():
         body = request.json
         input = body.get('input')
         if input is None:
-            return make_response(jsonify({'error': 'missing "input" root json object'}), 400)
+            return abort(400, description='missing "input" root json object')
         username = input.get('username')
-        password = hash_pw(input.get('password'))
+        password = input.get('password')
         if username is None:
-            return make_response(jsonify({'error': 'missing "userame" in json object'}), 400)
+            return abort(400, description='missing "userame" in json object')
         if password is None:
-            return make_response(jsonify({'error': 'missing "password" in json object'}), 400)
+            return abort(400, description='missing "password" in json object')
         try:
             db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
                                  passwd=yc_gc.dbPass)
@@ -98,7 +97,8 @@ def login():
             results_num = cursor.execute("""SELECT * FROM `admin_users` where Username=%s""", (username,))
             if results_num == 1:
                 data = cursor.fetchone()
-                if data[2] == password:
+                password_hash = hash_pw(password)
+                if data[2] == password_hash:
                     session['user_id'] = data[0]
                     yc_gc.LOGGER.info('session id {}'.format(session))
                     return make_response(jsonify({'info': 'Success'}), 200)
@@ -107,7 +107,7 @@ def login():
             if err.args[0] != 1049:
                 db.close()
             yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return make_response(jsonify({'info': 'Bad authorization - username or password not correct'}), 401)
+        return abort(401, description='Bad authorization - username or password not correct')
 
 
 @app.route('/logout', methods=['POST'])
@@ -118,35 +118,30 @@ def logout():
 
 @app.route('/ping', methods=['GET'])
 def ping():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
-    else:
-        response = {'info': 'Success'}
-        return make_response(jsonify(response), 200)
+    response = {'info': 'Success'}
+    return make_response(jsonify(response), 200)
 
 
 @app.route('/create_user', methods=['POST'])
 def create_admin_user():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     body = request.json
     input = body.get('input')
     if input is None:
-        return make_response(jsonify({'error': 'missing "input" root json object'}), 400)
+        return abort(400, description='missing "input" root json object')
     username = input.get('username')
-    password = hash_pw(input.get('password'))
+    password = input.get('password')
     if username is None:
-        return make_response(jsonify({'error': 'missing "userame" in json object'}), 400)
+        return abort(400, description='missing "userame" in json object')
     if password is None:
-        return make_response(jsonify({'error': 'missing "password" in json object'}), 400)
+        return abort(400, description='missing "password" in json object')
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
                              passwd=yc_gc.dbPass)
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
         # execute SQL query using execute() method.
-
-        cursor.execute("""INSERT INTO admin_users(Username, Password) VALUES (%s, %s)""", (username, password,))
+        password_hash = hash_pw(password)
+        cursor.execute("""INSERT INTO admin_users(Username, Password) VALUES (%s, %s)""", (username, password_hash,))
         db.commit()
         db.close()
     except MySQLdb.MySQLError as err:
@@ -179,8 +174,6 @@ def get_var_yang_directory_structure():
 
 @app.route('/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     yc_gc.LOGGER.info('Getting list of nginx files')
     files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
     files_final = ['sites-enabled/' + sub for sub in files]
@@ -194,8 +187,6 @@ def read_yangcatalog_nginx_files():
 
 @app.route('/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     yc_gc.LOGGER.info('Reading nginx file {}'.format(nginx_file))
     with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
         nginx_config = f.read()
@@ -206,8 +197,6 @@ def read_yangcatalog_nginx(nginx_file):
 
 @app.route('/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     yc_gc.LOGGER.info('Reading yangcatalog config file')
 
     with open(yc_gc.config_path, 'r') as f:
@@ -219,13 +208,11 @@ def read_yangcatalog_config():
 
 @app.route('/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     yc_gc.LOGGER.info('Updating yangcatalog config file')
     body = request.json
     input = body.get('input')
     if input is None or input.get('data') is None:
-        return make_response(jsonify({'error': 'payload needs to have body with input and data container'}), 400)
+        return abort(400, description='payload needs to have body with "input" and "data" container')
 
     with open(yc_gc.config_path, 'w') as f:
         f.write(input['data'])
@@ -256,8 +243,6 @@ def update_yangcatalog_config():
 
 @app.route('/logs', methods=['GET'])
 def get_log_files():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
 
     def find_files(directory, pattern):
         for root, dirs, files in os.walk(directory):
@@ -278,8 +263,6 @@ def get_log_files():
 
 @app.route('/logs', methods=['POST'])
 def get_logs():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
 
     def find_files(directory, pattern):
         for root, dirs, files in os.walk(directory):
@@ -290,12 +273,12 @@ def get_logs():
 
     yc_gc.LOGGER.info('Reading yangcatalog log file')
     if request.json is None:
-        return make_response(jsonify({'error': 'bad-request - body has to start with input and can not be empty'}), 400)
+        return abort(400, description='bad-request - body has to start with "input" and can not be empty')
 
     body = request.json.get('input')
 
     if body is None:
-        return make_response(jsonify({'error': 'bad-request - body has to start with input and can not be empty'}), 400)
+        return abort(400, description='bad-request - body has to start with "input" and can not be empty')
     number_of_lines_per_page = body.get('lines-per-page', 1000)
     page_num = body.get('page', 1)
     filter = body.get('filter')
@@ -408,60 +391,36 @@ def get_logs():
                                   'output': output}), 200)
 
 
-@app.route('/validate', methods=['POST'])
-def validate_post():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
-    body = request.json
-    if body.get('vendor-access') is None and body.get('sdo-access'):
-        return make_response(jsonify({'info': 'Failed to validate - at least one of vendor-access or sdo-access'
-                                              'must be filled in'}), 400)
-    if body.get('vendor-access') is not None and body.get('vendor-path') is None:
-        return make_response(jsonify({'info': 'Failed to validate - vendor-access True but no vendor-path given'}), 400)
-    if body.get('sdo-access') is not None and body.get('sdo-path') is None:
-        return make_response(jsonify({'info': 'Failed to validate - sdo-access True but no sdo-path given'}), 400)
-    if body.get('row-id') is None or body.get('user-email') is None:
-        return make_response(jsonify({'info': 'Failed to validate - user-email and row-id must exist'}), 400)
-    validate.main(body.get('vendor-access'), body.get('vendor-path'), body.get('sdo-access'), body.get('sdo-path'),
-                  body['row-id'], body['user-email'])
-    return make_response(jsonify({'info': 'Successfully validated and written to MySQL database'}), 200)
-
-
 @app.route('/sql-tables', methods=['GET'])
 def get_sql_tables():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     return make_response(jsonify(['users', 'users_temp']), 200)
 
 
 @app.route('/sql-tables/<table>', methods=['POST'])
 def create_sql_row(table):
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     if table not in ['users', 'users_temp']:
         return make_response(jsonify({'error': 'table {} not implemented use only users or users_temp'.format(table)}),
                              501)
     body = request.json.get('input')
     if body is None:
-        return make_response(jsonify({'error': 'bad request - did you not start with input json container?'}), 400)
+        return abort(400, description='bad request - did you not start with input json container?')
     username = body.get('username')
     name = body.get('first-name')
     last_name = body.get('last-name')
     email = body.get('email')
     password = body.get('password')
     if body is None or username is None or name is None or last_name is None or email is None or password is None:
-        return make_response(jsonify({'error': 'username - {}, firstname - {}, last-name - {},'
-                                               ' email - {} and password - {} must be specified'.format(username,
+        return abort(400, description='username - {}, firstname - {}, last-name - {}, email - {} and password - {} must be specified'.format(
+                                                                                                        username,
                                                                                                         name,
                                                                                                         last_name,
                                                                                                         email,
-                                                                                                        password)}),
-                             400)
+                                                                                                        password))
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     if sdo_access == '' and vendor_access == '':
-        return make_response(jsonify({'error': 'access-rights-sdo OR access-rights-vendor must be specified.'}), 400)
+        return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
         # prepare a cursor object using cursor() method
@@ -485,8 +444,6 @@ def create_sql_row(table):
 
 @app.route('/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
 def delete_sql_row(table, unique_id):
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
         # prepare a cursor object using cursor() method
@@ -516,13 +473,11 @@ def delete_sql_row(table, unique_id):
     if found:
         return make_response(jsonify({'info': 'id {} deleted successfully'.format(unique_id)}), 200)
     else:
-        return make_response(jsonify({'error': 'id {} not found in table {}'.format(unique_id, table)}), 404)
+        return abort(404, description='id {} not found in table {}'.format(unique_id, table))
 
 
 @app.route('/sql-tables/<table>', methods=['GET'])
 def get_sql_rows(table):
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
         # prepare a cursor object using cursor() method
@@ -554,12 +509,9 @@ def get_sql_rows(table):
 
 @app.route('/scripts/<script>', methods=['GET'])
 def get_script_details(script):
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
-
     module_name = get_module_name(script)
     if module_name is None:
-        return make_response(jsonify({'error': '"{}" is not valid script name'.format(script)}), 400)
+        return abort(400, description='"{}" is not valid script name'.format(script))
 
     module = __import__(module_name, fromlist=[script])
     submodule = getattr(module, script)
@@ -571,25 +523,22 @@ def get_script_details(script):
 
 @app.route('/scripts/<script>', methods=['POST'])
 def run_script_with_args(script):
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
-
     module_name = get_module_name(script)
     if module_name is None:
-        return make_response(jsonify({'error': '"{}" is not valid script name'.format(script)}), 400)
+        return abort(400, description='"{}" is not valid script name'.format(script))
 
     body = request.json
 
     if body is None:
-        return make_response(jsonify({'error': 'body of request is empty'}), 400)
+        return abort(400, description='bad-request - body can not be empty')
     if body.get('input') is None:
-        return make_response(jsonify({'error': 'body of request need to start with input'}), 400)
+        return abort(400, description='missing "input" root json object')
     if script == 'validate':
         try:
             if not body['input']['row_id'] or not body['input']['user_email']:
-                return make_response(jsonify({'info': 'Failed to validate - user-email and row-id cannot be empty strings'}), 400)
+                return abort(400, description='Failed to validate - user-email and row-id cannot be empty strings')
         except:
-            return make_response(jsonify({'info': 'Failed to validate - user-email and row-id must exist'}), 400)
+            return abort(400, description='Failed to validate - user-email and row-id must exist')
 
     arguments = ['run_script', module_name, script, json.dumps(body['input'])]
     job_id = yc_gc.sender.send('#'.join(arguments))
@@ -600,9 +549,6 @@ def run_script_with_args(script):
 
 @app.route('/scripts', methods=['GET'])
 def get_script_names():
-    if 'user_id' not in session:
-        return make_response(jsonify({'info': 'not yet Authorized'}), 401)
-
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'validate']
     return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
