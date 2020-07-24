@@ -573,6 +573,8 @@ class Receiver:
                         with open(self.temp_dir + "/log_trigger.txt", "w") as f:
                             local_dir = paths_plus[-2]
                             arguments = arguments + ["--dir", local_dir + "/" + path]
+                            if self.__notify_indexing:
+                                arguments.append('--notify-indexing')
                             subprocess.check_call(arguments, stderr=f)
                     final_response = self.__response_type[1]
                 except subprocess.CalledProcessError as e:
