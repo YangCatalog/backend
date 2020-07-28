@@ -151,6 +151,8 @@ def create_admin_user():
         db.close()
     except MySQLdb.MySQLError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return abort(400, description='Could not create a admin user')
+    return make_response(jsonify({'info': 'User {} created successfully'.format(username)}), 200)
 
 
 @app.route('/directory-structure/read/<path:direc>', methods=['GET'])

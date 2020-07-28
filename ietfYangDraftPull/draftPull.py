@@ -240,7 +240,7 @@ def main(scriptConf=None):
                             headers={'Authorization': 'token ' + token})
         except GitCommandError as e:
             LOGGER.error(
-                'Error while pushing procedure - git command error: {}'.format(e.stderr))
+                'Error while pushing procedure - git command error: {} \n git command out {}'.format(e.stderr, e.stdout))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
         except:
