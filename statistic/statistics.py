@@ -310,7 +310,7 @@ def process_data(out, save_list, path, name):
     save_list.append(table_sdo)
 
 
-def solve_platforms(path, platform):
+def solve_platforms(path, platform, LOGGER):
     """
     Resolve all the platforms on specified path and fills the platform
     set variable with the found data
@@ -323,14 +323,14 @@ def solve_platforms(path, platform):
         for filename in fnmatch.filter(filenames, 'platform-metadata.json'):
             matches.append(os.path.join(root, filename))
     for match in matches:
-        with open(match, encoding = 'utf-8') as f:
+        with open(match, encoding='utf-8') as f:
             try:
                 js_objs = json.load(f)['platforms']['platform']
             except ValueError as e:  # Legacy Python
-                print("JSON file {} cannot be parsed, skipping it ({})".format(match, e))
+                LOGGER.error("JSON file {} cannot be parsed, skipping it ({})".format(match, e))
                 continue
             except json.decoder.JSONDecodeError as e:  # Better messages with Python 3.5 and above
-                print("File {} has an invalid JSON layout, skipping it ({})".format(match, e))
+                LOGGER.error("File {} has an invalid JSON layout, skipping it ({})".format(match, e))
                 continue
             for js_obj in js_objs:
                 platform.add(js_obj['name'])
@@ -371,6 +371,39 @@ def main(scriptConf=None):
                                                    separator, suffix)
     LOGGER.info('Starting statistics')
     repo = None
+
+    # Fetch the list of all modules known by YangCatalog
+    path = yangcatalog_api_prefix + 'search/modules'
+    try:
+        response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+        if response.status_code != 200:
+            LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
+            sys.exit(1)
+        else:
+            all_modules_data = response.json()
+    except requests.exceptions.RequestException as e:
+        LOGGER.error("Cannot access " + path + ', response code: ' + str(e.response))
+        # Let's try again, who knows?
+        time.sleep(120)
+        response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+        all_modules_data = response.json()
+        LOGGER.error("After a while, OK to access " + path)
+
+    vendor_data = {}
+    for m in all_modules_data['module']:
+        if m.get('implementations') is not None:
+            for impl in m['implementations']['implementation']:
+                if impl['vendor'] == 'cisco':
+                    if vendor_data.get(impl['os-type']) is None:
+                        vendor_data[impl['os-type']] = {}
+                    if impl['os-type'] == 'IOS-XE':
+                        vers = impl['software-version'].replace('.', '')
+                    else:
+                        vers = impl['software-version']
+                    if vendor_data[impl['os-type']].get(vers) is None:
+                        vendor_data[impl['os-type']][vers] = set()
+                    vendor_data[impl['os-type']][vers].add(impl['platform'])
+
     try:
         # pull(yang_models) no need to pull https://github.com/YangModels/yang as it is daily done via SDO_analysis module
 
@@ -378,9 +411,9 @@ def main(scriptConf=None):
         nx = set()
         xe = set()
 
-        solve_platforms(yang_models + '/vendor/cisco/xr', xr)
-        solve_platforms(yang_models + '/vendor/cisco/xe', xe)
-        solve_platforms(yang_models + '/vendor/cisco/nx', nx)
+        solve_platforms(yang_models + '/vendor/cisco/xr', xr, LOGGER)
+        solve_platforms(yang_models + '/vendor/cisco/xe', xe, LOGGER)
+        solve_platforms(yang_models + '/vendor/cisco/nx', nx, LOGGER)
 
         xr_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/xr'))[1])
         nx_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/nx'))[1])
@@ -405,14 +438,21 @@ def main(scriptConf=None):
                 else:
                     ver = '.'.join(version)
                 found = False
+                if vendor_data['IOS-XR'].get(ver) is None:
+                    exist = '<i class="fa fa-times"></i>'
+                else:
+                    if value in vendor_data['IOS-XR'][ver]:
+                        exist = '<i class="fa fa-check"></i>'
+                    else:
+                        exist = '<i class="fa fa-times"></i>'
                 for platform in j:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
-                        values.append('<i class="fa fa-check"></i>')
+                        values.append('<i class="fa fa-check"></i>/{}'.format(exist))
                         found = True
                         break
                 if not found:
-                    values.append('<i class="fa fa-times"></i>')
+                    values.append('<i class="fa fa-times"></i>/{}'.format(exist))
             xr_values.append(values)
 
         for version in xe_versions:
@@ -426,14 +466,21 @@ def main(scriptConf=None):
             values = [version]
             for value in xe:
                 found = False
+                if vendor_data['IOS-XE'].get(version) is None:
+                    exist = '<i class="fa fa-times"></i>'
+                else:
+                    if value in vendor_data['IOS-XE'][version]:
+                        exist = '<i class="fa fa-check"></i>'
+                    else:
+                        exist = '<i class="fa fa-times"></i>'
                 for platform in j:
                     if (platform['name'] == value and
                             ''.join(platform['software-version'].split('.')) == version):
-                        values.append('<i class="fa fa-check"></i>')
+                        values.append('<i class="fa fa-check"></i>/{}'.format(exist))
                         found = True
                         break
                 if not found:
-                    values.append('<i class="fa fa-times"></i>')
+                    values.append('<i class="fa fa-times"></i>/{}'.format(exist))
             xe_values.append(values)
 
         for version in nx_versions:
@@ -453,35 +500,23 @@ def main(scriptConf=None):
                     LOGGER.warning("cisco-nx software version different then others. Trying another format")
                     ver = '{}({})'.format(ver[0], ver[1])
                 found = False
+                if vendor_data['NX-OS'].get(ver) is None:
+                    exist = '<i class="fa fa-times"></i>'
+                else:
+                    if value in vendor_data['NX-OS'][ver]:
+                        exist = '<i class="fa fa-check"></i>'
+                    else:
+                        exist = '<i class="fa fa-times"></i>'
                 for platform in j:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
-                        values.append('<i class="fa fa-check"></i>')
+                        values.append('<i class="fa fa-check"></i>/{}'.format(exist))
                         found = True
                         break
                 if not found:
-                    values.append('<i class="fa fa-times"></i>')
+                    values.append('<i class="fa fa-times"></i>/{}'.format(exist))
             nx_values.append(values)
 
-        # Fetch the list of all modules known by YangCatalog
-        path = yangcatalog_api_prefix + 'search/modules'
-        # TODO handle properly the case when the request to YangCatalog failed...
-        try:
-            response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
-            if response.status_code != 200:
-                print("Cannot access " + path + ', response code: ' + str(response.status_code))
-                LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
-                sys.exit(1)
-            else:
-                all_modules_data = response.json()
-        except requests.exceptions.RequestException:
-            print("Cannot access " + path + ', response code: ' + str(response.status_code))
-            LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
-            # Let's try again, who knows?
-            time.sleep(120)
-            response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
-            all_modules_data = response.json()
-            LOGGER.error("After a while, OK to access " + path)
         global all_modules_data_unique
         all_modules_data_unique = {}
         for mod in all_modules_data['module']:
