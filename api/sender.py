@@ -84,7 +84,7 @@ class Sender:
         f.close()
         for line in lines:
             if correlation_id == line.split('- ')[1].strip():
-                return line.split('- ')[-1]
+                return line.split('- ')[-1].strip()
 
         return self.__response_type[3]
 
