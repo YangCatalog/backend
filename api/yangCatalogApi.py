@@ -68,7 +68,6 @@ from api.views.ycSearch.ycSearch import app as search_app
 from api.views.healthCheck.healthCheck import app as healthcheck_app
 
 
-
 # from flask_wtf.csrf import CSRFProtect
 
 
@@ -330,7 +329,7 @@ application.register_blueprint(error_handling_app)
 application.register_blueprint(user_maintenance_app)
 application.register_blueprint(jobs_app)
 application.register_blueprint(search_app)
-application.register_blueprint(healthcheck_app, url_prefix="/healthcheck")
+application.register_blueprint(healthcheck_app, url_prefix="/admin/healthcheck")
 application.config.update(
     SESSION_COOKIE_HTTPONLY=False
 )
