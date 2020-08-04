@@ -65,6 +65,7 @@ from api.views.errorHandlers.errorHandler import app as error_handling_app
 from api.views.userSpecificModuleMaintenace.moduleMaintanace import app as user_maintenance_app
 from api.views.ycJobs.ycJobs import app as jobs_app
 from api.views.ycSearch.ycSearch import app as search_app
+from api.views.healthCheck.healthCheck import app as healthcheck_app
 
 
 
@@ -329,6 +330,7 @@ application.register_blueprint(error_handling_app)
 application.register_blueprint(user_maintenance_app)
 application.register_blueprint(jobs_app)
 application.register_blueprint(search_app)
+application.register_blueprint(healthcheck_app, url_prefix="/healthcheck")
 application.config.update(
     SESSION_COOKIE_HTTPONLY=False
 )

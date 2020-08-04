@@ -558,6 +558,8 @@ class Receiver:
                 final_response = self.run_ietf()
             elif body == 'reload_config':
                 self.load_config()
+            elif 'run_ping' == arguments[0]:
+                final_response = self.run_ping(arguments[1])
             elif 'run_script' == arguments[0]:
                 final_response = self.run_script(arguments[1:])
             elif 'github' == arguments[-1]:
@@ -696,6 +698,12 @@ class Receiver:
             return self.__response_type[1]
         except subprocess.CalledProcessError as e:
             self.LOGGER.error('Server error: {}'.format(e))
+            return self.__response_type[0]
+
+    def run_ping(self, message):
+        if message == 'ping':
+            return self.__response_type[1]
+        else:
             return self.__response_type[0]
 
 
