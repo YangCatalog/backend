@@ -121,8 +121,7 @@ def __resolve_expiration(reference, module, args, LOGGER):
             module['expired'] = expired
             prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
             url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
-                .format(prefix, module['name'], module['revision'],
-                        module['organization'])
+                .format(prefix, module['name'], module['revision'], module['organization'])
             response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
                                       auth=(args.credentials[0],
                                             args.credentials[1]),
@@ -130,8 +129,8 @@ def __resolve_expiration(reference, module, args, LOGGER):
                                           'Accept': 'application/yang-data+json',
                                           'Content-type': 'application/yang-data+json'}
                                       )
-            LOGGER.info('module {}@{} updated with code {}'.format(module['name'], module['revision'],
-                                                                   response.status_code))
+            LOGGER.info('module {}@{} updated with code {} test {}'.format(module['name'], module['revision'],
+                                                                   response.status_code, response.text))
             return True
         else:
             return False
