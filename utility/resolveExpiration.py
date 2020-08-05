@@ -120,7 +120,7 @@ def __resolve_expiration(reference, module, args, LOGGER):
             module['expires'] = expires
             module['expired'] = expired
             prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
-            url = '{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}' \
+            url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
                 .format(prefix, module['name'], module['revision'],
                         module['organization'])
             response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
