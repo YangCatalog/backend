@@ -68,10 +68,10 @@ def before_request():
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@app.route('/', methods=['GET'])
+@app.route('/services-list', methods=['GET'])
 def get_services_list():
     services = ['my-sql', 'elk', 'confd', 'yang-search', 'yang-validator', 'yangre', 'nginx', 'rabbitmq']
-    return make_response(jsonify({'data': services, 'info': 'Success'}), 200)
+    return make_response(jsonify(services), 200)
 
 
 @app.route('/my-sql', methods=['GET'])
@@ -95,7 +95,7 @@ def health_check_mysql():
             else:
                 response = {'info': 'MySQL is running',
                             'status': 'problem',
-                            'error': 'No tables found in the database: {}'.format(yc_gc.dbName)}
+                            'message': 'No tables found in the database: {}'.format(yc_gc.dbName)}
             app.LOGGER.info('{} tables available in the database: {}'.format(len(tables), yc_gc.dbName))
             db.close()
             return make_response(jsonify(response), 200)
@@ -103,7 +103,7 @@ def health_check_mysql():
         app.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         if err.args[0] in [1044, 1045]:
             return make_response(jsonify({'info': 'Not OK - Access denied',
-                                        'status': 'problem',
+                                        'status': 'down',
                                         'error': 'MySQL error: {}'.format(err)}), 200)
         else:
             return make_response(jsonify({'info': 'Not OK - MySQL is not running',
@@ -165,7 +165,7 @@ def health_check_confd():
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
                 response = {'info': 'Not OK - ConfD is not filled',
                             'status': 'problem',
-                            'error': 'Cannot get data of yang-catalog:modules'}
+                            'message': 'Cannot get data of yang-catalog:modules'}
                 return make_response(jsonify(response), 200)
             else:
                 modules_data = response.json()
@@ -209,7 +209,7 @@ def health_check_yang_search():
             err = json.loads(response.text).get('error')
             return make_response(jsonify({'info': '{} is available'.format(service_name),
                                         'status': 'problem',
-                                        'error': '{} responded with a message: {}'.format(service_name, err)}), 200)
+                                        'message': '{} responded with a message: {}'.format(service_name, err)}), 200)
         else:
             err = '{} responded with a code {}'.format(service_name, response.status_code)
             return make_response(jsonify(error_response(service_name, err)), 200)
@@ -235,7 +235,7 @@ def health_check_yang_validator():
         elif response.status_code == 400 or response.status_code == 404:
             return make_response(jsonify({'info': '{} is available'.format(service_name),
                                         'status': 'problem',
-                                        'error': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
+                                        'message': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
         else:
             err = '{} responded with a code {}'.format(service_name, response.status_code)
             return make_response(jsonify(error_response(service_name, err)), 200)
@@ -261,7 +261,7 @@ def health_check_yangre():
         elif response.status_code == 400 or response.status_code == 404:
             return make_response(jsonify({'info': '{} is available'.format(service_name),
                                         'status': 'problem',
-                                        'error': 'yangre responded with a code {}'.format(response.status_code)}), 200)
+                                        'message': 'yangre responded with a code {}'.format(response.status_code)}), 200)
         else:
             err = 'yangre responded with a code {}'.format(response.status_code)
             return make_response(jsonify(error_response(service_name, err)), 200)
