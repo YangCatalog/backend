@@ -779,7 +779,10 @@ def get_job(job_id):
     reason = None
     if split[0] == 'Failed':
         result = split[0]
-        reason = split[1]
+        if len(split) == 2:
+            reason = split[1]
+        else:
+            reason = ''
 
     return jsonify({'info': {'job-id': job_id,
                              'result': result,
