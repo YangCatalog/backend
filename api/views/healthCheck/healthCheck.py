@@ -159,22 +159,23 @@ def health_check_confd():
         if response.status_code == 200:
             app.LOGGER.info('ConfD is running')
             # Check if ConfD is filled with data
-            response = requests.get('{}/restconf/data/yang-catalog:catalog/modules'.format(confd_prefix),
+            module_name = 'ietf-syslog,2018-03-15,ietf'
+            response = requests.get('{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(confd_prefix, module_name),
                                     auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
-            app.LOGGER.info('Status code {} while getting data of yang-catalog:modules'.format(response.status_code))
+            app.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, module_name))
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
                 response = {'info': 'Not OK - ConfD is not filled',
                             'status': 'problem',
                             'message': 'Cannot get data of yang-catalog:modules'}
                 return make_response(jsonify(response), 200)
             else:
-                modules_data = response.json()
-                num_of_modules = len(modules_data['yang-catalog:modules']['module'])
-                app.LOGGER.info('{} modules loaded from ConfD'.format(num_of_modules))
+                module_data = response.json()
+                num_of_modules = len(module_data['yang-catalog:module'])
+                app.LOGGER.info('{} module successfully loaded from ConfD'.format(module_name))
                 if num_of_modules > 0:
                     return make_response(jsonify({'info': 'ConfD is running',
                                                 'status': 'running',
-                                                'message': '{} modules loaded from ConfD'.format(num_of_modules)}), 200)
+                                                'message': '{} module successfully loaded from ConfD'.format(module_name)}), 200)
                 else:
                     return make_response(jsonify({'info': 'ConfD is running',
                                                 'status': 'problem',
