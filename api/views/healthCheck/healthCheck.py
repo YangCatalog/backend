@@ -154,7 +154,7 @@ def health_check_confd():
 
     try:
         # Check if ConfD is running
-        response = requests.get('{}/restconf/data'.format(confd_prefix),
+        response = requests.get('{}/restconf'.format(confd_prefix),
                         auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
         if response.status_code == 200:
             app.LOGGER.info('ConfD is running')

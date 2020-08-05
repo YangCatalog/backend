@@ -534,14 +534,14 @@ def main(scriptConf=None):
             vendor_direc = yang_models + '/vendor/' + direc
             if os.path.isdir(vendor_direc):
                 process = subprocess.Popen(
-                    ['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir', vendor_direc,
+                    ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', vendor_direc,
                     '--removedup', 'True'], stdout=subprocess.PIPE)
                 out, err = process.communicate()
                 process_data(out, vendor_list, vendor_direc, direc)
 
         # Vendors all together
         process = subprocess.Popen(
-            ['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor',
+            ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
         out = out.decode('utf-8')
@@ -550,7 +550,7 @@ def main(scriptConf=None):
 
         # Standard all together
         process = subprocess.Popen(
-            ['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/standard',
+            ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/standard',
              '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
         out = out.decode('utf-8')
@@ -559,38 +559,38 @@ def main(scriptConf=None):
 
         # Standard separately
         sdo_list = []
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/ietf/RFC', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/standard/ietf/RFC', 'IETF RFCs')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/ietf/DRAFT', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/standard/ietf/DRAFT', 'IETF drafts')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/experimental/ietf-extracted-YANG-modules', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/experimental/ietf-extracted-YANG-modules',
                      'IETF experimental drafts')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/bbf/standard', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/standard/bbf/standard', 'BBF standard')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/etsi/SOL006', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/standard/etsi/SOL006', 'ETSI standard')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/bbf/draft', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
@@ -599,7 +599,7 @@ def main(scriptConf=None):
         for direc in next(os.walk(yang_models + '/standard/ieee/published'))[1]:
             ieee_direc = yang_models + '/standard/ieee/published/' + direc
             if os.path.isdir(ieee_direc):
-                process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                             ieee_direc, '--removedup', 'True'],
                                            stdout=subprocess.PIPE)
                 out, err = process.communicate()
@@ -608,7 +608,7 @@ def main(scriptConf=None):
         for direc in next(os.walk(yang_models + '/standard/ieee/draft'))[1]:
             ieee_direc = yang_models + '/standard/ieee/draft/' + direc
             if os.path.isdir(ieee_direc):
-                process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                             ieee_direc, '--removedup', 'True'],
                                            stdout=subprocess.PIPE)
                 out, err = process.communicate()
@@ -617,19 +617,19 @@ def main(scriptConf=None):
         for direc in next(os.walk(yang_models + '/experimental/ieee'))[1]:
             ieee_direc = yang_models + '/experimental/ieee/' + direc
             if os.path.isdir(ieee_direc):
-                process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+                process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                             ieee_direc, '--removedup', 'True'],
                                            stdout=subprocess.PIPE)
                 out, err = process.communicate()
                 process_data(out, sdo_list, ieee_direc, 'IEEE {} no par'.format(direc))
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/mef/src/model/standard', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, yang_models + '/standard/mef/src/model/standard', 'MEF standard')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     yang_models + '/standard/mef/src/model/draft', '--removedup', 'True'],
                                    stdout=subprocess.PIPE)
         out, err = process.communicate()
@@ -640,7 +640,7 @@ def main(scriptConf=None):
         repo = repoutil.RepoUtil('https://github.com/openconfig/public')
         repo.clone(config_name, config_email)
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '../runYANGallstats/runYANGallstats.py', '--rootdir',
+        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
                                     repo.localdir + '/release/models', '--removedup', 'True'], stdout=subprocess.PIPE)
         out, err = process.communicate()
         process_data(out, sdo_list, repo.localdir + '/release/models', 'openconfig')

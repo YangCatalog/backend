@@ -35,6 +35,7 @@ import requests
 
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.util import get_curr_dir
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -209,7 +210,7 @@ def main(scriptConf=None):
             with open(temp_dir + "/log-pull-local.txt", "w") as f:
                 try:
                     LOGGER.info('Calling populate script')
-                    arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
+                    arguments = ["python", get_curr_dir(__file__) + "/../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
                                  confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
                                  "--dir", repo.localdir + "/standard/ietf/RFC", "--result-html-dir", result_html_dir,
                                  "--credentials", credentials[0], credentials[1],
@@ -239,7 +240,7 @@ def main(scriptConf=None):
         with open(temp_dir + "/log-pull-local2.txt", "w") as f:
             try:
                 LOGGER.info('Calling populate script')
-                arguments = ["python", "../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
+                arguments = ["python", get_curr_dir(__file__) + "/../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
                              confd_ip, "--api-protocol", protocol, "--api-port", api_port, "--api-ip", api_ip,
                              "--dir", repo.localdir + "/experimental/ietf-extracted-YANG-modules",
                              "--result-html-dir", result_html_dir, "--credentials", credentials[0], credentials[1],
