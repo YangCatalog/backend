@@ -533,6 +533,7 @@ def main(scriptConf=None):
         for direc in next(os.walk(yang_models + '/vendor'))[1]:
             vendor_direc = yang_models + '/vendor/' + direc
             if os.path.isdir(vendor_direc):
+                LOGGER.info('{}'.format(get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py'))
                 process = subprocess.Popen(
                     ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', vendor_direc,
                     '--removedup', 'True'], stdout=subprocess.PIPE)
@@ -662,11 +663,11 @@ def main(scriptConf=None):
                    'xr_values': xr_values,
                    'current_date': time.strftime("%d/%m/%y")}
         LOGGER.info('Rendering data')
-        result = render('./template/stats.html', context)
-        with open('./statistics.html', 'w+') as f:
+        result = render(get_curr_dir(__file__) + '/./template/stats.html', context)
+        with open(get_curr_dir(__file__) + '/./statistics.html', 'w+') as f:
             f.write(result)
 
-        file_from = os.path.abspath('./statistics.html')
+        file_from = os.path.abspath(get_curr_dir(__file__) + '/./statistics.html')
         file_to = os.path.abspath(move_to) + '/statistics.html'
         resolved_path_file_to = os.path.realpath(file_to)
         if move_to != './':
@@ -685,3 +686,4 @@ def main(scriptConf=None):
 
 if __name__ == "__main__":
     main()
+

@@ -37,7 +37,11 @@ def get_curr_dir(f):
 
             :return path to current directory
     """
-    return os.getcwd()
+    cur_dir = '/'.join(f.split('/')[:-1])
+    if cur_dir == '':
+        return os.getcwd()
+    else:
+        return cur_dir
 
 
 def find_first_file(directory, pattern, pattern_with_revision):
