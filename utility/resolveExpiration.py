@@ -31,7 +31,9 @@ import json
 import sys
 
 import dateutil.parser
+import pytz as pytz
 import requests
+from dateutil.relativedelta import relativedelta
 
 import utility.log as log
 
@@ -40,7 +42,11 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+utc = pytz.UTC
+
+
 class ScriptConfig():
+
     def __init__(self):
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
@@ -86,6 +92,7 @@ class ScriptConfig():
             i += 1
         return args_dict
 
+
 def __resolve_expiration(reference, module, args, LOGGER):
     """Walks through all the modules and updates them if necessary
 
@@ -95,21 +102,52 @@ def __resolve_expiration(reference, module, args, LOGGER):
             :param args: (obj) arguments received at the start of this script
     """
     if reference is not None and 'datatracker.ietf.org' in reference:
+        LOGGER.debug('Resolving expiration of {}@{} reference {} {}'.format(module['name'], module['revision'], reference, module.get('reference')))
         expires = module.get('expires')
+        expired = False
         if expires is not None:
             if dateutil.parser.parse(expires).date() < datetime.datetime.now().date():
                 expired = True
-            else:
-                expired = False
-        else:
+        if not expired:
             expired = 'not-applicable'
             ref = module.get('reference').split('/')[-1]
-            url = ('https://datatracker.ietf.org/api/v1/doc/document/'
-                   + ref + '/?format=json')
+            rev = None
+            if ref.isdigit():
+                ref = module.get('reference').split('/')[-2]
+                rev = module.get('reference').split('/')[-1]
+            url = ('https://datatracker.ietf.org/api/v1/doc/document/' + ref + '/?format=json')
             response = requests.get(url)
             if response.status_code == 200:
                 data = response.json()
-                expires = data.get('expires')
+
+                if rev == data.get('rev'):
+                    expires = data.get('expires')
+                else:
+                    url = 'https://datatracker.ietf.org/api/v1/doc/newrevisiondocevent/?format=json&doc__name=draft-ietf-netconf-tls-client-server&limit=1000'
+                    response = requests.get(url)
+                    if response.status_code == 200:
+                        data = response.json()
+                        objs = data.get('objects')
+                        for obj in objs:
+                            if obj.get('rev') == rev:
+                                str_length = len(obj['rev'])
+                                next_rev = str(int(obj['rev']) + 1)
+                                while len(next_rev) < str_length:
+                                    next_rev = '0{}'.format(next_rev)
+                                created_at = obj.get('time')
+                                expires = dateutil.parser.parse(created_at) + relativedelta(months=+6)
+                                LOGGER.info('next {}'.format(next_rev))
+                                for obj2 in objs:
+                                    if obj2.get('rev') == next_rev:
+                                        created_at2 = obj2.get('time')
+                                        if dateutil.parser.parse(created_at2).date() < expires.date():
+                                            expires = str(dateutil.parser.parse(created_at)).replace(' ', 'T')
+                                        else:
+                                            expires = str(expires).replace(' ', 'T')
+                                        break
+
+                                break
+                LOGGER.info('expires {} check'.format(expires))
                 if expires:
                     if dateutil.parser.parse(expires).date() < datetime.datetime.now().date():
                         expired = True
@@ -117,7 +155,11 @@ def __resolve_expiration(reference, module, args, LOGGER):
                         expired = False
 
         if module.get('expires') != expires or module.get('expired') != expired:
-            module['expires'] = expires
+            LOGGER.info('Module {}@{} changing expiration from expires {} expired {} to expires {} expired {}'
+                        .format(module['name'], module['revision'], module.get('expires'), module.get('expired'),
+                                expires, expired))
+            if expires is not None:
+                module['expires'] = expires
             module['expired'] = expired
             prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
             url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
@@ -129,7 +171,7 @@ def __resolve_expiration(reference, module, args, LOGGER):
                                           'Accept': 'application/yang-data+json',
                                           'Content-type': 'application/yang-data+json'}
                                       )
-            LOGGER.info('module {}@{} updated with code {} test {}'.format(module['name'], module['revision'],
+            LOGGER.info('module {}@{} updated with code {} and text {}'.format(module['name'], module['revision'],
                                                                    response.status_code, response.text))
             return True
         else:
@@ -164,7 +206,10 @@ def main(scriptConf=None):
                      .format(yangcatalog_api_prefix,
                              modules.text))
     modules = modules.json()['module']
+    i = 1
     for mod in modules:
+        LOGGER.info('{} out of {}'.format(i, len(modules)))
+        i += 1
         ref = mod.get('reference')
         ret = __resolve_expiration(ref, mod, args, LOGGER)
         if not updated:
