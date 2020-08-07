@@ -39,7 +39,6 @@ import sys
 import tarfile
 import time
 from tarfile import ReadError
-from time import time
 
 import requests
 from travispy import TravisPy
