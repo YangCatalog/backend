@@ -18,16 +18,15 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
 import json
-import MySQLdb
-import requests
 import time
 
-import utility.log as log
-
+import MySQLdb
+import requests
 from elasticsearch import Elasticsearch
-from flask import Blueprint, request, make_response, jsonify, g, session, abort
+from flask import Blueprint, make_response, jsonify
+
+import utility.log as log
 from api.globalConfig import yc_gc
-from api.views.admin.adminUser import AdminUser
 from utility.util import create_signature
 
 
@@ -40,31 +39,7 @@ class HealthcheckBlueprint(Blueprint):
                          url_defaults, root_path)
 
 
-
 app = HealthcheckBlueprint('healthcheck', __name__)
-
-@app.before_request
-def before_request():
-    if 'admin' in request.path:
-        g.user = None
-        if 'user_id' in session:
-            try:
-                db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
-                                        passwd=yc_gc.dbPass)
-                # prepare a cursor object using cursor() method
-                cursor = db.cursor()
-                # execute SQL query using execute() method.
-                results_num = cursor.execute("""SELECT * FROM `admin_users` where Id=%s""", (session['user_id'],))
-                if results_num == 1:
-                    data = cursor.fetchone()
-                    g.user = AdminUser(data[0], data[1])
-                db.close()
-            except MySQLdb.MySQLError as err:
-                if err.args[0] != 1049:
-                    db.close()
-                yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        elif 'login' not in request.path:
-            return abort(401, description='not yet Authorized')
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
