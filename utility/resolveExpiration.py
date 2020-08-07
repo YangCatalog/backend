@@ -31,7 +31,6 @@ import json
 import sys
 
 import dateutil.parser
-import pytz as pytz
 import requests
 from dateutil.relativedelta import relativedelta
 
@@ -41,8 +40,6 @@ if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
-
-utc = pytz.UTC
 
 
 class ScriptConfig():
