@@ -41,13 +41,13 @@ import time
 from tarfile import ReadError
 
 import requests
+from git.exc import GitCommandError
 from travispy import TravisPy
 from travispy.errors import TravisError
 
 import utility.log as log
 from ietfYangDraftPull.draftPullLocal import check_early_revisions, check_name_no_revision_exist
 from utility import messageFactory, repoutil
-from git.exc import GitCommandError
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -248,7 +248,7 @@ def main(scriptConf=None):
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
     except Exception as e:
-        LOGGER.error("Exception found while draftPull script was running")
+        LOGGER.exception("Exception found while draftPull script was running")
         requests.delete('{}{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
         repo.remove()
         raise e

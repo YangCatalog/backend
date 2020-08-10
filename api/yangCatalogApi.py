@@ -76,7 +76,6 @@ class MyFlask(Flask):
     def __init__(self, import_name):
         self.loading = True
         super(MyFlask, self).__init__(import_name)
-        self.response = None
         self.ys_set = 'set'
         self.waiting_for_reload = False
         self.response_waiting = None
@@ -90,9 +89,8 @@ class MyFlask(Flask):
     def process_response(self, response):
         response = super().process_response(response)
         response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, x-auth'
-        self.response = response
-        self.create_response_only_latest_revision()
-        #self.create_response_with_yangsuite_link()
+        self.create_response_only_latest_revision(response)
+        #self.create_response_with_yangsuite_link(response)
         try:
             yc_gc.LOGGER.debug('after request response processing have {}'.format(request.special_id))
             if request.special_id != 0:
@@ -102,7 +100,7 @@ class MyFlask(Flask):
                     self.waiting_for_reload = False
         except:
             pass
-        return self.response
+        return response
 
     def preprocess_request(self):
         super().preprocess_request()
@@ -112,17 +110,17 @@ class MyFlask(Flask):
             message = json.dumps({'Error': 'Server is loading. This can take several minutes. Please try again later'})
             return create_response(message, 503)
 
-    def create_response_only_latest_revision(self):
+    def create_response_only_latest_revision(self, response):
         if request.args.get('latest-revision'):
             if 'True' == request.args.get('latest-revision'):
-                if self.response.data:
+                if response.data:
                         if sys.version_info >= (3, 4):
-                            decoded_string = self.response.data.decode(encoding='utf-8', errors='strict')
+                            decoded_string = response.data.decode(encoding='utf-8', errors='strict')
                         else:
-                            decoded_string = self.response.data
+                            decoded_string = response.data
                         json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(decoded_string)
                 else:
-                    return self.response
+                    return response
                 modules = None
                 if json_data.get('yang-catalog:modules') is not None:
                     if json_data.get('yang-catalog:modules').get(
@@ -176,7 +174,7 @@ class MyFlask(Flask):
                         for mod in newlist:
                             if mod.get('index'):
                                 del mod['index']
-                        self.response.data = json.dumps(newlist)
+                        response.data = json.dumps(newlist)
 
     def get_dependencies(self, mod, mods, inset):
         if mod.get('dependencies'):
@@ -222,20 +220,20 @@ class MyFlask(Flask):
                                                      'revision']))
                     self.get_dependencies(mo[latest], mods, inset)
 
-    def create_response_with_yangsuite_link(self):
+    def create_response_with_yangsuite_link(self, response):
         if request.headers.environ.get('HTTP_YANGSUITE'):
             if 'true' != request.headers.environ['HTTP_YANGSUITE']:
-                return self.response
+                return response
             if request.headers.environ.get('HTTP_YANGSET_NAME'):
                 self.ys_set = request.headers.environ.get(
                     'HTTP_YANGSET_NAME').replace('/', '_')
         else:
-            return self.response
+            return response
 
-        if self.response.data:
-            json_data = json.loads(self.response.data)
+        if response.data:
+            json_data = json.loads(response.data)
         else:
-            return self.response
+            return response
         modules = None
         if json_data.get('yang-catalog:modules') is not None:
             if json_data.get('yang-catalog:modules').get('module') is not None:
@@ -314,12 +312,12 @@ class MyFlask(Flask):
                 os.chown(path, uid, gid)
                 json_data['yangsuite-url'] = (
                     '{}/yangsuite/{}'.format(yc_gc.yangcatalog_api_prefix, id))
-                self.response.data = json.dumps(json_data)
-                return self.response
+                response.data = json.dumps(json_data)
+                return response
             else:
-                return self.response
+                return response
         else:
-            return self.response
+            return response
 
 
 application = MyFlask(__name__)
