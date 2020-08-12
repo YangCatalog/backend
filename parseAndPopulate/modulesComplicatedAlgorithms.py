@@ -89,8 +89,6 @@ class ModulesComplicatedAlgorithms:
         self.__parse_semver()
         LOGGER.info("parsing dependents")
         self.__parse_dependents()
-        LOGGER.info('parsing expiration')
-        self.__parse_expire()
 
     def merge_modules_and_remove_not_updated(self):
         start = time.time()
@@ -993,66 +991,6 @@ class ModulesComplicatedAlgorithms:
                                                     self.__new_modules[name_revision]['dependents'] = mod['dependents']
                                                 else:
                                                     self.__new_modules[name_revision]['dependents'].append(new)
-
-    def __parse_expire(self):
-        x = 0
-        if self.__existing_modules_dict.values() is not None:
-            for mod in self.__all_modules['module']:
-                x += 1
-                LOGGER.info('Searching expiration for {}. {} out of {}'.format(mod['name'], x,
-                                                                               len(self.__all_modules['module'])))
-                exists = False
-                existing_module = None
-                for module in self.__existing_modules_dict.values():
-                    if module['name'] == mod['name'] and module['revision'] == mod['revision'] and \
-                            module['organization'] == mod['organization']:
-                        exists = True
-                        existing_module = module
-                        break
-                expiration_date = None
-                if exists:
-                    if existing_module.get('reference') and 'datatracker.ietf.org' in existing_module.get('reference'):
-                        expiration_date = existing_module.get('expires')
-                        if expiration_date:
-                            if dateutil.parser.parse(expiration_date).date() < datetime.now().date():
-                                expired = True
-                            else:
-                                expired = False
-                        else:
-                            expired = 'not-applicable'
-                    else:
-                        expired = 'not-applicable'
-                else:
-                    if mod.get('reference') and 'datatracker.ietf.org' in mod.get('reference'):
-                        ref = mod.get('reference').split('/')[-1]
-                        url = ('https://datatracker.ietf.org/api/v1/doc/document/'
-                               + ref + '/?format=json')
-                        response = requests.get(url)
-                        if response.status_code == 200:
-                            data = response.json()
-                            expiration_date = data['expires']
-                            if dateutil.parser.parse(expiration_date).date() < datetime.now().date():
-                                expired = True
-                            else:
-                                expired = False
-                        else:
-                            expired = 'not-applicable'
-                    else:
-                        expired = 'not-applicable'
-                if expiration_date is not None:
-                    mod['expires'] = expiration_date
-                mod['expired'] = expired
-                if (existing_module is None or
-                        mod['expired'] != existing_module.get('expired') or
-                        mod.get('expires') != existing_module.get('expires')):
-                    name_revision = '{}@{}'.format(mod['name'], mod['revision'])
-                    if self.__new_modules.get(name_revision) is None:
-                        self.__new_modules[name_revision] = mod
-                    else:
-                        if mod.get('expires') is not None:
-                            self.__new_modules[name_revision]['expires'] = mod['expires']
-                        if mod.get('expired') is not None:
-                            self.__new_modules[name_revision]['expired'] = mod['expired']
 
     def __find_file(self, name, revision='*'):
         yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]),

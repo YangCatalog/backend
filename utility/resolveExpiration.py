@@ -61,20 +61,20 @@ class ScriptConfig():
         parser = argparse.ArgumentParser()
         parser.add_argument('--credentials',
                             help='Set authorization parameters username password respectively.'
-                                ' Default parameters are {}'.format(str(credentials)), nargs=2,
+                                 ' Default parameters are {}'.format(str(credentials)), nargs=2,
                             default=credentials, type=str)
         parser.add_argument('--ip', default=confd_host, type=str,
                             help='Set host where the Confd is started. Default: ' + confd_host)
         parser.add_argument('--port', default=confd_port, type=int,
                             help='Set port where the Confd is started. Default: ' + confd_port)
         parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether Confd runs on http or https.'
-                            ' Default: ' + confd_protocol)
+                                                                                 ' Default: ' + confd_protocol)
         parser.add_argument('--api-ip', default=api_host, type=str,
                             help='Set host where the API is started. Default: ' + api_host)
         parser.add_argument('--api-port', default=api_port, type=int,
                             help='Set port where the API is started. Default: ' + api_port)
         parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
-                                                                            ' Default: ' + api_protocol)
+                                                                                   ' Default: ' + api_protocol)
         self.args = parser.parse_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
@@ -98,81 +98,71 @@ def __resolve_expiration(reference, module, args, LOGGER):
             :param module: (json) all the module metadata
             :param args: (obj) arguments received at the start of this script
     """
-    if reference is not None and 'datatracker.ietf.org' in reference:
-        LOGGER.debug('Resolving expiration of {}@{} reference {} {}'.format(module['name'], module['revision'], reference, module.get('reference')))
-        expires = module.get('expires')
+    expired = 'not-applicable'
+    expires = None
+    if module.get('maturity-level') == 'ratified':
         expired = False
-        if expires is not None:
-            if dateutil.parser.parse(expires).date() < datetime.datetime.now().date():
-                expired = True
-        if not expired:
-            expired = 'not-applicable'
-            ref = module.get('reference').split('/')[-1]
-            rev = None
-            if ref.isdigit():
-                ref = module.get('reference').split('/')[-2]
-                rev = module.get('reference').split('/')[-1]
-            url = ('https://datatracker.ietf.org/api/v1/doc/document/' + ref + '/?format=json')
-            response = requests.get(url)
-            if response.status_code == 200:
-                data = response.json()
-
-                if rev == data.get('rev'):
-                    expires = data.get('expires')
-                else:
-                    url = 'https://datatracker.ietf.org/api/v1/doc/newrevisiondocevent/?format=json&doc__name=draft-ietf-netconf-tls-client-server&limit=1000'
-                    response = requests.get(url)
-                    if response.status_code == 200:
-                        data = response.json()
-                        objs = data.get('objects')
-                        for obj in objs:
-                            if obj.get('rev') == rev:
-                                str_length = len(obj['rev'])
-                                next_rev = str(int(obj['rev']) + 1)
-                                while len(next_rev) < str_length:
-                                    next_rev = '0{}'.format(next_rev)
-                                created_at = obj.get('time')
-                                expires = dateutil.parser.parse(created_at) + relativedelta(months=+6)
-                                LOGGER.info('next {}'.format(next_rev))
-                                for obj2 in objs:
-                                    if obj2.get('rev') == next_rev:
-                                        created_at2 = obj2.get('time')
-                                        if dateutil.parser.parse(created_at2).date() < expires.date():
-                                            expires = str(dateutil.parser.parse(created_at)).replace(' ', 'T')
-                                        else:
-                                            expires = str(expires).replace(' ', 'T')
-                                        break
-
-                                break
-                LOGGER.info('expires {} check'.format(expires))
-                if expires:
-                    if dateutil.parser.parse(expires).date() < datetime.datetime.now().date():
-                        expired = True
-                    else:
+        expires = ''
+    if reference is not None and 'datatracker.ietf.org' in reference:
+        ref = module.get('reference').split('/')[-1]
+        rev = None
+        if ref.isdigit():
+            ref = module.get('reference').split('/')[-2]
+            rev = module.get('reference').split('/')[-1]
+        url = ('https://datatracker.ietf.org/api/v1/doc/document/?name={}&states__type=draft&states__slug__in=active,RFC&format=json'.format(ref))
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            objs = data['objects']
+            if len(objs) == 1:
+                if rev == objs[0].get('rev'):
+                    rfc = objs[0].get("rfc")
+                    if rfc is None:
+                        expires = objs[0]['expires']
                         expired = False
+                    else:
+                        expired = True
+                        expires = ''
+                else:
+                    expired = True
+                    expires = ''
+            else:
+                expired = True
+                expires = ''
 
-        if module.get('expires') != expires or module.get('expired') != expired:
-            LOGGER.info('Module {}@{} changing expiration from expires {} expired {} to expires {} expired {}'
-                        .format(module['name'], module['revision'], module.get('expires'), module.get('expired'),
-                                expires, expired))
-            if expires is not None:
-                module['expires'] = expires
-            module['expired'] = expired
-            prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
-            url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
-                .format(prefix, module['name'], module['revision'], module['organization'])
-            response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
-                                      auth=(args.credentials[0],
-                                            args.credentials[1]),
-                                      headers={
-                                          'Accept': 'application/yang-data+json',
-                                          'Content-type': 'application/yang-data+json'}
-                                      )
-            LOGGER.info('module {}@{} updated with code {} and text {}'.format(module['name'], module['revision'],
-                                                                   response.status_code, response.text))
-            return True
-        else:
+    if module.get('expires') != expires or module.get('expired') != expired:
+        if module.get('expires') is None and (expires == '' or expires is None) and module.get('expired') == expired:
             return False
+        LOGGER.info('Module {}@{} changing expiration from expires {} expired {} to expires {} expired {}'
+                    .format(module['name'], module['revision'], module.get('expires'), module.get('expired'),
+                            expires, expired))
+        prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
+
+        if expires != '' and expires is not None:
+            module['expires'] = expires
+        module['expired'] = expired
+        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
+            .format(prefix, module['name'], module['revision'], module['organization'])
+        response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
+                                  auth=(args.credentials[0],
+                                        args.credentials[1]),
+                                  headers={
+                                      'Accept': 'application/yang-data+json',
+                                      'Content-type': 'application/yang-data+json'}
+                                  )
+        LOGGER.info('module {}@{} updated with code {} and text {}'.format(module['name'], module['revision'],
+                                                                           response.status_code, response.text))
+        if expires == '' and module.get('expires') is not None:
+            url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/expires' \
+                .format(prefix, module['name'], module['revision'], module['organization'])
+            response = requests.delete(url, auth=(args.credentials[0], args.credentials[1]),
+                                       headers={
+                                           'Accept': 'application/yang-data+json',
+                                           'Content-type': 'application/yang-data+json'}
+                                       )
+            LOGGER.info('module {}@{} expiration date deleted with code {} and text {}'
+                        .format(module['name'], module['revision'], response.status_code, response.text))
+        return True
     else:
         return False
 
