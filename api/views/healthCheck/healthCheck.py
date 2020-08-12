@@ -45,8 +45,13 @@ app = HealthcheckBlueprint('healthcheck', __name__)
 ### ROUTE ENDPOINT DEFINITIONS ###
 @app.route('/services-list', methods=['GET'])
 def get_services_list():
-    services = ['my-sql', 'elk', 'confd', 'yang-search', 'yang-validator', 'yangre', 'nginx', 'rabbitmq']
-    return make_response(jsonify(services), 200)
+    response_body = []
+    service_endpoints = ['my-sql', 'elk', 'confd', 'yang-search-admin', 'yang-validator-admin', 'yangre-admin', 'nginx', 'rabbitmq']
+    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'Yang search', 'Yang validator', 'Yangre', 'NGINX', 'RabbitMQ']
+    for name, endpoint in zip(service_names, service_endpoints):
+        pair = {'name': name, 'endpoint': endpoint}
+        response_body.append(pair)
+    return make_response(jsonify(response_body), 200)
 
 
 @app.route('/my-sql', methods=['GET'])
@@ -295,6 +300,112 @@ def health_check_rabbitmq():
     except Exception as err:
         if len(err) == 0:
             err = 'Check yang.log file for more details!'
+        app.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
+        return make_response(jsonify(error_response(service_name, err)), 200)
+
+
+### ROUTE ENDPOINT DEFINITIONS - ADMIN SPECIFIC ###
+@app.route('/yangre-admin', methods=['GET'])
+def health_check_yangre_admin():
+    service_name = 'yangre'
+    app.LOGGER.info('Trying to check functionality of {}'.format(service_name))
+    yangre_preffix = '{}://{}/yangre'.format(yc_gc.api_protocol, yc_gc.ip)
+
+    pattern = '[0-9]*'
+    content = '123456789'
+    body = json.dumps({'pattern': pattern, 'content': content, 'inverted': False, 'pattern_nb': '1'})
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+
+    try:
+        response = requests.post('{}/v1/yangre'.format(yangre_preffix), data=body, headers=headers)
+        app.LOGGER.info('yangre responded with a code {}'.format(response.status_code))
+        if response.status_code == 200:
+            response_message = response.json()
+            if response_message['yangre_output'] == '':
+                return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                            'status': 'running',
+                                            'message': 'yangre successfully validated string'}), 200)
+            else:
+                return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                            'status': 'problem',
+                                            'message': response_message['yangre_output']}), 200)
+        elif response.status_code == 400 or response.status_code == 404:
+            return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                        'status': 'problem',
+                                        'message': 'yangre responded with a code {}'.format(response.status_code)}), 200)
+        else:
+            err = 'yangre responded with a code {}'.format(response.status_code)
+            return make_response(jsonify(error_response(service_name, err)), 200)
+    except Exception as err:
+        app.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
+        return make_response(jsonify(error_response(service_name, err)), 200)
+
+
+@app.route('/yang-validator-admin', methods=['GET'])
+def health_check_yang_validator_admin():
+    service_name = 'yang-validator'
+    app.LOGGER.info('Trying to check functionality of {}'.format(service_name))
+    yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
+
+    rfc_number = '7223'
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+
+    try:
+        response = requests.get('{}/api/rfc/{}'.format(yang_validator_preffix, rfc_number), headers=headers)
+        app.LOGGER.info('yang-validator responded with a code {}'.format(response.status_code))
+        if response.status_code == 200:
+            response_message = response.json()
+            if response_message:
+                return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                            'status': 'running',
+                                            'message': '{} successfully fetched and validated RFC{}'.format(service_name, rfc_number)}), 200)
+            else:
+                return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                            'status': 'problem',
+                                            'message': 'RFC{} responded with empty body'.format(rfc_number)}), 200)
+        elif response.status_code == 400 or response.status_code == 404:
+            return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                        'status': 'problem',
+                                        'message': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
+        else:
+            err = '{} responded with a code {}'.format(service_name, response.status_code)
+            return make_response(jsonify(error_response(service_name, err)), 200)
+    except Exception as err:
+        app.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
+        return make_response(jsonify(error_response(service_name, err)), 200)
+
+
+@app.route('/yang-search-admin', methods=['GET'])
+def health_check_yang_search_admin():
+    service_name = 'yang-search'
+    app.LOGGER.info('Trying to check functionality of {}'.format(service_name))
+    yang_search_preffix = '{}://{}/api/search'.format(yc_gc.api_protocol, yc_gc.ip)
+
+    module_name = 'ietf-syslog,2018-03-15,ietf'
+    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
+
+    try:
+        response = requests.get('{}/modules/{}'.format(yang_search_preffix, module_name), headers=headers)
+        app.LOGGER.info('yang-search responded with a code {}'.format(response.status_code))
+        if response.status_code == 200:
+            response_message = response.json()
+            if response_message['module'] and len(response_message['module']) > 0:
+                return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                            'status': 'running',
+                                            'message': '{} module successfully found'.format(module_name)}), 200)
+            else:
+                return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                            'status': 'problem',
+                                            'message': 'Module {} not found'.format(module_name)}), 200)
+        elif response.status_code == 400 or response.status_code == 404:
+            err = json.loads(response.text).get('error')
+            return make_response(jsonify({'info': '{} is available'.format(service_name),
+                                        'status': 'problem',
+                                        'message': '{} responded with a message: {}'.format(service_name, err)}), 200)
+        else:
+            err = '{} responded with a code {}'.format(service_name, response.status_code)
+            return make_response(jsonify(error_response(service_name, err)), 200)
+    except Exception as err:
         app.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
         return make_response(jsonify(error_response(service_name, err)), 200)
 
