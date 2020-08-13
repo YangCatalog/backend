@@ -55,6 +55,8 @@ RUN chmod 777 /var/run/mysqld
 
 COPY yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
+RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
+
 USER ${YANG_ID}:${YANG_GID}
 
 RUN git clone https://github.com/slatedocs/slate.git
