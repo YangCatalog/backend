@@ -37,7 +37,6 @@ from api.globalConfig import yc_gc
 from api.views.admin.adminUser import AdminUser
 from api.yangCatalogApi import hash_pw
 from utility.util import create_signature
-from validate import validate
 
 
 class YangCatalogAdminBlueprint(Blueprint):
@@ -82,6 +81,7 @@ def health_check():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
+        session.permanent = True
         session.pop('user_id', None)
         body = request.json
         input = body.get('input')

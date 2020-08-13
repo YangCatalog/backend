@@ -50,7 +50,7 @@ import shutil
 import sys
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Lock
 
 import requests
@@ -83,6 +83,7 @@ class MyFlask(Flask):
         self.special_id_counter = {}
         self.release_locked = []
         self.secret_key = yc_gc.secret_key
+        self.permanent_session_lifetime = timedelta(minutes=20)
         yc_gc.LOGGER.debug('API initialized at ' + yc_gc.yangcatalog_api_prefix)
         yc_gc.LOGGER.debug('Starting api')
 
