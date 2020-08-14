@@ -26,7 +26,7 @@ import pwd
 import re
 import shutil
 import stat
-import datetime
+from datetime import datetime
 from pathlib import Path
 
 import MySQLdb
@@ -403,7 +403,7 @@ def get_logs():
                     try:
                         d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
                         t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
-                        from_date_timestamp = datetime.datetime.strptime("{} {}".format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+                        from_date_timestamp = datetime.strptime("{} {}".format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
                     except:
                         # ignore and accept
                         pass
@@ -411,7 +411,7 @@ def get_logs():
     whole_line = ''
     yc_gc.LOGGER.debug(from_date_timestamp)
     if to_date_timestamp is None:
-        to_date_timestamp = datetime.datetime.now().timestamp()
+        to_date_timestamp = datetime.now().timestamp()
 
     # Decide whether the output will be formatted or not
     for log_file in log_files:
@@ -462,7 +462,7 @@ def get_logs():
                         d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
                         t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
                         line_beginning = "{} {}".format(d, t)
-                        line_timestamp = datetime.datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
+                        line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
                     except:
                         # ignore and accept
                         pass
