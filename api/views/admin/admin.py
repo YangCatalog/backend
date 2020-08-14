@@ -378,18 +378,24 @@ def get_logs():
     page_num = body.get('page', 1)
     filter = body.get('filter')
     from_date_timestamp = body.get('from-date', None)
-    file_name = body.get('file-name', 'yang')
+    to_date_timestamp = body.get('to-date', None)
+    file_names = body.get('file-names', ['yang'])
     log_files = []
-    if from_date_timestamp is None:
-        log_files.append('{}/{}.log'.format(yc_gc.logs_dir, body.get('file-name', 'yang')))
-    else:
-        files = find_files('{}/{}'.format(yc_gc.logs_dir, '/'.join(file_name.split('/')[:-1])),
-                           "{}.log*".format(file_name.split('/')[:-1]))
-        for f in files:
-            if os.path.getmtime(f) >= from_date_timestamp:
-                log_files.append(f)
+
+    # Check if file modification date is greater than from timestamp
+    for file_name in file_names:
+        if from_date_timestamp is None:
+            log_files.append('{}/{}.log'.format(yc_gc.logs_dir, file_name))
+        else:
+            files = find_files('{}/{}'.format(yc_gc.logs_dir, '/'.join(file_name.split('/')[:-1])),
+                               "{}.log*".format(file_name.split('/')[:-1]))
+            for f in files:
+                if os.path.getmtime(f) >= from_date_timestamp:
+                    log_files.append(f)
     send_out = []
     yc_gc.LOGGER.debug(from_date_timestamp)
+
+    # Try to find a timestamp in a log file using regex
     if from_date_timestamp is None:
         with open(log_files[0], 'r') as f:
             for line in f.readlines():
@@ -404,16 +410,48 @@ def get_logs():
 
     whole_line = ''
     yc_gc.LOGGER.debug(from_date_timestamp)
-    with open(log_files[0], 'r') as f:
-        file_stream = f.read()
-        hits = re.findall(
-            '(([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])) (?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)[ ][A-Z]{4,10}\s*(\S*.)\s*[=][>])',
-            file_stream)
-        if len(hits) > 1:
-            format_text = True
-        else:
-            send_out.append(file_stream)
-            format_text = False
+    if to_date_timestamp is None:
+        to_date_timestamp = datetime.now().timestamp()
+
+    # Decide whether the output will be formatted or not
+    for log_file in log_files:
+        with open(log_file, 'r') as f:
+            file_stream = f.read()
+            hits = re.findall(
+                '(([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])) (?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)[ ][A-Z]{4,10}\s*(\S*.)\s*[=][>])',
+                file_stream)
+            if len(hits) > 1:
+                format_text = True
+            else:
+                format_text = False
+                break
+
+    if not format_text:
+        for log_file in log_files:
+            with open(log_file, 'r') as f:
+                for line in reversed(f.readlines()):
+                    if filter is not None:
+                        match_case = filter.get('match-case', False)
+                        match_whole_words = filter.get("match-words", False)
+                        filter_out = filter.get("filter-out", None)
+                        searched_string = filter.get('search-for', '')
+                        level = filter.get('level', '').upper()
+                        if level != '':
+                            level = ' {} '.format(level)
+                        if match_whole_words:
+                            if searched_string != '':
+                                searched_string = ' {} '.format(searched_string)
+                        if level in line:
+                            if match_case and searched_string in line:
+                                if filter_out is not None and filter_out in line:
+                                    continue
+                                send_out.append('{}'.format(line).rstrip())
+                            elif not match_case and searched_string.lower() in line.lower():
+                                if filter_out is not None and filter_out.lower() in line.lower():
+                                    continue
+                                send_out.append('{}'.format(line).rstrip())
+                    else:
+                        send_out.append('{}'.format(line).rstrip())
 
     if format_text:
         for log_file in log_files:
@@ -431,7 +469,7 @@ def get_logs():
                     if line_timestamp is None or not line.startswith(line_beginning):
                         whole_line = '{}{}'.format(line, whole_line)
                         continue
-                    if line_timestamp >= from_date_timestamp:
+                    if from_date_timestamp <= line_timestamp <= to_date_timestamp:
                         if filter is not None:
                             match_case = filter.get('match-case', False)
                             match_whole_words = filter.get("match-words", False)
@@ -458,14 +496,12 @@ def get_logs():
                             send_out.append('{}{}'.format(line, whole_line).rstrip())
                     whole_line = ''
 
-    if format_text:
-        pages = math.ceil(len(send_out) / number_of_lines_per_page)
-        len_send_out = len(send_out)
-    else:
-        pages = math.ceil(len(send_out[0].split('\n')) / number_of_lines_per_page)
-        len_send_out = len(send_out[0])
-    metadata = {'file-name': file_name,
+    pages = math.ceil(len(send_out) / number_of_lines_per_page)
+    len_send_out = len(send_out)
+
+    metadata = {'file-names': file_names,
                 'from-date': from_date_timestamp,
+                'to-data': to_date_timestamp,
                 'lines-per-page': number_of_lines_per_page,
                 'page': page_num,
                 'pages': pages,
@@ -473,15 +509,9 @@ def get_logs():
                 'format': format_text}
     from_line = (page_num - 1) * number_of_lines_per_page
     if page_num * number_of_lines_per_page > len_send_out:
-        if format_text:
-            output = send_out[from_line:]
-        else:
-            output = ['\n'.join(send_out[0].split('\n')[from_line:])]
+        output = send_out[from_line:]
     else:
-        if format_text:
-            output = send_out[from_line: page_num * number_of_lines_per_page]
-        else:
-            output = ['\n'.join(send_out[0].split('\n')[from_line: page_num * number_of_lines_per_page])]
+        output = send_out[from_line:page_num * number_of_lines_per_page]
     return make_response(jsonify({'meta': metadata,
                                   'output': output}), 200)
 
