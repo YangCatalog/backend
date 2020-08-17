@@ -521,6 +521,69 @@ def get_sql_tables():
     return make_response(jsonify(['users', 'users_temp']), 200)
 
 
+@app.route('/move-user', methods=['POST'])
+def move_user():
+    body = request.json.get('input')
+    if body is None:
+        return abort(400, description='bad request - did you not start with input json container?')
+    unique_id = body.get('id')
+    models_provider = body.get('models-provider', '')
+    sdo_access = body.get('access-rights-sdo', '')
+    vendor_access = body.get('access-rights-vendor', '')
+    username = body.get('username')
+    name = body.get('first-name')
+    last_name = body.get('last-name')
+    email = body.get('email')
+    password = body.get('password')
+    if sdo_access == '' and vendor_access == '':
+        return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
+    try:
+        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
+         FirstName, LastName, AccessRightsSdo, AccessRightsVendor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
+            .format('users')
+        cursor.execute(sql, (username, password, email, models_provider,
+                             name, last_name, sdo_access, vendor_access,))
+        db.commit()
+        db.close()
+    except MySQLdb.MySQLError as err:
+        if err.args[0] not in [1049, 2013]:
+            db.close()
+        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+    try:
+        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        sql = """SELECT * FROM `{}` WHERE Id = %s""".format('users_temp')
+        cursor.execute(sql, (unique_id,))
+
+        data = cursor.fetchall()
+
+        found = False
+        for x in data:
+            if x[0] == int(unique_id):
+                found = True
+        if found:
+            # execute SQL query using execute() method.
+            cursor = db.cursor()
+            sql = """DELETE FROM `{}` WHERE Id = %s""".format('users_temp')
+            cursor.execute(sql, (unique_id,))
+            db.commit()
+
+        db.close()
+    except MySQLdb.MySQLError as err:
+        if err.args[0] not in [1049, 2013]:
+            db.close()
+        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+    response = {'info': 'data successfully added to database users and removed from users_temp',
+                'data': body}
+    return make_response(jsonify(response), 201)
+
+
 @app.route('/sql-tables/<table>', methods=['POST'])
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
@@ -675,7 +738,7 @@ def run_script_with_args(script):
 @app.route('/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'validate']
+                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration']
     return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
 
 
