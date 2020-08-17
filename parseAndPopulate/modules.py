@@ -138,6 +138,8 @@ class Modules:
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
+        if len(LOGGER.handlers) > 1:
+            LOGGER.handlers.remove(LOGGER.handlers[1])
         self.__web_uri = config.get('Web-Section', 'my-uri', fallback="https://yangcatalog.org")
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir

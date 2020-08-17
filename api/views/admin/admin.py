@@ -534,13 +534,24 @@ def move_user():
     name = body.get('first-name')
     last_name = body.get('last-name')
     email = body.get('email')
-    password = body.get('password')
     if sdo_access == '' and vendor_access == '':
         return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
         # prepare a cursor object using cursor() method
         cursor = db.cursor()
+
+        cursor = db.cursor()
+        sql = """SELECT * FROM `{}` WHERE Id = %s""".format('users_temp')
+        cursor.execute(sql, (unique_id,))
+
+        data = cursor.fetchall()
+
+        password = ''
+        for x in data:
+            if x[0] == int(unique_id):
+                password = x[2]
+
         sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
          FirstName, LastName, AccessRightsSdo, AccessRightsVendor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
             .format('users')
