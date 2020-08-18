@@ -518,7 +518,16 @@ def get_logs():
 
 @app.route('/sql-tables', methods=['GET'])
 def get_sql_tables():
-    return make_response(jsonify(['users', 'users_temp']), 200)
+    return make_response(jsonify([
+        {
+            'name': 'users',
+            'label': 'approved users'
+        },
+        {
+            'name': 'users_temp',
+            'label': 'users waiting for approval'
+        }
+    ]), 200)
 
 
 @app.route('/move-user', methods=['POST'])
@@ -527,6 +536,8 @@ def move_user():
     if body is None:
         return abort(400, description='bad request - did you not start with input json container?')
     unique_id = body.get('id')
+    if unique_id is None:
+        return abort(400, description='Id of a user is missing')
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
@@ -583,7 +594,6 @@ def move_user():
             sql = """DELETE FROM `{}` WHERE Id = %s""".format('users_temp')
             cursor.execute(sql, (unique_id,))
             db.commit()
-
         db.close()
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
