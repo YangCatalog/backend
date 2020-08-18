@@ -33,32 +33,36 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-class ScriptConfig():
+
+class ScriptConfig:
+
     def __init__(self):
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        api_protocol = config.get('General-Section', 'protocol-api')
-        api_port = config.get('Web-Section', 'api-port')
-        api_host = config.get('Web-Section', 'ip')
-        save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        temp = config.get('Directory-Section', 'temp')
+        self.__api_protocol = config.get('General-Section', 'protocol-api')
+        self.__api_port = config.get('Web-Section', 'api-port')
+        self.__api_host = config.get('Web-Section', 'ip')
+        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.__temp = config.get('Directory-Section', 'temp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
+        self.help = 'This serves to save or load all information in yangcatalog.org in elk.'
+        'in case the server will go down and we would lose all the information we'
+        ' have got. We have two options in here.'
+
         parser = argparse.ArgumentParser(
-            description='This serves to save or load all information in yangcatalog.org in elk.'
-                        'in case the server will go down and we would lose all the information we'
-                        ' have got. We have two options in here.')
-        parser.add_argument('--api-ip', default=api_host, type=str,
-                            help='Set host where the API is started. Default: ' + api_host)
-        parser.add_argument('--api-port', default=api_port, type=int,
-                            help='Set port where the API is started. Default: ' + api_port)
-        parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
-                                                                                ' Default: ' + api_protocol)
-        parser.add_argument('--save-file-dir', default=save_file_dir, type=str,
-                            help='Directory for all yang modules lookup. Default: ' + save_file_dir)
-        parser.add_argument('--temp', default=temp, type=str,
-                            help='Path to yangcatalog temporary directory. Default: ' + temp)
+            description=self.help)
+        parser.add_argument('--api-ip', default=self.__api_host, type=str,
+                            help='Set host where the API is started. Default: ' + self.__api_host)
+        parser.add_argument('--api-port', default=self.__api_port, type=int,
+                            help='Set port where the API is started. Default: ' + self.__api_port)
+        parser.add_argument('--api-protocol', type=str, default=self.__api_protocol, help='Whether API runs on http or https.'
+                                                                                ' Default: ' + self.__api_protocol)
+        parser.add_argument('--save-file-dir', default=self.__save_file_dir, type=str,
+                            help='Directory for all yang modules lookup. Default: ' + self.__save_file_dir)
+        parser.add_argument('--temp', default=self.__temp, type=str,
+                            help='Path to yangcatalog temporary directory. Default: ' + self.__temp)
         self.args = parser.parse_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
@@ -72,6 +76,18 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['api-ip'] = 'Set host where the API is started. Default: ' + self.__api_host
+        ret['options']['api-port'] = 'Set port where the API is started. Default: ' + self.__api_port
+        ret['options']['api-protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
+        ret['options']['save-file-dir'] = 'Directory for all yang modules lookup. Default: ' + self.__save_file_dir
+        ret['options']['temp'] = 'Path to yangcatalog temporary directory. Default: ' + self.__temp
+        return ret
+
 
 def main(scriptConf=None):
     if scriptConf is None:

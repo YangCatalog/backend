@@ -46,16 +46,24 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-class ScriptConfig():
+
+class ScriptConfig:
+
     def __init__(self):
+        self.help = 'This serves to save or load all information in yangcatalog.org to json in'
+        ' case the server will go down and we would lose all the information we'
+        ' have got. We have two options in here. Saving makes a GET request to '
+        'file with name that would be set as a argument or it will be set to '
+        'a current time and date. Load will read the file and make a PUT request '
+        'to write all data to yangcatalog.org. This runs as a daily cronjob to save latest state of confd'
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        confd_protocol = config.get('General-Section', 'protocol-confd')
-        confd_port = config.get('Web-Section', 'confd-port')
-        confd_host = config.get('Web-Section', 'confd-ip')
+        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
+        self.__confd_port = config.get('Web-Section', 'confd-port')
+        self.__confd_host = config.get('Web-Section', 'confd-ip')
         self.log_directory = config.get('Directory-Section', 'logs')
         self.cache_directory = config.get('Directory-Section', 'cache')
         self.api_port = config.get('Web-Section', 'api-port')
@@ -63,24 +71,19 @@ class ScriptConfig():
         self.api_protocol = config.get('General-Section', 'protocol-api')
         self.api_host = config.get('Web-Section', 'ip')
         parser = argparse.ArgumentParser(
-            description='This serves to save or load all information in yangcatalog.org to json in'
-                        ' case the server will go down and we would lose all the information we'
-                        ' have got. We have two options in here. Saving makes a GET request to '
-                        'file with name that would be set as a argument or it will be set to '
-                        'a current time and date. Load will read the file and make a PUT request '
-                        'to write all data to yangcatalog.org.')
-        parser.add_argument('--port', default=confd_port, type=int,
-                            help='Set port where the confd is started. Default -> {}'.format(confd_port))
-        parser.add_argument('--ip', default=confd_host, type=str,
-                            help='Set ip address where the confd is started. Default -> {}'.format(confd_host))
+            description=self.help)
+        parser.add_argument('--port', default=self.__confd_port, type=int,
+                            help='Set port where the confd is started. Default -> {}'.format(self.__confd_port))
+        parser.add_argument('--ip', default=self.__confd_host, type=str,
+                            help='Set ip address where the confd is started. Default -> {}'.format(self.__confd_host))
         parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
         parser.add_argument('--name_load', type=str, default='',
                             help='Set name of the file to load. Default will take a last saved file')
         parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
                             help='Set weather you want to save a file or load a file. Default is save')
-        parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether confd-6.6 runs on http or https.'
-                                                                                ' Default is set to {}'.format(confd_protocol))
+        parser.add_argument('--protocol', type=str, default=self.__confd_protocol, help='Whether confd runs on http or https.'
+                                                                                ' Default is set to {}'.format(self.__confd_protocol))
 
         self.args = parser.parse_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -95,6 +98,20 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['port'] = 'Set port where the confd is started. Default -> {}'.format(self.__confd_port)
+        ret['options']['type'] = 'Set weather you want to save a file or load a file. Default is save'
+        ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
+        ret['options']['protocol'] = 'Whether confd runs on http or https. Default is set to {}'.format(
+            self.__confd_protocol)
+        ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
+        ret['options']['ip'] = 'Set ip address where the confd is started. Default -> {}'.format(self.__confd_host)
+        return ret
+
 
 def main(scriptConf=None):
     if scriptConf is None:

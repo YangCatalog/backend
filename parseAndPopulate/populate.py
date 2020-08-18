@@ -50,6 +50,7 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
+
 class ScriptConfig():
     def __init__(self):
         config_path = '/etc/yangcatalog/yangcatalog.conf'
@@ -62,45 +63,49 @@ class ScriptConfig():
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.key = config.get('Secrets-Section', 'update-signature')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        confd_protocol = config.get('General-Section', 'protocol-confd')
-        confd_port = config.get('Web-Section', 'confd-port')
-        confd_host = config.get('Web-Section', 'confd-ip')
-        api_protocol = config.get('General-Section', 'protocol-api')
-        api_port = config.get('Web-Section', 'api-port')
-        api_host = config.get('Web-Section', 'ip')
-        save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        result_dir = config.get('Web-Section', 'result-html-dir')
+        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
+        self.__confd_port = config.get('Web-Section', 'confd-port')
+        self.__confd_host = config.get('Web-Section', 'confd-ip')
+        self.__api_protocol = config.get('General-Section', 'protocol-api')
+        self.__api_port = config.get('Web-Section', 'api-port')
+        self.__api_host = config.get('Web-Section', 'ip')
+        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self.__result_dir = config.get('Web-Section', 'result-html-dir')
+        self.help = "Parse hello messages and YANG files to JSON dictionary. These"
+        " dictionaries are used for populating a yangcatalog. This script runs"
+        " first a runCapabilities.py script to create a JSON files which are"
+        " used to populate database."
 
-        parser = argparse.ArgumentParser(description="Parse hello messages and YANG files to JSON dictionary. These"
-                                                    " dictionaries are used for populating a yangcatalog. This script runs"
-                                                    " first a runCapabilities.py script to create a JSON files which are"
-                                                    " used to populate database.")
-        parser.add_argument('--ip', default=confd_host, type=str,
-                            help='Set host where the Confd is started. Default: ' + confd_host)
-        parser.add_argument('--port', default=confd_port, type=int,
-                            help='Set port where the Confd is started. Default: ' + confd_port)
-        parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether Confd runs on http or https.'
-                            ' Default: ' + confd_protocol)
-        parser.add_argument('--api-ip', default=api_host, type=str,
-                            help='Set host where the API is started. Default: ' + api_host)
-        parser.add_argument('--api-port', default=api_port, type=int,
-                            help='Set port where the API is started. Default: ' + api_port)
-        parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
-                                                                            ' Default: ' + api_protocol)
+        parser = argparse.ArgumentParser(description=self.help)
+        parser.add_argument('--ip', default=self.__confd_host, type=str,
+                            help='Set host address where the Confd is started. Default: ' + self.__confd_host)
+        parser.add_argument('--port', default=self.__confd_port, type=int,
+                            help='Set port where the Confd is started. Default: ' + self.__confd_port)
+        parser.add_argument('--protocol', type=str, default=self.__confd_protocol, help='Whether Confd runs on http or https.'
+                                                                                 ' Default: ' + self.__confd_protocol)
+        parser.add_argument('--api-ip', default=self.__api_host, type=str,
+                            help='Set host address where the API is started. Default: ' + self.__api_host)
+        parser.add_argument('--api-port', default=self.__api_port, type=int,
+                            help='Set port where the API is started. Default: ' + self.__api_port)
+        parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
+                            help='Whether API runs on http or https (This will be ignored if we are using uwsgi).'
+                                 ' Default: ' + self.__api_protocol)
         parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
-                                                ' Default parameters are ' + str(credentials), nargs=2,
-                                            default=credentials, type=str)
-        parser.add_argument('--dir', default='../../vendor', type=str,
-                            help='Set dir where to look for hello message xml files. Default: ../../vendor')
-        parser.add_argument('--api', action='store_true', default=False, help='If we are doing APIs')
-        parser.add_argument('--sdo', action='store_true', default=False, help='If we are sending SDOs only')
+                                                  ' Default parameters are ' + str(credentials), nargs=2,
+                            default=credentials, type=str)
+        parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
+                            help='Set dir where to look for hello message xml files')
+        parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
+        parser.add_argument('--sdo', action='store_true', default=False,
+                            help='If we are processing sdo or vendor yang modules')
         parser.add_argument('--notify-indexing', action='store_true', default=False, help='Whether to send files for'
-                                                                                        ' indexing')
-        parser.add_argument('--result-html-dir', default=result_dir, type=str,
-                            help='Set dir where to write HTML result files. Default: ' + result_dir)
-        parser.add_argument('--force-indexing', action='store_true', default=False, help='Force to index files')
-        parser.add_argument('--save-file-dir', default=save_file_dir,
-                            type=str, help='Directory where the file will be saved. Default: ' + save_file_dir)
+                                                                                          ' indexing')
+        parser.add_argument('--result-html-dir', default=self.__result_dir, type=str,
+                            help='Set dir where to write HTML compilation result files. Default: ' + self.__result_dir)
+        parser.add_argument('--force-indexing', action='store_true', default=False,
+                            help='Force to index files. Works only in notify-indexint is True')
+        parser.add_argument('--save-file-dir', default=self.__save_file_dir,
+                            type=str, help='Directory where the yang file will be saved. Default: ' + self.__save_file_dir)
         self.args = parser.parse_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
@@ -108,12 +113,35 @@ class ScriptConfig():
         args_dict = {}
         keys = [key for key in self.args.__dict__.keys()]
         types = [type(value).__name__ for value in self.args.__dict__.values()]
-
+    
         i = 0
         for key in keys:
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['dir'] = 'Set dir where to look for hello message xml files or yang files if using "sdo" option'
+        ret['options']['ip'] = 'Set host address where the Confd is started. Default: ' + self.__confd_host
+        ret['options']['port'] = 'Set port where the Confd is started. Default: ' + self.__confd_port
+        ret['options']['protocol'] = 'Whether Confd runs on http or https. Default: ' + self.__confd_protocol
+
+        ret['options']['api'] = 'If request came from api'
+        ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
+        ret['options']['notify-indexing'] = 'Whether to send files for indexing'
+        ret['options']['force-indexing'] = 'Force to index files. Works only in notify-indexint is True'
+        ret['options']['result-html-dir'] = 'Set dir where to write HTML compilation result files. Default: '\
+                                            + self.__result_dir
+        ret['options']['save-file-dir'] = 'Directory where the yang file will be saved. Default: ' + self.__save_file_dir
+        ret['options']['api-protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
+        ret['options']['api-port'] = 'Whether API runs on http or https (This will be ignored if we are using uwsgi).' \
+                                     ' Default: ' + self.__api_protocol
+        ret['options']['api-ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
+        return ret
+
 
 def reload_cache_in_parallel(credentials, yangcatalog_api_prefix):
     LOGGER.info('Sending request to reload cache in different thread')
@@ -187,7 +215,7 @@ def main(scriptConf=None):
     body_to_send = ''
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix,'{}/prepare.json'.format(direc), args.credentials,
+        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc), args.credentials,
                                            LOGGER, args.save_file_dir, temp_dir, args.protocol, args.ip, args.port,
                                            sdo_type=args.sdo, from_api=args.api, force_indexing=args.force_indexing)
 
@@ -218,7 +246,7 @@ def main(scriptConf=None):
                         json.dump(json_modules_data, f)
                     LOGGER.error('Request with body {} on path {} failed with {}'
                                  .format(path_to_file, url,
-                                        response.text))
+                                         response.text))
     json_modules_data = json.dumps({
         'modules':
             {
@@ -295,7 +323,8 @@ def main(scriptConf=None):
         send_to_indexing(body_to_send, args.credentials, args.api_protocol, LOGGER, key, args.api_ip)
     if not args.api:
         if not args.force_indexing:
-            process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel, args=(args.credentials, yangcatalog_api_prefix, ))
+            process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
+                                                           args=(args.credentials, yangcatalog_api_prefix,))
             process_reload_cache.start()
             LOGGER.info('Run complicated algorithms')
             recursion_limit = sys.getrecursionlimit()

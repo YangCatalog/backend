@@ -54,9 +54,15 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-class ScriptConfig():
+
+class ScriptConfig:
+    
     def __init__(self):
         parser = argparse.ArgumentParser()
+        self.help = 'Pull the latest ietf files and add them to github if there are any new ietf draf files. If there' \
+                    'are new RFC files it will produce automated message that will be sent to webex teams and admin' \
+                    ' emails notifying you that these need to be added to yangModels/yang github manualy. This runs as ' \
+                    'a daily cronjob'
         parser.add_argument('--config-path', type=str,
                             default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
@@ -76,6 +82,15 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['config-path'] = 'Set path to config file'
+        ret['options']['send-message'] = 'Whether to send notification to cisco webex teams and to emails'
+        return ret
+
 
 def main(scriptConf=None):
     if scriptConf is None:

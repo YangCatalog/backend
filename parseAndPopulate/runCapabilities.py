@@ -44,26 +44,29 @@ else:
 
 class ScriptConfig():
     def __init__(self):
+        self.help = "Parse modules on given directory and generate json with module metadata that can be populated" \
+                    " to confd directory"
         parser = argparse.ArgumentParser()
-        parser.add_argument('--dir', default='../../vendor', type=str,
-                            help='Set dir where to look for hello message xml files. Default -> ../../vendor')
+        parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
+                            help='Set dir where to look for hello message xml files or yang files if using "sdo" option')
         parser.add_argument('--save-modification-date', action='store_true', default=False,
                             help='if True than it will create a file with modification date and also it will check if '
                                 'file was modified from last time if not it will skip it.')
-        parser.add_argument('--api', action='store_true', default=False, help='if we are doing apis')
-        parser.add_argument('--sdo', action='store_true', default=False, help='if we are doing sdos')
+        parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
+        parser.add_argument('--sdo', action='store_true', default=False,
+                            help='If we are processing sdo or vendor yang modules')
         parser.add_argument('--run-integrity', action='store_true', default=False,
-                            help='If we are running integrity tool')
-        parser.add_argument('--json-dir', default='/var/yang/tmp/', type=str, help='Directory where json files to populate confd will be stored')
-        parser.add_argument('--result-html-dir', default='/home/miroslav/results/', type=str,
-                            help='Set dir where to write html result files. Default -> /home/miroslav/results/')
-        parser.add_argument('--save-file-dir', default='/home/miroslav/results/',
-                            type=str, help='Directory where the file will be saved')
+                            help='If we want to run integrity tool check')
+        parser.add_argument('--json-dir', default='/var/yang/tmp/', type=str,
+                            help='Directory where json files to populate confd will be stored')
+        parser.add_argument('--result-html-dir', default='/usr/share/nginx/html/results', type=str,
+                            help='Set dir where to write html compilation result files')
+        parser.add_argument('--save-file-dir', default='/var/yang/all_modules',
+                            type=str, help='Directory where the yang file will be saved')
         parser.add_argument('--api-protocol', type=str, default='https',
-                            help='Whether api runs on http or https.'
-                                ' Default is set to http')
+                            help='Whether api runs on http or https. Default is set to https')
         parser.add_argument('--api-port', default=8443, type=int,
-                            help='Set port where the api is started. Default -> 8443')
+                            help='Set port where the api is started (This will be ignored if we are using uwsgi)')
         parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
                             help='Set ip address where the api is started. Default -> yangcatalog.org')
         parser.add_argument('--config-path', type=str,
@@ -83,6 +86,27 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['dir'] = 'Set dir where to look for hello message xml files or yang files if using "sdo" option'
+        ret['options']['save-modification-date'] = 'if True than it will create a file with modification date and' \
+                                                   ' also it will check if file was modified from last time if not it' \
+                                                   ' will skip it'
+        ret['options']['api'] = 'If request came from api'
+        ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
+        ret['options']['run-integrity'] = 'If we want to run integrity tool check'
+        ret['options']['json-dir'] = 'Directory where json files to populate confd will be stored'
+        ret['options']['result-html-dir'] = 'Set dir where to write html compilation result files'
+        ret['options']['save-file-dir'] = 'Directory where the yang file will be saved'
+        ret['options']['api-protocol'] = 'Whether api runs on http or https. Default is set to https'
+        ret['options']['api-port'] = 'Set port where the api is started (This will be ignored if we are using uwsgi)'
+        ret['options']['api-ip'] = 'Set ip address where the api is started. Default -> yangcatalog.org'
+        ret['options']['config-path'] = 'Set path to config file'
+        return ret
+
 
 def find_missing_hello(directory, pattern):
     for root, dirs, files in os.walk(directory):

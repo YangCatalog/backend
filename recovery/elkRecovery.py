@@ -37,10 +37,10 @@ else:
 
 class ScriptConfig():
     def __init__(self):
-        parser = argparse.ArgumentParser(
-            description='This serves to save or load all information in yangcatalog.org in elk.'
-                        'in case the server will go down and we would lose all the information we'
-                        ' have got. We have two options in here.')
+        self.help = 'This serves to save or load all information in yangcatalog.org in elk.'
+        'in case the server will go down and we would lose all the information we'
+        ' have got. We have two options in here. This runs as a cronjob to create snapshot'
+        parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_').replace(':', '-') + '-utc',
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
         parser.add_argument('--name_load', type=str, default='',
@@ -69,6 +69,20 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['save'] = 'Set weather you want to create snapshot. Default is True'
+        ret['options']['load'] = 'Set weather you want to load from snapshot. Default is False'
+        ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
+        ret['options']['compress'] = 'Set weather to compress snapshot files. Default is True'
+        ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
+        ret['options']['latest'] = 'Set weather to load the latest snapshot'
+        ret['options']['config-path'] = 'Set path to config file'
+        return ret
+
 
 def create_register_elk_repo(name, is_compress, elk):
     body = {}

@@ -63,8 +63,13 @@ NS_MAP = {
 }
 MISSING_ELEMENT = 'independent'
 
-class ScriptConfig():
+
+class ScriptConfig:
+
     def __init__(self):
+        self.help = 'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang ' \
+                    'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily' \
+                    ' cronjob'
         parser = argparse.ArgumentParser()
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
@@ -81,6 +86,14 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['config-path'] = 'Set path to config file'
+        return ret
+
 
 def find_first_file(directory, pattern, pattern_with_revision):
     """Search for yang file on path

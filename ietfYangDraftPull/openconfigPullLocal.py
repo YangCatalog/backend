@@ -40,6 +40,8 @@ else:
 
 class ScriptConfig():
     def __init__(self):
+        self.help = "Run populate script on all openconfig files to parse all modules and populate the" \
+                    " metadata to yangcatalog if there are any new. This runs as a daily cronjob"
         parser = argparse.ArgumentParser()
         parser.add_argument('--config-path', type=str,
                             default='/etc/yangcatalog/yangcatalog.conf',
@@ -57,6 +59,14 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['config-path'] = 'Set path to config file'
+        return ret
+
 
 def resolve_revision(yang_file):
     """

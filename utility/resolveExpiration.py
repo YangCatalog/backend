@@ -51,30 +51,32 @@ class ScriptConfig():
         config.read(config_path)
         self.log_directory = config.get('Directory-Section', 'logs')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
-        confd_protocol = config.get('General-Section', 'protocol-confd')
-        confd_port = config.get('Web-Section', 'confd-port')
-        confd_host = config.get('Web-Section', 'confd-ip')
-        api_protocol = config.get('General-Section', 'protocol-api')
-        api_port = config.get('Web-Section', 'api-port')
-        api_host = config.get('Web-Section', 'ip')
+        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
+        self.__confd_port = config.get('Web-Section', 'confd-port')
+        self.__confd_host = config.get('Web-Section', 'confd-ip')
+        self.__api_protocol = config.get('General-Section', 'protocol-api')
+        self.__api_port = config.get('Web-Section', 'api-port')
+        self.__api_host = config.get('Web-Section', 'ip')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+        self.help = 'Resolve expiration metadata for each module and set it to confd if changed. This runs as a daily' \
+                    ' cronjob'
         parser = argparse.ArgumentParser()
         parser.add_argument('--credentials',
                             help='Set authorization parameters username password respectively.'
                                  ' Default parameters are {}'.format(str(credentials)), nargs=2,
                             default=credentials, type=str)
-        parser.add_argument('--ip', default=confd_host, type=str,
-                            help='Set host where the Confd is started. Default: ' + confd_host)
-        parser.add_argument('--port', default=confd_port, type=int,
-                            help='Set port where the Confd is started. Default: ' + confd_port)
-        parser.add_argument('--protocol', type=str, default=confd_protocol, help='Whether Confd runs on http or https.'
-                                                                                 ' Default: ' + confd_protocol)
-        parser.add_argument('--api-ip', default=api_host, type=str,
-                            help='Set host where the API is started. Default: ' + api_host)
-        parser.add_argument('--api-port', default=api_port, type=int,
-                            help='Set port where the API is started. Default: ' + api_port)
-        parser.add_argument('--api-protocol', type=str, default=api_protocol, help='Whether API runs on http or https.'
-                                                                                   ' Default: ' + api_protocol)
+        parser.add_argument('--ip', default=self.__confd_host, type=str,
+                            help='Set host address where the Confd is started. Default: ' + self.__confd_host)
+        parser.add_argument('--port', default=self.__confd_port, type=int,
+                            help='Set port where the Confd is started. Default: ' + self.__confd_port)
+        parser.add_argument('--protocol', type=str, default=self.__confd_protocol,
+                            help='Whether Confd runs on http or https. Default: ' + self.__confd_protocol)
+        parser.add_argument('--api-ip', default=self.__api_host, type=str,
+                            help='Set host address where the API is started. Default: ' + self.__api_host)
+        parser.add_argument('--api-port', default=self.__api_port, type=int,
+                            help='Set port where the API is started. Default: ' + self.__api_port)
+        parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
+                            help='Whether API runs on http or https. Default: ' + self.__api_protocol)
         self.args = parser.parse_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
@@ -88,6 +90,18 @@ class ScriptConfig():
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
             i += 1
         return args_dict
+
+    def get_help(self):
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        ret['options']['ip'] = 'Set host address where the Confd is started. Default: ' + self.__confd_host
+        ret['options']['port'] = 'Set port where the Confd is started. Default: ' + self.__confd_port
+        ret['options']['protocol'] = 'Whether Confd runs on http or https. Default: ' + self.__confd_protocol
+        ret['options']['api-ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
+        ret['options']['api-port'] = 'Set port where the API is started. Default: ' + self.__api_port
+        ret['options']['api-protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
+        return ret
 
 
 def __resolve_expiration(reference, module, args, LOGGER):

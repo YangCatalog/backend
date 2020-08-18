@@ -727,7 +727,7 @@ def get_script_details(script):
     script_conf = submodule.ScriptConfig()
     script_args_list = script_conf.get_args_list()
     script_args_list.pop('credentials', None)
-    return make_response(jsonify({'data': script_args_list}), 200)
+    return make_response(jsonify({'data': script_args_list}.update(script_conf.get_help())), 200)
 
 
 @app.route('/scripts/<script>', methods=['POST'])
