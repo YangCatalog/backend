@@ -106,7 +106,13 @@ def main(scriptConf=None):
 
     es_host = config.get('DB-Section', 'es-host')
     es_port = config.get('DB-Section', 'es-port')
-    es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+    es_aws = config.get('DB-Section', 'es-aws')
+    elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+    if es_aws == 'True':
+        es = Elasticsearch(es_host, http_auth=(elk_credentials[0], elk_credentials[1]))
+    else:
+        es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+
     save = args.save
     if args.load:
         save = False

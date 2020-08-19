@@ -122,7 +122,13 @@ if __name__ == '__main__':
 
     es_host = config.get('DB-Section', 'es-host')
     es_port = config.get('DB-Section', 'es-port')
-    es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+    es_aws = config.get('DB-Section', 'es-aws')
+    elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+    if es_aws == 'True':
+        es = Elasticsearch(es_host, http_auth=(elk_credentials[0], elk_credentials[1]))
+    else:
+        es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+
     create_register_elk_repo(repo_name, args.compress, es)
     snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
     sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))

@@ -50,7 +50,7 @@ __node_data = {
 }
 
 
-def do_search(opts, host, protocol, port, LOGGER):
+def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     query = \
         {
             'query': {
@@ -75,7 +75,10 @@ def do_search(opts, host, protocol, port, LOGGER):
             }
         }
 
-    es = Elasticsearch([{'host': '{}'.format(host), 'port': port}])
+    if es_aws:
+        es = Elasticsearch(host, http_auth=(elk_credentials[0], elk_credentials[1]))
+    else:
+        es = Elasticsearch([{'host': '{}'.format(host), 'port': port}])
     search_term = opts['search']
 
     if 'case-sensitive' in opts and opts['case-sensitive']:

@@ -96,7 +96,11 @@ def health_check_elk():
     service_name = 'Elasticsearch'
     app.LOGGER.info('Trying to ping {}'.format(service_name))
     try:
-        es = Elasticsearch([{'host':'{}'.format(yc_gc.es_host), 'port':yc_gc.es_port}])
+        if yc_gc.es_aws:
+            es = Elasticsearch(yc_gc.es_host, http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]))
+        else:
+            es = Elasticsearch([{'host':'{}'.format(yc_gc.es_host), 'port':yc_gc.es_port}])
+
         # try to ping Elasticsearch
         if es.ping():
             app.LOGGER.info('Successfully connected to Elasticsearch')

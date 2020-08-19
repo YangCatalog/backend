@@ -68,7 +68,7 @@ def fast_search():
     try:
         count = 0
         search_res, limit_reached = inde.do_search(payload, yc_gc.es_host,
-                                    yc_gc.es_protocol, yc_gc.es_port,
+                                    yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
                                     yc_gc.LOGGER)
         res = []
         found_modules = {}

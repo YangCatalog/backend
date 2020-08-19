@@ -49,6 +49,7 @@ class YangCatalogApiGlobalConfig():
         self.dbUser = config.get('DB-Section', 'user')
         self.dbPass = config.get('Secrets-Section', 'mysql-password')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        self.elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
         self.confd_ip = config.get('Web-Section', 'confd-ip')
         self.confdPort = int(config.get('Web-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol-confd')
@@ -73,7 +74,11 @@ class YangCatalogApiGlobalConfig():
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')
-        self.es_protocol = config.get('DB-Section', 'es-protocol')
+        self.es_aws = config.get('DB-Section', 'es-aws')
+        if self.es_aws == 'True':
+            self.es_aws = True
+        else:
+            self.es_aws = False
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -110,6 +115,7 @@ class YangCatalogApiGlobalConfig():
         self.dbUser = config.get('DB-Section', 'user')
         self.dbPass = config.get('Secrets-Section', 'mysql-password')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        self.elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
         self.confd_ip = config.get('Web-Section', 'confd-ip')
         self.confdPort = int(config.get('Web-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol-confd')
@@ -134,7 +140,11 @@ class YangCatalogApiGlobalConfig():
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')
-        self.es_protocol = config.get('DB-Section', 'es-protocol')
+        self.es_aws = config.get('DB-Section', 'es-aws')
+        if self.es_aws == 'True':
+            self.es_aws = True
+        else:
+            self.es_aws = False
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
