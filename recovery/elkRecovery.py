@@ -37,8 +37,8 @@ else:
 
 class ScriptConfig():
     def __init__(self):
-        self.help = 'This serves to save or load all information in yangcatalog.org in elk.'
-        'in case the server will go down and we would lose all the information we'
+        self.help = 'This serves to save or load all information in yangcatalog.org in elk.' \
+        'in case the server will go down and we would lose all the information we' \
         ' have got. We have two options in here. This runs as a cronjob to create snapshot'
         parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_').replace(':', '-') + '-utc',
@@ -46,13 +46,13 @@ class ScriptConfig():
         parser.add_argument('--name_load', type=str, default='',
                             help='Set name of the file to load. Default will take a last saved file')
         parser.add_argument('--save', action='store_true', default=True,
-                            help='Set weather you want to create snapshot. Default is True')
+                            help='Set whether you want to create snapshot. Default is True')
         parser.add_argument('--load', action='store_true', default=False,
-                            help='Set weather you want to load from snapshot. Default is False')
+                            help='Set whether you want to load from snapshot. Default is False')
         parser.add_argument('--latest', action='store_true', default=True,
-                            help='Set weather to load the latest snapshot')
+                            help='Set whether to load the latest snapshot')
         parser.add_argument('--compress', action='store_true', default=True,
-                            help='Set weather to compress snapshot files. Default is True')
+                            help='Set whether to compress snapshot files. Default is True')
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
 
@@ -74,13 +74,13 @@ class ScriptConfig():
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['save'] = 'Set weather you want to create snapshot. Default is True'
-        ret['options']['load'] = 'Set weather you want to load from snapshot. Default is False'
+        ret['options']['save'] = 'Set whether you want to create snapshot. Default is True'
+        ret['options']['load'] = 'Set whether you want to load from snapshot. Default is False'
         ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
-        ret['options']['compress'] = 'Set weather to compress snapshot files. Default is True'
+        ret['options']['compress'] = 'Set whether to compress snapshot files. Default is True'
         ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
-        ret['options']['latest'] = 'Set weather to load the latest snapshot'
-        ret['options']['config-path'] = 'Set path to config file'
+        ret['options']['latest'] = 'Set whether to load the latest snapshot'
+        ret['options']['config_path'] = 'Set path to config file'
         return ret
 
 

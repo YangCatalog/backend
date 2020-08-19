@@ -56,7 +56,7 @@ else:
 
 
 class ScriptConfig:
-    
+
     def __init__(self):
         parser = argparse.ArgumentParser()
         self.help = 'Pull the latest ietf files and add them to github if there are any new ietf draf files. If there' \
@@ -87,8 +87,8 @@ class ScriptConfig:
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['config-path'] = 'Set path to config file'
-        ret['options']['send-message'] = 'Whether to send notification to cisco webex teams and to emails'
+        ret['options']['config_path'] = 'Set path to config file'
+        ret['options']['send_message'] = 'Whether to send notification to cisco webex teams and to emails'
         return ret
 
 

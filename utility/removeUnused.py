@@ -69,7 +69,7 @@ if __name__ == '__main__':
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
     parser.add_argument('--compress', action='store_true', default=True,
-                        help='Set weather to compress snapshot files. Default is True')
+                        help='Set whether to compress snapshot files. Default is True')
     args = parser.parse_args()
     config_path = args.config_path
     config = ConfigParser.ConfigParser()

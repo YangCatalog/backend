@@ -98,9 +98,9 @@ class ScriptConfig():
         ret['options']['ip'] = 'Set host address where the Confd is started. Default: ' + self.__confd_host
         ret['options']['port'] = 'Set port where the Confd is started. Default: ' + self.__confd_port
         ret['options']['protocol'] = 'Whether Confd runs on http or https. Default: ' + self.__confd_protocol
-        ret['options']['api-ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
-        ret['options']['api-port'] = 'Set port where the API is started. Default: ' + self.__api_port
-        ret['options']['api-protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
+        ret['options']['api_ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
+        ret['options']['api_port'] = 'Set port where the API is started. Default: ' + self.__api_port
+        ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
         return ret
 
 

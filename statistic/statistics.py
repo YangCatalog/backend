@@ -91,7 +91,7 @@ class ScriptConfig:
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['config-path'] = 'Set path to config file'
+        ret['options']['config_path'] = 'Set path to config file'
         return ret
 
 
@@ -699,4 +699,3 @@ def main(scriptConf=None):
 
 if __name__ == "__main__":
     main()
-
