@@ -33,6 +33,7 @@ class YangCatalogApiGlobalConfig():
     loading = True
 
     def __init__(self):
+        self.oidc = None
         self.config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -59,11 +60,15 @@ class YangCatalogApiGlobalConfig():
         self.logs_dir = config.get('Directory-Section', 'logs')
         self.token = config.get('Secrets-Section', 'yang-catalog-token')
         self.admin_token = config.get('Secrets-Section', 'admin-token')
+        self.oidc_client_secret = config.get('Secrets-Section', 'client-secret')
+        self.oidc_client_id = config.get('Secrets-Section', 'client-id')
         self.commit_msg_file = config.get('Directory-Section', 'commit-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.integrity_file_location = config.get('Web-Section', 'public-directory')
         self.diff_file_dir = config.get('Web-Section', 'save-diff-dir')
         self.ip = config.get('Web-Section', 'ip')
+        self.oidc_redirects = config.get('Web-Section', 'redirect-oidc').split(' ')
+        self.oidc_issuer = config.get('Web-Section', 'issuer')
         self.api_port = int(config.get('Web-Section', 'api-port'))
         self.api_protocol = config.get('General-Section', 'protocol-api')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
@@ -116,6 +121,8 @@ class YangCatalogApiGlobalConfig():
         self.dbPass = config.get('Secrets-Section', 'mysql-password')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+        self.oidc_client_secret = config.get('Secrets-Section', 'client-secret')
+        self.oidc_client_id = config.get('Secrets-Section', 'client-id')
         self.confd_ip = config.get('Web-Section', 'confd-ip')
         self.confdPort = int(config.get('Web-Section', 'confd-port'))
         self.protocol = config.get('General-Section', 'protocol-confd')
@@ -137,6 +144,8 @@ class YangCatalogApiGlobalConfig():
         self.config_email = config.get('General-Section', 'repo-config-email')
         self.ys_users_dir = config.get('Directory-Section', 'ys-users')
         self.my_uri = config.get('Web-Section', 'my-uri')
+        self.oidc_redirects = config.get('Web-Section', 'redirect-oidc').split(' ')
+        self.oidc_issuer = config.get('Web-Section', 'issuer')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')

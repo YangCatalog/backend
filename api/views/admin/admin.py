@@ -31,11 +31,10 @@ from pathlib import Path
 
 import MySQLdb
 import requests
-from flask import Blueprint, request, make_response, jsonify, g, session, abort
+from flask import Blueprint, request, make_response, jsonify, abort
 
 from api.globalConfig import yc_gc
-from api.views.admin.adminUser import AdminUser
-from api.yangCatalogApi import hash_pw
+
 from utility.util import create_signature
 
 
@@ -46,78 +45,27 @@ class YangCatalogAdminBlueprint(Blueprint):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
 
+
 app = YangCatalogAdminBlueprint('admin', __name__)
+
 
 @app.before_request
 def before_request():
     if 'admin' in request.path:
-        g.user = None
-        if 'user_id' in session:
-            try:
-                db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
-                                        passwd=yc_gc.dbPass)
-                # prepare a cursor object using cursor() method
-                cursor = db.cursor()
-                # execute SQL query using execute() method.
-                results_num = cursor.execute("""SELECT * FROM `admin_users` where Id=%s""", (session['user_id'],))
-                if results_num == 1:
-                    data = cursor.fetchone()
-                    g.user = AdminUser(data[0], data[1])
-                db.close()
-            except MySQLdb.MySQLError as err:
-                if err.args[0] != 1049:
-                    db.close()
-                yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        elif 'login' not in request.path:
+        if not yc_gc.oidc.user_loggedin:
             return abort(401, description='not yet Authorized')
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@app.route('/healthcheck', methods=['GET'])
-def health_check():
-    return make_response(jsonify({'info': 'success'}), 201)
-
-
 @app.route('/login', methods=['GET', 'POST'])
+@yc_gc.oidc.require_login
 def login():
-    if request.method == 'POST':
-        session.permanent = True
-        session.pop('user_id', None)
-        body = request.json
-        input = body.get('input')
-        if input is None:
-            return abort(400, description='missing "input" root json object')
-        username = input.get('username')
-        password = input.get('password')
-        if username is None:
-            return abort(400, description='missing "userame" in json object')
-        if password is None:
-            return abort(400, description='missing "password" in json object')
-        try:
-            db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
-                                 passwd=yc_gc.dbPass)
-            # prepare a cursor object using cursor() method
-            cursor = db.cursor()
-            # execute SQL query using execute() method.
-            results_num = cursor.execute("""SELECT * FROM `admin_users` where Username=%s""", (username,))
-            if results_num == 1:
-                data = cursor.fetchone()
-                password_hash = hash_pw(password)
-                if data[2] == password_hash:
-                    session['user_id'] = data[0]
-                    yc_gc.LOGGER.info('session id {}'.format(session))
-                    return make_response(jsonify({'info': 'Success'}), 200)
-            db.close()
-        except MySQLdb.MySQLError as err:
-            if err.args[0] != 1049:
-                db.close()
-            yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return abort(401, description='Bad authorization - username or password not correct')
+    return make_response(jsonify({'info': 'Success'}), 200)
 
 
 @app.route('/logout', methods=['POST'])
 def logout():
-    session.pop('user_id', None)
+    yc_gc.oidc.logout()
     return make_response(jsonify({'info': 'Success'}), 200)
 
 
@@ -125,34 +73,6 @@ def logout():
 def ping():
     response = {'info': 'Success'}
     return make_response(jsonify(response), 200)
-
-
-@app.route('/create_user', methods=['POST'])
-def create_admin_user():
-    body = request.json
-    input = body.get('input')
-    if input is None:
-        return abort(400, description='missing "input" root json object')
-    username = input.get('username')
-    password = input.get('password')
-    if username is None:
-        return abort(400, description='missing "userame" in json object')
-    if password is None:
-        return abort(400, description='missing "password" in json object')
-    try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
-                             passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        password_hash = hash_pw(password)
-        cursor.execute("""INSERT INTO admin_users(Username, Password) VALUES (%s, %s)""", (username, password_hash,))
-        db.commit()
-        db.close()
-    except MySQLdb.MySQLError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return abort(400, description='Could not create a admin user')
-    return make_response(jsonify({'info': 'User {} created successfully'.format(username)}), 200)
 
 
 @app.route('/directory-structure/read/<path:direc>', methods=['GET'])

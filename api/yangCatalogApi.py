@@ -57,6 +57,7 @@ import requests
 import uwsgi as uwsgi
 from flask import Flask, Response, abort, jsonify, make_response, redirect, request
 from flask_cors import CORS
+from flask_oidc import discovery, OpenIDConnect
 
 from api.authentication.auth import auth, hash_pw, get_password
 from api.globalConfig import yc_gc
@@ -323,15 +324,36 @@ class MyFlask(Flask):
 
 application = MyFlask(__name__)
 # Register blueprint(s)
+application.config.update(
+    SESSION_COOKIE_HTTPONLY=False,
+    OIDC_CLIENT_SECRETS="secrets_oidc.json",
+    OIDC_CALLBACK_ROUTE="/admin/healthcheck",
+    OIDC_ID_TOKEN_COOKIE_NAME='oidc_token',
+    OIDC_SCOPES=["openid", "email", "profile"]
+)
+
+discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
+
+secrets = dict()
+secrets['web'] = dict()
+secrets['web']['auth_uri'] = discovered_secrets['authorization_endpoint']
+secrets['web']['token_uri'] = discovered_secrets['token_endpoint']
+secrets['web']['userinfo_uri'] = discovered_secrets['userinfo_endpoint']
+secrets['web']['redirect_uris'] = yc_gc.oidc_redirects
+secrets['web']['issuer'] = yc_gc.oidc_issuer
+secrets['web']['client_secret'] = yc_gc.oidc_client_secret
+secrets['web']['client_id'] = yc_gc.oidc_client_id
+
+with open('secrets_oidc.json', 'w') as f:
+    json.dump(secrets, f)
+yc_gc.oidc = OpenIDConnect(application)
+
 application.register_blueprint(admin_app, url_prefix="/admin")
 application.register_blueprint(error_handling_app)
 application.register_blueprint(user_maintenance_app)
 application.register_blueprint(jobs_app)
 application.register_blueprint(search_app)
 application.register_blueprint(healthcheck_app, url_prefix="/admin/healthcheck")
-application.config.update(
-    SESSION_COOKIE_HTTPONLY=False
-)
 
 CORS(application, supports_credentials=True)
 #csrf = CSRFProtect(application)
