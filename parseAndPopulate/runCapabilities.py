@@ -44,8 +44,8 @@ else:
 
 class ScriptConfig():
     def __init__(self):
-        self.help = "Parse modules on given directory and generate json with module metadata that can be populated" \
-                    " to confd directory"
+        self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
+                    ' to confd directory'
         parser = argparse.ArgumentParser()
         parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
                             help='Set dir where to look for hello message xml files or yang files if using "sdo" option')
@@ -97,14 +97,14 @@ class ScriptConfig():
                                                    ' will skip it'
         ret['options']['api'] = 'If request came from api'
         ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
-        ret['options']['run-integrity'] = 'If we want to run integrity tool check'
-        ret['options']['json-dir'] = 'Directory where json files to populate confd will be stored'
-        ret['options']['result-html-dir'] = 'Set dir where to write html compilation result files'
-        ret['options']['save-file-dir'] = 'Directory where the yang file will be saved'
-        ret['options']['api-protocol'] = 'Whether api runs on http or https. Default is set to https'
-        ret['options']['api-port'] = 'Set port where the api is started (This will be ignored if we are using uwsgi)'
-        ret['options']['api-ip'] = 'Set ip address where the api is started. Default -> yangcatalog.org'
-        ret['options']['config-path'] = 'Set path to config file'
+        ret['options']['run_integrity'] = 'If we want to run integrity tool check'
+        ret['options']['json_dir'] = 'Directory where json files to populate confd will be stored'
+        ret['options']['result_html_dir'] = 'Set dir where to write html compilation result files'
+        ret['options']['save_file_dir'] = 'Directory where the yang file will be saved'
+        ret['options']['api_protocol'] = 'Whether api runs on http or https. Default is set to https'
+        ret['options']['api_port'] = 'Set port where the api is started (This will be ignored if we are using uwsgi)'
+        ret['options']['api_ip'] = 'Set ip address where the api is started. Default -> yangcatalog.org'
+        ret['options']['config_path'] = 'Set path to config file'
         return ret
 
 

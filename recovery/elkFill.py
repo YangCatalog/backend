@@ -47,8 +47,8 @@ class ScriptConfig:
         self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.__temp = config.get('Directory-Section', 'temp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.help = 'This serves to save or load all information in yangcatalog.org in elk.'
-        'in case the server will go down and we would lose all the information we'
+        self.help = 'This serves to save or load all information in yangcatalog.org in elk.' \
+        'in case the server will go down and we would lose all the information we' \
         ' have got. We have two options in here.'
 
         parser = argparse.ArgumentParser(
@@ -81,10 +81,10 @@ class ScriptConfig:
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['api-ip'] = 'Set host where the API is started. Default: ' + self.__api_host
-        ret['options']['api-port'] = 'Set port where the API is started. Default: ' + self.__api_port
-        ret['options']['api-protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
-        ret['options']['save-file-dir'] = 'Directory for all yang modules lookup. Default: ' + self.__save_file_dir
+        ret['options']['api_ip'] = 'Set host where the API is started. Default: ' + self.__api_host
+        ret['options']['api_port'] = 'Set port where the API is started. Default: ' + self.__api_port
+        ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
+        ret['options']['save_file_dir'] = 'Directory for all yang modules lookup. Default: ' + self.__save_file_dir
         ret['options']['temp'] = 'Path to yangcatalog temporary directory. Default: ' + self.__temp
         return ret
 

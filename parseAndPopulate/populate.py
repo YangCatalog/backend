@@ -71,10 +71,10 @@ class ScriptConfig():
         self.__api_host = config.get('Web-Section', 'ip')
         self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.__result_dir = config.get('Web-Section', 'result-html-dir')
-        self.help = "Parse hello messages and YANG files to JSON dictionary. These"
-        " dictionaries are used for populating a yangcatalog. This script runs"
-        " first a runCapabilities.py script to create a JSON files which are"
-        " used to populate database."
+        self.help = 'Parse hello messages and YANG files to JSON dictionary. These' \
+        ' dictionaries are used for populating a yangcatalog. This script runs' \
+        ' first a runCapabilities.py script to create a JSON files which are' \
+        ' used to populate database.'
 
         parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--ip', default=self.__confd_host, type=str,
@@ -113,7 +113,7 @@ class ScriptConfig():
         args_dict = {}
         keys = [key for key in self.args.__dict__.keys()]
         types = [type(value).__name__ for value in self.args.__dict__.values()]
-    
+
         i = 0
         for key in keys:
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
@@ -131,15 +131,15 @@ class ScriptConfig():
 
         ret['options']['api'] = 'If request came from api'
         ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
-        ret['options']['notify-indexing'] = 'Whether to send files for indexing'
-        ret['options']['force-indexing'] = 'Force to index files. Works only in notify-indexint is True'
-        ret['options']['result-html-dir'] = 'Set dir where to write HTML compilation result files. Default: '\
+        ret['options']['notify_indexing'] = 'Whether to send files for indexing'
+        ret['options']['force_indexing'] = 'Force to index files. Works only in notify-indexing is True'
+        ret['options']['result_html_dir'] = 'Set dir where to write HTML compilation result files. Default: '\
                                             + self.__result_dir
-        ret['options']['save-file-dir'] = 'Directory where the yang file will be saved. Default: ' + self.__save_file_dir
-        ret['options']['api-protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
-        ret['options']['api-port'] = 'Whether API runs on http or https (This will be ignored if we are using uwsgi).' \
+        ret['options']['save_file_dir'] = 'Directory where the yang file will be saved. Default: ' + self.__save_file_dir
+        ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
+        ret['options']['api_port'] = 'Whether API runs on http or https (This will be ignored if we are using uwsgi).' \
                                      ' Default: ' + self.__api_protocol
-        ret['options']['api-ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
+        ret['options']['api_ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
         return ret
 
 

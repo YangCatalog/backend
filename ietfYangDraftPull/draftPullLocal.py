@@ -44,8 +44,8 @@ else:
 
 class ScriptConfig():
     def __init__(self):
-        self.help = "Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the" \
-                    " metadata to yangcatalog if there are any new. This runs as a daily cronjob"
+        self.help = 'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the' \
+                    ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
         parser = argparse.ArgumentParser()
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
@@ -67,7 +67,7 @@ class ScriptConfig():
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['config-path'] = 'Set path to config file'
+        ret['options']['config_path'] = 'Set path to config file'
         return ret
 
 

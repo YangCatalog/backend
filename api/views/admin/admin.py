@@ -628,7 +628,7 @@ def create_sql_row(table):
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
-    if sdo_access == '' and vendor_access == '':
+    if table == 'users' and sdo_access == '' and vendor_access == '':
         return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
@@ -727,7 +727,10 @@ def get_script_details(script):
     script_conf = submodule.ScriptConfig()
     script_args_list = script_conf.get_args_list()
     script_args_list.pop('credentials', None)
-    return make_response(jsonify({'data': script_args_list}.update(script_conf.get_help())), 200)
+
+    response = {'data': script_args_list}
+    response.update(script_conf.get_help())
+    return make_response(jsonify(response), 200)
 
 
 @app.route('/scripts/<script>', methods=['POST'])
