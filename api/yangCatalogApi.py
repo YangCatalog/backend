@@ -61,7 +61,6 @@ from flask_oidc import discovery, OpenIDConnect
 
 from api.authentication.auth import auth, hash_pw, get_password
 from api.globalConfig import yc_gc
-from api.views.admin.admin import app as admin_app
 from api.views.errorHandlers.errorHandler import app as error_handling_app
 from api.views.userSpecificModuleMaintenace.moduleMaintanace import app as user_maintenance_app
 from api.views.ycJobs.ycJobs import app as jobs_app
@@ -347,6 +346,7 @@ secrets['web']['client_id'] = yc_gc.oidc_client_id
 with open('secrets_oidc.json', 'w') as f:
     json.dump(secrets, f)
 yc_gc.oidc = OpenIDConnect(application)
+from api.views.admin.admin import app as admin_app
 
 application.register_blueprint(admin_app, url_prefix="/admin")
 application.register_blueprint(error_handling_app)
