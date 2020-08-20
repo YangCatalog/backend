@@ -52,7 +52,7 @@ app = YangCatalogAdminBlueprint('admin', __name__)
 @app.before_request
 def before_request():
     if 'admin' in request.path:
-        if not yc_gc.oidc.user_loggedin:
+        if not yc_gc.oidc.user_loggedin and 'login' not in request.path:
             return abort(401, description='not yet Authorized')
 
 
