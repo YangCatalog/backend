@@ -125,7 +125,7 @@ if __name__ == '__main__':
     es_aws = config.get('DB-Section', 'es-aws')
     elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
     if es_aws == 'True':
-        es = Elasticsearch(es_host, http_auth=(elk_credentials[0], elk_credentials[1]))
+        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
     else:
         es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
 

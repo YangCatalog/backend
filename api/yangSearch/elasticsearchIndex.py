@@ -76,7 +76,7 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
         }
 
     if es_aws:
-        es = Elasticsearch(host, http_auth=(elk_credentials[0], elk_credentials[1]))
+        es = Elasticsearch([host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
     else:
         es = Elasticsearch([{'host': '{}'.format(host), 'port': port}])
     search_term = opts['search']
