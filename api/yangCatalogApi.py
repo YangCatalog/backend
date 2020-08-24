@@ -92,6 +92,9 @@ class MyFlask(Flask):
         response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, x-auth'
         self.create_response_only_latest_revision(response)
         #self.create_response_with_yangsuite_link(response)
+
+        if response.status_code == 302:
+            return make_response(jsonify({'info': 'Redirect', 'redirectURL': response.location}))
         try:
             yc_gc.LOGGER.debug('after request response processing have {}'.format(request.special_id))
             if request.special_id != 0:
