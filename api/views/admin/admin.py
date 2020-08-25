@@ -686,6 +686,16 @@ def get_script_names():
     return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
 
 
+@app.route('/disk-usage', methods=['GET'])
+def get_disk_usage():
+    total, used, free = shutil.disk_usage('/')
+    usage = {}
+    usage['total'] = total
+    usage['used'] = used
+    usage['free'] = free
+    return make_response(jsonify({'data': usage, 'info': 'Success'}), 200)
+
+
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
     if script_name == 'populate' or script_name == 'runCapabilities':
