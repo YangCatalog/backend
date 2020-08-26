@@ -18,9 +18,8 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-from elasticsearch import Elasticsearch
+from elasticsearch import Elasticsearch, ConnectionTimeout
 from elasticsearch.helpers import scan, ScanError
-from urllib3.exceptions import ReadTimeoutError
 
 __schema_types = [
     'typedef',
@@ -136,8 +135,9 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     LOGGER.info('query:  {}'.format(query))
     limit_reacher = LimitReacher()
     try:
-        search = scan(es, LOGGER, limit_reacher, query, scroll=u'2m', scroll_limit=2*request_number, index='yindex', doc_type='modules')
-    except ReadTimeoutError as e:
+        search = scan(es, LOGGER, limit_reacher, query, request_timeout=20, scroll=u'2m', scroll_limit=2*request_number,
+                      index='yindex', doc_type='modules')
+    except ConnectionTimeout as e:
         return None, None
     LOGGER.info(search)
 
@@ -218,9 +218,12 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
         query = query.copy() if query else {}
         query["sort"] = "_doc"
     # initial search
-    resp = client.search(body=query, scroll=scroll, size=size,
-                         request_timeout=request_timeout, **kwargs)
-
+    try:
+        resp = client.search(body=query, scroll=scroll, size=size,
+                             request_timeout=request_timeout, **kwargs)
+    except ConnectionTimeout as e:
+        LOGGER.info('connection timed out - \n {}'.format(e))
+        raise e
     scroll_id = resp.get('_scroll_id')
     if scroll_id is None:
         return
