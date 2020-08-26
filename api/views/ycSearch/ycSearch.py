@@ -70,6 +70,9 @@ def fast_search():
         search_res, limit_reached = inde.do_search(payload, yc_gc.es_host,
                                     yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
                                     yc_gc.LOGGER)
+        if search_res is None and limit_reached is None:
+            return make_response(jsonify({'error': 'Search is too broad. Please search for something more specific'}),
+                                 400)
         res = []
         found_modules = {}
         rejects = []

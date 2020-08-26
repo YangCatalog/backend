@@ -57,7 +57,6 @@ def get_services_list():
 @app.route('/my-sql', methods=['GET'])
 def health_check_mysql():
     try:
-        app.LOGGER.info('Trying to connect to MySQL')
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
                                 passwd=yc_gc.dbPass)
         if db is not None:
@@ -94,7 +93,6 @@ def health_check_mysql():
 @app.route('/elk', methods=['GET'])
 def health_check_elk():
     service_name = 'Elasticsearch'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
     try:
         if yc_gc.es_aws:
             es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]), scheme="https", port=443)
@@ -132,7 +130,6 @@ def health_check_elk():
 @app.route('/confd', methods=['GET'])
 def health_check_confd():
     service_name = 'ConfD'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
     headers = {'Content-type': 'application/yang-data+json', 'Accept': 'application/yang-data+json'}
 
@@ -176,7 +173,6 @@ def health_check_confd():
 @app.route('/yang-search', methods=['GET'])
 def health_check_yang_search():
     service_name = 'yang-search'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
     yang_search_preffix = '{}://{}/yang-search'.format(yc_gc.api_protocol, yc_gc.ip)
     body = json.dumps({'input': {'data': 'ping'}})
     signature = create_signature(yc_gc.search_key, body)
@@ -206,7 +202,6 @@ def health_check_yang_search():
 @app.route('/yang-validator', methods=['GET'])
 def health_check_yang_validator():
     service_name = 'yang-validator'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
     yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
     body = json.dumps({'input': {'data': 'ping'}})
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
@@ -232,7 +227,6 @@ def health_check_yang_validator():
 @app.route('/yangre', methods=['GET'])
 def health_check_yangre():
     service_name = 'yangre'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
     yangre_preffix = '{}://{}/yangre'.format(yc_gc.api_protocol, yc_gc.ip)
     body = json.dumps({'input': {'data': 'ping'}})
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
@@ -258,7 +252,6 @@ def health_check_yangre():
 @app.route('/nginx', methods=['GET'])
 def health_check_nginx():
     service_name = 'NGINX'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
     preffix = '{}://{}'.format(yc_gc.api_protocol, yc_gc.ip)
     headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     try:
@@ -280,7 +273,6 @@ def health_check_nginx():
 @app.route('/rabbitmq', methods=['GET'])
 def health_check_rabbitmq():
     service_name = 'RabbitMQ'
-    app.LOGGER.info('Trying to ping {}'.format(service_name))
 
     arguments = ['run_ping', 'ping']
     preffix = '{}://{}/api/job'.format(yc_gc.api_protocol, yc_gc.ip)
@@ -312,7 +304,6 @@ def health_check_rabbitmq():
 @app.route('/yangre-admin', methods=['GET'])
 def health_check_yangre_admin():
     service_name = 'yangre'
-    app.LOGGER.info('Trying to check functionality of {}'.format(service_name))
     yangre_preffix = '{}://{}/yangre'.format(yc_gc.api_protocol, yc_gc.ip)
 
     pattern = '[0-9]*'
@@ -348,7 +339,6 @@ def health_check_yangre_admin():
 @app.route('/yang-validator-admin', methods=['GET'])
 def health_check_yang_validator_admin():
     service_name = 'yang-validator'
-    app.LOGGER.info('Trying to check functionality of {}'.format(service_name))
     yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
 
     rfc_number = '7223'
@@ -382,7 +372,6 @@ def health_check_yang_validator_admin():
 @app.route('/yang-search-admin', methods=['GET'])
 def health_check_yang_search_admin():
     service_name = 'yang-search'
-    app.LOGGER.info('Trying to check functionality of {}'.format(service_name))
     yang_search_preffix = '{}://{}/api/search'.format(yc_gc.api_protocol, yc_gc.ip)
 
     module_name = 'ietf-syslog,2018-03-15,ietf'

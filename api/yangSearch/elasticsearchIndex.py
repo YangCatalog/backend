@@ -20,6 +20,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import scan, ScanError
+from urllib3.exceptions import ReadTimeoutError
 
 __schema_types = [
     'typedef',
@@ -134,7 +135,10 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     query['query']['bool']['must'].append(should)
     LOGGER.info('query:  {}'.format(query))
     limit_reacher = LimitReacher()
-    search = scan(es, LOGGER, limit_reacher, query, scroll=u'2m', scroll_limit=2*request_number, index='yindex', doc_type='modules')
+    try:
+        search = scan(es, LOGGER, limit_reacher, query, scroll=u'2m', scroll_limit=2*request_number, index='yindex', doc_type='modules')
+    except ReadTimeoutError as e:
+        return None, None
     LOGGER.info(search)
 
     filter_list = __node_data.keys()
