@@ -71,8 +71,7 @@ def fast_search():
                                     yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
                                     yc_gc.LOGGER)
         if search_res is None and limit_reached is None:
-            return make_response(jsonify({'error': 'Search is too broad. Please search for something more specific'}),
-                                 400)
+            return abort(400, description='Search is too broad. Please search for something more specific')
         res = []
         found_modules = {}
         rejects = []
