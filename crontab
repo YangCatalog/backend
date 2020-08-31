@@ -10,6 +10,7 @@ SHELL=/bin/bash
 5 1 * * * (cd ~ ; source bin/activate; echo "`date` starting openconfigPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python openconfigPullLocal.py )
 5 3 * * * (cd ~ ; source bin/activate ; echo "`date` starting statistics" >> /var/yang/logs/crons-log.log ; cd statistic ; python statistics.py)
 5 4 * * * (cd ~ ; source bin/activate ; echo "`date` starting resolveExpiration" >> /var/yang/logs/crons-log.log ; cd utility ; python resolveExpiration.py)
+5 10 * * * (cd ~ ; source bin/activate ; echo "`date` starting userReminder" >> /var/yang/logs/crons-log.log ; cd utility ; python userReminder.py)
 5 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting draftPull" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python draftPull.py --send-message)
 5 22 * * * (cd ~ ; source bin/activate ; echo "`date` starting draftPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python draftPullLocal.py )
 17 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting recovery" >> /var/yang/logs/crons-log.log ; cd  recovery ; python recovery.py --protocol http)
