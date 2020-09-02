@@ -140,8 +140,8 @@ def main(scriptConf=None):
         LOGGER.info('Status code for hear request {} '.format(response.status_code))
     except ConnectionError as e:
         if tries == 0:
-            LOGGER.error('Unable to connect to conf for over a {} minuts'.format(tries))
-            e = 'Unable to connect to conf'
+            LOGGER.error('Unable to connect to confd for over a {} minutes'.format(tries))
+            e = 'Unable to connect to confd'
             job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
             raise e
         tries -= 1

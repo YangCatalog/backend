@@ -270,7 +270,7 @@ def main(scriptConf=None):
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
     except Exception as e:
-        LOGGER.error('Exception found while running draftPull script')
+        LOGGER.exception('Exception found while running draftPull script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         requests.delete('{}{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
         repo.remove()
