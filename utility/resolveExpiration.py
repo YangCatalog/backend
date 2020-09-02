@@ -29,12 +29,15 @@ import argparse
 import datetime
 import json
 import sys
+import os
+import time
 
 import dateutil.parser
 import requests
 from dateutil.relativedelta import relativedelta
 
 import utility.log as log
+from utility.util import job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -50,6 +53,7 @@ class ScriptConfig():
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
         self.log_directory = config.get('Directory-Section', 'logs')
+        self.temp_dir = config.get('Directory-Section', 'temp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__confd_port = config.get('Web-Section', 'confd-port')
@@ -130,7 +134,7 @@ def __resolve_expiration(reference, module, args, LOGGER):
             objs = data['objects']
             if len(objs) == 1:
                 if rev == objs[0].get('rev'):
-                    rfc = objs[0].get("rfc")
+                    rfc = objs[0].get('rfc')
                     if rfc is None:
                         expires = objs[0]['expires']
                         expired = False
@@ -182,12 +186,15 @@ def __resolve_expiration(reference, module, args, LOGGER):
 
 
 def main(scriptConf=None):
+    start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
     log_directory = scriptConf.log_directory
+    temp_dir = scriptConf.temp_dir
     is_uwsgi = scriptConf.is_uwsgi
     LOGGER = log.get_logger('resolveExpiration', log_directory + '/jobs/resolveExpiration.log')
+    LOGGER.info('Starting Cron job resolve modules expiration')
 
     separator = ':'
     suffix = args.api_port
@@ -197,30 +204,36 @@ def main(scriptConf=None):
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
                                                    args.api_ip, separator,
                                                    suffix)
-    LOGGER.info('requesting {}'.format(yangcatalog_api_prefix))
-    updated = False
+    try:
+        LOGGER.info('requesting {}'.format(yangcatalog_api_prefix))
+        updated = False
 
-    modules = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
-                           auth=(args.credentials[0], args.credentials[1]))
-    if modules.status_code < 200 or modules.status_code > 299:
-        LOGGER.error('Request on path {} failed with {}'
-                     .format(yangcatalog_api_prefix,
-                             modules.text))
-    modules = modules.json()['module']
-    i = 1
-    for mod in modules:
-        LOGGER.info('{} out of {}'.format(i, len(modules)))
-        i += 1
-        ref = mod.get('reference')
-        ret = __resolve_expiration(ref, mod, args, LOGGER)
-        if not updated:
-            updated = ret
-    if updated:
-        url = ('{}load-cache'.format(yangcatalog_api_prefix))
-        response = requests.post(url, None, auth=(args.credentials[0],
-                                                  args.credentials[1]))
-        LOGGER.info('Cache loaded with status {}'.format(response.status_code))
-    LOGGER.info("Job finished successfully")
+        modules = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
+                            auth=(args.credentials[0], args.credentials[1]))
+        if modules.status_code < 200 or modules.status_code > 299:
+            LOGGER.error('Request on path {} failed with {}'
+                        .format(yangcatalog_api_prefix,
+                                modules.text))
+        modules = modules.json()['module']
+        i = 1
+        for mod in modules:
+            LOGGER.info('{} out of {}'.format(i, len(modules)))
+            i += 1
+            ref = mod.get('reference')
+            ret = __resolve_expiration(ref, mod, args, LOGGER)
+            if not updated:
+                updated = ret
+        if updated:
+            url = ('{}load-cache'.format(yangcatalog_api_prefix))
+            response = requests.post(url, None, auth=(args.credentials[0],
+                                                    args.credentials[1]))
+            LOGGER.info('Cache loaded with status {}'.format(response.status_code))
+    except Exception as e:
+        LOGGER.error('Exception found while running resolveExpiration script')
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        raise e
+    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":

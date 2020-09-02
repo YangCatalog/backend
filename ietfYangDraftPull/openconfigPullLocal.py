@@ -29,9 +29,11 @@ import os
 import sys
 
 import requests
+import time
 
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.util import job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -83,6 +85,7 @@ def resolve_revision(yang_file):
 
 
 def main(scriptConf=None):
+    start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
@@ -99,6 +102,7 @@ def main(scriptConf=None):
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
+    temp_dir = config.get('Directory-Section', 'temp')
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
     LOGGER = log.get_logger('openconfigPullLocal', log_directory + '/jobs/openconfig-pull.log')
     LOGGER.info('Starting Cron job openconfig pull request local')
@@ -140,7 +144,8 @@ def main(scriptConf=None):
                     mods.append(mod)
         output = json.dumps({'modules': {'module': mods}})
     except Exception as e:
-        LOGGER.error("Exception found while running openconfigPullLocal script running")
+        LOGGER.error('Exception found while running openconfigPullLocal script')
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         if repo is not None:
             repo.remove()
         raise e
@@ -149,7 +154,8 @@ def main(scriptConf=None):
     api_path = '{}modules'.format(yangcatalog_api_prefix)
     requests.put(api_path, output, auth=(credentials[0], credentials[1]),
                   headers={'Content-Type': 'application/json'})
-    LOGGER.info("Job finished successfully")
+    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":

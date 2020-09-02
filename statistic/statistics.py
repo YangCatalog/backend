@@ -47,7 +47,7 @@ import requests
 
 import utility.log as log
 from utility import repoutil, yangParser
-from utility.util import get_curr_dir
+from utility.util import get_curr_dir, job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -351,9 +351,9 @@ def solve_platforms(path, platform, LOGGER):
 
 
 def main(scriptConf=None):
+    start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
-    timeBefore = time.time()
     args = scriptConf.args
 
     config_path = args.config_path
@@ -372,6 +372,7 @@ def main(scriptConf=None):
     is_uwsgi = config.get('General-Section', 'uwsgi')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
+    temp_dir = config.get('Directory-Section', 'temp')
 
     global LOGGER
     LOGGER = log.get_logger('statistics', log_directory + '/statistics/yang.log')
@@ -452,13 +453,16 @@ def main(scriptConf=None):
                 else:
                     ver = '.'.join(version)
                 found = False
-                if vendor_data['IOS-XR'].get(ver) is None:
+                if vendor_data.get('IOS-XR') is None:
                     exist = '<i class="fa fa-times"></i>'
                 else:
-                    if value in vendor_data['IOS-XR'][ver]:
-                        exist = '<i class="fa fa-check"></i>'
-                    else:
+                    if vendor_data['IOS-XR'].get(ver) is None:
                         exist = '<i class="fa fa-times"></i>'
+                    else:
+                        if value in vendor_data['IOS-XR'][ver]:
+                            exist = '<i class="fa fa-check"></i>'
+                        else:
+                            exist = '<i class="fa fa-times"></i>'
                 for platform in j:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
@@ -480,13 +484,16 @@ def main(scriptConf=None):
             values = [version]
             for value in xe:
                 found = False
-                if vendor_data['IOS-XE'].get(version) is None:
+                if vendor_data.get('IOS-XE') is None:
                     exist = '<i class="fa fa-times"></i>'
                 else:
-                    if value in vendor_data['IOS-XE'][version]:
-                        exist = '<i class="fa fa-check"></i>'
-                    else:
+                    if vendor_data['IOS-XE'].get(version) is None:
                         exist = '<i class="fa fa-times"></i>'
+                    else:
+                        if value in vendor_data['IOS-XE'][version]:
+                            exist = '<i class="fa fa-check"></i>'
+                        else:
+                            exist = '<i class="fa fa-times"></i>'
                 for platform in j:
                     if (platform['name'] == value and
                             ''.join(platform['software-version'].split('.')) == version):
@@ -514,13 +521,16 @@ def main(scriptConf=None):
                     LOGGER.warning("cisco-nx software version different then others. Trying another format")
                     ver = '{}({})'.format(ver[0], ver[1])
                 found = False
-                if vendor_data['NX-OS'].get(ver) is None:
+                if vendor_data.get('NX-OS') is None:
                     exist = '<i class="fa fa-times"></i>'
                 else:
-                    if value in vendor_data['NX-OS'][ver]:
-                        exist = '<i class="fa fa-check"></i>'
-                    else:
+                    if vendor_data['NX-OS'].get(ver) is None:
                         exist = '<i class="fa fa-times"></i>'
+                    else:
+                        if value in vendor_data['NX-OS'][ver]:
+                            exist = '<i class="fa fa-check"></i>'
+                        else:
+                            exist = '<i class="fa fa-times"></i>'
                 for platform in j:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
@@ -687,14 +697,17 @@ def main(scriptConf=None):
             if os.path.exists(resolved_path_file_to):
                 os.remove(resolved_path_file_to)
             shutil.move(file_from, resolved_path_file_to)
-        time_after = time.time()
-        total_time = time_after - timeBefore
+        end_time = int(time.time())
+        total_time = end_time - start_time
         LOGGER.info('Final time in seconds to produce statistics {}'.format(total_time))
     except Exception as e:
+        LOGGER.error('Exception found while running statistics script')
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         if repo is not None:
             repo.remove()
         raise Exception(e)
-    LOGGER.info("Job finished successfully")
+    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":

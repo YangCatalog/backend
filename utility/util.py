@@ -25,6 +25,7 @@ import socket
 import stat
 import subprocess
 import sys
+import time
 
 import requests
 from Crypto.Hash import HMAC, SHA
@@ -241,3 +242,24 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, LOGGER, sa
             proc = subprocess.Popen(cmd, close_fds=True)
             LOGGER.info('Populating github with process {}'.format(proc))
     return body_to_send
+
+def job_log(start_time, temp_dir, error='', status='', filename=''):
+    end_time = int(time.time())
+    result = {}
+    result['start'] = start_time
+    result['end'] = end_time
+    result['status'] = status
+    result['error'] = error
+    if status == 'Success':
+        result['last_successfull'] = end_time
+    try:
+        with open('{}/cronjob.json'.format(temp_dir), 'r') as f:
+            file_content = json.load(f)
+    except:
+        file_content = {}
+
+    filename = filename.split('.py')[0]
+    file_content[filename] = result
+
+    with open('{}/cronjob.json'.format(temp_dir), 'w') as f:
+        f.write(json.dumps(file_content, indent=4))
