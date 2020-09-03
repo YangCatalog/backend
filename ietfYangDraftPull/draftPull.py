@@ -259,16 +259,19 @@ def main(scriptConf=None):
             LOGGER.error('Error while pushing procedure {}'.format(e.message()))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
+            raise e
         except GitCommandError as e:
             LOGGER.error(
                 'Error while pushing procedure - git command error: {} \n git command out {}'.format(e.stderr, e.stdout))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
-        except:
+            raise e
+        except Exception as e:
             LOGGER.error(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
+            raise type(e)('Error while pushing procedure')
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))

@@ -38,7 +38,7 @@ from os import unlink
 
 import utility.log as lo
 from dateutil.parser import parse
-from utility import job_log
+from utility.util import job_log
 from elasticsearch import Elasticsearch
 
 if sys.version_info >= (3, 4):
