@@ -47,7 +47,7 @@ app = HealthcheckBlueprint('healthcheck', __name__)
 def get_services_list():
     response_body = []
     service_endpoints = ['my-sql', 'elk', 'confd', 'yang-search-admin', 'yang-validator-admin', 'yangre-admin', 'nginx', 'rabbitmq']
-    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'Yang search', 'Yang validator', 'Yangre', 'NGINX', 'RabbitMQ']
+    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ']
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
         response_body.append(pair)
@@ -401,6 +401,16 @@ def health_check_yang_search_admin():
     except Exception as err:
         app.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
         return make_response(jsonify(error_response(service_name, err)), 200)
+
+
+@app.route('/cronjobs', methods=['GET'])
+def check_cronjobs():
+    try:
+        with open('{}/cronjob.json'.format(yc_gc.temp_dir), 'r') as f:
+            file_content = json.load(f)
+    except:
+        return make_response(jsonify({'error': 'Data about cronjobs are not available.'}), 400)
+    return make_response(jsonify({'data': file_content}), 200)
 
 
 ### HELPER DEFINITIONS ###

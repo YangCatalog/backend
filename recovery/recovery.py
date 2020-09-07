@@ -38,6 +38,7 @@ from time import sleep
 
 import requests
 import utility.log as log
+from utility.util import job_log
 from dateutil.parser import parse
 from requests import ConnectionError
 
@@ -65,6 +66,7 @@ class ScriptConfig:
         self.__confd_port = config.get('Web-Section', 'confd-port')
         self.__confd_host = config.get('Web-Section', 'confd-ip')
         self.log_directory = config.get('Directory-Section', 'logs')
+        self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')
         self.api_port = config.get('Web-Section', 'api-port')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
@@ -114,12 +116,14 @@ class ScriptConfig:
 
 
 def main(scriptConf=None):
+    start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
     cache_directory = scriptConf.cache_directory
     credentials = scriptConf.credentials
     log_directory = scriptConf.log_directory
+    temp_dir = scriptConf.temp_dir
     api_port = scriptConf.api_port
     is_uwsgi = scriptConf.is_uwsgi
     api_protocol = scriptConf.api_protocol
@@ -133,10 +137,12 @@ def main(scriptConf=None):
     try:
         response = requests.head(prefix + '/restconf/data',
                                  auth=(credentials[0], credentials[1]))
-        LOGGER.info("status code for hear request {} ".format(response.status_code))
+        LOGGER.info('Status code for hear request {} '.format(response.status_code))
     except ConnectionError as e:
         if tries == 0:
-            LOGGER.error('unnable to connect to conf for over a {} minuts'.format(tries))
+            LOGGER.error('Unable to connect to confd for over a {} minutes'.format(tries))
+            e = 'Unable to connect to confd'
+            job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
             raise e
         tries -= 1
         sleep(60)
@@ -293,8 +299,9 @@ def main(scriptConf=None):
         if response.status_code != 201:
             LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                            .format(response.status_code, response.text))
-        LOGGER.info("cache reloaded")
-    LOGGER.info("Job finished successfully")
+        LOGGER.info('Cache reloaded')
+    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":

@@ -48,6 +48,7 @@ from travispy.errors import TravisError
 import utility.log as log
 from ietfYangDraftPull.draftPullLocal import check_early_revisions, check_name_no_revision_exist
 from utility import messageFactory, repoutil
+from utility.util import job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -93,6 +94,7 @@ class ScriptConfig:
 
 
 def main(scriptConf=None):
+    start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
@@ -108,6 +110,7 @@ def main(scriptConf=None):
     config_email = config.get('General-Section', 'repo-config-email')
     private_credentials = config.get('Secrets-Section', 'private-secret').strip('"').split(' ')
     log_directory = config.get('Directory-Section', 'logs')
+    temp_dir = config.get('Directory-Section', 'temp')
     exceptions = config.get('Directory-Section', 'exceptions')
     ietf_models_forked_url = config.get('Web-Section', 'yang-models-forked-repo-url')
     ietf_models_url_suffix = config.get('Web-Section', 'yang-models-repo-url-suffix')
@@ -121,7 +124,7 @@ def main(scriptConf=None):
 
     requests.delete('{}yang'.format(ietf_models_forked_url), headers={'Authorization': 'token ' + token})
     time.sleep(20)
-    # Fork and clone the repository YangModles/yang
+    # Fork and clone the repository YangModels/yang
     LOGGER.info('Cloning repository')
     response = requests.post('https://' + github_credentials + ietf_models_url_suffix)
 
@@ -137,9 +140,11 @@ def main(scriptConf=None):
                 break
             except:
                 retry -= 1
-                LOGGER.warning("repository not ready yet")
+                LOGGER.warning('Repository not ready yet')
                 time.sleep(10)
                 if retry == 0:
+                    e = 'Failed to clone repository {}'.format(repo_name)
+                    job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
                     raise Exception()
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
         try:
@@ -150,6 +155,8 @@ def main(scriptConf=None):
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
             repo.remove()
+            e = 'Failed to activate Travis'
+            job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
             sys.exit(500)
         # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
         LOGGER.info('Loading all files from {}'.format(ietf_draft_url))
@@ -252,18 +259,22 @@ def main(scriptConf=None):
             LOGGER.error('Error while pushing procedure {}'.format(e.message()))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
+            raise e
         except GitCommandError as e:
             LOGGER.error(
                 'Error while pushing procedure - git command error: {} \n git command out {}'.format(e.stderr, e.stdout))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
-        except:
+            raise e
+        except Exception as e:
             LOGGER.error(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
+            raise type(e)('Error while pushing procedure')
     except Exception as e:
-        LOGGER.exception("Exception found while draftPull script was running")
+        LOGGER.exception('Exception found while running draftPull script')
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         requests.delete('{}{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': 'token ' + token})
         repo.remove()
         raise e
@@ -271,7 +282,8 @@ def main(scriptConf=None):
     LOGGER.info('Removing tmp directory')
     repo.remove()
     # we can not remove forked repository here since there could be new modules added
-    LOGGER.info("Job finished successfully")
+    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":

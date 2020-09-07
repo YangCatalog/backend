@@ -29,13 +29,14 @@ import os
 import subprocess
 import sys
 import tarfile
+import time
 from datetime import datetime
 
 import requests
 
 import utility.log as log
 from utility import repoutil, yangParser
-from utility.util import get_curr_dir
+from utility.util import get_curr_dir, job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -164,6 +165,7 @@ def check_early_revisions(directory, LOGGER_temp=None):
 
 
 def main(scriptConf=None):
+    start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
@@ -261,11 +263,13 @@ def main(scriptConf=None):
             except subprocess.CalledProcessError as e:
                 LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
     except Exception as e:
-        LOGGER.error("Exception found while draftPullLocal script was running")
+        LOGGER.error('Exception found while running draftPullLocal script')
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         repo.remove()
         raise e
     repo.remove()
-    LOGGER.info("Job finished successfully")
+    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":
