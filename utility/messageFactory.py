@@ -120,6 +120,14 @@ class MessageFactory:
         self.__smtp.sendmail(self.__email_from, self.__email_to, msg.as_string())
         self.__smtp.quit()
 
+    def send_user_reminder_message(self, users_stats):
+        message = ('{}\n\nTime to review the user profiles: affiliations and capabilities'
+                   '\n\n{}'
+                   .format(GREETINGS, users_stats))
+
+        self.__post_to_spark(message)
+        self.__post_to_email(message)
+
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
         new_files = '\n'.join(new_files)

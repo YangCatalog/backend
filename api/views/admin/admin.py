@@ -31,8 +31,8 @@ from pathlib import Path
 
 import MySQLdb
 import requests
-from flask import Blueprint, request, make_response, jsonify, abort
-
+from flask import Blueprint, request, make_response, jsonify, abort, redirect
+from flask_cors import CORS
 from api.globalConfig import yc_gc
 
 from utility.util import create_signature
@@ -47,35 +47,42 @@ class YangCatalogAdminBlueprint(Blueprint):
 
 
 app = YangCatalogAdminBlueprint('admin', __name__)
-
-
-@app.before_request
-def before_request():
-    if 'admin' in request.path:
-        if not yc_gc.oidc.user_loggedin and 'login' not in request.path:
-            return abort(401, description='not yet Authorized')
-
+CORS(app, supports_credentials=True)
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@app.route('/login', methods=['GET', 'POST'])
+@app.route('/api/admin/login')
+@app.route('/admin')
+@app.route('/admin/login')
 @yc_gc.oidc.require_login
 def login():
+    if yc_gc.oidc.user_loggedin:
+        return redirect("http://18.224.127.129/admin/healthcheck", code=302)
+    else:
+        abort(401, 'user not logged in')
     return make_response(jsonify({'info': 'Success'}), 200)
 
 
-@app.route('/logout', methods=['POST'])
+@app.route('/api/admin/logout', methods=['POST'])
 def logout():
     yc_gc.oidc.logout()
     return make_response(jsonify({'info': 'Success'}), 200)
 
 
-@app.route('/ping', methods=['GET'])
+@app.route('/api/admin/ping')
 def ping():
+    yc_gc.LOGGER.info('ping {}'.format(yc_gc.oidc.user_loggedin))
+    if yc_gc.oidc.user_loggedin:
+        response = {'info': 'Success'}
+    else:
+        response = {'info': 'user not logged in'}
+    return make_response(jsonify(response), 200)
+
+@app.route('/api/admin/check', methods=['GET'])
+def check():
     response = {'info': 'Success'}
     return make_response(jsonify(response), 200)
 
-
-@app.route('/directory-structure/read/<path:direc>', methods=['GET'])
+@app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
     yc_gc.LOGGER.info('Reading admin file {}'.format(direc))
     try:
@@ -92,8 +99,8 @@ def read_admin_file(direc):
         return abort(400, description='error - file does not exist')
 
 
-@app.route("/directory-structure", defaults={"direc": ""}, methods=['DELETE'])
-@app.route('/directory-structure/<path:direc>', methods=['DELETE'])
+@app.route("/api/admin/directory-structure", defaults={"direc": ""}, methods=['DELETE'])
+@app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
     yc_gc.LOGGER.info('Deleting admin file {}'.format(direc))
     try:
@@ -112,7 +119,7 @@ def delete_admin_file(direc):
         return abort(400, description='error - file or folder does not exist')
 
 
-@app.route('/directory-structure/<path:direc>', methods=['PUT'])
+@app.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
     yc_gc.LOGGER.info("Updating file on path {}".format(direc))
 
@@ -135,8 +142,8 @@ def write_to_directory_structure(direc):
         return abort(400, description='error - file does not exist')
 
 
-@app.route("/directory-structure", defaults={"direc": ""}, methods=['GET'])
-@app.route('/directory-structure/<path:direc>', methods=['GET'])
+@app.route("/api/admin/directory-structure", defaults={"direc": ""}, methods=['GET'])
+@app.route('/api/admin/directory-structure/<path:direc>', methods=['GET'])
 def get_var_yang_directory_structure(direc):
 
     def walk_through_dir(path):
@@ -187,7 +194,7 @@ def get_var_yang_directory_structure(direc):
     return make_response(jsonify(response), 200)
 
 
-@app.route('/yangcatalog-nginx', methods=['GET'])
+@app.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
     yc_gc.LOGGER.info('Getting list of nginx files')
     files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
@@ -200,7 +207,7 @@ def read_yangcatalog_nginx_files():
     return make_response(jsonify(response), 200)
 
 
-@app.route('/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
+@app.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
     yc_gc.LOGGER.info('Reading nginx file {}'.format(nginx_file))
     with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
@@ -210,7 +217,7 @@ def read_yangcatalog_nginx(nginx_file):
     return make_response(jsonify(response), 200)
 
 
-@app.route('/yangcatalog-config', methods=['GET'])
+@app.route('/api/admin/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
     yc_gc.LOGGER.info('Reading yangcatalog config file')
 
@@ -221,7 +228,7 @@ def read_yangcatalog_config():
     return make_response(jsonify(response), 200)
 
 
-@app.route('/yangcatalog-config', methods=['PUT'])
+@app.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
     yc_gc.LOGGER.info('Updating yangcatalog config file')
     body = request.json
@@ -256,7 +263,7 @@ def update_yangcatalog_config():
     return make_response(jsonify(response), 200)
 
 
-@app.route('/logs', methods=['GET'])
+@app.route('/api/admin/logs', methods=['GET'])
 def get_log_files():
 
     def find_files(directory, pattern):
@@ -276,7 +283,7 @@ def get_log_files():
                                   'data': list(resp)}), 200)
 
 
-@app.route('/logs', methods=['POST'])
+@app.route('/api/admin/logs', methods=['POST'])
 def get_logs():
 
     def find_files(directory, pattern):
@@ -436,7 +443,7 @@ def get_logs():
                                   'output': output}), 200)
 
 
-@app.route('/sql-tables', methods=['GET'])
+@app.route('/api/admin/sql-tables', methods=['GET'])
 def get_sql_tables():
     return make_response(jsonify([
         {
@@ -450,7 +457,7 @@ def get_sql_tables():
     ]), 200)
 
 
-@app.route('/move-user', methods=['POST'])
+@app.route('/api/admin/move-user', methods=['POST'])
 def move_user():
     body = request.json.get('input')
     if body is None:
@@ -525,7 +532,7 @@ def move_user():
     return make_response(jsonify(response), 201)
 
 
-@app.route('/sql-tables/<table>', methods=['POST'])
+@app.route('/api/admin/sql-tables/<table>', methods=['POST'])
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
         return make_response(jsonify({'error': 'table {} not implemented use only users or users_temp'.format(table)}),
@@ -571,7 +578,7 @@ def create_sql_row(table):
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
 
 
-@app.route('/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
+@app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
 def delete_sql_row(table, unique_id):
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
@@ -605,7 +612,7 @@ def delete_sql_row(table, unique_id):
         return abort(404, description='id {} not found in table {}'.format(unique_id, table))
 
 
-@app.route('/sql-tables/<table>', methods=['GET'])
+@app.route('/api/admin/sql-tables/<table>', methods=['GET'])
 def get_sql_rows(table):
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
@@ -636,7 +643,7 @@ def get_sql_rows(table):
     return make_response(jsonify(ret), 200)
 
 
-@app.route('/scripts/<script>', methods=['GET'])
+@app.route('/api/admin/scripts/<script>', methods=['GET'])
 def get_script_details(script):
     module_name = get_module_name(script)
     if module_name is None:
@@ -653,7 +660,7 @@ def get_script_details(script):
     return make_response(jsonify(response), 200)
 
 
-@app.route('/scripts/<script>', methods=['POST'])
+@app.route('/api/admin/scripts/<script>', methods=['POST'])
 def run_script_with_args(script):
     module_name = get_module_name(script)
     if module_name is None:
@@ -679,14 +686,14 @@ def run_script_with_args(script):
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}), 202)
 
 
-@app.route('/scripts', methods=['GET'])
+@app.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration']
     return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
 
 
-@app.route('/disk-usage', methods=['GET'])
+@app.route('/api/admin/disk-usage', methods=['GET'])
 def get_disk_usage():
     total, used, free = shutil.disk_usage('/')
     usage = {}

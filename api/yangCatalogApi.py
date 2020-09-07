@@ -67,8 +67,7 @@ from api.views.ycJobs.ycJobs import app as jobs_app
 from api.views.ycSearch.ycSearch import app as search_app
 from api.views.healthCheck.healthCheck import app as healthcheck_app
 
-
-# from flask_wtf.csrf import CSRFProtect
+#from flask_wtf.csrf import CSRFProtect
 
 
 class MyFlask(Flask):
@@ -90,11 +89,13 @@ class MyFlask(Flask):
     def process_response(self, response):
         response = super().process_response(response)
         response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, x-auth'
+        response.headers['Access-Control-Request-Headers'] = 'Origin'
         self.create_response_only_latest_revision(response)
         #self.create_response_with_yangsuite_link(response)
 
         try:
-            yc_gc.LOGGER.debug('after request response processing have {}'.format(request.special_id))
+            if not 'admin' in request.path:
+                yc_gc.LOGGER.debug('after request response processing have {}'.format(request.special_id))
             if request.special_id != 0:
                 if request.special_id not in self.release_locked:
                     self.release_locked.append(request.special_id)
@@ -107,10 +108,12 @@ class MyFlask(Flask):
     def preprocess_request(self):
         super().preprocess_request()
         request.special_id = 0
-        yc_gc.LOGGER.info(request.path)
-        if self.loading:
-            message = json.dumps({'Error': 'Server is loading. This can take several minutes. Please try again later'})
-            return create_response(message, 503)
+        if not 'admin' in request.path:
+           yc_gc.LOGGER.info(request.path)
+        if 'admin' in request.path and not 'healthcheck' in request.path and not 'ping' in request.path:
+            yc_gc.LOGGER.info("user lgged in {}".format(yc_gc.oidc.user_loggedin))
+            if not yc_gc.oidc.user_loggedin and 'login' not in request.path:
+                return abort(401, description='not yet Authorized')
 
     def create_response_only_latest_revision(self, response):
         if request.args.get('latest-revision'):
@@ -321,17 +324,12 @@ class MyFlask(Flask):
         else:
             return response
 
-
 application = MyFlask(__name__)
-# Register blueprint(s)
-application.config.update(
-    SESSION_COOKIE_HTTPONLY=False,
-    OIDC_CLIENT_SECRETS="secrets_oidc.json",
-    OIDC_CALLBACK_ROUTE="/admin/healthcheck",
-    OIDC_ID_TOKEN_COOKIE_NAME='oidc_token',
-    OIDC_SCOPES=["openid", "email", "profile"]
-)
-
+application.config["OIDC_CLIENT_SECRETS"] = "secrets_oidc.json"
+application.config["OIDC_COOKIE_SECURE"] = False
+application.config["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
+application.config["OIDC_SCOPES"] = ["openid", "email", "profile"]
+application.config["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
 discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
 
 secrets = dict()
@@ -349,18 +347,18 @@ with open('secrets_oidc.json', 'w') as f:
 yc_gc.oidc = OpenIDConnect(application)
 from api.views.admin.admin import app as admin_app
 
-application.register_blueprint(admin_app, url_prefix="/admin")
-application.register_blueprint(error_handling_app)
-application.register_blueprint(user_maintenance_app)
-application.register_blueprint(jobs_app)
-application.register_blueprint(search_app)
-application.register_blueprint(healthcheck_app, url_prefix="/admin/healthcheck")
+# Register blueprint(s)
+application.register_blueprint(admin_app)
+application.register_blueprint(error_handling_app, url_prefix="/api")
+application.register_blueprint(user_maintenance_app, url_prefix="/api")
+application.register_blueprint(jobs_app, url_prefix="/api")
+application.register_blueprint(search_app, url_prefix="/api")
+application.register_blueprint(healthcheck_app, url_prefix="/api/admin/healthcheck")
 
 CORS(application, supports_credentials=True)
 #csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_for_load = Lock()
-
 
 def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, data=None):
     """After we delete or add modules we need to reload all the modules to the file
@@ -438,7 +436,7 @@ def catch_all(path):
     return abort(404, description='Path "/{}" does not exist'.format(path))
 
 
-@application.route('/yangsuite/<id>', methods=['GET'])
+@application.route('/api/yangsuite/<id>', methods=['GET'])
 def yangsuite_redirect(id):
     local_ip = '127.0.0.1'
     if yc_gc.is_uwsgi:
@@ -446,7 +444,7 @@ def yangsuite_redirect(id):
     return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
 
 
-@application.route('/load-cache', methods=['POST'])
+@application.route('/api/load-cache', methods=['POST'])
 @auth.login_required
 def load_to_memory():
     """Load all the data populated to yang-catalog to memory.
