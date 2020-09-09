@@ -56,7 +56,7 @@ CORS(app, supports_credentials=True)
 @yc_gc.oidc.require_login
 def login():
     if yc_gc.oidc.user_loggedin:
-        return redirect("http://18.224.127.129/admin/healthcheck", code=302)
+        return redirect('{}/api/admin/healthcheck'.format(yc_gc.ip), code=302)
     else:
         abort(401, 'user not logged in')
     return make_response(jsonify({'info': 'Success'}), 200)
@@ -292,6 +292,7 @@ def get_logs():
                 if fnmatch.fnmatch(basename, pattern):
                     filename = os.path.join(root, basename)
                     yield filename
+            break
 
     yc_gc.LOGGER.info('Reading yangcatalog log file')
     if request.json is None:
@@ -315,12 +316,11 @@ def get_logs():
             log_files.append('{}/{}.log'.format(yc_gc.logs_dir, file_name))
         else:
             files = find_files('{}/{}'.format(yc_gc.logs_dir, '/'.join(file_name.split('/')[:-1])),
-                               "{}.log*".format(file_name.split('/')[:-1]))
+                               '{}.log*'.format(file_name.split('/')[-1]))
             for f in files:
                 if os.path.getmtime(f) >= from_date_timestamp:
                     log_files.append(f)
     send_out = []
-    yc_gc.LOGGER.debug(from_date_timestamp)
 
     # Try to find a timestamp in a log file using regex
     if from_date_timestamp is None:
@@ -334,13 +334,16 @@ def get_logs():
                     except:
                         # ignore and accept
                         pass
+                else:
+                    break
 
+    yc_gc.LOGGER.debug('Searching for logs from timestamp: ' + str(from_date_timestamp))
     whole_line = ''
-    yc_gc.LOGGER.debug(from_date_timestamp)
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
-    # Decide whether the output will be formatted or not
+    # Decide whether the output will be formatted or not (default False)
+    format_text = False
     for log_file in log_files:
         with open(log_file, 'r') as f:
             file_stream = f.read()
@@ -359,24 +362,26 @@ def get_logs():
                 for line in reversed(f.readlines()):
                     if filter is not None:
                         match_case = filter.get('match-case', False)
-                        match_whole_words = filter.get("match-words", False)
-                        filter_out = filter.get("filter-out", None)
+                        match_whole_words = filter.get('match-words', False)
+                        filter_out = filter.get('filter-out', None)
                         searched_string = filter.get('search-for', '')
                         level = filter.get('level', '').upper()
+                        level_formats = []
                         if level != '':
-                            level = ' {} '.format(level)
+                            level_formats = [' {} '.format(level), '<{}>'.format(level)]
                         if match_whole_words:
                             if searched_string != '':
                                 searched_string = ' {} '.format(searched_string)
-                        if level in line:
-                            if match_case and searched_string in line:
-                                if filter_out is not None and filter_out in line:
-                                    continue
-                                send_out.append('{}'.format(line).rstrip())
-                            elif not match_case and searched_string.lower() in line.lower():
-                                if filter_out is not None and filter_out.lower() in line.lower():
-                                    continue
-                                send_out.append('{}'.format(line).rstrip())
+                        for level in level_formats:
+                            if level in line:
+                                if match_case and searched_string in line:
+                                    if filter_out is not None and filter_out in line:
+                                        continue
+                                    send_out.append('{}'.format(line).rstrip())
+                                elif not match_case and searched_string.lower() in line.lower():
+                                    if filter_out is not None and filter_out.lower() in line.lower():
+                                        continue
+                                    send_out.append('{}'.format(line).rstrip())
                     else:
                         send_out.append('{}'.format(line).rstrip())
 
@@ -399,26 +404,28 @@ def get_logs():
                     if from_date_timestamp <= line_timestamp <= to_date_timestamp:
                         if filter is not None:
                             match_case = filter.get('match-case', False)
-                            match_whole_words = filter.get("match-words", False)
-                            filter_out = filter.get("filter-out", None)
+                            match_whole_words = filter.get('match-words', False)
+                            filter_out = filter.get('filter-out', None)
                             searched_string = filter.get('search-for', '')
                             level = filter.get('level', '').upper()
+                            level_formats = []
                             if level != '':
-                                level = ' {} '.format(level)
+                                level_formats = [' {} '.format(level), '<{}>'.format(level)]
                             if match_whole_words:
                                 if searched_string != '':
                                     searched_string = ' {} '.format(searched_string)
-                            if level in line:
-                                if match_case and searched_string in line:
-                                    if filter_out is not None and filter_out in line:
-                                        whole_line = ''
-                                        continue
-                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
-                                elif not match_case and searched_string.lower() in line.lower():
-                                    if filter_out is not None and filter_out.lower() in line.lower():
-                                        whole_line = ''
-                                        continue
-                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
+                            for level in level_formats:
+                                if level in line:
+                                    if match_case and searched_string in line:
+                                        if filter_out is not None and filter_out in line:
+                                            whole_line = ''
+                                            continue
+                                        send_out.append('{}{}'.format(line, whole_line).rstrip())
+                                    elif not match_case and searched_string.lower() in line.lower():
+                                        if filter_out is not None and filter_out.lower() in line.lower():
+                                            whole_line = ''
+                                            continue
+                                        send_out.append('{}{}'.format(line, whole_line).rstrip())
                         else:
                             send_out.append('{}{}'.format(line, whole_line).rstrip())
                     whole_line = ''

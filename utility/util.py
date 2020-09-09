@@ -243,7 +243,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, LOGGER, sa
             LOGGER.info('Populating github with process {}'.format(proc))
     return body_to_send
 
-def job_log(start_time, temp_dir, error='', status='', filename=''):
+def job_log(start_time, temp_dir, filename, error='', status=''):
     end_time = int(time.time())
     result = {}
     result['start'] = start_time
