@@ -160,7 +160,7 @@ def main(scriptConf=None):
             sys.exit(500)
         # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
         LOGGER.info('Loading all files from {}'.format(ietf_draft_url))
-        ietf_draft_json = requests.get(ietf_draft_url , auth=(private_credentials[0], private_credentials[1])).json()
+        ietf_draft_json = requests.get(ietf_draft_url, auth=(private_credentials[0], private_credentials[1])).json()
         try:
             os.makedirs(repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
         except OSError as e:

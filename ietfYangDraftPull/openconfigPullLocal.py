@@ -122,7 +122,7 @@ def main(scriptConf=None):
         repo.clone(config_name, config_email)
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
 
-        mods = []
+        modules = []
 
         for root, dirs, files in os.walk(repo.localdir + '/release/models/'):
             for basename in files:
@@ -141,8 +141,8 @@ def main(scriptConf=None):
                     mod['organization'] = 'openconfig'
                     mod['source-file'] = {'owner': 'openconfig', 'path': path,
                                           'repository': 'public'}
-                    mods.append(mod)
-        output = json.dumps({'modules': {'module': mods}})
+                    modules.append(mod)
+        output = json.dumps({'modules': {'module': modules}})
     except Exception as e:
         LOGGER.error('Exception found while running openconfigPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))

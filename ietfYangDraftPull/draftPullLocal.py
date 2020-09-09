@@ -193,14 +193,15 @@ def main(scriptConf=None):
     LOGGER = log.get_logger('draftPullLocal', log_directory + '/jobs/draft-pull-local.log')
     LOGGER.info('Starting cron job IETF pull request local')
 
+    populate_error = False
     repo = None
     try:
         repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
-        LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
         repo.clone(config_name, config_email)
+        LOGGER.info('Cloning repo to local directory {}'.format(repo.localdir))
 
-        ietf_draft_json = requests.get(ietf_draft_url
-                                       , auth=(private_credentials[0], private_credentials[1])).json()
+        ietf_draft_json = requests.get(ietf_draft_url,
+                                        auth=(private_credentials[0], private_credentials[1])).json()
         response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
         zfile = open(repo.localdir + '/rfc.tgz', 'wb')
         zfile.write(response.content)
@@ -219,7 +220,7 @@ def main(scriptConf=None):
             os.remove(repo.localdir + '/rfc.tgz')
             check_name_no_revision_exist(repo.localdir + '/standard/ietf/RFC/', LOGGER)
             check_early_revisions(repo.localdir + '/standard/ietf/RFC/', LOGGER)
-            with open(temp_dir + "/log-pull-local.txt", "w") as f:
+            with open(temp_dir + '/log-pull-local.txt', 'w') as f:
                 try:
                     LOGGER.info('Calling populate script')
                     arguments = ["python", get_curr_dir(__file__) + "/../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
@@ -232,6 +233,9 @@ def main(scriptConf=None):
                     subprocess.check_call(arguments, stderr=f)
                 except subprocess.CalledProcessError as e:
                     LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
+                    populate_error = True
+                    e = 'Error found while calling populate script for RFCs '
+                    job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         for key in ietf_draft_json:
             yang_file = open(repo.localdir + '/experimental/ietf-extracted-YANG-modules/' + key, 'w+')
             yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
@@ -249,7 +253,7 @@ def main(scriptConf=None):
         LOGGER.info('Checking for early revision in ' + repo.localdir + '/experimental/ietf-extracted-YANG-modules/')
         check_early_revisions(repo.localdir + '/experimental/ietf-extracted-YANG-modules/', LOGGER)
 
-        with open(temp_dir + "/log-pull-local2.txt", "w") as f:
+        with open(temp_dir + '/log-pull-local2.txt', 'w') as f:
             try:
                 LOGGER.info('Calling populate script')
                 arguments = ["python", get_curr_dir(__file__) + "/../parseAndPopulate/populate.py", "--sdo", "--port", confd_port, "--ip",
@@ -262,14 +266,20 @@ def main(scriptConf=None):
                 subprocess.check_call(arguments, stderr=f)
             except subprocess.CalledProcessError as e:
                 LOGGER.error('Error calling process populate.py {}'.format(e.cmd))
+                populate_error = True
+                e = 'Error found while calling populate script for experimental modules'
+                job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
     except Exception as e:
         LOGGER.error('Exception found while running draftPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         repo.remove()
         raise e
     repo.remove()
-    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
-    LOGGER.info('Job finished successfully')
+    if not populate_error:
+        job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+        LOGGER.info('Job finished successfully')
+    else:
+        LOGGER.info('Job finished, but errors found while calling populate script')
 
 
 if __name__ == "__main__":
