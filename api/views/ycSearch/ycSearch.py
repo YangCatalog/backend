@@ -915,21 +915,22 @@ def search_vendor_statistics(org):
             break
 
     os_type = {}
-    for plat in ven_data['platforms']['platform']:
-        version_list = set()
-        os = {}
-        for ver in plat['software-versions']['software-version']:
-            for flav in ver['software-flavors']['software-flavor']:
-                os[ver['name']] = flav['modules']['module'][0]['os-type']
-                if os[ver['name']] not in os_type:
-                    os_type[os[ver['name']]] = {}
-                break
-            if ver['name'] not in os_type[os[ver['name']]]:
-                os_type[os[ver['name']]][ver['name']] = set()
+    if ven_data is not None:
+        for plat in ven_data['platforms']['platform']:
+            version_list = set()
+            os = {}
+            for ver in plat['software-versions']['software-version']:
+                for flav in ver['software-flavors']['software-flavor']:
+                    os[ver['name']] = flav['modules']['module'][0]['os-type']
+                    if os[ver['name']] not in os_type:
+                        os_type[os[ver['name']]] = {}
+                    break
+                if ver['name'] not in os_type[os[ver['name']]]:
+                    os_type[os[ver['name']]][ver['name']] = set()
 
-            version_list.add(ver['name'])
-        for ver in version_list:
-            os_type[os[ver]][ver].add(plat['name'])
+                version_list.add(ver['name'])
+            for ver in version_list:
+                os_type[os[ver]][ver].add(plat['name'])
 
     os_types = {}
     for key, vals in os_type.items():
