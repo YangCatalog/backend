@@ -56,7 +56,7 @@ CORS(app, supports_credentials=True)
 @yc_gc.oidc.require_login
 def login():
     if yc_gc.oidc.user_loggedin:
-        return redirect('{}/api/admin/healthcheck'.format(yc_gc.ip), code=302)
+        return redirect('{}/admin/healthcheck'.format(yc_gc.my_uri), code=302)
     else:
         abort(401, 'user not logged in')
     return make_response(jsonify({'info': 'Success'}), 200)
