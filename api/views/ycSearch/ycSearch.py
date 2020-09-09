@@ -685,6 +685,7 @@ def create_diff_tree(f1, r1, f2, r2):
             return 'Server error - could not create directory'
     schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
     schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f2, r2)
+    plugin.plugins = []
     plugin.init([])
     ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
     ctx.opts.lint_namespace_prefixes = []
@@ -1042,6 +1043,7 @@ def get_catalog():
 @app.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
 def create_tree(f1, r1):
     path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
+    plugin.plugins = []
     plugin.init([])
     ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
     ctx.opts.lint_namespace_prefixes = []

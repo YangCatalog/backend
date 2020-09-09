@@ -323,6 +323,7 @@ class ModulesComplicatedAlgorithms:
                         stdout = self.__trees['{}@{}'.format(name, revision)]
                         pyang_list_of_rows = stdout.split('\n')[2:]
                     else:
+                        plugin.plugins = []
                         plugin.init([])
 
                         ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
@@ -442,6 +443,7 @@ class ModulesComplicatedAlgorithms:
             if '{}@{}'.format(module['name'], module['revision']) in self.__trees:
                 stdout = self.__trees['{}@{}'.format(module['name'], module['revision'])]
             else:
+                plugin.plugins = []
                 plugin.init([])
                 ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
                 ctx.opts.lint_namespace_prefixes = []
@@ -633,6 +635,7 @@ class ModulesComplicatedAlgorithms:
                             schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir,
                                                              modules[-1]['name'],
                                                              modules[-1]['revision'])
+                            plugin.plugins = []
                             plugin.init([])
                             ctx = create_context(
                                 '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
@@ -796,6 +799,7 @@ class ModulesComplicatedAlgorithms:
                                     self.__save_file_dir,
                                     modules[x - 1]['name'],
                                     modules[x - 1]['revision'])
+                                plugin.plugins = []
                                 plugin.init([])
                                 ctx = create_context(
                                     '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
