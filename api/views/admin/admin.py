@@ -17,8 +17,10 @@ __copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
+import base64
 import fnmatch
 import grp
+import hashlib
 import json
 import math
 import os
@@ -26,6 +28,7 @@ import pwd
 import re
 import shutil
 import stat
+import sys
 from datetime import datetime
 from pathlib import Path
 
@@ -366,14 +369,16 @@ def get_logs():
                         filter_out = filter.get('filter-out', None)
                         searched_string = filter.get('search-for', '')
                         level = filter.get('level', '').upper()
-                        level_formats = []
+                        level_formats = ['']
                         if level != '':
-                            level_formats = [' {} '.format(level), '<{}>'.format(level)]
+                            level_formats = [
+                                ' {} '.format(level), '<{}>'.format(level),
+                                '[{}]'.format(level).lower(), '{}:'.format(level)]
                         if match_whole_words:
                             if searched_string != '':
                                 searched_string = ' {} '.format(searched_string)
-                        for level in level_formats:
-                            if level in line:
+                        for level_format in level_formats:
+                            if level_format in line:
                                 if match_case and searched_string in line:
                                     if filter_out is not None and filter_out in line:
                                         continue
@@ -408,14 +413,16 @@ def get_logs():
                             filter_out = filter.get('filter-out', None)
                             searched_string = filter.get('search-for', '')
                             level = filter.get('level', '').upper()
-                            level_formats = []
+                            level_formats = ['']
                             if level != '':
-                                level_formats = [' {} '.format(level), '<{}>'.format(level)]
+                                level_formats = [
+                                    ' {} '.format(level), '<{}>'.format(level),
+                                    '[{}]'.format(level).lower(), '{}:'.format(level)]
                             if match_whole_words:
                                 if searched_string != '':
                                     searched_string = ' {} '.format(searched_string)
-                            for level in level_formats:
-                                if level in line:
+                            for level_format in level_formats:
+                                if level_format in line:
                                     if match_case and searched_string in line:
                                         if filter_out is not None and filter_out in line:
                                             whole_line = ''
@@ -562,6 +569,7 @@ def create_sql_row(table):
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
+    hashed_password = hash_pw(password)
     if table == 'users' and sdo_access == '' and vendor_access == '':
         return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
@@ -571,7 +579,7 @@ def create_sql_row(table):
         sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
          FirstName, LastName, AccessRightsSdo, AccessRightsVendor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
             .format(table)
-        cursor.execute(sql, (username, password, email, models_provider,
+        cursor.execute(sql, (username, hashed_password, email, models_provider,
                              name, last_name, sdo_access, vendor_access,))
         db.commit()
         db.close()
@@ -617,6 +625,50 @@ def delete_sql_row(table, unique_id):
         return make_response(jsonify({'info': 'id {} deleted successfully'.format(unique_id)}), 200)
     else:
         return abort(404, description='id {} not found in table {}'.format(unique_id, table))
+
+
+@app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
+def update_sql_row(table, unique_id):
+    try:
+        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        sql = """SELECT * FROM `{}` WHERE Id = %s""".format(table)
+        cursor.execute(sql, (unique_id,))
+
+        data = cursor.fetchall()
+
+        body = request.json.get('input')
+        username = body.get('username')
+        email = body.get('email')
+        models_provider = body.get('models-provider')
+        first_name = body.get('first-name')
+        last_name = body.get('last-name')
+        access_rights_sdo = body.get('access-rights-sdo', '')
+        access_rights_vendor = body.get('access-rights-vendor', '')
+        found = False
+        for x in data:
+            if x[0] == int(unique_id):
+                found = True
+        if found:
+            # execute SQL query using execute() method.
+            cursor = db.cursor()
+            sql = """UPDATE {} SET Username=%s, Email=%s, ModelsProvider=%s, FirstName=%s,
+                    LastName=%s, AccessRightsSdo=%s, AccessRightsVendor=%s WHERE Id=%s""".format(table)
+            cursor.execute(sql, (username, email, models_provider, first_name, last_name, access_rights_sdo, access_rights_vendor, unique_id,))
+            db.commit()
+
+        db.close()
+    except MySQLdb.MySQLError as err:
+        if err.args[0] not in [1049, 2013]:
+            db.close()
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+    if found:
+        yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
+        return make_response(jsonify({'info': 'ID {} updated successfully'.format(unique_id)}), 200)
+    else:
+        return abort(404, description='ID {} not found in table {}'.format(unique_id, table))
 
 
 @app.route('/api/admin/sql-tables/<table>', methods=['GET'])
@@ -726,3 +778,8 @@ def get_module_name(script_name):
         return 'validate'
     else:
         return None
+
+def hash_pw(password):
+    if sys.version_info >= (3, 4):
+        password = password.encode(encoding='utf-8', errors='strict')
+    return hashlib.sha256(password).hexdigest()

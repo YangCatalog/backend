@@ -111,7 +111,7 @@ class MyFlask(Flask):
         if not 'admin' in request.path:
            yc_gc.LOGGER.info(request.path)
         if 'admin' in request.path and not 'healthcheck' in request.path and not 'ping' in request.path:
-            yc_gc.LOGGER.info("user lgged in {}".format(yc_gc.oidc.user_loggedin))
+            yc_gc.LOGGER.info('User logged in {}'.format(yc_gc.oidc.user_loggedin))
             if not yc_gc.oidc.user_loggedin and 'login' not in request.path:
                 return abort(401, description='not yet Authorized')
 

@@ -108,7 +108,7 @@ def health_check_elk():
             app.LOGGER.info('Health status of cluster: {}'.format(health_status))
             # get list of indices
             indices = es.indices.get_alias().keys()
-            if len(indices) == 2:
+            if len(indices) > 0:
                 return make_response(jsonify({'info': 'Elasticsearch is running',
                                             'status': 'running',
                                             'message': 'Cluster status: {}'.format(health_status)}), 200)
