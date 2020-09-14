@@ -24,6 +24,10 @@ if you find anything that doesn`t work as expected.
 
 # Contribute
 
+This section is for users who wants to directly contribute with some yang modules to yangcatalog.org database without using YangModels/yang repository, but
+adding files from your own repository instead. For this you need to have access credentials which you ll create by [creating an account](https://www.yangcatalog.org/create.html) in
+yangcatalog.org. Full description on how to proceed can be found on [contribute page](https://www.yangcatalog.org/contribute.html)
+
 ## Update model metadata
 
 ```python
@@ -561,7 +565,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
   }
 ```
 
-This endpoint serves to get job status.
+This endpoint serves to get the job status which can be either 'Failed', 'In progress', or 'Finished successfully'.
 
 ### HTTP Request
 
@@ -778,6 +782,62 @@ This endpoint serves to get specific module metadata
 Parameter | Description
 --------- | -----------
 path:value | Path to a specific vendor modules you want to remove (example: cisco/xe/1632 would delete all 1632 xe cisco modules)
+
+## Get organization platform list
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/search/vendor/<org>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/vendor/<org>"
+```
+
+> The above command returns JSON-formatted implementation metadata
+
+```json
+{
+    "IOS-XE": {
+        "16.10.1": [
+            "CAT9300",
+            "IR1101",
+            "ASR1000",
+            "ASR920",
+            "ISR4000",
+            "NCS520",
+            "ISR1000",
+            "CSR1000V",
+            "ASR900",
+            "CAT9500",
+            "CAT9400",
+            "NCS4200",
+            "CBR-8",
+            "CAT9800"
+        ],
+        "16.11.1": [
+            "CAT3650",
+            "IE3x00",
+            "CAT9300",
+            "CAT9200",
+        .
+        .
+        .
+```
+
+This endpoint serves to get all the platforms where specific organization contains some yang modules.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/search/vendor/<org>`
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+org | organization that you are trying to search for (example: cisco would get you all platforms with cisco modules)
 
 ## Filter leaf data
 
@@ -1094,6 +1154,140 @@ to contain containers "first" and "second" to which we provide all the leafs
 with data that need to be filtered out of yangcatalog. All the leafs can
 be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
 
+## Compare two searches
+
+```python
+import requests
+
+body = <data>
+url = 'https://yangcatalog.org/api/compare'
+requests.post(url, body, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
+ --data '<data>'
+ "https://yangcatalog.org/api/compare"
+```
+
+> The above command uses data like this:
+
+```json
+{
+  "input":{
+    "old":{
+      "implementations":{
+        "implementation":[
+          {
+            "vendor":"cisco",
+            "software-version":"6.1.1",
+            "platform":"asr9k-px"
+          }
+        ]
+      }
+    },
+    "new":{
+      "implementations":{
+        "implementation":[
+          {
+            "vendor":"cisco",
+            "software-version":"6.1.3",
+            "platform":"asr9k-px"
+          }
+        ]
+      }
+    }
+  }
+}
+```
+
+> The above command returns JSON-formatted yang modules like this:
+
+```json
+{
+  "output": [
+    {
+            "compilation-result": "https://yangcatalog.org/results/Cisco-IOS-XE-umbrella@2017-08-30_cisco.html",
+            "compilation-status": "failed",
+            "contact": "Cisco Systems, Inc.\nCustomer Service\n\nPostal: 170 W Tasman Drive\nSan Jose, CA 95134\n\nTel: +1 1800 553-NETS\n\nE-mail: cs-yang@cisco.com",
+            "dependencies": [
+                {
+                    "name": "Cisco-IOS-XE-native",
+                    "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/cisco/xe/1662/Cisco-IOS-XE-native.yang"
+                },
+                {
+                    "name": "ietf-inet-types",
+                    "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/cisco/xe/1662/ietf-inet-types.yang"
+                }
+            ],
+            "derived-semantic-version": "1.0.0",
+            "description": "Cisco XE Native Umbrella Yang model.\nCopyright (c) 2017 by Cisco Systems, Inc.\nAll rights reserved.",
+            "expired": "not-applicable",
+            "generated-from": "native",
+            "implementations": {
+                "implementation": [
+                    {
+                        "conformance-type": "implement",
+                        "feature-set": "ALL",
+                        "os-type": "IOS-XE",
+                        "os-version": "16.6.2",
+                        "platform": "CSR1000V",
+                        "software-flavor": "ALL",
+                        "software-version": "16.6.2",
+                        "vendor": "cisco"
+                    },
+                    {
+                        "conformance-type": "implement",
+                        "feature-set": "ALL",
+                        "os-type": "IOS-XE",
+                        "os-version": "16.6.2",
+                        "platform": "ISR4000",
+                        "software-flavor": "ALL",
+                        "software-version": "16.6.2",
+                        "vendor": "cisco"
+                    }
+                ]
+            },
+            "maturity-level": "not-applicable",
+            "module-classification": "unknown",
+            "module-type": "module",
+            "name": "Cisco-IOS-XE-umbrella",
+            "namespace": "http://cisco.com/ns/yang/Cisco-IOS-XE-umbrella",
+            "organization": "cisco",
+            "prefix": "ios-umbrella",
+            "reason-to-show": "New module",
+            "revision": "2017-08-30",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/0aa291b720ee6f013966f9bcbea9375671457ee9/vendor/cisco/xe/1662/Cisco-IOS-XE-umbrella.yang",
+            "tree-type": "nmda-compatible",
+            "yang-tree": "https://yangcatalog.org/api/services/tree/Cisco-IOS-XE-umbrella@2017-08-30.yang",
+            "yang-version": "1.0"
+        },
+    .
+    .
+    .
+```
+
+This endpoint serves to compare and find different modules out of two different filtering
+by leafs with data provided by <data> in body of the request. Output contains module metadata
+with reason-to-show data as well which can be showing either 'New module' or 'Different revision'
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/compare`
+
+### Query Parameters
+
+Parameter | Default | Description
+--------- | ------- | -----------
+latest-revision | false | If set to true, the result will filter only for latest revision of found yang modules.
+
+### Body Parameters
+
+Inside of the body we need to start with "input" container which needs
+to contain containers "new" and "old" to which we provide all the leafs
+with data that need to be filtered out of yangcatalog. All the leafs can
+be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
+
 # Services
 
 ## Get tree
@@ -1390,7 +1584,7 @@ r1 | Revision of the first module
 f2 | Name of the second module
 r2 | Revision of the second module
 
-## Get semantic difference
+## Get update difference
 
 ```python
 import requests
@@ -1506,6 +1700,77 @@ In this request there is one option data that can be inserted in called
 "recursive". If set to true it will look for all dependencies of the
 module and search for <leaf> data in those too.
 
+## Get raw module
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/services/reference/<f1>@<r1>.yang'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/services/reference/<f1>@<r1>.yang"
+```
+
+> The above command returns HTML-formatted raw module like this:
+
+```html
+<html>
+
+<body>
+	<pre>module ietf-mpls {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-mpls";
+
+  /* Replace with IANA when assigned */
+
+  prefix mpls;
+
+  import ietf-routing {
+    prefix rt;
+    reference
+      "RFC8349: A YANG Data Model for Routing Management";
+  }
+  import ietf-routing-types {
+    prefix rt-types;
+    reference
+      "RFC8294:Common YANG Data Types for the Routing Area";
+  }
+  import ietf-yang-types {
+    prefix yang;
+    reference
+      "RFC6991: Common YANG Data Types";
+  }
+  import ietf-interfaces {
+    prefix if;
+    reference
+      "RFC8343: A YANG Data Model for Interface Management";
+  }
+
+  organization
+    "IETF MPLS Working Group";
+  contact
+    "WG Web:   <http://tools.ietf.org/wg/mpls/>
+.
+.
+.
+```
+
+This endpoint serves to get raw yang module in html form
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/services/reference/<f1>@<r1>.yang`
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+f1 | Name of the first module
+r1 | Revision of the first module
+
 # Internal
 
 ## Yangsuite redirect
@@ -1597,6 +1862,25 @@ are a payload specifying search options and filters.
 
 `POST https://yangcatalog.org/api/index/search`
 
+## New vendor modules added
+
+This endpoint is used within github. Whenever something is merged to [YangModles/yang](https://github.com/YangModels/yang) github repository this endpoint is
+triggered and checks if there is an updated platform-metadata.json file which is then used withing [populate.py](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py) script.
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/check-platform-metadata`
+
+## Yang search and impact analysis tool
+
+This endpoint is used by yang search and impact analysis tool to 
+through the YANG keyword index for a given search pattern. The arguments
+are a payload specifying search options and filters.
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/index/search`
+
 ## Load api cache
 
 ```python
@@ -1652,3 +1936,1376 @@ contributed with yang modules to yangcatalog
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/contributors`
+
+# ADMIN
+
+The following endpoints are only for admin UI and you need to be signed in to ietf account using single sign on to be able
+to use any of the following endpoints. Once signed in and token is aquired you will be able to create these requests.
+
+The admin UI serves to authorized IETF personel only who have access to manage users read through log files and all
+the yangcatalog files which can be deleted update or read by them.
+
+## Login
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/login'
+requests.get(url, headers={'Accept': 'application/json'})
+
+or
+
+import requests
+
+url = 'https://yangcatalog.org/api/admin'
+requests.get(url, headers={'Accept': 'application/json'})
+
+or
+
+import requests
+
+url = 'https://yangcatalog.org/admin/login'
+requests.get(url, headers={'Accept': 'application/json'})
+
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/login"
+
+or
+
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin"
+
+or
+
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/admin/login"
+```
+
+> The above command should redirect you to datatracker login page
+
+This endpoint serves to make a SSO to ietf which will let you access all the admin endpoints. This endpoint will
+redirect you to datatracker.ietf.org login page which after successful login will redirect you back to yangcatalog UI
+healthcheck page.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/login`
+
+`GET https://yangcatalog.org/api/admin`
+
+`GET https://yangcatalog.org/admin/login`
+
+## Logout
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/logout'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/logout"
+```
+
+> The above command should remove all the remebered token and sessions from OIDC
+
+This endpoint serves to log user out
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/logout`
+
+## Ping redirection
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/ping'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/ping"
+```
+
+> The above command should not be used and is for ietf datatracker to redirect here once user has successfully signed in
+
+This endpoint serves to comunicate with ietf datatracker as an redirection link for OIDC
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/ping`
+
+<aside class="warning">
+This endpoint hould not be used and is for ietf datatracker to redirect here once user has successfully signed in
+</aside>
+
+## Admin check
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/check'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/check"
+```
+
+> The above command should return following json
+
+```json
+{
+  "info": "Success"
+}
+```
+
+This endpoint serves to admin UI to check if the user is logged in. If he receives 200 all is ok otherwise we are not
+logged in and should not let you get into admin UI
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/check`
+
+
+## Get file output
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/directory-structure/read/<path:direc>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/directory-structure/read/<path:direc>"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "data":"output of the specified file",
+    "info":"Success"
+}
+```
+
+This endpoint serves to get output of the file specified from /var/yang folder. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/directory-structure/read/<path:direc>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+path:direc | path to the file we want to read from /var/yang folder
+
+## Delete file from directory
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/directory-structure/<path:direc>'
+requests.delete(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X DELETE -H "Accept: application/json" "https://yangcatalog.org/api/admin/directory-structure/<path:direc>"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "data":"output of the file that has been deleted",
+    "info":"Success"
+}
+```
+
+This endpoint serves to delete a file from /var/yang folder. This is used with admin UI.
+
+### HTTP Request
+
+`DELETE https://yangcatalog.org/api/admin/directory-structure/<path:direc>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+path:direc | path to the file we want to delete - from /var/yang folder. This can be empty
+
+## Update file from directory
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/directory-structure/<path:direc>'
+body = <data>
+requests.put(url, body,
+    headers={'Accept': 'application/json', 'Content-type': 'application/json'})
+```
+
+```shell
+curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/directory-structure/<path:direc>"
+ --data '<data>'
+```
+
+> The above command uses data like this:
+
+```json
+{
+  "input": {
+     "data": "Updated text for given file"
+  }
+}
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "data":"output of the file that has been updated",
+    "info":"Success"
+}
+```
+
+This endpoint serves to update a file from /var/yang folder. This is used with admin UI.
+
+### HTTP Request
+
+`PUT https://yangcatalog.org/api/admin/directory-structure/<path:direc>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+path:direc | path to the file we want to update - from /var/yang folder.
+
+## Get directory structure
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/directory-structure/<path:direc>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/directory-structure/<path:direc>"
+```
+
+> The above command returns JSON-formatted directory structure
+
+```json
+{
+  "data": {
+    "files": [
+      {
+        "group": "yang",
+        "name": "yang2_repo_cache.dat",
+        "permissions": "0o644",
+        "size": 0,
+        "user": "yang"
+      }
+    ],
+    "folders": [
+      {
+        "group": "yang",
+        "name": "ytrees",
+        "permissions": "0o775",
+        "size": 43524699772,
+        "user": "yang"
+      },
+      {
+        "group": "yang",
+        "name": "commit_dir",
+        "permissions": "0o755",
+        "size": 41,
+        "user": "yang"
+      }
+    ],
+    "name": ""
+  },
+  "info": "Success"
+}
+```
+
+This endpoint serves to receive list of files and folders on given path with their name, group id, user id size and permissions.
+This is used in admin UI
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/directory-structure/<path:direc>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+path:direc | path to the file we want to read from /var/yang folder. This can be empty
+
+### Ouptut Parameters
+
+Each file and folder contains following data
+
+Parameter | Description
+--------- | -----------
+group | linux group name that this file or folder belongs to
+name | name of the file or folder
+permissions | permissions of the file or folder
+size | size of the file or folder
+user | linux user name that this file or folder belongs to
+
+## List nginx files
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/yangcatalog-nginx'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yangcatalog-nginx"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "data": [
+         "list of",
+         "nginx files"
+     ],
+    "info":"Success"
+}
+```
+
+This endpoint serves to receive list of used nginx files. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/yangcatalog-nginx`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## Read nginx file
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/yangcatalog-nginx/<path:nginx_file>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yangcatalog-nginx/<path:nginx_file>"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "data": "nginx file output",
+    "info":"Success"
+}
+```
+
+This endpoint serves to read a nginx file. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/yangcatalog-nginx/<path:nginx_file>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+path:nginx_file | path to the nginx file we want to read
+
+## Read yangcatalog config file
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/yangcatalog-config'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yangcatalog-config"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "data": "yangcatalog config file output",
+    "info":"Success"
+}
+```
+
+This endpoint serves to read a yangcatalog config file. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/yangcatalog-config`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## Update yangcatalog config file
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/yangcatalog-config'
+body = <data>
+requests.put(url, body,
+    headers={'Accept': 'application/json', 'Content-type': 'application/json'})
+```
+
+```shell
+curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/yangcatalog-config"
+ --data '<data>'
+```
+
+> The above command uses data like this:
+
+```json
+{
+  "input": {
+     "data": "Updated text for yangcatalog config file"
+  }
+}
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "new-data":"output of the yangcatalog config file that has been updated",
+    "info":"Success"
+}
+```
+
+This endpoint serves to update yangcatalog config file. This is used with admin UI.
+
+### HTTP Request
+
+`PUT https://yangcatalog.org/api/admin/yangcatalog-config`
+
+## List all log files
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/logs'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/logs"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+  "data": [
+    "elasticsearch/gc",
+    "crons-log",
+    "confd/browser",
+    "YANGgenericstats-daily",
+    "confd/netconf",
+    "elasticsearch/elasticsearch_index_indexing_slowlog",
+    "healthcheck"
+  ],
+  "info": "success"
+}
+```
+
+This endpoint serves to list all the log files we have in yangcatalog.org. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/logs`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## Search and filter for specific output in log files
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/logs'
+body = <data>
+requests.post(url, body,
+    headers={'Accept': 'application/json', 'Content-type': 'application/json'})
+```
+
+```shell
+curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/logs"
+ --data '<data>'
+```
+
+> The above command uses data like this:
+
+```json
+{ 
+    "input": {
+	    "file-names": "yang",
+	    "lines-per-page": 1000,
+	    "page": 1,
+        "from-date": null,
+        "to-date": null,
+		"filter": {
+			"filter-out": "pika",
+            "match-cases": false,
+            "match-words": false,
+            "search-for": "",
+            "level": "INFO"
+		}
+    }
+}
+```
+
+> The above command returns JSON-formatted output
+
+```json
+{
+    "meta": {
+        "file-names": ["list of", "log files"],
+        "from-date": "timestamp same as from request",
+        "to-data": "timestamp same as from request",
+        "lines--per-page": 1000,
+        "page": 1,
+        "pages": 72,
+        "filter": "same object as from request",
+        "format": true
+    },
+    "output": "Ouptut text from log files"
+}
+```
+
+This endpoint serves to read and filter log files. This is used with admin UI.
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/admin/logs`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## List all sql tables
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/sql-tables'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql-tables"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+[
+    {
+        "label":"approved users",
+        "name":"users"
+    },
+    {
+        "label":"users waiting for approval",
+        "name":"users_temp"
+    }
+]
+```
+
+This endpoint serves to list all the sql tables that exists in yangcatalog.org. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/sql-tables`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## Accept user
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/move-user'
+body = <data>
+requests.post(url, body,
+    headers={'Accept': 'application/json', 'Content-type': 'application/json'})
+```
+
+```shell
+curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/move-user"
+ --data '<data>'
+```
+
+> The above command uses data like this:
+
+```json
+{ 
+    "input": {
+	    "models-provider": " Cisco Systems, Inc",
+	    "access-rights-sdo": "ietf",
+	    "access-rights-vendor": "cisco",
+        "username": "foo-bar",
+        "first-name": "bar",
+		"last-name":"foo",
+        "email": "foo-bar@bar.com"
+    }
+}
+```
+
+> The above command returns JSON-formatted output like this if successful
+
+```json
+{
+    "info": "data successfully added to database users and removed from users_temp",
+    "data": {
+        "models-provider": " Cisco Systems, Inc",
+	    "access-rights-sdo": "ietf",
+	    "access-rights-vendor": "cisco",
+        "username": "foo-bar",
+        "first-name": "bar",
+		"last-name":"foo",
+        "email": "foo-bar@bar.com"
+    }
+}
+```
+
+This endpoint serves to approve yangcatalog user and set his rights so he can be adding or removing modules based on the
+'access-rights-sdo' adn 'access-rights-vendor'. This is used with admin UI.
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/admin/move-user`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## Add user
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/sql-tables/<table>'
+body = <data>
+requests.post(url, body,
+    headers={'Accept': 'application/json', 'Content-type': 'application/json'})
+```
+
+```shell
+curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/sql-tables/<table>"
+ --data '<data>'
+```
+
+> The above command uses data like this:
+
+```json
+{ 
+    "input": {
+	    "models-provider": " Cisco Systems, Inc",
+	    "access-rights-sdo": "ietf",
+	    "access-rights-vendor": "cisco",
+        "username": "foo-bar",
+        "first-name": "bar",
+		"last-name":"foo",
+        "email": "foo-bar@bar.com",
+        "password": "something secret"
+    }
+}
+```
+
+> The above command returns JSON-formatted output like this if successful
+
+```json
+{
+    "info": "data successfully added to database",
+    "data": {
+        "models-provider": " Cisco Systems, Inc",
+	    "access-rights-sdo": "ietf",
+	    "access-rights-vendor": "cisco",
+        "username": "foo-bar",
+        "first-name": "bar",
+		"last-name":"foo",
+        "email": "foo-bar@bar.com",
+        "password": "something secret"
+    }
+}
+```
+
+This endpoint serves to add new user to any database that we have in yangcatalog.org (users or users_temp database).
+This is used with admin UI.
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/admin/sql-tables/<table>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+table | Name of the mysql table you want to use
+
+## Delete user
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>'
+requests.delete(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X DELETE -H "Accept: application/json"
+ "https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>"
+```
+
+This endpoint serves to remove user from any database that we have in yangcatalog.org (users or users_temp database).
+This is used with admin UI.
+
+### HTTP Request
+
+`DELETE https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+table | Name of the mysql table you want to use
+unique_id | Id of the user you are deleting
+
+## List all rows from sql table
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/sql-tables/<table>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql-tables/<table>"
+```
+
+> The above command returns JSON-formatted output
+
+```json
+[
+    {
+        "access-rights-sdo":"bbf",
+        "access-rights-vendor":"",
+        "email":"fooo@broadband-forum.org",
+        "first-name":"fooo",
+        "id":4,
+        "last-name":"bar",
+        "models-provider":"Broadband Forum",
+        "username":"fooo-bar"
+    },
+    {
+        "access-rights-sdo":"huawei",
+        "access-rights-vendor":"huawei",
+        "email":"fooo2@huawei.com",
+        "first-name":"fooo2",
+        "id":5,
+        "last-name":"bar",
+        "models-provider":"Huawei Tech.",
+        "username":"fooo-bar2"
+    }
+.
+.
+.
+]
+```
+
+This endpoint serves to list all the rows from the specified sql table that exists in yangcatalog.org.
+This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/sql-tables/<table>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+table | Name of the mysql table you want to use
+
+## Get list of all scripts
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/scripts'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scripts"
+```
+
+> The above command returns JSON-formatted output like this
+
+```json
+{
+    "data":[
+        "populate",
+        "runCapabilities",
+        "draftPull",
+        "draftPullLocal",
+        "openconfigPullLocal",
+        "statistics",
+        "recovery",
+        "elkRecovery",
+        "elkFill",
+        "resolveExpiration"
+    ],
+    "info":"Success"
+}
+```
+
+This endpoint serves to receive list of scripts that are available to use. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/scripts`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+## Get script details
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/scripts/<script>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scripts/<script>"
+```
+
+> The above command returns JSON-formatted output like this for populate script
+
+```json
+{
+    "data":{
+        "api":{
+            "default":false,
+            "type":"bool"
+        },
+        "api_ip":{
+            "default":"yangcatalog.org",
+            "type":"str"
+        },
+        "api_port":{
+            "default":"8443",
+            "type":"int"
+        },
+        "api_protocol":{
+            "default":"https",
+            "type":"str"
+        },
+        "dir":{
+            "default":"/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
+            "type":"str"
+        },
+        "force_indexing":{
+            "default":false,
+            "type":"bool"
+        },
+        "ip":{
+            "default":"yc_confd_1",
+            "type":"str"
+        },
+        "notify_indexing":{
+            "default":false,
+            "type":"bool"
+        },
+        "port":{
+            "default":"8008",
+            "type":"int"
+        },
+        "protocol":{
+            "default":"http",
+            "type":"str"
+        },
+        "result_html_dir":{
+            "default":"/usr/share/nginx/html/results",
+            "type":"str"
+        },
+        "save_file_dir":{
+            "default":"/var/yang/all_modules",
+            "type":"str"
+        },
+        "sdo":{
+            "default":false,
+            "type":"bool"
+        }
+    },
+    "help":"Parse hello messages and YANG files to JSON dictionary. These dictionaries are used for populating a yangcatalog. This script runs first a runCapabilities.py script to create a JSON files which are used to populate database.",
+    "options":{
+        "api":"If request came from api",
+        "api_ip":"Set host address where the API is started. Default: yangcatalog.org",
+        "api_port":"Whether API runs on http or https (This will be ignored if we are using uwsgi). Default: https",
+        "api_protocol":"Whether API runs on http or https. Default: https",
+        "dir":"Set dir where to look for hello message xml files or yang files if using \"sdo\" option",
+        "force_indexing":"Force to index files. Works only in notify-indexing is True",
+        "ip":"Set host address where the Confd is started. Default: yc_confd_1",
+        "notify_indexing":"Whether to send files for indexing",
+        "port":"Set port where the Confd is started. Default: 8008",
+        "protocol":"Whether Confd runs on http or https. Default: http",
+        "result_html_dir":"Set dir where to write HTML compilation result files. Default: /usr/share/nginx/html/results",
+        "save_file_dir":"Directory where the yang file will be saved. Default: /var/yang/all_modules",
+        "sdo":"If we are processing sdo or vendor yang modules"
+    }
+}
+```
+
+This endpoint serves to receive detail information about script you are running. It will show you what options you can
+use with its default values and help if it contains any. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/scripts/<script>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+script | Name of the script you want to use
+
+## Run script
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/scripts/<script>'
+body = <data>
+requests.post(url, body,
+    headers={'Accept': 'application/json', 'Content-type': 'application/json'})
+```
+
+```shell
+curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/scripts/<script>"
+ --data '<data>'
+```
+
+> The above command uses data like this if the script is "draftPull":
+
+```json
+{
+    "input":{
+        "config_path":"/etc/yangcatalog/yangcatalog.conf",
+        "send_message":false
+    }
+}
+```
+
+> The above command returns JSON-formatted output like this if successful
+
+```json
+{
+    "info": "Verification successful",
+    "job_id": "sadfaewsf-sdfas4568-ef5s8df-as4568ef",
+    "arguments": ["list of", "arguments sent"]
+}
+```
+
+This endpoint serves to run scripts manualy from yangcatalog.org. We need to provide a payload with arguments for given
+script where key is a name of the option and value is an value you want to provide to that specific option of the script.
+This is used with admin UI.
+
+### HTTP Request
+
+`POST https://yangcatalog.org/api/admin/scripts/<script>`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+script | Name of the script you want to run
+
+## Get script details
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/disk-usage'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/disk-usage"
+```
+
+> The above command returns JSON-formatted output like this
+
+```json
+{
+    "data":{
+        "free": 205436604416,
+        "total": 416291377152,
+        "used": 210837995520
+    },
+    "info":"Success"
+}
+```
+
+This endpoint serves to receive disk space information in bytes. This is used with admin UI.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/disk-usage`
+
+<aside class="warning">
+This URL works only after you are signed in using single sign on from ietf and after token has been received and
+session created. Otherwise you ll get unauthorized 401 response.
+</aside>
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+script | Name of the script you want to use
+
+
+# Healthchecks
+
+The following enpoints serve to check the health status of the yangcatalog.org. AWS where yangcatalog.org is running is
+checking the following endpoints from several locations every minute several times. When any of the healthcheck fails it
+will send the message to preset mailing list and informs about this failure. If the failure is on backend API itself all
+of the healthcheck endpoint will consequently fail even if it is a false failure. These endpoints are used within admin UI
+as well.
+
+## Get list of services
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/healthcheck/services-list'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/healthcheck/services-list"
+```
+
+> The above command should return services with their endpoints for healthcheck (just the last part) we need to use
+> https://yangcatalog.org/api/admin/healthcheck/ in front of all of them
+
+```json
+[
+    {
+        "endpoint": "my-sql",
+        "name": "MySQL"
+    },
+    {
+        "endpoint": "elk",
+        "name": "Elasticsearch"
+    },
+    {
+        "endpoint": "confd",
+        "name": "ConfD"
+    },
+    {
+        "endpoint": "yang-search-admin",
+        "name": "YANG search"
+    },
+    {
+        "endpoint": "yang-validator-admin",
+        "name": "YANG validator"
+    },
+    {
+        "endpoint": "yangre-admin",
+        "name": "YANGre"
+    },
+    {
+        "endpoint": "nginx",
+        "name": "NGINX"
+    },
+    {
+        "endpoint": "rabbitmq",
+        "name": "RabbitMQ"
+    }
+]
+```
+
+This endpoint serves to provide with all the services we have with its endpoints to check their healthstatus
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/healthcheck/services-list`
+
+## Get service healthcheck
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/healthcheck/<service-name>'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/healthcheck/<service-name>"
+```
+
+> The above command should return service health status (example output with my-sql)
+
+```json
+{
+    "info": "MySQL is running",
+    "message": "3 tables available in the database: yang_catalog",
+    "status": "running"
+}
+```
+
+This endpoint serves to provide service health status
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/healthcheck/<service-name>`
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+service-name | Name of the service you want to test health for
+
+### Output Parameters
+
+Parameter | Description
+--------- | -----------
+info | status information
+message | short description of status (why it failed or why are we saying it is running)
+status | status enum - can be 'running', 'failed' or 'problem'
+
+## Get service admin healthcheck
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/healthcheck/<service-name>-admin'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/healthcheck/<service-name>-admin"
+```
+
+> The above command should return service admin health status (example output with yangre-admin)
+
+```json
+{
+    "info": "yangre is available",
+    "message": "yangre successfully validated string",
+    "status": "running"
+}
+```
+
+This endpoint serves to provide service admin health status. This is valid only for yang-validator-admin, yangre-admin and
+yang-search-admin. These endpoints are not checking only if the service itself is running (django or flask application with uwsgi),
+but also it s trying to make request on some real data and checking if it is getting valid response.
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/healthcheck/<service-name>-admin`
+
+### URL Parameters
+
+Parameter | Description
+--------- | -----------
+service-name | Name of the service you want to test health for. It can be yang-validator, yanre or yang-search
+
+### Output Parameters
+
+Parameter | Description
+--------- | -----------
+info | status information
+message | short description of status (why it failed or why are we saying it is running)
+status | status enum - can be 'running', 'failed' or 'problem'
+
+## Get cronjobs healthcheck
+
+```python
+import requests
+
+url = 'https://yangcatalog.org/api/admin/healthcheck/cronjobs'
+requests.get(url, headers={'Accept': 'application/json'})
+```
+
+```shell
+curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
+ "https://yangcatalog.org/api/admin/healthcheck/cronjobs"
+```
+
+> The above command should return data about each cronjob
+
+```json
+{
+    "data": {
+        "draftPull": {
+            "end": 1599603601,
+            "error": "",
+            "last_successfull": 1599603601,
+            "start": 1599603558,
+            "status": "Success"
+        },
+        "draftPullLocal": {
+            "end": 1599612283,
+            "error": "",
+            "last_successfull": 1599612283,
+            "start": 1599602701,
+            "status": "Success"
+        },
+        "openconfigPullLocal": {
+            "end": 1599613583,
+            "error": "",
+            "last_successfull": 1599613583,
+            "start": 1599613501,
+            "status": "Success"
+        },
+        "recovery": {
+            "end": 1599589314,
+            "error": "",
+            "last_successfull": 1599589314,
+            "start": 1599589021,
+            "status": "Success"
+        },
+        "removeUnused": {
+            "end": 1599579002,
+            "error": "AuthenticationException(401, '{\"Message\":\"settings.role_arn is needed for snapshot registration.\"}')",
+            "start": 1599579002,
+            "status": "Fail"
+        },
+        "resolveExpiration": {
+            "end": 1599625957,
+            "error": "",
+            "last_successfull": 1599625957,
+            "start": 1599624301,
+            "status": "Success"
+        },
+        "statistics": {
+            "end": 1599621220,
+            "error": "",
+            "last_successfull": 1599621220,
+            "start": 1599620702,
+            "status": "Success"
+        }
+    }
+}
+```
+
+This endpoint serves to provide information about cronjob that are running on daily or weekly basis. each one contains information
+about its startint and ending timestamp, status if it failed or run successfully, error message and last successful run timestamp 
+
+### HTTP Request
+
+`GET https://yangcatalog.org/api/admin/healthcheck/cronjobs`
+
+### Output Parameters
+
+each cronjob contains following data
+
+Parameter | Description
+--------- | -----------
+end | timestamp of last run end time
+error | error message if job failed
+last_successfull | timestamp of last successful run
+start | timestamp of last run start time
+status | status enum - can be 'Fail' or 'Success'

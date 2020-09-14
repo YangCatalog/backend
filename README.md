@@ -3,7 +3,7 @@ YANGCATALOG
 
 You can find official yangcatalog website in [here](https://yangcatalog.org).
 
-This scripts in this repository serve as a backend to add, update, remove and manage
+These scripts in this repository serve as a backend to add, update, remove and manage
 yang modules files in yangcatalog. It is composed out of:
 * scripts that run every day as a cron job, 
 * API which lets users to add, remove or find modules they expect to 
@@ -85,6 +85,8 @@ modules that we have.
 and their expiration date and update its metadata accordingly.
 * Remove unused job that removes data on the server that are not used
 anymore.
+* User reminder script that will be triggered twice a year to show us what
+users we have in our database.
 * In ietfYangDraftPull directory there are three jobs.
 1. DraftPull.py adds new modules
 to yangModels/yang repository if there are any new modules. 
@@ -107,33 +109,14 @@ users are informed about this using a Cisco Webex teams room and by email.
 
 ### Pre-requisites
 
-RabbitMQ must be installed. The default port of 5672 is assumed.
-
-ConfD Premium must also be installed.
+ConfD Premium has to be accessible
 
 ### API code
 
-The next step is to install all the API code (Python 3.4 or more recent is required):
-```
- virtualenv-3.4 -p /usr/bin/python3.4 --system-site-packages backend
- cd backend
- 
- git clone https://github.com/YangCatalog/backend.git 
- source bin/activate
- cd backend
- 
- pip install -r requirements.txt
- ./setup.py install
-```
-
-The file `/etc/uwsgi/vassals/yang-catalog.ini` must be a link or a copy of a localized `yang-catalog.ini-dist`.
-
-The file `/etc/systemd/system/yang-catalog.service`must be a link or a copy of a localized `yang-catalog.service-dist`. The backend service should then be enabled and started with `systemctl`:
-```
-systemctl daemon-reload
-systemctl enable yang-catalog
-systemctl start yang-catalog
-```
+Since this is just a small part of the whole functional environment you need to build
+a docker-compose file from [deployment folder](https://github.com/YangCatalog/deployment)
+Then the catalog_backend_api:latest image can be used to run a docker container where
+everything will start as it is suppose to
 
 ### Documentation
 
