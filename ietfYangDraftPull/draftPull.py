@@ -256,16 +256,19 @@ def main(scriptConf=None):
                 f.write('{}\n'.format(repo.repo.head.commit))
             repo.push()
         except TravisError as e:
-            LOGGER.error('Error while pushing procedure {}'.format(e.message()))
+            LOGGER.error('Error while pushing procedure - Travis error: \n {}'.format(str(e)))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
             raise e
         except GitCommandError as e:
-            LOGGER.error(
-                'Error while pushing procedure - git command error: {} \n git command out {}'.format(e.stderr, e.stdout))
+            message ='Error while pushing procedure - git command error: \n {} \n git command out: \n {}'.format(e.stderr, e.stdout)
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': 'token ' + token})
-            raise e
+            if 'Your branch is up to date' in e.stdout:
+                LOGGER.warning(message)
+            else:
+                LOGGER.error(message)
+                raise e
         except Exception as e:
             LOGGER.error(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
