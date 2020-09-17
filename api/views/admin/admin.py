@@ -29,6 +29,7 @@ import re
 import shutil
 import stat
 import sys
+import gzip
 from datetime import datetime
 from pathlib import Path
 
@@ -345,24 +346,80 @@ def get_logs():
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
+    log_files.reverse()
     # Decide whether the output will be formatted or not (default False)
     format_text = False
     for log_file in log_files:
-        with open(log_file, 'r') as f:
-            file_stream = f.read()
-            hits = re.findall(
-                '(([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])) (?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)[ ][A-Z]{4,10}\s*(\S*.)\s*[=][>])',
-                file_stream)
-            if len(hits) > 1:
-                format_text = True
-            else:
-                format_text = False
-                break
+        if '.gz' in log_file:
+            f = gzip.open(log_file, 'rt')
+        else:
+            f = open(log_file, 'r')
+        file_stream = f.read()
+        hits = re.findall(
+            '(([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])) (?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)[ ][A-Z]{4,10}\s*(\S*.)\s*[=][>])',
+            file_stream)
+        if len(hits) > 1:
+            format_text = True
+        else:
+            format_text = False
+            break
 
     if not format_text:
         for log_file in log_files:
-            with open(log_file, 'r') as f:
-                for line in reversed(f.readlines()):
+            # Different way to open a file, but both will return a file object
+            if '.gz' in log_file:
+                f = gzip.open(log_file, 'rt')
+            else:
+                f = open(log_file, 'r')
+            for line in reversed(f.readlines()):
+                if filter is not None:
+                    match_case = filter.get('match-case', False)
+                    match_whole_words = filter.get('match-words', False)
+                    filter_out = filter.get('filter-out', None)
+                    searched_string = filter.get('search-for', '')
+                    level = filter.get('level', '').upper()
+                    level_formats = ['']
+                    if level != '':
+                        level_formats = [
+                            ' {} '.format(level), '<{}>'.format(level),
+                            '[{}]'.format(level).lower(), '{}:'.format(level)]
+                    if match_whole_words:
+                        if searched_string != '':
+                            searched_string = ' {} '.format(searched_string)
+                    for level_format in level_formats:
+                        if level_format in line:
+                            if match_case and searched_string in line:
+                                if filter_out is not None and filter_out in line:
+                                    continue
+                                send_out.append('{}'.format(line).rstrip())
+                            elif not match_case and searched_string.lower() in line.lower():
+                                if filter_out is not None and filter_out.lower() in line.lower():
+                                    continue
+                                send_out.append('{}'.format(line).rstrip())
+                else:
+                    send_out.append('{}'.format(line).rstrip())
+
+    if format_text:
+        for log_file in log_files:
+            # Different way to open a file, but both will return a file object
+            if '.gz' in log_file:
+                f = gzip.open(log_file, 'rt')
+            else:
+                f = open(log_file, 'r')
+            for line in reversed(f.readlines()):
+                line_timestamp = None
+                try:
+                    d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
+                    t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
+                    line_beginning = "{} {}".format(d, t)
+                    line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
+                except:
+                    # ignore and accept
+                    pass
+                if line_timestamp is None or not line.startswith(line_beginning):
+                    whole_line = '{}{}'.format(line, whole_line)
+                    continue
+                if from_date_timestamp <= line_timestamp <= to_date_timestamp:
                     if filter is not None:
                         match_case = filter.get('match-case', False)
                         match_whole_words = filter.get('match-words', False)
@@ -381,61 +438,17 @@ def get_logs():
                             if level_format in line:
                                 if match_case and searched_string in line:
                                     if filter_out is not None and filter_out in line:
+                                        whole_line = ''
                                         continue
-                                    send_out.append('{}'.format(line).rstrip())
+                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
                                 elif not match_case and searched_string.lower() in line.lower():
                                     if filter_out is not None and filter_out.lower() in line.lower():
+                                        whole_line = ''
                                         continue
-                                    send_out.append('{}'.format(line).rstrip())
+                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
                     else:
-                        send_out.append('{}'.format(line).rstrip())
-
-    if format_text:
-        for log_file in log_files:
-            with open(log_file, 'r') as f:
-                for line in reversed(f.readlines()):
-                    line_timestamp = None
-                    try:
-                        d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
-                        t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
-                        line_beginning = "{} {}".format(d, t)
-                        line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
-                    except:
-                        # ignore and accept
-                        pass
-                    if line_timestamp is None or not line.startswith(line_beginning):
-                        whole_line = '{}{}'.format(line, whole_line)
-                        continue
-                    if from_date_timestamp <= line_timestamp <= to_date_timestamp:
-                        if filter is not None:
-                            match_case = filter.get('match-case', False)
-                            match_whole_words = filter.get('match-words', False)
-                            filter_out = filter.get('filter-out', None)
-                            searched_string = filter.get('search-for', '')
-                            level = filter.get('level', '').upper()
-                            level_formats = ['']
-                            if level != '':
-                                level_formats = [
-                                    ' {} '.format(level), '<{}>'.format(level),
-                                    '[{}]'.format(level).lower(), '{}:'.format(level)]
-                            if match_whole_words:
-                                if searched_string != '':
-                                    searched_string = ' {} '.format(searched_string)
-                            for level_format in level_formats:
-                                if level_format in line:
-                                    if match_case and searched_string in line:
-                                        if filter_out is not None and filter_out in line:
-                                            whole_line = ''
-                                            continue
-                                        send_out.append('{}{}'.format(line, whole_line).rstrip())
-                                    elif not match_case and searched_string.lower() in line.lower():
-                                        if filter_out is not None and filter_out.lower() in line.lower():
-                                            whole_line = ''
-                                            continue
-                                        send_out.append('{}{}'.format(line, whole_line).rstrip())
-                        else:
-                            send_out.append('{}{}'.format(line, whole_line).rstrip())
-                    whole_line = ''
+                        send_out.append('{}{}'.format(line, whole_line).rstrip())
+                whole_line = ''
 
     pages = math.ceil(len(send_out) / number_of_lines_per_page)
     len_send_out = len(send_out)
