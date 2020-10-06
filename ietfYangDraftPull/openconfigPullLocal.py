@@ -152,10 +152,17 @@ def main(scriptConf=None):
     repo.remove()
     LOGGER.debug(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)
-    requests.put(api_path, output, auth=(credentials[0], credentials[1]),
+    response = requests.put(api_path, output, auth=(credentials[0], credentials[1]),
                   headers={'Content-Type': 'application/json'})
-    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
-    LOGGER.info('Job finished successfully')
+
+    status_code = response.status_code
+    if status_code < 200 or status_code > 299:
+        e = 'PUT /api/modules responsed with status code {}'.format(status_code)
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        LOGGER.info('Job finished, but an error occured while sending PUT to /api/modules')
+    else:
+        job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+        LOGGER.info('Job finished successfully')
 
 
 if __name__ == "__main__":
