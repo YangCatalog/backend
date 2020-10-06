@@ -427,7 +427,6 @@ def add_modules():
         directory = '/'.join(sdo_path.split('/')[:-1])
 
         repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
-        yc_gc.LOGGER.debug('Cloning repository')
         if repo_url not in repo:
             yc_gc.LOGGER.info('Downloading repo {}'.format(repo_url))
             try:
@@ -442,7 +441,7 @@ def add_modules():
                 branch = sdo.get('branch')
             else:
                 branch = 'master'
-            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url_dir_branch, directory, branch)
+            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, branch, directory)
             if repo_url_dir_branch.get(repo_url_dir_branch_temp) is None:
                 branch = repo[repo_url].get_commit_hash(directory, branch)
                 repo_url_dir_branch[repo_url_dir_branch_temp] = branch
@@ -500,7 +499,7 @@ def add_modules():
             for key in repo:
                 repo[key].remove()
             if isinstance(resolved_authorization, str):
-                return abort(401, description="You can not remove module with organization {}".format())
+                return abort(401, description="You can not remove module with organization {}".format(organization))
             else:
                 return abort(401, description="Unauthorized for server unknown reason")
         if 'organization' in repr(resolved_authorization):
