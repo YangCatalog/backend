@@ -43,7 +43,6 @@ import collections
 import errno
 import grp
 import json
-import math
 import os
 import pwd
 import shutil
@@ -54,7 +53,6 @@ from datetime import datetime, timedelta
 from threading import Lock
 
 import requests
-import uwsgi as uwsgi
 from flask import Flask, Response, abort, jsonify, make_response, redirect, request
 from flask_cors import CORS
 from flask_oidc import discovery, OpenIDConnect
@@ -360,7 +358,7 @@ CORS(application, supports_credentials=True)
 # monitor(application)              # to monitor requests using prometheus
 lock_for_load = Lock()
 
-def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, data=None):
+def make_cache(credentials, response, data=None):
     """After we delete or add modules we need to reload all the modules to the file
     for quicker search. This module is then loaded to the memory.
             Arguments:
@@ -375,33 +373,26 @@ def make_cache(credentials, response, cache_chunks, main_cache, is_uwsgi=True, d
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
+                yc_gc.LOGGER.debug("Loading data from confd")
                 path = '{}://{}:{}//restconf/data/yang-catalog:catalog'.format(yc_gc.protocol, yc_gc.confd_ip,
                                                                                yc_gc.confdPort)
                 try:
                     data = requests.get(path, auth=(credentials[0], credentials[1]),
                                         headers={'Accept': 'application/yang-data+json'}).json()
                     data = json.dumps(data)
+                    yc_gc.LOGGER.debug("Data loaded and parsed to json from confd db successfully")
                 except ValueError as e:
                     yc_gc.LOGGER.warning('not valid json returned')
-                    data = ''
+                    data = '{}'
                 except Exception:
                     yc_gc.LOGGER.warning('exception during loading data from confd')
                     data = None
-                yc_gc.LOGGER.info('path {} data type {}'.format(path, type(data)))
-                if data is None or len(data) == 0 or data == 'None':
+                if data is None or len(data) == 0 or data == 'None' or data == '':
                     secs = 30
                     yc_gc.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
-        yc_gc.LOGGER.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
-        if is_uwsgi == 'True':
-            chunks = int(math.ceil(len(data)/float(64000)))
-            for i in range(0, chunks, 1):
-                uwsgi.cache_set('data{}'.format(i), data[i*64000: (i+1)*64000],
-                                0, main_cache)
-            yc_gc.LOGGER.info('all {} chunks are set in uwsgi cache'.format(chunks))
-            uwsgi.cache_set('chunks-data', repr(chunks), 0, cache_chunks)
-        else:
-            return response, data
+        #yc_gc.LOGGER.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
+        yc_gc.redis.set('all-catalog-data', data)
     except:
         e = sys.exc_info()[0]
         yc_gc.LOGGER.error('Could not load json to cache. Error: {}'.format(e))
@@ -455,11 +446,11 @@ def load_to_memory():
         return abort(401, description='User must be admin')
     if get_password(username) != hash_pw(request.authorization['password']):
         return abort(401)
-    load(True)
+    load()
     return make_response(jsonify({'info': 'Success'}), 201)
 
 
-def load(on_change):
+def load():
     """Load to cache from confd all the data populated to yang-catalog."""
     if application.waiting_for_reload:
         special_id = application.special_id
@@ -487,74 +478,40 @@ def load(on_change):
             yc_gc.LOGGER.info('Special ids {}'.format(application.special_id_counter))
     with lock_for_load:
         yc_gc.LOGGER.info('application not locked for reload')
-        with yc_gc.lock_uwsgi_cache1:
-            yc_gc.LOGGER.info('Loading cache 1')
-            modules_text, modules, vendors_text, data =\
-                load_uwsgi_cache('cache_chunks1', 'main_cache1', 'cache_modules1', on_change)
-            # reset active cache back to 1 since we are done with populating cache 1
-            uwsgi.cache_update('active_cache', '1', 0, 'cache_chunks1')
-        yc_gc.LOGGER.info('Loading cache 2')
-        with yc_gc.lock_uwsgi_cache2:
-            load_uwsgi_cache('cache_chunks2', 'main_cache2', 'cache_modules2', on_change,
-                             modules_text, modules, vendors_text, data)
-        yc_gc.LOGGER.info('Both caches are loaded')
+        load_uwsgi_cache()
+        yc_gc.LOGGER.info("Cache loaded successfully")
         application.loading = False
 
 
-def load_uwsgi_cache(cache_chunks, main_cache, cache_modules, on_change,
-                     modules_text=None, modules=None, vendors_text=None, data=None):
+def load_uwsgi_cache():
     response = 'work'
-    initialized = uwsgi.cache_get('initialized', cache_chunks)
-    if sys.version_info >= (3, 4) and initialized is not None:
-        initialized = initialized.decode(encoding='utf-8', errors='strict')
-    yc_gc.LOGGER.debug('initialized {} on change {}'.format(initialized, on_change))
-    if initialized is None or initialized == 'False' or on_change:
-        uwsgi.cache_clear(cache_chunks)
-        uwsgi.cache_clear(main_cache)
-        uwsgi.cache_clear(cache_modules)
-        if cache_chunks == 'cache_chunks1':
-            # set active cache to 2 until we work on cache 1
-            uwsgi.cache_set('active_cache', '2', 0, 'cache_chunks1')
-        uwsgi.cache_set('initialized', 'False', 0, cache_chunks)
-        response, data = make_cache(yc_gc.credentials, response, cache_chunks, main_cache,
-                                    is_uwsgi=yc_gc.is_uwsgi, data=data)
+    response, data = make_cache(yc_gc.credentials, response)
+    cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
+    modules = cat['modules']
+    if cat.get('vendors'):
+        vendors = cat['vendors']
+    else:
         vendors = {}
-        if modules is None or vendors_text is None:
-            cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
-            modules = cat['modules']
-            if cat.get('vendors'):
-                vendors = cat['vendors']
-            else:
-                vendors = {}
-        if len(modules) != 0:
-            for i, mod in enumerate(modules['module']):
-                key = mod['name'] + '@' + mod['revision'] + '/' + mod['organization']
-                value = json.dumps(mod)
-                chunks = int(math.ceil(len(value) / float(20000)))
-                uwsgi.cache_set(key, repr(chunks), 0, cache_chunks)
-                for j in range(0, chunks, 1):
-                    uwsgi.cache_set(key + '-{}'.format(j), value[j * 20000: (j + 1) * 20000], 0, cache_modules)
+    yc_gc.redis.set("modules-data", json.dumps(modules))
+    yc_gc.redis.set("vendors-data", json.dumps(vendors))
+    if len(modules) != 0:
+        existing_keys = ["modules-data", "vendors-data", "all-catalog-data"]
+        # recreate keys to redis if there are any
+        for i, mod in enumerate(modules['module']):
+            key = mod['name'] + '@' + mod['revision'] + '/' + mod['organization']
+            existing_keys.append(key)
+            value = json.dumps(mod)
+            yc_gc.redis.set(key, value)
+        list_to_delete_keys_from_redis = []
+        for key in yc_gc.redis.scan_iter():
+            if key.decode('utf-8') not in existing_keys:
+                list_to_delete_keys_from_redis.append(key)
+        if len(list_to_delete_keys_from_redis) != 0:
+            yc_gc.redis.delete(*list_to_delete_keys_from_redis)
 
-        if modules_text is None:
-            modules_text = json.dumps(modules)
-        chunks = int(math.ceil(len(modules_text) / float(64000)))
-        for i in range(0, chunks, 1):
-            uwsgi.cache_set('modules-data{}'.format(i), modules_text[i * 64000: (i + 1) * 64000], 0, main_cache)
-        yc_gc.LOGGER.info('all {} modules chunks are set in uwsgi cache'.format(chunks))
-        uwsgi.cache_set('chunks-modules', repr(chunks), 0, cache_chunks)
-
-        if vendors_text is None:
-            vendors_text = json.dumps(vendors)
-        chunks = int(math.ceil(len(vendors_text) / float(64000)))
-        for i in range(0, chunks, 1):
-            uwsgi.cache_set('vendors-data{}'.format(i), vendors_text[i * 64000: (i + 1) * 64000], 0, main_cache)
-        yc_gc.LOGGER.info('all {} vendors chunks are set in uwsgi cache'.format(chunks))
-        uwsgi.cache_set('chunks-vendor', repr(chunks), 0, cache_chunks)
     if response != 'work':
         yc_gc.LOGGER.error('Could not load or create cache')
         sys.exit(500)
-    uwsgi.cache_update('initialized', 'True', 0, cache_chunks)
-    return modules_text, modules, vendors_text, data
 
 
-load(False)
+load()

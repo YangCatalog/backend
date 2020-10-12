@@ -19,6 +19,9 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import sys
 from threading import Lock
+import time
+
+import redis
 
 from api.sender import Sender
 from utility import log
@@ -104,6 +107,10 @@ class YangCatalogApiGlobalConfig():
             separator = '/'
             suffix = 'api'
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+        self.redis = redis.Redis(
+            host='yc_redis_1',
+            port=6379)
+        self.check_wait_redis_connected()
 
     def load_config(self):
         self.config_path = '/etc/yangcatalog/yangcatalog.conf'
@@ -174,6 +181,15 @@ class YangCatalogApiGlobalConfig():
             suffix = 'api'
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
         self.LOGGER.info('yangcatalog configuration reloaded')
+        self.redis = redis.Redis(
+            host='yc_redis_1',
+            port=6379)
+        self.check_wait_redis_connected()
+
+    def check_wait_redis_connected(self):
+        while not self.redis.ping():
+            time.sleep(5)
+            self.LOGGER.info("Waiting 5 seconds for redis to start")
 
 
 yc_gc = YangCatalogApiGlobalConfig()

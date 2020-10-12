@@ -29,7 +29,6 @@ from copy import deepcopy
 
 import jinja2
 import requests
-import uwsgi as uwsgi
 from flask import Blueprint, make_response, jsonify, abort, request, Response
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
@@ -165,9 +164,7 @@ def search(value):
                    'belongs-to', 'generated-from', 'expires', 'expired', 'prefix', 'reference']
     for module_key in module_keys:
         if key == module_key:
-            active_cache = get_active_cache()
-            with active_cache[0]:
-                data = modules_data(active_cache[1]).get('module')
+            data = modules_data().get('module', {})
             if data is None:
                 return abort(404, description='No module found in confd database')
             passed_data = []
@@ -226,9 +223,7 @@ def rpc_search(body=None):
         body = request.json
     yc_gc.LOGGER.info('Searching and filtering modules based on RPC {}'
                 .format(json.dumps(body)))
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        data = modules_data(active_cache[1])['module']
+    data = modules_data().get('module', {})
     body = body.get('input')
     if body:
         partial = body.get('partial')
@@ -601,9 +596,7 @@ def rpc_search(body=None):
 @app.route('/contributors', methods=['GET'])
 def get_organizations():
     orgs = set()
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        data = modules_data(active_cache[1]).get('module')
+    data = modules_data().get('module', {})
     for mod in data:
         if mod['organization'] != 'example' and mod['organization'] != 'missing element':
             orgs.add(mod['organization'])
@@ -904,12 +897,10 @@ def check_semver():
 def search_vendor_statistics(org):
     vendor = org
 
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        yc_gc.LOGGER.info('Searching for vendors')
-        data = vendors_data(active_cache[1], False)
+    yc_gc.LOGGER.info('Searching for vendors')
+    data = vendors_data(False).get('vendor', {})
     ven_data = None
-    for d in data['vendor']:
+    for d in data:
         if d['name'] == vendor:
             ven_data = d
             break
@@ -975,27 +966,14 @@ def search_module(name, revision, organization):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        yc_gc.LOGGER.info('Searching for module {}, {}, {}'.format(name, revision, organization))
-        if uwsgi.cache_exists(name + '@' + revision + '/' + organization, 'cache_chunks{}'.format(active_cache[1])):
-            chunks = uwsgi.cache_get(name + '@' + revision + '/' + organization, 'cache_chunks{}'
-                                     .format(active_cache[1]))
-            data = ''
-            for i in range(0, int(chunks), 1):
-                if sys.version_info >= (3, 4):
-                    data += uwsgi.cache_get(name + '@' + revision + '/' + organization + '-' + repr(i),
-                                            'cache_modules{}'.format(active_cache[1]))\
-                        .decode(encoding='utf-8', errors='strict')
-                else:
-                    data += uwsgi.cache_get(name + '@' + revision + '/' +
-                                            organization + '-' + repr(i),
-                                            'cache_modules{}'.format(active_cache[1]))
 
-            return Response(json.dumps({'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
-                                       .decode(data)]
-            }), mimetype='application/json')
-        return abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
+    yc_gc.LOGGER.info('Searching for module {}, {}, {}'.format(name, revision, organization))
+    module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization)).decode('utf-8')
+    if module_data is not None:
+        return Response(json.dumps({'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
+                                   .decode(module_data)]
+                                    }), mimetype='application/json')
+    return abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
 
 
 @app.route('/search/modules', methods=['GET'])
@@ -1003,13 +981,11 @@ def get_modules():
     """Search for a all the modules populated in confd
             :return response to the request with all the modules
     """
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        yc_gc.LOGGER.info('Searching for modules')
-        data = json.dumps(modules_data(active_cache[1]))
-        if data is None or data == '{}':
-            return abort(404, description="No module is loaded")
-        return Response(data, mimetype='application/json')
+    yc_gc.LOGGER.info('Searching for modules')
+    data = json.dumps(modules_data())
+    if data is None or data == '{}':
+        return abort(404, description="No module is loaded")
+    return Response(data, mimetype='application/json')
 
 
 @app.route('/search/vendors', methods=['GET'])
@@ -1017,13 +993,11 @@ def get_vendors():
     """Search for a all the vendors populated in confd
             :return response to the request with all the vendors
     """
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        yc_gc.LOGGER.info('Searching for vendors')
-        data = json.dumps(vendors_data(active_cache[1]))
-        if data is None or data == '{}':
-            return abort(404, description="No vendor is loaded")
-        return Response(data, mimetype='application/json')
+    yc_gc.LOGGER.info('Searching for vendors')
+    data = json.dumps(vendors_data())
+    if data is None or data == '{}':
+        return abort(404, description="No vendor is loaded")
+    return Response(data, mimetype='application/json')
 
 
 @app.route('/search/catalog', methods=['GET'])
@@ -1032,9 +1006,7 @@ def get_catalog():
                 :return response to the request with all the data
     """
     yc_gc.LOGGER.info('Searching for catalog data')
-    active_cache = get_active_cache()
-    with active_cache[0]:
-        data = catalog_data(active_cache[1])
+    data = catalog_data()
     if data is None or data == '{}':
         return abort(404, description='No data loaded to YangCatalog')
     else:
@@ -1237,18 +1209,6 @@ def search_recursive(output, module, leaf, resolved):
             output.add(meta_data)
 
 
-def get_active_cache():
-    active_cache = uwsgi.cache_get('active_cache', 'cache_chunks1')
-    if active_cache is None:
-        return None
-    else:
-        active_cache = int(active_cache)
-        if active_cache == 1:
-            return yc_gc.lock_uwsgi_cache1, '1'
-        else:
-            return yc_gc.lock_uwsgi_cache2, '2'
-
-
 def process(data, passed_data, value, module, split, count):
     """Iterates recursively through the data to find only modules
     that are searched for
@@ -1277,29 +1237,17 @@ def process(data, passed_data, value, module, split, count):
     return False
 
 
-def modules_data(which_cache):
-    chunks = int(uwsgi.cache_get('chunks-modules', 'cache_chunks{}'.format(which_cache)))
-    data = ''
-    for i in range(0, chunks, 1):
-        if sys.version_info >= (3, 4):
-            data += uwsgi.cache_get('modules-data{}'.format(i), 'main_cache{}'.format(which_cache))\
-                .decode(encoding='utf-8', errors='strict')
-        else:
-            data += uwsgi.cache_get('modules-data{}'.format(i), 'main_cache{}'.format(which_cache))
-    json_data = \
-        json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
-    return json_data
+def modules_data():
+    data = yc_gc.redis.get("modules-data").decode('utf-8')
+    if data is None:
+        data = '{}'
+    return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
-def vendors_data(which_cache, clean_data=True):
-    chunks = int(uwsgi.cache_get('chunks-vendor', 'cache_chunks{}'.format(which_cache)))
-    data = ''
-    for i in range(0, chunks, 1):
-        if sys.version_info >= (3, 4):
-            data += uwsgi.cache_get('vendors-data{}'.format(i), 'main_cache{}'.format(which_cache))\
-                .decode(encoding='utf-8', errors='strict')
-        else:
-            data += uwsgi.cache_get('vendors-data{}'.format(i), 'main_cache{}'.format(which_cache))
+def vendors_data(clean_data=True):
+    data = yc_gc.redis.get("vendors-data").decode('utf-8')
+    if data is None:
+        data = "{}"
     if clean_data:
         json_data = \
             json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
@@ -1308,21 +1256,11 @@ def vendors_data(which_cache, clean_data=True):
     return json_data
 
 
-def catalog_data(which_cache):
-    chunks = int(uwsgi.cache_get('chunks-data', 'cache_chunks{}'.format(which_cache)))
-    if chunks == 0:
-        return None
-    data = ''
-    for i in range(0, chunks, 1):
-        if sys.version_info >= (3, 4):
-            data += uwsgi.cache_get('data{}'.format(i), 'main_cache{}'.format(which_cache))\
-                .decode(encoding='utf-8', errors='strict')
-        else:
-            data += uwsgi.cache_get('data{}'.format(i), 'main_cache{}'.format(which_cache))
-    json_data = \
-        json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-            .decode(data)
-    return json_data
+def catalog_data():
+    data = yc_gc.redis.get("all-catalog-data").decode('utf-8')
+    if data is None:
+        data = '{}'
+    return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
 def create_bootstrap_info():
