@@ -16,7 +16,7 @@
 """
 Python script to start parsing all the yang files.
 Based on the provided directory and boolean option
-sdo (default true) this script will start to look
+sdo (default False) this script will start to look
 for xml files or it will start to parse all the yang
 files in the directory ignoring all the vendor metadata
 """
@@ -33,7 +33,7 @@ import sys
 import time
 
 import utility.log as log
-from parseAndPopulate import capability as cap
+from parseAndPopulate.capability import Capability
 from parseAndPopulate import integrity
 from parseAndPopulate.prepare import Prepare
 
@@ -148,7 +148,6 @@ def main(scriptConf=None):
     is_uwsgi = config.get('General-Section', 'uwsgi')
     private_dir = config.get('Web-Section', 'private-directory')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
-
     temp_dir = config.get('Directory-Section', 'temp')
 
     separator = ':'
@@ -165,8 +164,7 @@ def main(scriptConf=None):
         local_integrity = integrity.Statistics(args.dir)
     else:
         local_integrity = None
-    prepare = Prepare(log_directory, "prepare", yangcatalog_api_prefix)
-    search_dirs = [args.dir]
+    prepare = Prepare(log_directory, 'prepare', yangcatalog_api_prefix)
 
     if args.run_integrity:
         stats_list = {'vendor': [yang_models + '/vendor/cisco']}
@@ -174,10 +172,10 @@ def main(scriptConf=None):
     if args.sdo:
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
 
-        capability = cap.Capability(log_directory, args.dir, prepare,
-                                    local_integrity, args.api, args.sdo,
-                                    args.json_dir, args.result_html_dir,
-                                    args.save_file_dir, private_dir, yang_models)
+        capability = Capability(log_directory, args.dir, prepare,
+                                local_integrity, args.api, args.sdo,
+                                args.json_dir, args.result_html_dir,
+                                args.save_file_dir, private_dir, yang_models)
         LOGGER.info('Starting to parse files in sdo directory')
         capability.parse_and_dump_sdo()
         prepare.dump_modules(args.json_dir)
@@ -189,7 +187,7 @@ def main(scriptConf=None):
                 if not args.api and args.save_modification_date:
                     try:
                         file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
-                                                 '.txt', 'rw')
+                                                 '.txt', 'r')
                         time_in_file = file_modification.readline()
                         if time_in_file in str(time.ctime(os.path.getmtime(filename))):
                             update = False
@@ -208,15 +206,15 @@ def main(scriptConf=None):
                 if update:
                     LOGGER.info('Found xml source {}'.format(filename))
 
-                    capability = cap.Capability(log_directory, filename,
-                                                prepare,
-                                                local_integrity, args.api,
-                                                args.sdo, args.json_dir,
-                                                args.result_html_dir,
-                                                args.save_file_dir,
-                                                private_dir,
-                                                yang_models,
-                                                args.run_integrity)
+                    capability = Capability(log_directory, filename,
+                                            prepare,
+                                            local_integrity, args.api,
+                                            args.sdo, args.json_dir,
+                                            args.result_html_dir,
+                                            args.save_file_dir,
+                                            private_dir,
+                                            yang_models,
+                                            args.run_integrity)
                     if 'ietf-yang-library' in pattern:
                         capability.parse_and_dump_yang_lib()
                     else:

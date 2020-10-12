@@ -339,9 +339,9 @@ def main(scriptConf=None):
             complicatedAlgorithms.parse_requests()
             sys.setrecursionlimit(recursion_limit)
             LOGGER.info('Populating with new data of complicated algorithms')
+            complicatedAlgorithms.populate()
             end = time.time()
             LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(end - start))
-            complicatedAlgorithms.populate()
         else:
             url = (yangcatalog_api_prefix + 'load-cache')
             LOGGER.info('{}'.format(url))
@@ -356,7 +356,7 @@ def main(scriptConf=None):
         except OSError:
             # Be happy if deleted
             pass
-
+    LOGGER.info('Populate script finished successfully')
 
 if __name__ == "__main__":
     main()
