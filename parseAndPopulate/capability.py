@@ -68,6 +68,8 @@ class Capability:
                  yang_models_dir, run_integrity=False):
         global LOGGER
         LOGGER = log.get_logger('capability', log_directory + '/parseAndPopulate.log')
+        if len(LOGGER.handlers) > 1:
+            LOGGER.handlers.remove(LOGGER.handlers[1])
         LOGGER.debug('Running constructor')
         self.logger = log.get_logger('repoutil', log_directory + '/parseAndPopulate.log')
         self.log_directory = log_directory
@@ -225,7 +227,7 @@ class Capability:
             for root, subdirs, sdos in os.walk('/'.join(self.split)):
                 for file_name in sdos:
                     if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
-                        LOGGER.info('Parsing sdo file from directory {}'.format(file_name))
+                        LOGGER.info('Parsing sdo file {} from directory {}'.format(file_name, root))
 
                         if '[1]' in file_name:
                             LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
@@ -257,7 +259,8 @@ class Capability:
                                            self.prepare.name_revision_organization,
                                            schema, self.path, self.to)
                             self.prepare.add_key_sdo_module(yang)
-        repo.remove()
+        if repo is not None:
+            repo.remove()
 
     # parse capability xml and save to file
     def parse_and_dump_yang_lib(self):
