@@ -25,6 +25,8 @@ import redis
 
 import redis
 
+import redis
+
 from api.sender import Sender
 from utility import log
 
