@@ -18,12 +18,8 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import sys
-from threading import Lock
 import time
-
-import redis
-
-import redis
+from threading import Lock
 
 import redis
 
@@ -34,6 +30,7 @@ if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
+
 
 class YangCatalogApiGlobalConfig():
 
