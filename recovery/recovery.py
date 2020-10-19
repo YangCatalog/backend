@@ -52,11 +52,11 @@ class ScriptConfig:
 
     def __init__(self):
         self.help = 'This serves to save or load all information in yangcatalog.org to json in' \
-        ' case the server will go down and we would lose all the information we' \
-        ' have got. We have two options in here. Saving makes a GET request to ' \
-        'file with name that would be set as a argument or it will be set to ' \
-        'a current time and date. Load will read the file and make a PUT request ' \
-        'to write all data to yangcatalog.org. This runs as a daily cronjob to save latest state of confd'
+                    ' case the server will go down and we would lose all the information we' \
+                    ' have got. We have two options in here. Saving makes a GET request to ' \
+                    'file with name that would be set as a argument or it will be set to ' \
+                    'a current time and date. Load will read the file and make a PUT request ' \
+                    'to write all data to yangcatalog.org. This runs as a daily cronjob to save latest state of confd'
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -78,14 +78,16 @@ class ScriptConfig:
                             help='Set port where the confd is started. Default -> {}'.format(self.__confd_port))
         parser.add_argument('--ip', default=self.__confd_host, type=str,
                             help='Set ip address where the confd is started. Default -> {}'.format(self.__confd_host))
-        parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
+        parser.add_argument('--name_save',
+                            default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
         parser.add_argument('--name_load', type=str, default='',
                             help='Set name of the file to load. Default will take a last saved file')
         parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
                             help='Set whether you want to save a file or load a file. Default is save')
-        parser.add_argument('--protocol', type=str, default=self.__confd_protocol, help='Whether confd runs on http or https.'
-                                                                                ' Default is set to {}'.format(self.__confd_protocol))
+        parser.add_argument('--protocol', type=str, default=self.__confd_protocol,
+                            help='Whether confd runs on http or https.'
+                                 ' Default is set to {}'.format(self.__confd_protocol))
 
         self.args = parser.parse_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -213,7 +215,7 @@ def main(scriptConf=None):
                                                       'Content-type': 'application/yang-data+json'})
                         if response.status_code < 200 or response.status_code > 299:
                             LOGGER.info('Request with body on path {} failed with {}'
-                                  .format(url, response.text))
+                                        .format(url, response.text))
                     json_modules_data = json.dumps({
                         'modules':
                             {
@@ -229,8 +231,7 @@ def main(scriptConf=None):
 
                     if response.status_code < 200 or response.status_code > 299:
                         LOGGER.info('Request with body on path {} failed with {}'
-                              .format(url,
-                                      response.text))
+                                    .format(url, response.text))
 
                     # In each json
                     LOGGER.info('Starting to add vendors')
@@ -241,7 +242,8 @@ def main(scriptConf=None):
                         for p in v['platforms']['platform']:
                             pname = p['name']
                             for s in p['software-versions']['software-version']:
-                                LOGGER.info('{} out of {}'.format(name, len(p['software-versions']['software-version'])))
+                                LOGGER.info(
+                                    '{} out of {}'.format(name, len(p['software-versions']['software-version'])))
                                 json_implementations_data = json.dumps({
                                     'vendors':
                                         {
@@ -268,7 +270,7 @@ def main(scriptConf=None):
                                                               'Content-type': 'application/yang-data+json'})
                                 if response.status_code < 200 or response.status_code > 299:
                                     LOGGER.info('Request with body on path {} failed with {}'.
-                                          format(url, response.text))
+                                                format(url, response.text))
                     code = 200
                     LOGGER.info('Confd recoverd with status code 200')
                 except:
@@ -286,16 +288,12 @@ def main(scriptConf=None):
             separator = '/'
             suffix = 'api'
         yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol,
-                                                       api_host, separator,
+                                                       api_host.split('/')[-1], separator,
                                                        suffix)
         url = (yangcatalog_api_prefix + 'load-cache')
 
-        response = requests.post(url, None,
-                                 auth=(credentials[0],
-                                       credentials[1]),
-                                 headers={
-                                     'Accept': 'application/yang-data+json',
-                                     'Content-type': 'application/yang-data+json'})
+        response = requests.post(url, None, auth=(credentials[0], credentials[1]),
+                                 headers={'Accept': 'application/json'})
         if response.status_code != 201:
             LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
                            .format(response.status_code, response.text))

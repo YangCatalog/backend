@@ -10,7 +10,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron uwsgi uwsgi-plugin-python3 logrotate curl
+RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl
 
 RUN echo postfix postfix/mailname string yang2.amsl.com | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
@@ -36,13 +36,10 @@ RUN pip install -r requirements.txt \
   && ./setup.py install
 
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-ENV UWSGI_PROCS=1
-ENV UWSGI_THREADS=20
 
 # Add crontab file in the cron directory
 COPY crontab /etc/cron.d/yang-cron
 
-COPY yang-catalog.ini-dist $VIRTUAL_ENV/yang-catalog.ini
 RUN mkdir /var/run/yang
 
 RUN chown yang:yang /etc/cron.d/yang-cron
@@ -81,6 +78,6 @@ RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
-CMD chown -R yang:yang /var/run/yang && cron && service postfix start && uwsgi --ini $VIRTUAL_ENV/yang-catalog.ini
+CMD chown -R yang:yang /var/run/yang && cron && service postfix start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
 EXPOSE 3031
