@@ -40,7 +40,7 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-class ScriptConfig():
+class ScriptConfig:
     def __init__(self):
         self.help = 'Run populate script on all openconfig files to parse all modules and populate the' \
                     ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
@@ -48,7 +48,7 @@ class ScriptConfig():
         parser.add_argument('--config-path', type=str,
                             default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

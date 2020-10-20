@@ -383,7 +383,7 @@ def make_cache(credentials, response, data=None):
                     yc_gc.LOGGER.debug("Data loaded and parsed to json from confd db successfully")
                 except ValueError as e:
                     yc_gc.LOGGER.warning('not valid json returned')
-                    data = '{}'
+                    data = ''
                 except Exception:
                     yc_gc.LOGGER.warning('exception during loading data from confd')
                     data = None

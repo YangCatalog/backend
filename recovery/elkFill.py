@@ -63,7 +63,7 @@ class ScriptConfig:
                             help='Directory for all yang modules lookup. Default: ' + self.__save_file_dir)
         parser.add_argument('--temp', default=self.__temp, type=str,
                             help='Path to yangcatalog temporary directory. Default: ' + self.__temp)
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

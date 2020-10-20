@@ -73,7 +73,7 @@ class ScriptConfig:
         parser = argparse.ArgumentParser()
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

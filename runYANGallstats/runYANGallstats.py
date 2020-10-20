@@ -67,7 +67,7 @@ if __name__ == "__main__":
                         help="Exclude some keywords from the YANG module name. Example: show")
     parser.add_argument("--removedup", type=bool, default=False, help="Remove duplicate YANG module. Default False.")
     parser.add_argument("--debug", type=int, default=0, help="Debug level; the default is 0")
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
 
     # equivalent shell commands (without the de-duplication function)
     # rootdir:

@@ -42,7 +42,7 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-class ScriptConfig():
+class ScriptConfig:
     def __init__(self):
         self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
                     ' to confd directory'
@@ -73,7 +73,7 @@ class ScriptConfig():
                             default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
 
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

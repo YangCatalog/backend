@@ -45,7 +45,7 @@ else:
     import ConfigParser
 
 
-class ScriptConfig():
+class ScriptConfig:
 
     def __init__(self):
         config_path = '/etc/yangcatalog/yangcatalog.conf'
@@ -81,7 +81,7 @@ class ScriptConfig():
                             help='Set port where the API is started. Default: ' + self.__api_port)
         parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
                             help='Whether API runs on http or https. Default: ' + self.__api_protocol)
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
