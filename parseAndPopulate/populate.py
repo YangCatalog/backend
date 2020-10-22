@@ -51,7 +51,7 @@ else:
     import ConfigParser
 
 
-class ScriptConfig():
+class ScriptConfig:
     def __init__(self):
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
@@ -106,7 +106,7 @@ class ScriptConfig():
                             help='Force to index files. Works only in notify-indexint is True')
         parser.add_argument('--save-file-dir', default=self.__save_file_dir,
                             type=str, help='Directory where the yang file will be saved. Default: ' + self.__save_file_dir)
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

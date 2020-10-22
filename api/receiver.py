@@ -711,7 +711,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                         help='Set path to config file')
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
     config_path = args.config_path
     receiver = Receiver(config_path)
     receiver.start_receiving()

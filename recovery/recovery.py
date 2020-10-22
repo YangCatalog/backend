@@ -89,7 +89,7 @@ class ScriptConfig:
                             help='Whether confd runs on http or https.'
                                  ' Default is set to {}'.format(self.__confd_protocol))
 
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

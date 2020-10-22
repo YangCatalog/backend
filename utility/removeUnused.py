@@ -72,7 +72,7 @@ if __name__ == '__main__':
                         help='Set path to config file')
     parser.add_argument('--compress', action='store_true', default=True,
                         help='Set whether to compress snapshot files. Default is True')
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
     config_path = args.config_path
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()

@@ -70,7 +70,7 @@ class ScriptConfig:
         parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
                                                                                     ' to cisco webex teams and to'
                                                                                     ' emails')
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

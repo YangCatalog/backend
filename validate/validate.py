@@ -50,7 +50,7 @@ if sys.version_info >= (3, 4):
 else:
     import ConfigParser
 
-class ScriptConfig():
+class ScriptConfig:
     def __init__(self):
         parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
@@ -61,7 +61,7 @@ class ScriptConfig():
         parser.add_argument('--sdo-path', type=str, default='', help='What is model organization of user')
         parser.add_argument('--row-id', type=str, default='', help='Row ID of user in temporary db')
         parser.add_argument('--user-email', type=str, default='', help='Email of user')
-        self.args = parser.parse_args()
+        self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):

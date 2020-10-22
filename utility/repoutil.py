@@ -185,7 +185,7 @@ if __name__ == '__main__':
     parser.add_argument('userpass', nargs=1, type=str,
                         help='Provide username:password for github https access'
                         )
-    args = parser.parse_args()
+    args, extra_args = parser.parse_known_args()
     if not args.userpass:
         print("username:password required")
         sys.exit(1)
@@ -277,4 +277,3 @@ if __name__ == '__main__':
         r.remove()
     except GitCommandError as e:
         print('Git Exception as expected: ' + e.stderr)
-
