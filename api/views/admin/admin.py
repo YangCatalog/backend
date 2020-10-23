@@ -168,7 +168,7 @@ def get_var_yang_directory_structure(direc):
                 except:
                     file_structure['user'] = file_stat.st_uid
                 file_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, f)).st_mode))
-
+                file_structure['modification'] = int(file_stat.st_mtime)
                 structure['files'].append(file_structure)
             for directory in dirs:
                 dir_structure = {'name': directory}
@@ -186,6 +186,7 @@ def get_var_yang_directory_structure(direc):
                     dir_structure['user'] = dir_stat.st_uid
                 dir_structure['size'] = dir_size
                 dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, directory)).st_mode))
+                dir_structure['modification'] = int(dir_stat.st_mtime)
                 structure['folders'].append(dir_structure)
             break
         return structure
