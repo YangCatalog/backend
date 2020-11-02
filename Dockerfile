@@ -9,13 +9,13 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 ENV VIRTUAL_ENV=/backend
 
 #Install Cron
-RUN apt-get update
+RUN apt-get -y update
 RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl
 
 RUN echo postfix postfix/mailname string yang2.amsl.com | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
     apt-get -y install postfix
-RUN apt-get autoremove -y
+RUN apt-get -y autoremove
 
 RUN gem install bundler
 
