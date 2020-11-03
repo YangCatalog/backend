@@ -36,11 +36,12 @@ import time
 from collections import OrderedDict
 from time import sleep
 
+import redis
 import requests
 import utility.log as log
-from utility.util import job_log
 from dateutil.parser import parse
 from requests import ConnectionError
+from utility.util import job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -68,10 +69,6 @@ class ScriptConfig:
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')
-        self.api_port = config.get('Web-Section', 'api-port')
-        self.is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.api_protocol = config.get('General-Section', 'protocol-api')
-        self.api_host = config.get('Web-Section', 'ip')
         parser = argparse.ArgumentParser(
             description=self.help)
         parser.add_argument('--port', default=self.__confd_port, type=int,
@@ -126,10 +123,6 @@ def main(scriptConf=None):
     credentials = scriptConf.credentials
     log_directory = scriptConf.log_directory
     temp_dir = scriptConf.temp_dir
-    api_port = scriptConf.api_port
-    is_uwsgi = scriptConf.is_uwsgi
-    api_protocol = scriptConf.api_protocol
-    api_host = scriptConf.api_host
 
     LOGGER = log.get_logger('recovery', log_directory + '/yang.log')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
@@ -179,7 +172,7 @@ def main(scriptConf=None):
             file_name = '{}/{}-UTC.json'.format(cache_directory, str(list_of_dates[-1]).replace(' ', '_'))
             file_load = open(file_name, 'r')
         LOGGER.info('Loading file {}'.format(file_load.name))
-        body = json.load(file_load, object_pairs_hook=OrderedDict)
+        catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
         str_to_encode = '%s:%s' % (credentials[0], credentials[1])
         if sys.version_info >= (3, 4):
             str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
@@ -194,7 +187,7 @@ def main(scriptConf=None):
                 time.sleep(10)
                 counter -= 1
                 try:
-                    catalog = body.get('yang-catalog:catalog')
+                    catalog = catalog_data.get('yang-catalog:catalog')
 
                     modules_json = catalog['modules']['module']
                     x = -1
@@ -274,30 +267,57 @@ def main(scriptConf=None):
                     code = 200
                     LOGGER.info('Confd recoverd with status code 200')
                 except:
-                    counter -= 1
+                    LOGGER.warning('Failed to load data. Counter: {}'.format(counter))
             else:
                 failed = False
             if counter == 0:
-                LOGGER.error('failed to load data')
+                LOGGER.error('failed to load vendor data')
                 break
 
         file_load.close()
-        separator = ':'
-        suffix = api_port
-        if is_uwsgi == 'True':
-            separator = '/'
-            suffix = 'api'
-        yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol,
-                                                       api_host.split('/')[-1], separator,
-                                                       suffix)
-        url = (yangcatalog_api_prefix + 'load-cache')
+        LOGGER.info('Cache reloaded to ConfD. Starting to load data into Redis.')
 
-        response = requests.post(url, None, auth=(credentials[0], credentials[1]),
-                                 headers={'Accept': 'application/json'})
-        if response.status_code != 201:
-            LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
-                           .format(response.status_code, response.text))
-        LOGGER.info('Cache reloaded')
+        # Init Redis and set values to empty dicts
+        redis_cache = redis.Redis(
+            host='yc_redis_1',
+            port=6379)
+        redis_cache.set('modules-data', '{}')
+        redis_cache.set('vendors-data', '{}')
+        redis_cache.set('all-catalog-data', '{}')
+
+        for module in modules_json:
+            if module['name'] == 'yang-catalog' and module['revision'] == '2018-04-03':
+                redis_cache.set('yang-catalog@2018-04-03/ietf', json.dumps(module))
+                break
+        LOGGER.debug('yang-catalog@2018-04-03/ietf module set')
+
+        catalog_data_json = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(json.dumps(catalog_data))['yang-catalog:catalog']
+        modules = catalog_data_json['modules']
+        if catalog_data_json.get('vendors'):
+            vendors = catalog_data_json['vendors']
+        else:
+            vendors = {}
+        redis_cache.set('modules-data', json.dumps(modules))
+        redis_cache.set('vendors-data', json.dumps(vendors))
+        redis_cache.set('all-catalog-data', json.dumps(catalog_data))
+
+        if len(modules) != 0:
+            existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
+            # recreate keys to redis if there are any
+            for i, mod in enumerate(modules['module']):
+                key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
+                existing_keys.append(key)
+                value = json.dumps(mod)
+                redis_cache.set(key, value)
+            list_to_delete_keys_from_redis = []
+            for key in redis_cache.scan_iter():
+                if key.decode('utf-8') not in existing_keys:
+                    list_to_delete_keys_from_redis.append(key)
+            if len(list_to_delete_keys_from_redis) != 0:
+                redis_cache.delete(*list_to_delete_keys_from_redis)
+
+        LOGGER.info('All the modules data set to Redis successfully')
+
     job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
 
