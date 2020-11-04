@@ -968,8 +968,9 @@ def search_module(name, revision, organization):
     """
 
     yc_gc.LOGGER.info('Searching for module {}, {}, {}'.format(name, revision, organization))
-    module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization)).decode('utf-8')
+    module_data = yc_gc.redis.get('{}@{}/{}'.format(name, revision, organization))
     if module_data is not None:
+        module_data = module_data.decode('utf-8')
         return Response(json.dumps({'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
                                    .decode(module_data)]
                                     }), mimetype='application/json')
@@ -1238,16 +1239,20 @@ def process(data, passed_data, value, module, split, count):
 
 
 def modules_data():
-    data = yc_gc.redis.get("modules-data").decode('utf-8')
+    data = yc_gc.redis.get('modules-data')
     if data is None:
         data = '{}'
+    else:
+        data = data.decode('utf-8')
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
 def vendors_data(clean_data=True):
-    data = yc_gc.redis.get("vendors-data").decode('utf-8')
+    data = yc_gc.redis.get('vendors-data')
     if data is None:
-        data = "{}"
+        data = '{}'
+    else:
+        data = data.decode('utf-8')
     if clean_data:
         json_data = \
             json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
@@ -1257,9 +1262,11 @@ def vendors_data(clean_data=True):
 
 
 def catalog_data():
-    data = yc_gc.redis.get("all-catalog-data").decode('utf-8')
+    data = yc_gc.redis.get('all-catalog-data')
     if data is None:
         data = '{}'
+    else:
+        data = data.decode('utf-8')
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 

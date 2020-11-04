@@ -69,6 +69,8 @@ class ScriptConfig:
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')
+        self.redis_host = config.get('DB-Section', 'redis-host')
+        self.redis_port = config.get('DB-Section', 'redis-port')
         parser = argparse.ArgumentParser(
             description=self.help)
         parser.add_argument('--port', default=self.__confd_port, type=int,
@@ -123,6 +125,8 @@ def main(scriptConf=None):
     credentials = scriptConf.credentials
     log_directory = scriptConf.log_directory
     temp_dir = scriptConf.temp_dir
+    redis_host = scriptConf.redis_host
+    redis_port = scriptConf.redis_port
 
     LOGGER = log.get_logger('recovery', log_directory + '/yang.log')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
@@ -279,8 +283,8 @@ def main(scriptConf=None):
 
         # Init Redis and set values to empty dicts
         redis_cache = redis.Redis(
-            host='yc_redis_1',
-            port=6379)
+            host=redis_host,
+            port=redis_port)
         redis_cache.set('modules-data', '{}')
         redis_cache.set('vendors-data', '{}')
         redis_cache.set('all-catalog-data', '{}')
