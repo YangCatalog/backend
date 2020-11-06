@@ -1243,7 +1243,7 @@ def modules_data():
     if data is None:
         data = '{}'
     else:
-        data.decode('utf-8')
+        data = data.decode('utf-8')
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
