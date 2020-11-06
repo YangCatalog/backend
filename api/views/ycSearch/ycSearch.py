@@ -1250,7 +1250,7 @@ def modules_data():
 def vendors_data(clean_data=True):
     data = yc_gc.redis.get("vendors-data")
     if data is None:
-        data = "{}"
+        data = '{}'
     else:
         data = data.decode('utf-8')
     if clean_data:

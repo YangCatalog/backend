@@ -48,6 +48,7 @@ class YangCatalogApiGlobalConfig():
         self.secret_key = config.get('Secrets-Section', 'flask-secret-key')
         self.nginx_dir = config.get('Directory-Section', 'nginx-conf')
         self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.private_dir = config.get('Web-Section', 'private-directory')
         self.dbHost = config.get('DB-Section', 'host')
         self.dbName = config.get('DB-Section', 'name-users')
         self.dbNameSearch = config.get('DB-Section', 'name-search')
@@ -84,6 +85,8 @@ class YangCatalogApiGlobalConfig():
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')
         self.es_aws = config.get('DB-Section', 'es-aws')
+        self.redis_host = config.get('DB-Section', 'redis-host')
+        self.redis_port = config.get('DB-Section', 'redis-port')
         if self.es_aws == 'True':
             self.es_aws = True
         else:
@@ -109,8 +112,8 @@ class YangCatalogApiGlobalConfig():
             suffix = 'api'
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
         self.redis = redis.Redis(
-            host='yc_redis_1',
-            port=6379)
+            host=self.redis_host,
+            port=self.redis_port)
         self.check_wait_redis_connected()
 
     def load_config(self):
@@ -122,6 +125,7 @@ class YangCatalogApiGlobalConfig():
         self.secret_key = config.get('Secrets-Section', 'flask-secret-key')
         self.nginx_dir = config.get('Directory-Section', 'nginx-conf')
         self.result_dir = config.get('Web-Section', 'result-html-dir')
+        self.private_dir = config.get('Web-Section', 'private-directory')
         self.dbHost = config.get('DB-Section', 'host')
         self.dbName = config.get('DB-Section', 'name-users')
         self.dbNameSearch = config.get('DB-Section', 'name-search')
@@ -158,6 +162,8 @@ class YangCatalogApiGlobalConfig():
         self.es_host = config.get('DB-Section', 'es-host')
         self.es_port = config.get('DB-Section', 'es-port')
         self.es_aws = config.get('DB-Section', 'es-aws')
+        self.redis_host = config.get('DB-Section', 'redis-host')
+        self.redis_port = config.get('DB-Section', 'redis-port')
         if self.es_aws == 'True':
             self.es_aws = True
         else:
@@ -183,8 +189,8 @@ class YangCatalogApiGlobalConfig():
         self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
         self.LOGGER.info('yangcatalog configuration reloaded')
         self.redis = redis.Redis(
-            host='yc_redis_1',
-            port=6379)
+            host=self.redis_host,
+            port=self.redis_port)
         self.check_wait_redis_connected()
 
     def check_wait_redis_connected(self):
