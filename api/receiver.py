@@ -62,8 +62,6 @@ else:
 class Receiver:
 
     def __init__(self, config_path):
-        self.__all_modules = None
-
         self.__config_path = config_path
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -120,7 +118,7 @@ class Receiver:
             else:
                 shutil.copy2(s, d)
 
-    def process_sdo(self, arguments):
+    def process_sdo(self, arguments, all_modules):
         """Processes SDOs. Calls populate script which calls script to parse all the modules
         on the given path which is one of the params. Populate script will also send the
         request to populate confd on given ip and port. It will also copy all the modules to
@@ -167,12 +165,11 @@ class Receiver:
         if tree_created:
             self.copytree(direc + "/temp/", self.temp_dir + "/sdo")
             with open(direc + '/prepare.json', 'r') as f:
-                global all_modules
-                all_modules = json.load(f)
+                all_modules.update(json.load(f))
 
         return self.__response_type[1]
 
-    def process_vendor(self, arguments):
+    def process_vendor(self, arguments, all_modules):
         """Processes vendors. Calls populate script which calls script to parse all
         the modules that are contained in the given hello message xml file or in
         ietf-yang-module xml file which is one of the params. Populate script will
@@ -220,8 +217,7 @@ class Receiver:
         if tree_created:
             with open(direc + '/prepare.json',
                       'r') as f:
-                global all_modules
-                all_modules = json.load(f)
+                all_modules.update(json.load(f))
 
         integrity_file_name = datetime.utcnow().strftime("%Y-%m-%dT%H:%m:%S.%f")[:-3] + 'Z'
 
@@ -591,7 +587,7 @@ class Receiver:
                     self.LOGGER.error("check log_trigger.txt failed to process github message with error {}".format(
                         sys.exc_info()[0]))
             else:
-                self.__all_modules = None
+                all_modules = {}
                 if arguments[-3] == 'DELETE':
                     self.LOGGER.info('Deleting single module')
                     if 'http' in arguments[0]:
@@ -605,12 +601,12 @@ class Receiver:
                     final_response = self.process_module_deletion(arguments, True)
                     credentials = arguments[3:5]
                 elif '--sdo' in arguments[2]:
-                    final_response = self.process_sdo(arguments)
+                    final_response = self.process_sdo(arguments, all_modules)
                     credentials = arguments[11:13]
                     direc = arguments[6]
                     shutil.rmtree(direc)
                 else:
-                    final_response = self.process_vendor(arguments)
+                    final_response = self.process_vendor(arguments, all_modules)
                     credentials = arguments[10:12]
                     direc = arguments[5]
                     shutil.rmtree(direc)
@@ -619,13 +615,13 @@ class Receiver:
                     if res.status_code != 201:
                         final_response = self.__response_type[0] + '#split#Server error-> could not reload cache'
 
-                    if self.__all_modules:
+                    if all_modules:
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
                                                                               self.__credentials, self.__confd_protocol,
                                                                               self.__confd_ip, self.__confdPort,
                                                                               self.__save_file_dir, None,
-                                                                              self.__all_modules, self.__yang_models,
+                                                                              all_modules, self.__yang_models,
                                                                               self.temp_dir)
                         complicated_algorithms.parse_non_requests()
                         complicated_algorithms.parse_requests()
