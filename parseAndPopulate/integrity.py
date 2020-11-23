@@ -70,7 +70,7 @@ class Statistics:
 
     @staticmethod
     def add_platform(os_type, platform):
-        Statistics.os[os_type].add(platform)
+        Statistics.os[os_type] = platform
 
     @staticmethod
     def add_unique(modules_revision):
@@ -138,9 +138,9 @@ class Statistics:
     @staticmethod
     def add_namespace(path, value):
         if value:
-            Statistics.missing_wrong_namespaces[path].add(value)
+            Statistics.missing_wrong_namespaces[path] = value
 
     @staticmethod
     def add_revision(path, value):
         if value:
-            Statistics.missing_revision[path].add(value)
+            Statistics.missing_revision[path] = value

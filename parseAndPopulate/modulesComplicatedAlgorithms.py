@@ -201,7 +201,8 @@ class ModulesComplicatedAlgorithms:
                                  auth=(self.__credentials[0],
                                        self.__credentials[1]))
         if response.status_code != 201:
-            LOGGER.warning('Could not send a load-cache request')
+            LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
+                        .format(response.status_code, response.text))
 
     def __resolve_tree_type(self):
         def is_openconfig(rows, output):

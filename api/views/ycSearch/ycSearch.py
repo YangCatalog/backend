@@ -27,14 +27,13 @@ import subprocess
 import sys
 from copy import deepcopy
 
+import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
-from flask import Blueprint, make_response, jsonify, abort, request, Response
+from api.globalConfig import yc_gc
+from flask import Blueprint, Response, abort, jsonify, make_response, request
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
-
-import api.yangSearch.elasticsearchIndex as inde
-from api.globalConfig import yc_gc
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
@@ -893,10 +892,14 @@ def check_semver():
     return make_response(jsonify(output), 200)
 
 
-@app.route('/search/vendor/<org>', methods=['GET'])
-def search_vendor_statistics(org):
-    vendor = org
-
+@app.route('/search/vendor/<vendor>', methods=['GET'])
+def search_vendor_statistics(vendor: str):
+    """Search for os-types of <vendor> with corresponding os-versions and platforms.
+        Arguments:
+            :param vendor   (str) name of the vendor
+            :return statistics of the vendor's os-types, os-versions and platforms
+            :rtype dict
+    """
     yc_gc.LOGGER.info('Searching for vendors')
     data = vendors_data(False).get('vendor', {})
     ven_data = None
@@ -932,16 +935,16 @@ def search_vendor_statistics(org):
 
 
 @app.route('/search/vendors/<path:value>', methods=['GET'])
-def search_vendors(value):
+def search_vendors(value: str):
     """Search for a specific vendor, platform, os-type, os-version depending on
     the value sent via API.
-            Arguments:
-                :param value: (str) path that contains one of the @module_keys and
-                    ends with /value searched for
-                :return response to the request.
+        Arguments:
+            :param value: (str) path that contains one of the @module_keys and
+                ends with /value searched for
+            :return response to the request.
     """
     value = value.replace('vendor/', 'vendor=')
-    value = value.replace('/platfrom/', '/platform=')
+    value = value.replace('/platform/', '/platform=')
     value = value.replace('/software-version/', '/software-version=')
     value = value.replace('/software-flavor/', '/software-flavor=')
     yc_gc.LOGGER.info('Searching for specific vendors {}'.format(value))
@@ -957,16 +960,15 @@ def search_vendors(value):
 
 
 @app.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
-def search_module(name, revision, organization):
+def search_module(name: str, revision: str, organization: str):
     """Search for a specific module defined with name, revision and organization
             Arguments:
-                :param name: (str) name of the module
-                :param revision: (str) revision of the module
-                :param organization: (str) organization of the module
+                :param name:            (str) name of the module
+                :param revision:        (str) revision of the module in format YYYY-MM-DD
+                :param organization:    (str) organization of the module
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-
     yc_gc.LOGGER.info('Searching for module {}, {}, {}'.format(name, revision, organization))
     module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization))
     if module_data is not None:
@@ -979,8 +981,8 @@ def search_module(name, revision, organization):
 
 @app.route('/search/modules', methods=['GET'])
 def get_modules():
-    """Search for a all the modules populated in confd
-            :return response to the request with all the modules
+    """Search for all the modules populated in confd
+        :return response to the request with all the modules
     """
     yc_gc.LOGGER.info('Searching for modules')
     data = json.dumps(modules_data())
@@ -991,8 +993,8 @@ def get_modules():
 
 @app.route('/search/vendors', methods=['GET'])
 def get_vendors():
-    """Search for a all the vendors populated in confd
-            :return response to the request with all the vendors
+    """Search for all the vendors populated in confd
+        :return response to the request with all the vendors
     """
     yc_gc.LOGGER.info('Searching for vendors')
     data = json.dumps(vendors_data())
@@ -1004,7 +1006,7 @@ def get_vendors():
 @app.route('/search/catalog', methods=['GET'])
 def get_catalog():
     """Search for a all the data populated in confd
-                :return response to the request with all the data
+        :return response to the request with all the data
     """
     yc_gc.LOGGER.info('Searching for catalog data')
     data = catalog_data()
@@ -1014,9 +1016,16 @@ def get_catalog():
         return Response(json.dumps(data), mimetype='application/json')
 
 
-@app.route('/services/tree/<f1>@<r1>.yang', methods=['GET'])
-def create_tree(f1, r1):
-    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
+@app.route('/services/tree/<name>@<revision>.yang', methods=['GET'])
+def create_tree(name: str, revision: str):
+    """
+    Return yang tree representation of yang module with corresponding module name and revision.
+    Arguments:
+        :param name     (str) name of the module
+        :param revision (str) revision of the module in format YYYY-MM-DD
+        :return preformatted HTML with corresponding data
+    """
+    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
     plugin.plugins = []
     plugin.init([])
     ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
@@ -1051,9 +1060,16 @@ def create_tree(f1, r1):
         return '<html><body><pre>{}</pre></body></html>'.format(stdout)
 
 
-@app.route('/services/reference/<f1>@<r1>.yang', methods=['GET'])
-def create_reference(f1, r1):
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
+@app.route('/services/reference/<name>@<revision>.yang', methods=['GET'])
+def create_reference(name: str, revision: str):
+    """
+    Return reference of yang file with corresponding module name and revision.
+    Arguments:
+        :param name     (str) name of the module
+        :param revision (str) revision of the module in format YYYY-MM-DD
+        :return preformatted HTML with corresponding data
+    """
+    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
     arguments = ['cat', schema1]
     cat = subprocess.Popen(arguments,
                              stdout=subprocess.PIPE,
