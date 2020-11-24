@@ -38,10 +38,12 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 import utility.log as log
+from utility import repoutil
+
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.parseException import ParseException
-from utility import repoutil
+from parseAndPopulate.prepare import Prepare
 
 github_raw = 'https://raw.githubusercontent.com/'
 github_url = 'https://github.com/'
@@ -63,18 +65,40 @@ def find_first_file(directory, pattern, pattern_with_revision):
 
 class Capability:
 
-    def __init__(self, log_directory, hello_message_file, prepare, integrity_checker,
-                 api, sdo, json_dir, html_result_dir, save_file_to_dir, private_dir,
-                 yang_models_dir, run_integrity=False):
+    def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, integrity_checker,
+                 api: bool, sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
+                 yang_models_dir: str, run_integrity: bool=False):
+        """
+        Preset Capability class to get capabilities from directory passed as argument.
+        Based on passed arguments, Capability object will:
+        I. parse all the capability.xml files and pulls all the information from platfom-metadata.json file if it exist
+        II. parse ietf-yang-library.xml file if such file exists
+        III. start to parse all the yang files in the directory if there are none .xml or .json files mentioned above
+
+        :param log_directory        (str) directory where the log file is saved
+        :param hello_message_file   (str) path to hello_message .xml file or path to directory containing yang files
+        :param prepare              (obj) prepare object
+        :param integrity_checker:   (obj) integrity checker object
+        :param api                  (bool) whether request came from API or not
+        :param sdo                  (bool) whether processing sdo (= True) or vendor (= False) yang modules
+        :param json_dir             (str) path to the directory where .json file to populate Confd will be stored
+        :param html_result_dir      (str) path to the directory with HTML result files
+        :param save_file_to_dir     (str) path to the directory where all the yang files will be saved
+        :param private_dir          (str) path to the directory with private HTML result files
+        :param yang_models_dir      (str) path to the directory where YangModels/yang repo is cloned
+        :param run_integrity        (bool) whether running integrity or not. NOTE: Some data will not be parsed if set to True
+        """
+
         global LOGGER
         LOGGER = log.get_logger('capability', log_directory + '/parseAndPopulate.log')
         if len(LOGGER.handlers) > 1:
-            LOGGER.handlers.remove(LOGGER.handlers[1])
-        LOGGER.debug('Running constructor')
+            LOGGER.handlers[1].close()
+            LOGGER.removeHandler(LOGGER.handlers[1])
+        LOGGER.debug('Running Capability constructor')
         self.logger = log.get_logger('repoutil', log_directory + '/parseAndPopulate.log')
         self.log_directory = log_directory
         self.run_integrity = run_integrity
-        self.to = save_file_to_dir
+        self.save_file_to_dir = save_file_to_dir
         self.html_result_dir = html_result_dir
         self.json_dir = json_dir
         self.prepare = prepare
@@ -95,16 +119,18 @@ class Capability:
                 hello_file.close()
                 LOGGER.warning('Hello message file has & instead of &amp, automatically changing to &amp')
                 self.root = ET.parse(hello_message_file).getroot()
-        # Split it so we can get vendor, os-type, os-version
+        # Split path, so we can get vendor, os-type, os-version
         self.split = hello_message_file.split('/')
         self.hello_message_file = hello_message_file
 
+        # Vendor modules send from API
         if self.api and not sdo:
             self.platform_data = []
             json_file = open(hello_message_file.split('.xml')[0] + '.json')
             impl = json.load(json_file)
             self.initialize(impl)
             json_file.close()
+        # Vendor modules loaded from directory
         if not self.api and not sdo:
             if os.path.isfile('/'.join(self.split[:-1]) + '/platform-metadata.json'):
                 self.platform_data = []
@@ -185,7 +211,7 @@ class Capability:
             for sdo in sdos_list:
                 file_name = unicodedata.normalize('NFKD', sdo['source-file']['path'].split('/')[-1]) \
                     .encode('ascii', 'ignore')
-                LOGGER.info('Parsing sdo file sent via API{}'.format(file_name))
+                LOGGER.info('Parsing sdo file sent via API {}'.format(file_name))
                 self.owner = sdo['source-file']['owner']
                 repo_file_path = sdo['source-file']['path']
                 self.repo = sdo['source-file']['repository'].split('.')[0]
@@ -219,13 +245,14 @@ class Capability:
                     schema = github_raw + self.owner + '/' + self.repo + '/' + branch + '/' + repo_file_path
                     yang.parse_all(branch, name,
                                    self.prepare.name_revision_organization,
-                                   schema, self.path, self.to, sdo)
+                                   schema, self.path, self.save_file_to_dir, sdo)
                     self.prepare.add_key_sdo_module(yang)
 
         else:
             LOGGER.debug('Parsing sdo files from directory')
             for root, subdirs, sdos in os.walk('/'.join(self.split)):
                 for file_name in sdos:
+                    # Process only SDO .yang files
                     if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
                         LOGGER.info('Parsing sdo file {} from directory {}'.format(file_name, root))
 
@@ -257,7 +284,7 @@ class Capability:
                                       + '/' + branch + '/' + path)
                             yang.parse_all(branch, name,
                                            self.prepare.name_revision_organization,
-                                           schema, self.path, self.to)
+                                           schema, self.path, self.save_file_to_dir)
                             self.prepare.add_key_sdo_module(yang)
         if repo is not None:
             repo.remove()
@@ -353,7 +380,7 @@ class Capability:
 
                 yang.parse_all(self.branch, module_name,
                                self.prepare.name_revision_organization,
-                               schema_part, self.path, self.to)
+                               schema_part, self.path, self.save_file_to_dir)
                 yang.add_vendor_information(self.platform_data,
                                             conformance_type,
                                             capabilities, netconf_version,
@@ -405,8 +432,7 @@ class Capability:
                     caps = impl.get('netconf-capabilities')
                     if caps:
                         capabilities_exist = True
-                        for cap in caps:
-                            capability = cap
+                        for capability in caps:
                             # Parse netconf version
                             if ':netconf:base:' in capability:
                                 netconf_version.append(capability)
@@ -450,7 +476,7 @@ class Capability:
                         continue
                     yang.parse_all(self.branch, module_name,
                                    self.prepare.name_revision_organization,
-                                   schema_part, self.path, self.to)
+                                   schema_part, self.path, self.save_file_to_dir)
                     yang.add_vendor_information(self.platform_data,
                                                 'implement',
                                                 capabilities,
@@ -510,7 +536,7 @@ class Capability:
                         continue
                     yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
-                                   schema_part, self.path, self.to)
+                                   schema_part, self.path, self.save_file_to_dir)
                     yang.add_vendor_information(self.platform_data,
                                                 conformance_type, capabilities,
                                                 netconf_version,

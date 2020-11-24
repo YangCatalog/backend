@@ -33,6 +33,9 @@ class LoadFiles:
 
     def __init__(self, private_dir, log_directory):
         LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+        if len(LOGGER.handlers) > 1:
+            LOGGER.handlers[1].close()
+            LOGGER.removeHandler(LOGGER.handlers[1])
         LOGGER.debug('Loading compilation statuses and results')
         self.names = []
         with open(private_dir + '/json_links', 'r') as f:

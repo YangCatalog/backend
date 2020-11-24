@@ -29,21 +29,31 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import json
 
 import requests
-
 import utility.log as log
+
+from parseAndPopulate.modules import Modules
 from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 
 
 class Prepare:
-    def __init__(self, log_directory, file_name, yangcatalog_api_prefix):
+    def __init__(self, log_directory: str, file_name: str, yangcatalog_api_prefix: str):
         global LOGGER
         LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+        if len(LOGGER.handlers) > 1:
+            LOGGER.handlers[1].close()
+            LOGGER.removeHandler(LOGGER.handlers[1])
         self.file_name = file_name
         self.name_revision_organization = set()
         self.yang_modules = {}
         self.yangcatalog_api_prefix = yangcatalog_api_prefix
 
-    def add_key_sdo_module(self, yang):
+    def add_key_sdo_module(self, yang: Modules):
+        """
+        Create key in format <module_name>@<revision>/<organization> from yang Modules object passed as argument.
+        Dictionary of yang_modules is updated using created key and Modules object as a value.
+
+        :param yang     (obj) Modules object of yang module.
+        """
         key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
         LOGGER.debug('Module {} parsed'.format(key))
         if key in self.name_revision_organization:
@@ -60,15 +70,20 @@ class Prepare:
                     self.yang_modules[key].compilation_status = requests.get('{}search/modules/{},{},{}'.format(
                                                                              self.yangcatalog_api_prefix,
                                                                              yang.name, yang.revision,
-                                                                             yang.organization)).json()["module"][0].get('compilation-status')
+                                                                             yang.organization)).json()['module'][0].get('compilation-status')
                 except:
                     self.yang_modules[key].compilation_status = 'unknown'
 
-    def dump_modules(self, directory):
-        LOGGER.debug('Creating prepare.json file from sdo information')
+    def dump_modules(self, directory: str):
+        """
+        All the data about modules from yang_modules variable are dumped into json file.
+        This file is stored in directory pased as an argument and is used by runCapabilities.py script
 
-        with open(directory + '/' + self.file_name +
-                          '.json', "w") as prepare_model:
+        :param directory    (str) Absolute path to the directory where .json file will be saved.
+        """
+        LOGGER.debug('Creating {}.json file from sdo information'.format(self.file_name))
+
+        with open('{}/{}.json'.format(directory, self.file_name), 'w') as prepare_model:
             json.dump({'module': [{
                 'name': self.yang_modules[key].name,
                 'revision': self.yang_modules[key].revision,
@@ -120,9 +135,16 @@ class Prepare:
                 }
             } for key in self.name_revision_organization]}, prepare_model, cls=NullJsonEncoder)
 
-    def dump_vendors(self, directory):
-        with open(directory + '/normal.json',
-                  "w") as ietf_model:
+    def dump_vendors(self, directory: str):
+        """
+        All the data about vendor and implementation are dumped into json file.
+        This file is stored in directory pased as an argument and is used by populate.py script
+
+        :param directory    (str) Absolute path to the directory where .json file will be saved.
+        """
+        LOGGER.debug('Creating normal.json file from vendor implementation information')
+
+        with open('{}/normal.json'.format(directory), 'w') as ietf_model:
             json.dump({
                 'vendors': {
                     'vendor': [{

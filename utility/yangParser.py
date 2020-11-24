@@ -20,7 +20,6 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import codecs
 import io
 from os.path import isfile
 
@@ -192,7 +191,8 @@ def parse(text, ctx=None):
 
     if isfile(text):
         filename = text
-        text = codecs.open(filename, encoding="utf-8").read()
+        with open(filename, 'r', encoding='utf-8') as f:
+            text = f.read()
 
     # ensure reported errors are just from parsing
     # old_errors = ctx_.errors

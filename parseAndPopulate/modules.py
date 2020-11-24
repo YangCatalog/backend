@@ -34,9 +34,11 @@ import unicodedata
 from datetime import datetime
 
 import statistic.statistics as stats
-from parseAndPopulate.parseException import ParseException
 from utility import log, yangParser
 from utility.util import find_first_file
+
+from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.parseException import ParseException
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -107,9 +109,9 @@ MISSING_ELEMENT = 'missing element'
 
 
 class Modules:
-    def __init__(self, yang_models_dir, log_directory, path, html_result_dir, jsons, temp_dir,
-                 is_vendor=False, is_yang_lib=False, data=None,
-                 is_vendor_imp_inc=False, run_integrity=False):
+    def __init__(self, yang_models_dir: str, log_directory: str, path: str, html_result_dir: str, jsons: LoadFiles,
+                 temp_dir: str, is_vendor: bool=False, is_yang_lib: bool=False, data: dict=None,
+                 is_vendor_imp_inc: bool=False, run_integrity: bool=False):
         """
         Preset Modules class to parse yang module and save data to it.
         :param yang_models_dir:     (str) directory with all yang modules from
@@ -121,25 +123,26 @@ class Modules:
         :param jsons:               (obj) LoadFiles class containing all the json
                                     and html files with parsed results
         :param temp_dir:            (str) path to temporary directory
-        :param is_vendor:           (boolean) if we parsing vendor files (cisco, huawei, ..)
+        :param is_vendor:           (bool) if we parsing vendor files (cisco, huawei, ..)
                                     or sdo files (ietf, ieee, ...)
-        :param is_yang_lib:         (boolean) if we are parsing file from yang_lib
+        :param is_yang_lib:         (bool) if we are parsing file from yang_lib
                                     capability file
         :param data:                (dict) data from yang_lib capability file with additional
                                     information
-        :param is_vendor_imp_inc:   (boolean) Obsolete
-        :param run_integrity        (boolean) if we are running integrity as well. If true
+        :param is_vendor_imp_inc:   (bool) Obsolete
+        :param run_integrity        (bool) if we are running integrity as well. If true
                                     part of the data parsed are not needed and therefor not
                                     parsed
         """
         global LOGGER
         LOGGER = log.get_logger('modules', log_directory + '/parseAndPopulate.log')
+        if len(LOGGER.handlers) > 1:
+            LOGGER.handlers[1].close()
+            LOGGER.removeHandler(LOGGER.handlers[1])
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        if len(LOGGER.handlers) > 1:
-            LOGGER.handlers.remove(LOGGER.handlers[1])
         self.__web_uri = config.get('Web-Section', 'my-uri', fallback="https://yangcatalog.org")
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir
@@ -228,14 +231,14 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, git_commit_hash, name, keys, schema, schema_start, to, api_sdo_json=None):
+    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, api_sdo_json: dict=None):
         """
         Parse all data that we can from the module.
         :param git_commit_hash: (str) name of the git commit hash where we can find the module
         :param name:            (str) name of the module (not parsed out of the module)
         :param keys:            (set) set of keys labeled as "<name>@<revision>/<organization>"
         :param schema:          (str) full url to raw github module
-        :param to:              (str) Where to save the module at. This is a directory
+        :param to:              (str) directory, where all the modules are saved at
         :param api_sdo_json:    (dict) some aditional information about module given from client
                                 using yangcatalog api
         """
@@ -351,9 +354,18 @@ class Modules:
         except:
             return
 
-    def add_vendor_information(self, platform_data,
-                               confarmance_type, capability, netconf_version,
-                               integrity_checker, split):
+    def add_vendor_information(self, platform_data: set, conformance_type: str, capability: set,
+                                netconf_version: set, integrity_checker, split: set):
+        """
+        If parsing Cisco modules, implementation details are stored in platform_metadata.json file.
+        Method add Cisco vendor information to Module
+        :param platform_data:       (set) set of platform_data loaded from platform_metadata.json
+        :param conformance_type:    (str) string representing conformance type of module
+        :param capability:          (set) set of netconf capabilities loaded from platform_metadata.json
+        :param netconf_version:     (set) set of netconf versions loaded from platform_metadata.json
+        :param integrity_checker:   (obj) integrity checker object
+        :param split:               (set) path to .xml capabalities files splitted by character "/"
+        """
         for data in platform_data:
             implementation = self.Implementations()
             implementation.vendor = data['vendor']
@@ -393,7 +405,7 @@ class Modules:
                             devs.revision = '1970-01-01'
                     implementation.deviations.append(devs)
 
-            implementation.conformance_type = confarmance_type
+            implementation.conformance_type = conformance_type
             self.implementation.append(implementation)
 
     def __resolve_name(self, name):
@@ -1021,4 +1033,3 @@ class Modules:
                     break
 
         integrity_checker.add_namespace(key2, self.__missing_namespace)
-
