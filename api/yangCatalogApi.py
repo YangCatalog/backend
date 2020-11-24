@@ -47,6 +47,7 @@ import os
 import pwd
 import shutil
 import sys
+import threading
 import time
 import uuid
 from datetime import datetime, timedelta
@@ -328,20 +329,69 @@ application.config["OIDC_COOKIE_SECURE"] = False
 application.config["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
 application.config["OIDC_SCOPES"] = ["openid", "email", "profile"]
 application.config["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
-discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
 
-secrets = dict()
-secrets['web'] = dict()
-secrets['web']['auth_uri'] = discovered_secrets['authorization_endpoint']
-secrets['web']['token_uri'] = discovered_secrets['token_endpoint']
-secrets['web']['userinfo_uri'] = discovered_secrets['userinfo_endpoint']
-secrets['web']['redirect_uris'] = yc_gc.oidc_redirects
-secrets['web']['issuer'] = yc_gc.oidc_issuer
-secrets['web']['client_secret'] = yc_gc.oidc_client_secret
-secrets['web']['client_id'] = yc_gc.oidc_client_id
+def create_secrets(discovered_secrets: dict):
+    """
+    Create secrets object and fill with actual user information.
+    Dump created secrets object into secrets_oidc.json file.
+    :param discovered_secrets:  (dict) Information about the provided OpenID Provider
 
-with open('secrets_oidc.json', 'w') as f:
-    json.dump(secrets, f)
+    :return: Returns created secrets object filled with information
+    :rtype: dict
+    """
+    secrets = dict()
+    secrets['web'] = dict()
+    secrets['web']['auth_uri'] = discovered_secrets['authorization_endpoint']
+    secrets['web']['token_uri'] = discovered_secrets['token_endpoint']
+    secrets['web']['userinfo_uri'] = discovered_secrets['userinfo_endpoint']
+    secrets['web']['redirect_uris'] = yc_gc.oidc_redirects
+    secrets['web']['issuer'] = yc_gc.oidc_issuer
+    secrets['web']['client_secret'] = yc_gc.oidc_client_secret
+    secrets['web']['client_id'] = yc_gc.oidc_client_id
+
+    with open('secrets_oidc.json', 'w') as f:
+        json.dump(secrets, f)
+
+    return secrets
+
+def retry_OP_discovery():
+    """
+    Try to get information about the provided OpenID Provider in loop.
+    This method is executed in two scenarios:
+    I. discovered_secrets were loaded from Redis, because getting from OpenID Provider failed
+    II. discovered_secrets is None because getting from OpenID Provider failed and Redis does not yet contain discovered_secrets
+    """
+    while True:
+        try:
+            discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
+            create_secrets(discovered_secrets)
+            yc_gc.redis.set('secrets-oidc', json.dumps(discovered_secrets))
+            yc_gc.LOGGER.info('OpenID Provider information discovered successfully')
+            break
+        except:
+            yc_gc.LOGGER.warning('OpenID Provider information discovery failed')
+            time.sleep(30)
+    return True
+
+discovered = False
+discovered_secrets = None
+try:
+    discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
+    yc_gc.LOGGER.info('OpenID Provider information discovered successfully')
+    yc_gc.redis.set('secrets-oidc', json.dumps(discovered_secrets))
+    discovered = True
+    yc_gc.LOGGER.debug('Newly OpenID Provider discovered information saved to cache')
+except:
+    data = yc_gc.redis.get('secrets-oidc')
+
+    if data is not None:
+        data = data.decode('utf-8')
+        discovered_secrets = json.loads(data)
+        yc_gc.LOGGER.info('OpenID Provider information loaded from cache')
+
+if discovered_secrets is not None:
+    create_secrets(discovered_secrets)
+
 yc_gc.oidc = OpenIDConnect(application)
 from api.views.admin.admin import app as admin_app
 
@@ -522,3 +572,7 @@ def load_app_first_time():
 
 
 load_app_first_time()
+if not discovered:
+    discovery_thread = threading.Thread(target=retry_OP_discovery, daemon=True)
+    discovery_thread.start()
+    discovered = True
