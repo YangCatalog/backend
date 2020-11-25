@@ -156,12 +156,16 @@ def main(scriptConf=None):
                   headers={'Content-Type': 'application/json'})
 
     status_code = response.status_code
+    payload = json.loads(response.text)
     if status_code < 200 or status_code > 299:
         e = 'PUT /api/modules responsed with status code {}'.format(status_code)
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         LOGGER.info('Job finished, but an error occured while sending PUT to /api/modules')
     else:
-        job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+        messages = [
+            { 'label': 'Job ID', 'message': payload['job-id'] }
+        ]
+        job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
         LOGGER.info('Job finished successfully')
 
 
