@@ -47,7 +47,6 @@ from distutils.dir_util import copy_tree
 
 import pika
 import requests
-
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility import messageFactory
@@ -88,6 +87,7 @@ class Receiver:
         self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
         logging.getLogger('pika').setLevel(logging.INFO)
         self.temp_dir = config.get('Directory-Section', 'temp')
+        self.__confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
 
         self.LOGGER.info('Starting receiver')
 
@@ -103,7 +103,7 @@ class Receiver:
         self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
                                                               separator, suffix)
         self.__response_type = ['Failed', 'Finished successfully']
-        self.__credentials = pika.PlainCredentials(
+        self.__rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
         self.channel = None
@@ -516,7 +516,7 @@ class Receiver:
         self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
                                                               separator, suffix)
         self.__response_type = ['Failed', 'Finished successfully']
-        self.__credentials = pika.PlainCredentials(
+        self.__rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
         try:
@@ -618,9 +618,9 @@ class Receiver:
                     if all_modules:
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
-                                                                              self.__credentials, self.__confd_protocol,
+                                                                              self.__confd_credentials, self.__confd_protocol,
                                                                               self.__confd_ip, self.__confdPort,
-                                                                              self.__save_file_dir, None,
+                                                                              self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
                                                                               self.temp_dir)
                         complicated_algorithms.parse_non_requests()
@@ -653,7 +653,7 @@ class Receiver:
                     host=self.__rabbitmq_host,
                     port=self.__rabbitmq_port,
                     heartbeat=10,
-                    credentials=self.__credentials))
+                    credentials=self.__rabbitmq_credentials))
                 self.channel = self.connection.channel()
                 self.channel.queue_declare(queue='module_queue')
 

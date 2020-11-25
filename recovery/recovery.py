@@ -141,7 +141,8 @@ def main(scriptConf=None):
         if tries == 0:
             LOGGER.error('Unable to connect to confd for over a {} minutes'.format(tries))
             e = 'Unable to connect to confd'
-            job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+            filename='{} - save'.format(os.path.basename(__file__).split('.py')[0])
+            job_log(start_time, temp_dir, error=str(e), status='Fail', filename=filename)
             raise e
         tries -= 1
         sleep(60)
@@ -155,7 +156,17 @@ def main(scriptConf=None):
                                'Content-type': 'application/yang-data+json'}).json()
         file_save.write(json.dumps(jsn))
         file_save.close()
+        num_of_modules = 0 if not jsn['yang-catalog:catalog'].get('modules', {}).get('module') \
+                            else len(jsn['yang-catalog:catalog'].get('modules').get('module'))
+        num_of_vendors = 0 if not jsn['yang-catalog:catalog'].get('vendors', {}).get('vendor') \
+                            else len(jsn['yang-catalog:catalog'].get('vendors').get('vendor'))
+        messages = [
+            {'label': 'Saved modules', 'message': num_of_modules},
+            {'label': 'Saved vendors', 'message': num_of_vendors}
+        ]
         LOGGER.info('Save completed successfully')
+        filename='{} - save'.format(os.path.basename(__file__).split('.py')[0])
+        job_log(start_time, temp_dir, messages=messages, status='Success', filename=filename)
     else:
         if args.name_load:
             file_load = open(cache_directory + '/' + args.name_load, 'r')
@@ -266,8 +277,8 @@ def main(scriptConf=None):
                                                               'Accept': 'application/yang-data+json',
                                                               'Content-type': 'application/yang-data+json'})
                                 if response.status_code < 200 or response.status_code > 299:
-                                    LOGGER.info('Request with body on path {} failed with {}'.
-                                                format(url, response.text))
+                                    LOGGER.info('Request with body on path {} failed with {}'
+                                                .format(url, response.text))
                     code = 200
                     LOGGER.info('Confd recoverd with status code 200')
                 except:
@@ -322,7 +333,6 @@ def main(scriptConf=None):
 
         LOGGER.info('All the modules data set to Redis successfully')
 
-    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
 
 
