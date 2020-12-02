@@ -1,10 +1,11 @@
 bind = "unix:/var/run/yang/yang-catalog.sock"
 #umask = os.umask('007')
 
-workers = 3
+workers = 5
 
-max_requests = 1500
+max_requests = 10000
 timeout = 1500
+graceful_timeout = 1000
 keep_alive = 2
 
 user = 'yang'
