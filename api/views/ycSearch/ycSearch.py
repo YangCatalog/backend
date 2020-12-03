@@ -145,13 +145,13 @@ def fast_search():
 
 
 @app.route('/search/<path:value>', methods=['GET'])
-def search(value):
+def search(value: str):
     """Search for a specific leaf from yang-catalog.yang module in modules
     branch. The key searched is defined in @module_keys variable.
-            Arguments:
-                :param value: (str) path that contains one of the @module_keys and
-                    ends with /value searched for
-                :return response to the request.
+        Arguments:
+            :param value: (str) path that contains one of the @module_keys and
+                ends with /value searched for
+            :return response to the request.
     """
     path = value
     yc_gc.LOGGER.info('Searching for {}'.format(value))
@@ -217,7 +217,9 @@ def rpc_search_get_one(leaf):
 
 
 @app.route('/search-filter', methods=['POST'])
-def rpc_search(body=None):
+def rpc_search(body: dict = None):
+    """Get all the modules that contains all the leafs with data as provided in body of the request.
+    """
     if body is None:
         body = request.json
     yc_gc.LOGGER.info('Searching and filtering modules based on RPC {}'
@@ -594,27 +596,37 @@ def rpc_search(body=None):
 
 @app.route('/contributors', methods=['GET'])
 def get_organizations():
+    """Loop through all the modules in catalog and create unique set of organizations.
+    """
     orgs = set()
     data = modules_data().get('module', {})
-    for mod in data:
-        if mod['organization'] != 'example' and mod['organization'] != 'missing element':
-            orgs.add(mod['organization'])
+    for module in data:
+        if module['organization'] != 'example' and module['organization'] != 'missing element':
+            orgs.add(module['organization'])
     orgs = list(orgs)
-    resp = make_response(jsonify({'contributors': orgs}), 200)
-    resp.headers['Access-Control-Allow-Origin'] = '*'
-    return resp
+    response = make_response(jsonify({'contributors': orgs}), 200)
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    return response
 
 
-@app.route('/services/file1=<f1>@<r1>/check-update-from/file2=<f2>@<r2>', methods=['GET'])
-def create_update_from(f1, r1, f2, r2):
+@app.route('/services/file1=<name1>@<revision1>/check-update-from/file2=<name2>@<revision2>', methods=['GET'])
+def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
+    """Create output from pyang tool with option --check-update-from for two modules with revisions
+        Arguments:
+            :param name1:            (str) name of the first module
+            :param revision1:        (str) revision of the first module in format YYYY-MM-DD
+            :param name2:            (str) name of the second module
+            :param revision2:        (str) revision of the second module in format YYYY-MM-DD
+            :return preformatted HTML with corresponding data
+    """
     try:
         os.makedirs(get_curr_dir(__file__) + '/temp')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f2, r2)
+    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
     arguments = ['pyang', '-p',
                  yc_gc.yang_models,
                  schema1, '--check-update-from',
@@ -628,35 +640,47 @@ def create_update_from(f1, r1, f2, r2):
     return '<html><body><pre>{}</pre></body></html>'.format(stderr)
 
 
-@app.route('/services/diff-file/file1=<f1>@<r1>/file2=<f2>@<r2>', methods=['GET'])
-def create_diff_file(f1, r1, f2, r2):
+@app.route('/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2>', methods=['GET'])
+def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
+    """Create preformated HTML which contains diff between two yang file.
+    Dump content of yang files into tempporary schema-file-diff.txt file.
+    Make GET request to URL https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1=<file1>&url2=<file2>'.
+    Output of rfcdiff tool then represents response of the method.
+        Arguments:
+            :param name1:            (str) name of the first module
+            :param revision1:        (str) revision of the first module in format YYYY-MM-DD
+            :param name2:            (str) name of the second module
+            :param revision2:        (str) revision of the second module in format YYYY-MM-DD
+            :return preformatted HTML with corresponding data
+    """
     try:
         os.makedirs(get_curr_dir(__file__) + '/temp')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f2, r2)
-
-    arguments = ['cat', schema1]
-    cat = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE)
-    stdout, stderr = cat.communicate()
-    if sys.version_info >= (3, 4):
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
+    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
     file_name1 = 'schema1-file-diff.txt'
+    yang_file_1_content = ''
+    try:
+        with open(schema1, 'r', encoding='utf-8', errors='strict') as f:
+            yang_file_1_content = f.read()
+    except FileNotFoundError:
+        yc_gc.LOGGER.warn('File {}@{}.yang was not found.'.format(name1, revision1))
+
     with open('{}/{}'.format(yc_gc.diff_file_dir, file_name1), 'w+') as f:
-        f.write('<pre>{}</pre>'.format(stdout))
-    arguments = ['cat', schema2]
-    cat = subprocess.Popen(arguments, stdout=subprocess.PIPE,
-                           stderr=subprocess.PIPE)
-    stdout, stderr = cat.communicate()
-    if sys.version_info >= (3, 4):
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
+        f.write('<pre>{}</pre>'.format(yang_file_1_content))
+
     file_name2 = 'schema2-file-diff.txt'
+    yang_file_2_content = ''
+    try:
+        with open(schema2, 'r', encoding='utf-8', errors='strict') as f:
+            yang_file_2_content = f.read()
+    except FileNotFoundError:
+        yc_gc.LOGGER.warn('File {}@{}.yang was not found.'.format(name2, revision2))
     with open('{}/{}'.format(yc_gc.diff_file_dir, file_name2), 'w+') as f:
-        f.write('<pre>{}</pre>'.format(stdout))
+        f.write('<pre>{}</pre>'.format(yang_file_2_content))
     tree1 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
@@ -667,16 +691,27 @@ def create_diff_file(f1, r1, f2, r2):
     return '<html><body>{}</body></html>'.format(response.text)
 
 
-@app.route('/services/diff-tree/file1=<f1>@<r1>/file2=<f2>@<r2>', methods=['GET'])
-def create_diff_tree(f1, r1, f2, r2):
+@app.route('/services/diff-tree/file1=<name1>@<revision1>/file2=<file2>@<revision2>', methods=['GET'])
+def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
+    """Create preformated HTML which contains diff between two yang trees.
+    Dump content of yang files into tempporary schema-tree-diff.txt file.
+    Make GET request to URL https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1=<file1>&url2=<file2>'.
+    Output of rfcdiff tool then represents response of the method.
+        Arguments:
+            :param name1:            (str) name of the first module
+            :param revision1:        (str) revision of the first module in format YYYY-MM-DD
+            :param name2:            (str) name of the second module
+            :param revision2:        (str) revision of the second module in format YYYY-MM-DD
+            :return preformatted HTML with corresponding data
+    """
     try:
         os.makedirs(get_curr_dir(__file__) + '/temp')
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f1, r1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, f2, r2)
+    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, file2, revision2)
     plugin.plugins = []
     plugin.init([])
     ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
@@ -763,6 +798,9 @@ def get_common():
 
 @app.route('/compare', methods=['POST'])
 def compare():
+    """Compare and find different modules out of two different filtering by leafs with data provided by in body of the request.
+    Output contains module metadata with 'reason-to-show' data as well which can be showing either 'New module' or 'Different revision'.
+    """
     body = request.json
     if body is None:
         return abort(400, description='body of request is empty')
@@ -1051,9 +1089,11 @@ def create_tree(name: str, revision: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     if stdout == '' and len(ctx.errors) != 0:
-        return create_bootstrap_danger()
+        message = 'This yang file contains major errors and therefore tree can not be created.'
+        return create_bootstrap_danger(message)
     elif stdout != '' and len(ctx.errors) != 0:
-        return create_bootstrap_warning(stdout)
+        message = 'This yang file contains some errors, but tree was created.'
+        return create_bootstrap_warning(stdout, message)
     elif stdout == '' and len(ctx.errors) == 0:
         return create_bootstrap_info()
     else:
@@ -1069,21 +1109,16 @@ def create_reference(name: str, revision: str):
         :param revision (str) revision of the module in format YYYY-MM-DD
         :return preformatted HTML with corresponding data
     """
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
-    arguments = ['cat', schema1]
-    cat = subprocess.Popen(arguments,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = cat.communicate()
-    if sys.version_info >= (3, 4):
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
-        stderr = stderr.decode(encoding='utf-8', errors='strict')
-    if stdout == '' and stderr != '':
-        return create_bootstrap_danger()
-    elif stdout != '' and stderr != '':
-        return create_bootstrap_warning(stdout)
-    else:
-        return '<html><body><pre>{}</pre></body></html>'.format(stdout)
+    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
+    yang_file_content = ''
+    try:
+        with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
+            yang_file_content = f.read()
+    except FileNotFoundError:
+        message = 'File {}@{}.yang was not found.'.format(name, revision)
+        return create_bootstrap_danger(message)
+
+    return '<html><body><pre>{}</pre></body></html>'.format(yang_file_content)
 
 
 ### HELPER DEFINITIONS
@@ -1291,17 +1326,19 @@ def create_bootstrap_info():
         template = f.read()
     return template
 
+def create_bootstrap_warning(text: str, message: str):
+    yc_gc.LOGGER.info('Rendering bootstrap warning data')
+    context = { 'warn_text': text, 'warn_message': message }
+    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/warning.html')
 
-def create_bootstrap_warning(tree):
-    yc_gc.LOGGER.info('Rendering bootstrap data')
-    context = {'tree': tree}
-    path, filename = os.path.split(
-        get_curr_dir(__file__) + '/../../template/warning.html')
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)
 
 
-def create_bootstrap_danger():
-    with open(get_curr_dir(__file__) + '/../../template/danger.html', 'r') as f:
-        template = f.read()
-    return template
+def create_bootstrap_danger(message: str):
+    yc_gc.LOGGER.info('Rendering bootstrap danger data')
+    context = { 'danger_message': message }
+    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
+
+    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
+                              ).get_template(filename).render(context)
