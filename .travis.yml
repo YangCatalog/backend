@@ -1,0 +1,17 @@
+os: linux
+dist: xenial
+language: python
+services:
+  - redis
+python:
+  - "3.5"
+  - "3.6"      # current default Python on Travis CI
+  - "3.7"
+# command to install dependencies
+install:
+  - pip install -r requirements.txt
+before_script:
+  - python feed_redis.py
+# command to run tests
+script:
+  - pytest
