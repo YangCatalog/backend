@@ -66,8 +66,8 @@ def fast_search():
     try:
         count = 0
         search_res, limit_reached = inde.do_search(payload, yc_gc.es_host,
-                                    yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
-                                    yc_gc.LOGGER)
+                                                   yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
+                                                   yc_gc.LOGGER)
         if search_res is None and limit_reached is None:
             return abort(400, description='Search is too broad. Please search for something more specific')
         res = []
@@ -163,7 +163,7 @@ def search(value: str):
                    'belongs-to', 'generated-from', 'expires', 'expired', 'prefix', 'reference']
     for module_key in module_keys:
         if key == module_key:
-            data = modules_data().get('module', {})
+            data = modules_data().get('module')
             if data is None:
                 return abort(404, description='No module found in confd database')
             passed_data = []
@@ -185,45 +185,50 @@ def search(value: str):
 
 
 @app.route('/search-filter/<leaf>', methods=['POST'])
-def rpc_search_get_one(leaf):
-    rpc = request.json
-    if rpc.get('input'):
-        recursive = rpc['input'].get('recursive')
-    else:
-        return abort(404, description='Json must start with root element input')
+def rpc_search_get_one(leaf: str):
+    """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request.
+    """
+    body = request.json
+    if body is None:
+        return abort(400, description='body of request is empty')
+    if body.get('input') is None:
+        return abort(400, description='body of request need to start with input')
+
+    recursive = body['input'].get('recursive')
     if recursive:
-        rpc['input'].pop('recursive')
-    response = rpc_search(rpc)
-    modules = json.loads(response.get_data(as_text=True)).get('yang-catalog:modules')
-    if modules is None:
-        return abort(404, description='No module found in confd database')
-    modules = modules.get('module')
-    if modules is None:
+        body['input'].pop('recursive')
+
+    response = rpc_search(body)
+    data = json.loads(response.data)
+    modules = data['yang-catalog:modules']['module']
+
+    if len(modules) == 0:
         return abort(404, description='No module found in confd database')
     output = set()
     resolved = set()
     for module in modules:
         if recursive:
             search_recursive(output, module, leaf, resolved)
-        meta_data = module.get(leaf)
-        output.add(meta_data)
-    if None in output:
-        output.remove(None)
+        metadata = module.get(leaf)
+        if metadata is not None:
+            output.add(metadata)
     if len(output) == 0:
         return abort(404, description='No module found using provided input data')
     else:
         return Response(json.dumps({'output': {leaf: list(output)}}),
-                        mimetype='application/json', status=201)
+                        mimetype='application/json', status=200)
 
 
 @app.route('/search-filter', methods=['POST'])
 def rpc_search(body: dict = None):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
     """
+    from_api = False
     if body is None:
         body = request.json
+        from_api = True
     yc_gc.LOGGER.info('Searching and filtering modules based on RPC {}'
-                .format(json.dumps(body)))
+                      .format(json.dumps(body)))
     data = modules_data().get('module', {})
     body = body.get('input')
     if body:
@@ -342,8 +347,7 @@ def rpc_search(body: dict = None):
                             found = False
                             impls = []
                             if leaf == 'deviation':
-                                for implementation in implementations[
-                                    'implementation']:
+                                for implementation in implementations['implementation']:
                                     deviations = implementation.get('deviation')
                                     if deviations is None:
                                         continue
@@ -458,7 +462,7 @@ def rpc_search(body: dict = None):
                             if not found:
                                 continue
                             if revision:
-                                if revision!= submodule['revision']:
+                                if revision != submodule['revision']:
                                     found = False
                             if not found:
                                 continue
@@ -517,8 +521,7 @@ def rpc_search(body: dict = None):
                             found = False
                             impls = []
                             if leaf == 'deviation':
-                                for implementation in implementations[
-                                    'implementation']:
+                                for implementation in implementations['implementation']:
                                     deviations = implementation.get('deviation')
                                     if deviations is None:
                                         continue
@@ -574,13 +577,15 @@ def rpc_search(body: dict = None):
                     continue
                 for leaf in body:
                     if (leaf != 'implementations' and leaf != 'submodule'
-                        and leaf != 'dependencies' and leaf != 'dependents'):
+                            and leaf != 'dependencies' and leaf != 'dependents'):
                         if body[leaf] != module.get(leaf):
                             passed = False
                             break
                 if passed:
                     passed_modules.append(module)
-        if len(passed_modules) > 0:
+        if from_api and len(passed_modules) == 0:
+            return abort(404, description='No modules found with provided input')
+        else:
             modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
                 .decode(json.dumps(passed_modules))
             return Response(json.dumps({
@@ -588,8 +593,6 @@ def rpc_search(body: dict = None):
                     'module': modules
                 }
             }), mimetype='application/json')
-        else:
-            return abort(404, description='No modules found with provided input')
     else:
         return abort(400, description='body request has to start with "input" container')
 
@@ -762,6 +765,8 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
 
 @app.route('/get-common', methods=['POST'])
 def get_common():
+    """Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
+    """
     body = request.json
     if body is None:
         return abort(400, description='body of request is empty')
@@ -772,15 +777,15 @@ def get_common():
     response_first = rpc_search({'input': body['input']['first']})
     response_second = rpc_search({'input': body['input']['second']})
 
-    if response_first.status_code == 404 or response_second.status_code == 404:
-        return abort(404, description='No hits found either in first or second input')
-
     data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
         .decode(response_first.get_data(as_text=True))
     modules_first = data['yang-catalog:modules']['module']
     data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
         .decode(response_second.get_data(as_text=True))
     modules_second = data['yang-catalog:modules']['module']
+
+    if len(modules_first) == 0 or len(modules_second) == 0:
+        return abort(404, description='No hits found either in first or second input')
 
     output_modules_list = []
     names = []
@@ -811,13 +816,13 @@ def compare():
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
-    if response_new.status_code == 404 or response_old.status_code == 404:
-        return abort(404, description='No hits found either in first or second input')
-
     data = json.loads(response_new.data)
     modules_new = data['yang-catalog:modules']['module']
     data = json.loads(response_old.data)
     modules_old = data['yang-catalog:modules']['module']
+
+    if len(modules_new) == 0 or len(modules_old) == 0:
+        return abort(404, description='No hits found either in old or new input')
 
     new_mods = []
     for mod_new in modules_new:
@@ -846,8 +851,12 @@ def compare():
 
 
 @app.route('/check-semantic-version', methods=['POST'])
-#@cross_origin(headers='Content-Type')
+# @cross_origin(headers='Content-Type')
 def check_semver():
+    """Get output from pyang tool with option '--check-update-from' for all the modules between and filter.
+    I. If module compilation failed it will give you only link to get diff in between two yang modules.
+    II. If check-update-from has an output it will provide tree diff and output of the pyang together with diff between two files.
+    """
     body = request.json
     if body is None:
         return abort(400, description='body of request is empty')
@@ -858,13 +867,13 @@ def check_semver():
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
-    if response_new.status_code == 404 or response_old.status_code == 404:
-        return abort(404, description='No hits found either in first or second input')
-
     data = json.loads(response_new.data)
     modules_new = data['yang-catalog:modules']['module']
     data = json.loads(response_old.data)
     modules_old = data['yang-catalog:modules']['module']
+
+    if len(modules_new) == 0 or len(modules_old) == 0:
+        return abort(404, description='No hits found either in old or new input')
 
     output_modules_list = []
     for mod_old in modules_old:
@@ -907,8 +916,8 @@ def check_semver():
 
                     diff = (
                         '{}/services/diff-tree/file1={}@{}/file2={}@{}'.
-                            format(yc_gc.yangcatalog_api_prefix, name_old,
-                                   revision_old, name_new, revision_new))
+                        format(yc_gc.yangcatalog_api_prefix, name_old,
+                               revision_old, name_new, revision_new))
 
                     output_mod['yang-module-pyang-tree-diff'] = diff
 
@@ -1012,7 +1021,7 @@ def search_module(name: str, revision: str, organization: str):
     if module_data is not None:
         module_data = module_data.decode('utf-8')
         return Response(json.dumps({'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
-                                   .decode(module_data)]
+                                               .decode(module_data)]
                                     }), mimetype='application/json')
     return abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
 
@@ -1047,11 +1056,11 @@ def get_catalog():
         :return response to the request with all the data
     """
     yc_gc.LOGGER.info('Searching for catalog data')
-    data = catalog_data()
+    data = json.dumps(catalog_data())
     if data is None or data == '{}':
         return abort(404, description='No data loaded to YangCatalog')
     else:
-        return Response(json.dumps(data), mimetype='application/json')
+        return Response(data, mimetype='application/json')
 
 
 @app.route('/services/tree/<name>@<revision>.yang', methods=['GET'])
@@ -1244,7 +1253,9 @@ def filter_using_api(res_row, payload):
         return False
 
 
-def search_recursive(output, module, leaf, resolved):
+def search_recursive(output: set, module: dict, leaf: str, resolved: set):
+    """Look for all dependencies of the module and search for data in those modules too.
+    """
     r_name = module['name']
     if r_name not in resolved:
         resolved.add(r_name)
@@ -1290,7 +1301,10 @@ def process(data, passed_data, value, module, split, count):
 
 
 def modules_data():
-    data = yc_gc.redis.get("modules-data")
+    """Get all the modules data from Redis.
+    Empty dictionary is returned if no data is stored under specified key.
+    """
+    data = yc_gc.redis.get('modules-data')
     if data is None:
         data = '{}'
     else:
@@ -1299,7 +1313,10 @@ def modules_data():
 
 
 def vendors_data(clean_data=True):
-    data = yc_gc.redis.get("vendors-data")
+    """Get all the vendors data from Redis.
+    Empty dictionary is returned if no data is stored under specified key.
+    """
+    data = yc_gc.redis.get('vendors-data')
     if data is None:
         data = '{}'
     else:
@@ -1313,7 +1330,10 @@ def vendors_data(clean_data=True):
 
 
 def catalog_data():
-    data = yc_gc.redis.get("all-catalog-data")
+    """Get all the catalog data (modules and vendors) from Redis.
+    Empty dictionary is returned if no data is stored under specified key.
+    """
+    data = yc_gc.redis.get('all-catalog-data')
     if data is None:
         data = '{}'
     else:
@@ -1326,9 +1346,10 @@ def create_bootstrap_info():
         template = f.read()
     return template
 
+
 def create_bootstrap_warning(text: str, message: str):
     yc_gc.LOGGER.info('Rendering bootstrap warning data')
-    context = { 'warn_text': text, 'warn_message': message }
+    context = {'warn_text': text, 'warn_message': message}
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/warning.html')
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
@@ -1337,7 +1358,7 @@ def create_bootstrap_warning(text: str, message: str):
 
 def create_bootstrap_danger(message: str):
     yc_gc.LOGGER.info('Rendering bootstrap danger data')
-    context = { 'danger_message': message }
+    context = {'danger_message': message}
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')

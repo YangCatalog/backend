@@ -1,4 +1,4 @@
-MAILTO=evyncke@cisco.com,miroslav.kovac@pantheon.tech,slavomir.mazur@pantheon.tech
+MAILTO=benoit@claise.be,evyncke@cisco.com,miroslav.kovac@pantheon.tech,slavomir.mazur@pantheon.tech
 SHELL=/bin/bash
 #
 # For more information see the manual pages of crontab(5) and cron(8)
