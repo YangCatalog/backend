@@ -34,7 +34,7 @@ class HealthcheckBlueprint(Blueprint):
 
     def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
-        self.LOGGER = log.get_logger('healthcheck', '/var/yang/logs/healthcheck.log')
+        self.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(yc_gc.logs_dir))
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
 
