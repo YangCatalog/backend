@@ -1,0 +1,299 @@
+{
+    "dependecies": {
+        "input": {
+            "organization": "fujitsu",
+            "dependencies": [
+                {
+                    "name": "ietf-yang-types"
+                }
+            ]
+        }
+    },
+    "dependents": {
+        "input": {
+            "organization": "ietf",
+            "dependents": [
+                {
+                    "name": "fujitsu-notifications"
+                }
+            ]
+        }
+    },
+    "implementations": {
+        "input": {
+            "organization": "fujitsu",
+            "implementations": {
+                "implementation": [
+                    {
+                        "vendor": "fujitsu",
+                        "software-version": "2.4",
+                        "software-flavor": "Linux",
+                        "platform": "T100"
+                    }
+                ]
+            }
+        }
+    },
+    "submodule": {
+        "input": {
+            "organization": "ietf",
+            "submodule": [
+                {
+                    "name": "ietf-ipv6-router-advertisements"
+                }
+            ]
+        }
+    },
+    "not_found": {
+        "input": {
+            "organization": "random-organization"
+        }
+    },
+    "compare": {
+        "input": {
+            "old": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            },
+            "new": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "compare_no_hits": {
+        "input": {
+            "old": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            },
+            "new": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.0.0",
+                            "platform": "TXXX"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "compare_no_new_modules": {
+        "input": {
+            "old": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            },
+            "new": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "get_common": {
+        "input": {
+            "first": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            },
+            "second": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "get_common_no_hits": {
+        "input": {
+            "first": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "2.4",
+                            "platform": "T100"
+                        }
+                    ]
+                }
+            },
+            "second": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "2.4.2",
+                            "platform": "T100"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "get_common_no_common_modules": {
+        "input": {
+            "first": {
+                "organization": "ietf"
+            },
+            "second": {
+                "organization": "fujitsu"
+            }
+        }
+    },
+    "check_semver_same_module": {
+        "input": {
+            "old": {
+                "name": "yang-catalog",
+                "revision": "2017-09-26",
+                "organization": "ietf"
+            },
+            "new": {
+                "name": "yang-catalog",
+                "revision": "2018-04-03",
+                "organization": "ietf"
+            }
+        }
+    },
+    "check_semver_same_platform": {
+        "input": {
+            "old": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            },
+            "new": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "check_semver_no_difference": {
+        "input": {
+            "old": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            },
+            "new": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "1.2",
+                            "platform": "T600"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "check_semver_no_hits": {
+        "input": {
+            "old": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "2.4",
+                            "platform": "T100"
+                        }
+                    ]
+                }
+            },
+            "new": {
+                "implementations": {
+                    "implementation": [
+                        {
+                            "vendor": "fujitsu",
+                            "software-version": "2.4.2",
+                            "platform": "T100"
+                        }
+                    ]
+                }
+            }
+        }
+    },
+    "rpc_search_get_one": {
+        "input": {
+            "organization": "fujitsu",
+            "implementations": {
+                "implementation": [
+                    {
+                        "vendor": "fujitsu",
+                        "software-version": "2.4",
+                        "software-flavor": "Linux",
+                        "platform": "T100"
+                    }
+                ]
+            }
+        }
+    }
+}

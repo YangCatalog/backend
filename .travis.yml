@@ -1,0 +1,19 @@
+os: linux
+dist: xenial
+language: python
+services:
+  - redis
+python:
+  - '3.7' # Previous version
+  - '3.8' # Current version
+  - '3.9' # Future version
+# command to install dependencies
+before_install:
+  - export PYTHONPATH=$PYTHONPATH:$(pwd)
+install:
+  - pip install -r requirements.txt && ./setup.py install
+before_script:
+  - python feed_redis.py
+# command to run tests
+script:
+  - pytest

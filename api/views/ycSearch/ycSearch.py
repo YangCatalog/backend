@@ -990,21 +990,62 @@ def search_vendors(value: str):
                 ends with /value searched for
             :return response to the request.
     """
-    value = value.replace('vendor/', 'vendor=')
-    value = value.replace('/platform/', '/platform=')
-    value = value.replace('/software-version/', '/software-version=')
-    value = value.replace('/software-flavor/', '/software-flavor=')
     yc_gc.LOGGER.info('Searching for specific vendors {}'.format(value))
-    path = yc_gc.protocol + '://' + yc_gc.confd_ip + ':' + repr(yc_gc.confdPort) + '/restconf/data/yang-catalog:catalog/vendors/' + value
-    data = requests.get(path, auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                        headers={'Accept': 'application/yang-data+json'})
-    if data.status_code == 200 or data.status_code == 204:
-        data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-            .decode(data.text)
-        return Response(json.dumps(data), mimetype='application/json')
-    else:
-        return abort(404, description='No vendors found on path {}'.format(value))
+    vendors_data = get_vendors().json
 
+    if 'vendor/' in value:
+        found = False
+        vendor_name = value.split('vendor/')[-1].split('/')[0]
+        for vendor in vendors_data['vendor']:
+            if vendor['name'] == vendor_name:
+                vendors_data = vendor
+                found = True
+        if found == False:
+            return abort(404, description='No vendors found on path {}'.format(value))
+    else:
+        return Response(json.dumps(vendors_data), mimetype='application/json')
+
+    if 'platform/' in value:
+        found = False
+        platform_name = value.split('platform/')[-1].split('/')[0]
+        for platform in vendors_data.get('platforms', {}).get('platform', []):
+            if platform['name'] == platform_name:
+                vendors_data = platform
+                found = True
+        if found == False:
+            return abort(404, description='No vendors found on path {}'.format(value))
+    else:
+        vendors_data = {'yang-catalog:vendor': [vendors_data]}
+        return Response(json.dumps(vendors_data), mimetype='application/json')
+
+    if 'software-version/' in value:
+        found = False
+        software_version_name = value.split('software-version/')[-1].split('/')[0]
+        for software_version in vendors_data.get('software-versions', {}).get('software-version', []):
+            if software_version['name'] == software_version_name:
+                vendors_data = software_version
+                found = True
+        if found == False:
+            return abort(404, description='No vendors found on path {}'.format(value))
+    else:
+        vendors_data = {'yang-catalog:platform': [vendors_data]}
+        return Response(json.dumps(vendors_data), mimetype='application/json')
+
+    if 'software-flavor/' in value:
+        found = False
+        software_flavor_name = value.split('software-flavor/')[-1].split('/')[0]
+        for software_flavor in vendors_data.get('software-flavors', {}).get('software-flavor', []):
+            if software_flavor['name'] == software_flavor_name:
+                vendors_data = software_flavor
+                found = True
+        if found == False:
+            return abort(404, description='No vendors found on path {}'.format(value))
+        else:
+            vendors_data = {'yang-catalog:software-flavor': [vendors_data]}
+            return Response(json.dumps(vendors_data), mimetype='application/json')
+    else:
+        vendors_data = {'yang-catalog:software-version': [vendors_data]}
+        return Response(json.dumps(vendors_data), mimetype='application/json')
 
 @app.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
 def search_module(name: str, revision: str, organization: str):
