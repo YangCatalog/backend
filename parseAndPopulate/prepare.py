@@ -37,8 +37,17 @@ from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 
 class Prepare:
     def __init__(self, log_directory: str, file_name: str, yangcatalog_api_prefix: str):
+        """
+        Preset Prepare class which will be used to create dictionary of yang modules.
+        This dictionary will hold all the metadata that were parsed from yang files on provided directory.
+        Dictionary 'yang_modules' will be dumped into .json file.
+
+        :param log_directory:           (str) directory where the log file is save
+        :param file_name:               (str) name of the file to which the modules are dumped
+        :param yangcatalog_api_prefix:  (str) yangcatalog api prefix used in while making requests
+        """
         global LOGGER
-        LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
         if len(LOGGER.handlers) > 1:
             LOGGER.handlers[1].close()
             LOGGER.removeHandler(LOGGER.handlers[1])
@@ -60,9 +69,7 @@ class Prepare:
             self.yang_modules[key].implementation.extend(yang.implementation)
         else:
             if yang.tree is not None:
-                yang.tree = '{}{}'.format(self.yangcatalog_api_prefix,
-                                          yang.tree)
-
+                yang.tree = '{}{}'.format(self.yangcatalog_api_prefix, yang.tree)
             self.name_revision_organization.add(key)
             self.yang_modules[key] = yang
             if self.yang_modules[key].compilation_status is None:
@@ -94,8 +101,7 @@ class Prepare:
                 'document-name': self.yang_modules[key].document_name,
                 'author-email': self.yang_modules[key].author_email,
                 'reference': self.yang_modules[key].reference,
-                'module-classification': self.yang_modules[
-                    key].module_classification,
+                'module-classification': self.yang_modules[key].module_classification,
                 'compilation-status': self.yang_modules[key].compilation_status,
                 'compilation-result': self.yang_modules[key].compilation_result,
                 'expires': self.yang_modules[key].expiration_date,

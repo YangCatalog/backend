@@ -26,175 +26,6 @@
             }
         ]
     },
-    "dumped_module_dhcp": {
-        "module": [
-            {
-                "name": "dhcp-client",
-                "revision": "2014-12-18",
-                "organization": "ietf",
-                "namespace": "urn:ietf:params:xml:ns:yang:dhcp-client",
-                "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/standards/dhcp-client.yang",
-                "generated-from": "not-applicable",
-                "maturity-level": "not-applicable",
-                "module-classification": "unknown",
-                "compilation-status": "failed",
-                "compilation-result": "https://yangcatalog.org/results/dhcp-client@2014-12-18_ietf.html",
-                "prefix": "dhcp",
-                "yang-version": "1.0",
-                "description": "The module for implementing DHCP protocol",
-                "module-type": "module",
-                "tree-type": "nmda-compatible",
-                "yang-tree": "https://yangcatalog.org/api/services/tree/dhcp-client@2014-12-18.yang",
-                "expired": "not-applicable",
-                "dependencies": [
-                    {
-                        "name": "ietf-inet-types",
-                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/ietf-inet-types.yang"
-                    }
-                ],
-                "dependents": [
-                    {
-                        "name": "fujitsu-dhcp-client",
-                        "revision": "2018-10-09",
-                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-dhcp-client.yang"
-                    }
-                ],
-                "derived-semantic-version": "1.0.0",
-                "implementations": {
-                    "implementation": [
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T100",
-                            "software-version": "2.4",
-                            "software-flavor": "Linux",
-                            "os-version": "2.4",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T100",
-                            "software-version": "2.4.2",
-                            "software-flavor": "Linux",
-                            "os-version": "2.4.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T400",
-                            "software-version": "1.1.2",
-                            "software-flavor": "Linux",
-                            "os-version": "1.1.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T400",
-                            "software-version": "1.2",
-                            "software-flavor": "Linux",
-                            "os-version": "1.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T600",
-                            "software-version": "1.1.2",
-                            "software-flavor": "Linux",
-                            "os-version": "1.1.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T600",
-                            "software-version": "1.2",
-                            "software-flavor": "Linux",
-                            "os-version": "1.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T600-OC",
-                            "software-version": "1.2",
-                            "software-flavor": "Linux",
-                            "os-version": "1.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        },
-                        {
-                            "vendor": "fujitsu",
-                            "platform": "T600_OC",
-                            "software-version": "1.1.2",
-                            "software-flavor": "Linux",
-                            "os-version": "1.1.2",
-                            "feature-set": "ALL",
-                            "os-type": "FSS2 Linux",
-                            "deviation": [
-                                {
-                                    "name": "dhcp-client-dev",
-                                    "revision": "2015-09-11"
-                                }
-                            ],
-                            "conformance-type": "implement"
-                        }
-                    ]
-                }
-            }
-        ]
-    },
     "dumped_vendor_data": {
         "vendors": {
             "vendor": [
@@ -225,12 +56,18 @@
                                                         "modules": {
                                                             "module": [
                                                                 {
-                                                                    "name": "Cisco-IOS-XR-lpts-lib-cfg",
-                                                                    "revision": "2019-04-05",
-                                                                    "organization": "cisco",
+                                                                    "name": "ietf-netconf-acm",
+                                                                    "revision": "2018-02-14",
+                                                                    "organization": "ietf",
                                                                     "os-version": "7.0.1",
                                                                     "feature-set": "ALL",
                                                                     "os-type": "IOS-XR",
+                                                                    "deviation": [
+                                                                        {
+                                                                            "name": "cisco-xr-ietf-netconf-acm-deviations",
+                                                                            "revision": "2017-08-02"
+                                                                        }
+                                                                    ],
                                                                     "conformance-type": "implement"
                                                                 }
                                                             ]
