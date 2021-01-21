@@ -31,16 +31,26 @@ from utility import log
 
 class LoadFiles:
 
-    def __init__(self, private_dir, log_directory):
-        LOGGER = log.get_logger(__name__, log_directory + '/parseAndPopulate.log')
+    def __init__(self, private_dir: str, log_directory: str):
+        """
+        Preset LoadFiles class to load all .json files from private directory.
+        Filenames of json files are stored in json_links file.
+
+        :param private_dir      (str) path to the directory with private HTML result files
+        :param log_directory:   (str) directory where the log file is saved
+        """
+        LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
         if len(LOGGER.handlers) > 1:
             LOGGER.handlers[1].close()
             LOGGER.removeHandler(LOGGER.handlers[1])
         LOGGER.debug('Loading compilation statuses and results')
         self.names = []
-        with open(private_dir + '/json_links', 'r') as f:
-            for line in f:
-                self.names.append(line.replace('.json', '').replace('\n', ''))
+        try:
+            with open('{}/json_links'.format(private_dir), 'r') as f:
+                for line in f:
+                    self.names.append(line.replace('.json', '').replace('\n', ''))
+        except FileNotFoundError:
+            LOGGER.warn('json_links file was not found')
 
         self.status = {}
         self.headers = {}
@@ -56,7 +66,7 @@ class LoadFiles:
             ths = html.split('<TH>')
             results = []
             for th in ths:
-                res = th.split('</TH>')[0]
-                if 'Compilation Result' in res:
-                    results.append(res)
+                result = th.split('</TH>')[0]
+                if 'Compilation Result' in result:
+                    results.append(result)
             self.headers[name] = results
