@@ -1,0 +1,18 @@
+{
+    "modules": {
+        "module": [
+            {
+                "name": "ietf-interfaces",
+                "revision": "2018-02-20",
+                "organization": "ietf",
+                "maturity-level": "ratified",
+                "module-classification": "unknown",
+                "source-file": {
+                    "repository": "yang",
+                    "owner": "YangModels",
+                    "path": "standard/ietf/RFC/ietf-interfaces.yang"
+                }
+            }
+        ]
+    }
+}

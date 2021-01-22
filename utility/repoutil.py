@@ -66,6 +66,21 @@ def pull(repo_dir):
         s.update(recursive=True, init=True)
 
 
+def load(repo_dir: str, repo_url: str):
+    """
+    Load git repository from local directory into Python object.
+
+    :param repo_dir:    (str) directory where .git file is located
+    :param repo_url:    (str) url to Github repository
+    """
+    repo = RepoUtil(repo_url)
+    try:
+        repo.repo = Repo(repo_dir)
+    except:
+        repo = None
+    return repo
+
+
 class RepoUtil(object):
     """Simple class for rolling up some git operations as part of file
     manipulation. The user should create the object with the URL to
@@ -166,7 +181,7 @@ class RepoUtil(object):
     def remove(self):
         """Remove the temporary storage."""
         if self.localdir is not None:
-        	shutil.rmtree(self.localdir)
+            shutil.rmtree(self.localdir)
         self.localdir = None
         self.repo = None
 

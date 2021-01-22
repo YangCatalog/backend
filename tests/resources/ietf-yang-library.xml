@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <modules-state xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library">
+    <module-set-id>2148066159</module-set-id>
+    <module>
+      <name>ietf-yang-library</name>
+      <revision>2016-06-21</revision>
+      <namespace>urn:ietf:params:xml:ns:yang:ietf-yang-library</namespace>
+      <conformance-type>implement</conformance-type>
+    </module>
+    <module>
+      <name>huawei-aaa</name>
+      <revision>2017-03-23</revision>
+      <namespace>urn:huawei:yang:huawei-aaa</namespace>
+      <conformance-type>implement</conformance-type>
+      <deviation>
+        <name>huawei-aaa-deviations-cx</name>
+        <revision>2017-03-23</revision>
+      </deviation>
+      <submodule>
+        <name>huawei-aaa-action</name>
+        <revision>2017-03-23</revision>
+      </submodule>
+      <submodule>
+        <name>huawei-aaa-lam</name>
+        <revision>2017-03-23</revision>
+      </submodule>
+      <submodule>
+        <name>huawei-aaa-lam-action</name>
+        <revision>2017-03-23</revision>
+      </submodule>
+      <submodule>
+        <name>huawei-aaa-lam-type</name>
+        <revision>2017-03-23</revision>
+      </submodule>
+      <submodule>
+        <name>huawei-aaa-type</name>
+        <revision>2017-03-23</revision>
+      </submodule>
+    </module>
+  </modules-state>
+</data>

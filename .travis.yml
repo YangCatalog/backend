@@ -8,16 +8,10 @@ python:
   - '3.8' # Current version
   - '3.9' # Future version
 # command to install dependencies
-before_install:
-  - export PYTHONPATH=$PYTHONPATH:$(pwd)
-  - export BACKEND=$(pwd)
-  # Create logs directory and log files
-  - export LOGS_DIR=$BACKEND/tests/resources/logs
-  - mkdir -p $LOGS_DIR
-  - touch $LOGS_DIR/healthcheck.log $LOGS_DIR/parseAndPopulate.log $LOGS_DIR/yang.log
 install:
   - pip install -r requirements.txt && ./setup.py install
 before_script:
+  - ./prepare_environment.sh
   - python feed_redis.py
 # command to run tests
 script:
