@@ -29,7 +29,7 @@ def load_catalog_data():
     resources_path = '{}/tests/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
     try:
         print('Loading cache file from path {}'.format(resources_path))
-        with open('{}2020-12-15_00:00:00-UTC.json'.format(resources_path), 'r') as file_load:
+        with open('{}cache_data.json'.format(resources_path), 'r') as file_load:
             catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
             print('Content of cache file loaded successfully.')
     except:

@@ -50,7 +50,13 @@ github_url = 'https://github.com/'
 
 
 # searching for file based on pattern or pattern_with_revision
-def find_first_file(directory, pattern, pattern_with_revision):
+def find_first_file(directory: str, pattern: str, pattern_with_revision: str):
+    """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
+
+    :param directory                (str) path to directory with yang modules
+    :param pattern                  (str) pattern - name of yang file to search in directory
+    :param pattern_with_revision    (str) pattern - name of yang file with revision to search in directory
+    """
     for root, dirs, files in os.walk(directory):
         for basename in files:
             if fnmatch.fnmatch(basename, pattern_with_revision):
@@ -67,7 +73,7 @@ class Capability:
 
     def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, integrity_checker,
                  api: bool, sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
-                 yang_models_dir: str, run_integrity: bool=False):
+                 yang_models_dir: str, run_integrity: bool = False):
         """
         Preset Capability class to get capabilities from directory passed as argument.
         Based on passed arguments, Capability object will:
@@ -90,12 +96,12 @@ class Capability:
         """
 
         global LOGGER
-        LOGGER = log.get_logger('capability', log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger('capability', '{}/parseAndPopulate.log'.format(log_directory))
         if len(LOGGER.handlers) > 1:
             LOGGER.handlers[1].close()
             LOGGER.removeHandler(LOGGER.handlers[1])
         LOGGER.debug('Running Capability constructor')
-        self.logger = log.get_logger('repoutil', log_directory + '/parseAndPopulate.log')
+        self.logger = log.get_logger('repoutil', '{}/parseAndPopulate.log'.format(log_directory))
         self.log_directory = log_directory
         self.run_integrity = run_integrity
         self.save_file_to_dir = save_file_to_dir
@@ -112,7 +118,7 @@ class Capability:
                 LOGGER.debug('Checking for xml hello message file')
                 self.root = ET.parse(hello_message_file).getroot()
             except:
-                #try to change & to &amp
+                # try to change & to &amp
                 hello_file = fileinput.FileInput(hello_message_file, inplace=True)
                 for line in hello_file:
                     print(line.replace('&', '&amp;'), end='')
@@ -126,51 +132,57 @@ class Capability:
         # Vendor modules send from API
         if self.api and not sdo:
             self.platform_data = []
-            json_file = open(hello_message_file.split('.xml')[0] + '.json')
-            impl = json.load(json_file)
+            with open('{}.json'.format(hello_message_file.split('.xml')[0]), 'r') as f:
+                impl = json.load(f)
             self.initialize(impl)
-            json_file.close()
         # Vendor modules loaded from directory
         if not self.api and not sdo:
-            if os.path.isfile('/'.join(self.split[:-1]) + '/platform-metadata.json'):
+            path = '/'.join(self.split[:-1])
+            if os.path.isfile('{}/platform-metadata.json'.format(path)):
                 self.platform_data = []
-                json_file = open('/'.join(self.split[:-1]) + '/platform-metadata.json')
-                platforms = json.load(json_file)['platforms']['platform']
-                for impl in platforms:
-                    self.initialize(impl)
-                json_file.close()
+                with open('{}/platform-metadata.json'.format(path), 'r') as f:
+                    platforms = json.load(f)['platforms']['platform']
+                for implementation in platforms:
+                    self.initialize(implementation)
             else:
                 self.platform_data = []
                 LOGGER.debug('Setting metadata concerning whole directory')
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
-                repo.clone()
+                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo = repoutil.load(self.yang_models_dir, repo_url)
+                if repo is None:
+                    repo = repoutil.RepoUtil(repo_url, self.logger)
+                    repo.clone()
                 self.path = None
                 self.branch = 'master'
                 self.branch = repo.get_commit_hash(self.branch)
                 repo.remove()
                 # Solve for os-type
-                if 'nx' in self.split[4]:
+                if 'nx' in self.split:
+                    platform_index = self.split.index('nx')
                     os_type = 'NX-OS'
-                    platform = self.split[6].split('-')[0]
-                elif 'xe' in self.split[4]:
+                    platform = self.split[platform_index + 2].split('.xml')[0].split('-')[0]
+                elif 'xe' in self.split:
+                    platform_index = self.split.index('xe')
                     os_type = 'IOS-XE'
-                    platform = self.split[6].split('-')[0]
-                elif 'xr' in self.split[4]:
+                    platform = self.split[platform_index + 2].split('.xml')[0].split('-')[0]
+                elif 'xr' in self.split:
+                    platform_index = self.split.index('xr')
                     os_type = 'IOS-XR'
-                    platform = self.split[6].split('-')[1]
+                    platform = self.split[platform_index + 2].split('.xml')[0].split('-')[1]
                 else:
+                    platform_index = self.split.index[-3]
                     os_type = 'Unknown'
                     platform = 'Unknown'
                 self.platform_data.append(
                     {'software-flavor': 'ALL',
                      'platform': platform,
-                     'software-version': self.split[5],
-                     'os-version': self.split[5],
+                     'software-version': self.split[platform_index + 1],
+                     'os-version': self.split[platform_index + 1],
                      'feature-set': "ALL",
-                     'os' : os_type,
-                     'vendor': self.split[3]})
+                     'os': os_type,
+                     'vendor': self.split[platform_index - 1]})
             for data in self.platform_data:
                 if self.run_integrity:
                     integrity_checker.add_platform('/'.join(self.split[:-2]), data['platform'])
@@ -179,15 +191,20 @@ class Capability:
         if not run_integrity:
             self.parsed_jsons = LoadFiles(private_dir, log_directory)
 
-    def initialize(self, impl):
+    def initialize(self, impl: dict):
         if impl['module-list-file']['path'] in self.hello_message_file:
-            LOGGER.info('Parsing a received json file')
+            LOGGER.info('Parsing a received platform-metadata.json file')
             self.owner = impl['module-list-file']['owner']
             self.repo = impl['module-list-file']['repository'].split('.')[0]
             self.path = impl['module-list-file']['path']
             self.branch = impl['module-list-file'].get('branch')
-            repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
-            repo.clone()
+            repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+            repo = None
+            if self.owner == 'YangModels' and self.repo == 'yang':
+                repo = repoutil.load(self.yang_models_dir, repo_url)
+            if repo is None:
+                repo = repoutil.RepoUtil(repo_url, self.logger)
+                repo.clone()
             if not self.branch:
                 self.branch = 'master'
             self.branch = repo.get_commit_hash(self.branch)
@@ -200,18 +217,24 @@ class Capability:
                                        'vendor': impl['vendor'],
                                        'os': impl['os-type']})
 
-    def parse_and_dump_sdo(self):
-        repo = None
+    def parse_and_dump_sdo(self, repo=None):
+        """
+        If modules were sent via API, content of prepare-sdo.json file is parsed and modules are loaded from Git repository.
+        Otherwise, all the .yang files in the directory are parsed.
+
+        :param repo     Git repository which contains .yang files
+        """
+        repo = repo
         branch = None
         if self.api:
             LOGGER.debug('Parsing sdo files sent via API')
-            with open(self.json_dir + '/prepare-sdo.json', 'r') as f:
+            with open('{}/prepare-sdo.json'.format(self.json_dir), 'r') as f:
                 sdos_json = json.load(f)
             sdos_list = sdos_json['modules']['module']
             for sdo in sdos_list:
                 file_name = unicodedata.normalize('NFKD', sdo['source-file']['path'].split('/')[-1]) \
                     .encode('ascii', 'ignore')
-                LOGGER.info('Parsing sdo file sent via API {}'.format(file_name))
+                LOGGER.info('Parsing sdo file sent via API {}'.format(file_name.decode('utf-8', 'strict')))
                 self.owner = sdo['source-file']['owner']
                 repo_file_path = sdo['source-file']['path']
                 self.repo = sdo['source-file']['repository'].split('.')[0]
@@ -223,26 +246,25 @@ class Capability:
                     self.branch = 'master'
                 if branch is None:
                     branch = repo.get_commit_hash('/'.join(repo_file_path.split('/')[:-1]), self.branch)
-                root = self.owner + '/' + sdo['source-file']['repository'].split('.')[0] + '/' + branch + '/' \
-                       + '/'.join(repo_file_path.split('/')[:-1])
-                root = self.json_dir + '/temp/' + root
+                root = '{}/{}/{}/{}'.format(self.owner, self.repo, branch, '/'.join(repo_file_path.split('/')[:-1]))
+                root = '{}/temp/{}'.format(self.json_dir, root)
                 if sys.version_info < (3, 4):
-                    root = self.json_dir + '/temp/' \
-                           + unicodedata.normalize('NFKD', root).encode('ascii', 'ignore')
+                    root = '{}/temp/{}'.format(self.json_dir, unicodedata.normalize('NFKD', root).encode('ascii', 'ignore'))
                 if sys.version_info >= (3, 4):
                     file_name = file_name.decode('utf-8', 'strict')
-                if not os.path.isfile(root + '/' + file_name):
+                path = '{}/{}'.format(root, file_name)
+                if not os.path.isfile(path):
                     LOGGER.error('File {} sent via API was not downloaded'.format(file_name))
                     continue
                 if '[1]' not in file_name:
                     try:
-                        yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
+                        yang = Modules(self.yang_models_dir, self.log_directory, path,
                                        self.html_result_dir, self.parsed_jsons, self.json_dir)
                     except ParseException as e:
                         LOGGER.error(e.msg)
                         continue
                     name = file_name.split('.')[0].split('@')[0]
-                    schema = github_raw + self.owner + '/' + self.repo + '/' + branch + '/' + repo_file_path
+                    schema = '{}{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, repo_file_path)
                     yang.parse_all(branch, name,
                                    self.prepare.name_revision_organization,
                                    schema, self.path, self.save_file_to_dir, sdo)
@@ -259,8 +281,9 @@ class Capability:
                         if '[1]' in file_name:
                             LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                         else:
+                            path = '{}/{}'.format(root, file_name)
                             try:
-                                yang = Modules(self.yang_models_dir, self.log_directory, root + '/' + file_name,
+                                yang = Modules(self.yang_models_dir, self.log_directory, path,
                                                self.html_result_dir, self.parsed_jsons, self.json_dir)
                             except ParseException as e:
                                 LOGGER.error(e.msg)
@@ -268,20 +291,20 @@ class Capability:
                             name = file_name.split('.')[0].split('@')[0]
                             self.owner = 'YangModels'
                             self.repo = 'yang'
+                            repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                            repo = repoutil.load(self.yang_models_dir, repo_url)
                             if repo is None:
-                                repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
+                                repo = repoutil.RepoUtil(repo_url, self.logger)
                                 repo.clone()
                             self.branch = 'master'
-                            path = root + '/' + file_name
                             abs_path = os.path.abspath(path)
                             if '/yangmodels/yang/' in abs_path:
                                 path = abs_path.split('/yangmodels/yang/')[1]
                             else:
-                                path = re.split('tmp\/\w*\/', abs_path)[1]
+                                path = re.split(r'tmp\/\w*\/', abs_path)[1]
                             if branch is None:
                                 branch = repo.get_commit_hash(path, self.branch)
-                            schema = (github_raw + self.owner + '/' + self.repo
-                                      + '/' + branch + '/' + path)
+                            schema = '{}{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, path)
                             yang.parse_all(branch, name,
                                            self.prepare.name_revision_organization,
                                            schema, self.path, self.save_file_to_dir)
@@ -289,14 +312,16 @@ class Capability:
         if repo is not None:
             repo.remove()
 
-    # parse capability xml and save to file
     def parse_and_dump_yang_lib(self):
+        """ Load implementation information which are stored platform-metadata.json file.
+        Set this implementation information for each module parsed out from ietf-yang-library xml file.
+        """
         LOGGER.debug('Starting to parse files from vendor')
         capabilities = []
         netconf_version = []
         LOGGER.debug('Getting capabilities out of api message')
         if self.api:
-            with open(self.hello_message_file.split('.xml')[0] + '.json') as f:
+            with open('{}.json'.format(self.hello_message_file.split('.xml')[0])) as f:
                 impl = json.load(f)
             caps = impl['platforms'].get('netconf-capabilities')
             if caps:
@@ -311,12 +336,13 @@ class Capability:
                         cap_with_version = capability
                         capabilities.append(cap_with_version.split('?')[0])
         else:
-            if os.path.isfile('/'.join(self.split[:-1]) + '/platform-metadata.json'):
-                json_file = open('/'.join(self.split[:-1]) + '/platform-metadata.json')
-                platforms = json.load(json_file)['platforms']['platform']
-                for impl in platforms:
-                    if impl['module-list-file']['path'] in self.hello_message_file:
-                        caps = impl.get('netconf-capabilities')
+            path = '/'.join(self.split[:-1])
+            if os.path.isfile('{}/platform-metadata.json'.format(path)):
+                with open('{}/platform-metadata.json'.format(path), 'r') as f:
+                    platforms = json.load(f)['platforms']['platform']
+                for implementation in platforms:
+                    if implementation['module-list-file']['path'] in self.hello_message_file:
+                        caps = implementation.get('netconf-capabilities')
                         if caps:
                             for cap in caps:
                                 capability = cap
@@ -329,13 +355,12 @@ class Capability:
                                     cap_with_version = capability
                                     capabilities.append(
                                         cap_with_version.split('?')[0])
-                json_file.close()
 
         # netconf capability parsing
         modules = self.root[0]
         set_of_names = set()
         keys = set()
-        schema_part = github_raw + self.owner + '/' + self.repo + '/' + self.branch + '/'
+        schema_part = '{}{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
         for module in modules:
             if 'module-set-id' in module.tag:
                 continue
@@ -351,9 +376,7 @@ class Capability:
             yang_lib_info['path'] = '/'.join(self.split[0:-1])
             yang_lib_info['name'] = module_name
             yang_lib_info['features'] = []
-            yang_lib_info['deviations'] = {}
-            names = []
-            revs = []
+            yang_lib_info['deviations'] = []
             conformance_type = None
             for mod in module:
                 if 'revision' in mod.tag:
@@ -363,17 +386,17 @@ class Capability:
                 elif 'feature' in mod.tag:
                     yang_lib_info['features'].append(mod.text)
                 elif 'deviation' in mod.tag:
-                    names.append(mod[0].text)
-                    revs.append(mod[1].text)
-            yang_lib_info['deviations']['name'] = names
-            yang_lib_info['deviations']['revision'] = revs
+                    deviation = {}
+                    deviation['name'] = mod[0].text
+                    deviation['revision'] = mod[1].text
+                    yang_lib_info['deviations'].append(deviation)
 
             try:
                 try:
                     yang = Modules(self.yang_models_dir, self.log_directory,
-                               '/'.join(self.split), self.html_result_dir,
-                               self.parsed_jsons, self.json_dir, True, True,
-                               yang_lib_info, run_integrity=self.run_integrity)
+                                   '/'.join(self.split), self.html_result_dir,
+                                   self.parsed_jsons, self.json_dir, True, True,
+                                   yang_lib_info, run_integrity=self.run_integrity)
                 except ParseException as e:
                     LOGGER.error(e.msg)
                     continue
@@ -389,15 +412,13 @@ class Capability:
                 if self.run_integrity:
                     yang.resolve_integrity(self.integrity_checker, self.split)
                 self.prepare.add_key_sdo_module(yang)
-                keys.add('{}@{}/{}'.format(yang.name, yang.revision,
-                                           yang.organization))
+                keys.add('{}@{}/{}'.format(yang.name, yang.revision, yang.organization))
                 set_of_names.add(yang.name)
             except FileNotFoundError:
                 if self.run_integrity:
                     self.integrity_checker.add_module('/'.join(self.split),
                                                       [module_name])
-                LOGGER.warning('File {} not found in the repository'
-                               .format(module_name))
+                LOGGER.warning('File {} not found in the repository'.format(module_name))
 
             LOGGER.info('Starting to parse {}'.format(module_name))
 
@@ -409,27 +430,28 @@ class Capability:
                                set_of_names, False, schema_part, capabilities,
                                netconf_version)
 
-    # parse capability xml and save to file
     def parse_and_dump(self):
+        """ Load implementation information which are stored platform-metadata.json file.
+        Set this implementation information for each module parsed out from capability xml file.
+        """
         LOGGER.debug('Starting to parse files from vendor')
         capabilities = []
-        tag = self.root.tag
         netconf_version = []
-
-        # netconf capability parsing
-        modules = self.root.iter(tag.split('hello')[0] + 'capability')
         set_of_names = set()
         keys = set()
+        tag = self.root.tag
+
+        # netconf capability parsing
+        modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
         capabilities_exist = False
         LOGGER.debug('Getting capabilities out of hello message')
-        if os.path.isfile(
-                        '/'.join(self.split[:-1]) + '/platform-metadata.json'):
-            json_file = open(
-                '/'.join(self.split[:-1]) + '/platform-metadata.json')
-            platforms = json.load(json_file)['platforms']['platform']
-            for impl in platforms:
-                if impl['module-list-file']['path'] in self.hello_message_file:
-                    caps = impl.get('netconf-capabilities')
+        path = '/'.join(self.split[:-1])
+        if os.path.isfile('{}/platform-metadata.json'.format(path)):
+            with open('{}/platform-metadata.json'.format(path), 'r') as f:
+                platforms = json.load(f)['platforms']['platform']
+            for implementation in platforms:
+                if implementation['module-list-file']['path'] in self.hello_message_file:
+                    caps = implementation.get('netconf-capabilities')
                     if caps:
                         capabilities_exist = True
                         for capability in caps:
@@ -440,9 +462,8 @@ class Capability:
                             # Parse capability together with version
                             elif ':capability:' in capability:
                                 cap_with_version = capability
-                                capabilities.append(
-                                    cap_with_version.split('?')[0])
-            json_file.close()
+                                capabilities.append(cap_with_version.split('?')[0])
+
         LOGGER.debug('Getting capabilities out of hello message')
         if not capabilities_exist:
             for module in modules:
@@ -454,10 +475,9 @@ class Capability:
                 if ':capability:' in module.text:
                     cap_with_version = module.text.split(':capability:')[1]
                     capabilities.append(cap_with_version.split('?')[0])
-            modules = self.root.iter(tag.split('hello')[0] + 'capability')
+            modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
-        schema_part = github_raw + self.owner + '/' + self.repo + '/' +\
-                      self.branch + '/'
+        schema_part = '{}{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
         # Parse modules
         for module in modules:
             if 'module=' in module.text:
@@ -486,15 +506,13 @@ class Capability:
                     if self.run_integrity:
                         yang.resolve_integrity(self.integrity_checker, self.split)
                     self.prepare.add_key_sdo_module(yang)
-                    key = '{}@{}/{}'.format(yang.name, yang.revision,
-                                            yang.organization)
+                    key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
                     keys.add(key)
                     set_of_names.add(yang.name)
                 except FileNotFoundError:
                     if self.run_integrity:
                         self.integrity_checker.add_module('/'.join(self.split), [module_and_more.split('&')[0]])
-                    LOGGER.warning('File {} not found in the repository'
-                                   .format(module_name))
+                    LOGGER.warning('File {} not found in the repository'.format(module_name))
 
         for key in keys:
             self.parse_imp_inc(self.prepare.yang_modules[key].submodule,
@@ -504,23 +522,38 @@ class Capability:
                                set_of_names, False, schema_part, capabilities,
                                netconf_version)
 
-    def parse_imp_inc(self, modules, set_of_names, is_include, schema_part,
-                      capabilities, netconf_version):
-        for mod in modules:
+    def parse_imp_inc(self, modules: list, set_of_names: dict, is_include: bool, schema_part: str,
+                      capabilities: list, netconf_version: list):
+        """
+        Parse all yang modules which are either sumodules or imports of certain module.
+        Submodule and import modules are also added to prepare object.
+        This method is then recursively called for all found submodules and import modules.
+
+        :param modules          (list) List of modules to check (either submodules or imports of module)
+        :param set_of_name      (dict) Set of all the modules parsed out from capability file
+        :param is_include       (bool) Whether module is include or not
+        :param schema_part      (str)  Part of Github schema URL
+        :param capabilities     (list) List of capabilities parsed out from capability file
+        :param netconf_version  (list) List of netconf versions parsed out from capability file
+        """
+        for module in modules:
             if is_include:
-                name = mod.name
+                name = module.name
                 conformance_type = 'import'
             else:
                 conformance_type = None
-                name = mod.arg
+                name = module.arg
+
+            # Skip if name of submodule/import is already in list of module names
             if name not in set_of_names:
                 LOGGER.info('Parsing module {}'.format(name))
                 set_of_names.add(name)
-                yang_file = find_first_file('/'.join(self.split[0: -1]),
-                                            name + '.yang', name + '@*.yang')
+                path = '/'.join(self.split[0:-1])
+                pattern = '{}.yang'.format(name)
+                pattern_with_revision = '{}@*.yang'.format(name)
+                yang_file = find_first_file(path, pattern, pattern_with_revision)
                 if yang_file is None:
-                    yang_file = find_first_file(self.yang_models_dir, name + '.yang',
-                                                name + '@*.yang')
+                    yang_file = find_first_file(self.yang_models_dir, pattern, pattern_with_revision)
                 if yang_file is None:
                     # TODO add integrity that this file is missing
                     return
@@ -552,5 +585,4 @@ class Capability:
                 except FileNotFoundError:
                     if self.run_integrity:
                         self.integrity_checker.add_module('/'.join(self.split), [name])
-                    LOGGER.warning('File {} not found in the repository'
-                                   .format(name))
+                    LOGGER.warning('File {} not found in the repository'.format(name))

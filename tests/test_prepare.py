@@ -135,7 +135,7 @@ class TestPrepareClass(unittest.TestCase):
         prepare.dump_modules(yc_gc.temp_dir)
 
         # Load desired module data from .json file
-        with open('{}/prepare_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
             file_content = json.load(f)
         desired_module_data = file_content.get('dumped_module', {}).get('module', [])[0]
 
@@ -162,10 +162,10 @@ class TestPrepareClass(unittest.TestCase):
         It is necessary that this module has filled information about the implementation.
         This can be achieved by calling add_vendor_information() method.
         Vendor data are then dumped into normal.json file using dump_vendors() method.
-        Content of dumped normal.json file is then compared with desired content loaded from prepare_tests_data.json file.
+        Content of dumped normal.json file is then compared with desired content loaded from parseAndPopulate_tests_data.json file.
         """
         # Modules object
-        xml_path = '{}/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/tmp/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data,
@@ -180,7 +180,7 @@ class TestPrepareClass(unittest.TestCase):
         prepare.dump_vendors(yc_gc.temp_dir)
 
         # Load desired module data from .json file
-        with open('{}/prepare_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
             file_content = json.load(f)
         desired_vendor_data = file_content.get('dumped_vendor_data', {})
 
@@ -219,7 +219,7 @@ class TestPrepareClass(unittest.TestCase):
         correctly set value.
         If value is set to None, it should not be dumped into .json file.
         """
-        xml_path = '{}/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/tmp/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data,
@@ -245,9 +245,9 @@ class TestPrepareClass(unittest.TestCase):
         # Since deviations property has value None, it should not be present in dumped module
         self.assertNotIn('deviations', dumped_vendor_data)
 
-    # ##########################
-    # ### HELPER DEFINITIONS ###
-    # ##########################
+    ##########################
+    ### HELPER DEFINITIONS ###
+    ##########################
 
     def declare_sdo_module(self):
         """

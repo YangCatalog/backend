@@ -84,5 +84,32 @@
                 }
             ]
         }
+    },
+    "xr_platform_data": {
+        "software-flavor": "ALL",
+        "platform": "ncs5k",
+        "software-version": "702",
+        "os-version": "702",
+        "feature-set": "ALL",
+        "os": "IOS-XR",
+        "vendor": "cisco"
+    },
+    "xe_platform_data": {
+        "software-flavor": "ALL",
+        "platform": "capability",
+        "software-version": "16101",
+        "os-version": "16101",
+        "feature-set": "ALL",
+        "os": "IOS-XE",
+        "vendor": "cisco"
+    },
+    "nx_platform_data": {
+        "software-flavor": "ALL",
+        "platform": "netconf",
+        "software-version": "9.2-1",
+        "os-version": "9.2-1",
+        "feature-set": "ALL",
+        "os": "NX-OS",
+        "vendor": "cisco"
     }
 }
