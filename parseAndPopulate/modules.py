@@ -110,8 +110,8 @@ MISSING_ELEMENT = 'missing element'
 
 class Modules:
     def __init__(self, yang_models_dir: str, log_directory: str, path: str, html_result_dir: str, jsons: LoadFiles,
-                 temp_dir: str, is_vendor: bool=False, is_yang_lib: bool=False, data: dict=None,
-                 is_vendor_imp_inc: bool=False, run_integrity: bool=False):
+                 temp_dir: str, is_vendor: bool = False, is_yang_lib: bool = False, data: dict = None,
+                 is_vendor_imp_inc: bool = False, run_integrity: bool = False):
         """
         Preset Modules class to parse yang module and save data to it.
         :param yang_models_dir:     (str) directory with all yang modules from
@@ -135,7 +135,7 @@ class Modules:
                                     parsed
         """
         global LOGGER
-        LOGGER = log.get_logger('modules', log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(log_directory))
         if len(LOGGER.handlers) > 1:
             LOGGER.handlers[1].close()
             LOGGER.removeHandler(LOGGER.handlers[1])
@@ -143,7 +143,7 @@ class Modules:
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        self.__web_uri = config.get('Web-Section', 'my-uri', fallback="https://yangcatalog.org")
+        self.__web_uri = config.get('Web-Section', 'my-uri', fallback='https://yangcatalog.org')
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir
         self.__missing_submodules = []
@@ -231,7 +231,7 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, api_sdo_json: dict=None):
+    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, api_sdo_json: dict = None):
         """
         Parse all data that we can from the module.
         :param git_commit_hash: (str) name of the git commit hash where we can find the module
@@ -274,15 +274,12 @@ class Modules:
         self.__resolve_belongs_to()
         self.__resolve_namespace()
         self.__resolve_organization(organization)
-        key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
-        if key in keys:
-            self.__resolve_schema(schema, git_commit_hash, schema_start)
-            self.__resolve_submodule()
-            self.__resolve_imports(git_commit_hash)
-            return
         self.__resolve_schema(schema, git_commit_hash, schema_start)
         self.__resolve_submodule()
         self.__resolve_imports(git_commit_hash)
+        key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
+        if key in keys:
+            return
         if not self.run_integrity:
             self.__save_file(to)
             self.__resolve_generated_from(generated_from)
@@ -301,8 +298,7 @@ class Modules:
 
     def __resolve_tree(self):
         if self.module_type == 'module':
-            self.tree = 'services/tree/{}@{}.yang'.format(self.name,
-                                                          self.revision)
+            self.tree = 'services/tree/{}@{}.yang'.format(self.name, self.revision)
 
     def __save_file(self, to):
         file_with_path = '{}/{}@{}.yang'.format(to, self.name, self.revision)
@@ -330,8 +326,7 @@ class Modules:
                 if len(chunk.search('revision-date')) > 0:
                     dependency.revision = chunk.search('revision-date')[0].arg
                 if dependency.revision:
-                    yang_file = self.__find_file(dependency.name,
-                                                 dependency.revision)
+                    yang_file = self.__find_file(dependency.name, dependency.revision)
                 else:
                     yang_file = self.__find_file(dependency.name)
                 if yang_file is None:
@@ -355,7 +350,7 @@ class Modules:
             return
 
     def add_vendor_information(self, platform_data: set, conformance_type: str, capability: set,
-                                netconf_version: set, integrity_checker, split: set):
+                               netconf_version: set, integrity_checker, split: set):
         """
         If parsing Cisco modules, implementation details are stored in platform_metadata.json file.
         Method add Cisco vendor information to Module
@@ -448,8 +443,8 @@ class Modules:
                 if schema_start is not None:
                     git_root_dir = schema_start.split('/')[0]
                     if len(suffix.split(git_root_dir)) > 1:
-                        suffix = git_root_dir + suffix.split(git_root_dir)[1]
-                self.schema = schema + suffix
+                        suffix = '{}{}'.format(git_root_dir, suffix.split(git_root_dir)[1])
+                self.schema = '{}{}'.format(schema, suffix)
             else:
                 self.schema = schema
         else:
@@ -467,8 +462,8 @@ class Modules:
         if maturity_level:
             self.maturity_level = maturity_level
         else:
-            yang_name = self.name + '.yang'
-            yang_name_rev = self.name + '@' + self.revision + '.yang'
+            yang_name = '{}.yang'.format(self.name)
+            yang_name_rev = '{}@{}.yang'.format(self.name, self.revision)
             try:
                 maturity_level = self.jsons.status['IETFDraft'][yang_name][0].split(
                     '</a>')[0].split('\">')[1].split('-')[1]
@@ -506,8 +501,8 @@ class Modules:
         if author_email:
             self.author_email = author_email
         else:
-            yang_name = self.name + '.yang'
-            yang_name_rev = self.name + '@' + self.revision + '.yang'
+            yang_name = '{}.yang'.format(self.name)
+            yang_name_rev = '{}@{}.yang'.format(self.name, self.revision)
             try:
                 self.author_email = self.jsons.status['IETFDraft'][yang_name][1].split(
                     '\">Email')[0].split('mailto:')[1]
@@ -539,18 +534,18 @@ class Modules:
     def __resolve_working_group(self):
         LOGGER.debug("Resolving working group")
         if self.organization == 'ietf':
-            yang_name = self.name + '.yang'
-            yang_name_rev = self.name + '@' + self.revision + '.yang'
+            yang_name = '{}.yang'.format(self.name)
+            yang_name_rev = '{}@{}.yang'.format(self.name, self.revision)
             try:
                 self.ietf_wg = self.jsons.status['IETFDraft'][yang_name][0].split(
-                        '</a>')[0].split('\">')[1].split('-')[2]
+                    '</a>')[0].split('\">')[1].split('-')[2]
                 return
             except KeyError:
                 pass
             # try to find in draft with revision
             try:
                 self.ietf_wg = self.jsons.status['IETFDraft'][yang_name_rev][
-                        0].split('</a>')[0].split('\">')[1].split('-')[2]
+                    0].split('</a>')[0].split('\">')[1].split('-')[2]
                 return
             except KeyError:
                 pass
@@ -683,8 +678,7 @@ class Modules:
                    'ths': self.compilation_status['ths']}
         template = os.path.dirname(os.path.realpath(__file__)) + '/template/compilationStatusTemplate.html'
         rendered_html = stats.render(template, context)
-        file_url = '{}@{}_{}.html'.format(self.name, self.revision,
-                                          self.organization)
+        file_url = '{}@{}_{}.html'.format(self.name, self.revision, self.organization)
 
         # Don t override status if it was already written once
         file_path = '{}/{}'.format(self.html_result_dir, file_url)
@@ -720,7 +714,7 @@ class Modules:
         LOGGER.debug("Resolving namespace")
         self.namespace = self.__resolve_submodule_case('namespace')
         if self.namespace == MISSING_ELEMENT:
-            self.__missing_namespace = self.name + ' : ' + MISSING_ELEMENT
+            self.__missing_namespace = '{} : {}'.format(self.name, MISSING_ELEMENT)
 
     def __resolve_belongs_to(self):
         LOGGER.debug("Resolving belongs to")
@@ -733,7 +727,7 @@ class Modules:
     def __resolve_module_type(self):
         LOGGER.debug("Resolving module type")
         try:
-            file_input = open(self.__path, "r", encoding='utf-8')
+            file_input = open(self.__path, 'r', encoding='utf-8')
         except:
             LOGGER.critical(
                 'Could not open a file {}. Maybe a path is set wrongly'.format(
@@ -756,13 +750,13 @@ class Modules:
                 else:
                     commented_out = True
             if submodule_position >= 0 and (
-                            submodule_position < cpos or cpos == -1) and not commented_out:
+                    submodule_position < cpos or cpos == -1) and not commented_out:
                 LOGGER.debug(
                     'Module {} is of type submodule'.format(self.__path))
                 self.module_type = 'submodule'
                 return
             if module_position >= 0 and (
-                            module_position < cpos or cpos == -1) and not commented_out:
+                    module_position < cpos or cpos == -1) and not commented_out:
                 LOGGER.debug('Module {} is of type module'.format(self.__path))
                 self.module_type = 'module'
                 return
@@ -854,10 +848,10 @@ class Modules:
             return {'status': 'unknown'}
         status = {}
         if with_revision:
-        # try to find with revision
+            # try to find with revision
             try:
-                status['status'] = self.jsons.status[name][self.name + '@' + self.revision + '.yang'][
-                    index]
+                yang_name_rev = '{}@{}.yang'.format(self.name, self.revision)
+                status['status'] = self.jsons.status[name][yang_name_rev][index]
                 if status['status'] == 'PASSED WITH WARNINGS':
                     status['status'] = 'passed-with-warnings'
                 status['status'] = status['status'].lower()
@@ -868,7 +862,8 @@ class Modules:
         else:
             # try to find without revision
             try:
-                status['status'] = self.jsons.status[name][self.name + '.yang'][index]
+                yang_name = '{}.yang'.format(self.name)
+                status['status'] = self.jsons.status[name][yang_name][index]
                 if status['status'] == 'PASSED WITH WARNINGS':
                     status['status'] = 'passed-with-warnings'
                 status['status'] = status['status'].lower()
@@ -901,19 +896,19 @@ class Modules:
         if with_revision:
             # try to find with revision
             try:
-                yang_name = self.name + '@' + self.revision + '.yang'
-                result['pyang_lint'] = self.jsons.status[name][yang_name][1 + index]
-                result['pyang'] = self.jsons.status[name][yang_name][2 + index]
-                result['confdrc'] = self.jsons.status[name][yang_name][3 + index]
-                result['yumadump'] = self.jsons.status[name][yang_name][4 + index]
-                result['yanglint'] = self.jsons.status[name][yang_name][5 + index]
+                yang_name_rev = '{}@{}.yang'.format(self.name, self.revision)
+                result['pyang_lint'] = self.jsons.status[name][yang_name_rev][1 + index]
+                result['pyang'] = self.jsons.status[name][yang_name_rev][2 + index]
+                result['confdrc'] = self.jsons.status[name][yang_name_rev][3 + index]
+                result['yumadump'] = self.jsons.status[name][yang_name_rev][4 + index]
+                result['yanglint'] = self.jsons.status[name][yang_name_rev][5 + index]
                 return result
             except:
                 pass
         else:
-        # try to find without revision
+            # try to find without revision
             try:
-                yang_name = self.name + '.yang'
+                yang_name = '{}.yang'.format(self.name)
                 result['pyang_lint'] = self.jsons.status[name][yang_name][1 + index]
                 result['pyang'] = self.jsons.status[name][yang_name][2 + index]
                 result['confdrc'] = self.jsons.status[name][yang_name][3 + index]
@@ -928,8 +923,8 @@ class Modules:
         LOGGER.debug(
             'Parsing document reference of module {}'.format(self.__path))
         # try to find in draft without revision
-        yang_name = self.name + '.yang'
-        yang_name_rev = self.name + '@' + self.revision + '.yang'
+        yang_name = '{}.yang'.format(self.name)
+        yang_name_rev = '{}@{}.yang'.format(self.name, self.revision)
         try:
             doc_name = self.jsons.status['IETFDraft'][yang_name][0].split(
                 '</a>')[0].split('\">')[1]
@@ -968,17 +963,16 @@ class Modules:
 
     def __find_file(self, name, revision='*', submodule=False,
                     normal_search=True):
-        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]),
-                                    name + '.yang'
-                                    , name + '@' + revision + '.yang')
+        yang_name = '{}.yang'.format(name)
+        yang_name_rev = '{}@{}.yang'.format(name, revision)
+        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]), yang_name, yang_name_rev)
         if yang_file is None:
             if normal_search:
                 if submodule:
                     self.__missing_submodules.append(name)
                 else:
                     self.__missing_modules.append(name)
-            yang_file = find_first_file(self.yang_models, name + '.yang',
-                                        name + '@' + revision + '.yang')
+            yang_file = find_first_file(self.yang_models, yang_name, yang_name_rev)
         return yang_file
 
     class Submodules:
@@ -1016,7 +1010,7 @@ class Modules:
 
     def resolve_integrity(self, integrity_checker, split):
         key = '/'.join(split[0:-1])
-        key2 = key + '/' + split[-1]
+        key2 = '{}/{}'.format(key, split[-1])
         if self.name not in self.__missing_modules:
             integrity_checker.remove_one(key, self.__path.split('/')[-1])
         integrity_checker.add_submodule(key2, self.__missing_submodules)
@@ -1027,7 +1021,7 @@ class Modules:
             for ns, org in NS_MAP.items():
                 if (ns not in self.namespace and 'urn:' not in self.namespace)\
                         or 'urn:cisco' in self.namespace:
-                    self.__missing_namespace = self.name + ' : ' + self.namespace
+                    self.__missing_namespace = '{} : {}'.format(self.name, self.namespace)
                 else:
                     self.__missing_namespace = None
                     break

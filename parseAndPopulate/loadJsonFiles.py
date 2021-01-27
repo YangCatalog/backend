@@ -50,7 +50,7 @@ class LoadFiles:
                 for line in f:
                     self.names.append(line.replace('.json', '').replace('\n', ''))
         except FileNotFoundError:
-            LOGGER.warn('json_links file was not found')
+            LOGGER.warning('json_links file was not found')
 
         self.status = {}
         self.headers = {}
