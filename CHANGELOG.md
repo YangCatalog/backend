@@ -1,5 +1,5 @@
-##Backend Release Notes
-* #####v3.0.0 - 2021-02-DD
+## Backend Release Notes
+* ##### v3.0.0 - 2021-02-DD
 
   * Update pyang to version 2.4.0
   * Update lxml to version 4.6.2
@@ -27,7 +27,7 @@
   * Fix DOCUMENTATION file
   * Various major/minor bug fixes and improvements
   
-* #####v2.0.0 - 2020-08-14
+* ##### v2.0.0 - 2020-08-14
 
   * Add moving users to another database functionaily [#185](https://github.com/YangCatalog/backend/issues/185)
   * Update of expiration metadata resolution
@@ -43,13 +43,13 @@
   * Start creating rest functionality for admin UI [#188](https://github.com/YangCatalog/backend/issues/188)
   * Various major/minor bug fixes and improvements
   
-* #####v1.1.0 - 2020-07-16
+* ##### v1.1.0 - 2020-07-16
   
   * Update recovery script
   * Update Pyang version
   * Various major/minor bug fixes and improvements
   
-* #####v1.0.1 - 2020-07-03
+* ##### v1.0.1 - 2020-07-03
   
   * Add special ID for each request in flask
   * Reload cache watcher [#203](https://github.com/YangCatalog/backend/issues/203)
@@ -60,6 +60,6 @@
   * Fix README.md
   * Various major/minor bug fixes and improvements
   
-* #####v1.0.0 - 2020-06-23
+* ##### v1.0.0 - 2020-06-23
 
   * Initial submitted version
