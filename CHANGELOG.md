@@ -1,7 +1,7 @@
 ## Backend Release Notes
 * ##### v3.0.0 - 2021-02-DD
 
-  * Update pyang to version 2.4.0
+  * Update pyang to version 2.4.0 [deployment #36]( https://github.com/YangCatalog/deployment/issues/36)
   * Update lxml to version 4.6.2
   * Tests for prepare.py script [#177](https://github.com/YangCatalog/backend/issues/177)
   * DraftPull.py additional info added to cronjob message log (whether new commit was created or not) 
@@ -19,12 +19,12 @@
   * Add user reminder script[#190](https://github.com/YangCatalog/backend/issues/190)
   * Get status of cronjob done [#191](https://github.com/YangCatalog/backend/issues/191)
   * Add endpoint to update yangcatalog users in MariaDb [#192](https://github.com/YangCatalog/backend/issues/192)
-  * Moved to Gunicorn from Uwsgi [#194](https://github.com/YangCatalog/backend/issues/194)
+  * Moved to Gunicorn from Uwsgi [deployment #39](https://github.com/YangCatalog/deployment/issues/39)
   * Use redis to index and get modules [#195](https://github.com/YangCatalog/backend/issues/195)
   * Add modification date of files into admin UI [#196](https://github.com/YangCatalog/backend/issues/196)
   * Remove load data caching [#197](https://github.com/YangCatalog/backend/issues/197)
   * Fix README.md
-  * Fix DOCUMENTATION file
+  * Update Dockerfile
   * Various major/minor bug fixes and improvements
   
 * ##### v2.0.0 - 2020-08-14
@@ -41,12 +41,14 @@
   * Create blueprints in flask [#186](https://github.com/YangCatalog/backend/issues/186)
   * Validate yangcatalog user using admin UI [199](https://github.com/YangCatalog/backend/issues/199)
   * Start creating rest functionality for admin UI [#188](https://github.com/YangCatalog/backend/issues/188)
+  * Update Dockerfile
   * Various major/minor bug fixes and improvements
   
 * ##### v1.1.0 - 2020-07-16
   
   * Update recovery script
   * Update Pyang version
+  * Update Dockerfile
   * Various major/minor bug fixes and improvements
   
 * ##### v1.0.1 - 2020-07-03
@@ -58,6 +60,7 @@
   * Create more readable user messages [#90](https://github.com/YangCatalog/backend/issues/90)
   * Upgrade some library versions
   * Fix README.md
+  * Update Dockerfile
   * Various major/minor bug fixes and improvements
   
 * ##### v1.0.0 - 2020-06-23
