@@ -18,7 +18,6 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
 import unittest
-from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
@@ -52,15 +51,13 @@ class TestLoadFilesClass(unittest.TestCase):
             self.assertIn(name, parsed_jsons.headers)
             self.assertIn(name, parsed_jsons.status)
 
-    @mock.patch('parseAndPopulate.loadJsonFiles.open')
-    def test_loadJsonFiles_json_links_not_found(self, mock_open: mock.MagicMock):
+    def test_loadJsonFiles_json_links_not_found(self):
         """
         Test if 'parsed_jsons' object has the individual attributes set correctly.
-        Mock file opening to achieve FileNotFoundError.
+        Incorrect path is passed as argument resulting no json_link file is found there.
         All attributes should be empty as the file was not found.
         """
-        mock_open.side_efect = FileNotFoundError()
-        parsed_jsons = LoadFiles(yc_gc.private_dir, yc_gc.logs_dir)
+        parsed_jsons = LoadFiles('path/to/random/dir', yc_gc.logs_dir)
 
         # Object should containt following attributes
         self.assertTrue(hasattr(parsed_jsons, 'headers'))
