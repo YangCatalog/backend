@@ -41,9 +41,8 @@ import dateutil.parser
 import requests
 from pyang.plugins.check_update import check_update
 from pyang.plugins.tree import emit_tree
-
-from utility import log
-from utility.util import find_first_file
+from utility import log, messageFactory
+from utility.util import find_first_file, fetch_module_by_schema
 from utility.yangParser import create_context
 
 
@@ -52,9 +51,9 @@ class ModulesComplicatedAlgorithms:
     def __init__(self, log_directory, yangcatalog_api_prefix, credentials, protocol, ip, port,
                  save_file_dir, direc, all_modules, yang_models_dir, temp_dir):
         global LOGGER
-        LOGGER = log.get_logger('modulesComplicatedAlgorithms', log_directory + '/parseAndPopulate.log')
+        LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:
-            with open(direc + '/prepare.json', 'r') as f:
+            with open('{}/prepare.json'.format(direc), 'r') as f:
                 self.__all_modules = json.load(f)
         else:
             self.__all_modules = all_modules
@@ -68,17 +67,18 @@ class ModulesComplicatedAlgorithms:
         self.temp_dir = temp_dir
         self.__direc = direc
         self.__trees = dict()
+        self.__unavailable_modules = []
         LOGGER.info('get all existing modules')
-        response = requests.get(self.__yangcatalog_api_prefix + 'search/modules',
+        response = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix),
                                 headers={'Accept': 'application/json'})
         existing_modules = response.json().get('module')
         self.__existing_modules_dict = {}
-        for m in existing_modules:
-            sem_ver = m.get('derived-semantic-version')
-            tree_type = m.get('tree-type')
+        for module in existing_modules:
+            sem_ver = module.get('derived-semantic-version')
+            tree_type = module.get('tree-type')
             if sem_ver is None or sem_ver == '' or tree_type is None or tree_type == '':
                 continue
-            self.__existing_modules_dict['{}@{}'.format(m['name'], m['revision'])] = m
+            self.__existing_modules_dict['{}@{}'.format(module['name'], module['revision'])] = module
 
     def parse_non_requests(self):
         LOGGER.info("parsing tree types")
@@ -153,7 +153,7 @@ class ModulesComplicatedAlgorithms:
                             LOGGER.debug('dependents {} vs {}'.format(old_module['dependents'], dep))
                             break
         end = time.time()
-        LOGGER.debug('time taken to merge and remove {} seconds'.format(end - start))
+        LOGGER.debug('time taken to merge and remove {} seconds'.format(int(end - start)))
         return list(ret_modules.values())
 
     def populate(self):
@@ -202,7 +202,7 @@ class ModulesComplicatedAlgorithms:
                                        self.__credentials[1]))
         if response.status_code != 201:
             LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
-                        .format(response.status_code, response.text))
+                           .format(response.status_code, response.text))
 
     def __resolve_tree_type(self):
         def is_openconfig(rows, output):
@@ -222,7 +222,7 @@ class ModulesComplicatedAlgorithms:
                         (len(row.replace('|', '').strip(' ').split(
                             ' ')) != 2 or '(' in row):
                     if '->' in row and 'config' in row.split('->')[
-                        1] and '+--rw config' not in rows[row_number - 1]:
+                            1] and '+--rw config' not in rows[row_number - 1]:
                         row_number += 1
                         continue
                     if '+--rw config' not in rows[row_number - 1]:
@@ -255,7 +255,7 @@ class ModulesComplicatedAlgorithms:
                         (len(row.replace('|', '').strip(' ').split(
                             ' ')) != 2 or '(' in row):
                     if '->' in row and 'state' in row.split('->')[
-                        1] and '+--ro state' not in rows[row_number - 1]:
+                            1] and '+--ro state' not in rows[row_number - 1]:
                         row_number += 1
                         continue
                     if '+--ro state' not in rows[row_number - 1]:
@@ -290,8 +290,8 @@ class ModulesComplicatedAlgorithms:
                 if 'x--' in row or 'o--' in row:
                     continue
                 if '+--rw config' == row.replace('|', '').strip(
-                        ' ') or '+--ro state' == row.replace('|', '').strip(
-                    ' '):
+                    ' ') or '+--ro state' == row.replace('|', '').strip(
+                        ' '):
                     return False
                 if len(row.split('+--')[0]) == 4:
                     if '-state' in row and '+--ro' in row:
@@ -406,7 +406,7 @@ class ModulesComplicatedAlgorithms:
                 if row == '':
                     break
                 if (len(row.split('+--')[0]) == 4 and 'augment' not in rows[
-                    row_num - 1]) or len(row.split('augment')[0]) == 2:
+                        row_num - 1]) or len(row.split('augment')[0]) == 2:
                     if '-state' in row:
                         if 'augment' in row:
                             part = row.strip(' ').split('/')[1]
@@ -418,7 +418,7 @@ class ModulesComplicatedAlgorithms:
                                 continue
                             if rows[x].strip(' ') == '' \
                                     or (len(rows[x].split('+--')[
-                                                0]) == 4 and 'augment' not in
+                                        0]) == 4 and 'augment' not in
                                         rows[row_num - 1]) \
                                     or len(row.split('augment')[0]) == 2:
                                 break
@@ -456,7 +456,7 @@ class ModulesComplicatedAlgorithms:
                 if a is None:
                     LOGGER.debug(
                         'Could not use pyang to generate tree because of errors on module {}'.
-                            format(self.__path))
+                        format(self.__path))
                     module['tree-type'] = 'unclassified'
                     name_revision = '{}@{}'.format(module['name'], module['revision'])
                     if self.__new_modules.get(name_revision) is None:
@@ -522,6 +522,7 @@ class ModulesComplicatedAlgorithms:
         for module in self.__all_modules['module']:
             z += 1
             data = {}
+            # Get all other available revisions of the module
             for m in self.__existing_modules_dict.values():
                 if m['name'] == module['name']:
                     if m['revision'] != module['revision']:
@@ -530,6 +531,7 @@ class ModulesComplicatedAlgorithms:
             LOGGER.info(
                 'Searching semver for {}. {} out of {}'.format(module['name'], z, len(self.__all_modules['module'])))
             if len(data) == 0:
+                # If there is no other revision for this module
                 module['derived-semantic-version'] = '1.0.0'
                 name_revision = '{}@{}'.format(module['name'], module['revision'])
                 if self.__new_modules.get(name_revision) is None:
@@ -537,6 +539,7 @@ class ModulesComplicatedAlgorithms:
                 else:
                     self.__new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
             else:
+                # If there is at least one revision for this module
                 rev = module['revision'].split('-')
                 try:
                     date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
@@ -563,6 +566,7 @@ class ModulesComplicatedAlgorithms:
                 else:
                     mod_list = data.iteritems()
 
+                # Loop through all other available revisions of the module
                 for key, mod in mod_list:
                     module_temp = {}
                     revision = mod['revision']
@@ -593,6 +597,7 @@ class ModulesComplicatedAlgorithms:
                         semver_exist = False
                     modules.append(module_temp)
                 data['{}@{}'.format(module['name'], module['revision'])] = module
+                # NOTE: Can the following IF branch ever be True?
                 if len(modules) == 1:
                     module['derived-semantic-version'] = '1.0.0'
                     name_revision = '{}@{}'.format(module['name'], module['revision'])
@@ -603,7 +608,7 @@ class ModulesComplicatedAlgorithms:
                     continue
                 modules = sorted(modules, key=lambda k: k['date'])
                 # If we are adding new module to the end (latest revision) of existing modules with this name
-                # and all modules with this name have semver already assigned exept the last one
+                # and all modules with this name have semver already assigned except for the last one
                 if modules[-1]['date'] == date and semver_exist:
                     if modules[-1]['compilation'] != 'passed':
                         versions = modules[-2]['semver'].split('.')
@@ -630,83 +635,83 @@ class ModulesComplicatedAlgorithms:
                                 self.__new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
                             continue
                         else:
-                            schema2 = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                             modules[-2]['name'],
-                                                             modules[-2]['revision'])
-                            schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                             modules[-1]['name'],
-                                                             modules[-1]['revision'])
-                            plugin.plugins = []
-                            plugin.init([])
-                            ctx = create_context(
-                                '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
-                            ctx.opts.lint_namespace_prefixes = []
-                            ctx.opts.lint_modulename_prefixes = []
-                            for p in plugin.plugins:
-                                p.setup_ctx(ctx)
-                            with open(schema1, 'r', errors='ignore') as f:
-                                a1 = ctx.add_module(schema1, f.read())
-                            ctx.opts.check_update_from = schema2
-                            ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
-                            ctx.opts.verbose = False
-                            ctx.opts.old_path = []
-                            ctx.opts.old_deviation = []
-                            retry = 5
-                            while retry:
-                                try:
-                                    ctx.validate()
-                                    check_update(ctx, a1)
-                                    break
-                                except Exception as e:
-                                    retry -= 1
-                                    if retry == 0:
-                                        raise e
-                            if len(ctx.errors) == 0:
-                                if ('{}@{}'.format(modules[-1]['name'], modules[-1]['revision']) in self.__trees and
-                                        '{}@{}'.format(modules[-2]['name'], modules[-2]['revision']) in self.__trees):
-                                    stdout = self.__trees['{}@{}'.format(modules[-1]['name'], modules[-1]['revision'])]
-                                    stdout2 = self.__trees['{}@{}'.format(modules[-2]['name'], modules[-2]['revision'])]
-                                else:
-                                    with open(schema2, 'r', errors='ignore') as f:
-                                        a2 = ctx.add_module(schema2, f.read())
-                                    if ctx.opts.tree_path is not None:
-                                        path = ctx.opts.tree_path.split('/')
-                                        if path[0] == '':
-                                            path = path[1:]
+                            schema2 = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[-2]['name'], modules[-2]['revision'])
+                            schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[-1]['name'], modules[-1]['revision'])
+                            schema1_exist = self.__check_schema_file(modules[-1])
+                            schema2_exist = self.__check_schema_file(modules[-2])
+
+                            if schema1_exist and schema2_exist:
+                                ctx, a1 = self.__validate_context(schema1, schema2)
+                                if len(ctx.errors) == 0:
+                                    if ('{}@{}'.format(modules[-1]['name'], modules[-1]['revision']) in self.__trees and
+                                            '{}@{}'.format(modules[-2]['name'], modules[-2]['revision']) in self.__trees):
+                                        stdout = self.__trees['{}@{}'.format(modules[-1]['name'], modules[-1]['revision'])]
+                                        stdout2 = self.__trees['{}@{}'.format(modules[-2]['name'], modules[-2]['revision'])]
                                     else:
-                                        path = None
-                                    retry = 5
-                                    while retry:
+                                        with open(schema2, 'r', errors='ignore') as f:
+                                            a2 = ctx.add_module(schema2, f.read())
+                                        if ctx.opts.tree_path is not None:
+                                            path = ctx.opts.tree_path.split('/')
+                                            if path[0] == '':
+                                                path = path[1:]
+                                        else:
+                                            path = None
+                                        retry = 5
+                                        while retry:
+                                            try:
+                                                ctx.validate()
+                                                break
+                                            except Exception as e:
+                                                retry -= 1
+                                                if retry == 0:
+                                                    raise e
                                         try:
-                                            ctx.validate()
-                                            break
-                                        except Exception as e:
-                                            retry -= 1
-                                            if retry == 0:
-                                                raise e
-                                    try:
-                                        f = io.StringIO()
-                                        emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
-                                                  ctx.opts.tree_line_length, path)
-                                        stdout = f.getvalue()
-                                    except:
-                                        stdout = ""
+                                            f = io.StringIO()
+                                            emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
+                                                      ctx.opts.tree_line_length, path)
+                                            stdout = f.getvalue()
+                                        except:
+                                            stdout = ""
 
-                                    try:
-                                        f = io.StringIO()
-                                        emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
-                                                  ctx.opts.tree_line_length, path)
-                                        stdout2 = f.getvalue()
-                                    except:
-                                        stdout2 = "2"
+                                        try:
+                                            f = io.StringIO()
+                                            emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
+                                                      ctx.opts.tree_line_length, path)
+                                            stdout2 = f.getvalue()
+                                        except:
+                                            stdout2 = "2"
 
-                                if stdout == stdout2:
+                                    if stdout == stdout2:
+                                        versions = modules[-2]['semver'].split('.')
+                                        ver = int(versions[2])
+                                        ver += 1
+                                        upgraded_version = '{}.{}.{}'.format(versions[0], versions[1], ver)
+                                        module['derived-semantic-version'] = upgraded_version
+                                        name_revision = '{}@{}'.format(module['name'], module['revision'])
+                                        if self.__new_modules.get(name_revision) is None:
+                                            self.__new_modules[name_revision] = module
+                                        else:
+                                            self.__new_modules[name_revision]['derived-semantic-version'] = module[
+                                                'derived-semantic-version']
+                                        continue
+                                    else:
+                                        versions = modules[-2]['semver'].split('.')
+                                        ver = int(versions[1])
+                                        ver += 1
+                                        upgraded_version = '{}.{}.{}'.format(versions[0], ver, 0)
+                                        module['derived-semantic-version'] = upgraded_version
+                                        name_revision = '{}@{}'.format(module['name'], module['revision'])
+                                        if self.__new_modules.get(name_revision) is None:
+                                            self.__new_modules[name_revision] = module
+                                        else:
+                                            self.__new_modules[name_revision]['derived-semantic-version'] = module[
+                                                'derived-semantic-version']
+                                        continue
+                                else:
                                     versions = modules[-2]['semver'].split('.')
-                                    ver = int(versions[2])
+                                    ver = int(versions[0])
                                     ver += 1
-                                    upgraded_version = '{}.{}.{}'.format(versions[0],
-                                                                         versions[1],
-                                                                         ver)
+                                    upgraded_version = '{}.{}.{}'.format(ver, 0, 0)
                                     module['derived-semantic-version'] = upgraded_version
                                     name_revision = '{}@{}'.format(module['name'], module['revision'])
                                     if self.__new_modules.get(name_revision) is None:
@@ -715,34 +720,8 @@ class ModulesComplicatedAlgorithms:
                                         self.__new_modules[name_revision]['derived-semantic-version'] = module[
                                             'derived-semantic-version']
                                     continue
-                                else:
-                                    versions = modules[-2]['semver'].split('.')
-                                    ver = int(versions[1])
-                                    ver += 1
-                                    upgraded_version = '{}.{}.{}'.format(versions[0],
-                                                                         ver, 0)
-                                    module['derived-semantic-version'] = upgraded_version
-                                    name_revision = '{}@{}'.format(module['name'], module['revision'])
-                                    if self.__new_modules.get(name_revision) is None:
-                                        self.__new_modules[name_revision] = module
-                                    else:
-                                        self.__new_modules[name_revision]['derived-semantic-version'] = module[
-                                            'derived-semantic-version']
-                                    continue
-                            else:
-                                versions = modules[-2]['semver'].split('.')
-                                ver = int(versions[0])
-                                ver += 1
-                                upgraded_version = '{}.{}.{}'.format(ver, 0, 0)
-                                module['derived-semantic-version'] = upgraded_version
-                                name_revision = '{}@{}'.format(module['name'], module['revision'])
-                                if self.__new_modules.get(name_revision) is None:
-                                    self.__new_modules[name_revision] = module
-                                else:
-                                    self.__new_modules[name_revision]['derived-semantic-version'] = module[
-                                        'derived-semantic-version']
-                                continue
                 else:
+                    # If we are adding new module in the middle (between two revisions) of existing modules with this name
                     mod = {}
                     mod['name'] = modules[0]['name']
                     mod['revision'] = modules[0]['revision']
@@ -776,6 +755,7 @@ class ModulesComplicatedAlgorithms:
                                 self.__new_modules[name_revision]['derived-semantic-version'] = response[
                                     'derived-semantic-version']
                         else:
+                            # If the previous revision has the compilation status 'passed'
                             if modules[x - 1]['compilation'] != 'passed':
                                 versions = modules[x - 1]['semver'].split('.')
                                 ver = int(versions[0])
@@ -792,81 +772,84 @@ class ModulesComplicatedAlgorithms:
                                         'derived-semantic-version']
                                 continue
                             else:
-                                schema2 = '{}/{}@{}.yang'.format(
-                                    self.__save_file_dir,
-                                    modules[x]['name'],
-                                    modules[x]['revision'])
-                                schema1 = '{}/{}@{}.yang'.format(
-                                    self.__save_file_dir,
-                                    modules[x - 1]['name'],
-                                    modules[x - 1]['revision'])
-                                plugin.plugins = []
-                                plugin.init([])
-                                ctx = create_context(
-                                    '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
-                                ctx.opts.lint_namespace_prefixes = []
-                                ctx.opts.lint_modulename_prefixes = []
-                                for p in plugin.plugins:
-                                    p.setup_ctx(ctx)
-                                with open(schema1, 'r', errors='ignore') as f:
-                                    a1 = ctx.add_module(schema1, f.read())
-                                ctx.opts.check_update_from = schema2
-                                ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
-                                ctx.opts.verbose = False
-                                ctx.opts.old_deviation = []
-                                retry = 5
-                                while retry:
-                                    try:
-                                        ctx.validate()
-                                        check_update(ctx, a1)
-                                        break
-                                    except Exception as e:
-                                        retry -= 1
-                                        if retry == 0:
-                                            raise e
-                                if len(ctx.errors) == 0:
-                                    if ('{}@{}'.format(modules[x - 1]['name'], modules[x - 1]['revision']) in self.__trees and
-                                            '{}@{}'.format(modules[x]['name'], modules[x]['revision']) in self.__trees):
-                                        stdout = self.__trees['{}@{}'.format(modules[-1]['name'], modules[x - 1]['revision'])]
-                                        stdout2 = self.__trees['{}@{}'.format(modules[x]['name'], modules[x]['revision'])]
-                                    else:
-                                        with open(schema2, 'r', errors='ignore') as f:
-                                            a2 = ctx.add_module(schema2, f.read())
-                                        if ctx.opts.tree_path is not None:
-                                            path = ctx.opts.tree_path.split('/')
-                                            if path[0] == '':
-                                                path = path[1:]
-                                        else:
-                                            path = None
-                                        retry = 5
-                                        while retry:
-                                            try:
-                                                ctx.validate()
-                                                break
-                                            except Exception as e:
-                                                retry -= 1
-                                                if retry == 0:
-                                                    raise e
-                                        try:
-                                            f = io.StringIO()
-                                            emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
-                                                      ctx.opts.tree_line_length, path)
-                                            stdout = f.getvalue()
-                                        except:
-                                            stdout = ""
-                                        try:
-                                            f = io.StringIO()
+                                schema2 = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[x]['name'], modules[x]['revision'])
+                                schema1 = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[x - 1]['name'], modules[x - 1]['revision'])
+                                schema1_exist = self.__check_schema_file(modules[x - 1])
+                                schema2_exist = self.__check_schema_file(modules[x])
 
-                                            emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
-                                                      ctx.opts.tree_line_length, path)
-                                            stdout2 = f.getvalue()
-                                        except:
-                                            stdout2 = "2"
-                                    if stdout == stdout2:
+                                if schema1_exist and schema2_exist:
+                                    ctx, a1 = self.__validate_context(schema1, schema2)
+                                    if len(ctx.errors) == 0:
+                                        if ('{}@{}'.format(modules[x - 1]['name'], modules[x - 1]['revision']) in self.__trees and
+                                                '{}@{}'.format(modules[x]['name'], modules[x]['revision']) in self.__trees):
+                                            stdout = self.__trees['{}@{}'.format(modules[-1]['name'], modules[x - 1]['revision'])]
+                                            stdout2 = self.__trees['{}@{}'.format(modules[x]['name'], modules[x]['revision'])]
+                                        else:
+                                            with open(schema2, 'r', errors='ignore') as f:
+                                                a2 = ctx.add_module(schema2, f.read())
+                                            if ctx.opts.tree_path is not None:
+                                                path = ctx.opts.tree_path.split('/')
+                                                if path[0] == '':
+                                                    path = path[1:]
+                                            else:
+                                                path = None
+                                            retry = 5
+                                            while retry:
+                                                try:
+                                                    ctx.validate()
+                                                    break
+                                                except Exception as e:
+                                                    retry -= 1
+                                                    if retry == 0:
+                                                        raise e
+                                            try:
+                                                f = io.StringIO()
+                                                emit_tree(ctx, [a1], f, ctx.opts.tree_depth,
+                                                          ctx.opts.tree_line_length, path)
+                                                stdout = f.getvalue()
+                                            except:
+                                                stdout = ""
+                                            try:
+                                                f = io.StringIO()
+
+                                                emit_tree(ctx, [a2], f, ctx.opts.tree_depth,
+                                                          ctx.opts.tree_line_length, path)
+                                                stdout2 = f.getvalue()
+                                            except:
+                                                stdout2 = "2"
+                                        if stdout == stdout2:
+                                            versions = modules[x - 1]['semver'].split('.')
+                                            ver = int(versions[2])
+                                            ver += 1
+                                            upgraded_version = '{}.{}.{}'.format(versions[0], versions[1], ver)
+                                            modules[x]['semver'] = upgraded_version
+                                            response = data['{}@{}'.format(mod['name'], mod['revision'])]
+                                            response['derived-semantic-version'] = upgraded_version
+                                            name_revision = '{}@{}'.format(response['name'], response['revision'])
+                                            if self.__new_modules.get(name_revision) is None:
+                                                self.__new_modules[name_revision] = response
+                                            else:
+                                                self.__new_modules[name_revision]['derived-semantic-version'] = response[
+                                                    'derived-semantic-version']
+                                        else:
+                                            versions = modules[x - 1]['semver'].split('.')
+                                            ver = int(versions[1])
+                                            ver += 1
+                                            upgraded_version = '{}.{}.{}'.format(versions[0], ver, 0)
+                                            modules[x]['semver'] = upgraded_version
+                                            response = data['{}@{}'.format(mod['name'], mod['revision'])]
+                                            response['derived-semantic-version'] = upgraded_version
+                                            name_revision = '{}@{}'.format(response['name'], response['revision'])
+                                            if self.__new_modules.get(name_revision) is None:
+                                                self.__new_modules[name_revision] = response
+                                            else:
+                                                self.__new_modules[name_revision]['derived-semantic-version'] = response[
+                                                    'derived-semantic-version']
+                                    else:
                                         versions = modules[x - 1]['semver'].split('.')
-                                        ver = int(versions[2])
+                                        ver = int(versions[0])
                                         ver += 1
-                                        upgraded_version = '{}.{}.{}'.format(versions[0], versions[1], ver)
+                                        upgraded_version = '{}.{}.{}'.format(ver, 0, 0)
                                         modules[x]['semver'] = upgraded_version
                                         response = data['{}@{}'.format(mod['name'], mod['revision'])]
                                         response['derived-semantic-version'] = upgraded_version
@@ -876,34 +859,10 @@ class ModulesComplicatedAlgorithms:
                                         else:
                                             self.__new_modules[name_revision]['derived-semantic-version'] = response[
                                                 'derived-semantic-version']
-                                    else:
-                                        versions = modules[x - 1]['semver'].split('.')
-                                        ver = int(versions[1])
-                                        ver += 1
-                                        upgraded_version = '{}.{}.{}'.format(versions[0], ver, 0)
-                                        modules[x]['semver'] = upgraded_version
-                                        response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                                        response['derived-semantic-version'] = upgraded_version
-                                        name_revision = '{}@{}'.format(response['name'], response['revision'])
-                                        if self.__new_modules.get(name_revision) is None:
-                                            self.__new_modules[name_revision] = response
-                                        else:
-                                            self.__new_modules[name_revision]['derived-semantic-version'] = response[
-                                                'derived-semantic-version']
-                                else:
-                                    versions = modules[x - 1]['semver'].split('.')
-                                    ver = int(versions[0])
-                                    ver += 1
-                                    upgraded_version = '{}.{}.{}'.format(ver, 0, 0)
-                                    modules[x]['semver'] = upgraded_version
-                                    response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                                    response['derived-semantic-version'] = upgraded_version
-                                    name_revision = '{}@{}'.format(response['name'], response['revision'])
-                                    if self.__new_modules.get(name_revision) is None:
-                                        self.__new_modules[name_revision] = response
-                                    else:
-                                        self.__new_modules[name_revision]['derived-semantic-version'] = response[
-                                            'derived-semantic-version']
+
+        if len(self.__unavailable_modules) != 0:
+            mf = messageFactory.MessageFactory()
+            mf.send_unavailable_modules(self.__unavailable_modules)
 
     def __parse_dependents(self):
         x = 0
@@ -925,24 +884,7 @@ class ModulesComplicatedAlgorithms:
                     for module in self.__existing_modules_dict.values():
                         if module['name'] == search['name']:
                             rev = search.get('revision')
-                            if rev is not None:
-                                if rev == module['revision']:
-                                    new = {'name': name,
-                                           'revision': revision,
-                                           'schema': mod['schema']}
-                                    if module.get('dependents') is None:
-                                        module['dependents'] = []
-                                    if new not in module['dependents']:
-                                        module['dependents'].append(new)
-                                        name_revision = '{}@{}'.format(module['name'], module['revision'])
-                                        if self.__new_modules.get(name_revision) is None:
-                                            self.__new_modules[name_revision] = module
-                                        else:
-                                            if self.__new_modules[name_revision].get('dependents') is None:
-                                                self.__new_modules[name_revision]['dependents'] = module['dependents']
-                                            else:
-                                                self.__new_modules[name_revision]['dependents'].append(new)
-                            else:
+                            if rev is None or rev == module['revision']:
                                 new = {'name': name,
                                        'revision': revision,
                                        'schema': mod['schema']}
@@ -962,10 +904,10 @@ class ModulesComplicatedAlgorithms:
                 # add dependents to new modules based on existing modules dependencies
                 for module in self.__existing_modules_dict.values():
                     if module.get('dependencies') is not None:
-                        for dep in module['dependencies']:
-                            n = dep.get('name')
+                        for dependency in module['dependencies']:
+                            n = dependency.get('name')
                             if n == name:
-                                r = dep.get('revision')
+                                r = dependency.get('revision')
                                 if r is not None:
                                     if r == revision:
                                         new = {'name': module['name'],
@@ -997,11 +939,62 @@ class ModulesComplicatedAlgorithms:
                                                 else:
                                                     self.__new_modules[name_revision]['dependents'].append(new)
 
-    def __find_file(self, name, revision='*'):
-        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]),
-                                    name + '.yang'
-                                    , name + '@' + revision + '.yang')
+    def __validate_context(self, schema1: str, schema2: str):
+        plugin.plugins = []
+        plugin.init([])
+        ctx = create_context(
+            '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
+        ctx.opts.lint_namespace_prefixes = []
+        ctx.opts.lint_modulename_prefixes = []
+        for p in plugin.plugins:
+            p.setup_ctx(ctx)
+        with open(schema1, 'r', errors='ignore') as f:
+            a1 = ctx.add_module(schema1, f.read())
+        ctx.opts.check_update_from = schema2
+        ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
+        ctx.opts.verbose = False
+        ctx.opts.old_deviation = []
+        retry = 5
+        while retry:
+            try:
+                ctx.validate()
+                check_update(ctx, a1)
+                break
+            except Exception as e:
+                retry -= 1
+                if retry == 0:
+                    LOGGER.error('Failed to validate the context for 5 times in a row.')
+                    raise e
+
+        return ctx, a1
+
+    def __find_file(self, name: str, revision: str = '*'):
+        yang_name = '{}.yang'.format(name)
+        yang_name_rev = '{}@{}.yang'.format(name, revision)
+        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]), yang_name, yang_name_rev)
         if yang_file is None:
-            yang_file = find_first_file(self.__yang_models, name + '.yang',
-                                        name + '@' + revision + '.yang')
+            yang_file = find_first_file(self.__yang_models, yang_name, yang_name_rev)
+
         return yang_file
+
+    def __check_schema_file(self, module: dict):
+        """ Check if the file exists and if not try to get it from Github.
+
+        :param module   (dict) Details of currently parsed module
+        :return         Whether the content of the module was obtained or not.
+        :rtype  bool
+        """
+        schema = '{}/{}@{}.yang'.format(self.__save_file_dir, module['name'], module['revision'])
+        result = True
+
+        if not os.path.isfile(schema):
+            LOGGER.warning('File on path {} not found'.format(schema))
+            result = fetch_module_by_schema(module['schema'], schema)
+            if result:
+                LOGGER.info('File content successfully retrieved from GitHub using module schema')
+            else:
+                module_name = '{}@{}.yang'.format(module['name'], module['revision'])
+                self.__unavailable_modules.append(module_name)
+                LOGGER.error('Unable to retrieve file content from GitHub using module schema')
+
+        return result

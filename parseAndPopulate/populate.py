@@ -270,8 +270,8 @@ def main(scriptConf=None):
                              response.text))
 
     # In each json
-    LOGGER.info('Starting to add vendors')
     if os.path.exists('{}/normal.json'.format(direc)):
+        LOGGER.info('Starting to add vendors')
         x = -1
         with open('{}/normal.json'.format(direc)) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
@@ -326,7 +326,7 @@ def main(scriptConf=None):
             process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
                                                            args=(args.credentials, yangcatalog_api_prefix,))
             process_reload_cache.start()
-            LOGGER.info('Run complicated algorithms')
+            LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
@@ -341,7 +341,7 @@ def main(scriptConf=None):
             LOGGER.info('Populating with new data of complicated algorithms')
             complicatedAlgorithms.populate()
             end = time.time()
-            LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(end - start))
+            LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
         else:
             url = (yangcatalog_api_prefix + 'load-cache')
             LOGGER.info('{}'.format(url))

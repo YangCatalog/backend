@@ -64,6 +64,7 @@ class MessageFactory:
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
         self.__email_to = config.get('Message-Section', 'email-to').split()
+        self.__developers_email = config.get('Message-Section', 'developers-email').split()
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self._temp_dir = config.get('Directory-Section', 'temp')
@@ -95,8 +96,7 @@ class MessageFactory:
         """
         msg += '\n\nMessage sent from {}'.format(self.__me)
         if markdown:
-            self.__api.messages.create(self.__room.id, markdown=msg
-                                       , files=files)
+            self.__api.messages.create(self.__room.id, markdown=msg, files=files)
         else:
             self.__api.messages.create(self.__room.id, text=msg, files=files)
 
@@ -104,20 +104,20 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message):
-        """Send message to a e-mail
+    def __post_to_email(self, message: str, email_to: list = None):
+        """Send message to an e-mail
 
             Arguments:
-                :param message: (str) message to send
-                :param to: (str/list) list of people to whom we
-                    need to send a message.
+                :param message      (str) message to send
+                :param email_to     (list) list of emails to send the message to
         """
+        send_to = email_to if email_to else self.__email_to
         msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me))
         msg['Subject'] = 'Automatic generated message - RFC IETF'
         msg['From'] = self.__email_from
-        msg['To'] = ', '.join(self.__email_to)
+        msg['To'] = ', '.join(send_to)
 
-        self.__smtp.sendmail(self.__email_from, self.__email_to, msg.as_string())
+        self.__smtp.sendmail(self.__email_from, send_to, msg.as_string())
         self.__smtp.quit()
 
     def send_user_reminder_message(self, users_stats):
@@ -195,3 +195,9 @@ class MessageFactory:
         with open(self._temp_dir + '/message-log.txt', 'w') as f:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])
+
+    def send_unavailable_modules(self, modules_list: list):
+        self.LOGGER.info('Sending notification about unavailable modules')
+        message = ('Following modules could not be retreived from GitHub '
+                   'using the schema path:\n{}'.format('\n'.join(modules_list)))
+        self.__post_to_email(message, self.__developers_email)
