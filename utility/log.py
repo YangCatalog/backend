@@ -23,11 +23,12 @@ import os
 import stat
 
 
-def get_logger(name, file_name_path='yang.log', level=logging.DEBUG):
-    """Create formated logger with name of file yang.log
+def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging.DEBUG):
+    """Create formated logger with the specified name and store at path defined by
+        'file_name_path' argument.
         Arguments:
-            :param file_name_path: filename and path where to save logs.
-            :param name :  (str) Set name of the logger.
+            :param name             (str) set name of the logger.
+            :param file_name_path   (str) filename and path where to save logs.
             :return a logger with the specified name.
     """
     # check if file exists

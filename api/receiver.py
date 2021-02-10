@@ -612,10 +612,12 @@ class Receiver:
                     shutil.rmtree(direc)
                 if final_response.split('#split#')[0] == self.__response_type[1]:
                     res = self.make_cache(credentials)
-                    if res.status_code != 201:
+                    code = res.status_code
+                    if code != 200 and code != 201 and code != 204:
                         final_response = self.__response_type[0] + '#split#Server error-> could not reload cache'
 
                     if all_modules:
+                        self.LOGGER.info('Running ModulesComplicatedAlgorithms from receiver.py script')
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
                                                                               self.__confd_credentials, self.__confd_protocol,

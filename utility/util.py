@@ -30,7 +30,7 @@ import time
 import requests
 from Crypto.Hash import HMAC, SHA
 
-from utility import yangParser, messageFactory
+from utility import messageFactory, yangParser
 
 
 def get_curr_dir(f):
@@ -84,9 +84,9 @@ def change_permissions_recursive(path):
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path, topdown=False):
             for dir in [os.path.join(root, d) for d in dirs]:
-                os.chmod(dir, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR| stat.S_IXUSR |stat.S_IROTH)
+                os.chmod(dir, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
             for file in [os.path.join(root, f) for f in files]:
-                    os.chmod(file, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR| stat.S_IXUSR |stat.S_IROTH)
+                os.chmod(file, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
     else:
         os.chmod(path, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
 
@@ -226,7 +226,7 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, LOGGER, sa
                 if code != 200 and code != 201 and code != 204:
                     load_new_files_to_github = True
                 if force_indexing or (
-                            code != 200 and code != 201 and code != 204):
+                        code != 200 and code != 201 and code != 204):
                     path = '{}/{}@{}.yang'.format(save_file_dir, module.get('name'), module.get('revision'))
                     post_body[module['name'] + '@' + module['revision'] + '/' + module['organization']] = path
 
@@ -243,7 +243,18 @@ def prepare_to_indexing(yc_api_prefix, modules_to_index, credentials, LOGGER, sa
             LOGGER.info('Populating github with process {}'.format(proc))
     return body_to_send
 
-def job_log(start_time, temp_dir, filename, messages=[], error='', status=''):
+
+def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], error: str = '', status: str = ''):
+    """ Dump job run information into cronjob.json file.
+
+    Arguments:
+    :param start_time   (int) Start time of job
+    :param temp_dir     (str) Path to the directory where cronjob.json file will be stored
+    :param filename     (str) Name of python script
+    :param messages     (list) Optional - list of additional messages
+    :param error        (str) Error message - if any error has occured
+    :param status       (str) Status of job run - either 'Fail' or 'Success'
+    """
     end_time = int(time.time())
     result = {}
     result['start'] = start_time
@@ -275,3 +286,26 @@ def job_log(start_time, temp_dir, filename, messages=[], error='', status=''):
 
     with open('{}/cronjob.json'.format(temp_dir), 'w') as f:
         f.write(json.dumps(file_content, indent=4))
+
+
+def fetch_module_by_schema(schema: str, dst_path: str):
+    """ Fetch content of yang module from Github and store it to the file.
+
+    :param schema       (str) URL to Github where the content of the module should be stored
+    :param dst_path     (str) Path where the module should be saved
+    :return             Whether the content of the module was obtained or not.
+    :rtype  bool
+    """
+    file_exist = False
+    try:
+        yang_file_response = requests.get(schema)
+        yang_file_content = yang_file_response.content.decode(encoding='utf-8')
+
+        if yang_file_response.status_code == 200:
+            with open(dst_path, 'w') as f:
+                f.write(yang_file_content)
+            file_exist = os.path.isfile(dst_path)
+    except:
+        file_exist = os.path.isfile(dst_path)
+
+    return file_exist
