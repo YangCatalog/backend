@@ -1,5 +1,8 @@
 ## Backend Release Notes
-* ##### v3.0.0 - 2021-02-DD
+
+* ##### vm.m.p - 2021-MM-DD
+
+* ##### v3.0.0 - 2021-02-10
 
   * Update pyang to version 2.4.0 [deployment #36]( https://github.com/YangCatalog/deployment/issues/36)
   * Update lxml to version 4.6.2
