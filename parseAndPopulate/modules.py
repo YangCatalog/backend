@@ -874,7 +874,7 @@ class Modules:
         return {'status': 'unknown', 'ths': self.jsons.headers[name]}
 
     def __parse_result(self):
-        LOGGER.debug('Parsing compulation status of module {}'.format(self.__path))
+        LOGGER.debug('Parsing compilation status of module {}'.format(self.__path))
         res = ''
         with_revision = [True, False]
         for w_rev in with_revision:

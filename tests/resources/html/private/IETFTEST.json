@@ -1,7 +1,15 @@
 {
     "ietf-yang-types@2013-07-15.yang": [
-        "PASSED",
+        "PASSED WITH WARNINGS",
+        "ietf-yang-types@2013-07-15.yang:84: warning: the module seems to use RFC 2119 keywords, but the required text from RFC 8174 is not found (see pyang --ietf-help for details).\n",
         "",
+        "",
+        "",
+        ""
+    ],
+    "ietf-yang-library@2016-06-21.yang": [
+        "PASSED WITH WARNINGS",
+        "ietf-yang-library@2016-06-21.yang:152: warning: the module seems to use RFC 2119 keywords, but the required text from RFC 8174 is not found (see pyang --ietf-help for details).\n",
         "",
         "",
         "",

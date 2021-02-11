@@ -19,6 +19,7 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import fnmatch
+import hashlib
 import json
 import os
 import socket
@@ -309,3 +310,22 @@ def fetch_module_by_schema(schema: str, dst_path: str):
         file_exist = os.path.isfile(dst_path)
 
     return file_exist
+
+
+def hash_file(path: str):
+    """ Create hash from content of the given file.
+
+    :param path     (str) Path fo file to be hashed
+    :return         SHA256 hash of the content of the given file
+    :rtype          str
+    """
+    BLOCK_SIZE = 65536  # The size of each read from the file
+
+    file_hash = hashlib.sha256()
+    with open(path, 'rb') as f:
+        fb = f.read(BLOCK_SIZE)
+        while len(fb) > 0:
+            file_hash.update(fb)
+            fb = f.read(BLOCK_SIZE)
+
+    return file_hash.hexdigest()

@@ -74,10 +74,8 @@ class Prepare:
             self.yang_modules[key] = yang
             if self.yang_modules[key].compilation_status is None:
                 try:
-                    self.yang_modules[key].compilation_status = requests.get('{}search/modules/{},{},{}'.format(
-                                                                             self.yangcatalog_api_prefix,
-                                                                             yang.name, yang.revision,
-                                                                             yang.organization)).json()['module'][0].get('compilation-status')
+                    url = '{}search/modules/{},{},{}'.format(self.yangcatalog_api_prefix, yang.name, yang.revision, yang.organization)
+                    self.yang_modules[key].compilation_status = requests.get(url).json()['module'][0].get('compilation-status')
                 except:
                     self.yang_modules[key].compilation_status = 'unknown'
 
