@@ -608,7 +608,6 @@ def get_organizations():
             orgs.add(module['organization'])
     orgs = list(orgs)
     response = make_response(jsonify({'contributors': orgs}), 200)
-    response.headers['Access-Control-Allow-Origin'] = '*'
     return response
 
 

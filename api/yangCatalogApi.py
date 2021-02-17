@@ -87,8 +87,6 @@ class MyFlask(Flask):
 
     def process_response(self, response):
         response = super().process_response(response)
-        response.headers['Access-Control-Allow-Headers'] = 'Origin, X-Requested-With, Content-Type, Accept, x-auth'
-        response.headers['Access-Control-Request-Headers'] = 'Origin'
         self.create_response_only_latest_revision(response)
         #self.create_response_with_yangsuite_link(response)
 
