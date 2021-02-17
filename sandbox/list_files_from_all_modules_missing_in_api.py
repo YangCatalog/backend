@@ -1,7 +1,7 @@
 import os
 import requests
 
-modules = requests.get('https://yangcatalog.org:8888/api/config/catalog/modules', auth=("admin", 'Y@ng_adm1n->(paSS)'),headers={
+modules = requests.get('https://yangcatalog.org:8888/api/config/catalog/modules', auth=("foo", 'bar'),headers={
                                'Accept': 'application/vnd.yang.data+json',
                                'Content-type': 'application/vnd.yang.data+json'}).json()
 counter = 0

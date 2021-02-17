@@ -24,7 +24,7 @@ for mod in modules:
                                                            existing_module['name'], existing_module['revision'],
                                                            existing_module['organization'], dep['name'])
                     print('deleting on path {}'.format(path))
-                    response = requests.delete(path, auth=("admin", 'Y@ng_adm1n->(paSS)'))
+                    response = requests.delete(path, auth=("foo", 'bar'))
                     if response.status_code != 204:
                         print('Couldn\'t delete module on path {}. Error : {}'
                                      .format(path, response.text))
