@@ -35,7 +35,7 @@ class TestPrepareClass(unittest.TestCase):
         super(TestPrepareClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema = 'https://raw.githubusercontent.com/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types.yang'
+        self.schema = 'https://raw.githubusercontent.com/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang'
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
         self.prepare_output_filename = 'prepare'
@@ -44,6 +44,7 @@ class TestPrepareClass(unittest.TestCase):
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.platform_name = 'ncs5k'
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.test_private_dir = 'tests/resources/html/private'
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -97,9 +98,10 @@ class TestPrepareClass(unittest.TestCase):
         Prepare object is initialized and key of one Modules object is added to 'yang_modules' dictionary.
         Created key is then retreived from 'yang_modules' dictionary and compared with desired format of key.
         Check if 'compilation_status' is  property set, after setting to None (value should be requested).
-        However, requests.get() method is patched to return None, so exception is raised.
+
+        Arguments:
+        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return None, so exception is raised.
         """
-        # Patch mock to return None while requesting data using GET
         mock_requests_get.return_value = None
         desired_key = 'ietf-yang-types@2013-07-15/ietf'
 
@@ -147,12 +149,16 @@ class TestPrepareClass(unittest.TestCase):
         # Compare properties/keys of desired and dumped module data objects
         for key in desired_module_data:
             if key == 'yang-tree':
-                yang_tree = '{}services/tree/{}@{}.yang'.format(
-                    self.yangcatalog_api_prefix, desired_module_data['name'], desired_module_data['revision'])
-                self.assertEqual(dumped_module_data[key], yang_tree)
-            elif key == 'compilation-status':
-                # TODO: Inconsistency in compilation_status value
-                pass
+                # Compare only URL suffix (exclude domain)
+                desired_tree_suffix = '/api{}'.format(desired_module_data[key].split('/api')[1])
+                dumped_tree_suffix = '/api{}'.format(dumped_module_data[key].split('/api')[1])
+                self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
+            elif key == 'compilation-result':
+                if dumped_module_data[key] != '' and desired_module_data[key] != '':
+                    # Compare only URL suffix (exclude domain)
+                    desired_compilation_result = '/results{}'.format(desired_module_data[key].split('/results')[1])
+                    dumped_compilation_result = '/results{}'.format(dumped_module_data[key].split('/results')[1])
+                    self.assertEqual(desired_compilation_result, dumped_compilation_result)
             else:
                 self.assertEqual(dumped_module_data[key], desired_module_data[key])
 
@@ -165,7 +171,7 @@ class TestPrepareClass(unittest.TestCase):
         Content of dumped normal.json file is then compared with desired content loaded from parseAndPopulate_tests_data.json file.
         """
         # Modules object
-        xml_path = '{}/tmp/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data,
@@ -219,7 +225,7 @@ class TestPrepareClass(unittest.TestCase):
         correctly set value.
         If value is set to None, it should not be dumped into .json file.
         """
-        xml_path = '{}/tmp/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data,
@@ -256,8 +262,8 @@ class TestPrepareClass(unittest.TestCase):
         :returns:           Created instance of Modules object of SDO (ietf) module
         :rtype: Modules
         """
-        parsed_jsons = LoadFiles(yc_gc.private_dir, yc_gc.logs_dir)
-        path_to_yang = '{}/all_modules/{}'.format(self.resources_path, self.sdo_module_filename)
+        parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        path_to_yang = '{}/tmp/temp/standard/ietf/RFC/{}'.format(self.resources_path, self.sdo_module_filename)
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
                        yc_gc.result_dir, parsed_jsons, self.tmp_dir)
@@ -273,7 +279,7 @@ class TestPrepareClass(unittest.TestCase):
         :returns:           Created instance of Modules object of vendor (cisco) module
         :rtype: Modules
         """
-        parsed_jsons = LoadFiles(yc_gc.private_dir, yc_gc.logs_dir)
+        parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         xml_path = '{}/{}'.format(self.resources_path, self.hello_message_filename)
         yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = yang_lib_data.split('&revision')[0]

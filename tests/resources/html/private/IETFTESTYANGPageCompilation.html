@@ -6,23 +6,33 @@
     <TR>
         <TH>YANG Model</TH>
         <TH>Compilation</TH>
-        <TH>Compilation Result (pyang --lint). pyang 2.3.2
+        <TH>Compilation Result (pyang --lint). pyang 2.4.0
         </TH>
-        <TH>Compilation Result (pyang). Note: also generates errors for imported files. pyang 2.3.2
+        <TH>Compilation Result (pyang). Note: also generates errors for imported files. pyang 2.4.0
         </TH>
-        <TH>Compilation Results (confdc) Note: also generates errors for imported files. confd version confd-7.3.1
+        <TH>Compilation Results (confdc) Note: also generates errors for imported files. confd version confd-7.5
         </TH>
         <TH>Compilation Results (yangdump-pro). Note: also generates errors for imported files.
             yangdump-pro 19.10-12
-
         </TH>
         <TH>Compilation Results (yanglint -V -i). Note: also generates errors for imported files. yanglint SO 1.9.2
         </TH>
     </TR>
     <TR>
         <TD>ietf-yang-types@2013-07-15.yang</TD>
-        <TD>PASSED</TD>
+        <TD>PASSED WITH WARNINGS</TD>
+        <TD>ietf-yang-types@2013-07-15.yang:84: warning: the module seems to use RFC 2119 keywords, but the required text from
+            RFC 8174 is not found (see pyang --ietf-help for details).<br></TD>
         <TD>&nbsp;</TD>
+        <TD>&nbsp;</TD>
+        <TD>&nbsp;</TD>
+        <TD>&nbsp;</TD>
+    </TR>
+    <TR>
+        <TD>ietf-yang-library@2016-06-21.yang</TD>
+        <TD>PASSED WITH WARNINGS</TD>
+        <TD>ietf-yang-library@2016-06-21.yang:152: warning: the module seems to use RFC 2119 keywords, but the required text
+            from RFC 8174 is not found (see pyang --ietf-help for details).<br></TD>
         <TD>&nbsp;</TD>
         <TD>&nbsp;</TD>
         <TD>&nbsp;</TD>

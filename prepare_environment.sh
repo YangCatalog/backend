@@ -14,22 +14,28 @@ git clone --depth 1 https://github.com/YangModels/yang.git $YANG_MODELS_DIR
 cd $YANG_MODELS_DIR
 git submodule init
 git submodule update
-export BRANCH_HASH=$(git rev-parse HEAD)
 # Prepare files and folder structure for capability.py tests
 # Create folders which match YangModels/yang cisco vendor structure, then copy certain files to these folders
-mkdir -p $BACKEND/tests/resources/tmp/capability-tests/temp/YangModels/yang/$BRANCH_HASH/standard/ietf/RFC
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $BACKEND/tests/resources/tmp/capability-tests/temp/YangModels/yang/$BRANCH_HASH/standard/ietf/RFC/.
+mkdir -p $BACKEND/tests/resources/tmp/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $BACKEND/tests/resources/tmp/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC/.
 cp $BACKEND/tests/resources/tmp/prepare-sdo.json $BACKEND/tests/resources/tmp/capability-tests/.
-mkdir -p $BACKEND/tests/resources/tmp/vendor/cisco/xr/701/
-mkdir -p $BACKEND/tests/resources/tmp/vendor/cisco/xr/702/
-mkdir -p $BACKEND/tests/resources/tmp/vendor/cisco/nx/9.2-1
-mkdir -p $BACKEND/tests/resources/tmp/vendor/cisco/xe/16101
-mkdir -p $BACKEND/tests/resources/tmp/vendor/huawei/network-router/8.9.10
-cp $BACKEND/tests/resources/capabilities-ncs5k.xml $BACKEND/tests/resources/tmp/vendor/cisco/xr/701/
-cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/vendor/huawei/network-router/8.9.10/
-cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/vendor/huawei/network-router/8.9.10/
-cp $YANG_MODELS_DIR/vendor/cisco/xr/701/platform-metadata.json $BACKEND/tests/resources/tmp/vendor/cisco/xr/701/
-cp $YANG_MODELS_DIR/vendor/cisco/xr/702/capabilities-ncs5k.xml $BACKEND/tests/resources/tmp/vendor/cisco/xr/702/
-cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $BACKEND/tests/resources/tmp/vendor/cisco/nx/9.2-1/
-cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $BACKEND/tests/resources/tmp/vendor/cisco/xe/16101/
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/702/
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/nx/9.2-1
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/xe/16101
+mkdir -p $TMP_DIR/temp/standard/ietf/RFC
+cp $BACKEND/tests/resources/capabilities-ncs5k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
+cp $YANG_MODELS_DIR/vendor/cisco/xr/701/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
+cp $YANG_MODELS_DIR/vendor/cisco/xr/701/*.yang $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
+cp $YANG_MODELS_DIR/vendor/cisco/xr/702/capabilities-ncs5k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/702/
+cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/nx/9.2-1/
+cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xe/16101/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $BACKEND/tests/resources/tmp/temp/standard/ietf/RFC
+# Prepare Huawei dir for ietf-yang-lib based tests
+export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.9.10
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10
+cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
+cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
+cp $YANG_MODELS_HUAWEI_DIR/ietf/* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
 cd $BACKEND

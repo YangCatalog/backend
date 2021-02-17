@@ -28,19 +28,23 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import fnmatch
+import json
 import os
 import sys
 import time
 
 import utility.log as log
-from parseAndPopulate.capability import Capability
+from utility.util import hash_file
+
 from parseAndPopulate import integrity
+from parseAndPopulate.capability import Capability
 from parseAndPopulate.prepare import Prepare
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
     import ConfigParser
+
 
 class ScriptConfig:
     def __init__(self):
@@ -51,7 +55,7 @@ class ScriptConfig:
                             help='Set dir where to look for hello message xml files or yang files if using "sdo" option')
         parser.add_argument('--save-modification-date', action='store_true', default=False,
                             help='if True than it will create a file with modification date and also it will check if '
-                                'file was modified from last time if not it will skip it.')
+                            'file was modified from last time if not it will skip it.')
         parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
         parser.add_argument('--sdo', action='store_true', default=False,
                             help='If we are processing sdo or vendor yang modules')
@@ -77,6 +81,8 @@ class ScriptConfig:
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
+        """ Return a list of the arguments of the script, along with the default values.
+        """
         args_dict = {}
         keys = [key for key in self.args.__dict__.keys()]
         types = [type(value).__name__ for value in self.args.__dict__.values()]
@@ -88,6 +94,8 @@ class ScriptConfig:
         return args_dict
 
     def get_help(self):
+        """ Return script help along with help for each argument.
+        """
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
@@ -112,7 +120,7 @@ def find_missing_hello(directory, pattern):
     for root, dirs, files in os.walk(directory):
         for basename in files:
             if fnmatch.fnmatch(basename, pattern):
-                if not any(".xml" in name for name in files):
+                if not any('.xml' in name for name in files):
                     yield root
 
 
@@ -143,21 +151,20 @@ def main(scriptConf=None):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
-    log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger('runCapabilities', log_directory + '/parseAndPopulate.log')
-    is_uwsgi = config.get('General-Section', 'uwsgi')
-    private_dir = config.get('Web-Section', 'private-directory')
-    yang_models = config.get('Directory-Section', 'yang-models-dir')
-    temp_dir = config.get('Directory-Section', 'temp')
+    log_directory = config.get('Directory-Section', 'logs', fallback='tests/resources/logs')
+    LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(log_directory))
+    is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
+    private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
+    yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
+    temp_dir = config.get('Directory-Section', 'temp', fallback='tests/resources/tmp')
 
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
-                                                   args.api_ip, separator,
-                                                   suffix)
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
+
     start = time.time()
     global local_integrity
     if args.run_integrity:
@@ -167,7 +174,7 @@ def main(scriptConf=None):
     prepare = Prepare(log_directory, 'prepare', yangcatalog_api_prefix)
 
     if args.run_integrity:
-        stats_list = {'vendor': [yang_models + '/vendor/cisco']}
+        stats_list = {'vendor': ['{}/vendor/cisco'.format(yang_models)]}
     LOGGER.info('Starting to iterate through files')
     if args.sdo:
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
@@ -183,42 +190,42 @@ def main(scriptConf=None):
         patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']
         for pattern in patterns:
             for filename in find_files(args.dir, pattern):
-                update = True
+                # NOTE: Hash of file will be saved for each file individually in the future, not only capability xml files
                 if not args.api and args.save_modification_date:
+                    files_modifications = {}
+                    path = '{}/filesModifications.json'.format(temp_dir)
+                    file_hash = hash_file(filename)
                     try:
-                        file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
-                                                 '.txt', 'r')
-                        time_in_file = file_modification.readline()
-                        if time_in_file in str(time.ctime(os.path.getmtime(filename))):
-                            update = False
+                        with open(path, 'r') as f:
+                            files_modifications = json.load(f)
+                        file_hash_old = files_modifications[filename]
+                        if file_hash_old == file_hash:
                             LOGGER.info('{} is not modified. Skipping this file'.format(filename))
-                            file_modification.close()
+                            continue
                         else:
-                            file_modification.seek(0)
-                            file_modification.write(time.ctime(os.path.getmtime(filename)))
-                            file_modification.truncate()
-                            file_modification.close()
-                    except IOError:
-                        file_modification = open(temp_dir + '/fileModificationDate/' + '-'.join(filename.split('/')[-4:]) +
-                                                 '.txt', 'w')
-                        file_modification.write(str(time.ctime(os.path.getmtime(filename))))
-                        file_modification.close()
-                if update:
-                    LOGGER.info('Found xml source {}'.format(filename))
+                            files_modifications[filename] = file_hash
+                            with open(path, 'w') as f:
+                                json.dump(files_modifications, f)
+                    except:
+                        files_modifications[filename] = file_hash
+                        with open(path, 'w') as f:
+                            json.dump(files_modifications, f)
 
-                    capability = Capability(log_directory, filename,
-                                            prepare,
-                                            local_integrity, args.api,
-                                            args.sdo, args.json_dir,
-                                            args.result_html_dir,
-                                            args.save_file_dir,
-                                            private_dir,
-                                            yang_models,
-                                            args.run_integrity)
-                    if 'ietf-yang-library' in pattern:
-                        capability.parse_and_dump_yang_lib()
-                    else:
-                        capability.parse_and_dump()
+                LOGGER.info('Found xml source {}'.format(filename))
+
+                capability = Capability(log_directory, filename,
+                                        prepare,
+                                        local_integrity, args.api,
+                                        args.sdo, args.json_dir,
+                                        args.result_html_dir,
+                                        args.save_file_dir,
+                                        private_dir,
+                                        yang_models,
+                                        args.run_integrity)
+                if 'ietf-yang-library' in pattern:
+                    capability.parse_and_dump_yang_lib()
+                else:
+                    capability.parse_and_dump()
         if not args.run_integrity:
             prepare.dump_modules(args.json_dir)
             prepare.dump_vendors(args.json_dir)
@@ -226,7 +233,7 @@ def main(scriptConf=None):
     if local_integrity is not None and args.run_integrity:
         create_integrity(yang_models)
     end = time.time()
-    LOGGER.info('Time taken to parse all the files {} seconds'.format(end - start))
+    LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
 
 
 if __name__ == "__main__":
