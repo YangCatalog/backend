@@ -1,0 +1,45 @@
+{
+    "es_search_result_found": {
+        "took": 2,
+        "timed_out": false,
+        "_shards": {
+            "total": 2,
+            "successful": 2,
+            "skipped": 0,
+            "failed": 0
+        },
+        "hits": {
+            "total": 1,
+            "max_score": 4.954582,
+            "hits": [
+                {
+                    "_index": "modules",
+                    "_type": "modules",
+                    "_id": "l1XEuXcBJVg3yDg-Jf_a",
+                    "_score": 4.954582,
+                    "_source": {
+                        "module": "ietf-yang-types",
+                        "organization": "ietf",
+                        "revision": "2013-07-15",
+                        "dir": "/var/yang/all_modules/ietf-yang-types@2013-07-15.yang"
+                    }
+                }
+            ]
+        }
+    },
+    "es_search_result_not_found": {
+        "took": 1,
+        "timed_out": false,
+        "_shards": {
+            "total": 2,
+            "successful": 2,
+            "skipped": 0,
+            "failed": 0
+        },
+        "hits": {
+            "total": 0,
+            "max_score": null,
+            "hits": []
+        }
+    }
+}

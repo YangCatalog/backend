@@ -38,4 +38,9 @@ cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/
 cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
 cp $YANG_MODELS_HUAWEI_DIR/ietf/* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
+# Prepare directory structure need for test_util.py
+export UTILITY_RESOURCES=$BACKEND/utility/tests/resources
+mkdir -p $UTILITY_RESOURCES/modules
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types.yang $UTILITY_RESOURCES/modules/
+touch $UTILITY_RESOURCES/modules/ietf-yang-types@2010-09-24.yang
 cd $BACKEND

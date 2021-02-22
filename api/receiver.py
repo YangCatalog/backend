@@ -66,7 +66,7 @@ class Receiver:
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(self.__config_path)
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
-        self.__confdPort = int(config.get('Web-Section', 'confd-port'))
+        self.__confd_port = int(config.get('Web-Section', 'confd-port'))
         self.__protocol = config.get('General-Section', 'protocol-api')
         self.__api_ip = config.get('Web-Section', 'ip')
         self.__api_port = int(config.get('Web-Section', 'api-port'))
@@ -269,7 +269,7 @@ class Receiver:
         for mod in modules:
             try:
                 path = self.__confd_protocol + '://' + self.__confd_ip + ':' + repr(
-                    self.__confdPort) + '/restconf/data/yang-catalog:catalog/modules/module=' \
+                    self.__confd_port) + '/restconf/data/yang-catalog:catalog/modules/module=' \
                        + mod
                 modules_data = requests.get(path, auth=(credentials[0], credentials[1]),
                                             headers={'Content-Type': 'application/yang-data+json',
@@ -329,7 +329,7 @@ class Receiver:
                     for dep in dependents:
                         if dep['name'] == name and dep['revision'] == rev:
                             path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'
-                            response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confdPort,
+                            response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confd_port,
                                                                    existing_module['name'], existing_module['revision'],
                                                                    existing_module['organization'], dep['name']))
                             if response.status_code != 204:
@@ -337,9 +337,10 @@ class Receiver:
                                                   .format(path, response.text))
                                 return self.__response_type[0] + '#split#' + response.text
         if self.__notify_indexing:
+            confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_that_succeeded,
                                                credentials, self.LOGGER, self.__save_file_dir, self.temp_dir,
-                                               self.__confd_protocol, self.__confd_ip, self.__confdPort, delete=True)
+                                               confd_url, delete=True)
             if body_to_send != '':
                 send_to_indexing(body_to_send, credentials, self.__api_protocol, self.LOGGER, self.__key, self.__api_ip)
         return self.__response_type[1]
@@ -412,7 +413,7 @@ class Receiver:
             modules = json.loads(path_to_delete)['modules']
             for mod in modules:
                 paths.append(self.__confd_protocol + '://' + self.__confd_ip + ':' + repr(
-                    self.__confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' \
+                    self.__confd_port) + '/restconf/data/yang-catalog:catalog/modules/module/'
                              + mod['name'] + ',' + mod['revision'] + ',' + mod[
                                  'organization'])
         else:
@@ -429,7 +430,7 @@ class Receiver:
                     for dep in dependents:
                         if dep['name'] == mod['name'] and dep['revision'] == mod['revision']:
                             path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'
-                            response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confdPort,
+                            response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confd_port,
                                                                    existing_module['name'], existing_module['revision'],
                                                                    existing_module['organization'], dep['name']))
                             if response.status_code != 204:
@@ -446,10 +447,10 @@ class Receiver:
             name, revision, organization = path.split('/')[-1].split(',')
             modules_to_index.append('{}@{}/{}'.format(name, revision, organization))
         if self.__notify_indexing:
+            confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index,credentials,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir,
-                                               self.__confd_protocol, self.__confd_ip, self.__confdPort,
-                                               delete=True)
+                                               confd_url, delete=True)
             if body_to_send != '':
                 send_to_indexing(body_to_send, credentials, self.__api_protocol, self.LOGGER, self.__key, self.__api_ip)
         return self.__response_type[1]
@@ -482,7 +483,7 @@ class Receiver:
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(self.__config_path)
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
-        self.__confdPort = int(config.get('Web-Section', 'confd-port'))
+        self.__confd_port = int(config.get('Web-Section', 'confd-port'))
         self.__protocol = config.get('General-Section', 'protocol-api')
         self.__api_ip = config.get('Web-Section', 'ip')
         self.__api_port = int(config.get('Web-Section', 'api-port'))
@@ -621,7 +622,7 @@ class Receiver:
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
                                                                               self.__confd_credentials, self.__confd_protocol,
-                                                                              self.__confd_ip, self.__confdPort,
+                                                                              self.__confd_ip, self.__confd_port,
                                                                               self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
                                                                               self.temp_dir)

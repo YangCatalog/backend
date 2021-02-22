@@ -19,6 +19,7 @@ yang.egg-info
 !/parseAndPopulateTest/testJson/prepare.json
 !/tests/resources/**/*.json
 !/tests/resources/**/*.html
+!/utility/tests/resources/**/*.json
 !secrets_oidc.json
 # Ignore local versions
 yang-catalog.ini
