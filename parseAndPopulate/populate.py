@@ -168,16 +168,14 @@ def main(scriptConf=None):
     temp_dir = scriptConf.temp_dir
     key = scriptConf.key
     global LOGGER
-    LOGGER = log.get_logger('populate', log_directory + '/parseAndPopulate.log')
+    LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
-                                                   args.api_ip, separator,
-                                                   suffix)
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
     LOGGER.info('Starting the populate script')
     start = time.time()
     if args.api:
@@ -215,8 +213,9 @@ def main(scriptConf=None):
     body_to_send = ''
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
+        confd_url = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc), args.credentials,
-                                           LOGGER, args.save_file_dir, temp_dir, args.protocol, args.ip, args.port,
+                                           LOGGER, args.save_file_dir, temp_dir, confd_url,
                                            sdo_type=args.sdo, from_api=args.api, force_indexing=args.force_indexing)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
