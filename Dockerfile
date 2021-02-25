@@ -14,7 +14,7 @@ RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl
 
 RUN echo postfix postfix/mailname string yang2.amsl.com | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
-    apt-get -y install postfix
+    apt-get -y install postfix rsyslog systemd
 RUN apt-get -y autoremove
 
 RUN gem install bundler
@@ -78,6 +78,6 @@ RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
-CMD chown -R yang:yang /var/run/yang && cron && service postfix start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
+CMD chown -R yang:yang /var/run/yang && cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
 EXPOSE 3031
