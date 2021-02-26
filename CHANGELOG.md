@@ -2,6 +2,15 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v3.0.1 - 2021-02-26
+
+  * rsyslog and systemd added to Docker image build [deployment #48](https://github.com/YangCatalog/deployment/issues/48)
+  * Tests for util.py script [#205](https://github.com/YangCatalog/backend/issues/205)
+  * Prevention against missing modules in Elasticsearch [#212](https://github.com/YangCatalog/backend/issues/212)
+  * Sandbox scripts added to seach debugging
+  * Tests for runCapabilities.py script [#204](https://github.com/YangCatalog/backend/issues/204)
+  * Response headers logic moved to NGINX config [#209] (https://github.com/YangCatalog/backend/issues/209)
+  
 * ##### v3.0.0 - 2021-02-10
 
   * Update pyang to version 2.4.0 [deployment #36]( https://github.com/YangCatalog/deployment/issues/36)
