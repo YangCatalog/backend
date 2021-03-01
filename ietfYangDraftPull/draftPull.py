@@ -38,6 +38,7 @@ import shutil
 import sys
 import tarfile
 import time
+import warnings
 from tarfile import ReadError
 
 import requests
@@ -234,6 +235,11 @@ def main(scriptConf=None):
         check_early_revisions('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.localdir), LOGGER)
         messages = []
         try:
+            # Get user and sync
+            with warnings.catch_warnings(record=True):
+                travis_user = travis.user()
+            LOGGER.info('Syncing repo user for Travis')
+            response = travis_user.sync()
             travis_repo = travis.repo('{}/{}'.format(username, repo_name))
             LOGGER.info('Enabling repo for Travis')
             travis_enabled = travis_repo.enable()  # Switch is now on
