@@ -28,13 +28,14 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import datetime
 import json
-import sys
 import os
+import sys
 import time
 
 import dateutil.parser
 import requests
 from dateutil.relativedelta import relativedelta
+from urllib3.exceptions import NewConnectionError
 
 import utility.log as log
 from utility.util import job_log
@@ -108,13 +109,15 @@ class ScriptConfig:
         return ret
 
 
-def __resolve_expiration(reference, module, args, LOGGER):
+def __resolve_expiration(reference: str, module, args, LOGGER, datatracker_failures: list):
     """Walks through all the modules and updates them if necessary
 
         Arguments:
-            :param reference: (str) reference metadata from yangcatalog.yang
-            :param module: (json) all the module metadata
-            :param args: (obj) arguments received at the start of this script
+            :param reference:           (str) reference metadata from yangcatalog.yang
+            :param module:              (json) all the module metadata
+            :param args:                (obj) arguments received at the start of this script
+            :param LOGGER               (obj) formated logger with the specified name
+            :param datatracker_failures (list) list of url that failed to get data from Datatracker
     """
     expired = 'not-applicable'
     expires = None
@@ -128,7 +131,21 @@ def __resolve_expiration(reference, module, args, LOGGER):
             ref = module.get('reference').split('/')[-2]
             rev = module.get('reference').split('/')[-1]
         url = ('https://datatracker.ietf.org/api/v1/doc/document/?name={}&states__type=draft&states__slug__in=active,RFC&format=json'.format(ref))
-        response = requests.get(url)
+        retry = 6
+        while True:
+            try:
+                response = requests.get(url)
+                break
+            except NewConnectionError as nce:
+                retry -= 1
+                LOGGER.warning('Failed to fetch file content of {}'.format(ref))
+                time.sleep(10)
+                if retry == 0:
+                    LOGGER.error('Failed to fetch file content of {} for 6 times in a row - SKIPPING.'.format(ref))
+                    LOGGER.error(nce)
+                    datatracker_failures.append(url)
+                    return None
+
         if response.status_code == 200:
             data = response.json()
             objs = data['objects']
@@ -151,16 +168,16 @@ def __resolve_expiration(reference, module, args, LOGGER):
     if module.get('expires') != expires or module.get('expired') != expired:
         if module.get('expires') is None and (expires == '' or expires is None) and module.get('expired') == expired:
             return False
-        LOGGER.info('Module {}@{} changing expiration from expires {} expired {} to expires {} expired {}'
-                    .format(module['name'], module['revision'], module.get('expires'), module.get('expired'),
-                            expires, expired))
-        prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
+        yang_name_rev = '{}@{}'.format(module['name'], module['revision'])
+        LOGGER.info('Module {} changing expiration FROM expires: {} expired: {} TO expires: {} expired: {}'
+                    .format(yang_name_rev, module.get('expires'), module.get('expired'), expires, expired))
+        confd_prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
 
         if expires != '' and expires is not None:
             module['expires'] = expires
         module['expired'] = expired
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
-            .format(prefix, module['name'], module['revision'], module['organization'])
+            .format(confd_prefix, module['name'], module['revision'], module['organization'])
         response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
                                   auth=(args.credentials[0],
                                         args.credentials[1]),
@@ -168,18 +185,22 @@ def __resolve_expiration(reference, module, args, LOGGER):
                                       'Accept': 'application/yang-data+json',
                                       'Content-type': 'application/yang-data+json'}
                                   )
-        LOGGER.info('module {}@{} updated with code {} and text {}'.format(module['name'], module['revision'],
-                                                                           response.status_code, response.text))
+        message = 'Module {} updated with code {}'.format(yang_name_rev, response.status_code)
+        if response.text != '':
+            message = '{} and text {}'.format(message, response.text)
+        LOGGER.info(message)
         if expires == '' and module.get('expires') is not None:
             url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/expires' \
-                .format(prefix, module['name'], module['revision'], module['organization'])
+                .format(confd_prefix, module['name'], module['revision'], module['organization'])
             response = requests.delete(url, auth=(args.credentials[0], args.credentials[1]),
                                        headers={
                                            'Accept': 'application/yang-data+json',
                                            'Content-type': 'application/yang-data+json'}
                                        )
-            LOGGER.info('module {}@{} expiration date deleted with code {} and text {}'
-                        .format(module['name'], module['revision'], response.status_code, response.text))
+        message = 'Module {} expiration date deleted with code {}'.format(yang_name_rev, response.status_code)
+        if response.text != '':
+            message = '{} and text {}'.format(message, response.text)
+        LOGGER.info(message)
         return True
     else:
         return False
@@ -189,11 +210,13 @@ def main(scriptConf=None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
+    revision_updated_modules = 0
+    datatracker_failures = []
     args = scriptConf.args
     log_directory = scriptConf.log_directory
     temp_dir = scriptConf.temp_dir
     is_uwsgi = scriptConf.is_uwsgi
-    LOGGER = log.get_logger('resolveExpiration', log_directory + '/jobs/resolveExpiration.log')
+    LOGGER = log.get_logger('resolveExpiration', '{}/jobs/resolveExpiration.log'.format(log_directory))
     LOGGER.info('Starting Cron job resolve modules expiration')
 
     separator = ':'
@@ -205,34 +228,44 @@ def main(scriptConf=None):
                                                    args.api_ip, separator,
                                                    suffix)
     try:
-        LOGGER.info('requesting {}'.format(yangcatalog_api_prefix))
+        LOGGER.info('Requesting all the modules from {}'.format(yangcatalog_api_prefix))
         updated = False
 
         modules = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
-                            auth=(args.credentials[0], args.credentials[1]))
+                               auth=(args.credentials[0], args.credentials[1]))
         if modules.status_code < 200 or modules.status_code > 299:
             LOGGER.error('Request on path {} failed with {}'
-                        .format(yangcatalog_api_prefix,
-                                modules.text))
+                         .format(yangcatalog_api_prefix, modules.text))
+        else:
+            LOGGER.debug('{} modules fetched from {} successfully'
+                         .format(len(modules.json()['module']), yangcatalog_api_prefix))
         modules = modules.json()['module']
         i = 1
-        for mod in modules:
+        for module in modules:
             LOGGER.info('{} out of {}'.format(i, len(modules)))
             i += 1
-            ref = mod.get('reference')
-            ret = __resolve_expiration(ref, mod, args, LOGGER)
+            ref = module.get('reference')
+            ret = __resolve_expiration(ref, module, args, LOGGER, datatracker_failures)
+            if ret:
+                revision_updated_modules += 1
             if not updated:
                 updated = ret
         if updated:
             url = ('{}load-cache'.format(yangcatalog_api_prefix))
             response = requests.post(url, None, auth=(args.credentials[0],
-                                                    args.credentials[1]))
+                                                      args.credentials[1]))
             LOGGER.info('Cache loaded with status {}'.format(response.status_code))
     except Exception as e:
         LOGGER.error('Exception found while running resolveExpiration script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         raise e
-    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    if len(datatracker_failures) > 0:
+        LOGGER.debug('Following references failed to get from the datatracker:\n {}'.format('\n'.join(datatracker_failures)))
+    messages = [
+        {'label': 'Modules with changed revison', 'message': revision_updated_modules},
+        {'label': 'Datatracker modules failures', 'message': len(datatracker_failures)}
+    ]
+    job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
 
 
