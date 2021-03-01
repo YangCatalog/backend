@@ -2,6 +2,8 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+  * resolveExpiration.py script improvements [#219](https://github.com/YangCatalog/backend/issues/219)
+
 * ##### v3.0.1 - 2021-02-26
 
   * rsyslog and systemd added to Docker image build [deployment #48](https://github.com/YangCatalog/deployment/issues/48)
@@ -10,13 +12,13 @@
   * Sandbox scripts added to seach debugging
   * Tests for runCapabilities.py script [#204](https://github.com/YangCatalog/backend/issues/204)
   * Response headers logic moved to NGINX config [#209] (https://github.com/YangCatalog/backend/issues/209)
-  
+
 * ##### v3.0.0 - 2021-02-10
 
   * Update pyang to version 2.4.0 [deployment #36]( https://github.com/YangCatalog/deployment/issues/36)
   * Update lxml to version 4.6.2
   * Tests for prepare.py script [#177](https://github.com/YangCatalog/backend/issues/177)
-  * DraftPull.py additional info added to cronjob message log (whether new commit was created or not) 
+  * DraftPull.py additional info added to cronjob message log (whether new commit was created or not)
 [#177](https://github.com/YangCatalog/backend/issues/177)
   * Explicitly set version of Python base image to 3.8
   * Tests for loadJsonFiles.py script [#181](https://github.com/YangCatalog/backend/issues/181)
@@ -38,13 +40,13 @@
   * Fix README.md
   * Update Dockerfile
   * Various major/minor bug fixes and improvements
-  
+
 * ##### v2.0.0 - 2020-08-14
 
   * Add moving users to another database functionaily [#185](https://github.com/YangCatalog/backend/issues/185)
   * Update of expiration metadata resolution
   * Creation of healthchecks [#202](https://github.com/YangCatalog/backend/issues/202)
-  * Fix discrepancy in support platform/OS [#56](https://github.com/YangCatalog/backend/issues/56) 
+  * Fix discrepancy in support platform/OS [#56](https://github.com/YangCatalog/backend/issues/56)
   * Creation of admin database for admin UI
   * Add admin/<some_path> endpoint for admin UI
   * Ignore integrity from parsing if not set [#201](https://github.com/YangCatalog/backend/issues/201)
@@ -55,16 +57,16 @@
   * Start creating rest functionality for admin UI [#188](https://github.com/YangCatalog/backend/issues/188)
   * Update Dockerfile
   * Various major/minor bug fixes and improvements
-  
+
 * ##### v1.1.0 - 2020-07-16
-  
+
   * Update recovery script
   * Update Pyang version
   * Update Dockerfile
   * Various major/minor bug fixes and improvements
-  
+
 * ##### v1.0.1 - 2020-07-03
-  
+
   * Add special ID for each request in flask
   * Reload cache watcher [#203](https://github.com/YangCatalog/backend/issues/203)
   * Make receiver thread safe [#124](https://github.com/YangCatalog/backend/issues/124)
@@ -74,7 +76,7 @@
   * Fix README.md
   * Update Dockerfile
   * Various major/minor bug fixes and improvements
-  
+
 * ##### v1.0.0 - 2020-06-23
 
   * Initial submitted version
