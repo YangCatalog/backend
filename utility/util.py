@@ -193,6 +193,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
     else:
         with open(modules_to_index, 'r') as f:
             sdos_json = json.load(f)
+            LOGGER.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
         post_body = {}
         load_new_files_to_github = False
         if from_api:
@@ -229,6 +230,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                                                  'Accept': 'application/yang-data+json'})
                 code = response.status_code
 
+                in_es = False
                 if code != 200 and code != 201 and code != 204:
                     load_new_files_to_github = True
                 else:
