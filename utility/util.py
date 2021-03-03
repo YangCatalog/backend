@@ -364,30 +364,30 @@ def get_module_from_es(name: str, revision: str):
     else:
         es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
 
-        query = \
-            {
-                "query": {
-                    "bool": {
-                        "must": [{
-                            "match_phrase": {
-                                 "module.keyword": {
-                                     "query": name
-                                 }
-                                 }
-                        }, {
-                            "match_phrase": {
-                                "revision": {
-                                    "query": revision
+    query = \
+        {
+            "query": {
+                "bool": {
+                    "must": [{
+                        "match_phrase": {
+                                "module.keyword": {
+                                    "query": name
                                 }
+                                }
+                    }, {
+                        "match_phrase": {
+                            "revision": {
+                                "query": revision
                             }
-                        }]
-                    }
+                        }
+                    }]
                 }
             }
+        }
 
-        try:
-            es_result = es.search(index='modules', doc_type='modules', body=query)
-        except:
-            return {}
+    try:
+        es_result = es.search(index='modules', doc_type='modules', body=query)
+    except:
+        return {}
 
     return es_result
