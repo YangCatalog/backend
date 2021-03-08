@@ -40,10 +40,10 @@ option.
 
 #### API
 
-The API module runs as a UWSGI emperor vassal (using the `yang-catalog.ini`file)
+The API module runs as a UWSGI emperor vassal (using the `yang-catalog.ini` file)
 and contains several endpoints. Most
 of the endpoints serves to find modules in different ways. This is described
-deeper in [API documentation](www.yangcatalog.org/doc). If the user is
+deeper in [API documentation](https://yangcatalog.org/doc). If the user is
 registered, she/he can add modify or delete modules based on pre-approved path.
 Once user has filled in registration form, one of yangcatalog admin users
 needs to use validate script which will walk him through the validation
