@@ -22,11 +22,11 @@ import time
 
 import MySQLdb
 import requests
-from elasticsearch import Elasticsearch
-from flask import Blueprint, make_response, jsonify
-
 import utility.log as log
 from api.globalConfig import yc_gc
+from elasticsearch import Elasticsearch
+from flask import Blueprint, jsonify, make_response
+from utility.staticVariables import confd_headers
 from utility.util import create_signature
 
 
@@ -132,18 +132,17 @@ def health_check_elk():
 def health_check_confd():
     service_name = 'ConfD'
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
-    headers = {'Content-type': 'application/yang-data+json', 'Accept': 'application/yang-data+json'}
 
     try:
         # Check if ConfD is running
         response = requests.get('{}/restconf'.format(confd_prefix),
-                                auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+                                auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
         if response.status_code == 200:
             app.LOGGER.info('ConfD is running')
             # Check if ConfD is filled with data
             module_name = 'ietf-syslog,2018-03-15,ietf'
             response = requests.get('{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(confd_prefix, module_name),
-                                    auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+                                    auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
             app.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, module_name))
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
                 response = {'info': 'Not OK - ConfD is not filled',
@@ -411,28 +410,26 @@ def health_check_yangcatalog():
     message = 'All URLs responded with status code 200'
     additional_info = []
 
-    urls = ['http://yangcatalog.org',
-            'http://www.yangcatalog.org',
-            'https://yangcatalog.org',
-            'https://www.yangcatalog.org',
-            'http://yangvalidator.com',
-            'http://www.yangvalidator.com',
-            'https://yangvalidator.com',
-            'https://www.yangvalidator.com',
-            'http://18.224.127.129',
-            'https://18.224.127.129',
-            'http://[2600:1f16:ba:200:a10d:3212:e763:e720]',
-            'https://[2600:1f16:ba:200:a10d:3212:e763:e720]'
+    urls = [{'url': 'http://yangcatalog.org', 'verify': True},
+            {'url': 'http://www.yangcatalog.org', 'verify': True},
+            {'url': 'https://yangcatalog.org', 'verify': True},
+            {'url': 'https://www.yangcatalog.org', 'verify': True},
+            {'url': 'http://yangvalidator.com', 'verify': True},
+            {'url': 'http://www.yangvalidator.com', 'verify': True},
+            {'url': 'https://yangvalidator.com', 'verify': True},
+            {'url': 'https://www.yangvalidator.com', 'verify': True},
+            {'url': 'http://18.224.127.129', 'verify': False},
+            {'url': 'https://18.224.127.129', 'verify': False},
+            {'url': 'http://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False},
+            {'url': 'https://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False}
             ]
 
-    for url in urls:
+    for item in urls:
+        url = item.get('url')
         result = {}
         result['label'] = url
         try:
-            if any(char.isdigit() for char in url):
-                response = requests.get(url, verify=False)
-            else:
-                response = requests.get(url)
+            response = requests.get(url, verify=item.get('verify', True))
             status_code = response.status_code
             app.LOGGER.info('URl: {} Status code: {}'.format(url, status_code))
             result['message'] = '{} OK'.format(status_code)
@@ -456,14 +453,13 @@ def health_check_confd_full_check():
     additional_info = []
     check_module_name = 'confd-full-check'
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
-    headers = {'Content-type': 'application/yang-data+json', 'Accept': 'application/yang-data+json'}
 
     try:
         # GET
         result = {}
         result['label'] = 'GET yang-catalog@2018-04-03'
         url = '{}/restconf/data/yang-catalog:catalog/modules/module=yang-catalog,2018-04-03,ietf'.format(confd_prefix)
-        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
         if response.status_code == 200:
             module = json.loads(response.text)
             result['message'] = '{} OK'.format(response.status_code)
@@ -482,7 +478,7 @@ def health_check_confd_full_check():
         url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(confd_prefix)
         json_modules_data = json.dumps({'modules': {'module': module['yang-catalog:module'][0]}})
         response = requests.patch(url, data=json_modules_data,
-                                  auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+                                  auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
 
         if response.status_code == 204:
             result['message'] = '{} OK'.format(response.status_code)
@@ -496,7 +492,7 @@ def health_check_confd_full_check():
         result = {}
         result['label'] = 'GET {}@2018-04-03'.format(check_module_name)
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
         if response.status_code == 200:
             result['message'] = '{} OK'.format(response.status_code)
         else:
@@ -509,7 +505,7 @@ def health_check_confd_full_check():
         result = {}
         result['label'] = 'DELETE {}@2018-04-03'.format(check_module_name)
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.delete(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+        response = requests.delete(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
         if response.status_code == 204:
             result['message'] = '{} OK'.format(response.status_code)
         else:
@@ -523,7 +519,7 @@ def health_check_confd_full_check():
         result = {}
         result['label'] = 'GET 2 {}@2018-04-03'.format(check_module_name)
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=headers)
+        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
         if response.status_code == 404:
             result['message'] = '{} OK'.format(response.status_code)
         else:
