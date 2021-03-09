@@ -2,6 +2,9 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+  * Healthcheck update - ConfD full check [#226](https://github.com/YangCatalog/backend/issues/226)
+  * Healthcheck update - Yangcatalog domains [#225](https://github.com/YangCatalog/backend/issues/225)
+  * Sync Travis user before accessing repository [#221](https://github.com/YangCatalog/backend/issues/221)
   * resolveExpiration.py script improvements [#219](https://github.com/YangCatalog/backend/issues/219)
 
 * ##### v3.0.1 - 2021-02-26
