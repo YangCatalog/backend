@@ -41,5 +41,134 @@
             "max_score": null,
             "hits": []
         }
+    },
+    "datatracker_expired_draft_response": {
+        "meta": {
+            "limit": 20,
+            "next": null,
+            "offset": 0,
+            "previous": null,
+            "total_count": 1
+        },
+        "objects": [
+            {
+                "expires": "2014-07-19T00:56:39",
+                "rev": "10",
+                "rfc": "7224"
+            }
+        ]
+    },
+    "datatracker_draft_expire_now_response": {
+        "meta": {
+            "limit": 20,
+            "next": null,
+            "offset": 0,
+            "previous": null,
+            "total_count": 1
+        },
+        "objects": [
+            {
+                "expires": "2021-08-26T06:36:43",
+                "rev": "05",
+                "rfc": null
+            }
+        ]
+    },
+    "datatracker_empty_response": {
+        "meta": {
+            "limit": 20,
+            "next": null,
+            "offset": 0,
+            "previous": null,
+            "total_count": 0
+        },
+        "objects": []
+    },
+    "datatracker_active_draft_response": {
+        "meta": {
+            "limit": 20,
+            "next": null,
+            "offset": 0,
+            "previous": null,
+            "total_count": 1
+        },
+        "objects": [
+            {
+                "expires": "2021-08-26T06:36:43",
+                "rev": "05",
+                "rfc": null
+            }
+        ]
+    },
+    "iana-if-type@2011-03-30-simplified": {
+        "name": "iana-if-type",
+        "revision": "2011-03-30",
+        "organization": "ietf",
+        "maturity-level": "adopted",
+        "document-name": "draft-ietf-netmod-iana-if-type-00.txt",
+        "reference": "https://datatracker.ietf.org/doc/draft-ietf-netmod-iana-if-type/00",
+        "module-type": "module",
+        "expired": true
+    },
+    "iana-if-type@2014-01-15-simplified": {
+        "name": "iana-if-type",
+        "revision": "2014-01-15",
+        "organization": "ietf",
+        "maturity-level": "adopted",
+        "document-name": "draft-ietf-netmod-iana-if-type-10.txt",
+        "reference": "https://datatracker.ietf.org/doc/draft-ietf-netmod-iana-if-type/10",
+        "module-type": "module",
+        "expired": true
+    },
+    "iana-if-type@2014-05-08-simplified": {
+        "name": "iana-if-type",
+        "revision": "2014-05-08",
+        "organization": "ietf",
+        "maturity-level": "ratified",
+        "document-name": "rfc7224",
+        "reference": "https://tools.ietf.org/html/rfc7224",
+        "module-type": "module",
+        "expired": false
+    },
+    "ietf-inet-types@2020-07-06-simplified": {
+        "name": "ietf-inet-types",
+        "revision": "2020-07-06",
+        "organization": "ietf",
+        "maturity-level": "adopted",
+        "document-name": "draft-ietf-netmod-rfc6991-bis-04.txt",
+        "reference": "https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/04",
+        "module-type": "module",
+        "expired": false,
+        "expires": "2021-01-07T06:41:06-00:00"
+    },
+    "ietf-inet-types@2021-02-22-simplified": {
+        "name": "ietf-inet-types",
+        "revision": "2021-02-22",
+        "organization": "ietf",
+        "maturity-level": "adopted",
+        "document-name": "draft-ietf-netmod-rfc6991-bis-05.txt",
+        "author-email": "draft-ietf-netmod-rfc6991-bis@ietf.org",
+        "reference": "https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05",
+        "module-type": "module",
+        "expires": "2021-08-26T06:36:43-00:00",
+        "expired": false
+    },
+    "ietf-alarms@2015-05-04-simplified": {
+        "name": "ietf-alarms",
+        "revision": "2015-05-04",
+        "organization": "ietf",
+        "maturity-level": "initial",
+        "document-name": "draft-vallin-alarm-yang-module-00.txt",
+        "reference": "https://datatracker.ietf.org/doc/draft-vallin-alarm-yang-module/00",
+        "module-type": "module",
+        "expired": true
+    },
+    "dhcp-client@2014-12-18-simplified": {
+        "name": "dhcp-client",
+        "revision": "2014-12-18",
+        "organization": "ietf",
+        "maturity-level": "not-applicable",
+        "module-type": "module",
+        "expired": "not-applicable"
     }
 }

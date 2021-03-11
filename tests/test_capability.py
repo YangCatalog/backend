@@ -20,7 +20,6 @@ __email__ = "slavomir.mazur@pantheon.tech"
 import fileinput
 import json
 import os
-import random
 import unittest
 from unittest import mock
 

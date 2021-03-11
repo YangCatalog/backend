@@ -45,3 +45,11 @@ mkdir -p $UTILITY_RESOURCES/modules
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types.yang $UTILITY_RESOURCES/modules/
 touch $UTILITY_RESOURCES/modules/ietf-yang-types@2010-09-24.yang
 cd $BACKEND
+# Prepare directory structure need for resolveExpiration.py
+# TODO: Adjust existing tests to use directory structure in /var/yang if this will work in TravisCI
+export var=/var/yang
+sudo mkdir -p $var
+sudo chown -R $(whoami):$(whoami) $var
+mkdir -p $var/logs/jobs
+mkdir -p $var/tmp
+touch $var/logs/jobs/resolveExpiration.log

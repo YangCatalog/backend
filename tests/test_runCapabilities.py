@@ -19,13 +19,11 @@ __email__ = "slavomir.mazur@pantheon.tech"
 
 import json
 import os
-import time
 import unittest
 from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from utility import repoutil
 from utility.util import hash_file
 
 

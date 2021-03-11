@@ -19,9 +19,7 @@ __email__ = "slavomir.mazur@pantheon.tech"
 
 import json
 import os
-import random
 import unittest
-import xml.etree.ElementTree as ET
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
