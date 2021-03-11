@@ -193,7 +193,7 @@ class MyFlask(Flask):
                             'revision': dep['revision']
                         }
                     })
-                    rp = requests.post('{}/search-filter'.format(
+                    rp = requests.post('{}search-filter'.format(
                         yc_gc.yangcatalog_api_prefix), search_filter,
                         headers={
                             'Content-type': 'application/json',
@@ -202,7 +202,7 @@ class MyFlask(Flask):
                     mo = rp.json()['yang-catalog:modules']['module'][0]
                     self.get_dependencies(mo, mods, inset)
                 else:
-                    rp = requests.get('{}/search/name/{}'
+                    rp = requests.get('{}search/name/{}'
                                       .format(yc_gc.yangcatalog_api_prefix,
                                               dep['name']))
                     if rp.status_code == 404:
@@ -313,7 +313,7 @@ class MyFlask(Flask):
                         os.chown(os.path.join(root, momo), uid, gid)
                 os.chown(path, uid, gid)
                 json_data['yangsuite-url'] = (
-                    '{}/yangsuite/{}'.format(yc_gc.yangcatalog_api_prefix, id))
+                    '{}yangsuite/{}'.format(yc_gc.yangcatalog_api_prefix, id))
                 response.data = json.dumps(json_data)
                 return response
             else:

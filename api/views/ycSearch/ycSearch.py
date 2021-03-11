@@ -906,7 +906,7 @@ def check_semver():
                     elif status_new != 'passed' and status_old == 'passed':
                         reason = 'Newer module failed compilation'
                     else:
-                        file_name = ('{}/services/file1={}@{}/check-update-from/file2={}@{}'
+                        file_name = ('{}services/file1={}@{}/check-update-from/file2={}@{}'
                                      .format(yc_gc.yangcatalog_api_prefix, name_new,
                                              revision_new, name_old,
                                              revision_old))
@@ -914,7 +914,7 @@ def check_semver():
                                   format(file_name))
 
                     diff = (
-                        '{}/services/diff-tree/file1={}@{}/file2={}@{}'.
+                        '{}services/diff-tree/file1={}@{}/file2={}@{}'.
                         format(yc_gc.yangcatalog_api_prefix, name_old,
                                revision_old, name_new, revision_new))
 
@@ -927,7 +927,7 @@ def check_semver():
                     output_mod['old-derived-semantic-version'] = semver_old
                     output_mod['new-derived-semantic-version'] = semver_new
                     output_mod['derived-semantic-version-results'] = reason
-                    diff = ('{}/services/diff-file/file1={}@{}/file2={}@{}'
+                    diff = ('{}services/diff-file/file1={}@{}/file2={}@{}'
                             .format(yc_gc.yangcatalog_api_prefix, name_old,
                                     revision_old, name_new, revision_new))
                     output_mod['yang-module-diff'] = diff
