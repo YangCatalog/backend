@@ -65,8 +65,7 @@ from api.views.userSpecificModuleMaintenace.moduleMaintanace import app as user_
 from api.views.ycJobs.ycJobs import app as jobs_app
 from api.views.ycSearch.ycSearch import app as search_app
 from api.views.healthCheck.healthCheck import app as healthcheck_app
-
-#from flask_wtf.csrf import CSRFProtect
+from api.views.yangSearch.yangSearch import app as yang_serach_app
 
 
 class MyFlask(Flask):
@@ -400,6 +399,7 @@ application.register_blueprint(user_maintenance_app, url_prefix="/api")
 application.register_blueprint(jobs_app, url_prefix="/api")
 application.register_blueprint(search_app, url_prefix="/api")
 application.register_blueprint(healthcheck_app, url_prefix="/api/admin/healthcheck")
+application.register_blueprint(yang_serach_app, url_prefix="/api/yang-search/v2")
 
 CORS(application, supports_credentials=True)
 #csrf = CSRFProtect(application)

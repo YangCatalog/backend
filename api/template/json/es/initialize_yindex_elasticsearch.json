@@ -1,0 +1,100 @@
+{
+  "settings": {
+    "index": {
+      "blocks": {"read_only_allow_delete": "false"},
+      "number_of_shards": 3,
+      "number_of_replicas": 2
+    },
+    "analysis": {
+      "filter":{
+        "synonym":{
+          "type":"synonym",
+          "synonyms_path":"analyzers/F124173889"
+        }
+      },
+      "tokenizer": {
+        "my_tokenizer": {
+          "type": "ngram",
+          "min_gram": 2,
+          "max_gram": 40
+        }
+      },
+      "analyzer": {
+        "my_analyzer_lowercase": {
+          "tokenizer": "my_tokenizer",
+          "filter": [
+            "lowercase",
+            "synonym"
+          ]
+        },
+        "my_analyzer_case_sensitive": {
+          "filter":[
+            "synonym"
+          ],
+          "tokenizer": "my_tokenizer"
+        }
+      }
+    }
+  },
+  "mappings": {
+    "modules": {
+      "properties": {
+        "module": {
+          "type": "text",
+          "analyzer": "my_analyzer_lowercase",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "organization": {
+          "type": "text",
+          "analyzer": "my_analyzer_lowercase",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "argument": {
+          "type": "text",
+          "fields": {
+            "sensitive": {
+              "type": "text",
+              "analyzer": "my_analyzer_case_sensitive"
+            },
+            "lowercase": {
+              "type": "text",
+              "analyzer": "my_analyzer_lowercase"
+            },
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "description": {
+          "type": "text",
+          "fields": {
+            "sensitive": {
+              "type": "text",
+              "analyzer": "my_analyzer_case_sensitive"
+            },
+            "lowercase": {
+              "type": "text",
+              "analyzer": "my_analyzer_lowercase"
+            },
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
