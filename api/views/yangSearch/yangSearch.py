@@ -18,15 +18,13 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
+
 import re
-import requests
+from flask import Blueprint, make_response, jsonify, abort
 
 import utility.log as log
 from api.globalConfig import yc_gc
-from flask import Blueprint, make_response, jsonify, abort, request
 from utility.util import get_curr_dir
-
-from elasticsearch import Elasticsearch
 
 
 class YangSearch(Blueprint):
@@ -60,7 +58,7 @@ def get_services_list(type: str, pattern: str):
         return make_response(jsonify(res), 200)
 
     try:
-        with open(get_curr_dir(__file__) + '/../../template/json/es/completion.json', 'r') as f:
+        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
             completion = json.load(f)
 
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
@@ -101,7 +99,7 @@ def show_node_with_revision(name, path, revision):
     yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
-        with open(get_curr_dir(__file__) + '/../../template/json/es/completion.json', 'r') as f:
+        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
             query = json.load(f)
 
         if name == '':
@@ -187,7 +185,7 @@ def get_yang_catalog_help():
     :return: returns json with yang-catalog help text
     """
     revision = get_latest_module('yang-catalog')
-    query = json.load(open('search/templates/json/get_yang_catalog_yang.json', 'r'))
+    query = json.load(open('search/json/get_yang_catalog_yang.json', 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details = {}
