@@ -19,6 +19,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
 <<<<<<< HEAD
+<<<<<<< HEAD
 import os
 
 import re
@@ -30,17 +31,22 @@ from api.views.yangSearch.elkSearch import ElkSearch
 from utility.util import get_curr_dir
 
 =======
+=======
+
+>>>>>>> Change structure
 import re
-import requests
+from flask import Blueprint, make_response, jsonify, abort
 
 import utility.log as log
 from api.globalConfig import yc_gc
-from flask import Blueprint, make_response, jsonify, abort, request
 from utility.util import get_curr_dir
 
+<<<<<<< HEAD
 from elasticsearch import Elasticsearch
 
 >>>>>>> Move yang-serach unders backend
+=======
+>>>>>>> Change structure
 
 class YangSearch(Blueprint):
 
@@ -267,10 +273,14 @@ def get_services_list(type: str, pattern: str):
 
     try:
 <<<<<<< HEAD
+<<<<<<< HEAD
         with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
 =======
         with open(get_curr_dir(__file__) + '/../../template/json/es/completion.json', 'r') as f:
 >>>>>>> Move yang-serach unders backend
+=======
+        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
+>>>>>>> Change structure
             completion = json.load(f)
 
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
@@ -341,8 +351,12 @@ def show_node_with_revision(name, path, revision):
     yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
+<<<<<<< HEAD
         with open(get_curr_dir(__file__) + '/../../template/json/es/completion.json', 'r') as f:
 >>>>>>> Move yang-serach unders backend
+=======
+        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
+>>>>>>> Change structure
             query = json.load(f)
 
         if name == '':
@@ -454,12 +468,16 @@ def get_yang_catalog_help():
     """
     revision = get_latest_module('yang-catalog')
 <<<<<<< HEAD
+<<<<<<< HEAD
     query = json.load(open(get_curr_dir(__file__) + '/../../json/es/get_yang_catalog_yang.json', 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details_data = {}
 =======
     query = json.load(open('search/templates/json/get_yang_catalog_yang.json', 'r'))
+=======
+    query = json.load(open('search/json/get_yang_catalog_yang.json', 'r'))
+>>>>>>> Change structure
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details = {}
