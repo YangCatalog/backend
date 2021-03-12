@@ -95,7 +95,8 @@ def health_check_elk():
     service_name = 'Elasticsearch'
     try:
         if yc_gc.es_aws:
-            es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]), scheme="https", port=443)
+            es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]),
+                               scheme="https", port=443)
         else:
             es = Elasticsearch([{'host':'{}'.format(yc_gc.es_host), 'port':yc_gc.es_port}])
 
