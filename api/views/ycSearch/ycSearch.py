@@ -1380,7 +1380,7 @@ def catalog_data():
 
 
 def create_bootstrap_info():
-    with open(get_curr_dir(__file__) + '/../../template/bootstrap/info.html', 'r') as f:
+    with open(get_curr_dir(__file__) + '/../../template/info.html', 'r') as f:
         template = f.read()
     return template
 
@@ -1388,7 +1388,7 @@ def create_bootstrap_info():
 def create_bootstrap_warning(text: str, message: str):
     yc_gc.LOGGER.info('Rendering bootstrap warning data')
     context = {'warn_text': text, 'warn_message': message}
-    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/bootstrap/warning.html')
+    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/warning.html')
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)
@@ -1404,9 +1404,13 @@ def create_bootstrap_danger(message: str):
 =======
 =======
     print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
+<<<<<<< HEAD
 >>>>>>> Remove redundant assignement
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
 >>>>>>> Move yang-serach unders backend
+=======
+    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
+>>>>>>> Clean up
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)
