@@ -1398,9 +1398,13 @@ def create_bootstrap_danger(message: str):
     yc_gc.LOGGER.info('Rendering bootstrap danger data')
     context = {'danger_message': message}
 <<<<<<< HEAD
+<<<<<<< HEAD
     print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
 =======
+=======
+    print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
+>>>>>>> Remove redundant assignement
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
 >>>>>>> Move yang-serach unders backend
 
