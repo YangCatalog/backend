@@ -94,10 +94,17 @@ class YangCatalogApiGlobalConfig():
             self.es_aws = False
 
         if self.es_aws:
+<<<<<<< HEAD
             self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
                                  scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+=======
+            self.es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]),
+                                 scheme="https", port=443)
+        else:
+            self.es = Elasticsearch([{'host': '{}'.format(yc_gc.es_host), 'port': yc_gc.es_port}])
+>>>>>>> Move yang-serach unders backend
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -176,11 +183,19 @@ class YangCatalogApiGlobalConfig():
         else:
             self.es_aws = False
         if self.es_aws:
+<<<<<<< HEAD
             self.es = Elasticsearch([self.es_host],
                                       http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
                                       scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+=======
+            self.es = Elasticsearch([yc_gc.es_host],
+                                      http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]),
+                                      scheme="https", port=443)
+        else:
+            self.es = Elasticsearch([{'host': '{}'.format(yc_gc.es_host), 'port': yc_gc.es_port}])
+>>>>>>> Move yang-serach unders backend
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')

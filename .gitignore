@@ -10,7 +10,10 @@ api/standard
 **/*.json
 **/*.html
 !api/template/**/*
+<<<<<<< HEAD
 !api/json/**/*
+=======
+>>>>>>> Move yang-serach unders backend
 /venv
 !statistics/template/stats.html
 yang.egg-info
