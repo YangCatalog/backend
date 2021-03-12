@@ -85,10 +85,10 @@ def show_node(name, path):
     :param path: Path for node.
     :return: returns json to show node
     """
-    return show_node(name, path, None)
+    return show_node_with_revision(name, path, None)
 
 @app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
-def show_node(name, path, revision):
+def show_node_with_revision(name, path, revision):
     """
     View for show_node page, which provides context for show_node.html
     Shows description for yang modules.
