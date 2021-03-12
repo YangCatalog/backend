@@ -1157,7 +1157,6 @@ def create_reference(name: str, revision: str):
         :return preformatted HTML with corresponding data
     """
     path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
-    yang_file_content = ''
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_content = f.read()
@@ -1397,6 +1396,7 @@ def create_bootstrap_warning(text: str, message: str):
 def create_bootstrap_danger(message: str):
     yc_gc.LOGGER.info('Rendering bootstrap danger data')
     context = {'danger_message': message}
+    print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
