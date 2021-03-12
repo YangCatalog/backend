@@ -1,0 +1,19 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "term": {}
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "groupby_module": {
+      "terms": {
+        "field": "",
+        "size": 15
+      }
+    }
+  }
+}

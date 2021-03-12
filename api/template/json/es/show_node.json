@@ -1,0 +1,29 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match_phrase": {
+            "module.keyword": {
+              "query": ""
+            }
+          }
+        },
+        {
+          "match_phrase": {
+            "path": {
+              "query": ""
+            }
+          }
+        },
+        {
+          "match_phrase": {
+            "revision": {
+              "query": ""
+            }
+          }
+        }
+      ]
+    }
+  }
+}
