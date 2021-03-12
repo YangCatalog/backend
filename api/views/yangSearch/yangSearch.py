@@ -304,6 +304,7 @@ def show_node(name, path):
     :return: returns json to show node
     """
 <<<<<<< HEAD
+<<<<<<< HEAD
     return show_node_with_revision(name, path, None)
 
 
@@ -315,6 +316,12 @@ def show_node_with_revision(name, path, revision):
 @app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
 def show_node(name, path, revision):
 >>>>>>> Move yang-serach unders backend
+=======
+    return show_node_with_revision(name, path, None)
+
+@app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
+def show_node_with_revision(name, path, revision):
+>>>>>>> Change definition name
     """
     View for show_node page, which provides context for show_node.html
     Shows description for yang modules.
