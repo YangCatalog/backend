@@ -627,12 +627,12 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
+    new_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
+    old_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
     arguments = ['pyang', '-p',
                  yc_gc.yang_models,
-                 schema1, '--check-update-from',
-                 schema2]
+                 new_schema, '--check-update-from',
+                 old_schema]
     pyang = subprocess.Popen(arguments,
                              stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE)
