@@ -20,10 +20,11 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import json
 
 import re
-from flask import Blueprint, make_response, jsonify, abort
+from flask import Blueprint, make_response, jsonify, abort, request
 
 import utility.log as log
 from api.globalConfig import yc_gc
+from api.views.yangSearch.elkSearch import ElkSearch
 from utility.util import get_curr_dir
 
 
@@ -33,13 +34,67 @@ class YangSearch(Blueprint):
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
-        self.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(yc_gc.logs_dir))
+        self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
 
 
 app = YangSearch('yangSearch', __name__)
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
+@app.route('/search', methods=['POST'])
+def search():
+    if not request.json:
+        abort(400, description='No input data')
+    payload = request.json
+    app.LOGGER.info('Running search with following payload {}'.format(payload))
+    searched_term = payload.get('searched-term')
+    if searched_term is None or searched_term == '' or len(searched_term) < 2 or not isinstance(searched_term, str):
+        abort(400, description='You have to write "searched-term" key containing at least 2 characters')
+    __schema_types = [
+        'typedef',
+        'grouping',
+        'feature',
+        'identity',
+        'extension',
+        'rpc',
+        'container',
+        'list',
+        'leaf-list',
+        'leaf',
+        'notification',
+        'action'
+    ]
+    __output_columns = [
+        'name',
+        'revision',
+        'schema-type',
+        'path',
+        'module-name',
+        'origin',
+        'organization',
+        'maturity',
+        'dependents',
+        'compilation-status',
+        'description'
+    ]
+    case_sensitive = isBoolean(payload, 'case-sensitive', False)
+    keyword_regex = isStringOneOf(payload, 'type', 'keyword', ['keyword', 'regex'])
+    include_mibs = isBoolean(payload, 'include-mibs', False)
+    latest_revision = isBoolean(payload, 'latest-revision', True)
+    searched_fields = isListOneOf(payload, 'searched-fields', ['module', 'argument', 'description'])
+    yang_versions = isListOneOf(payload, 'yang-versions', ['1.0', '1.1'])
+    schema_types = isListOneOf(payload, 'schema-types', __schema_types)
+    output_columns = isListOneOf(payload, 'output-columns', __output_columns)
+    sub_search = eachKeyIsOneOf(payload, 'sub-search', __output_columns)
+    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, keyword_regex, schema_types, yc_gc.logs_dir,
+                           yc_gc.es, latest_revision, yc_gc.redis, include_mibs, yang_versions, output_columns,
+                           __output_columns, sub_search)
+    elk_search.construct_query()
+    # todo search on specific output search from user
+    res = elk_search.search()
+    return make_response(jsonify(res), 200)
+
+
 @app.route('/completions/<type>/<pattern>', methods=['GET'])
 def get_services_list(type: str, pattern: str):
     """
@@ -64,7 +119,7 @@ def get_services_list(type: str, pattern: str):
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
             completion['aggs']['groupby_module']['terms']['field'] = '{}.keyword'.format(type.lower())
             rows = yc_gc.es.search(index='modules', doc_type='modules', body=completion,
-                                        size=0)['aggregations']['groupby_module']['buckets']
+                                   size=0)['aggregations']['groupby_module']['buckets']
 
             for row in rows:
                 res.append(row['key'])
@@ -73,6 +128,7 @@ def get_services_list(type: str, pattern: str):
         app.LOGGER.exception("Failed to get completions result")
         return make_response(jsonify(res), 400)
     return make_response(jsonify(res), 200)
+
 
 @app.route('/show-node/<name>/<path:path>', methods=['GET'])
 def show_node(name, path):
@@ -85,6 +141,7 @@ def show_node(name, path):
     """
     return show_node_with_revision(name, path, None)
 
+
 @app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
 def show_node_with_revision(name, path, revision):
     """
@@ -95,7 +152,7 @@ def show_node_with_revision(name, path, revision):
     :param revision: revision for yang module, if specified.
     :return: returns json to show node
     """
-    context = dict()
+    properties = []
     yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
@@ -121,11 +178,10 @@ def show_node_with_revision(name, path, revision):
             abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
         else:
             result = hits[0]['_source']
-            context = result['path']
             properties = json.loads(result['properties'])
-    except:
-        abort(400, description='Module and path that you specified can not be found')
-    return make_response(jsonify(context), 200)
+    except Exception as e:
+        abort(400, description='Module and path that you specified can not be found - {}'.format(e))
+    return make_response(jsonify(properties), 200)
 
 
 @app.route('/module-details/<module>', methods=['GET'])
@@ -139,7 +195,7 @@ def module_details_no_revision(module: str):
 
 
 @app.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision:str):
+def module_details(module: str, revision: str):
     """
     Search for data saved in our datastore (confd/redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -158,7 +214,7 @@ def module_details(module: str, revision:str):
         # get latest revision of provided module
         revision = revisions[0]
 
-    resp =\
+    resp = \
         {
             'current-module': '{}@{}.yang'.format(module, revision),
             'revisions': revisions
@@ -185,7 +241,7 @@ def get_yang_catalog_help():
     :return: returns json with yang-catalog help text
     """
     revision = get_latest_module('yang-catalog')
-    query = json.load(open('search/json/get_yang_catalog_yang.json', 'r'))
+    query = json.load(open(get_curr_dir(__file__) + '/../../json/es/get_yang_catalog_yang.json', 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details = {}
@@ -194,7 +250,7 @@ def get_yang_catalog_help():
         help_text = ''
         m = m['_source']
         paths = m['path'].split('/')[4:]
-        if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0\
+        if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0 \
                 or 'platforms' in m['path']:
             continue
         if m.get('argument') is not None:
@@ -239,6 +295,7 @@ def update_dictionary_recursively(module_details: dict, path_to_populate: list, 
     else:
         module_details[pop] = {}
         update_dictionary_recursively(module_details[pop], path_to_populate, help_text)
+
 
 def get_modules_revision_organization(module_name, revision=None):
     """
@@ -317,6 +374,7 @@ def elasticsearch_descending_module_querry(module_name):
         ]
     }
 
+
 def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_text: str):
     """
     This definition serves to automatically fill in dictionary with helper texts. This is done recursively,
@@ -337,3 +395,49 @@ def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_te
     else:
         updated_dictionary[pop] = {}
         update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
+
+
+def isBoolean(payload, key, default):
+    obj = payload.get(key, default)
+    if isinstance(obj, bool):
+        return obj
+    else:
+        abort(400, 'Value of key {} must be boolean'.format(key))
+
+
+def isStringOneOf(payload, key, default, one_of):
+    obj = payload.get(key, default)
+    if isinstance(obj, str):
+        if obj not in one_of:
+            abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
+        return obj
+    else:
+        abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
+
+
+def isListOneOf(payload, key, default):
+    objs = payload.get(key, default)
+    if str(objs).lower() == 'all':
+        return default
+    one_of = default
+    if isinstance(objs, list):
+        if len(objs) == 0:
+            return default
+        for obj in objs:
+            if obj not in one_of:
+                abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
+        return objs
+    else:
+        abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
+
+
+def eachKeyIsOneOf(payload, payload_key, keys):
+    rows = payload.get(payload_key, [])
+    if isinstance(rows, list):
+        for row in rows:
+            for key in row.keys():
+                if key not in keys:
+                    abort(400, 'key {} must be string from following list {} in {}'.format(key, keys, payload_key))
+    else:
+        abort(400, 'Value of key {} must be string from following list {}'.format(payload_key, keys))
+    return rows

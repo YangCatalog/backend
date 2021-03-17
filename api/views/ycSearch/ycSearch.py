@@ -36,7 +36,7 @@ from pyang import plugin
 from pyang.plugins.tree import emit_tree
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
-
+from flask_deprecate import deprecate_route
 
 class YcSearch(Blueprint):
 
@@ -51,6 +51,7 @@ app = YcSearch('ycSearch', __name__)
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @app.route('/fast', methods=['POST'])
+@deprecate_route("Use foo instead")
 def fast_search():
     """Search through the YANG keyword index for a given search pattern.
        The arguments are a payload specifying search options and filters.

@@ -170,20 +170,18 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     return (results, limit_reacher.limit_reached)
 
 
-def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=True,
+def scan(client, limit_reacher, query=None, scroll='5m', raise_on_error=True,
          preserve_order=False, size=10000, request_timeout=None, clear_scroll=True,
          scroll_limit=2, scroll_kwargs=None, **kwargs):
     """
     Simple abstraction on top of the
     :meth:`~elasticsearch.Elasticsearch.scroll` api - a simple iterator that
     yields all hits as returned by underlining scroll requests.
-
     By default scan does not return results in any pre-determined order. To
     have a standard order in the returned documents (either by score or
     explicit sort definition) when scrolling, use ``preserve_order=True``. This
     may be an expensive operation and will negate the performance benefits of
     using ``scan``.
-
     :arg client: instance of :class:`~elasticsearch.Elasticsearch` to use
     :arg query: body for the :meth:`~elasticsearch.Elasticsearch.search` api
     :arg scroll: Specify how long a consistent view of the index should be
@@ -201,19 +199,15 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
         to true.
     :arg scroll_kwargs: additional kwargs to be passed to
         :meth:`~elasticsearch.Elasticsearch.scroll`
-
     Any additional keyword arguments will be passed to the initial
     :meth:`~elasticsearch.Elasticsearch.search` call::
-
         scan(es,
             query={"query": {"match": {"title": "python"}}},
             index="orders-*",
             doc_type="books"
         )
-
     """
     scroll_kwargs = scroll_kwargs or {}
-
     if not preserve_order:
         query = query.copy() if query else {}
         query["sort"] = "_doc"
@@ -222,12 +216,11 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
         resp = client.search(body=query, scroll=scroll, size=size,
                              request_timeout=request_timeout, **kwargs)
     except ConnectionTimeout as e:
-        LOGGER.info('connection timed out - \n {}'.format(e))
+        #LOGGER.info('connection timed out - \n {}'.format(e))
         raise e
     scroll_id = resp.get('_scroll_id')
     if scroll_id is None:
         return
-
     try:
         limit = 0
         first_run = True
@@ -241,24 +234,21 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
                 resp = client.scroll(scroll_id, scroll=scroll,
                                      request_timeout=request_timeout,
                                      **scroll_kwargs)
-
             if limit > yeald_limit:
                 for hit in resp['hits']['hits']:
                     yield hit
-
-            # check if we have any errrors
+            # check if we have any errors
             if resp["_shards"]["successful"] < resp["_shards"]["total"]:
-                LOGGER.warning(
-                    'Scroll request has only succeeded on %d shards out of %d.',
-                    resp['_shards']['successful'], resp['_shards']['total']
-                )
+                #LOGGER.warning(
+                #   'Scroll request has only succeeded on %d shards out of %d.',
+                #    resp['_shards']['successful'], resp['_shards']['total']
+                #)
                 if raise_on_error:
                     raise ScanError(
                         scroll_id,
                         'Scroll request has only succeeded on %d shards out of %d.' %
                         (resp['_shards']['successful'], resp['_shards']['total'])
                     )
-
             scroll_id = resp.get('_scroll_id')
             # end of scroll
             if scroll_id is None or not resp['hits']['hits']:
@@ -269,10 +259,7 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
     finally:
         if scroll_id and clear_scroll:
             client.clear_scroll(body={'scroll_id': [scroll_id]}, ignore=(404, ))
-
-
 class LimitReacher():
-
     def __init__(self):
         self.limit_reached = False
 
