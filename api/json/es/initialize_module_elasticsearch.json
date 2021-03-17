@@ -2,7 +2,10 @@
   "settings": {
     "index": {
       "blocks": {"read_only_allow_delete": "false"},
+<<<<<<< HEAD
       "max_ngram_diff": 150,
+=======
+>>>>>>> Add search endpoint
       "number_of_shards": 2,
       "number_of_replicas": 1
     },

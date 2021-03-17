@@ -11,9 +11,13 @@ api/standard
 **/*.html
 !api/template/**/*
 <<<<<<< HEAD
+<<<<<<< HEAD
 !api/json/**/*
 =======
 >>>>>>> Move yang-serach unders backend
+=======
+!api/json/**/*
+>>>>>>> Add search endpoint
 /venv
 !statistics/template/stats.html
 yang.egg-info
