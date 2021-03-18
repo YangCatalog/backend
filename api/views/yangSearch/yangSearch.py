@@ -110,7 +110,53 @@ class YangSearch(Blueprint):
 >>>>>>> Move yang-serach unders backend
 =======
         self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
+<<<<<<< HEAD
 >>>>>>> Add search endpoint
+=======
+        self.order = \
+            {
+                'name': 1,
+                'revision': 2,
+                'organization': 3,
+                'ietf': 4,
+                'ietf-wg': 1,
+                'namespace': 5,
+                'schema': 6,
+                'generated-from': 7,
+                'maturity-level': 8,
+                'document-name': 9,
+                'author-email': 10,
+                'reference': 11,
+                'module-classification': 12,
+                'compilation-status': 13,
+                'compilation-result': 14,
+                'prefix': 15,
+                'yang-version': 16,
+                'description': 17,
+                'contact': 18,
+                'module-type': 19,
+                'belongs-to': 20,
+                'tree-type': 21,
+                'yang-tree': 22,
+                'expires': 23,
+                'expired': 24,
+                'submodule': 25,
+                'dependencies': 26,
+                'dependents': 27,
+                'semantic-version': 28,
+                'derived-semantic-version': 29,
+                'implementations': 30,
+                'implementation': 1,
+                'vendor': 1,
+                'platform': 2,
+                'software-version': 3,
+                'software-flavor': 4,
+                'os-version': 5,
+                'feature-set': 6,
+                'os-type': 7,
+                'conformance-type': 8
+            }
+>>>>>>> Fix module datails output
 
 
 app = YangSearch('yangSearch', __name__)
@@ -535,12 +581,18 @@ def module_details(module: str, revision: str):
 
     # get module from redis
 <<<<<<< HEAD
+<<<<<<< HEAD
     module_index = "{}@{}/{}".format(module, revision, organization)
     app.LOGGER.info('searching for module {}'.format(module_index))
     module_data = yc_gc.redis.get(module_index)
 =======
     module_data = yc_gc.redis.get("{}@{}/{}".format(module, revision, organization))
 >>>>>>> Move yang-serach unders backend
+=======
+    module_index = "{}@{}/{}".format(module, revision, organization)
+    app.LOGGER.info('searching for module {}'.format(module_index))
+    module_data = yc_gc.redis.get(module_index)
+>>>>>>> Fix module datails output
     if module_data is None:
         abort(404, description='Provided module does not exist')
     else:
@@ -577,8 +629,12 @@ def get_yang_catalog_help():
 >>>>>>> Add search endpoint
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
+<<<<<<< HEAD
     module_details = {}
 >>>>>>> Move yang-serach unders backend
+=======
+    module_details_data = {}
+>>>>>>> Fix module datails output
     skip_statement = ['typedef', 'grouping', 'identity']
     for m in yang_catalog_module:
         help_text = ''
@@ -614,6 +670,7 @@ def get_yang_catalog_help():
         paths.reverse()
 
 <<<<<<< HEAD
+<<<<<<< HEAD
         update_dictionary_recursively(module_details_data, paths, help_text)
     return make_response(jsonify(module_details_data), 200)
 
@@ -628,19 +685,32 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
 ### HELPER DEFINITIONS ###
 def update_dictionary_recursively(module_details: dict, path_to_populate: list, help_text: str):
 >>>>>>> Move yang-serach unders backend
+=======
+        update_dictionary_recursively(module_details_data, paths, help_text)
+    return make_response(jsonify(module_details_data), 200)
+
+
+### HELPER DEFINITIONS ###
+def update_dictionary_recursively(module_details_data: dict, path_to_populate: list, help_text: str):
+>>>>>>> Fix module datails output
     """
     Update dictionary. Recursively create dictionary of dictionaries based on the path which are
     nested keys of dictionary and each key has a sibling help-text key which contains the help_text
     string
 <<<<<<< HEAD
+<<<<<<< HEAD
     :param module_details_data: dictionary that we are currently updating recursively
 =======
     :param module_details: dictionary that we are currently updating recursively
 >>>>>>> Move yang-serach unders backend
+=======
+    :param module_details_data: dictionary that we are currently updating recursively
+>>>>>>> Fix module datails output
     :param path_to_populate: list of keys used in dictionary
     :param help_text: text describing each module detail
     """
     if len(path_to_populate) == 0:
+<<<<<<< HEAD
 <<<<<<< HEAD
         module_details_data['help-text'] = help_text
         return
@@ -654,15 +724,23 @@ def update_dictionary_recursively(module_details: dict, path_to_populate: list, 
 
 =======
         module_details['help-text'] = help_text
+=======
+        module_details_data['help-text'] = help_text
+>>>>>>> Fix module datails output
         return
-    pop = path_to_populate.pop()
-    pop = pop.split(":")[-1].split('?')[0]
-    if module_details.get(pop):
-        update_dictionary_recursively(module_details[pop], path_to_populate, help_text)
+    last_path_data = path_to_populate.pop()
+    last_path_data = last_path_data.split(":")[-1].split('?')[0]
+    if module_details_data.get(last_path_data):
+        update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
     else:
+<<<<<<< HEAD
         module_details[pop] = {}
         update_dictionary_recursively(module_details[pop], path_to_populate, help_text)
 >>>>>>> Move yang-serach unders backend
+=======
+        module_details_data[last_path_data] = {'ordering': app.order.get(last_path_data, '')}
+        update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
+>>>>>>> Fix module datails output
 
 
 def get_modules_revision_organization(module_name, revision=None):
@@ -702,6 +780,7 @@ def get_modules_revision_organization(module_name, revision=None):
         for hit in hits:
             hit = hit['_source']
 <<<<<<< HEAD
+<<<<<<< HEAD
             revisions.append(hit['revision'])
         return revisions, organization
     except Exception as e:
@@ -710,6 +789,9 @@ def get_modules_revision_organization(module_name, revision=None):
               .format(module_name, revision))
 =======
             revisions.append(hit)
+=======
+            revisions.append(hit['revision'])
+>>>>>>> Fix module datails output
         return revisions, organization
     except Exception as e:
         raise Exception("Failed to get revisions and organization for {}@{}: {}".format(module_name, revision, e))
