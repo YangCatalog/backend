@@ -2,6 +2,9 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+  * Tests for parse_semver() method [#235](https://github.com/YangCatalog/backend/issues/235)
+  * Derived semantic version generation fixed [#231](https://github.com/YangCatalog/backend/issues/231)
+  * Tests for resolveExpiration.py script [#230](https://github.com/YangCatalog/backend/issues/230)
   * Healthcheck update - ConfD full check [#226](https://github.com/YangCatalog/backend/issues/226)
   * Healthcheck update - Yangcatalog domains [#225](https://github.com/YangCatalog/backend/issues/225)
   * Sync Travis user before accessing repository [#221](https://github.com/YangCatalog/backend/issues/221)

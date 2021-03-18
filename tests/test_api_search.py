@@ -386,7 +386,7 @@ class TestApiSearchClass(unittest.TestCase):
     def test_create_update_from(self):
         """Test if payload contains desired output = comparasion of pyang outputs for two different yang module revisions.
         """
-        desired_output = "{0}/yang-catalog@2018-04-03.yang:1: error: the grouping 'yang-lib-imlementation-leafs', "\
+        desired_output = "{0}/yang-catalog@2018-04-03.yang:1: the grouping 'yang-lib-imlementation-leafs', "\
             "defined at {0}/yang-catalog@2017-09-26.yang:599 is illegally removed\n".format(yc_gc.save_file_dir)
         file1 = 'yang-catalog'
         revision1 = '2018-04-03'

@@ -32,16 +32,15 @@ import json
 import os
 import sys
 import time
-import warnings
 from datetime import datetime
 
 import requests
 from pyang import plugin
-from pyang.plugins.check_update import check_update
 from pyang.plugins.tree import emit_tree
 from utility import log, messageFactory
 from utility.staticVariables import confd_headers
-from utility.util import fetch_module_by_schema, find_first_file
+from utility.util import (context_check_update_from, fetch_module_by_schema,
+                          find_first_file)
 from utility.yangParser import create_context
 
 
@@ -622,7 +621,7 @@ class ModulesComplicatedAlgorithms:
                             new_schema_exist = self.__check_schema_file(modules[-1])
 
                             if old_schema_exist and new_schema_exist:
-                                ctx, new_schema_ctx = self.__validate_context(old_schema, new_schema)
+                                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, self.__yang_models, self.__save_file_dir)
                                 if len(ctx.errors) == 0:
                                     if ('{}@{}'.format(modules[-1]['name'], modules[-1]['revision']) in self.__trees and
                                             '{}@{}'.format(modules[-2]['name'], modules[-2]['revision']) in self.__trees):
@@ -760,7 +759,7 @@ class ModulesComplicatedAlgorithms:
                                 new_schema_exist = self.__check_schema_file(modules[x])
 
                                 if old_schema_exist and new_schema_exist:
-                                    ctx, new_schema_ctx = self.__validate_context(old_schema, new_schema)
+                                    ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, self.__yang_models, self.__save_file_dir)
                                     if len(ctx.errors) == 0:
                                         if ('{}@{}'.format(modules[x - 1]['name'], modules[x - 1]['revision']) in self.__trees and
                                                 '{}@{}'.format(modules[x]['name'], modules[x]['revision']) in self.__trees):
@@ -923,38 +922,6 @@ class ModulesComplicatedAlgorithms:
                                                     self.new_modules[name_revision]['dependents'] = mod['dependents']
                                                 else:
                                                     self.new_modules[name_revision]['dependents'].append(new)
-
-    def __validate_context(self, old_schema: str, new_schema: str):
-        plugin.plugins = []
-        plugin.init([])
-        ctx = create_context(
-            '{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
-        ctx.opts.lint_namespace_prefixes = []
-        ctx.opts.lint_modulename_prefixes = []
-        for p in plugin.plugins:
-            p.setup_ctx(ctx)
-        with open(new_schema, 'r', errors='ignore') as f:
-            new_schema_ctx = ctx.add_module(new_schema, f.read())
-        ctx.opts.check_update_from = old_schema
-        ctx.opts.old_path = [os.path.abspath(self.__yang_models)]
-        ctx.opts.verbose = False
-        ctx.opts.old_deviation = []
-        retry = 5
-        while retry:
-            try:
-                ctx.validate()
-                # NOTE: ResourceWarning appears due to the incorrect way pyang opens files for reading
-                # ResourceWarning: Enable tracemalloc to get the object allocation traceback
-                with warnings.catch_warnings(record=True):
-                    check_update(ctx, new_schema_ctx)
-                break
-            except Exception as e:
-                retry -= 1
-                if retry == 0:
-                    LOGGER.error('Failed to validate the context for 5 times in a row.')
-                    raise e
-
-        return ctx, new_schema_ctx
 
     def __find_file(self, name: str, revision: str = '*'):
         yang_name = '{}.yang'.format(name)
