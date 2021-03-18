@@ -2,6 +2,7 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+  * Unified the way how --check-update-from is used [#237](https://github.com/YangCatalog/backend/issues/237)
   * Tests for parse_semver() method [#235](https://github.com/YangCatalog/backend/issues/235)
   * Derived semantic version generation fixed [#231](https://github.com/YangCatalog/backend/issues/231)
   * Tests for resolveExpiration.py script [#230](https://github.com/YangCatalog/backend/issues/230)
