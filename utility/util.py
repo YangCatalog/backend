@@ -22,18 +22,22 @@ import configparser as ConfigParser
 import fnmatch
 import hashlib
 import json
+import optparse
 import os
 import socket
 import stat
-import subprocess
 import sys
 import time
+import warnings
 
 import requests
 from Crypto.Hash import HMAC, SHA
 from elasticsearch import Elasticsearch
+from pyang import plugin
+from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
+from utility.yangParser import create_context
 
 
 def get_curr_dir(path: str):
@@ -202,7 +206,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
             else:
                 prefix = 'vendor/'
 
-            for module in sdos_json['module']:
+            for module in sdos_json.get('module', []):
                 url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
                                                          module['name'],
                                                          module['revision'],
@@ -220,7 +224,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                     key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
                     post_body[key] = path
         else:
-            for module in sdos_json['module']:
+            for module in sdos_json.get('module', []):
                 url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
                                                          module['name'],
                                                          module['revision'],
@@ -370,10 +374,10 @@ def get_module_from_es(name: str, revision: str):
                 "bool": {
                     "must": [{
                         "match_phrase": {
-                                "module.keyword": {
-                                    "query": name
-                                }
-                                }
+                            "module.keyword": {
+                                "query": name
+                            }
+                        }
                     }, {
                         "match_phrase": {
                             "revision": {
@@ -391,3 +395,45 @@ def get_module_from_es(name: str, revision: str):
         return {}
 
     return es_result
+
+
+def context_check_update_from(old_schema: str, new_schema: str, yang_models: str, save_file_dir: str):
+    """ Perform pyang --check-update-from validation using context.
+
+    Argumets:
+        :param old_schema       (str) full path to the yang file with older revision
+        :param new_schema       (str) full path to the yang file with newer revision
+        :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
+        :param save_file_dir    (str) path to the directory where all the yang files will be saved
+    """
+    plugin.plugins = []
+    plugin.init([])
+    ctx = create_context(
+        '{}:{}'.format(os.path.abspath(yang_models), save_file_dir))
+    ctx.opts.lint_namespace_prefixes = []
+    ctx.opts.lint_modulename_prefixes = []
+    optParser = optparse.OptionParser('', add_help_option=False)
+    for p in plugin.plugins:
+        p.setup_ctx(ctx)
+        p.add_opts(optParser)
+    with open(new_schema, 'r', errors='ignore') as f:
+        new_schema_ctx = ctx.add_module(new_schema, f.read())
+    ctx.opts.check_update_from = old_schema
+    ctx.opts.old_path = [os.path.abspath(yang_models)]
+    ctx.opts.verbose = False
+    ctx.opts.old_deviation = []
+    retry = 5
+    while retry:
+        try:
+            ctx.validate()
+            # NOTE: ResourceWarning appears due to the incorrect way pyang opens files for reading
+            # ResourceWarning: Enable tracemalloc to get the object allocation traceback
+            with warnings.catch_warnings(record=True):
+                check_update(ctx, new_schema_ctx)
+            break
+        except Exception as e:
+            retry -= 1
+            if retry == 0:
+                raise e
+
+    return ctx, new_schema_ctx

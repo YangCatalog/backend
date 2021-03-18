@@ -23,8 +23,6 @@ import io
 import json
 import os
 import re
-import subprocess
-import sys
 from copy import deepcopy
 
 import api.yangSearch.elasticsearchIndex as inde
@@ -32,9 +30,9 @@ import jinja2
 import requests
 from api.globalConfig import yc_gc
 from flask import Blueprint, Response, abort, jsonify, make_response, request
-from pyang import plugin
+from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
-from utility.util import get_curr_dir
+from utility.util import context_check_update_from, get_curr_dir
 from utility.yangParser import create_context
 
 
@@ -627,19 +625,18 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
-    arguments = ['pyang', '-p',
-                 yc_gc.yang_models,
-                 schema1, '--check-update-from',
-                 schema2]
-    pyang = subprocess.Popen(arguments,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
-    if sys.version_info >= (3, 4):
-        stderr = stderr.decode(encoding='utf-8', errors='strict')
-    return '<html><body><pre>{}</pre></body></html>'.format(stderr)
+    new_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
+    old_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
+    ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
+
+    errors = []
+    for ctx_err in ctx.errors:
+        ref = '{}:{}:'.format(ctx_err[0].ref, ctx_err[0].line)
+        err_message = error.err_to_str(ctx_err[1], ctx_err[2])
+        err = '{} {}\n'.format(ref, err_message)
+        errors.append(err)
+
+    return '<html><body><pre>{}</pre></body></html>'.format(''.join(errors))
 
 
 @app.route('/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2>', methods=['GET'])
@@ -1046,6 +1043,7 @@ def search_vendors(value: str):
         vendors_data = {'yang-catalog:software-version': [vendors_data]}
         return Response(json.dumps(vendors_data), mimetype='application/json')
 
+
 @app.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
 def search_module(name: str, revision: str, organization: str):
     """Search for a specific module defined with name, revision and organization
@@ -1170,7 +1168,7 @@ def create_reference(name: str, revision: str):
     return '<html><body><pre>{}</pre></body></html>'.format(yang_file_content)
 
 
-### HELPER DEFINITIONS
+# HELPER DEFINITIONS
 def filter_using_api(res_row, payload):
     try:
         if 'filter' not in payload or 'module-metadata-filter' not in payload['filter']:
