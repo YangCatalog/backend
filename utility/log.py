@@ -40,6 +40,7 @@ def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging
     handler = logging.FileHandler(file_name_path)
     handler.setFormatter(logging.Formatter(FORMAT, DATEFMT))
     logger = logging.getLogger(name)
+    logging.getLogger('elasticsearch').setLevel(logging.ERROR)
     logger.setLevel(level)
     logger.addHandler(handler)
 
