@@ -356,7 +356,7 @@ def search():
     ]
     response = {}
     case_sensitive = isBoolean(payload, 'case-sensitive', False)
-    terms_regex = isStringOneOf(payload, 'type', 'term', ['term', 'regex'])
+    terms_regex = isStringOneOf(payload, 'type', 'term', ['term', 'regexp'])
     include_mibs = isBoolean(payload, 'include-mibs', False)
     latest_revision = isBoolean(payload, 'latest-revision', True)
     searched_fields = isListOneOf(payload, 'searched-fields', ['module', 'argument', 'description'])
