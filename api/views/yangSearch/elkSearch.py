@@ -72,13 +72,13 @@ class ElkSearch:
                 'query': {
                     'bool': {
                         'must': [{
-#                            'bool': {
-#                                'must': {
+                            'bool': {
+                                'must': {
                                     'terms': {
                                         'statement': schema_types
                                     }
- #                               }
- #                           }
+                                }
+                            }
                         }, {
                             'bool': {
                                 'should': []
@@ -221,19 +221,17 @@ class ElkSearch:
         for searched_field in self.__searched_fields:
             should_query = \
                 {
-#                    'bool': {
-#                        'must': {
+                    'bool': {
+                        'must': {
                             self.__type: {}
- #                       }
- #                   }
+                        }
+                    }
                 }
             if searched_field == 'module':
-        #        should_query['bool']['must'][self.__type][searched_field] = self.__searched_term
-                should_query[self.__type][searched_field] = self.__searched_term
+                should_query['bool']['must'][self.__type][searched_field] = self.__searched_term
             else:
-                should_query[self.__type]['{}.{}'.format(searched_field, sensitive)] = self.__searched_term
-         #       should_query['bool']['must'][self.__type][
-         #           '{}.{}'.format(searched_field, sensitive)] = self.__searched_term
+                should_query['bool']['must'][self.__type][
+                    '{}.{}'.format(searched_field, sensitive)] = self.__searched_term
             search_in.append(should_query)
         self.LOGGER.debug('query:  {}'.format(self.query))
 
@@ -253,11 +251,11 @@ class ElkSearch:
         hits = gevent.queue.JoinableQueue()
         process_first_search = gevent.spawn(self.__first_scroll, hits)
 
-        self.LOGGER.info('Running first search in parallel')
+        self.LOGGER.debug('Running first search in parallel')
         if self.__latest_revision:
-            self.LOGGER.info('Processing aggregations search in parallel')
+            self.LOGGER.debug('Processing aggregations search in parallel')
             self.__resolve_aggregations()
-            self.LOGGER.info('Aggregations processed joining the search')
+            self.LOGGER.debug('Aggregations processed joining the search')
         process_first_search.join()
         processed_rows = self.__process_hits(hits.get(), [])
         if self.__current_scroll_id is not None:
@@ -268,11 +266,9 @@ class ElkSearch:
         if reject is None:
             reject = []
         if hits is None or len(hits) == 0:
-            self.LOGGER.debug("no more hits")
             return response_rows
         secondary_hits = gevent.queue.JoinableQueue()
         process_scroll_search = gevent.spawn(self.__continue_scrolling, secondary_hits)
-        self.LOGGER.info('Processing secondary search in parallel')
         for hit in hits:
             row = {}
             source = hit['_source']
@@ -280,9 +276,7 @@ class ElkSearch:
             revision = source['revision'].replace('02-28', '02-29')
             organization = source['organization']
             module_index = '{}@{}/{}'.format(name, revision, organization)
-            self.LOGGER.info('processing hit {}'.format(module_index))
             if module_index in reject:
-                self.LOGGER.info('rejected')
                 continue
             if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
                 # we need argument, description, path and statement out of the elk response
@@ -300,7 +294,6 @@ class ElkSearch:
                     reject.append(module_index)
                     self.__missing_modules.append(module_index)
                     continue
-                self.LOGGER.info('module data found')
                 if self.__rejects_mibs_or_versions(module_index, reject, module_data):
                     continue
                 row['name'] = argument
@@ -320,13 +313,11 @@ class ElkSearch:
                 row['dependents'] = len(module_data.get('dependents', []))
                 row['compilation-status'] = module_data.get('compilation-status', 'unknown')
                 row['description'] = description
-                self.LOGGER.info('row created')
                 if not self.__found_in_sub_search(row):
-                    self.LOGGER.info('found in subsearch skipping')
                     continue
                 self.__trim_and_hash_row_by_columns(row, response_rows)
                 if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
-                    self.LOGGER.info('elk search finished with len {} and scroll id {}'
+                    self.LOGGER.debug('elk search finished with len {} and scroll id {}'
                                      .format(len(response_rows), self.__current_scroll_id))
                     process_scroll_search.kill()
                     return response_rows
@@ -341,7 +332,6 @@ class ElkSearch:
         try:
             query_no_agg = self.query.copy()
             query_no_agg.pop('aggs', '')
-            self.LOGGER.debug('starting the first search')
             elk_response = self.__es.search(index='yindex', doc_type='modules', body=query_no_agg, request_timeout=20,
                                             scroll=u'2m', size=self.__response_size)
         except ConnectionTimeout as e:
@@ -384,7 +374,6 @@ class ElkSearch:
         return False
 
     def __trim_and_hash_row_by_columns(self, row: dict, response_rows: list):
-        self.LOGGER.info('len or remove columns {}'.format(len(self.__remove_columns)))
         if len(self.__remove_columns) == 0:
             response_rows.append(row)
         else:
