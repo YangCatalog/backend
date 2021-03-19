@@ -26,6 +26,7 @@ import optparse
 import os
 import socket
 import stat
+import subprocess
 import sys
 import time
 import warnings
