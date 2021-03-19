@@ -35,6 +35,7 @@ class YangSearch(Blueprint):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
         self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
+        # ordering important for frontend to show metadata in correct order
         self.order = \
             {
                 'name': 1,
@@ -83,7 +84,7 @@ class YangSearch(Blueprint):
 app = YangSearch('yangSearch', __name__)
 
 
-### ROUTE ENDPOINT DEFINITIONS ###
+# ROUTE ENDPOINT DEFINITIONS
 @app.route('/search', methods=['POST'])
 def search():
     if not request.json:
@@ -120,8 +121,9 @@ def search():
         'compilation-status',
         'description'
     ]
+    response = {}
     case_sensitive = isBoolean(payload, 'case-sensitive', False)
-    keyword_regex = isStringOneOf(payload, 'type', 'keyword', ['keyword', 'regex'])
+    terms_regex = isStringOneOf(payload, 'type', 'term', ['term', 'regex'])
     include_mibs = isBoolean(payload, 'include-mibs', False)
     latest_revision = isBoolean(payload, 'latest-revision', True)
     searched_fields = isListOneOf(payload, 'searched-fields', ['module', 'argument', 'description'])
@@ -129,13 +131,13 @@ def search():
     schema_types = isListOneOf(payload, 'schema-types', __schema_types)
     output_columns = isListOneOf(payload, 'output-columns', __output_columns)
     sub_search = eachKeyIsOneOf(payload, 'sub-search', __output_columns)
-    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, keyword_regex, schema_types, yc_gc.logs_dir,
+    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, yc_gc.logs_dir,
                            yc_gc.es, latest_revision, yc_gc.redis, include_mibs, yang_versions, output_columns,
                            __output_columns, sub_search)
     elk_search.construct_query()
-    # todo search on specific output search from user
-    res = elk_search.search()
-    return make_response(jsonify(res), 200)
+    response['rows'] = elk_search.search()
+    response['warning'] = elk_search.alerts()
+    return make_response(jsonify(response), 200)
 
 
 @app.route('/completions/<type>/<pattern>', methods=['GET'])
@@ -249,7 +251,7 @@ def module_details(module: str, revision: str):
     if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
         abort(400, description='Revision provided has wrong format please use "YYYY-MM-DD" format')
 
-    revisions, organization = get_modules_revision_organization(module, revision)
+    revisions, organization = get_modules_revision_organization(module, None)
     if len(revisions) == 0:
         abort(404, description='Provided module does not exist')
 
@@ -320,7 +322,7 @@ def get_yang_catalog_help():
     return make_response(jsonify(module_details_data), 200)
 
 
-### HELPER DEFINITIONS ###
+# HELPER DEFINITIONS
 def update_dictionary_recursively(module_details_data: dict, path_to_populate: list, help_text: str):
     """
     Update dictionary. Recursively create dictionary of dictionaries based on the path which are
