@@ -18,6 +18,7 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 import json
 import multiprocessing
 
@@ -28,14 +29,20 @@ from utility import log
 import gevent.queue
 =======
 import hashlib
+=======
+>>>>>>> Push progress on yang search
 import json
 import multiprocessing
 
+import hashlib
 from elasticsearch import Elasticsearch, ConnectionTimeout
 from redis import Redis
-
 from utility import log
+<<<<<<< HEAD
 >>>>>>> Add search endpoint
+=======
+import gevent.queue
+>>>>>>> Push progress on yang search
 
 
 class ElkSearch:
@@ -58,10 +65,14 @@ class ElkSearch:
                  schema_types: list, logs_dir: str, es: Elasticsearch, latest_revision: bool,
                  redis: Redis, include_mibs: bool, yang_versions: list, needed_output_colums: list,
 <<<<<<< HEAD
+<<<<<<< HEAD
                  all_output_columns: list, sub_search: list) -> None:
 =======
                  all_output_columns: list, sub_search:list) -> None:
 >>>>>>> Add search endpoint
+=======
+                 all_output_columns: list, sub_search: list) -> None:
+>>>>>>> Push progress on yang search
         """
         Initialization of search under elasticsearch engine. We need to prepare a query
         that will be used to search in elasticsearch.
@@ -87,13 +98,13 @@ class ElkSearch:
                 'query': {
                     'bool': {
                         'must': [{
-                            'bool': {
-                                'must': {
+#                            'bool': {
+#                                'must': {
                                     'terms': {
                                         'statement': schema_types
                                     }
-                                }
-                            }
+ #                               }
+ #                           }
                         }, {
                             'bool': {
                                 'should': []
@@ -133,6 +144,9 @@ class ElkSearch:
         self.__remove_columns = list(set(all_output_columns) - set(needed_output_colums))
         self.__row_hashes = []
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Push progress on yang search
         self.__missing_modules = []
         self.LOGGER = log.get_logger('yc-elasticsearch', '{}/yang.log'.format(logs_dir))
 
@@ -145,9 +159,12 @@ class ElkSearch:
         for missing in self.__missing_modules:
             alerts.append('Module {} metadata does not exist in yangcatalog'.format(missing))
         return alerts
+<<<<<<< HEAD
 =======
         self.LOGGER = log.get_logger('elasticsearch', '{}/yang.log'.format(logs_dir))
 >>>>>>> Add search endpoint
+=======
+>>>>>>> Push progress on yang search
 
     def construct_query(self):
         """
@@ -245,23 +262,29 @@ class ElkSearch:
         for searched_field in self.__searched_fields:
             should_query = \
                 {
-                    'bool': {
-                        'must': {
+#                    'bool': {
+#                        'must': {
                             self.__type: {}
-                        }
-                    }
+ #                       }
+ #                   }
                 }
             if searched_field == 'module':
-                should_query['bool']['must'][self.__type][searched_field] = self.__searched_term
+        #        should_query['bool']['must'][self.__type][searched_field] = self.__searched_term
+                should_query[self.__type][searched_field] = self.__searched_term
             else:
-                should_query['bool']['must'][self.__type][
-                    '{}.{}'.format(searched_field, sensitive)] = self.__searched_term
+                should_query[self.__type]['{}.{}'.format(searched_field, sensitive)] = self.__searched_term
+         #       should_query['bool']['must'][self.__type][
+         #           '{}.{}'.format(searched_field, sensitive)] = self.__searched_term
             search_in.append(should_query)
+<<<<<<< HEAD
 <<<<<<< HEAD
         self.LOGGER.debug('query:  {}'.format(self.query))
 =======
             self.LOGGER.info('query:  {}'.format(self.query))
 >>>>>>> Add search endpoint
+=======
+        self.LOGGER.debug('query:  {}'.format(self.query))
+>>>>>>> Push progress on yang search
 
     def search(self):
         """
@@ -277,6 +300,7 @@ class ElkSearch:
         :return list of rows containing dictionary that is filled with output for each column for yangcatalog search
         """
 <<<<<<< HEAD
+<<<<<<< HEAD
         hits = gevent.queue.JoinableQueue()
         process_first_search = gevent.spawn(self.__first_scroll, hits)
 
@@ -291,38 +315,54 @@ class ElkSearch:
         hits = []
         process_first_search = multiprocessing.Process(target=self.__first_scroll, args=(hits,))
         process_first_search.start()
+=======
+        hits = gevent.queue.JoinableQueue()
+        process_first_search = gevent.spawn(self.__first_scroll, hits)
+
+>>>>>>> Push progress on yang search
         self.LOGGER.info('Running first search in parallel')
-        all_revisions = True
         if self.__latest_revision:
-            all_revisions = False
-            process_aggregations = multiprocessing.Process(target=self.__resolve_aggregations)
-            process_aggregations.start()
             self.LOGGER.info('Processing aggregations search in parallel')
-            process_aggregations.join()
+            self.__resolve_aggregations()
+            self.LOGGER.info('Aggregations processed joining the search')
         process_first_search.join()
+<<<<<<< HEAD
         processed_rows = self.__process_hits(hits, all_revisions, [])
 >>>>>>> Add search endpoint
+=======
+        processed_rows = self.__process_hits(hits.get(), [])
+>>>>>>> Push progress on yang search
         if self.__current_scroll_id is not None:
             self.__es.clear_scroll(body={'scroll_id': [self.__current_scroll_id]}, ignore=(404,))
         return processed_rows
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Push progress on yang search
     def __process_hits(self, hits: list, response_rows: list, reject=None):
         if reject is None:
             reject = []
         if hits is None or len(hits) == 0:
+<<<<<<< HEAD
             return response_rows
         secondary_hits = gevent.queue.JoinableQueue()
         process_scroll_search = gevent.spawn(self.__continue_scrolling, secondary_hits)
 =======
     def __process_hits(self, hits: list, all_revisions: bool, response_rows: list):
         if hits is None or len(hits) == 0 :
+=======
+            self.LOGGER.debug("no more hits")
+>>>>>>> Push progress on yang search
             return response_rows
-        secondary_hits = []
-        process_scroll_search = multiprocessing.Process(target=self.__continue_scrolling, args=(secondary_hits,))
+        secondary_hits = gevent.queue.JoinableQueue()
+        process_scroll_search = gevent.spawn(self.__continue_scrolling, secondary_hits)
         self.LOGGER.info('Processing secondary search in parallel')
+<<<<<<< HEAD
         reject = []
 >>>>>>> Add search endpoint
+=======
+>>>>>>> Push progress on yang search
         for hit in hits:
             row = {}
             source = hit['_source']
@@ -330,13 +370,19 @@ class ElkSearch:
             revision = source['revision'].replace('02-28', '02-29')
             organization = source['organization']
             module_index = '{}@{}/{}'.format(name, revision, organization)
+            self.LOGGER.info('processing hit {}'.format(module_index))
             if module_index in reject:
+                self.LOGGER.info('rejected')
                 continue
+<<<<<<< HEAD
 <<<<<<< HEAD
             if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
 =======
             if all_revisions or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
 >>>>>>> Add search endpoint
+=======
+            if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
+>>>>>>> Push progress on yang search
                 # we need argument, description, path and statement out of the elk response
                 argument = source['argument']
                 description = source['description']
@@ -350,11 +396,18 @@ class ElkSearch:
                     self.LOGGER.error('Failed to get module from redis but found in elasticsearch {}'
                                       .format(module_index))
 <<<<<<< HEAD
+<<<<<<< HEAD
                     reject.append(module_index)
                     self.__missing_modules.append(module_index)
                     continue
 =======
 >>>>>>> Add search endpoint
+=======
+                    reject.append(module_index)
+                    self.__missing_modules.append(module_index)
+                    continue
+                self.LOGGER.info('module data found')
+>>>>>>> Push progress on yang search
                 if self.__rejects_mibs_or_versions(module_index, reject, module_data):
                     continue
                 row['name'] = argument
@@ -374,9 +427,12 @@ class ElkSearch:
                 row['dependents'] = len(module_data.get('dependents', []))
                 row['compilation-status'] = module_data.get('compilation-status', 'unknown')
                 row['description'] = description
+                self.LOGGER.info('row created')
                 if not self.__found_in_sub_search(row):
+                    self.LOGGER.info('found in subsearch skipping')
                     continue
                 self.__trim_and_hash_row_by_columns(row, response_rows)
+<<<<<<< HEAD
 <<<<<<< HEAD
                 if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
                     self.LOGGER.debug('elk search finished with len {} and scroll id {}'
@@ -386,20 +442,31 @@ class ElkSearch:
                 if len(response_rows) >= self.__response_size or self.__current_scroll_id:
                     process_scroll_search.terminate()
 >>>>>>> Add search endpoint
+=======
+                if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
+                    self.LOGGER.info('elk search finished with len {} and scroll id {}'
+                                     .format(len(response_rows), self.__current_scroll_id))
+                    process_scroll_search.kill()
+>>>>>>> Push progress on yang search
                     return response_rows
             else:
                 reject.append(module_index)
 
         process_scroll_search.join()
 <<<<<<< HEAD
+<<<<<<< HEAD
         return self.__process_hits(secondary_hits.get(), response_rows, reject)
 =======
         return self.__process_hits(secondary_hits, all_revisions, response_rows)
 >>>>>>> Add search endpoint
+=======
+        return self.__process_hits(secondary_hits.get(), response_rows, reject)
+>>>>>>> Push progress on yang search
 
     def __first_scroll(self, hits):
         elk_response = {}
         try:
+<<<<<<< HEAD
 <<<<<<< HEAD
             query_no_agg = self.query.copy()
             query_no_agg.pop('aggs', '')
@@ -417,22 +484,35 @@ class ElkSearch:
             hits.put([])
 =======
             elk_response = self.__es.search(index='yindex', doc_type='modules', body=self.query, request_timeout=20,
+=======
+            query_no_agg = self.query.copy()
+            query_no_agg.pop('aggs', '')
+            self.LOGGER.debug('starting the first search')
+            elk_response = self.__es.search(index='yindex', doc_type='modules', body=query_no_agg, request_timeout=20,
+>>>>>>> Push progress on yang search
                                             scroll=u'2m', size=self.__response_size)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
+            elk_response['hits'] = {'hits': []}
+        self.LOGGER.debug('search complete with {} hits'.format(len(elk_response['hits']['hits'])))
         self.__current_scroll_id = elk_response.get('_scroll_id')
-        hits = elk_response['hits']['hits']
+        hits.put(elk_response['hits']['hits'])
 
     def __continue_scrolling(self, hits):
         if self.__current_scroll_id is None:
+<<<<<<< HEAD
             hits = []
 >>>>>>> Add search endpoint
+=======
+            hits.put([])
+>>>>>>> Push progress on yang search
             return
         elk_response = {}
         try:
             elk_response = self.__es.scroll(self.__current_scroll_id, scroll=u'2m', request_timeout=20)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
+<<<<<<< HEAD
 <<<<<<< HEAD
             elk_response['hits'] = {'hits': []}
         self.__current_scroll_id = elk_response.get('_scroll_id')
@@ -441,6 +521,11 @@ class ElkSearch:
         self.__current_scroll_id = elk_response.get('_scroll_id')
         hits = elk_response['hits']['hits']
 >>>>>>> Add search endpoint
+=======
+            elk_response['hits'] = {'hits': []}
+        self.__current_scroll_id = elk_response.get('_scroll_id')
+        hits.put(elk_response['hits']['hits'])
+>>>>>>> Push progress on yang search
 
     def __resolve_aggregations(self):
         response = {'aggregations': {'groupby': {'buckets': []}}}
@@ -462,16 +547,21 @@ class ElkSearch:
         return False
 
     def __trim_and_hash_row_by_columns(self, row: dict, response_rows: list):
+        self.LOGGER.info('len or remove columns {}'.format(len(self.__remove_columns)))
         if len(self.__remove_columns) == 0:
             response_rows.append(row)
         else:
             # if we are removing some columns we need to make sure that we trim the output if it is same.
             # This actually happens only if name description or path is being removed
 <<<<<<< HEAD
+<<<<<<< HEAD
             if 'name' in self.__remove_columns or 'description' in self.__remove_columns \
 =======
             if 'name' in self.__remove_columns or 'description' in self.__remove_columns\
 >>>>>>> Add search endpoint
+=======
+            if 'name' in self.__remove_columns or 'description' in self.__remove_columns \
+>>>>>>> Push progress on yang search
                     or 'path' in self.__remove_columns:
                 row_hash = hashlib.sha256()
                 for key, value in row.items():
@@ -488,11 +578,16 @@ class ElkSearch:
 
                     if row_hexadecimal in self.__row_hashes:
 <<<<<<< HEAD
+<<<<<<< HEAD
                         self.LOGGER.info(
                             'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
 =======
                         self.LOGGER.info('Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
 >>>>>>> Add search endpoint
+=======
+                        self.LOGGER.info(
+                            'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
+>>>>>>> Push progress on yang search
                     else:
                         self.__row_hashes.append(row_hexadecimal)
                         response_rows.append(row)
@@ -504,10 +599,15 @@ class ElkSearch:
 
     def __found_in_sub_search(self, row):
 <<<<<<< HEAD
+<<<<<<< HEAD
         if len(self.__sub_search) == 0:
             return True
 =======
 >>>>>>> Add search endpoint
+=======
+        if len(self.__sub_search) == 0:
+            return True
+>>>>>>> Push progress on yang search
         for search in self.__sub_search:
             passed = True
             for key, value in search.items():
@@ -518,6 +618,9 @@ class ElkSearch:
                 return True
         return False
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> Add search endpoint
+=======
+>>>>>>> Push progress on yang search
