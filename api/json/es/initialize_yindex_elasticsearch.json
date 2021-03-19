@@ -2,6 +2,7 @@
   "settings": {
     "index": {
       "blocks": {"read_only_allow_delete": "false"},
+      "max_ngram_diff": 150,
       "number_of_shards": 3,
       "number_of_replicas": 2
     },
