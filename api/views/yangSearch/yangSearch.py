@@ -807,8 +807,14 @@ def get_modules_revision_organization(module_name, revision=None):
 >>>>>>> Fix module datails output
         return revisions, organization
     except Exception as e:
+<<<<<<< HEAD
         raise Exception("Failed to get revisions and organization for {}@{}: {}".format(module_name, revision, e))
 >>>>>>> Move yang-serach unders backend
+=======
+        app.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
+        abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
+              .format(module_name, revision))
+>>>>>>> Do not raise exception but rather
 
 
 def get_latest_module(module_name):
@@ -823,11 +829,16 @@ def get_latest_module(module_name):
         return rev_org['revision']
     except Exception as e:
 <<<<<<< HEAD
+<<<<<<< HEAD
         app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
         abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
 =======
         raise Exception("Failed to get revision for {}: {}".format(module_name, e))
 >>>>>>> Move yang-serach unders backend
+=======
+        app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
+        abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
+>>>>>>> Do not raise exception but rather
 
 
 def elasticsearch_descending_module_querry(module_name):

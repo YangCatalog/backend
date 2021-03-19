@@ -3,9 +3,13 @@
     "index": {
       "blocks": {"read_only_allow_delete": "false"},
 <<<<<<< HEAD
+<<<<<<< HEAD
       "max_ngram_diff": 150,
 =======
 >>>>>>> Add search endpoint
+=======
+      "max_ngram_diff": 150,
+>>>>>>> Do not raise exception but rather
       "number_of_shards": 3,
       "number_of_replicas": 2
     },
