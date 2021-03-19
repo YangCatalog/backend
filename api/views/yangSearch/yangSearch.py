@@ -383,7 +383,9 @@ def get_modules_revision_organization(module_name, revision=None):
             revisions.append(hit['revision'])
         return revisions, organization
     except Exception as e:
-        raise Exception("Failed to get revisions and organization for {}@{}: {}".format(module_name, revision, e))
+        app.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
+        abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
+              .format(module_name, revision))
 
 
 def get_latest_module(module_name):
@@ -397,7 +399,8 @@ def get_latest_module(module_name):
         rev_org = yc_gc.es.search(index='modules', doc_type='modules', body=query)['hits']['hits'][0]['_source']
         return rev_org['revision']
     except Exception as e:
-        raise Exception("Failed to get revision for {}: {}".format(module_name, e))
+        app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
+        abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
 
 
 def elasticsearch_descending_module_querry(module_name):
