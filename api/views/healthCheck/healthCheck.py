@@ -47,8 +47,8 @@ app = HealthcheckBlueprint('healthcheck', __name__)
 def get_services_list():
     response_body = []
     service_endpoints = ['my-sql', 'elk', 'confd', 'yang-search-admin', 'yang-validator-admin',
-                         'yangre-admin', 'nginx', 'rabbitmq', 'yangcatalog', 'confd-full-check']
-    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog', 'ConfD - Full check']
+                         'yangre-admin', 'nginx', 'rabbitmq', 'yangcatalog']
+    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog']
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
         response_body.append(pair)
@@ -438,102 +438,6 @@ def health_check_yangcatalog():
             status = 'problem'
             message = 'Problem occured, see additional info'
         additional_info.append(result)
-
-    return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                  'status': status,
-                                  'message': message,
-                                  'additional_info': additional_info}), 200)
-
-
-@app.route('/confd-full-check', methods=['GET'])
-def health_check_confd_full_check():
-    service_name = 'ConfD - Full check'
-    status = 'running'
-    message = 'All requests responded with status code 200'
-    additional_info = []
-    check_module_name = 'confd-full-check'
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
-
-    try:
-        # GET
-        result = {}
-        result['label'] = 'GET yang-catalog@2018-04-03'
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module=yang-catalog,2018-04-03,ietf'.format(confd_prefix)
-        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
-        if response.status_code == 200:
-            module = json.loads(response.text)
-            result['message'] = '{} OK'.format(response.status_code)
-        else:
-            app.LOGGER.info('Cannot get yang-catalog@2018-04-03 module from ConfD')
-            status = 'problem'
-            result['message'] = '{} NOT OK'.format(response.status_code)
-        additional_info.append(result)
-
-        # Change module name to be used only for this check - to not affect real module
-        module['yang-catalog:module'][0]['name'] = check_module_name
-
-        # PATCH
-        result = {}
-        result['label'] = 'PATCH {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(confd_prefix)
-        json_modules_data = json.dumps({'modules': {'module': module['yang-catalog:module'][0]}})
-        response = requests.patch(url, data=json_modules_data,
-                                  auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
-
-        if response.status_code == 204:
-            result['message'] = '{} OK'.format(response.status_code)
-        else:
-            app.LOGGER.info('Cannot add {}@2018-04-03 module to ConfD'.format(check_module_name))
-            status = 'problem'
-            result['message'] = '{} NOT OK'.format(response.status_code)
-        additional_info.append(result)
-
-        # GET 2
-        result = {}
-        result['label'] = 'GET {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
-        if response.status_code == 200:
-            result['message'] = '{} OK'.format(response.status_code)
-        else:
-            app.LOGGER.info('Cannot get {}@2018-04-03 module from ConfD'.format(check_module_name))
-            status = 'problem'
-            result['message'] = '{} NOT OK'.format(response.status_code)
-        additional_info.append(result)
-
-        # DELETE
-        result = {}
-        result['label'] = 'DELETE {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.delete(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
-        if response.status_code == 204:
-            result['message'] = '{} OK'.format(response.status_code)
-        else:
-            app.LOGGER.info('Cannot delete {}@2018-04-03 module from ConfD'.format(check_module_name))
-            status = 'problem'
-            result['message'] = '{} NOT OK'.format(response.status_code)
-        additional_info.append(result)
-
-        # GET 3
-        # NOTE: Module should already be removed - 404 status code is expected
-        result = {}
-        result['label'] = 'GET 2 {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
-        if response.status_code == 404:
-            result['message'] = '{} OK'.format(response.status_code)
-        else:
-            app.LOGGER.info('Module {}@2018-04-03 already in ConfD'.format(check_module_name))
-            status = 'problem'
-            result['message'] = '{} NOT OK'.format(response.status_code)
-        additional_info.append(result)
-
-    except Exception as err:
-        app.LOGGER.error('Error: {}'.format(err))
-        return {'info': 'Not OK - Error occured while making ConfD requests',
-                'status': 'down',
-                'error': 'Error: {}'.format(err)
-                }
 
     return make_response(jsonify({'info': '{} is available'.format(service_name),
                                   'status': status,
