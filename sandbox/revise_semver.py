@@ -1,0 +1,112 @@
+"""
+Python script that first gets all the existing modules from Yangcatalog,
+then it goes through modules list and get only first revision of each
+unique module.
+Unique modules can be dumped into prepare json and also unique modules
+can be loaded from prepare json file.
+parser_semver() method is the called, which will reevaluate semver for
+each module (and all of the revisions).
+Lastly, populate() method will send PATCH request to ConfD and
+cache will be re-loaded using api/load-cache endpoint.
+"""
+import configparser as ConfigParser
+import json
+import time
+
+import requests
+from parseAndPopulate.modulesComplicatedAlgorithms import \
+    ModulesComplicatedAlgorithms
+
+
+def get_list_of_unique_modules(all_existing_modules: list):
+    # Get oldest revision of the each module
+    unique_module_names = []
+    unique_modules = []
+    for module in all_existing_modules:
+        module_name = module.get('name')
+        if module_name not in unique_module_names:
+            oldest_revision = get_oldest_revsion_of_module(yangcatalog_api_prefix, module_name)
+            unique_module_names.append(module_name)
+            unique_modules.append(oldest_revision)
+
+    print('Number of unique modules: {}'.format(len(unique_module_names)))
+    dump_to_json(path, unique_modules)
+    all_modules = {}
+    all_modules['module'] = unique_modules
+
+    return all_modules
+
+
+def get_oldest_revsion_of_module(yangcatalog_api_prefix: str, name: str):
+    response = requests.get('{}search/name/{}'.format(yangcatalog_api_prefix, name),
+                            headers={'Accept': 'application/json'})
+    modules = response.json().get('yang-catalog:modules', {}).get('module', [])
+    sorted_modules = sorted(modules, key=lambda k: k['revision'])
+
+    return sorted_modules[0]
+
+
+def dump_to_json(path: str, modules: list):
+    # Create prepare.json file for possible future use
+    with open(path, 'w') as f:
+        json.dump({'module': modules}, f)
+    print('Unique modules dumped into {}'.format(path))
+
+
+def load_from_json(path: str):
+    # Load dumped data from json file
+    all_modules = {}
+    with open(path, 'r') as f:
+        all_modules = json.load(f)
+    return all_modules
+
+
+if __name__ == '__main__':
+    start = time.time()
+    config_path = '/etc/yangcatalog/yangcatalog.conf'
+    config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
+    config.read(config_path)
+    api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
+    ip = config.get('Web-Section', 'ip', fallback='localhost')
+    api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
+    confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
+    confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
+    confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
+    is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
+    temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
+    log_directory = config.get('Directory-Section', 'logs')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir')
+    yang_models = config.get('Directory-Section', 'yang-models-dir')
+    credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+
+    separator = ':'
+    suffix = api_port
+    if is_uwsgi == 'True':
+        separator = '/'
+        suffix = 'api'
+
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
+    # GET all the existing modules of Yangcatalog
+    response = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
+                            headers={'Accept': 'application/json'})
+    all_existing_modules = response.json().get('module', [])
+
+    path = '{}/semver_prepare.json'.format(temp_dir)
+
+    all_modules = get_list_of_unique_modules(all_existing_modules)
+
+    # Uncomment the next line to read data from the file semver_prepare.json
+    # all_modules = load_from_json(path)
+
+    # Initialize ModulesComplicatedAlgorithms
+    # confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
+    direc = '/var/yang/tmp'
+    complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                         credentials, confd_protocol, confd_ip,
+                                                         confd_port, save_file_dir,
+                                                         direc, all_modules, yang_models, temp_dir)
+    complicatedAlgorithms.parse_semver()
+    complicatedAlgorithms.populate()
+    end = time.time()
+    print('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
