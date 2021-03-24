@@ -11,25 +11,57 @@ cache will be re-loaded using api/load-cache endpoint.
 """
 import configparser as ConfigParser
 import json
+import sys
 import time
+from datetime import datetime
 
 import requests
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
 
+def get_date(revision: str):
+    rev = revision.split('-')
+    try:
+        date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
+    except Exception:
+        try:
+            if int(rev[1]) == 2 and int(rev[2]) == 29:
+                date = datetime(int(rev[0]), int(rev[1]), 28)
+            else:
+                date = datetime(1970, 1, 1)
+        except Exception:
+            date = datetime(1970, 1, 1)
+    return date
+
+
+def get_older_revision(module1: dict, module2: dict):
+    date1 = get_date(module1.get('revision'))
+    date2 = get_date(module2.get('revision'))
+    if date1 < date2:
+        return module1
+    else:
+        return module2
+
+
 def get_list_of_unique_modules(all_existing_modules: list):
     # Get oldest revision of the each module
-    unique_module_names = []
     unique_modules = []
+    oldest_modules_dict = {}
+
     for module in all_existing_modules:
         module_name = module.get('name')
-        if module_name not in unique_module_names:
-            oldest_revision = get_oldest_revsion_of_module(yangcatalog_api_prefix, module_name)
-            unique_module_names.append(module_name)
-            unique_modules.append(oldest_revision)
+        oldest_module_revision = oldest_modules_dict.get(module_name, None)
+        if oldest_module_revision is None:
+            oldest_modules_dict[module_name] = module
+        else:
+            older_module = get_older_revision(module, oldest_module_revision)
+            oldest_modules_dict[module_name] = older_module
 
-    print('Number of unique modules: {}'.format(len(unique_module_names)))
+    for module in oldest_modules_dict.values():
+        unique_modules.append(module)
+
+    print('Number of unique modules: {}'.format(len(unique_modules)))
     dump_to_json(path, unique_modules)
     all_modules = {}
     all_modules['module'] = unique_modules
@@ -58,6 +90,7 @@ def load_from_json(path: str):
     all_modules = {}
     with open(path, 'r') as f:
         all_modules = json.load(f)
+    print('Unique modules loaded from {}'.format(path))
     return all_modules
 
 
@@ -102,11 +135,14 @@ if __name__ == '__main__':
     # Initialize ModulesComplicatedAlgorithms
     # confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
     direc = '/var/yang/tmp'
+    recursion_limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(50000)
     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                          credentials, confd_protocol, confd_ip,
                                                          confd_port, save_file_dir,
                                                          direc, all_modules, yang_models, temp_dir)
     complicatedAlgorithms.parse_semver()
+    sys.setrecursionlimit(recursion_limit)
     complicatedAlgorithms.populate()
     end = time.time()
     print('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
