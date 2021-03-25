@@ -32,6 +32,7 @@ import json
 import os
 import sys
 import time
+from copy import deepcopy
 from datetime import datetime
 
 import requests
@@ -98,16 +99,11 @@ class ModulesComplicatedAlgorithms:
                 ret_modules[key] = val
             else:
                 if (old_module.get('tree-type') != val.get('tree-type') or
-                        old_module.get('expires') != val.get('expires') or
-                        old_module.get('expired') != val.get('expired') or
                         old_module.get('derived-semantic-version') != val.get('derived-semantic-version')):
-                    LOGGER.debug('{}@{} tree {} vs {}, expires {} vs {}, expired {} vs {}, semver {} vs {}'
-                                 .format(val['name'], val['revision'], old_module.get('tree-type'),
-                                         val.get('tree-type'), old_module.get('expires'), val.get('expires'),
-                                         old_module.get('expired'), val.get('expired'),
-                                         old_module.get('derived-semantic-version'), val.get('derived-semantic-version')
-                                         )
-                                 )
+                    LOGGER.debug('{} tree {} vs {}, semver {} vs {}'.format(
+                        key, old_module.get('tree-type'), val.get('tree-type'),
+                        old_module.get('derived-semantic-version'), val.get('derived-semantic-version'))
+                    )
                     if ret_modules.get(key) is None:
                         ret_modules[key] = val
                     else:
@@ -115,8 +111,6 @@ class ModulesComplicatedAlgorithms:
                         ret_modules[key]['revision'] = val['revision']
                         ret_modules[key]['organization'] = val['organization']
                         ret_modules[key]['tree-type'] = val.get('tree-type')
-                        ret_modules[key]['expires'] = val.get('expires')
-                        ret_modules[key]['expired'] = val.get('expired')
                         ret_modules[key]['derived-semantic-version'] = val.get('derived-semantic-version')
                 if val.get('dependents') is not None and len(val.get('dependents')) != 0:
                     if old_module.get('dependents') is None:
@@ -535,7 +529,7 @@ class ModulesComplicatedAlgorithms:
             for m in self.__existing_modules_dict.values():
                 if m['name'] == module['name']:
                     if m['revision'] != module['revision']:
-                        data['{}@{}'.format(m['name'], m['revision'])] = m
+                        data['{}@{}'.format(m['name'], m['revision'])] = deepcopy(m)
 
             LOGGER.info(
                 'Searching semver for {}. {} out of {}'.format(module['name'], z, len(self.__all_modules['module'])))
