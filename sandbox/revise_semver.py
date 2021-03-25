@@ -69,15 +69,6 @@ def get_list_of_unique_modules(all_existing_modules: list):
     return all_modules
 
 
-def get_oldest_revsion_of_module(yangcatalog_api_prefix: str, name: str):
-    response = requests.get('{}search/name/{}'.format(yangcatalog_api_prefix, name),
-                            headers={'Accept': 'application/json'})
-    modules = response.json().get('yang-catalog:modules', {}).get('module', [])
-    sorted_modules = sorted(modules, key=lambda k: k['revision'])
-
-    return sorted_modules[0]
-
-
 def dump_to_json(path: str, modules: list):
     # Create prepare.json file for possible future use
     with open(path, 'w') as f:
@@ -120,9 +111,11 @@ if __name__ == '__main__':
         suffix = 'api'
 
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
-    # GET all the existing modules of Yangcatalog
-    response = requests.get('{}search/modules'.format(yangcatalog_api_prefix),
-                            headers={'Accept': 'application/json'})
+    # yangcatalog_api_prefix = 'https://yangcatalog.org/api/'
+    url = '{}search/modules'.format(yangcatalog_api_prefix)
+    print('Getting all the modules from: {}'.format(url))
+    response = requests.get(url, headers={'Accept': 'application/json'})
+
     all_existing_modules = response.json().get('module', [])
 
     path = '{}/semver_prepare.json'.format(temp_dir)
