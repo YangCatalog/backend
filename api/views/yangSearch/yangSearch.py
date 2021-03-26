@@ -18,6 +18,7 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
+import os
 
 import re
 from flask import Blueprint, make_response, jsonify, abort, request
@@ -85,6 +86,92 @@ app = YangSearch('yangSearch', __name__)
 
 
 # ROUTE ENDPOINT DEFINITIONS
+@app.route('/tree/<module_name>', methods=['GET'])
+def tree_module(module_name):
+    """
+    Generates yang tree view of the module.
+    :param module_name: Module for which we are generating the tree.
+    :return: json response with yang tree
+    """
+    return tree_module_revision(module_name, None)
+
+
+@app.route('/tree/<module_name>@<revision>', methods=['GET'])
+def tree_module_revision(module_name, revision):
+    """
+    Generates yang tree view of the module.
+    :param module_name: Module for which we are generating the tree.
+    :param revision   : Revision of the module
+    :return: json response with yang tree
+    """
+    response = {}
+    alerts = []
+    jstree_json = {}
+    nmodule = os.path.basename(module_name)
+    if nmodule != module_name:
+        abort(400, description='Invalid module name specified')
+    else:
+        revisions, organization = get_modules_revision_organization(module_name, revision)
+        if len(revisions) == 0:
+            abort(404, description='Provided module does not exist')
+
+        if revision is None:
+            # get latest revision of provided module
+            revision = revisions[0]
+
+        ytree_dir = yc_gc.json_ytree
+        yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
+        response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
+                                                                 organization)).get('maturity-level').upper()
+
+        if os.path.isfile(yang_tree_file_path):
+            try:
+                json_tree = json.load(open(yang_tree_file_path))
+                if json_tree is None:
+                    alerts.append('Failed to decode JSON data: ')
+                else:
+                    response['namespace'] = json_tree.get('namespace', '')
+                    response['prefix'] = json_tree.get('prefix', '')
+                    data_nodes = build_tree(json_tree, module_name)
+                    jstree_json = dict()
+                    jstree_json['data'] = [data_nodes]
+                    if json_tree.get('rpcs') is not None:
+                        rpcs = dict()
+                        rpcs['name'] = json_tree['prefix'] + ':rpcs'
+                        rpcs['children'] = json_tree['rpcs']
+                        jstree_json['data'].append(build_tree(rpcs, module_name))
+                    if json_tree.get('notifications') is not None:
+                        notifs = dict()
+                        notifs['name'] = json_tree['prefix'] + ':notifs'
+                        notifs['children'] = json_tree['notifications']
+                        jstree_json['data'].append(build_tree(notifs, module_name))
+                    if json_tree.get('augments') is not None:
+                        augments = dict()
+                        augments['name'] = json_tree['prefix'] + ':augments'
+                        augments['children'] = []
+                        for aug in json_tree.get('augments'):
+                            aug_info = dict()
+                            aug_info['name'] = aug['augment_path']
+                            aug_info['children'] = aug['augment_children']
+                            augments['children'].append(aug_info)
+                        jstree_json['data'].append(build_tree(augments, module_name, augments=True))
+            except Exception as e:
+                alerts.append("Failed to read YANG tree data for {}@{}/{}, {}".format(module_name, revision,
+                                                                                      organization, e))
+        else:
+            alerts.append("YANG Tree data does not exist for {}@{}/{}".format(module_name, revision, organization))
+    if jstree_json is None:
+        response['jstree_json'] = dict()
+        alerts.append('Json tree could not be generated')
+    else:
+        response['jstree_json'] = jstree_json
+
+    response['module'] = '{}@{}'.format(module_name, revision)
+    response['warning'] = alerts
+
+    return make_response(jsonify(response), 200)
+
+
 @app.route('/search', methods=['POST'])
 def search():
     if not request.json:
@@ -201,7 +288,7 @@ def show_node_with_revision(name, path, revision):
     yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
-        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
+        with open(get_curr_dir(__file__) + '/../../json/es/show_node.json', 'r') as f:
             query = json.load(f)
 
         if name == '':
@@ -491,3 +578,118 @@ def eachKeyIsOneOf(payload, payload_key, keys):
     else:
         abort(400, 'Value of key {} must be string from following list {}'.format(payload_key, keys))
     return rows
+
+
+def get_module_data(module_index):
+    app.LOGGER.info('searching for module {}'.format(module_index))
+    module_data = yc_gc.redis.get(module_index)
+    if module_data is None:
+        abort(404, description='Provided module does not exist')
+    else:
+        module_data = module_data.decode('utf-8')
+        module_data = json.loads(module_data)
+    return module_data
+
+
+def build_tree(jsont, module, pass_on_schemas=None, augments=False):
+    """
+    Builds data for yang_tree.html, takes json and recursively writes out it's children.
+    :param jsont: input json
+    :param module: module name
+    :return: (dict) with all nodes and their parameters
+    """
+    node = dict()
+    node['text'] = jsont['name']
+    if jsont.get('description') is not None:
+        node['a_attr'] = dict()
+        node['a_attr']['title'] = jsont['description'].replace('\n', ' ')
+    else:
+        node['a_attr'] = dict()
+        node['a_attr']['title'] = jsont['name']
+    node['data'] = {
+        'schema': '',
+        'type': '',
+        'type_title': '',
+        'type_class': 'abbrCls',
+        'flags': '',
+        'opts': '',
+        'status': '',
+        'path': '',
+        'path_class': 'path-class'
+    }
+    if pass_on_schemas is None:
+        pass_on_schemas = []
+    if jsont.get('name') == module:
+        node['data']['schema'] = 'module'
+    elif jsont.get('schema_type') is not None:
+        node['data']['schema'] = jsont['schema_type']
+        if jsont['schema_type'] not in ['choice', 'case']:
+            pass_on_schemas.append(jsont['schema_type'])
+    if jsont.get('type') is not None:
+        node['data']['type'] = jsont['type']
+        node['data']['type_title'] = jsont['type']
+        if jsont.get('type_info') is not None:
+            node['data']['type_title'] = get_type_str(jsont['type_info'])
+    elif jsont.get('schema_type') is not None:
+        node['data']['type'] = jsont['schema_type']
+        node['data']['type_title'] = jsont['schema_type']
+    if jsont.get('flags') is not None and jsont['flags'].get('config') is not None:
+        if jsont['flags']['config']:
+            node['data']['flags'] = 'config'
+        else:
+            node['data']['flags'] = 'no config'
+    if jsont.get('options') is not None:
+        node['data']['opts'] = jsont['options']
+    if jsont.get('status') is not None:
+        node['data']['status'] = jsont['status']
+    if jsont.get('path') is not None:
+        path_list = jsont['path'].split('/')[1:]
+        path = ''
+        for path_part in path_list:
+            path = '{}/{}'.format(path, path_part.split('?')[0])
+        node['data']['path'] = path
+        node['data']['sensor_path'] = re.sub(r'/[^:]+:', '/', path).replace('/', '/{}:'.format(module), 1)
+    if jsont['name'] != module and jsont.get('children') is None or len(jsont['children']) == 0:
+        node['icon'] = 'glyphicon glyphicon-leaf'
+        if jsont.get('path') is not None:
+            if augments:
+                node['a_attr']['href'] = "show_node/{}/{}".format(module, jsont['path'].replace('?', '%3F'))
+            else:
+                path_list = jsont['path'].split('/')[1:]
+                path = ''
+                for schema in enumerate(pass_on_schemas):
+                    path = '{}{}%3F{}/'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                node['a_attr']['href'] = "show_node/{}/{}".format(module, path)
+                pass_on_schemas.pop()
+        node['a_attr']['class'] = 'nodeClass'
+        node['a_attr']['style'] = 'color: #00e;'
+    elif jsont.get('children') is not None:
+        node['children'] = []
+        for child in jsont['children']:
+            node['children'].append(build_tree(child, module, pass_on_schemas, augments))
+        if len(pass_on_schemas) != 0 and jsont.get('schema_type') not in ['choice', 'case']:
+            pass_on_schemas.pop()
+
+    return node
+
+
+def get_type_str(json):
+    """
+    Recreates json as str
+    :param json: input json
+    :return: json string.
+    """
+    type_str = ''
+    if json.get('type') is not None:
+        type_str += json['type']
+    for key, val in json.items():
+        if key == 'type':
+            continue
+        if key == 'typedef':
+            type_str += get_type_str(val)
+        else:
+            if isinstance(val, list) or isinstance(val, dict):
+                type_str += " {} {} {}".format('{', ','.join([str(i) for i in val]), '}')
+            else:
+                type_str += " {} {} {}".format('{', val, '}')
+    return type_str
