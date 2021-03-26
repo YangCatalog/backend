@@ -20,6 +20,9 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import json
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Add enpoint for show-node, yang-tree adn statistics
 import os
 
 import re
@@ -317,7 +320,96 @@ def search():
 =======
 =======
 # ROUTE ENDPOINT DEFINITIONS
+<<<<<<< HEAD
 >>>>>>> Push progress on yang search
+=======
+@app.route('/tree/<module_name>', methods=['GET'])
+def tree_module(module_name):
+    """
+    Generates yang tree view of the module.
+    :param module_name: Module for which we are generating the tree.
+    :return: json response with yang tree
+    """
+    return tree_module_revision(module_name, None)
+
+
+@app.route('/tree/<module_name>@<revision>', methods=['GET'])
+def tree_module_revision(module_name, revision):
+    """
+    Generates yang tree view of the module.
+    :param module_name: Module for which we are generating the tree.
+    :param revision   : Revision of the module
+    :return: json response with yang tree
+    """
+    response = {}
+    alerts = []
+    jstree_json = {}
+    nmodule = os.path.basename(module_name)
+    if nmodule != module_name:
+        abort(400, description='Invalid module name specified')
+    else:
+        revisions, organization = get_modules_revision_organization(module_name, revision)
+        if len(revisions) == 0:
+            abort(404, description='Provided module does not exist')
+
+        if revision is None:
+            # get latest revision of provided module
+            revision = revisions[0]
+
+        ytree_dir = yc_gc.json_ytree
+        yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
+        response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
+                                                                 organization)).get('maturity-level').upper()
+
+        if os.path.isfile(yang_tree_file_path):
+            try:
+                json_tree = json.load(open(yang_tree_file_path))
+                if json_tree is None:
+                    alerts.append('Failed to decode JSON data: ')
+                else:
+                    response['namespace'] = json_tree.get('namespace', '')
+                    response['prefix'] = json_tree.get('prefix', '')
+                    data_nodes = build_tree(json_tree, module_name)
+                    jstree_json = dict()
+                    jstree_json['data'] = [data_nodes]
+                    if json_tree.get('rpcs') is not None:
+                        rpcs = dict()
+                        rpcs['name'] = json_tree['prefix'] + ':rpcs'
+                        rpcs['children'] = json_tree['rpcs']
+                        jstree_json['data'].append(build_tree(rpcs, module_name))
+                    if json_tree.get('notifications') is not None:
+                        notifs = dict()
+                        notifs['name'] = json_tree['prefix'] + ':notifs'
+                        notifs['children'] = json_tree['notifications']
+                        jstree_json['data'].append(build_tree(notifs, module_name))
+                    if json_tree.get('augments') is not None:
+                        augments = dict()
+                        augments['name'] = json_tree['prefix'] + ':augments'
+                        augments['children'] = []
+                        for aug in json_tree.get('augments'):
+                            aug_info = dict()
+                            aug_info['name'] = aug['augment_path']
+                            aug_info['children'] = aug['augment_children']
+                            augments['children'].append(aug_info)
+                        jstree_json['data'].append(build_tree(augments, module_name, augments=True))
+            except Exception as e:
+                alerts.append("Failed to read YANG tree data for {}@{}/{}, {}".format(module_name, revision,
+                                                                                      organization, e))
+        else:
+            alerts.append("YANG Tree data does not exist for {}@{}/{}".format(module_name, revision, organization))
+    if jstree_json is None:
+        response['jstree_json'] = dict()
+        alerts.append('Json tree could not be generated')
+    else:
+        response['jstree_json'] = jstree_json
+
+    response['module'] = '{}@{}'.format(module_name, revision)
+    response['warning'] = alerts
+
+    return make_response(jsonify(response), 200)
+
+
+>>>>>>> Add enpoint for show-node, yang-tree adn statistics
 @app.route('/search', methods=['POST'])
 def search():
     if not request.json:
@@ -476,6 +568,7 @@ def show_node_with_revision(name, path, revision):
     path = '/{}'.format(path)
     try:
         with open(get_curr_dir(__file__) + '/../../json/es/show_node.json', 'r') as f:
+<<<<<<< HEAD
 =======
     context = dict()
 =======
@@ -490,6 +583,8 @@ def show_node_with_revision(name, path, revision):
 =======
         with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
 >>>>>>> Change structure
+=======
+>>>>>>> Add enpoint for show-node, yang-tree adn statistics
             query = json.load(f)
 
         if name == '':
@@ -941,6 +1036,9 @@ def eachKeyIsOneOf(payload, payload_key, keys):
         abort(400, 'Value of key {} must be string from following list {}'.format(payload_key, keys))
     return rows
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Add enpoint for show-node, yang-tree adn statistics
 
 
 def get_module_data(module_index):
@@ -1055,9 +1153,13 @@ def get_type_str(json):
                 type_str += " {} {} {}".format('{', ','.join([str(i) for i in val]), '}')
             else:
                 type_str += " {} {} {}".format('{', val, '}')
+<<<<<<< HEAD
     return type_str
 =======
         update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
 >>>>>>> Move yang-serach unders backend
 =======
 >>>>>>> Add search endpoint
+=======
+    return type_str
+>>>>>>> Add enpoint for show-node, yang-tree adn statistics
