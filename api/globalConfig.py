@@ -86,10 +86,14 @@ class YangCatalogApiGlobalConfig():
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
 =======
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 >>>>>>> Add enpoint for show-node, yang-tree adn statistics
+=======
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
+>>>>>>> Fix minor issues
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         if self.es_aws == 'True':
@@ -178,10 +182,14 @@ class YangCatalogApiGlobalConfig():
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
 =======
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 >>>>>>> Add enpoint for show-node, yang-tree adn statistics
+=======
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
+>>>>>>> Fix minor issues
         if self.es_aws == 'True':
             self.es_aws = True
         else:
