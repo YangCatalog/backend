@@ -217,6 +217,8 @@ class ElkSearch:
         sensitive = 'lowercase'
         if self.__case_sensitive:
             sensitive = 'sensitive'
+        else:
+            self.__searched_term = self.__searched_term.lower()
         search_in = self.query['query']['bool']['must'][1]['bool']['should']
         for searched_field in self.__searched_fields:
             should_query = \
