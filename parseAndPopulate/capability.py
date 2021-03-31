@@ -73,7 +73,7 @@ class Capability:
 
     def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, integrity_checker,
                  api: bool, sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
-                 yang_models_dir: str, run_integrity: bool = False):
+                 yang_models_dir: str, fileHasher, run_integrity: bool = False):
         """
         Preset Capability class to get capabilities from directory passed as argument.
         Based on passed arguments, Capability object will:
@@ -92,14 +92,12 @@ class Capability:
         :param save_file_to_dir     (str) path to the directory where all the yang files will be saved
         :param private_dir          (str) path to the directory with private HTML result files
         :param yang_models_dir      (str) path to the directory where YangModels/yang repo is cloned
+        :param filehasher           (obj) fileHasher object
         :param run_integrity        (bool) whether running integrity or not. NOTE: Some data will not be parsed if set to True
         """
 
         global LOGGER
         LOGGER = log.get_logger('capability', '{}/parseAndPopulate.log'.format(log_directory))
-        if len(LOGGER.handlers) > 1:
-            LOGGER.handlers[1].close()
-            LOGGER.removeHandler(LOGGER.handlers[1])
         LOGGER.debug('Running Capability constructor')
         self.logger = log.get_logger('repoutil', '{}/parseAndPopulate.log'.format(log_directory))
         self.log_directory = log_directory
@@ -112,6 +110,7 @@ class Capability:
         self.api = api
         self.path = None
         self.yang_models_dir = yang_models_dir
+        self.fileHasher = fileHasher
         # Get hello message root
         if hello_message_file.endswith('.xml'):
             try:
@@ -276,12 +275,14 @@ class Capability:
                 for file_name in sdos:
                     # Process only SDO .yang files
                     if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
-                        LOGGER.info('Parsing sdo file {} from directory {}'.format(file_name, root))
-
+                        path = '{}/{}'.format(root, file_name)
+                        should_parse = self.fileHasher.should_parse_sdo_module(path)
+                        if not should_parse:
+                            continue
                         if '[1]' in file_name:
                             LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                         else:
-                            path = '{}/{}'.format(root, file_name)
+                            LOGGER.info('Parsing sdo file {} from directory {}'.format(file_name, root))
                             try:
                                 yang = Modules(self.yang_models_dir, self.log_directory, path,
                                                self.html_result_dir, self.parsed_jsons, self.json_dir)
@@ -478,12 +479,18 @@ class Capability:
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
         schema_part = '{}{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
+        platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
         for module in modules:
             if 'module=' in module.text:
                 # Parse name of the module
                 module_and_more = module.text.split('module=')[1]
                 module_name = module_and_more.split('&')[0]
+
+                path = '{}/{}.yang'.format('/'.join(self.split[:-1]), module_name)
+                should_parse = self.fileHasher.should_parse_vendor_module(path, platform_name)
+                if not should_parse:
+                    continue
                 LOGGER.info('Parsing module {}'.format(module_name))
                 try:
                     try:

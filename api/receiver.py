@@ -619,10 +619,10 @@ class Receiver:
 
                     if all_modules:
                         self.LOGGER.info('Running ModulesComplicatedAlgorithms from receiver.py script')
+                        confd_prefix = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
-                                                                              self.__confd_credentials, self.__confd_protocol,
-                                                                              self.__confd_ip, self.__confd_port,
+                                                                              self.__confd_credentials, confd_prefix,
                                                                               self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
                                                                               self.temp_dir)

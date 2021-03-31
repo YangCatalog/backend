@@ -41,7 +41,8 @@ def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging
     handler.setFormatter(logging.Formatter(FORMAT, DATEFMT))
     logger = logging.getLogger(name)
     logger.setLevel(level)
-    logger.addHandler(handler)
+    if len(logger.handlers) == 0:
+        logger.addHandler(handler)
 
     # if file didn t exist we create it and now we can set chmod
     if not exists:

@@ -55,14 +55,26 @@ class LoadFiles:
         self.status = {}
         self.headers = {}
         for name in self.names:
-            with open('{}/{}.json'.format(private_dir, name), 'r') as f:
-                self.status[name] = json.load(f)
+            try:
+                with open('{}/{}.json'.format(private_dir, name), 'r') as f:
+                    self.status[name] = json.load(f)
+            except FileNotFoundError:
+                self.status[name] = {}
+                LOGGER.error('{}/{}.json file was not found'.format(private_dir, name))
             if name == 'IETFYANGRFC':
-                with open('{}/{}.html'.format(private_dir, name)) as f:
-                    html = f.read()
+                try:
+                    with open('{}/{}.html'.format(private_dir, name), 'r') as f:
+                        html = f.read()
+                except FileNotFoundError:
+                    html = ''
+                    LOGGER.error('{}/{}.html file was not found'.format(private_dir, name))
             else:
-                with open('{}/{}YANGPageCompilation.html'.format(private_dir, name)) as f:
-                    html = f.read()
+                try:
+                    with open('{}/{}YANGPageCompilation.html'.format(private_dir, name), 'r') as f:
+                        html = f.read()
+                except FileNotFoundError:
+                    html = ''
+                    LOGGER.error('{}/{}YANGPageCompilation.html file was not found'.format(private_dir, name))
             ths = html.split('<TH>')
             results = []
             for th in ths:
@@ -70,3 +82,4 @@ class LoadFiles:
                 if 'Compilation Result' in result:
                     results.append(result)
             self.headers[name] = results
+        LOGGER.debug('Compilation statuses and results loaded successfully')
