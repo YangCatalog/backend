@@ -111,9 +111,67 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
+def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete_cache_dir: str, lock_file: str):
+    """
+    Creates a json file that will be used for elasticsearch indexing.
+    :param body_to_send:        (dict) body that needs to be indexed
+    :param LOGGER:              (logging) Logger used for logging
+    :param changes_cache_dir:   (str) path to file containing module to be indexed (can be empty)
+    :param delete_cache_dir:    (str) path to file containing module to be removed from indexing (can be empty)
+    :param lock_file:           (str) path to file working as a lock file. If exists script has to wait until removed
+    """
+    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(changes_cache_dir, delete_cache_dir))
+    while os.path.exists(lock_file):
+        time.sleep(10)
+    try:
+        try:
+            open(lock_file, 'w').close()
+        except:
+            raise Exception('Failed to obtain lock ' + lock_file)
+
+        changes_cache = dict()
+        delete_cache = []
+        if os.path.exists(changes_cache_dir) and os.path.getsize(changes_cache_dir) > 0:
+            f = open(changes_cache_dir)
+            changes_cache = json.load(f)
+            f.close()
+        if os.path.exists(delete_cache_dir) and os.path.getsize(delete_cache_dir) > 0:
+            f = open(delete_cache_dir)
+            delete_cache = json.load(f)
+            f.close()
+
+        if body_to_send.get('modules-to-index') is None:
+            body_to_send['modules-to-index'] = {}
+
+        if body_to_send.get('modules-to-delete') is None:
+            body_to_send['modules-to-delete'] = []
+
+        for mname, mpath in body_to_send['modules-to-index'].items():
+            changes_cache[mname] = mpath
+        for mname in body_to_send['modules-to-delete']:
+            exists = False
+            for existing in delete_cache:
+                if mname == existing:
+                    exists = True
+            if not exists:
+                delete_cache.append(mname)
+        fd = open(changes_cache_dir, 'w')
+        fd.write(json.dumps(changes_cache))
+        fd.close()
+        fd = open(delete_cache_dir, 'w')
+        fd.write(json.dumps(delete_cache))
+        fd.close()
+    except Exception as e:
+        os.unlink(lock_file)
+        raise Exception("Caught exception {}".format(e))
+    os.unlink(lock_file)
+
+
 def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER, secret_key: str, api_ip: str):
     """ Send a request to index new or deleted yang modules with body that
     contains path to the modules and name of the modules.
+
+    This definition is DEPRECATED and should not be used any more in any situation !!!
 
     Arguments:
         :param body_to_send:    (str) body that contains path to the modules and names of the modules
@@ -165,9 +223,9 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
     LOGGER.info('Sending data for indexing')
     mf = messageFactory.MessageFactory()
     if delete:
-        body_to_send = json.dumps({'modules-to-delete': modules_to_index}, indent=4)
+        post_body = json.dumps({'modules-to-delete': modules_to_index}, indent=4)
 
-        mf.send_removed_yang_files(body_to_send)
+        mf.send_removed_yang_files(post_body)
         for mod in modules_to_index:
             name, revision_organization = mod.split('@')
             revision, organization = revision_organization.split('/')
@@ -240,18 +298,16 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                     key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
                     post_body[key] = path
 
-        if len(post_body) == 0:
-            body_to_send = ''
-        else:
-            body_to_send = json.dumps({'modules-to-index': post_body}, indent=4)
+        if len(post_body) > 0:
+            post_body = {'modules-to-index': post_body}
         if len(post_body) > 0 and not force_indexing:
-            mf.send_added_new_yang_files(body_to_send)
+            mf.send_added_new_yang_files(json.dumps(post_body))
         if load_new_files_to_github:
             LOGGER.info('Starting a new process to populate github')
             cmd = ['python', '../ietfYangDraftPull/draftPull.py']
             proc = subprocess.Popen(cmd, close_fds=True)
             LOGGER.info('Populating github with process {}'.format(proc))
-    return body_to_send
+    return post_body
 
 
 def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], error: str = '', status: str = ''):

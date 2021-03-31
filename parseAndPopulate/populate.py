@@ -43,7 +43,7 @@ import requests
 
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
-from utility.util import prepare_to_indexing, send_to_indexing
+from utility.util import prepare_to_indexing, send_to_indexing2
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -61,7 +61,9 @@ class ScriptConfig:
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
-        self.key = config.get('Secrets-Section', 'update-signature')
+        self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.lock_file = config.get('Directory-Section', 'lock')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__confd_port = config.get('Web-Section', 'confd-port')
@@ -166,7 +168,6 @@ def main(scriptConf=None):
     is_uwsgi = scriptConf.is_uwsgi
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
-    key = scriptConf.key
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
@@ -210,7 +211,7 @@ def main(scriptConf=None):
         if error != "":
             LOGGER.error("run capabilities error:\n{}".format(error))
 
-    body_to_send = ''
+    body_to_send = {}
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
         confd_url = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
@@ -317,9 +318,10 @@ def main(scriptConf=None):
                 LOGGER.error('Request with body {} on path {} failed with {}'
                              .format(json_implementations_data, url,
                                      response.text))
-    if body_to_send != '':
+    if len(body_to_send) > 0:
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, args.credentials, args.api_protocol, LOGGER, key, args.api_ip)
+        send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
+                          scriptConf.lock_file)
     if not args.api:
         if not args.force_indexing:
             process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
