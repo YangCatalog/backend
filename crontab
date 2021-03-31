@@ -16,3 +16,4 @@ SHELL=/bin/bash
 17 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting recovery" >> /var/yang/logs/crons-log.log ; cd  recovery ; python recovery.py --protocol http)
 30 15 * * * (cd ~ ; source bin/activate ; echo "`date` starting removeUnused" >> /var/yang/logs/crons-log.log ; cd  utility ; python removeUnused.py)
 */30 * * * * (cd ~ ; source bin/activate ; echo "`date` starting confdFullCheck" >> /var/yang/logs/crons-log.log ; cd utility ; python confdFullCheck.py)
+*/3 * * * * (cd ~ ; source bin/activate ;  export PYTHONPATH=${PYTHONPATH}:/backend ; cd  elasticsearchIndexing ; python process-changed-mods.py)
