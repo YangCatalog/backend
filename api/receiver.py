@@ -50,7 +50,7 @@ import requests
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility import messageFactory
-from utility.util import prepare_to_indexing, send_to_indexing
+from utility.util import prepare_to_indexing, send_to_indexing2
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -81,6 +81,10 @@ class Receiver:
         self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
+
+        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.__lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
         self.__log_directory = config.get('Directory-Section', 'logs')
@@ -341,8 +345,9 @@ class Receiver:
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_that_succeeded,
                                                credentials, self.LOGGER, self.__save_file_dir, self.temp_dir,
                                                confd_url, delete=True)
-            if body_to_send != '':
-                send_to_indexing(body_to_send, credentials, self.__api_protocol, self.LOGGER, self.__key, self.__api_ip)
+            if len(body_to_send) > 0:
+                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
+                                 self.__lock_file)
         return self.__response_type[1]
 
     def iterate_in_depth(self, value, modules):
@@ -451,8 +456,9 @@ class Receiver:
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index,credentials,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir,
                                                confd_url, delete=True)
-            if body_to_send != '':
-                send_to_indexing(body_to_send, credentials, self.__api_protocol, self.LOGGER, self.__key, self.__api_ip)
+            if len(body_to_send) > 0:
+                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
+                                 self.__lock_file)
         return self.__response_type[1]
 
     def run_ietf(self):
