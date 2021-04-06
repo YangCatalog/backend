@@ -17,9 +17,9 @@ __copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import base64
 import fnmatch
 import grp
+import gzip
 import hashlib
 import json
 import math
@@ -29,16 +29,14 @@ import re
 import shutil
 import stat
 import sys
-import gzip
 from datetime import datetime
 from pathlib import Path
 
 import MySQLdb
 import requests
-from flask import Blueprint, request, make_response, jsonify, abort, redirect
-from flask_cors import CORS
 from api.globalConfig import yc_gc
-
+from flask import Blueprint, abort, jsonify, make_response, redirect, request
+from flask_cors import CORS
 from utility.util import create_signature
 
 
@@ -54,6 +52,8 @@ app = YangCatalogAdminBlueprint('admin', __name__)
 CORS(app, supports_credentials=True)
 
 ### ROUTE ENDPOINT DEFINITIONS ###
+
+
 @app.route('/api/admin/login')
 @app.route('/admin')
 @app.route('/admin/login')
@@ -81,10 +81,12 @@ def ping():
         response = {'info': 'user not logged in'}
     return make_response(jsonify(response), 200)
 
+
 @app.route('/api/admin/check', methods=['GET'])
 def check():
     response = {'info': 'Success'}
     return make_response(jsonify(response), 200)
+
 
 @app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
@@ -299,6 +301,8 @@ def get_logs():
                     yield filename
             break
 
+    date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
+    time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
     yc_gc.LOGGER.info('Reading yangcatalog log file')
     if request.json is None:
         return abort(400, description='bad-request - body has to start with "input" and can not be empty')
@@ -333,16 +337,16 @@ def get_logs():
             for line in f.readlines():
                 if from_date_timestamp is None:
                     try:
-                        d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
-                        t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
-                        from_date_timestamp = datetime.strptime("{} {}".format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+                        d = re.findall(date_regex, line)[0][0]
+                        t = re.findall(time_regex, line)[0]
+                        from_date_timestamp = datetime.strptime('{} {}'.format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
                     except:
                         # ignore and accept
                         pass
                 else:
                     break
 
-    yc_gc.LOGGER.debug('Searching for logs from timestamp: ' + str(from_date_timestamp))
+    yc_gc.LOGGER.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
     whole_line = ''
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
@@ -356,10 +360,11 @@ def get_logs():
         else:
             f = open(log_file, 'r')
         file_stream = f.read()
-        hits = re.findall(
-            '(([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])) (?:(?:([01]?\d|2[0-3]):)?([0-5]?\d):)?([0-5]?\d)[ ][A-Z]{4,10}\s*(\S*.)\s*[=][>])',
-            file_stream)
-        if len(hits) > 1:
+        level_regex = r'[A-Z]{4,10}'
+        two_words_regex = r'(\s*(\S*)\s*){2}'
+        line_regex = '({} {}[ ]{}{}[=][>])'.format(date_regex, time_regex, level_regex, two_words_regex)
+        hits = re.findall(line_regex, file_stream)
+        if len(hits) > 1 or file_stream == '':
             format_text = True
         else:
             format_text = False
@@ -410,9 +415,9 @@ def get_logs():
             for line in reversed(f.readlines()):
                 line_timestamp = None
                 try:
-                    d = re.findall('([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))', line)[0][0]
-                    t = re.findall('(?:[01]\d|2[0123]):(?:[012345]\d):(?:[012345]\d)', line)[0]
-                    line_beginning = "{} {}".format(d, t)
+                    d = re.findall(date_regex, line)[0][0]
+                    t = re.findall(time_regex, line)[0]
+                    line_beginning = '{} {}'.format(d, t)
                     line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
                 except:
                     # ignore and accept
@@ -575,11 +580,11 @@ def create_sql_row(table):
     password = body.get('password')
     if body is None or username is None or name is None or last_name is None or email is None or password is None:
         return abort(400, description='username - {}, firstname - {}, last-name - {}, email - {} and password - {} must be specified'.format(
-                                                                                                        username,
-                                                                                                        name,
-                                                                                                        last_name,
-                                                                                                        email,
-                                                                                                        password))
+            username,
+            name,
+            last_name,
+            email,
+            password))
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
@@ -792,6 +797,7 @@ def get_module_name(script_name):
         return 'validate'
     else:
         return None
+
 
 def hash_pw(password):
     if sys.version_info >= (3, 4):
