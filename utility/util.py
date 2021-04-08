@@ -38,6 +38,7 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
+from utility.staticVariables import confd_headers
 from utility.yangParser import create_context
 
 
@@ -192,7 +193,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                            '{},{},{}/dependents={}'.format(confd_url,
                                                            m_name, m_rev, m_org, name))
                     requests.delete(url, auth=(credentials[0], credentials[1]),
-                                    headers={'Content-Type': 'application/yang-data+json'})
+                                    headers=confd_headers)
             if os.path.exists(path_to_delete_local):
                 os.remove(path_to_delete_local)
     else:
@@ -212,9 +213,8 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                                                          module['name'],
                                                          module['revision'],
                                                          module['organization'])
-                response = requests.get(url, auth=(credentials[0], credentials[1]),
-                                        headers={'Content-Type': 'application/json',
-                                                 'Accept': 'application/json'})
+                response = requests.get(url, headers={'Content-Type': 'application/json',
+                                                      'Accept': 'application/json'})
                 code = response.status_code
                 if force_indexing or (code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
@@ -230,9 +230,8 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                                                          module['name'],
                                                          module['revision'],
                                                          module['organization'])
-                response = requests.get(url, auth=(credentials[0], credentials[1]),
-                                        headers={'Content-Type': 'application/yang-data+json',
-                                                 'Accept': 'application/yang-data+json'})
+                response = requests.get(url, headers={'Content-Type': 'application/json',
+                                                      'Accept': 'application/json'})
                 code = response.status_code
 
                 in_es = False
@@ -255,9 +254,14 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
             mf.send_added_new_yang_files(body_to_send)
         if load_new_files_to_github:
             LOGGER.info('Starting a new process to populate github')
-            cmd = ['python', '../ietfYangDraftPull/draftPull.py']
-            proc = subprocess.Popen(cmd, close_fds=True)
-            LOGGER.info('Populating github with process {}'.format(proc))
+            try:
+                LOGGER.info('Calling draftPull.py script')
+                module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
+                submodule = getattr(module, 'draftPull')
+                submodule.main()
+            except Exception as e:
+                LOGGER.warning('Error occurred while running draftPull.py script')
+                LOGGER.error(e)
     return body_to_send
 
 

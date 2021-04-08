@@ -36,10 +36,8 @@ import filecmp
 import os
 import shutil
 import sys
-import tarfile
 import time
 import warnings
-from tarfile import ReadError
 
 import requests
 import utility.log as log
@@ -49,7 +47,11 @@ from travispy.errors import TravisError
 from utility import messageFactory, repoutil
 from utility.util import job_log
 
-from ietfYangDraftPull.draftPullLocal import check_early_revisions, check_name_no_revision_exist
+from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
+                                                check_name_no_revision_exist,
+                                                extract_rfc_tgz,
+                                                get_draft_module_content)
+
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
 else:
@@ -107,7 +109,6 @@ def main(scriptConf=None):
     commit_dir = config.get('Directory-Section', 'commit-dir')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
-    private_credentials = config.get('Secrets-Section', 'private-secret').strip('"').split(' ')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     exceptions = config.get('Directory-Section', 'exceptions')
@@ -122,15 +123,17 @@ def main(scriptConf=None):
         github_credentials = '{}:{}@'.format(username, token)
 
     token_header_value = 'token {}'.format(token)
+    # Remove old fork
     requests.delete('{}yang'.format(ietf_models_forked_url), headers={'Authorization': token_header_value})
     time.sleep(20)
-    # Fork and clone the repository YangModels/yang
+
+    # Fork YangModels/yang repository
     LOGGER.info('Cloning repository')
     response = requests.post('https://{}{}'.format(github_credentials, ietf_models_url_suffix))
-
     repo_name = response.json()['name']
     repo = None
     try:
+        # Try to clone YangModels/yang repo
         retry = 3
         while True:
             try:
@@ -148,49 +151,35 @@ def main(scriptConf=None):
                     job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
                     raise Exception()
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
-        try:
-            LOGGER.info('Activating Travis')
-            travis = TravisPy.github_auth(token)
-        except:
-            LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
-            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
-                            headers={'Authorization': token_header_value})
-            repo.remove()
-            e = 'Failed to activate Travis'
-            job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-            sys.exit(500)
-        # Download all the latest yang modules out of https://new.yangcatalog.org/private/IETFDraft.json and store them in tmp folder
-        LOGGER.info('Loading all files from {}'.format(ietf_draft_url))
-        ietf_draft_json = requests.get(ietf_draft_url, auth=(private_credentials[0], private_credentials[1])).json()
-        try:
-            os.makedirs('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.localdir))
-        except OSError as e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                raise
 
-        response = requests.get(ietf_rfc_url, auth=(private_credentials[0], private_credentials[1]))
-        tgz_path = '{}/rfc.tgz'.format(repo.localdir)
-        zfile = open(tgz_path, 'wb')
-        zfile.write(response.content)
-        zfile.close()
-        tar_opened = False
-        tgz = ''
-        try:
-            tgz = tarfile.open(tgz_path)
-            tar_opened = True
-        except ReadError as e:
-            LOGGER.warning('tarfile could not be opened. It might not have been generated yet.'
-                           ' Did the sdo_analysis cron job run already?')
-        if tar_opened:
+        # Try to activate Travis CI
+        retry = 3
+        while True:
             try:
-                os.makedirs('{}/standard/ietf/RFCtemp'.format(repo.localdir))
-            except OSError as e:
-                # be happy if someone already created the path
-                if e.errno != errno.EEXIST:
-                    raise
-            tgz.extractall('{}/standard/ietf/RFCtemp'.format(repo.localdir))
-            tgz.close()
+                LOGGER.info('Activating Travis')
+                travis = TravisPy.github_auth(token)
+                break
+            except:
+                retry -= 1
+                LOGGER.warning('Travis CI not ready yet')
+                time.sleep(10)
+                if retry == 0:
+                    LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
+                    requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
+                                    headers={'Authorization': token_header_value})
+                    repo.remove()
+                    e = 'Failed to activate Travis'
+                    job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+                    sys.exit(500)
+
+        # Get rfc.tgz file
+        response = requests.get(ietf_rfc_url)
+        tgz_path = '{}/rfc.tgz'.format(repo.localdir)
+        extract_to = '{}/standard/ietf/RFCtemp'.format(repo.localdir)
+        with open(tgz_path, 'wb') as zfile:
+            zfile.write(response.content)
+        tar_opened = extract_rfc_tgz(tgz_path, extract_to, LOGGER)
+        if tar_opened:
             diff_files = []
             new_files = []
 
@@ -206,7 +195,6 @@ def main(scriptConf=None):
                         else:
                             new_files.append(file_name)
             shutil.rmtree('{}/standard/ietf/RFCtemp'.format(repo.localdir))
-            os.remove(tgz_path)
 
             with open(exceptions, 'r') as exceptions_file:
                 remove_from_new = exceptions_file.read().split('\n')
@@ -220,19 +208,24 @@ def main(scriptConf=None):
                     mf = messageFactory.MessageFactory()
                     mf.send_new_rfc_message(new_files, diff_files)
 
-        for key in ietf_draft_json:
-            yang_file = open('{}/experimental/ietf-extracted-YANG-modules/{}'.format(repo.localdir, key), 'w+')
-            yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
-            yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
-            try:
-                yang_raw = requests.get(yang_download_link).text
-                yang_file.write(yang_raw)
-            except:
-                LOGGER.warning('{} - {}'.format(key, yang_download_link))
-                yang_file.write('')
-            yang_file.close()
-        check_name_no_revision_exist('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.localdir), LOGGER)
-        check_early_revisions('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.localdir), LOGGER)
+        # Experimental draft modules
+        try:
+            os.makedirs('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.localdir))
+        except OSError as e:
+            # be happy if someone already created the path
+            if e.errno != errno.EEXIST:
+                raise
+        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.localdir)
+
+        LOGGER.info('Updating IETF drafts download links')
+        get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
+
+        LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
+        check_name_no_revision_exist(experimental_path, LOGGER)
+
+        LOGGER.info('Checking for early revision in {}'.format(experimental_path))
+        check_early_revisions(experimental_path, LOGGER)
+
         messages = []
         try:
             # Get user and sync
@@ -242,13 +235,13 @@ def main(scriptConf=None):
             response = travis_user.sync()
             travis_repo = travis.repo('{}/{}'.format(username, repo_name))
             LOGGER.info('Enabling repo for Travis')
-            travis_enabled = travis_repo.enable()  # Switch is now on
-            travis_enabled_retry = 3
-            while not travis_enabled:
+            travis_repo.enable()  # Switch is now on
+            travis_enabled_retry = 5
+            while not travis_repo.active:
                 LOGGER.warning('Travis repo not enabled retrying')
                 time.sleep(3)
                 travis_enabled_retry -= 1
-                travis_enabled = travis_repo.enable()
+                travis_repo.enable()
                 if travis_enabled_retry == 0:
                     raise Exception()
             # Add commit and push to the forked repository

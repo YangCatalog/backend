@@ -76,6 +76,7 @@ def load(repo_dir: str, repo_url: str):
     repo = RepoUtil(repo_url)
     try:
         repo.repo = Repo(repo_dir)
+        repo.localdir = repo_dir
     except:
         repo = None
     return repo
@@ -135,12 +136,15 @@ class RepoUtil(object):
 
         return owner
 
-    def clone(self, config_user_name=None, config_user_email=None):
+    def clone(self, config_user_name=None, config_user_email=None, local_dir=None):
         """Clone the specified repository to a local temp directory. This
         method may generate a git.exec.GitCommandError if the
         repository does not exist
         """
-        self.localdir = tempfile.mkdtemp()
+        if local_dir:
+            self.localdir = local_dir
+        else:
+            self.localdir = tempfile.mkdtemp()
         self.repo = Repo.clone_from(self.repourl, self.localdir)
         if config_user_name:
             with self.repo.config_writer() as config:
