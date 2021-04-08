@@ -175,7 +175,7 @@ def main(scriptConf=None):
 
     if args.run_integrity:
         stats_list = {'vendor': ['{}/vendor/cisco'.format(yang_models)]}
-    fileHasher = FileHasher('backend_modules_hashes', cache_dir, args.save_file_hash, log_directory)
+    fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, args.save_file_hash, log_directory)
 
     LOGGER.info('Starting to iterate through files')
     if args.sdo:

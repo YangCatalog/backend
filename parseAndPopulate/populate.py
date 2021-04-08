@@ -360,7 +360,7 @@ def main(scriptConf=None):
         # Keep new hashes only if the ConfD was patched successfully
         if confd_patched:
             path = '{}/temp_hashes.json'.format(direc)
-            fileHasher = FileHasher('backend_modules_hashes', cache_dir, not args.force_parsing, log_directory)
+            fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, not args.force_parsing, log_directory)
             updated_hashes = fileHasher.load_hashed_files_list(path)
             if len(updated_hashes) > 0:
                 fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
