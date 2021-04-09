@@ -38,7 +38,7 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
-from utility.staticVariables import confd_headers
+from utility.staticVariables import confd_headers, json_headers
 from utility.yangParser import create_context
 
 
@@ -136,7 +136,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
 
     response = requests.post(path, data=body_to_send,
                              auth=(credentials[0], credentials[1]),
-                             headers={'Content-Type': 'application/json', 'Accept': 'application/json',
+                             headers={**json_headers,
                                       'X-YC-Signature': 'sha1={}'.format(create_signature(secret_key, body_to_send))},
                              verify=False)
     code = response.status_code
@@ -213,8 +213,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                                                          module['name'],
                                                          module['revision'],
                                                          module['organization'])
-                response = requests.get(url, headers={'Content-Type': 'application/json',
-                                                      'Accept': 'application/json'})
+                response = requests.get(url, headers=json_headers)
                 code = response.status_code
                 if force_indexing or (code != 200 and code != 201 and code != 204):
                     if module.get('schema'):
@@ -230,8 +229,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                                                          module['name'],
                                                          module['revision'],
                                                          module['organization'])
-                response = requests.get(url, headers={'Content-Type': 'application/json',
-                                                      'Accept': 'application/json'})
+                response = requests.get(url, headers=json_headers)
                 code = response.status_code
 
                 in_es = False
