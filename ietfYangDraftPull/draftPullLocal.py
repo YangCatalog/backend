@@ -93,7 +93,7 @@ def run_populate_script(directory: str, notify: bool, LOGGER):
         script_conf.args.__setattr__('notify_indexing', notify)
         submodule.main(scriptConf=script_conf)
     except Exception as e:
-        LOGGER.error('populate script error:\n{}'.format(e))
+        LOGGER.exception('populate script error:\n{}'.format(e))
         successful = False
 
     return successful
@@ -179,7 +179,7 @@ def main(scriptConf=None):
             message = {'label': 'Experimental modules', 'message': 'populate script finished successfully'}
             messages.append(message)
     except Exception as e:
-        LOGGER.error('Exception found while running draftPullLocal script')
+        LOGGER.exception('Exception found while running draftPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         repo.remove()
         raise e

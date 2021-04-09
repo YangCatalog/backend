@@ -76,7 +76,6 @@ def load(repo_dir: str, repo_url: str):
     repo = RepoUtil(repo_url)
     try:
         repo.repo = Repo(repo_dir)
-        repo.localdir = repo_dir
     except:
         repo = None
     return repo
