@@ -257,9 +257,8 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
                 module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
                 submodule = getattr(module, 'draftPull')
                 submodule.main()
-            except Exception as e:
-                LOGGER.warning('Error occurred while running draftPull.py script')
-                LOGGER.error(e)
+            except Exception:
+                LOGGER.exception('Error occurred while running draftPull.py script')
     return body_to_send
 
 

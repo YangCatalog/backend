@@ -142,12 +142,12 @@ def main(scriptConf=None):
                 LOGGER.info(repourl)
                 repo.clone(config_name, config_email)
                 break
-            except:
+            except Exception as e:
                 retry -= 1
                 LOGGER.warning('Repository not ready yet')
                 time.sleep(10)
                 if retry == 0:
-                    e = 'Failed to clone repository {}'.format(repo_name)
+                    LOGGER.exception('Failed to clone repository {}'.format(repo_name))
                     job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
                     raise Exception()
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
@@ -164,7 +164,8 @@ def main(scriptConf=None):
                 LOGGER.warning('Travis CI not ready yet')
                 time.sleep(10)
                 if retry == 0:
-                    LOGGER.error('Activating Travis - Failed. Removing local directory and deleting forked repository')
+                    LOGGER.exception('Activating Travis - Failed')
+                    LOGGER.info('Removing local directory and deleting forked repository')
                     requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                                     headers={'Authorization': token_header_value})
                     repo.remove()
@@ -256,7 +257,7 @@ def main(scriptConf=None):
                 f.write('{}\n'.format(commit_hash))
             repo.push()
         except TravisError as e:
-            LOGGER.error('Error while pushing procedure - Travis error: \n {}'.format(str(e)))
+            LOGGER.exception('Error while pushing procedure - Travis error')
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': token_header_value})
             raise e
@@ -270,10 +271,10 @@ def main(scriptConf=None):
                     {'label': 'Pull request created', 'message': 'False - branch is up to date'}
                 ]
             else:
-                LOGGER.error(message)
+                LOGGER.exception('Error while pushing procedure - Git command error')
                 raise e
         except Exception as e:
-            LOGGER.error(
+            LOGGER.exception(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
                             headers={'Authorization': token_header_value})

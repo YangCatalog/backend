@@ -92,8 +92,8 @@ def run_populate_script(directory: str, notify: bool, LOGGER):
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
         submodule.main(scriptConf=script_conf)
-    except Exception as e:
-        LOGGER.exception('populate script error:\n{}'.format(e))
+    except Exception:
+        LOGGER.exception('Error occurred while running populate.py script')
         successful = False
 
     return successful
