@@ -35,15 +35,17 @@ import json
 import multiprocessing
 import os
 import shutil
-import subprocess
 import sys
 import time
 
 import requests
-
 import utility.log as log
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+from utility.staticVariables import confd_headers
 from utility.util import prepare_to_indexing, send_to_indexing
+
+from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.modulesComplicatedAlgorithms import \
+    ModulesComplicatedAlgorithms
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -62,6 +64,7 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.key = config.get('Secrets-Section', 'update-signature')
+        self.cache_dir = config.get('Directory-Section', 'cache')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__confd_port = config.get('Web-Section', 'confd-port')
@@ -72,24 +75,24 @@ class ScriptConfig:
         self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.__result_dir = config.get('Web-Section', 'result-html-dir')
         self.help = 'Parse hello messages and YANG files to JSON dictionary. These' \
-        ' dictionaries are used for populating a yangcatalog. This script runs' \
-        ' first a runCapabilities.py script to create a JSON files which are' \
-        ' used to populate database.'
+            ' dictionaries are used for populating a yangcatalog. This script runs' \
+            ' first a runCapabilities.py script to create a JSON files which are' \
+            ' used to populate database.'
 
         parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--ip', default=self.__confd_host, type=str,
-                            help='Set host address where the Confd is started. Default: ' + self.__confd_host)
+                            help='Set host address where the Confd is started. Default: {}'.format(self.__confd_host))
         parser.add_argument('--port', default=self.__confd_port, type=int,
-                            help='Set port where the Confd is started. Default: ' + self.__confd_port)
-        parser.add_argument('--protocol', type=str, default=self.__confd_protocol, help='Whether Confd runs on http or https.'
-                                                                                 ' Default: ' + self.__confd_protocol)
+                            help='Set port where the Confd is started. Default: {}'.format(self.__confd_port))
+        parser.add_argument('--protocol', type=str, default=self.__confd_protocol,
+                            help='Whether Confd runs on http or https. Default: {}'.format(self.__confd_protocol))
         parser.add_argument('--api-ip', default=self.__api_host, type=str,
-                            help='Set host address where the API is started. Default: ' + self.__api_host)
+                            help='Set host address where the API is started. Default: {}'.format(self.__api_host))
         parser.add_argument('--api-port', default=self.__api_port, type=int,
-                            help='Set port where the API is started. Default: ' + self.__api_port)
+                            help='Set port where the API is started. Default: {}'.format(self.__api_port))
         parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
                             help='Whether API runs on http or https (This will be ignored if we are using uwsgi).'
-                                 ' Default: ' + self.__api_protocol)
+                                 ' Default: {}'.format(self.__api_protocol))
         parser.add_argument('--credentials', help='Set authorization parameters username password respectively.'
                                                   ' Default parameters are ' + str(credentials), nargs=2,
                             default=credentials, type=str)
@@ -101,11 +104,11 @@ class ScriptConfig:
         parser.add_argument('--notify-indexing', action='store_true', default=False, help='Whether to send files for'
                                                                                           ' indexing')
         parser.add_argument('--result-html-dir', default=self.__result_dir, type=str,
-                            help='Set dir where to write HTML compilation result files. Default: ' + self.__result_dir)
-        parser.add_argument('--force-indexing', action='store_true', default=False,
-                            help='Force to index files. Works only in notify-indexint is True')
+                            help='Set dir where to write HTML compilation result files. Default: {}'.format(self.__result_dir))
         parser.add_argument('--save-file-dir', default=self.__save_file_dir,
-                            type=str, help='Directory where the yang file will be saved. Default: ' + self.__save_file_dir)
+                            type=str, help='Directory where the yang file will be saved. Default: {}'.format(self.__save_file_dir))
+        parser.add_argument('--force-parsing', action='store_true', default=False,
+                            help='Force to parse files (do not skip parsing for unchanged files).')
         self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
@@ -132,7 +135,6 @@ class ScriptConfig:
         ret['options']['api'] = 'If request came from api'
         ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
         ret['options']['notify_indexing'] = 'Whether to send files for indexing'
-        ret['options']['force_indexing'] = 'Force to index files. Works only in notify-indexing is True'
         ret['options']['result_html_dir'] = 'Set dir where to write HTML compilation result files. Default: '\
                                             + self.__result_dir
         ret['options']['save_file_dir'] = 'Directory where the yang file will be saved. Default: ' + self.__save_file_dir
@@ -140,6 +142,7 @@ class ScriptConfig:
         ret['options']['api_port'] = 'Whether API runs on http or https (This will be ignored if we are using uwsgi).' \
                                      ' Default: ' + self.__api_protocol
         ret['options']['api_ip'] = 'Set host address where the API is started. Default: ' + self.__api_host
+        ret['options']['force_parsing'] = 'Force to parse files (do not skip parsing for unchanged files).'
         return ret
 
 
@@ -158,6 +161,29 @@ def reload_cache_in_parallel(credentials, yangcatalog_api_prefix):
     LOGGER.info("cache reloaded")
 
 
+def __set_runcapabilities_script_conf(submodule, args, direc: str):
+    """ Set values to ScriptConfig arguments to be able to run runCapabilities script.
+
+    Arguments:
+        :param submodule    (obj) submodule object
+        :param args         (obj) populate script arguments
+        :param direc        (str) Directory where json files to populate ConfD will be stored
+    """
+    script_conf = submodule.ScriptConfig()
+    script_conf.args.__setattr__('json_dir', direc)
+    script_conf.args.__setattr__('result_html_dir', args.result_html_dir)
+    script_conf.args.__setattr__('dir', args.dir)
+    script_conf.args.__setattr__('save_file_dir', args.save_file_dir)
+    script_conf.args.__setattr__('api_ip', args.api_ip)
+    script_conf.args.__setattr__('api_port', repr(args.api_port))
+    script_conf.args.__setattr__('api_protocol', args.api_protocol)
+    script_conf.args.__setattr__('api', args.api)
+    script_conf.args.__setattr__('sdo', args.sdo)
+    script_conf.args.__setattr__('save_file_hash', not args.force_parsing)
+
+    return script_conf
+
+
 def main(scriptConf=None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
@@ -166,6 +192,7 @@ def main(scriptConf=None):
     is_uwsgi = scriptConf.is_uwsgi
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
+    cache_dir = scriptConf.cache_dir
     key = scriptConf.key
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
@@ -192,37 +219,30 @@ def main(scriptConf=None):
                 if e.errno != errno.EEXIST:
                     raise
         direc = '{}/{}'.format(temp_dir, repr(direc))
-    prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
+    confd_prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
     LOGGER.info('Calling runcapabilities script')
-    run_capabilities = os.path.dirname(os.path.realpath(__file__)) + '/runCapabilities.py'
-    run_capabilities_args = ["python", run_capabilities, "--json-dir", direc, "--result-html-dir",
-                             args.result_html_dir, "--dir", args.dir, '--save-file-dir',
-                             args.save_file_dir, '--api-ip', args.api_ip, '--api-port',
-                             repr(args.api_port), '--api-protocol', args.api_protocol]
-    if args.api:
-        run_capabilities_args.append("--api")
-    if args.sdo:
-        run_capabilities_args.append("--sdo")
-    with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "w") as f:
-        subprocess.check_call(run_capabilities_args, stderr=f)
-    with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "r") as f:
-        error = f.read()
-        if error != "":
-            LOGGER.error("run capabilities error:\n{}".format(error))
+    try:
+        module = __import__('parseAndPopulate', fromlist=['runCapabilities'])
+        submodule = getattr(module, 'runCapabilities')
+        script_conf = __set_runcapabilities_script_conf(submodule, args, direc)
+        submodule.main(scriptConf=script_conf)
+    except Exception as e:
+        LOGGER.error('runCapabilities error:\n{}'.format(e))
+        raise e
 
     body_to_send = ''
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        confd_url = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc), args.credentials,
-                                           LOGGER, args.save_file_dir, temp_dir, confd_url,
-                                           sdo_type=args.sdo, from_api=args.api, force_indexing=args.force_indexing)
+                                           LOGGER, args.save_file_dir, temp_dir, confd_prefix,
+                                           sdo_type=args.sdo, from_api=args.api)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
+    confd_patched = True
     x = -1
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
-        modules_json = json.loads(read)['module']
+        modules_json = json.loads(read).get('module', [])
         for x in range(0, int(len(modules_json) / 1000)):
             json_modules_data = json.dumps({
                 'modules':
@@ -232,14 +252,13 @@ def main(scriptConf=None):
             })
 
             if '{"module": []}' not in read:
-                url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
+                url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(confd_prefix)
                 response = requests.patch(url, json_modules_data,
                                           auth=(args.credentials[0],
                                                 args.credentials[1]),
-                                          headers={
-                                              'Accept': 'application/yang-data+json',
-                                              'Content-type': 'application/yang-data+json'})
+                                          headers=confd_headers)
                 if response.status_code < 200 or response.status_code > 299:
+                    confd_patched = False
                     path_to_file = '{}/modules-confd-data-{}'.format(direc, x)
                     with open(path_to_file, 'w') as f:
                         json.dump(json_modules_data, f)
@@ -252,21 +271,20 @@ def main(scriptConf=None):
                 'module': modules_json[(x * 1000) + 1000:]
             }
     })
-    url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
-    response = requests.patch(url, json_modules_data,
-                              auth=(args.credentials[0],
-                                    args.credentials[1]),
-                              headers={
-                                  'Accept': 'application/yang-data+json',
-                                  'Content-type': 'application/yang-data+json'})
+    if '{"module": []}' not in json_modules_data:
+        url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(confd_prefix)
+        response = requests.patch(url, json_modules_data,
+                                  auth=(args.credentials[0],
+                                        args.credentials[1]),
+                                  headers=confd_headers)
 
-    if response.status_code < 200 or response.status_code > 299:
-        path_to_file = '{}/modules-confd-data-rest'.format(direc)
-        with open(path_to_file, 'w') as f:
-            json.dump(json_modules_data, f)
-        LOGGER.error('Request with body {} on path {} failed with {}'
-                     .format(path_to_file, url,
-                             response.text))
+        if response.status_code < 200 or response.status_code > 299:
+            confd_patched = False
+            path_to_file = '{}/modules-confd-data-rest'.format(direc)
+            with open(path_to_file, 'w') as f:
+                json.dump(json_modules_data, f)
+            LOGGER.error('Request with body {} on path {} failed with {}'
+                         .format(path_to_file, url, response.text))
 
     # In each json
     if os.path.exists('{}/normal.json'.format(direc)):
@@ -283,14 +301,13 @@ def main(scriptConf=None):
                 })
 
                 # Make a PATCH request to create a root for each file
-                url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'
+                url = '{}/restconf/data/yang-catalog:catalog/vendors/'.format(confd_prefix)
                 response = requests.patch(url, json_implementations_data,
                                           auth=(args.credentials[0],
                                                 args.credentials[1]),
-                                          headers={
-                                              'Accept': 'application/yang-data+json',
-                                              'Content-type': 'application/yang-data+json'})
+                                          headers=confd_headers)
                 if response.status_code < 200 or response.status_code > 299:
+                    confd_patched = False
                     path_to_file = '{}/vendors-confd-data-{}'.format(direc, x)
                     with open(path_to_file, 'w') as f:
                         json.dump(json_modules_data, f)
@@ -303,14 +320,13 @@ def main(scriptConf=None):
                         'vendor': vendors[(x * 1000) + 1000:]
                     }
             })
-            url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'
+            url = '{}/restconf/data/yang-catalog:catalog/vendors/'.format(confd_prefix)
             response = requests.patch(url, json_implementations_data,
                                       auth=(args.credentials[0],
                                             args.credentials[1]),
-                                      headers={
-                                          'Accept': 'application/yang-data+json',
-                                          'Content-type': 'application/yang-data+json'})
+                                      headers=confd_headers)
             if response.status_code < 200 or response.status_code > 299:
+                confd_patched = False
                 path_to_file = '{}/vendors-confd-data-rest'.format(direc)
                 with open(path_to_file, 'w') as f:
                     json.dump(json_modules_data, f)
@@ -321,34 +337,33 @@ def main(scriptConf=None):
         LOGGER.info('Sending files for indexing')
         send_to_indexing(body_to_send, args.credentials, args.api_protocol, LOGGER, key, args.api_ip)
     if not args.api:
-        if not args.force_indexing:
-            process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
-                                                           args=(args.credentials, yangcatalog_api_prefix,))
-            process_reload_cache.start()
-            LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
-            recursion_limit = sys.getrecursionlimit()
-            sys.setrecursionlimit(50000)
-            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                 args.credentials,
-                                                                 args.protocol, args.ip, args.port, args.save_file_dir,
-                                                                 direc, None, yang_models, temp_dir)
-            complicatedAlgorithms.parse_non_requests()
-            LOGGER.info('Waiting for cache reload to finish')
-            process_reload_cache.join()
-            complicatedAlgorithms.parse_requests()
-            sys.setrecursionlimit(recursion_limit)
-            LOGGER.info('Populating with new data of complicated algorithms')
-            complicatedAlgorithms.populate()
-            end = time.time()
-            LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
-        else:
-            url = (yangcatalog_api_prefix + 'load-cache')
-            LOGGER.info('{}'.format(url))
-            response = requests.post(url, None,
-                                     auth=(args.credentials[0],
-                                           args.credentials[1]))
-            if response.status_code != 201:
-                LOGGER.warning('Could not send a load-cache request')
+        process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
+                                                       args=(args.credentials, yangcatalog_api_prefix,))
+        process_reload_cache.start()
+        LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
+        recursion_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(50000)
+        complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                             args.credentials,
+                                                             confd_prefix, args.save_file_dir,
+                                                             direc, None, yang_models, temp_dir)
+        complicatedAlgorithms.parse_non_requests()
+        LOGGER.info('Waiting for cache reload to finish')
+        process_reload_cache.join()
+        complicatedAlgorithms.parse_requests()
+        sys.setrecursionlimit(recursion_limit)
+        LOGGER.info('Populating with new data of complicated algorithms')
+        complicatedAlgorithms.populate()
+        end = time.time()
+        LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
+
+        # Keep new hashes only if the ConfD was patched successfully
+        if confd_patched:
+            path = '{}/temp_hashes.json'.format(direc)
+            fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, not args.force_parsing, log_directory)
+            updated_hashes = fileHasher.load_hashed_files_list(path)
+            if len(updated_hashes) > 0:
+                fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
 
         try:
             shutil.rmtree('{}'.format(direc))
@@ -356,6 +371,7 @@ def main(scriptConf=None):
             # Be happy if deleted
             pass
     LOGGER.info('Populate script finished successfully')
+
 
 if __name__ == "__main__":
     main()

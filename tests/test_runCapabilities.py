@@ -166,6 +166,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         for dumped_vendor in dumped_vendor_data:
             self.assertIn(dumped_vendor, desired_vendor_data)
 
+    @unittest.skip('Obsolate after functionality implemented in Github issue backend #183 - will be reworked')
     def test_runCapabilities_parse_and_dump_vendor_save_modification_date(self):
         """ Run runCapability script over capability xml. Set save_modification_date argument to True, so value from
         filesModifications.json will be compared with actual values.
@@ -201,6 +202,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         self.assertIn(capability_xml_path, files_modifications)
         self.assertEqual(files_modifications[capability_xml_path], file_hash)
 
+    @unittest.skip('Obsolate after functionality implemented in Github issue backend #183 - will be reworked')
     @mock.patch('parseAndPopulate.runCapabilities.Capability')
     @mock.patch('parseAndPopulate.runCapabilities.Capability.parse_and_dump')
     def test_runCapabilities_parse_and_dump_vendor_save_modification_date_changed_date(

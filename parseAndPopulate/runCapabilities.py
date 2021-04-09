@@ -34,10 +34,10 @@ import sys
 import time
 
 import utility.log as log
-from utility.util import hash_file
 
 from parseAndPopulate import integrity
 from parseAndPopulate.capability import Capability
+from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.prepare import Prepare
 
 if sys.version_info >= (3, 4):
@@ -53,9 +53,9 @@ class ScriptConfig:
         parser = argparse.ArgumentParser()
         parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
                             help='Set dir where to look for hello message xml files or yang files if using "sdo" option')
-        parser.add_argument('--save-modification-date', action='store_true', default=False,
-                            help='if True than it will create a file with modification date and also it will check if '
-                            'file was modified from last time if not it will skip it.')
+        parser.add_argument('--save-file-hash', action='store_true', default=False,
+                            help='if True then it will check if content of the file changed '
+                            '(based on hash values) and it will skip parsing if nothing changed.')
         parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
         parser.add_argument('--sdo', action='store_true', default=False,
                             help='If we are processing sdo or vendor yang modules')
@@ -100,9 +100,8 @@ class ScriptConfig:
         ret['help'] = self.help
         ret['options'] = {}
         ret['options']['dir'] = 'Set dir where to look for hello message xml files or yang files if using "sdo" option'
-        ret['options']['save-modification-date'] = 'if True than it will create a file with modification date and' \
-                                                   ' also it will check if file was modified from last time if not it' \
-                                                   ' will skip it'
+        ret['options']['save_file_hash'] = 'if True then it will check if content of the file changed' \
+            ' (based on hash values) and it will skip parsing if nothing changed.'
         ret['options']['api'] = 'If request came from api'
         ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
         ret['options']['run_integrity'] = 'If we want to run integrity tool check'
@@ -157,6 +156,7 @@ def main(scriptConf=None):
     private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
     yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
     temp_dir = config.get('Directory-Section', 'temp', fallback='tests/resources/tmp')
+    cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
 
     separator = ':'
     suffix = args.api_port
@@ -175,6 +175,8 @@ def main(scriptConf=None):
 
     if args.run_integrity:
         stats_list = {'vendor': ['{}/vendor/cisco'.format(yang_models)]}
+    fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, args.save_file_hash, log_directory)
+
     LOGGER.info('Starting to iterate through files')
     if args.sdo:
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
@@ -182,7 +184,7 @@ def main(scriptConf=None):
         capability = Capability(log_directory, args.dir, prepare,
                                 local_integrity, args.api, args.sdo,
                                 args.json_dir, args.result_html_dir,
-                                args.save_file_dir, private_dir, yang_models)
+                                args.save_file_dir, private_dir, yang_models, fileHasher)
         LOGGER.info('Starting to parse files in sdo directory')
         capability.parse_and_dump_sdo()
         prepare.dump_modules(args.json_dir)
@@ -190,27 +192,6 @@ def main(scriptConf=None):
         patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']
         for pattern in patterns:
             for filename in find_files(args.dir, pattern):
-                # NOTE: Hash of file will be saved for each file individually in the future, not only capability xml files
-                if not args.api and args.save_modification_date:
-                    files_modifications = {}
-                    path = '{}/filesModifications.json'.format(temp_dir)
-                    file_hash = hash_file(filename)
-                    try:
-                        with open(path, 'r') as f:
-                            files_modifications = json.load(f)
-                        file_hash_old = files_modifications[filename]
-                        if file_hash_old == file_hash:
-                            LOGGER.info('{} is not modified. Skipping this file'.format(filename))
-                            continue
-                        else:
-                            files_modifications[filename] = file_hash
-                            with open(path, 'w') as f:
-                                json.dump(files_modifications, f)
-                    except:
-                        files_modifications[filename] = file_hash
-                        with open(path, 'w') as f:
-                            json.dump(files_modifications, f)
-
                 LOGGER.info('Found xml source {}'.format(filename))
 
                 capability = Capability(log_directory, filename,
@@ -221,6 +202,7 @@ def main(scriptConf=None):
                                         args.save_file_dir,
                                         private_dir,
                                         yang_models,
+                                        fileHasher,
                                         args.run_integrity)
                 if 'ietf-yang-library' in pattern:
                     capability.parse_and_dump_yang_lib()
@@ -234,6 +216,10 @@ def main(scriptConf=None):
         create_integrity(yang_models)
     end = time.time()
     LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
+
+    # Dump updated hashes into temporary directory
+    if len(fileHasher.updated_hashes) > 0:
+        fileHasher.dump_tmp_hashed_files_list(fileHasher.updated_hashes, args.json_dir)
 
 
 if __name__ == "__main__":

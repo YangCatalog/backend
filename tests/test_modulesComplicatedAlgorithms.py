@@ -36,6 +36,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'
         self.save_file_dir = '{}/all_modules'.format(self.resources_path)
         self.direc = '{}/tmp/mca-tests'.format(self.resources_path)
+        self.confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -75,8 +76,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
@@ -109,8 +109,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
@@ -143,8 +142,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
@@ -178,8 +176,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
@@ -213,8 +210,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
@@ -248,8 +244,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
@@ -286,8 +281,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'].append(module_to_parse)
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials,
-                                                             yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort, self.save_file_dir,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()

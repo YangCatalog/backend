@@ -47,7 +47,7 @@ from utility.yangParser import create_context
 
 class ModulesComplicatedAlgorithms:
 
-    def __init__(self, log_directory, yangcatalog_api_prefix, credentials, confd_protocol, confd_ip, confd_port,
+    def __init__(self, log_directory, yangcatalog_api_prefix, credentials, confd_prefix,
                  save_file_dir, direc, all_modules, yang_models_dir, temp_dir):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
@@ -61,7 +61,7 @@ class ModulesComplicatedAlgorithms:
         self.__credentials = credentials
         self.__save_file_dir = save_file_dir
         self.__path = None
-        self.__confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, confd_port)
+        self.__confd_prefix = confd_prefix
         self.__yang_models = yang_models_dir
         self.temp_dir = temp_dir
         self.__direc = direc
@@ -420,7 +420,7 @@ class ModulesComplicatedAlgorithms:
                 return True
 
         x = 0
-        for module in self.__all_modules['module']:
+        for module in self.__all_modules.get('module', []):
             x += 1
             name_revision = '{}@{}'.format(module['name'], module['revision'])
             self.__path = '{}/{}@{}.yang'.format(self.__save_file_dir,
@@ -521,7 +521,7 @@ class ModulesComplicatedAlgorithms:
             return date
 
         z = 0
-        for module in self.__all_modules['module']:
+        for module in self.__all_modules.get('module', []):
             z += 1
             name_revision = '{}@{}'.format(module['name'], module['revision'])
             data = {}
@@ -845,7 +845,7 @@ class ModulesComplicatedAlgorithms:
     def __parse_dependents(self):
         x = 0
         if self.__existing_modules_dict.values() is not None:
-            for mod in self.__all_modules['module']:
+            for mod in self.__all_modules.get('module', []):
                 x += 1
                 LOGGER.info('Searching dependents for {}. {} out of {}'.format(mod['name'], x,
                                                                                len(self.__all_modules['module'])))

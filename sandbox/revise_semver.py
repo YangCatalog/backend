@@ -126,13 +126,12 @@ if __name__ == '__main__':
     # all_modules = load_from_json(path)
 
     # Initialize ModulesComplicatedAlgorithms
-    # confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
+    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
     direc = '/var/yang/tmp'
     recursion_limit = sys.getrecursionlimit()
     sys.setrecursionlimit(50000)
     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                         credentials, confd_protocol, confd_ip,
-                                                         confd_port, save_file_dir,
+                                                         credentials, confd_prefix, save_file_dir,
                                                          direc, all_modules, yang_models, temp_dir)
     complicatedAlgorithms.parse_semver()
     sys.setrecursionlimit(recursion_limit)

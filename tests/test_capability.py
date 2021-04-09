@@ -29,6 +29,7 @@ from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.prepare import Prepare
 from utility import repoutil
+from parseAndPopulate.fileHasher import FileHasher
 
 
 class TestCapabilityClass(unittest.TestCase):
@@ -44,6 +45,7 @@ class TestCapabilityClass(unittest.TestCase):
         self.platform_name = 'ncs5k'
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
         self.test_private_dir = 'tests/resources/html/private'
+        self.fileHasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -61,7 +63,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_sdo(repo)
 
@@ -93,7 +95,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, path, prepare,
                                 None, api, sdo, json_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_sdo(repo)
 
@@ -124,7 +126,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, xml_path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump()
         capability.prepare.dump_modules(self.tmp_dir)
@@ -168,7 +170,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, xml_path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         self.assertEqual(capability.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
@@ -183,7 +185,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, xml_path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         platform_data = capability.platform_data
         # Load desired module data from .json file
@@ -206,7 +208,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, xml_path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         platform_data = capability.platform_data
         # Load desired module data from .json file
@@ -229,7 +231,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, xml_path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         platform_data = capability.platform_data
         # Load desired module data from .json file
@@ -259,7 +261,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability = Capability(yc_gc.logs_dir, xml_path, prepare,
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
-                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models)
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_yang_lib()
         capability.prepare.dump_modules(self.tmp_dir)
