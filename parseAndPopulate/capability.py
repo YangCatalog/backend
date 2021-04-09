@@ -40,6 +40,7 @@ import xml.etree.ElementTree as ET
 import utility.log as log
 from utility import repoutil
 
+from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.parseException import ParseException
@@ -73,7 +74,7 @@ class Capability:
 
     def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, integrity_checker,
                  api: bool, sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
-                 yang_models_dir: str, fileHasher, run_integrity: bool = False):
+                 yang_models_dir: str, fileHasher: FileHasher, run_integrity: bool = False):
         """
         Preset Capability class to get capabilities from directory passed as argument.
         Based on passed arguments, Capability object will:
@@ -83,7 +84,7 @@ class Capability:
 
         :param log_directory        (str) directory where the log file is saved
         :param hello_message_file   (str) path to hello_message .xml file or path to directory containing yang files
-        :param prepare              (obj) prepare object
+        :param prepare              (Prepare) prepare object
         :param integrity_checker:   (obj) integrity checker object
         :param api                  (bool) whether request came from API or not
         :param sdo                  (bool) whether processing sdo (= True) or vendor (= False) yang modules
@@ -92,7 +93,7 @@ class Capability:
         :param save_file_to_dir     (str) path to the directory where all the yang files will be saved
         :param private_dir          (str) path to the directory with private HTML result files
         :param yang_models_dir      (str) path to the directory where YangModels/yang repo is cloned
-        :param filehasher           (obj) fileHasher object
+        :param filehasher           (FileHasher) fileHasher object
         :param run_integrity        (bool) whether running integrity or not. NOTE: Some data will not be parsed if set to True
         """
 

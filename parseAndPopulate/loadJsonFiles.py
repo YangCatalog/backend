@@ -50,7 +50,7 @@ class LoadFiles:
                 for line in f:
                     self.names.append(line.replace('.json', '').replace('\n', ''))
         except FileNotFoundError:
-            LOGGER.warning('json_links file was not found')
+            LOGGER.exception('json_links file was not found')
 
         self.status = {}
         self.headers = {}
@@ -60,21 +60,21 @@ class LoadFiles:
                     self.status[name] = json.load(f)
             except FileNotFoundError:
                 self.status[name] = {}
-                LOGGER.error('{}/{}.json file was not found'.format(private_dir, name))
+                LOGGER.exception('{}/{}.json file was not found'.format(private_dir, name))
             if name == 'IETFYANGRFC':
                 try:
                     with open('{}/{}.html'.format(private_dir, name), 'r') as f:
                         html = f.read()
                 except FileNotFoundError:
                     html = ''
-                    LOGGER.error('{}/{}.html file was not found'.format(private_dir, name))
+                    LOGGER.exception('{}/{}.html file was not found'.format(private_dir, name))
             else:
                 try:
                     with open('{}/{}YANGPageCompilation.html'.format(private_dir, name), 'r') as f:
                         html = f.read()
                 except FileNotFoundError:
                     html = ''
-                    LOGGER.error('{}/{}YANGPageCompilation.html file was not found'.format(private_dir, name))
+                    LOGGER.exception('{}/{}YANGPageCompilation.html file was not found'.format(private_dir, name))
             ths = html.split('<TH>')
             results = []
             for th in ths:
