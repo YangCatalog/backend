@@ -283,7 +283,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.9.10'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0'.format(self.resources_path)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)

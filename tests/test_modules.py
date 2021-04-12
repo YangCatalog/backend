@@ -164,14 +164,14 @@ class TestModulesClass(unittest.TestCase):
         with data from platform-metadata.json.
         """
         yang_lib_info = {
-            'path': '{}/tmp/master/vendor/huawei/network-router/8.9.10'.format(self.resources_path),
+            'path': '{}/tmp/master/vendor/huawei/network-router/8.20.0'.format(self.resources_path),
             'name': 'huawei-aaa',
             'features': [],
-            'deviations': [{'name': 'huawei-aaa-deviations-cx', 'revision': '2017-03-23'}],
-            'revision': '2017-03-23'
+            'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
+            'revision': '2020-07-01'
         }
         schema_part = 'https://raw.githubusercontent.com/YangModels/yang/master/'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.9.10/ietf-yang-library.xml'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ietf-yang-library.xml'.format(self.resources_path)
         module_name = 'huawei-aaa'
 
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path, 'CX600')

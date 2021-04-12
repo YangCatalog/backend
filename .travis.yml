@@ -1,12 +1,12 @@
 os: linux
-dist: xenial
+dist: bionic
 language: python
 services:
   - redis
 python:
-  - '3.7' # Previous version
-  - '3.8' # Current version
-  - '3.9' # Future version
+  - '3.8' # Previous version
+  - '3.9' # Current version
+  # - '3.10' # Future version - not available yet
 # command to install dependencies
 install:
   - pip install -r requirements.txt && ./setup.py install

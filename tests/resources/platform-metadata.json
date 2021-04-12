@@ -6,10 +6,10 @@
                 "name": "CX600",
                 "os-type": "NOS",
                 "software-flavor": "ALL",
-                "software-version": "8.9.10",
+                "software-version": "8.20.0",
                 "module-list-file": {
                     "owner": "YangModels",
-                    "path": "vendor/huawei/network-router/8.9.10/ietf-yang-library.xml",
+                    "path": "vendor/huawei/network-router/8.20.0/ietf-yang-library.xml",
                     "type": "capabilities",
                     "repository": "yang.git"
                 }
