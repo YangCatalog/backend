@@ -91,6 +91,7 @@ def run_populate_script(directory: str, notify: bool, LOGGER):
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
+        LOGGER.info('Running populate.py script')
         submodule.main(scriptConf=script_conf)
     except Exception:
         LOGGER.exception('Error occurred while running populate.py script')

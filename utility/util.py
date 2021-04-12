@@ -123,22 +123,25 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
 
     Arguments:
         :param body_to_send:    (str) body that contains path to the modules and names of the modules
-        :param credentials:     (list) basic authorization credentials - username, password respectively
+        :param credentials      (list) basic authorization credentials - username, password respectively
         :param protocol         (str) protocol where API runs
         :param LOGGER           (obj) formated logger with the specified name
-        :param secret_key:      (str) secret key to sign the body with
-        :param api_ip:          (str) IP address of yangcatalog.org api
+        :param secret_key       (str) secret key to sign the body with
+        :param api_ip           (str) IP address or domain name of yangcatalog.org API
     """
     ip_addr = socket.gethostbyname(api_ip)
     LOGGER.info('IP address from hostname {} is {}'.format(api_ip, ip_addr))
     path = '{}://{}/yang-search/metadata_update'.format(protocol, api_ip)
     LOGGER.info('Sending data for indexing with body {} \n and path {}'.format(body_to_send, path))
 
+    verify = False
+    if api_ip == 'yangcatalog.org':
+        verify = True
     response = requests.post(path, data=body_to_send,
                              auth=(credentials[0], credentials[1]),
                              headers={**json_headers,
                                       'X-YC-Signature': 'sha1={}'.format(create_signature(secret_key, body_to_send))},
-                             verify=False)
+                             verify=verify)
     code = response.status_code
 
     if code != 200 and code != 201 and code != 204:
@@ -251,7 +254,6 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         if len(post_body) > 0 and not force_indexing:
             mf.send_added_new_yang_files(body_to_send)
         if load_new_files_to_github:
-            LOGGER.info('Starting a new process to populate github')
             try:
                 LOGGER.info('Calling draftPull.py script')
                 module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
