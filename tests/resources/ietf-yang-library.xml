@@ -10,12 +10,12 @@
     </module>
     <module>
       <name>huawei-aaa</name>
-      <revision>2017-03-23</revision>
+      <revision>2020-07-01</revision>
       <namespace>urn:huawei:yang:huawei-aaa</namespace>
       <conformance-type>implement</conformance-type>
       <deviation>
-        <name>huawei-aaa-deviations-cx</name>
-        <revision>2017-03-23</revision>
+        <name>huawei-aaa-deviations-NE-X1X2</name>
+        <revision>2019-04-23</revision>
       </deviation>
       <submodule>
         <name>huawei-aaa-action</name>
@@ -23,7 +23,7 @@
       </submodule>
       <submodule>
         <name>huawei-aaa-lam</name>
-        <revision>2017-03-23</revision>
+        <revision>2020-03-02</revision>
       </submodule>
       <submodule>
         <name>huawei-aaa-lam-action</name>
@@ -35,7 +35,7 @@
       </submodule>
       <submodule>
         <name>huawei-aaa-type</name>
-        <revision>2017-03-23</revision>
+        <revision>2020-01-09</revision>
       </submodule>
     </module>
   </modules-state>

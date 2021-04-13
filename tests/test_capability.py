@@ -25,11 +25,11 @@ from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.capability import Capability
+from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.prepare import Prepare
 from utility import repoutil
-from parseAndPopulate.fileHasher import FileHasher
 
 
 class TestCapabilityClass(unittest.TestCase):
@@ -253,8 +253,8 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.9.10/ietf-yang-library.xml'.format(self.resources_path)
-        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.9.10/platform-metadata.json'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ietf-yang-library.xml'.format(self.resources_path)
+        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/platform-metadata.json'.format(self.resources_path)
         api = False
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)

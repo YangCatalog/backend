@@ -32,13 +32,12 @@ cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $BACKEND/test
 cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xe/16101/
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $BACKEND/tests/resources/tmp/temp/standard/ietf/RFC
 # Prepare Huawei dir for ietf-yang-lib based tests
-export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.9.10
-mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10
-cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
-cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
-cp $YANG_MODELS_HUAWEI_DIR/ietf/* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
-cp $YANG_MODELS_HUAWEI_DIR/huawei/* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.9.10/
+export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0
+cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
+cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
+cp $YANG_MODELS_HUAWEI_DIR/* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
 # Prepare directory structure need for test_util.py
 export UTILITY_RESOURCES=$BACKEND/utility/tests/resources
 mkdir -p $UTILITY_RESOURCES/modules
