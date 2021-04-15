@@ -22,11 +22,13 @@ import os
 
 import re
 from flask import Blueprint, make_response, jsonify, abort, request
+from pyang import plugin
 
 import utility.log as log
 from api.globalConfig import yc_gc
 from api.views.yangSearch.elkSearch import ElkSearch
 from utility.util import get_curr_dir
+from utility.yangParser import create_context
 
 
 class YangSearch(Blueprint):
@@ -119,10 +121,37 @@ def tree_module_revision(module_name, revision):
             # get latest revision of provided module
             revision = revisions[0]
 
+        path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, module_name, revision)
+        plugin.plugins = []
+        plugin.init([])
+        ctx = create_context('{}'.format(yc_gc.yang_models))
+        ctx.opts.lint_namespace_prefixes = []
+        ctx.opts.lint_modulename_prefixes = []
+
+        module_context = {}
+        for p in plugin.plugins:
+            p.setup_ctx(ctx)
+        try:
+            with open(path_to_yang, 'r') as f:
+                module_context = ctx.add_module(path_to_yang, f.read())
+        except:
+            abort(400, description='File {} was not found'.format(path_to_yang))
+        imports_includes = []
+        imports_includes.extend(module_context.search('import'))
+        imports_includes.extend(module_context.search('include'))
+        import_inlcude_map = {}
+        for imp_inc in imports_includes:
+            prefix = imp_inc.search('prefix')
+            if len(prefix) == 1:
+                prefix = prefix[0].arg
+            else:
+                prefix = 'None'
+            import_inlcude_map[prefix] = imp_inc.arg
         ytree_dir = yc_gc.json_ytree
         yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
         response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
                                                                  organization)).get('maturity-level').upper()
+        response['import-include'] = import_inlcude_map
 
         if os.path.isfile(yang_tree_file_path):
             try:
@@ -132,19 +161,20 @@ def tree_module_revision(module_name, revision):
                 else:
                     response['namespace'] = json_tree.get('namespace', '')
                     response['prefix'] = json_tree.get('prefix', '')
-                    data_nodes = build_tree(json_tree, module_name)
+                    import_inlcude_map[response['prefix']] = module_name
+                    data_nodes = build_tree(json_tree, module_name, import_inlcude_map)
                     jstree_json = dict()
                     jstree_json['data'] = [data_nodes]
                     if json_tree.get('rpcs') is not None:
                         rpcs = dict()
                         rpcs['name'] = json_tree['prefix'] + ':rpcs'
                         rpcs['children'] = json_tree['rpcs']
-                        jstree_json['data'].append(build_tree(rpcs, module_name))
+                        jstree_json['data'].append(build_tree(rpcs, module_name, import_inlcude_map))
                     if json_tree.get('notifications') is not None:
                         notifs = dict()
                         notifs['name'] = json_tree['prefix'] + ':notifs'
                         notifs['children'] = json_tree['notifications']
-                        jstree_json['data'].append(build_tree(notifs, module_name))
+                        jstree_json['data'].append(build_tree(notifs, module_name, import_inlcude_map))
                     if json_tree.get('augments') is not None:
                         augments = dict()
                         augments['name'] = json_tree['prefix'] + ':augments'
@@ -154,7 +184,7 @@ def tree_module_revision(module_name, revision):
                             aug_info['name'] = aug['augment_path']
                             aug_info['children'] = aug['augment_children']
                             augments['children'].append(aug_info)
-                        jstree_json['data'].append(build_tree(augments, module_name, augments=True))
+                        jstree_json['data'].append(build_tree(augments, module_name, import_inlcude_map, augments=True))
             except Exception as e:
                 alerts.append("Failed to read YANG tree data for {}@{}/{}, {}".format(module_name, revision,
                                                                                       organization, e))
@@ -591,7 +621,7 @@ def get_module_data(module_index):
     return module_data
 
 
-def build_tree(jsont, module, pass_on_schemas=None, augments=False):
+def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False):
     """
     Builds data for yang_tree.html, takes json and recursively writes out it's children.
     :param jsont: input json
@@ -599,24 +629,21 @@ def build_tree(jsont, module, pass_on_schemas=None, augments=False):
     :return: (dict) with all nodes and their parameters
     """
     node = dict()
-    node['text'] = jsont['name']
-    if jsont.get('description') is not None:
-        node['a_attr'] = dict()
-        node['a_attr']['title'] = jsont['description'].replace('\n', ' ')
-    else:
-        node['a_attr'] = dict()
-        node['a_attr']['title'] = jsont['name']
     node['data'] = {
         'schema': '',
         'type': '',
-        'type_title': '',
-        'type_class': 'abbrCls',
         'flags': '',
         'opts': '',
         'status': '',
         'path': '',
-        'path_class': 'path-class'
+        'text': '',
+        'description': ''
     }
+    node['data']['text'] = jsont['name']
+    if jsont.get('description') is not None:
+        node['data']['description'] = jsont['description'].replace('\n', ' ')
+    else:
+        node['data']['description'] = jsont['name']
     if pass_on_schemas is None:
         pass_on_schemas = []
     if jsont.get('name') == module:
@@ -627,12 +654,8 @@ def build_tree(jsont, module, pass_on_schemas=None, augments=False):
             pass_on_schemas.append(jsont['schema_type'])
     if jsont.get('type') is not None:
         node['data']['type'] = jsont['type']
-        node['data']['type_title'] = jsont['type']
-        if jsont.get('type_info') is not None:
-            node['data']['type_title'] = get_type_str(jsont['type_info'])
     elif jsont.get('schema_type') is not None:
         node['data']['type'] = jsont['schema_type']
-        node['data']['type_title'] = jsont['schema_type']
     if jsont.get('flags') is not None and jsont['flags'].get('config') is not None:
         if jsont['flags']['config']:
             node['data']['flags'] = 'config'
@@ -648,25 +671,29 @@ def build_tree(jsont, module, pass_on_schemas=None, augments=False):
         for path_part in path_list:
             path = '{}/{}'.format(path, path_part.split('?')[0])
         node['data']['path'] = path
-        node['data']['sensor_path'] = re.sub(r'/[^:]+:', '/', path).replace('/', '/{}:'.format(module), 1)
+        last = None
+        sensor_path = path
+        for prefix in re.findall(r'/[^:]+:', sensor_path):
+            if prefix != last:
+                last = prefix
+                sensor_path = sensor_path.replace(prefix, '/{}:'.format(imp_inc_map.get(prefix[1:-1], '/')), 1)
+                sensor_path = sensor_path.replace(prefix, '/')
+        node['data']['sensor_path'] = sensor_path
     if jsont['name'] != module and jsont.get('children') is None or len(jsont['children']) == 0:
-        node['icon'] = 'glyphicon glyphicon-leaf'
         if jsont.get('path') is not None:
             if augments:
-                node['a_attr']['href'] = "show_node/{}/{}".format(module, jsont['path'].replace('?', '%3F'))
+                node['data']['show_node_path'] = "show-node/{}{}".format(module, jsont['path'].replace('?', '%3F'))
             else:
                 path_list = jsont['path'].split('/')[1:]
                 path = ''
                 for schema in enumerate(pass_on_schemas):
                     path = '{}{}%3F{}/'.format(path, path_list[schema[0]].split('?')[0], schema[1])
-                node['a_attr']['href'] = "show_node/{}/{}".format(module, path)
+                node['data']['show_node_path'] = "show-node/{}{}".format(module, path)
                 pass_on_schemas.pop()
-        node['a_attr']['class'] = 'nodeClass'
-        node['a_attr']['style'] = 'color: #00e;'
     elif jsont.get('children') is not None:
         node['children'] = []
         for child in jsont['children']:
-            node['children'].append(build_tree(child, module, pass_on_schemas, augments))
+            node['children'].append(build_tree(child, module, imp_inc_map, pass_on_schemas, augments))
         if len(pass_on_schemas) != 0 and jsont.get('schema_type') not in ['choice', 'case']:
             pass_on_schemas.pop()
 
