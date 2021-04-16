@@ -1146,13 +1146,13 @@ def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False)
     if jsont['name'] != module and jsont.get('children') is None or len(jsont['children']) == 0:
         if jsont.get('path') is not None:
             if augments:
-                node['data']['show_node_path'] = "show-node/{}{}".format(module, jsont['path'].replace('?', '%3F'))
+                node['data']['show_node_path'] = jsont['path']
             else:
                 path_list = jsont['path'].split('/')[1:]
                 path = ''
                 for schema in enumerate(pass_on_schemas):
-                    path = '{}{}%3F{}/'.format(path, path_list[schema[0]].split('?')[0], schema[1])
-                node['data']['show_node_path'] = "show-node/{}{}".format(module, path)
+                    path = '{}{}?{}/'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                node['data']['show_node_path'] = path
                 pass_on_schemas.pop()
     elif jsont.get('children') is not None:
         node['children'] = []
