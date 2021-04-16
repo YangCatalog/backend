@@ -2,6 +2,17 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v3.2.0 - 2021-04-15
+
+  * Verify argument set according to whether it is a prod or not for ES [#252](https://github.com/YangCatalog/backend/issues/252)
+  * Python base image bumped to version 3.9 [deployment #66](https://github.com/YangCatalog/deployment/issues/66)
+  * ietfYangDraftPull module scripts refactored - replaced subprocess calls [#248](https://github.com/YangCatalog/backend/issues/248)
+  * Logs format modified - added filename information [#246](https://github.com/YangCatalog/backend/issues/246)
+  * Hashing of the file content introduced [#245](https://github.com/YangCatalog/backend/issues/245)
+  * lxml package version bumped
+  * revise_semver.py sandbox script created [#242](https://github.com/YangCatalog/backend/issues/242)
+  * Confd full check moved into separate scripts [#226](https://github.com/YangCatalog/backend/issues/226)
+
 * ##### v3.1.0 - 2021-03-18
 
   * Unified the way how --check-update-from is used [#237](https://github.com/YangCatalog/backend/issues/237)
