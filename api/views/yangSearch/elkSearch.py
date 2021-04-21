@@ -19,6 +19,9 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 import json
 import multiprocessing
 
@@ -27,6 +30,7 @@ from elasticsearch import Elasticsearch, ConnectionTimeout
 from redis import Redis
 from utility import log
 import gevent.queue
+<<<<<<< HEAD
 =======
 import hashlib
 =======
@@ -43,6 +47,8 @@ from utility import log
 =======
 import gevent.queue
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 class ElkSearch:
@@ -66,6 +72,7 @@ class ElkSearch:
                  redis: Redis, include_mibs: bool, yang_versions: list, needed_output_colums: list,
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                  all_output_columns: list, sub_search: list) -> None:
 =======
                  all_output_columns: list, sub_search:list) -> None:
@@ -73,6 +80,9 @@ class ElkSearch:
 =======
                  all_output_columns: list, sub_search: list) -> None:
 >>>>>>> Push progress on yang search
+=======
+                 all_output_columns: list, sub_search: list) -> None:
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         """
         Initialization of search under elasticsearch engine. We need to prepare a query
         that will be used to search in elasticsearch.
@@ -145,8 +155,11 @@ class ElkSearch:
         self.__row_hashes = []
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         self.__missing_modules = []
         self.LOGGER = log.get_logger('yc-elasticsearch', '{}/yang.log'.format(logs_dir))
 
@@ -160,11 +173,14 @@ class ElkSearch:
             alerts.append('Module {} metadata does not exist in yangcatalog'.format(missing))
         return alerts
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         self.LOGGER = log.get_logger('elasticsearch', '{}/yang.log'.format(logs_dir))
 >>>>>>> Add search endpoint
 =======
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
     def construct_query(self):
         """
@@ -255,6 +271,7 @@ class ElkSearch:
             sensitive = 'sensitive'
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         else:
             self.__searched_term = self.__searched_term.lower()
 =======
@@ -263,6 +280,10 @@ class ElkSearch:
         else:
             self.__searched_term = self.__searched_term.lower()
 >>>>>>> Fix minor issues
+=======
+        else:
+            self.__searched_term = self.__searched_term.lower()
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         search_in = self.query['query']['bool']['must'][1]['bool']['should']
         for searched_field in self.__searched_fields:
             should_query = \
@@ -281,6 +302,7 @@ class ElkSearch:
             search_in.append(should_query)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.LOGGER.debug('query:  {}'.format(self.query))
 =======
             self.LOGGER.info('query:  {}'.format(self.query))
@@ -288,6 +310,9 @@ class ElkSearch:
 =======
         self.LOGGER.debug('query:  {}'.format(self.query))
 >>>>>>> Push progress on yang search
+=======
+        self.LOGGER.debug('query:  {}'.format(self.query))
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
     def search(self):
         """
@@ -304,17 +329,24 @@ class ElkSearch:
         """
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         hits = gevent.queue.JoinableQueue()
         process_first_search = gevent.spawn(self.__first_scroll, hits)
 
         self.LOGGER.debug('Running first search in parallel')
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         if self.__latest_revision:
             self.LOGGER.debug('Processing aggregations search in parallel')
             self.__resolve_aggregations()
             self.LOGGER.debug('Aggregations processed joining the search')
         process_first_search.join()
         processed_rows = self.__process_hits(hits.get(), [])
+<<<<<<< HEAD
 =======
         hits = []
         process_first_search = multiprocessing.Process(target=self.__first_scroll, args=(hits,))
@@ -338,18 +370,24 @@ class ElkSearch:
 =======
         processed_rows = self.__process_hits(hits.get(), [])
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         if self.__current_scroll_id is not None:
             self.__es.clear_scroll(body={'scroll_id': [self.__current_scroll_id]}, ignore=(404,))
         return processed_rows
 
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     def __process_hits(self, hits: list, response_rows: list, reject=None):
         if reject is None:
             reject = []
         if hits is None or len(hits) == 0:
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             return response_rows
@@ -375,6 +413,11 @@ class ElkSearch:
         secondary_hits = gevent.queue.JoinableQueue()
         process_scroll_search = gevent.spawn(self.__continue_scrolling, secondary_hits)
 >>>>>>> Final fixes for yang search
+=======
+            return response_rows
+        secondary_hits = gevent.queue.JoinableQueue()
+        process_scroll_search = gevent.spawn(self.__continue_scrolling, secondary_hits)
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         for hit in hits:
             row = {}
             source = hit['_source']
@@ -386,6 +429,7 @@ class ElkSearch:
                 continue
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
 =======
             if all_revisions or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
@@ -393,6 +437,9 @@ class ElkSearch:
 =======
             if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
 >>>>>>> Push progress on yang search
+=======
+            if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                 # we need argument, description, path and statement out of the elk response
                 argument = source['argument']
                 description = source['description']
@@ -405,6 +452,7 @@ class ElkSearch:
                 else:
                     self.LOGGER.error('Failed to get module from redis but found in elasticsearch {}'
                                       .format(module_index))
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
                     reject.append(module_index)
@@ -421,6 +469,11 @@ class ElkSearch:
 >>>>>>> Push progress on yang search
 =======
 >>>>>>> Final fixes for yang search
+=======
+                    reject.append(module_index)
+                    self.__missing_modules.append(module_index)
+                    continue
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                 if self.__rejects_mibs_or_versions(module_index, reject, module_data):
                     continue
                 row['name'] = argument
@@ -445,6 +498,7 @@ class ElkSearch:
                 self.__trim_and_hash_row_by_columns(row, response_rows)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                 if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
                     self.LOGGER.debug('elk search finished with len {} and scroll id {}'
                                      .format(len(response_rows), self.__current_scroll_id))
@@ -454,16 +508,22 @@ class ElkSearch:
                     process_scroll_search.terminate()
 >>>>>>> Add search endpoint
 =======
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                 if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
                     self.LOGGER.debug('elk search finished with len {} and scroll id {}'
                                      .format(len(response_rows), self.__current_scroll_id))
                     process_scroll_search.kill()
+<<<<<<< HEAD
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                     return response_rows
             else:
                 reject.append(module_index)
 
         process_scroll_search.join()
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
         return self.__process_hits(secondary_hits.get(), response_rows, reject)
@@ -473,10 +533,14 @@ class ElkSearch:
 =======
         return self.__process_hits(secondary_hits.get(), response_rows, reject)
 >>>>>>> Push progress on yang search
+=======
+        return self.__process_hits(secondary_hits.get(), response_rows, reject)
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
     def __first_scroll(self, hits):
         elk_response = {}
         try:
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             query_no_agg = self.query.copy()
@@ -500,6 +564,11 @@ class ElkSearch:
             query_no_agg.pop('aggs', '')
             elk_response = self.__es.search(index='yindex', doc_type='modules', body=query_no_agg, request_timeout=20,
 >>>>>>> Push progress on yang search
+=======
+            query_no_agg = self.query.copy()
+            query_no_agg.pop('aggs', '')
+            elk_response = self.__es.search(index='yindex', doc_type='modules', body=query_no_agg, request_timeout=20,
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                                             scroll=u'2m', size=self.__response_size)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
@@ -511,17 +580,22 @@ class ElkSearch:
     def __continue_scrolling(self, hits):
         if self.__current_scroll_id is None:
 <<<<<<< HEAD
+<<<<<<< HEAD
             hits = []
 >>>>>>> Add search endpoint
 =======
             hits.put([])
 >>>>>>> Push progress on yang search
+=======
+            hits.put([])
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
             return
         elk_response = {}
         try:
             elk_response = self.__es.scroll(self.__current_scroll_id, scroll=u'2m', request_timeout=20)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
+<<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
             elk_response['hits'] = {'hits': []}
@@ -536,6 +610,11 @@ class ElkSearch:
         self.__current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 >>>>>>> Push progress on yang search
+=======
+            elk_response['hits'] = {'hits': []}
+        self.__current_scroll_id = elk_response.get('_scroll_id')
+        hits.put(elk_response['hits']['hits'])
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
     def __resolve_aggregations(self):
         response = {'aggregations': {'groupby': {'buckets': []}}}
@@ -564,6 +643,7 @@ class ElkSearch:
             # This actually happens only if name description or path is being removed
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
             if 'name' in self.__remove_columns or 'description' in self.__remove_columns \
 =======
             if 'name' in self.__remove_columns or 'description' in self.__remove_columns\
@@ -571,6 +651,9 @@ class ElkSearch:
 =======
             if 'name' in self.__remove_columns or 'description' in self.__remove_columns \
 >>>>>>> Push progress on yang search
+=======
+            if 'name' in self.__remove_columns or 'description' in self.__remove_columns \
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                     or 'path' in self.__remove_columns:
                 row_hash = hashlib.sha256()
                 for key, value in row.items():
@@ -588,6 +671,7 @@ class ElkSearch:
                     if row_hexadecimal in self.__row_hashes:
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
                         self.LOGGER.info(
                             'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
 =======
@@ -597,6 +681,10 @@ class ElkSearch:
                         self.LOGGER.info(
                             'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
 >>>>>>> Push progress on yang search
+=======
+                        self.LOGGER.info(
+                            'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                     else:
                         self.__row_hashes.append(row_hexadecimal)
                         response_rows.append(row)
@@ -609,6 +697,7 @@ class ElkSearch:
     def __found_in_sub_search(self, row):
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         if len(self.__sub_search) == 0:
             return True
 =======
@@ -617,6 +706,10 @@ class ElkSearch:
         if len(self.__sub_search) == 0:
             return True
 >>>>>>> Push progress on yang search
+=======
+        if len(self.__sub_search) == 0:
+            return True
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         for search in self.__sub_search:
             passed = True
             for key, value in search.items():
@@ -628,8 +721,11 @@ class ElkSearch:
         return False
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> Add search endpoint
 =======
 >>>>>>> Push progress on yang search
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7

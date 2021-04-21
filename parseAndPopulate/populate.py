@@ -50,7 +50,10 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
 =======
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.util import prepare_to_indexing, send_to_indexing2
+<<<<<<< HEAD
 >>>>>>> Add json tree
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -70,10 +73,14 @@ class ScriptConfig:
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.cache_dir = config.get('Directory-Section', 'cache')
 =======
         self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
 >>>>>>> Add json tree
+=======
+        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         self.lock_file = config.get('Directory-Section', 'lock')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
@@ -203,9 +210,12 @@ def main(scriptConf=None):
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
 <<<<<<< HEAD
+<<<<<<< HEAD
     cache_dir = scriptConf.cache_dir
 =======
 >>>>>>> Add json tree
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 

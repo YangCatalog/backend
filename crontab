@@ -21,4 +21,7 @@ SHELL=/bin/bash
 =======
 */30 * * * * (cd ~ ; source bin/activate ; echo "`date` starting confdFullCheck" >> /var/yang/logs/crons-log.log ; cd utility ; python confdFullCheck.py)
 */3 * * * * (cd ~ ; source bin/activate ;  export PYTHONPATH=${PYTHONPATH}:/backend ; cd  elasticsearchIndexing ; python process-changed-mods.py)
+<<<<<<< HEAD
 >>>>>>> Add json tree
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7

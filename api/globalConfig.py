@@ -87,6 +87,7 @@ class YangCatalogApiGlobalConfig():
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
 =======
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
@@ -94,21 +95,31 @@ class YangCatalogApiGlobalConfig():
 =======
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
 >>>>>>> Fix minor issues
+=======
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         if self.es_aws == 'True':
             self.es_aws = True
         else:
             self.es_aws = False
+<<<<<<< HEAD
+=======
+
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         if self.es_aws:
             self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
                                  scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+<<<<<<< HEAD
                                  scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
 
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -183,6 +194,7 @@ class YangCatalogApiGlobalConfig():
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
 =======
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
@@ -190,18 +202,28 @@ class YangCatalogApiGlobalConfig():
 =======
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
 >>>>>>> Fix minor issues
+=======
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         if self.es_aws == 'True':
             self.es_aws = True
         else:
             self.es_aws = False
         if self.es_aws:
+<<<<<<< HEAD
+=======
+            self.es = Elasticsearch([self.es_host],
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                                       http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
                                       scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+<<<<<<< HEAD
                                       scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')

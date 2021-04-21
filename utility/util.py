@@ -324,7 +324,10 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
             proc = subprocess.Popen(cmd, close_fds=True)
             LOGGER.info('Populating github with process {}'.format(proc))
     return post_body
+<<<<<<< HEAD
 >>>>>>> Add json tree
+=======
+>>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], error: str = '', status: str = ''):
