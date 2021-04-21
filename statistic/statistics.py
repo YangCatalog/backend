@@ -314,12 +314,12 @@ def process_data(out, save_list, path, name):
         modules = out.split(path + ' : ')[1].split('\n')[0]
     num_in_catalog, passed = get_specifics(path)
     table_sdo['name'] = name
-    table_sdo['num_gituhub'] = modules
+    table_sdo['num_github'] = modules
     table_sdo['num_catalog'] = num_in_catalog
     try:
         table_sdo['percentage_compile'] = repr(round((float(passed) / num_in_catalog) * 100, 2)) + ' %'
     except ZeroDivisionError:
-        table_sdo['percentage_compile'] = 0
+        table_sdo['percentage_compile'] = '0.0 %'
     table_sdo['percentage_extra'] = 'unknown'
     save_list.append(table_sdo)
 
@@ -730,12 +730,15 @@ def main(scriptConf=None):
                    'current_date': time.strftime("%d/%m/%y")}
         LOGGER.info('Rendering data')
         with open('{}/../resources/stats.json'.format(get_curr_dir(__file__)), 'w') as f:
+            for sdo in sdo_list:
+                sdo['num_github'] = int(sdo['num_github'])
+                sdo['percentage_compile'] = float(sdo['percentage_compile'].split(' ')[0])
             output = {'table_sdo': sdo_list,
                        'table_vendor': vendor_list,
-                       'num_yang_files_vendor': vendor_modules,
-                       'num_yang_files_vendor_ndp': vendor_modules_ndp,
-                       'num_yang_files_standard': standard_modules,
-                       'num_yang_files_standard_ndp': standard_modules_ndp,
+                       'num_yang_files_vendor': int(vendor_modules),
+                       'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
+                       'num_yang_files_standard': int(standard_modules),
+                       'num_yang_files_standard_ndp': int(standard_modules_ndp),
                        'num_parsed_files': all_modules_data,
                        'num_unique_parsed_files': len(all_modules_data_unique),
                        'nx': nx_json_output,
