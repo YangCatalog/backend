@@ -170,7 +170,7 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     return (results, limit_reacher.limit_reached)
 
 
-def scan(client, limit_reacher, query=None, scroll='5m', raise_on_error=True,
+def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=True,
          preserve_order=False, size=10000, request_timeout=None, clear_scroll=True,
          scroll_limit=2, scroll_kwargs=None, **kwargs):
     """
@@ -216,7 +216,7 @@ def scan(client, limit_reacher, query=None, scroll='5m', raise_on_error=True,
         resp = client.search(body=query, scroll=scroll, size=size,
                              request_timeout=request_timeout, **kwargs)
     except ConnectionTimeout as e:
-        #LOGGER.info('connection timed out - \n {}'.format(e))
+        LOGGER.info('connection timed out - \n {}'.format(e))
         raise e
     scroll_id = resp.get('_scroll_id')
     if scroll_id is None:
@@ -239,10 +239,10 @@ def scan(client, limit_reacher, query=None, scroll='5m', raise_on_error=True,
                     yield hit
             # check if we have any errors
             if resp["_shards"]["successful"] < resp["_shards"]["total"]:
-                #LOGGER.warning(
-                #   'Scroll request has only succeeded on %d shards out of %d.',
-                #    resp['_shards']['successful'], resp['_shards']['total']
-                #)
+                LOGGER.warning(
+                   'Scroll request has only succeeded on %d shards out of %d.',
+                    resp['_shards']['successful'], resp['_shards']['total']
+                )
                 if raise_on_error:
                     raise ScanError(
                         scroll_id,
@@ -259,8 +259,9 @@ def scan(client, limit_reacher, query=None, scroll='5m', raise_on_error=True,
     finally:
         if scroll_id and clear_scroll:
             client.clear_scroll(body={'scroll_id': [scroll_id]}, ignore=(404, ))
+
+
 class LimitReacher():
+
     def __init__(self):
         self.limit_reached = False
-
-
