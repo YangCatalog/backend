@@ -52,8 +52,8 @@ RUN chmod 777 /var/run/mysqld
 
 COPY yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
-COPY elasticsearchIndexing/pyang_plugin/json_tree.py /backend/lib/python3.8/site-packages/pyang/plugins/.
-COPY elasticsearchIndexing/pyang_plugin/yang_catalog_index_es.py /backend/lib/python3.8/site-packages/pyang/plugins/.
+COPY elasticsearchIndexing/pyang_plugin/json_tree.py /backend/lib/python3.9/site-packages/pyang/plugins/.
+COPY elasticsearchIndexing/pyang_plugin/yang_catalog_index_es.py /backend/lib/python3.9/site-packages/pyang/plugins/.
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 
