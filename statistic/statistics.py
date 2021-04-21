@@ -733,6 +733,9 @@ def main(scriptConf=None):
             for sdo in sdo_list:
                 sdo['num_github'] = int(sdo['num_github'])
                 sdo['percentage_compile'] = float(sdo['percentage_compile'].split(' ')[0])
+            for vendor in vendor_list:
+                vendor['num_github'] = int(vendor['num_github'])
+                vendor['percentage_compile'] = float(vendor['percentage_compile'].split(' ')[0])
             output = {'table_sdo': sdo_list,
                        'table_vendor': vendor_list,
                        'num_yang_files_vendor': int(vendor_modules),
