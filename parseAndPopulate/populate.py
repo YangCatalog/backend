@@ -40,20 +40,13 @@ import time
 
 import requests
 import utility.log as log
-<<<<<<< HEAD
 from utility.staticVariables import confd_headers
 from utility.util import prepare_to_indexing, send_to_indexing2
 
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
-=======
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
-from utility.util import prepare_to_indexing, send_to_indexing2
-<<<<<<< HEAD
->>>>>>> Add json tree
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
+
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -72,15 +65,8 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-<<<<<<< HEAD
-<<<<<<< HEAD
         self.cache_dir = config.get('Directory-Section', 'cache')
-=======
         self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
->>>>>>> Add json tree
-=======
-        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         self.lock_file = config.get('Directory-Section', 'lock')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
@@ -209,13 +195,7 @@ def main(scriptConf=None):
     is_uwsgi = scriptConf.is_uwsgi
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
-<<<<<<< HEAD
-<<<<<<< HEAD
     cache_dir = scriptConf.cache_dir
-=======
->>>>>>> Add json tree
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
@@ -243,7 +223,6 @@ def main(scriptConf=None):
         direc = '{}/{}'.format(temp_dir, repr(direc))
     confd_prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
     LOGGER.info('Calling runcapabilities script')
-<<<<<<< HEAD
     try:
         module = __import__('parseAndPopulate', fromlist=['runCapabilities'])
         submodule = getattr(module, 'runCapabilities')
@@ -252,23 +231,6 @@ def main(scriptConf=None):
     except Exception as e:
         LOGGER.error('runCapabilities error:\n{}'.format(e))
         raise e
-=======
-    run_capabilities = os.path.dirname(os.path.realpath(__file__)) + '/runCapabilities.py'
-    run_capabilities_args = ["python", run_capabilities, "--json-dir", direc, "--result-html-dir",
-                             args.result_html_dir, "--dir", args.dir, '--save-file-dir',
-                             args.save_file_dir, '--api-ip', args.api_ip, '--api-port',
-                             repr(args.api_port), '--api-protocol', args.api_protocol]
-    if args.api:
-        run_capabilities_args.append("--api")
-    if args.sdo:
-        run_capabilities_args.append("--sdo")
-    with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "w") as f:
-        subprocess.check_call(run_capabilities_args, stderr=f)
-    with open("{}/log_runCapabilities_temp.txt".format(temp_dir), "r") as f:
-        error = f.read()
-        if error != "":
-            LOGGER.error("run capabilities error:\n{}".format(error))
->>>>>>> Add json tree
 
     body_to_send = {}
     if args.notify_indexing:

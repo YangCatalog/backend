@@ -18,27 +18,11 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 import os
 
 import re
 from flask import Blueprint, make_response, jsonify, abort, request
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 from pyang import plugin
->>>>>>> Update tree view json
-=======
-from pyang import plugin
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 import utility.log as log
 from api.globalConfig import yc_gc
@@ -46,29 +30,6 @@ from api.views.yangSearch.elkSearch import ElkSearch
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
-<<<<<<< HEAD
-=======
-=======
-
->>>>>>> Change structure
-import re
-from flask import Blueprint, make_response, jsonify, abort
-=======
->>>>>>> Add search endpoint
-
-import utility.log as log
-from api.globalConfig import yc_gc
-from api.views.yangSearch.elkSearch import ElkSearch
-from utility.util import get_curr_dir
-
-<<<<<<< HEAD
-from elasticsearch import Elasticsearch
-
->>>>>>> Move yang-serach unders backend
-=======
->>>>>>> Change structure
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 class YangSearch(Blueprint):
 
@@ -76,9 +37,6 @@ class YangSearch(Blueprint):
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
         # ordering important for frontend to show metadata in correct order
         self.order = \
@@ -124,79 +82,11 @@ class YangSearch(Blueprint):
                 'os-type': 7,
                 'conformance-type': 8
             }
-=======
-        self.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(yc_gc.logs_dir))
->>>>>>> Move yang-serach unders backend
-=======
-        self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
-<<<<<<< HEAD
-<<<<<<< HEAD
->>>>>>> Add search endpoint
-=======
-=======
-        # ordering important for frontend to show metadata in correct order
->>>>>>> Push progress on yang search
-=======
-        self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
-        # ordering important for frontend to show metadata in correct order
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
-        self.order = \
-            {
-                'name': 1,
-                'revision': 2,
-                'organization': 3,
-                'ietf': 4,
-                'ietf-wg': 1,
-                'namespace': 5,
-                'schema': 6,
-                'generated-from': 7,
-                'maturity-level': 8,
-                'document-name': 9,
-                'author-email': 10,
-                'reference': 11,
-                'module-classification': 12,
-                'compilation-status': 13,
-                'compilation-result': 14,
-                'prefix': 15,
-                'yang-version': 16,
-                'description': 17,
-                'contact': 18,
-                'module-type': 19,
-                'belongs-to': 20,
-                'tree-type': 21,
-                'yang-tree': 22,
-                'expires': 23,
-                'expired': 24,
-                'submodule': 25,
-                'dependencies': 26,
-                'dependents': 27,
-                'semantic-version': 28,
-                'derived-semantic-version': 29,
-                'implementations': 30,
-                'implementation': 1,
-                'vendor': 1,
-                'platform': 2,
-                'software-version': 3,
-                'software-flavor': 4,
-                'os-version': 5,
-                'feature-set': 6,
-                'os-type': 7,
-                'conformance-type': 8
-            }
-<<<<<<< HEAD
->>>>>>> Fix module datails output
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 app = YangSearch('yangSearch', __name__)
 
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 # ROUTE ENDPOINT DEFINITIONS
 @app.route('/tree/<module_name>', methods=['GET'])
 def tree_module(module_name):
@@ -367,162 +257,6 @@ def search():
     return make_response(jsonify(response), 200)
 
 
-<<<<<<< HEAD
-=======
-### ROUTE ENDPOINT DEFINITIONS ###
-<<<<<<< HEAD
->>>>>>> Move yang-serach unders backend
-=======
-=======
-# ROUTE ENDPOINT DEFINITIONS
-<<<<<<< HEAD
->>>>>>> Push progress on yang search
-=======
-@app.route('/tree/<module_name>', methods=['GET'])
-def tree_module(module_name):
-    """
-    Generates yang tree view of the module.
-    :param module_name: Module for which we are generating the tree.
-    :return: json response with yang tree
-    """
-    return tree_module_revision(module_name, None)
-
-
-@app.route('/tree/<module_name>@<revision>', methods=['GET'])
-def tree_module_revision(module_name, revision):
-    """
-    Generates yang tree view of the module.
-    :param module_name: Module for which we are generating the tree.
-    :param revision   : Revision of the module
-    :return: json response with yang tree
-    """
-    response = {}
-    alerts = []
-    jstree_json = {}
-    nmodule = os.path.basename(module_name)
-    if nmodule != module_name:
-        abort(400, description='Invalid module name specified')
-    else:
-        revisions, organization = get_modules_revision_organization(module_name, revision)
-        if len(revisions) == 0:
-            abort(404, description='Provided module does not exist')
-
-        if revision is None:
-            # get latest revision of provided module
-            revision = revisions[0]
-
-        ytree_dir = yc_gc.json_ytree
-        yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
-        response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
-                                                                 organization)).get('maturity-level').upper()
-
-        if os.path.isfile(yang_tree_file_path):
-            try:
-                json_tree = json.load(open(yang_tree_file_path))
-                if json_tree is None:
-                    alerts.append('Failed to decode JSON data: ')
-                else:
-                    response['namespace'] = json_tree.get('namespace', '')
-                    response['prefix'] = json_tree.get('prefix', '')
-                    data_nodes = build_tree(json_tree, module_name)
-                    jstree_json = dict()
-                    jstree_json['data'] = [data_nodes]
-                    if json_tree.get('rpcs') is not None:
-                        rpcs = dict()
-                        rpcs['name'] = json_tree['prefix'] + ':rpcs'
-                        rpcs['children'] = json_tree['rpcs']
-                        jstree_json['data'].append(build_tree(rpcs, module_name))
-                    if json_tree.get('notifications') is not None:
-                        notifs = dict()
-                        notifs['name'] = json_tree['prefix'] + ':notifs'
-                        notifs['children'] = json_tree['notifications']
-                        jstree_json['data'].append(build_tree(notifs, module_name))
-                    if json_tree.get('augments') is not None:
-                        augments = dict()
-                        augments['name'] = json_tree['prefix'] + ':augments'
-                        augments['children'] = []
-                        for aug in json_tree.get('augments'):
-                            aug_info = dict()
-                            aug_info['name'] = aug['augment_path']
-                            aug_info['children'] = aug['augment_children']
-                            augments['children'].append(aug_info)
-                        jstree_json['data'].append(build_tree(augments, module_name, augments=True))
-            except Exception as e:
-                alerts.append("Failed to read YANG tree data for {}@{}/{}, {}".format(module_name, revision,
-                                                                                      organization, e))
-        else:
-            alerts.append("YANG Tree data does not exist for {}@{}/{}".format(module_name, revision, organization))
-    if jstree_json is None:
-        response['jstree_json'] = dict()
-        alerts.append('Json tree could not be generated')
-    else:
-        response['jstree_json'] = jstree_json
-
-    response['module'] = '{}@{}'.format(module_name, revision)
-    response['warning'] = alerts
-
-    return make_response(jsonify(response), 200)
-
-
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-@app.route('/search', methods=['POST'])
-def search():
-    if not request.json:
-        abort(400, description='No input data')
-    payload = request.json
-    app.LOGGER.info('Running search with following payload {}'.format(payload))
-    searched_term = payload.get('searched-term')
-    if searched_term is None or searched_term == '' or len(searched_term) < 2 or not isinstance(searched_term, str):
-        abort(400, description='You have to write "searched-term" key containing at least 2 characters')
-    __schema_types = [
-        'typedef',
-        'grouping',
-        'feature',
-        'identity',
-        'extension',
-        'rpc',
-        'container',
-        'list',
-        'leaf-list',
-        'leaf',
-        'notification',
-        'action'
-    ]
-    __output_columns = [
-        'name',
-        'revision',
-        'schema-type',
-        'path',
-        'module-name',
-        'origin',
-        'organization',
-        'maturity',
-        'dependents',
-        'compilation-status',
-        'description'
-    ]
-    response = {}
-    case_sensitive = isBoolean(payload, 'case-sensitive', False)
-    terms_regex = isStringOneOf(payload, 'type', 'term', ['term', 'regexp'])
-    include_mibs = isBoolean(payload, 'include-mibs', False)
-    latest_revision = isBoolean(payload, 'latest-revision', True)
-    searched_fields = isListOneOf(payload, 'searched-fields', ['module', 'argument', 'description'])
-    yang_versions = isListOneOf(payload, 'yang-versions', ['1.0', '1.1'])
-    schema_types = isListOneOf(payload, 'schema-types', __schema_types)
-    output_columns = isListOneOf(payload, 'output-columns', __output_columns)
-    sub_search = eachKeyIsOneOf(payload, 'sub-search', __output_columns)
-    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, yc_gc.logs_dir,
-                           yc_gc.es, latest_revision, yc_gc.redis, include_mibs, yang_versions, output_columns,
-                           __output_columns, sub_search)
-    elk_search.construct_query()
-    response['rows'] = elk_search.search()
-    response['warning'] = elk_search.alerts()
-    return make_response(jsonify(response), 200)
-
-
->>>>>>> Add search endpoint
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 @app.route('/completions/<type>/<pattern>', methods=['GET'])
 def get_services_list(type: str, pattern: str):
     """
@@ -541,37 +275,13 @@ def get_services_list(type: str, pattern: str):
         return make_response(jsonify(res), 200)
 
     try:
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
-=======
-        with open(get_curr_dir(__file__) + '/../../template/json/es/completion.json', 'r') as f:
->>>>>>> Move yang-serach unders backend
-=======
-        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
->>>>>>> Change structure
-=======
-        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
             completion = json.load(f)
 
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
             completion['aggs']['groupby_module']['terms']['field'] = '{}.keyword'.format(type.lower())
             rows = yc_gc.es.search(index='modules', doc_type='modules', body=completion,
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
                                    size=0)['aggregations']['groupby_module']['buckets']
-=======
-                                        size=0)['aggregations']['groupby_module']['buckets']
->>>>>>> Move yang-serach unders backend
-=======
-                                   size=0)['aggregations']['groupby_module']['buckets']
->>>>>>> Add search endpoint
-=======
-                                   size=0)['aggregations']['groupby_module']['buckets']
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
             for row in rows:
                 res.append(row['key'])
@@ -581,18 +291,7 @@ def get_services_list(type: str, pattern: str):
         return make_response(jsonify(res), 400)
     return make_response(jsonify(res), 200)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-=======
->>>>>>> Move yang-serach unders backend
-=======
-
->>>>>>> Add search endpoint
-=======
-
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 @app.route('/show-node/<name>/<path:path>', methods=['GET'])
 def show_node(name, path):
     """
@@ -602,32 +301,11 @@ def show_node(name, path):
     :param path: Path for node.
     :return: returns json to show node
     """
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     return show_node_with_revision(name, path, None)
 
 
 @app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
 def show_node_with_revision(name, path, revision):
-=======
-    return show_node(name, path, None)
-
-@app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
-def show_node(name, path, revision):
->>>>>>> Move yang-serach unders backend
-=======
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
-    return show_node_with_revision(name, path, None)
-
-
-@app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
-def show_node_with_revision(name, path, revision):
-<<<<<<< HEAD
->>>>>>> Change definition name
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     """
     View for show_node page, which provides context for show_node.html
     Shows description for yang modules.
@@ -636,36 +314,11 @@ def show_node_with_revision(name, path, revision):
     :param revision: revision for yang module, if specified.
     :return: returns json to show node
     """
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     properties = []
     yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
         with open(get_curr_dir(__file__) + '/../../json/es/show_node.json', 'r') as f:
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-    context = dict()
-=======
-    properties = []
->>>>>>> Add search endpoint
-    yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
-    path = '/{}'.format(path)
-    try:
-<<<<<<< HEAD
-        with open(get_curr_dir(__file__) + '/../../template/json/es/completion.json', 'r') as f:
->>>>>>> Move yang-serach unders backend
-=======
-        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
->>>>>>> Change structure
-=======
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
             query = json.load(f)
 
         if name == '':
@@ -687,31 +340,10 @@ def show_node_with_revision(name, path, revision):
             abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
         else:
             result = hits[0]['_source']
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
             properties = json.loads(result['properties'])
     except Exception as e:
         abort(400, description='Module and path that you specified can not be found - {}'.format(e))
     return make_response(jsonify(properties), 200)
-=======
-            context = result['path']
-            properties = json.loads(result['properties'])
-    except:
-        abort(400, description='Module and path that you specified can not be found')
-    return make_response(jsonify(context), 200)
->>>>>>> Move yang-serach unders backend
-=======
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
-            properties = json.loads(result['properties'])
-    except Exception as e:
-        abort(400, description='Module and path that you specified can not be found - {}'.format(e))
-    return make_response(jsonify(properties), 200)
-<<<<<<< HEAD
->>>>>>> Add search endpoint
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 @app.route('/module-details/<module>', methods=['GET'])
@@ -725,19 +357,7 @@ def module_details_no_revision(module: str):
 
 
 @app.route('/module-details/<module>@<revision>', methods=['GET'])
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 def module_details(module: str, revision: str):
-=======
-def module_details(module: str, revision:str):
->>>>>>> Move yang-serach unders backend
-=======
-def module_details(module: str, revision: str):
->>>>>>> Add search endpoint
-=======
-def module_details(module: str, revision: str):
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     """
     Search for data saved in our datastore (confd/redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -748,19 +368,7 @@ def module_details(module: str, revision: str):
     if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
         abort(400, description='Revision provided has wrong format please use "YYYY-MM-DD" format')
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     revisions, organization = get_modules_revision_organization(module, None)
-=======
-    revisions, organization = get_modules_revision_organization(module, revision)
->>>>>>> Move yang-serach unders backend
-=======
-    revisions, organization = get_modules_revision_organization(module, None)
->>>>>>> Push progress on yang search
-=======
-    revisions, organization = get_modules_revision_organization(module, None)
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     if len(revisions) == 0:
         abort(404, description='Provided module does not exist')
 
@@ -768,44 +376,16 @@ def module_details(module: str, revision: str):
         # get latest revision of provided module
         revision = revisions[0]
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     resp = \
-=======
-    resp =\
->>>>>>> Move yang-serach unders backend
-=======
-    resp = \
->>>>>>> Add search endpoint
-=======
-    resp = \
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         {
             'current-module': '{}@{}.yang'.format(module, revision),
             'revisions': revisions
         }
 
     # get module from redis
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     module_index = "{}@{}/{}".format(module, revision, organization)
     app.LOGGER.info('searching for module {}'.format(module_index))
     module_data = yc_gc.redis.get(module_index)
-=======
-    module_data = yc_gc.redis.get("{}@{}/{}".format(module, revision, organization))
->>>>>>> Move yang-serach unders backend
-=======
-    module_index = "{}@{}/{}".format(module, revision, organization)
-    app.LOGGER.info('searching for module {}'.format(module_index))
-    module_data = yc_gc.redis.get(module_index)
->>>>>>> Fix module datails output
-=======
-    module_index = "{}@{}/{}".format(module, revision, organization)
-    app.LOGGER.info('searching for module {}'.format(module_index))
-    module_data = yc_gc.redis.get(module_index)
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     if module_data is None:
         abort(404, description='Provided module does not exist')
     else:
@@ -825,53 +405,16 @@ def get_yang_catalog_help():
     :return: returns json with yang-catalog help text
     """
     revision = get_latest_module('yang-catalog')
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     query = json.load(open(get_curr_dir(__file__) + '/../../json/es/get_yang_catalog_yang.json', 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details_data = {}
-<<<<<<< HEAD
-=======
-    query = json.load(open('search/templates/json/get_yang_catalog_yang.json', 'r'))
-=======
-    query = json.load(open('search/json/get_yang_catalog_yang.json', 'r'))
->>>>>>> Change structure
-=======
-    query = json.load(open(get_curr_dir(__file__) + '/../../json/es/get_yang_catalog_yang.json', 'r'))
->>>>>>> Add search endpoint
-    query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
-    yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
-<<<<<<< HEAD
-    module_details = {}
->>>>>>> Move yang-serach unders backend
-=======
-    module_details_data = {}
->>>>>>> Fix module datails output
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     skip_statement = ['typedef', 'grouping', 'identity']
     for m in yang_catalog_module:
         help_text = ''
         m = m['_source']
         paths = m['path'].split('/')[4:]
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0 \
-=======
-        if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0\
->>>>>>> Move yang-serach unders backend
-=======
-        if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0 \
->>>>>>> Add search endpoint
-=======
-        if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0 \
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
                 or 'platforms' in m['path']:
             continue
         if m.get('argument') is not None:
@@ -892,62 +435,21 @@ def get_yang_catalog_help():
                 break
         paths.reverse()
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         update_dictionary_recursively(module_details_data, paths, help_text)
     return make_response(jsonify(module_details_data), 200)
 
 
 # HELPER DEFINITIONS
 def update_dictionary_recursively(module_details_data: dict, path_to_populate: list, help_text: str):
-=======
-        update_dictionary_recursively(module_details, paths, help_text)
-    return make_response(jsonify(module_details), 200)
-
-
-### HELPER DEFINITIONS ###
-def update_dictionary_recursively(module_details: dict, path_to_populate: list, help_text: str):
->>>>>>> Move yang-serach unders backend
-=======
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
-        update_dictionary_recursively(module_details_data, paths, help_text)
-    return make_response(jsonify(module_details_data), 200)
-
-
-# HELPER DEFINITIONS
-def update_dictionary_recursively(module_details_data: dict, path_to_populate: list, help_text: str):
-<<<<<<< HEAD
->>>>>>> Fix module datails output
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     """
     Update dictionary. Recursively create dictionary of dictionaries based on the path which are
     nested keys of dictionary and each key has a sibling help-text key which contains the help_text
     string
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
     :param module_details_data: dictionary that we are currently updating recursively
-=======
-    :param module_details: dictionary that we are currently updating recursively
->>>>>>> Move yang-serach unders backend
-=======
-    :param module_details_data: dictionary that we are currently updating recursively
->>>>>>> Fix module datails output
-=======
-    :param module_details_data: dictionary that we are currently updating recursively
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
     :param path_to_populate: list of keys used in dictionary
     :param help_text: text describing each module detail
     """
     if len(path_to_populate) == 0:
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         module_details_data['help-text'] = help_text
         return
     last_path_data = path_to_populate.pop()
@@ -958,29 +460,6 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
         module_details_data[last_path_data] = {'ordering': app.order.get(last_path_data, '')}
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
 
-<<<<<<< HEAD
-=======
-        module_details['help-text'] = help_text
-=======
-        module_details_data['help-text'] = help_text
->>>>>>> Fix module datails output
-        return
-    last_path_data = path_to_populate.pop()
-    last_path_data = last_path_data.split(":")[-1].split('?')[0]
-    if module_details_data.get(last_path_data):
-        update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
-    else:
-<<<<<<< HEAD
-        module_details[pop] = {}
-        update_dictionary_recursively(module_details[pop], path_to_populate, help_text)
->>>>>>> Move yang-serach unders backend
-=======
-        module_details_data[last_path_data] = {'ordering': app.order.get(last_path_data, '')}
-        update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
->>>>>>> Fix module datails output
-
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 def get_modules_revision_organization(module_name, revision=None):
     """
@@ -1018,35 +497,12 @@ def get_modules_revision_organization(module_name, revision=None):
         revisions = []
         for hit in hits:
             hit = hit['_source']
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
             revisions.append(hit['revision'])
         return revisions, organization
     except Exception as e:
         app.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
         abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
               .format(module_name, revision))
-<<<<<<< HEAD
-=======
-            revisions.append(hit)
-=======
-            revisions.append(hit['revision'])
->>>>>>> Fix module datails output
-        return revisions, organization
-    except Exception as e:
-<<<<<<< HEAD
-        raise Exception("Failed to get revisions and organization for {}@{}: {}".format(module_name, revision, e))
->>>>>>> Move yang-serach unders backend
-=======
-        app.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
-        abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
-              .format(module_name, revision))
->>>>>>> Do not raise exception but rather
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 def get_latest_module(module_name):
@@ -1060,22 +516,8 @@ def get_latest_module(module_name):
         rev_org = yc_gc.es.search(index='modules', doc_type='modules', body=query)['hits']['hits'][0]['_source']
         return rev_org['revision']
     except Exception as e:
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
         abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
-=======
-        raise Exception("Failed to get revision for {}: {}".format(module_name, e))
->>>>>>> Move yang-serach unders backend
-=======
-        app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
-        abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
->>>>>>> Do not raise exception but rather
-=======
-        app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
-        abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 def elasticsearch_descending_module_querry(module_name):
@@ -1099,18 +541,7 @@ def elasticsearch_descending_module_querry(module_name):
         ]
     }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 
-=======
->>>>>>> Move yang-serach unders backend
-=======
-
->>>>>>> Add search endpoint
-=======
-
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_text: str):
     """
     This definition serves to automatically fill in dictionary with helper texts. This is done recursively,
@@ -1130,13 +561,6 @@ def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_te
         update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
     else:
         updated_dictionary[pop] = {}
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Add search endpoint
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
 
 
@@ -1184,13 +608,6 @@ def eachKeyIsOneOf(payload, payload_key, keys):
     else:
         abort(400, 'Value of key {} must be string from following list {}'.format(payload_key, keys))
     return rows
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 
 
 def get_module_data(module_index):
@@ -1302,17 +719,4 @@ def get_type_str(json):
                 type_str += " {} {} {}".format('{', ','.join([str(i) for i in val]), '}')
             else:
                 type_str += " {} {} {}".format('{', val, '}')
-<<<<<<< HEAD
-<<<<<<< HEAD
     return type_str
-=======
-        update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
->>>>>>> Move yang-serach unders backend
-=======
->>>>>>> Add search endpoint
-=======
-    return type_str
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-=======
-    return type_str
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7

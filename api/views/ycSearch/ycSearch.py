@@ -1397,24 +1397,7 @@ def create_bootstrap_warning(text: str, message: str):
 def create_bootstrap_danger(message: str):
     yc_gc.LOGGER.info('Rendering bootstrap danger data')
     context = {'danger_message': message}
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
-    print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
-=======
-=======
-    print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
-<<<<<<< HEAD
->>>>>>> Remove redundant assignement
-    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
->>>>>>> Move yang-serach unders backend
-=======
-=======
-    print(get_curr_dir(__file__) + '/../../template/bootstrap/danger.html')
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
-    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
->>>>>>> Clean up
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)
