@@ -34,7 +34,6 @@ else:
 
 
 class YangCatalogApiGlobalConfig():
-
     loading = True
 
     def __init__(self):
@@ -81,45 +80,24 @@ class YangCatalogApiGlobalConfig():
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')
         self.my_uri = config.get('Web-Section', 'my-uri', fallback='http://localhost')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
+        self.yang_models = config.get('Directory-Section', 'yang-models-dir',
+                                      fallback='tests/resources/yangmodels/yang')
         self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
-=======
-        self.json_ytree = config.get('Directory-Section', 'json-ytree')
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-=======
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
->>>>>>> Fix minor issues
-=======
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         if self.es_aws == 'True':
             self.es_aws = True
         else:
             self.es_aws = False
-<<<<<<< HEAD
-=======
-
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         if self.es_aws:
             self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
-                                 scheme="https", port=443)
-        else:
-            self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
-<<<<<<< HEAD
-                                 scheme="https", port=443)
+                                    scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
 
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -186,44 +164,24 @@ class YangCatalogApiGlobalConfig():
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')
         self.my_uri = config.get('Web-Section', 'my-uri', fallback='http://localhost')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
+        self.yang_models = config.get('Directory-Section', 'yang-models-dir',
+                                      fallback='tests/resources/yangmodels/yang')
         self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
-=======
-        self.json_ytree = config.get('Directory-Section', 'json-ytree')
->>>>>>> Add enpoint for show-node, yang-tree adn statistics
-=======
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
->>>>>>> Fix minor issues
-=======
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
         if self.es_aws == 'True':
             self.es_aws = True
         else:
             self.es_aws = False
         if self.es_aws:
-<<<<<<< HEAD
-=======
-            self.es = Elasticsearch([self.es_host],
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
-                                      http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
-                                      scheme="https", port=443)
+            self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
+                                    scheme="https", port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
-<<<<<<< HEAD
-                                      scheme="https", port=443)
-        else:
-            self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
-=======
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
+
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -236,7 +194,7 @@ class YangCatalogApiGlobalConfig():
                              rabbitmq_virtual_host=rabbitmq_virtual_host,
                              rabbitmq_username=rabbitmq_username,
                              rabbitmq_password=rabbitmq_password
-                            )
+                             )
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
