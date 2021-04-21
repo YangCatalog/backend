@@ -9,19 +9,7 @@ api/vendor
 api/standard
 **/*.json
 **/*.html
-!api/template/**/*
-<<<<<<< HEAD
-<<<<<<< HEAD
-<<<<<<< HEAD
 !api/json/**/*
-=======
->>>>>>> Move yang-serach unders backend
-=======
-!api/json/**/*
->>>>>>> Add search endpoint
-=======
-!api/json/**/*
->>>>>>> 8f7ce7878984d48577e0f6a437110107b98563b7
 /venv
 !statistics/template/stats.html
 yang.egg-info
