@@ -63,6 +63,11 @@ class MessageFactory:
         self.LOGGER.info('Initialising Message')
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
+        self.__is_production = config.get('General-Section', 'is_prod')
+        if self.__is_production == 'True':
+            self.__is_production = True
+        else:
+            self.__is_production = False
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__developers_email = config.get('Message-Section', 'developers-email').split()
         self.__api = CiscoSparkAPI(access_token=token)
@@ -95,6 +100,13 @@ class MessageFactory:
                     need to be attache with a message. Default None
         """
         msg += '\n\nMessage sent from {}'.format(self.__me)
+        if not self.__is_production:
+            self.LOGGER.info('You are in local env. Skip sending message to cisco webex teams. The message was {}'
+                             .format(msg))
+            if files:
+                for f in files:
+                    os.remove(f)
+            return
         if markdown:
             self.__api.messages.create(self.__room.id, markdown=msg, files=files)
         else:
@@ -104,7 +116,7 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message: str, email_to: list = None):
+    def __post_to_email(self, message: str, email_to: list = None, subject: str = None):
         """Send message to an e-mail
 
             Arguments:
@@ -113,10 +125,15 @@ class MessageFactory:
         """
         send_to = email_to if email_to else self.__email_to
         msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me))
-        msg['Subject'] = 'Automatic generated message - RFC IETF'
+        msg['Subject'] = subject if subject else 'Automatic generated message - RFC IETF'
         msg['From'] = self.__email_from
         msg['To'] = ', '.join(send_to)
 
+        if not self.__is_production:
+            self.LOGGER.info('You are in local env. Skip sending message to emails. The message format was {}'
+                             .format(msg))
+            self.__smtp.quit()
+            return
         self.__smtp.sendmail(self.__email_from, send_to, msg.as_string())
         self.__smtp.quit()
 
@@ -201,3 +218,12 @@ class MessageFactory:
         message = ('Following modules could not be retreived from GitHub '
                    'using the schema path:\n{}'.format('\n'.join(modules_list)))
         self.__post_to_email(message, self.__developers_email)
+
+    def send_new_user(self, username: str, email: str):
+        self.LOGGER.info('Sending notification about new user')
+
+        subject = 'Request for access confirmation'
+        msg = 'User {} with email {} is requesting access \n Please go to yang project run python validate.py and follow ' \
+              'the instructions. The script can be found in yangcatalog.org under ' \
+              '/home/miroslav/yang/tools/validate/validate.py'.format(username, email)
+        self.__post_to_email(msg, subject=subject)

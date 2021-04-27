@@ -30,9 +30,10 @@ import requests
 from flask import Blueprint, request, abort, make_response, jsonify
 from git import GitCommandError
 
-from api.authentication.auth import auth
+from api.authentication.auth import auth, hash_pw
 from api.globalConfig import yc_gc
 from utility import repoutil, yangParser
+from utility.messageFactory import MessageFactory
 
 NS_MAP = {
     "http://cisco.com/": "cisco",
@@ -56,6 +57,52 @@ app = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
+@app.route('/register-user', methods=['POST'])
+def register_user():
+    if not request.json:
+        return abort(400, description='bad request - no data received')
+    body = request.json
+    for data in ['username', 'password', 'password-confirm', 'email', 'company', 'first-name', 'last-name']:
+        if data not in body:
+            return abort(400, description='bad request - missing {} data in input'.format(data))
+    username = body['username']
+
+    password = hash_pw(body['password'])
+    email = body['email']
+    confirm_password = hash_pw(body['password-confirm'])
+    models_provider = body['company']
+    name = body['first-name']
+    last_name = body['last-name']
+    if password != confirm_password:
+        return abort(400, 'Passwords do not match')
+    try:
+        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        # execute SQL query using execute() method.
+        results_num = cursor.execute("""SELECT Username FROM `users` where Username=%s""", (username,))
+        if results_num != 1:
+            return abort(409, 'User with username {} already exists'.format(username))
+        results_num = cursor.execute("""SELECT Username FROM `users_temp` where Username=%s""", (username,))
+        if results_num != 1:
+            return abort(409, 'User with username {} is pending for permissions'.format(username))
+
+        sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
+         FirstName, LastName) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
+            .format('users_temp')
+        cursor.execute(sql, (username, password, email, models_provider,
+                             name, last_name,))
+        db.commit()
+        db.close()
+    except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    mf = MessageFactory()
+    mf.send_new_user(username, email)
+    return make_response(jsonify({'info': 'User created successfully'}), 201)
+
+
 @app.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
 @auth.login_required
 def delete_module(name, revision, organization):
