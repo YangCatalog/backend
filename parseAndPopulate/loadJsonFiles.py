@@ -55,7 +55,8 @@ class LoadFiles:
         self.status = {}
         self.headers = {}
         for name in ['private', 'IETFCiscoAuthorsYANGPageCompilation']:
-            self.names.remove(name)
+            if name in self.names:
+                self.names.remove(name)
         for name in self.names:
             try:
                 with open('{}/{}.json'.format(private_dir, name), 'r') as f:
