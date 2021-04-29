@@ -81,10 +81,10 @@ def register_user():
         cursor = db.cursor()
         # execute SQL query using execute() method.
         results_num = cursor.execute("""SELECT Username FROM `users` where Username=%s""", (username,))
-        if results_num != 1:
+        if results_num >= 1:
             return abort(409, 'User with username {} already exists'.format(username))
         results_num = cursor.execute("""SELECT Username FROM `users_temp` where Username=%s""", (username,))
-        if results_num != 1:
+        if results_num >= 1:
             return abort(409, 'User with username {} is pending for permissions'.format(username))
 
         sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
