@@ -63,7 +63,7 @@ class MessageFactory:
         self.LOGGER.info('Initialising Message')
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
-        self.__is_production = config.get('General-Section', 'is_prod')
+        self.__is_production = config.get('General-Section', 'is-prod')
         if self.__is_production == 'True':
             self.__is_production = True
         else:
