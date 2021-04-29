@@ -88,7 +88,7 @@ def register_user():
             return abort(409, 'User with username {} is pending for permissions'.format(username))
 
         sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
-         FirstName, LastName) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
+         FirstName, LastName) VALUES (%s, %s, %s, %s, %s, %s)""" \
             .format('users_temp')
         cursor.execute(sql, (username, password, email, models_provider,
                              name, last_name,))
