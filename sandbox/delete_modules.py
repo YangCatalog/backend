@@ -6,7 +6,6 @@ import configparser as ConfigParser
 import json
 import os
 
-import redis
 import requests
 
 if __name__ == '__main__':
@@ -18,17 +17,8 @@ if __name__ == '__main__':
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
-    delete_cache = config.get('Directory-Section', 'delete-cache', fallback='/var/yang/yang2_repo_deletes.dat')
-    temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
-    confd_ip = config.get('Web-Section', 'confd-ip', fallback='yc-confd')
-    confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
-    confd_protocol = config.get('General-Section', 'protocol-confd', fallback='http')
-    redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
-    redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
-
-    redis = redis.Redis(host=redis_host, port=redis_port)
 
     separator = ':'
     suffix = api_port
@@ -36,7 +26,6 @@ if __name__ == '__main__':
         separator = '/'
         suffix = 'api'
 
-    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, confd_port)
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
 
     # Get either all the modules from Yangcatalog, or search for specific modules based on condition
@@ -45,22 +34,14 @@ if __name__ == '__main__':
     response = requests.get(url, headers={'Accept': 'application/json'})
     modules_list = response.json().get('yang-catalog:modules', {}).get('module', [])
 
-    deleted_list = []
+    to_delete_list = []
     for module in modules_list:
         key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
-        deleted_list.append(key)
-
-        # Delete module from ConfD
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-            confd_prefix, module['name'], module['revision'], module['organization'])
-
-        response = requests.delete(url, auth=(credentials[0], credentials[1]),
-                                   headers={'Content-Type': 'application/yang-data+json',
-                                            'Accept': 'application/yang-data+json'})
-        if response.status_code == 204:
-            print('{} deleted from ConfD successfully'.format(key))
-        else:
-            print('{} failed to remove from ConfD'.format(key))
+        to_delete_module = {}
+        to_delete_module['name'] = module.get('name')
+        to_delete_module['revision'] = module.get('revision')
+        to_delete_module['organization'] = module.get('organization')
+        to_delete_list.append(to_delete_module)
 
         # Delete yang file from /all_modules directory
         try:
@@ -70,12 +51,7 @@ if __name__ == '__main__':
         except OSError:
             pass
 
-    # Reload cache after removing the modules - this should also remove data from Redis
-    if len(deleted_list) > 0:
-        url = '{}load-cache'.format(yangcatalog_api_prefix)
-        response = requests.post(url, None, auth=(credentials[0], credentials[1]))
-        print('Cache loaded with status {}'.format(response.status_code))
-
-    # Dump modules list to the yang2_repo_deletes.dat file to delete modules from Elasticsearch
-    with open(delete_cache, 'w') as f:
-        f.write(json.dumps(deleted_list))
+    # Send DELETE request to /api/modules
+    body = json.dumps({'input': {'modules': to_delete_list}})
+    url = '{}modules'.format(yangcatalog_api_prefix)
+    response = requests.delete(url, json=body, auth=(credentials[0], credentials[1]))
