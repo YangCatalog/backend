@@ -48,8 +48,10 @@ from distutils.dir_util import copy_tree
 import pika
 import requests
 import utility.log as log
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+from parseAndPopulate.modulesComplicatedAlgorithms import \
+    ModulesComplicatedAlgorithms
 from utility import messageFactory
+from utility.staticVariables import confd_headers, json_headers
 from utility.util import prepare_to_indexing, send_to_indexing
 
 if sys.version_info >= (3, 4):
@@ -102,7 +104,7 @@ class Receiver:
             suffix = 'api'
         self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
                                                               separator, suffix)
-        self.__response_type = ['Failed', 'Finished successfully']
+        self.__response_type = ['Failed', 'Finished successfully', 'Partially done']
         self.__rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
@@ -270,10 +272,9 @@ class Receiver:
             try:
                 path = self.__confd_protocol + '://' + self.__confd_ip + ':' + repr(
                     self.__confd_port) + '/restconf/data/yang-catalog:catalog/modules/module=' \
-                       + mod
+                    + mod
                 modules_data = requests.get(path, auth=(credentials[0], credentials[1]),
-                                            headers={'Content-Type': 'application/yang-data+json',
-                                                     'Accept': 'application/yang-data+json'}).json()
+                                            headers=confd_headers).json()
                 implementations = modules_data['yang-catalog:module']['implementations']['implementation']
                 count_of_implementations = len(implementations)
                 count_deleted = 0
@@ -385,37 +386,34 @@ class Receiver:
         """
         path = self.__yangcatalog_api_prefix + 'load-cache'
         response = requests.post(path, auth=(credentials[0], credentials[1]),
-                                 headers={'Content-Type': 'application/json',
-                                          'Accept': 'application/json'}
-                                 )
+                                 headers=json_headers)
         code = response.status_code
 
         if code != 200 and code != 201 and code != 204:
             self.LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
         return response
 
-    def process_module_deletion(self, arguments, multiple=False):
-        """Deletes module. It calls the delete request to confd to delete module on
+    def process_module_deletion(self, arguments: list, multiple: bool = False):
+        """ Deleteing one or more modules. It calls the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
-        yang-catalog.yang module. It will also call indexing script to update
-        searching.
-                    Arguments:
-                        :param multiple: (boolean) removing multiple modules at once
-                        :param arguments: (list) list of arguments sent from api
-                         sender
-                        :return (__response_type) one of the response types which
-                         is either 'Failed' or 'Finished successfully'
+        yang-catalog.yang module. It will also call indexing script to update searching.
+
+        Arguments:
+            :param multiple     (bool) removing multiple modules at once
+            :param arguments    (list) list of arguments sent from API sender
+            :return (__response_type) one of the response types which
+                is either 'Finished successfully' or 'Partially done'
         """
         credentials = arguments[3:5]
         path_to_delete = arguments[5]
+        confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
+        reason = ''
         if multiple:
             paths = []
             modules = json.loads(path_to_delete)['modules']
             for mod in modules:
-                paths.append(self.__confd_protocol + '://' + self.__confd_ip + ':' + repr(
-                    self.__confd_port) + '/restconf/data/yang-catalog:catalog/modules/module/'
-                             + mod['name'] + ',' + mod['revision'] + ',' + mod[
-                                 'organization'])
+                paths.append('{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}'.format(
+                    confd_url, mod['name'], mod['revision'], mod['organization']))
         else:
             name_rev_org_with_commas = path_to_delete.split('/')[-1]
             name, rev, org = name_rev_org_with_commas.split(',')
@@ -427,33 +425,48 @@ class Receiver:
             for existing_module in all_mods['module']:
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
-                    for dep in dependents:
-                        if dep['name'] == mod['name'] and dep['revision'] == mod['revision']:
-                            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'
-                            response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confd_port,
-                                                                   existing_module['name'], existing_module['revision'],
-                                                                   existing_module['organization'], dep['name']))
-                            if response.status_code != 204:
-                                self.LOGGER.error('Couldn\'t delete module on path {}. Error : {}'
+                    for dependent in dependents:
+                        if dependent['name'] == mod['name'] and dependent['revision'] == mod['revision']:
+                            path = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'.format(
+                                confd_url,
+                                existing_module['name'], existing_module['revision'],
+                                existing_module['organization'], dependent['name'])
+                            response = requests.delete(path,
+                                                       auth=(credentials[0], credentials[1]), headers=confd_headers)
+                            if response.status_code == 204:
+                                self.LOGGER.info('Dependent on path {} deleted successfully'.format(path))
+                            elif response.status_code == 404:
+                                self.LOGGER.debug('Dependent on path {} already deleted'.format(path))
+                            else:
+                                self.LOGGER.error("Couldn't delete module dependents on path {}. Error: {}"
                                                   .format(path, response.text))
-                                return self.__response_type[0] + '#split#' + response.text
         modules_to_index = []
         for path in paths:
-            response = requests.delete(path, auth=(credentials[0], credentials[1]))
-            if response.status_code != 204:
-                self.LOGGER.error('Couldn\'t delete module on path {}. Error : {}'
-                                  .format(path, response.text))
-                return self.__response_type[0] + '#split#' + response.text
+            response = requests.delete(path, auth=(credentials[0], credentials[1]), headers=confd_headers)
+            if response.status_code == 204:
+                self.LOGGER.info('Module on path {} deleted successfully'.format(path))
+            elif response.status_code == 404:
+                self.LOGGER.debug('Module on path {} already deleted'.format(path))
+            else:
+                self.LOGGER.error("Couldn't delete module on path {}. Error: {}".format(path, response.text))
+                if reason == '':
+                    reason = 'modules-not-deleted:'
+                module = path.split('/')[-1]
+                reason += ':{}'.format(module)
+
             name, revision, organization = path.split('/')[-1].split(',')
             modules_to_index.append('{}@{}/{}'.format(name, revision, organization))
         if self.__notify_indexing:
             confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
-            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index,credentials,
+            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index, credentials,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir,
                                                confd_url, delete=True)
             if body_to_send != '':
                 send_to_indexing(body_to_send, credentials, self.__api_protocol, self.LOGGER, self.__key, self.__api_ip)
-        return self.__response_type[1]
+        if reason == '':
+            return self.__response_type[1]
+        else:
+            return self.__response_type[2] + '#split#' + reason
 
     def run_ietf(self):
         """
@@ -516,7 +529,7 @@ class Receiver:
             suffix = 'api'
         self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
                                                               separator, suffix)
-        self.__response_type = ['Failed', 'Finished successfully']
+        self.__response_type = ['Failed', 'Finished successfully', 'Partially done']
         self.__rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
@@ -629,9 +642,9 @@ class Receiver:
                         complicated_algorithms.parse_non_requests()
                         complicated_algorithms.parse_requests()
                         complicated_algorithms.populate()
-        except Exception as e:
+        except Exception:
             final_response = self.__response_type[0]
-            self.LOGGER.error("receiver failed with message {}".format(e))
+            self.LOGGER.exception('receiver.py failed')
         self.LOGGER.info('Receiver is done with id - {} and message = {}'
                          .format(props.correlation_id, str(final_response)))
 
