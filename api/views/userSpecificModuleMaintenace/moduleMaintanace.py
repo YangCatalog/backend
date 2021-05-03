@@ -171,6 +171,7 @@ def delete_modules():
             db.close()
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
+    unavailable_modules = []
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
     for mod in modules:
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
@@ -179,20 +180,26 @@ def delete_modules():
                                 auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
                                 headers=confd_headers)
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
+            # If admin, then possible to delete this module from other's modules dependents
+            if accessRigths != '/':
+                unavailable_modules.append(mod)
             continue
         read = response.json()
 
         if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
-            return abort(401, description='You do not have rights to delete module with organization {}'
-                         .format(accessRigths))
+            unavailable_modules.append(mod)
 
         if read['yang-catalog:module'][0].get('implementations') is not None:
-            return abort(400, description='This module has reference in vendors branch')
+            unavailable_modules.append(mod)
 
     all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
     modules_to_delete = {'modules': []}
+    # Filter out unavailble modules
+    modules = [x for x in modules if x not in unavailable_modules]
 
     for mod in modules:
+        if mod in unavailable_modules:
+            continue
         delete_module = True
         for existing_module in all_mods['module']:
             if existing_module.get('dependencies') is not None:
@@ -235,7 +242,10 @@ def delete_modules():
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     yc_gc.LOGGER.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
+    payload = {'info': 'Verification successful', 'job-id': job_id}
+    if len(unavailable_modules) > 0:
+        payload['skipped'] = unavailable_modules
+    return make_response(jsonify(payload), 202)
 
 
 @app.route('/vendors/<path:value>', methods=['DELETE'])
@@ -772,7 +782,7 @@ def get_job(job_id):
     split = result.split('#split#')
 
     reason = None
-    if split[0] == 'Failed':
+    if split[0] == 'Failed' or split[0] == 'Partially done':
         result = split[0]
         if len(split) == 2:
             reason = split[1]
