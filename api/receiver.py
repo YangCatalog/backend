@@ -412,7 +412,7 @@ class Receiver:
             paths = []
             modules = json.loads(path_to_delete)['modules']
             for mod in modules:
-                paths.append('{}/restconf/data/yang-catalog:catalog/modules/module/{},{},{}'.format(
+                paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
                     confd_url, mod['name'], mod['revision'], mod['organization']))
         else:
             name_rev_org_with_commas = path_to_delete.split('/')[-1]
