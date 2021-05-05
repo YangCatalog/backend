@@ -52,6 +52,9 @@ if __name__ == '__main__':
             pass
 
     # Send DELETE request to /api/modules
-    body = json.dumps({'input': {'modules': to_delete_list}})
+    body = {'input': {'modules': to_delete_list}}
     url = '{}modules'.format(yangcatalog_api_prefix)
     response = requests.delete(url, json=body, auth=(credentials[0], credentials[1]))
+
+    print('Delete request responded with status code {}'.format(response.status_code))
+    print(response.text)
