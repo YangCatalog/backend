@@ -14,10 +14,12 @@ ENV VIRTUAL_ENV=/backend
 RUN apt-get -y update
 RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl
 
-RUN echo postfix postfix/mailname string yang2.amsl.com | debconf-set-selections; \
+RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
     apt-get -y install postfix rsyslog systemd
 RUN apt-get -y autoremove
+
+COPY ./resources/main.cf /etc/postfix/main.cf
 
 RUN gem install bundler
 
@@ -27,7 +29,7 @@ RUN groupadd -g ${YANG_GID} -r yang \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
 
-COPY . $VIRTUAL_ENV
+COPY ./backend $VIRTUAL_ENV
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
@@ -40,7 +42,7 @@ RUN pip install -r requirements.txt \
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Add crontab file in the cron directory
-COPY crontab /etc/cron.d/yang-cron
+COPY ./backend/crontab /etc/cron.d/yang-cron
 
 RUN mkdir /var/run/yang
 
@@ -53,7 +55,7 @@ RUN mkdir /var/run/mysqld
 RUN chown -R yang:yang /var/run/mysqld
 RUN chmod 777 /var/run/mysqld
 
-COPY yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
+COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 
