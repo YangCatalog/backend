@@ -267,7 +267,6 @@ class ModulesComplicatedAlgorithms:
 
         def is_combined(rows, output):
             for row in rows:
-                LOGGER.info('row - {}'.format(row))
                 if row.endswith('-state') and not ('x--' in row or 'o--' in row):
                     return False
             next_obsolete_or_deprecated = False
