@@ -1,9 +1,5 @@
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 export BACKEND=$(pwd)
-# Create logs directory and log files
-export LOGS_DIR=$BACKEND/tests/resources/logs
-mkdir -p $LOGS_DIR
-touch $LOGS_DIR/healthcheck.log $LOGS_DIR/parseAndPopulate.log $LOGS_DIR/yang.log
 # Create files in tmp dir
 export TMP_DIR=$BACKEND/tests/resources/tmp
 touch $TMP_DIR/normal.json $TMP_DIR/prepare.json
@@ -23,7 +19,7 @@ mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
 mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/702/
 mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/nx/9.2-1
 mkdir -p $BACKEND/tests/resources/tmp/master/vendor/cisco/xe/16101
-mkdir -p $TMP_DIR/temp/standard/ietf/RFC
+mkdir -p $TMP_DIR/temp/standard/ietf/RFC/empty
 cp $BACKEND/tests/resources/capabilities-ncs5k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
 cp $YANG_MODELS_DIR/vendor/cisco/xr/701/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
 cp $YANG_MODELS_DIR/vendor/cisco/xr/701/*.yang $BACKEND/tests/resources/tmp/master/vendor/cisco/xr/701/
@@ -49,6 +45,9 @@ cd $BACKEND
 export var=/var/yang
 sudo mkdir -p $var
 sudo chown -R $(whoami):$(whoami) $var
-mkdir -p $var/logs/jobs
 mkdir -p $var/tmp
+# Create logs directory and log files
+export LOGS_DIR=$var/logs
+mkdir -p $LOGS_DIR/jobs
 touch $var/logs/jobs/resolveExpiration.log
+touch $LOGS_DIR/healthcheck.log $LOGS_DIR/parseAndPopulate.log $LOGS_DIR/yang.log

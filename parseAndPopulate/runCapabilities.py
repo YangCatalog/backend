@@ -59,8 +59,6 @@ class ScriptConfig:
         parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
         parser.add_argument('--sdo', action='store_true', default=False,
                             help='If we are processing sdo or vendor yang modules')
-        parser.add_argument('--run-integrity', action='store_true', default=False,
-                            help='If we want to run integrity tool check')
         parser.add_argument('--json-dir', default='/var/yang/tmp/', type=str,
                             help='Directory where json files to populate confd will be stored')
         parser.add_argument('--result-html-dir', default='/usr/share/nginx/html/results', type=str,
@@ -104,7 +102,6 @@ class ScriptConfig:
             ' (based on hash values) and it will skip parsing if nothing changed.'
         ret['options']['api'] = 'If request came from api'
         ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
-        ret['options']['run_integrity'] = 'If we want to run integrity tool check'
         ret['options']['json_dir'] = 'Directory where json files to populate confd will be stored'
         ret['options']['result_html_dir'] = 'Set dir where to write html compilation result files'
         ret['options']['save_file_dir'] = 'Directory where the yang file will be saved'
@@ -115,30 +112,12 @@ class ScriptConfig:
         return ret
 
 
-def find_missing_hello(directory, pattern):
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                if not any('.xml' in name for name in files):
-                    yield root
-
-
-def find_files(directory, pattern):
+def find_files(directory: str, pattern: str):
     for root, dirs, files in os.walk(directory):
         for basename in files:
             if fnmatch.fnmatch(basename, pattern):
                 filename = os.path.join(root, basename)
                 yield filename
-
-
-def create_integrity(yang_models):
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read('/etc/yangcatalog/yangcatalog.conf')
-    path = '{}/.'.format(config.get('Web-Section', 'public-directory'))
-    integrity_file = open('{}/integrity.html'.format(path), 'w')
-    local_integrity.dumps(integrity_file, yang_models)
-    integrity_file.close()
 
 
 def main(scriptConf=None):
@@ -150,12 +129,11 @@ def main(scriptConf=None):
     config = ConfigParser.ConfigParser()
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
-    log_directory = config.get('Directory-Section', 'logs', fallback='tests/resources/logs')
+    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(log_directory))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
     private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
     yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
-    temp_dir = config.get('Directory-Section', 'temp', fallback='tests/resources/tmp')
     cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
 
     separator = ':'
@@ -166,15 +144,7 @@ def main(scriptConf=None):
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
 
     start = time.time()
-    global local_integrity
-    if args.run_integrity:
-        local_integrity = integrity.Statistics(args.dir)
-    else:
-        local_integrity = None
     prepare = Prepare(log_directory, 'prepare', yangcatalog_api_prefix)
-
-    if args.run_integrity:
-        stats_list = {'vendor': ['{}/vendor/cisco'.format(yang_models)]}
     fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, args.save_file_hash, log_directory)
 
     LOGGER.info('Starting to iterate through files')
@@ -182,7 +152,7 @@ def main(scriptConf=None):
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
 
         capability = Capability(log_directory, args.dir, prepare,
-                                local_integrity, args.api, args.sdo,
+                                None, args.api, args.sdo,
                                 args.json_dir, args.result_html_dir,
                                 args.save_file_dir, private_dir, yang_models, fileHasher)
         LOGGER.info('Starting to parse files in sdo directory')
@@ -196,24 +166,20 @@ def main(scriptConf=None):
 
                 capability = Capability(log_directory, filename,
                                         prepare,
-                                        local_integrity, args.api,
+                                        None, args.api,
                                         args.sdo, args.json_dir,
                                         args.result_html_dir,
                                         args.save_file_dir,
                                         private_dir,
                                         yang_models,
-                                        fileHasher,
-                                        args.run_integrity)
+                                        fileHasher)
                 if 'ietf-yang-library' in pattern:
                     capability.parse_and_dump_yang_lib()
                 else:
-                    capability.parse_and_dump()
-        if not args.run_integrity:
-            prepare.dump_modules(args.json_dir)
-            prepare.dump_vendors(args.json_dir)
+                    capability.parse_and_dump_vendor()
+        prepare.dump_modules(args.json_dir)
+        prepare.dump_vendors(args.json_dir)
 
-    if local_integrity is not None and args.run_integrity:
-        create_integrity(yang_models)
     end = time.time()
     LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
 

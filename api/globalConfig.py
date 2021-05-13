@@ -22,9 +22,9 @@ import time
 from threading import Lock
 
 import redis
+from utility import log
 
 from api.sender import Sender
-from utility import log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -63,7 +63,7 @@ class YangCatalogApiGlobalConfig():
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='tests/resources/requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='tests/resources/all_modules')
         self.var_yang = config.get('Directory-Section', 'var', fallback='')
-        self.logs_dir = config.get('Directory-Section', 'logs', fallback='tests/resources/logs')
+        self.logs_dir = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.token = config.get('Secrets-Section', 'yang-catalog-token', fallback='')
         self.admin_token = config.get('Secrets-Section', 'admin-token', fallback='')
         self.oidc_client_secret = config.get('Secrets-Section', 'client-secret', fallback='')
@@ -139,7 +139,7 @@ class YangCatalogApiGlobalConfig():
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='tests/resources/requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='tests/resources/all_modules')
         self.var_yang = config.get('Directory-Section', 'var', fallback='')
-        self.logs_dir = config.get('Directory-Section', 'logs', fallback='tests/resources/logs')
+        self.logs_dir = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.token = config.get('Secrets-Section', 'yang-catalog-token', fallback='')
         self.admin_token = config.get('Secrets-Section', 'admin-token', fallback='')
         self.oidc_client_secret = config.get('Secrets-Section', 'client-secret', fallback='')
