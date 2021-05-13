@@ -1,5 +1,4 @@
 lxml==4.6.3
-travispy==0.3.5
 pyOpenSSL==19.0.0
 configparser==3.7.4
 requests==2.25.1
