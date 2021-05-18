@@ -65,10 +65,6 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         # Run runCapabilities.py script with corresponding configuration
         submodule.main(scriptConf=script_conf)
 
-        # # Load desired module data from .json file
-        # with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
-        #     file_content = json.load(f)
-        #     desired_module_data = file_content.get('dumped_module', {}).get('module', [])
         desired_module_data = self.load_desired_prepare_json_data('dumped_module')
         dumped_module_data = self.load_dumped_prepare_json_data()
 
@@ -226,7 +222,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
