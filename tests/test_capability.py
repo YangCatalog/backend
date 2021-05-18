@@ -127,7 +127,7 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        path = '{}/vendor/huawei/network-router/8.20.0'.format(yc_gc.yang_models)
+        path = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.yang_models)
         os_walk_items = [(path, [], ['huawei-aaa.yang'])]
         mock_os_walk.return_value = os_walk_items
         repo = self.get_yangmodels_repository()
