@@ -414,9 +414,17 @@ class ElkSearch:
         for search in self.__sub_search:
             passed = True
             for key, value in search.items():
-                if value.lower() not in str(row[key]).lower():
-                    passed = False
-                    break
+                if isinstance(value, list):
+                    for v in value:
+                        if v.lower not in str(row[key]).lower():
+                            passed = False
+                            break
+                    if not passed:
+                        return False
+                else:
+                    if value.lower() not in str(row[key]).lower():
+                        passed = False
+                        break
             if passed:
                 return True
         return False

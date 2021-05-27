@@ -42,6 +42,7 @@ def bad_request(e):
     return make_response(jsonify({'error': 'YangCatalog did not understand the message you have sent',
                                   'description': e.description}), 400)
 
+
 @app.app_errorhandler(409)
 def bad_request(e):
     """Return message that can not be resolved"""
