@@ -28,12 +28,14 @@ cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $BACKEND/test
 cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xe/16101/
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $BACKEND/tests/resources/tmp/temp/standard/ietf/RFC
 # Prepare Huawei dir for ietf-yang-lib based tests
-export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0
-mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0
-cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
-cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
-cp $YANG_MODELS_HUAWEI_DIR/* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/
+cd $YANG_MODELS_DIR/vendor/huawei
+git pull origin master
+export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne5000e
+mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e
+cp $YANG_MODELS_HUAWEI_DIR/huawei-aaa* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
 # Prepare directory structure need for test_util.py
 export UTILITY_RESOURCES=$BACKEND/utility/tests/resources
 mkdir -p $UTILITY_RESOURCES/modules
@@ -43,11 +45,15 @@ cd $BACKEND
 # Prepare directory structure need for resolveExpiration.py
 # TODO: Adjust existing tests to use directory structure in /var/yang if this will work in TravisCI
 export var=/var/yang
+export LOGS_DIR=$var/logs
+export SAVE_FILE_DIR=$var/all_modules
 sudo mkdir -p $var
 sudo chown -R $(whoami):$(whoami) $var
 mkdir -p $var/tmp
-# Create logs directory and log files
-export LOGS_DIR=$var/logs
+mkdir -p $SAVE_FILE_DIR
 mkdir -p $LOGS_DIR/jobs
-touch $var/logs/jobs/resolveExpiration.log
-touch $LOGS_DIR/healthcheck.log $LOGS_DIR/parseAndPopulate.log $LOGS_DIR/yang.log
+# Create logs directory and log files
+touch $LOGS_DIR/jobs/resolveExpiration.log $LOGS_DIR/healthcheck.log $LOGS_DIR/parseAndPopulate.log $LOGS_DIR/yang.log
+# Copy all RFC modules into /var/yang/all_modules directory
+cp $YANG_MODELS_DIR/standard/ietf/RFC/*@*.yang $SAVE_FILE_DIR
+cp $BACKEND/tests/resources/all_modules/* $SAVE_FILE_DIR

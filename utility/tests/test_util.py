@@ -81,7 +81,7 @@ class TestUtilClass(unittest.TestCase):
         self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types@2010-09-24.yang')
 
     def test_find_first_file_without_revision(self):
-        """ Try to find the first file that matches the pattern without specified revision.ň
+        """ Try to find the first file that matches the pattern without specified revision.
         It will try to parse the yang module to get its revision
         and check if that revision is also in 'pattern_with_revision' variable.
         """
@@ -92,6 +92,20 @@ class TestUtilClass(unittest.TestCase):
         result = util.find_first_file(directory, pattern, pattern_with_revision)
 
         self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types.yang')
+
+    @mock.patch('utility.yangParser.parse')
+    def test_find_first_file_without_revision_parse_exception(self, mock_yang_parse: mock.MagicMock):
+        """ Try to find the first file that matches the pattern without specified revision.
+        It will try to parse the yang module to get its revision, but exception occur during parsing.
+        """
+        mock_yang_parse.side_effect = Exception()
+        directory = 'utility/tests/resources/modules'
+        pattern = 'ietf-yang-types.yang'
+        pattern_with_revision = 'ietf-yang-types@2013-07-15.yang'
+
+        result = util.find_first_file(directory, pattern, pattern_with_revision)
+
+        self.assertEqual(result, None)
 
     def test_find_first_file_empty_arguments(self):
         """ Test result of method, when empty strings are passed as an argument.
@@ -238,7 +252,7 @@ class TestUtilClass(unittest.TestCase):
         name = 'ietf-yang-types'
         revision = '2013-07-15'
         organization = 'ietf'
-        desired_dir = '/var/yang/all_modules/{}@{}.yang'.format(name, revision)
+        desired_dir = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
         result = util.get_module_from_es(name, revision)
 
         self.assertNotEqual(result, {})
@@ -293,6 +307,36 @@ class TestUtilClass(unittest.TestCase):
         result = util.get_module_from_es(name, revision)
 
         self.assertEqual(result, {})
+
+    def test_context_check_update_from(self):
+        """ Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions.
+        """
+        old_schema = '{}/ietf-yang-types@2010-09-24.yang'.format(yc_gc.save_file_dir)
+        new_schema = '{}/ietf-yang-types@2013-07-15.yang'.format(yc_gc.save_file_dir)
+
+        ctx, new_schema_ctx = util.context_check_update_from(old_schema, new_schema,
+                                                             yc_gc.yang_models, yc_gc.save_file_dir)
+
+        self.assertNotEqual(new_schema_ctx, None)
+        self.assertEqual(new_schema_ctx.arg, 'ietf-yang-types')
+        self.assertNotEqual(ctx, None)
+        self.assertEqual(len(ctx.errors), 0)
+        self.assertEqual(ctx.errors, [])
+
+    @mock.patch('pyang.context.Context.validate')
+    def test_context_check_update_from_ctx_validate_exception(self, mock_ctx_validate: mock.MagicMock):
+        """ Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions.
+        ctx.validate() method is patched to achieve Exception raising
+
+        Argument:
+        :param mock_ctx_validate  (mock.MagicMock) ctx.validate() method is patched to raise Exception
+        """
+        mock_ctx_validate.side_effect = Exception()
+        old_schema = '{}/ietf-yang-types@2010-09-24.yang'.format(yc_gc.save_file_dir)
+        new_schema = '{}/ietf-yang-types@2013-07-15.yang'.format(yc_gc.save_file_dir)
+
+        with self.assertRaises(Exception):
+            util.context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
 
     ##########################
     ### HELPER DEFINITIONS ###

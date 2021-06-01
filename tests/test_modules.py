@@ -38,7 +38,8 @@ class TestModulesClass(unittest.TestCase):
         self.sdo_module_name = 'ietf-yang-types'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.parsed_jsons = LoadFiles(yc_gc.private_dir, yc_gc.logs_dir)
+        self.test_private_dir = 'tests/resources/html/private'
+        self.parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -49,7 +50,7 @@ class TestModulesClass(unittest.TestCase):
         Create modules object from SDO (= ietf) YANG file,
         and compare object properties values after calling parse_all() method.
         """
-        path_to_yang = '{}/all_modules/{}'.format(self.resources_path, self.sdo_module_filename)
+        path_to_yang = '{}/{}'.format(yc_gc.save_file_dir, self.sdo_module_filename)
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
                        yc_gc.result_dir, self.parsed_jsons, self.tmp_dir)
@@ -74,7 +75,7 @@ class TestModulesClass(unittest.TestCase):
         and compare object properties values after calling parse_all() method.
         Pass keys as an argument so only some properties will be resolved, while other will stay set to None.
         """
-        path_to_yang = '{}/all_modules/{}'.format(self.resources_path, self.sdo_module_filename)
+        path_to_yang = '{}/{}'.format(yc_gc.save_file_dir, self.sdo_module_filename)
         keys = {'ietf-yang-types@2013-07-15/ietf'}
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
@@ -164,17 +165,18 @@ class TestModulesClass(unittest.TestCase):
         with data from platform-metadata.json.
         """
         yang_lib_info = {
-            'path': '{}/tmp/master/vendor/huawei/network-router/8.20.0'.format(self.resources_path),
+            'path': '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path),
             'name': 'huawei-aaa',
             'features': [],
             'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
             'revision': '2020-07-01'
         }
         schema_part = 'https://raw.githubusercontent.com/YangModels/yang/master/'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ietf-yang-library.xml'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(self.resources_path)
         module_name = 'huawei-aaa'
+        platform_name = 'ne5000e'
 
-        platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path, 'CX600')
+        platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
                        self.parsed_jsons, self.tmp_dir, True, True, yang_lib_info)

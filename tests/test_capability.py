@@ -127,7 +127,7 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        path = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.yang_models)
+        path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path)
         os_walk_items = [(path, [], ['huawei-aaa.yang'])]
         mock_os_walk.return_value = os_walk_items
         repo = self.get_yangmodels_repository()
@@ -307,8 +307,9 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ietf-yang-library.xml'.format(self.resources_path)
-        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/platform-metadata.json'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(self.resources_path)
+        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json'.format(self.resources_path)
+        platform_name = 'ne5000e'
         api = False
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -322,7 +323,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         dumped_modules_data = self.load_dumped_prepare_json_data()
 
-        platform_data = self.get_platform_data(platform_json_path, 'CX600')
+        platform_data = self.get_platform_data(platform_json_path, platform_name)
 
         self.assertNotEqual(len(platform_data), 0)
         self.assertNotEqual(len(dumped_modules_data), 0)
@@ -331,7 +332,7 @@ class TestCapabilityClass(unittest.TestCase):
             implementations = yang_module.get('implementations', {}).get('implementation', [])
             self.assertNotEqual(len(implementations), 0)
             for implementation in implementations:
-                if implementation.get('platform') == self.platform_name:
+                if implementation.get('platform') == platform_name:
                     self.assertEqual(implementation.get('vendor'), platform_data.get('vendor'))
                     self.assertEqual(implementation.get('platform'), platform_data.get('name'))
                     self.assertEqual(implementation.get('software-version'), platform_data.get('software-version'))

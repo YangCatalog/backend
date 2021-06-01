@@ -91,22 +91,6 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['description'], 'No module found using provided input data')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
-    def test_search_missing_values(self):
-        """Test error response when no 'key' value was provided.
-        """
-        key = ''
-        value = 'ietf'
-        path = '{}/{}'.format(key, value)
-        result = self.client.get('api/search/{}'.format(path))
-        data = json.loads(result.data)
-
-        self.assertEqual(result.status_code, 404)
-        self.assertEqual(result.content_type, 'application/json')
-        self.assertIn('description', data)
-        self.assertIn('error', data)
-        self.assertEqual(data['description'], 'Path "/api/search/{}" does not exist'.format(path))
-        self.assertEqual(data['error'], 'Not found -- in api code')
-
     @mock.patch('api.globalConfig.redis.Redis.get')
     def test_search_no_modules_loaded(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
