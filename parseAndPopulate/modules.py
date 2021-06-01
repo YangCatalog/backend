@@ -687,7 +687,7 @@ class Modules:
                                        'yanglint': ''}
         self.compilation_result = self.__create_compilation_result_file()
         if self.compilation_status['status'] == 'unknown':
-            self.compilation_result = None
+            self.compilation_result = ''
         self.compilation_status = self.compilation_status['status']
 
     def __create_compilation_result_file(self):
