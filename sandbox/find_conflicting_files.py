@@ -5,7 +5,7 @@ from utility import yangParser
 
 conflicting = []
 fnames = {}
-top = '/home/richard/code/yang'
+top = '/backend/tests/resources/yangmodels/yang/'
 for dirname, _, files in os.walk(top):
     dirname = os.path.join(top, dirname)
     for f in files:
