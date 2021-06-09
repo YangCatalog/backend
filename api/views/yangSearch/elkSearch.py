@@ -416,7 +416,7 @@ class ElkSearch:
             for key, value in search.items():
                 if isinstance(value, list):
                     for v in value:
-                        if v.lower not in str(row[key]).lower():
+                        if v.lower() not in str(row[key]).lower():
                             passed = False
                             break
                     if not passed:
