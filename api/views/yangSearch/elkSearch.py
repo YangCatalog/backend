@@ -409,22 +409,46 @@ class ElkSearch:
                 response_rows.append(row)
 
     def __found_in_sub_search(self, row):
+        """
+        The following json as an example might come here:
+          "sub-search": [
+            {
+              "name": [
+                "shared",
+                "leafs"
+              ],
+              "organization": [
+                "ietf"
+              ]
+            },
+            {
+              "name": [
+                "organization"
+              ]
+            }
+          ]
+        Which means - name has to contain words 'shared' AND 'leafs' AND has to have
+        organization 'ietf' OR name can be also contain only word 'organization'
+        """
         if len(self.__sub_search) == 0:
             return True
         for search in self.__sub_search:
             passed = True
             for key, value in search.items():
+                if not passed:
+                    break
                 if isinstance(value, list):
                     for v in value:
-                        if v.lower() not in str(row[key]).lower():
+                        if v.lower() in str(row[key]).lower():
+                            passed = True
+                        else:
                             passed = False
                             break
-                    if not passed:
-                        return False
                 else:
-                    if value.lower() not in str(row[key]).lower():
+                    if value.lower() in str(row[key]).lower():
+                        passed = True
+                    else:
                         passed = False
-                        break
             if passed:
                 return True
         return False
