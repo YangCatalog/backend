@@ -51,10 +51,16 @@ class TestCapabilityClass(unittest.TestCase):
     ### TESTS DEFINITIONS ###
     #########################
 
-    def test_capability_parse_and_dump_sdo(self):
+    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    def test_capability_parse_and_dump_sdo(self, mock_hash: mock.MagicMock):
         """
-        Test if keys were created and prepare object values were set correctly from all .yang files which are located in 'path' directory.
+        Test whether keys were created and prepare object values were set correctly
+        from all the .yang files which are located in 'path' directory.
+
+        Arguments:
+        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
+        mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
         path = '{}/standard/ieee/published/802.3'.format(yc_gc.yang_models)
         api = False
@@ -78,7 +84,8 @@ class TestCapabilityClass(unittest.TestCase):
     @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
     def test_capability_parse_and_dump_sdo_api(self, mock_hash: mock.MagicMock):
         """
-        Test if key was created and prepare object value was set correctly from all modules loaded from prepare-sdo.json file.
+        Test whether key was created and prepare object value was set correctly
+        from all modules loaded from prepare-sdo.json file.
 
         Arguments:
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
@@ -102,14 +109,64 @@ class TestCapabilityClass(unittest.TestCase):
         with open('{}/prepare-sdo.json'.format(json_dir), 'r') as f:
             sdos_json = json.load(f)
 
-        sdos_list = sdos_json['modules']['module']
+        sdos_list = sdos_json.get('modules', {}).get('module', [])
         self.assertNotEqual(len(sdos_list), 0)
         for sdo in sdos_list:
             key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
             self.assertIn(key, capability.prepare.yang_modules)
 
+    @mock.patch('parseAndPopulate.capability.os.walk')
     @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
-    def test_capability_parse_and_dump(self, mock_hash: mock.MagicMock):
+    def test_capability_parse_and_dump_sdo_submodule(self, mock_hash: mock.MagicMock, mock_os_walk: mock.MagicMock):
+        """
+        Test whether keys were created and prepare object values were set correctly
+        from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
+
+        Arguments:
+        :param mock_os_walk     (mock.MagicMock) os.walk() method is patched, to return only one file to speed up test
+        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+        """
+        mock_hash.return_value = 'master'
+        path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path)
+        os_walk_items = [(path, [], ['huawei-aaa.yang'])]
+        mock_os_walk.return_value = os_walk_items
+        repo = self.get_yangmodels_repository()
+        api = False
+        sdo = True
+        prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
+
+        capability = Capability(yc_gc.logs_dir, path, prepare,
+                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+                                yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
+
+        capability.parse_and_dump_sdo(repo)
+        capability.prepare.dump_modules(self.tmp_dir)
+
+        desired_module_data = self.load_desired_prepare_json_data('git_submodule_huawei')
+        dumped_module_data = self.load_dumped_prepare_json_data()
+
+        # Compare desired output with output of prepare.json
+        for dumped_module in dumped_module_data:
+            for desired_module in desired_module_data:
+                if desired_module.get('name') == dumped_module.get('name'):
+                    # Compare properties/keys of desired and dumped module data objects
+                    for key in desired_module:
+                        if key == 'yang-tree':
+                            # Compare only URL suffix (exclude domain)
+                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[1])
+                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[1])
+                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
+                        elif key == 'compilation-result':
+                            if dumped_module[key] != '' and desired_module[key] != '':
+                                # Compare only URL suffix (exclude domain)
+                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
+                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
+                                self.assertEqual(desired_compilation_result, dumped_compilation_result)
+                        else:
+                            self.assertEqual(dumped_module[key], desired_module[key])
+
+    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    def test_capability_parse_and_dump_vendor(self, mock_hash: mock.MagicMock):
         """ Test if all the modules from capability file (with their submodules) have correctly set information
         about implementaton from platform_metadata.json file.
         Parsed modules are dumped to prepare.json file, then loaded and implementation information is chcecked.
@@ -128,13 +185,10 @@ class TestCapabilityClass(unittest.TestCase):
                                 None, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
-        capability.parse_and_dump()
+        capability.parse_and_dump_vendor()
         capability.prepare.dump_modules(self.tmp_dir)
 
-        # Load module data from dumped prepare.json file
-        with open('{}/prepare.json'.format(yc_gc.temp_dir), 'r') as f:
-            file_content = json.load(f)
-            dumped_modules_data = file_content['module']
+        dumped_modules_data = self.load_dumped_prepare_json_data()
         self.assertNotEqual(len(dumped_modules_data), 0)
 
         platform_data = self.get_platform_data(platform_json_path, self.platform_name)
@@ -253,8 +307,9 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ietf-yang-library.xml'.format(self.resources_path)
-        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/platform-metadata.json'.format(self.resources_path)
+        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(self.resources_path)
+        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json'.format(self.resources_path)
+        platform_name = 'ne5000e'
         api = False
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -266,12 +321,9 @@ class TestCapabilityClass(unittest.TestCase):
         capability.parse_and_dump_yang_lib()
         capability.prepare.dump_modules(self.tmp_dir)
 
-        # Load module data from dumped prepare.json file
-        with open('{}/prepare.json'.format(yc_gc.temp_dir), 'r') as f:
-            file_content = json.load(f)
-            dumped_modules_data = file_content['module']
+        dumped_modules_data = self.load_dumped_prepare_json_data()
 
-        platform_data = self.get_platform_data(platform_json_path, 'CX600')
+        platform_data = self.get_platform_data(platform_json_path, platform_name)
 
         self.assertNotEqual(len(platform_data), 0)
         self.assertNotEqual(len(dumped_modules_data), 0)
@@ -280,7 +332,7 @@ class TestCapabilityClass(unittest.TestCase):
             implementations = yang_module.get('implementations', {}).get('implementation', [])
             self.assertNotEqual(len(implementations), 0)
             for implementation in implementations:
-                if implementation.get('platform') == self.platform_name:
+                if implementation.get('platform') == platform_name:
                     self.assertEqual(implementation.get('vendor'), platform_data.get('vendor'))
                     self.assertEqual(implementation.get('platform'), platform_data.get('name'))
                     self.assertEqual(implementation.get('software-version'), platform_data.get('software-version'))
@@ -343,6 +395,24 @@ class TestCapabilityClass(unittest.TestCase):
                 platform_data = platform
 
         return platform_data
+
+    def load_desired_prepare_json_data(self, key: str):
+        """ Load desired prepare.json data from parseAndPopulate_tests_data.json file
+        """
+        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
+            file_content = json.load(f)
+            desired_module_data = file_content.get(key, {}).get('module', [])
+        return desired_module_data
+
+    def load_dumped_prepare_json_data(self):
+        """ Load module data from dumped prepare.json file
+        """
+        with open('{}/prepare.json'.format(yc_gc.temp_dir), 'r') as f:
+            file_content = json.load(f)
+            self.assertIn('module', file_content)
+            self.assertNotEqual(len(file_content['module']), 0)
+        dumped_module_data = file_content['module']
+        return dumped_module_data
 
 
 if __name__ == "__main__":

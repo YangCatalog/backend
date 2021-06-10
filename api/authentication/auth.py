@@ -4,20 +4,20 @@ import sys
 
 import MySQLdb
 import requests
-from OpenSSL.crypto import X509, verify, load_publickey, FILETYPE_PEM
-from flask_httpauth import HTTPBasicAuth
-
 from api.globalConfig import yc_gc
+from flask_httpauth import HTTPBasicAuth
+from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 
 auth = HTTPBasicAuth()
 
 
 @auth.hash_password
-def hash_pw(password):
+def hash_pw(password: str):
     """Hash the password
-            Arguments:
-                :param password: (str) password provided via API
-                :return hashed password
+
+    Arguments:
+        :param password     (str) password provided via API
+        :return hashed password
     """
     if sys.version_info >= (3, 4):
         password = password.encode(encoding='utf-8', errors='strict')
@@ -25,11 +25,12 @@ def hash_pw(password):
 
 
 @auth.get_password
-def get_password(username):
+def get_password(username: str):
     """Get password out of database
-            Arguments:
-                :param username: (str) username privided via API
-                :return hashed password
+
+    Arguments:
+        :param username     (str) username privided via API
+        :return hashed password from database
     """
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
@@ -52,14 +53,15 @@ def get_password(username):
         return None
 
 
-def check_authorized(signature, payload):
+def check_authorized(signature: str, payload: str):
     """Convert the PEM encoded public key to a format palatable for pyOpenSSL,
     then verify the signature
-            Arguments:
-                :param signature: (str) Signature returned by sign function
-                :param payload: (str) String that is encoded
+
+    Arguments:
+        :param signature    (str) Signature returned by sign function
+        :param payload      (str) String that is encoded
     """
-    response = requests.get('https://api.travis-ci.org/config', timeout=10.0)
+    response = requests.get('https://api.travis-ci.com/config', timeout=10.0)
     response.raise_for_status()
     public_key = response.json()['config']['notifications']['webhook']['public_key']
     pkey_public_key = load_publickey(FILETYPE_PEM, public_key)

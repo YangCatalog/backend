@@ -2,6 +2,18 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v3.2.1 - 2021-05-04
+
+  * Sandbox: compare_databases.py script updated to compare in both ways [#266](https://github.com/YangCatalog/backend/issues/266)
+  * Sandbox: revise_tree_type.py script to check all the modules tree types [#259](https://github.com/YangCatalog/backend/issues/259)
+  * Crontab MAILTO variable set during Docker image build [deployment #72](https://github.com/YangCatalog/deployment/issues/72)
+  * Schema creation fixed for YangModels/yang repository submodules [#256](https://github.com/YangCatalog/backend/issues/256)
+  * api/checkComplete endpoint now will expect a request from Travis.com [#250](https://github.com/YangCatalog/backend/issues/250)
+  * DELETE API endpoints for module deletion updated [#261](https://github.com/YangCatalog/backend/issues/261)
+  * Sandbox: delete_modules.py script to delete modules based on condition [#260](https://github.com/YangCatalog/backend/issues/260)
+  * loadJsonFiles.py script update - added files list to be skipped
+  * Sandbox: check_semver.py script to check all the module schemas [#232](https://github.com/YangCatalog/backend/issues/232)
+
 * ##### v3.2.0 - 2021-04-15
 
   * Verify argument set according to whether it is a prod or not for ES [#252](https://github.com/YangCatalog/backend/issues/252)

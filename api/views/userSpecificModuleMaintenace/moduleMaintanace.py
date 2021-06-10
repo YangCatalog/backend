@@ -27,13 +27,19 @@ from datetime import datetime
 
 import MySQLdb
 import requests
+
 from flask import Blueprint, request, abort, make_response, jsonify
 from git import GitCommandError
 
 from api.authentication.auth import auth, hash_pw
+
 from api.globalConfig import yc_gc
+from flask import Blueprint, abort, jsonify, make_response, request
+from git import GitCommandError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
+from utility.staticVariables import confd_headers
+
 
 NS_MAP = {
     "http://cisco.com/": "cisco",
@@ -105,20 +111,20 @@ def register_user():
 
 @app.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
 @auth.login_required
-def delete_module(name, revision, organization):
+def delete_module(name: str, revision: str, organization: str):
     """Delete a specific module defined with name, revision and organization. This is
     not done right away but it will send a request to receiver which will work on deleting
     while this request will send a job_id of the request which user can use to see the job
     process.
-            Arguments:
-                :param name: (str) name of the module
-                :param revision: (str) revision of the module
-                :param organization: (str) organization of the module
-                :return response to the request with job_id that user can use to
-                    see if the job is still on or Failed or Finished successfully
+
+    Arguments:
+        :param name             (str) name of the module
+        :param revision         (str) revision of the module
+        :param organization     (str) organization of the module
+        :return response to the request with job_id that user can use to
+            see if the job is still on or 'Failed' or 'Finished successfully'.
     """
-    yc_gc.LOGGER.info(
-        'deleting module with name, revision and organization {} {} {}'.format(name, revision, organization))
+    yc_gc.LOGGER.info('Deleting module {},{},{}'.format(name, revision, organization))
     username = request.authorization['username']
     yc_gc.LOGGER.debug('Checking authorization for user {}'.format(username))
     accessRigths = None
@@ -136,40 +142,41 @@ def delete_module(name, revision, organization):
         if err.args[0] != 1049:
             db.close()
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-    response = requests.get(yc_gc.protocol + '://' + yc_gc.confd_ip + ':' + repr(
-        yc_gc.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module/' + name +
-                            ',' + revision + ',' + organization,
+
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
+    url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+        confd_prefix, name, revision, organization)
+    response = requests.get(url,
                             auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                            headers={'Content-type': 'application/yang-data+json',
-                                     'Accept': 'application/yang-data+json'})
+                            headers=confd_headers)
+
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        return abort(404, description='Module not found in confd database')
+        return abort(404, description='Module not found in ConfD database')
     read = response.json()
-    if read['yang-catalog:module']['organization'] != accessRigths and accessRigths != '/':
-        return abort(401, description="You do not have rights to delete module with organization {}"
+    if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
+        return abort(401, description='You do not have rights to delete module with organization {}'
                      .format(read['yang-catalog:module']['organization']))
 
-    if read['yang-catalog:module'].get('implementations') is not None:
+    if read['yang-catalog:module'][0].get('implementations') is not None:
         return abort(400, description='This module has reference in vendors branch')
 
     all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
 
     for existing_module in all_mods['module']:
         if existing_module.get('dependencies') is not None:
-            dependency = existing_module['dependencies']
-            for dep in dependency:
-                if dep['name'] == name and dep.get('revision') == revision:
+            dependencies = existing_module.get('dependencies')
+            for dependency in dependencies:
+                if dependency.get('name') == name and dependency.get('revision') == revision:
                     return abort(400, description='{}@{} module has reference in another module dependency: {}@{}'
-                                 .format(name, revision, existing_module['name'], existing_module['revision']))
+                                 .format(name, revision, existing_module.get('name'), existing_module.get('revision')))
         if existing_module.get('submodule') is not None:
             submodule = existing_module['submodule']
             for sub in submodule:
-                if sub['name'] == name and sub.get('revision') == revision:
+                if sub.get('name') == name and sub.get('revision') == revision:
                     return abort(400, description='{}@{} module has reference in another module submodule: {}@{}'
-                                 .format(name, revision, existing_module['name'], existing_module['revision']))
-    path_to_delete = yc_gc.protocol + '://' + yc_gc.confd_ip + ':' + repr(
-        yc_gc.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module=' \
-                     + name + ',' + revision + ',' + organization
+                                 .format(name, revision, existing_module.get('name'), existing_module.get('revision')))
+    path_to_delete = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+        confd_prefix, name, revision, organization)
 
     arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
                  yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
@@ -186,12 +193,19 @@ def delete_modules():
     not done right away but it will send a request to receiver which will work on deleting
     while this request will send a job_id of the request which user can use to see the job
     process.
-            Arguments:
-                :return response to the request with job_id that user can use to
-                    see if the job is still on or Failed or Finished successfully
+
+    Arguments:
+        :return response to the request with job_id that user can use to
+            see if the job is still on or Failed or Finished successfully
     """
     if not request.json:
-        abort(400, description="Missing input data to know which modules we want to delete")
+        abort(400, description='Missing input data to know which modules we want to delete')
+    rpc = request.json
+    if rpc.get('input'):
+        modules = rpc['input'].get('modules', [])
+    else:
+        return abort(404, description="Data must start with 'input' root element in json")
+
     username = request.authorization['username']
     yc_gc.LOGGER.debug('Checking authorization for user {}'.format(username))
     accessRigths = None
@@ -210,66 +224,70 @@ def delete_modules():
             db.close()
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
-    rpc = request.json
-    if rpc.get('input'):
-        modules = rpc['input'].get('modules')
-    else:
-        return abort(404, description="Data must start with input root element in json")
+    unavailable_modules = []
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
     for mod in modules:
-        response = requests.get(yc_gc.protocol + '://' + yc_gc.confd_ip + ':' + repr(
-            yc_gc.confdPort) + '/restconf/data/yang-catalog:catalog/modules/module=' + mod['name'] +
-                                ',' + mod['revision'] + ',' + mod['organization'],
+        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+            confd_prefix, mod['name'], mod['revision'], mod['organization'])
+        response = requests.get(url,
                                 auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                                headers={'Content-type': 'application/yang-data+json',
-                                         'Accept': 'application/yang-data+json'})
+                                headers=confd_headers)
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-            return abort(404, description="module {}@{}/{} not found in confd database"
-                         .format(mod['name'], mod['revision'], mod['organization']))
+            # If admin, then possible to delete this module from other's modules dependents
+            if accessRigths != '/':
+                unavailable_modules.append(mod)
+            continue
         read = response.json()
 
-        if read['yang-catalog:module']['organization'] != accessRigths and accessRigths != '/':
-            return abort(401, description="you do not have rights to delete module with organization {}"
-                         .format(accessRigths))
+        if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
+            unavailable_modules.append(mod)
 
-        if read['yang-catalog:module'].get('implementations') is not None:
-            return abort(400, description='This module has reference in vendors branch')
+        if read['yang-catalog:module'][0].get('implementations') is not None:
+            unavailable_modules.append(mod)
 
     all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
+    modules_to_delete = {'modules': []}
+    # Filter out unavailble modules
+    modules = [x for x in modules if x not in unavailable_modules]
 
     for mod in modules:
+        if mod in unavailable_modules:
+            continue
+        delete_module = True
         for existing_module in all_mods['module']:
             if existing_module.get('dependencies') is not None:
-                dependency = existing_module['dependencies']
-                for dep in dependency:
-                    if dep['name'] == mod['name'] and dep.get('revision') == mod['revision']:
+                dependencies = existing_module.get('dependencies', [])
+                for dependency in dependencies:
+                    if dependency.get('name') == mod.get('name') and dependency.get('revision') == mod.get('revision'):
                         will_be_deleted = False
                         for mod2 in modules:
-                            if mod2['name'] == existing_module['name'] and mod2['revision'] == existing_module[
-                                'revision']:
+                            if mod2.get('name') == existing_module.get('name') and mod2.get('revision') == existing_module.get('revision'):
                                 will_be_deleted = True
                                 break
                         if not will_be_deleted:
-                            return abort(400,
-                                         description='{}@{} module has reference in another module dependency: {}@{}'
-                                         .format(mod['name'], mod['revision'], existing_module['name'],
-                                                 existing_module['revision']))
-            if existing_module.get('submodule') is not None:
-                submodule = existing_module['submodule']
-                for sub in submodule:
-                    if sub['name'] == mod['name'] and sub.get('revision') == mod['revision']:
-                        will_be_deleted = False
-                        for mod2 in modules:
-                            if mod2['name'] == existing_module['name'] and mod2['revision'] == existing_module[
-                                'revision']:
-                                will_be_deleted = True
-                                break
-                        if not will_be_deleted:
-                            return abort(400,
-                                         description='{}@{} module has reference in another module submodule: {}@{}'
-                                         .format(mod['name'], mod['revision'], existing_module['name'],
-                                                 existing_module['revision']))
+                            delete_module = False
+                            yc_gc.LOGGER.error('{}@{} module has reference in another module dependency: {}@{}'
+                                               .format(mod.get('name'), mod.get('revision'),
+                                                       existing_module.get('name'), existing_module.get('revision')))
 
-    path_to_delete = json.dumps(rpc['input'])
+            if existing_module.get('submodule') is not None:
+                submodule = existing_module.get('submodule', [])
+                for sub in submodule:
+                    if sub.get('name') == mod.get('name') and sub.get('revision') == mod.get('revision'):
+                        will_be_deleted = False
+                        for mod2 in modules:
+                            if mod2.get('name') == existing_module.get('name') and mod2.get('revision') == existing_module.get('revision'):
+                                will_be_deleted = True
+                                break
+                        if not will_be_deleted:
+                            delete_module = False
+                            yc_gc.LOGGER.error('{}@{} module has reference in another module submodule: {}@{}'
+                                               .format(mod.get('name'), mod.get('revision'),
+                                                       existing_module.get('name'), existing_module.get('revision')))
+        if delete_module:
+            modules_to_delete['modules'].append(mod)
+
+    path_to_delete = json.dumps(modules_to_delete)
 
     arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
                  yc_gc.credentials[1], path_to_delete, 'DELETE_MULTIPLE',
@@ -277,7 +295,10 @@ def delete_modules():
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     yc_gc.LOGGER.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
+    payload = {'info': 'Verification successful', 'job-id': job_id}
+    if len(unavailable_modules) > 0:
+        payload['skipped'] = unavailable_modules
+    return make_response(jsonify(payload), 202)
 
 
 @app.route('/vendors/<path:value>', methods=['DELETE'])
@@ -407,9 +428,8 @@ def add_modules():
     base64string = base64.b64encode(str_to_encode)
     if sys.version_info >= (3, 4):
         base64string = base64string.decode(encoding='utf-8', errors='strict')
-    response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic ' + base64string,
-                                                             'Content-type': 'application/yang-data+json',
-                                                             'Accept': 'application/yang-data+json'})
+    response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic {}'.format(base64string),
+                                                             **confd_headers})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
@@ -456,21 +476,18 @@ def add_modules():
                                                                                                   mod_name,
                                                                                                   mod_revision, orgz)
             response = requests.get(path, auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                                    headers={'Accept': 'application/yang-data+json'})
+                                    headers=confd_headers)
             if response.status_code != 404:
                 continue
         sdo_path = sdo.get('path')
         if sdo_path is None:
-            return abort(400, description=
-            'bad request - at least one of modules source file "path" is missing and is mandatory')
+            return abort(400, description='bad request - at least one of modules source file "path" is missing and is mandatory')
         sdo_repo = sdo.get('repository')
         if sdo_repo is None:
-            return abort(400, description=
-            'bad request - at least one of modules source file "repository" is missing and is mandatory')
+            return abort(400, description='bad request - at least one of modules source file "repository" is missing and is mandatory')
         sdo_owner = sdo.get('owner')
         if sdo_owner is None:
-            return abort(400, description=
-            'bad request - at least one of modules source file "owner" is missing and is mandatory')
+            return abort(400, description='bad request - at least one of modules source file "owner" is missing and is mandatory')
         directory = '/'.join(sdo_path.split('/')[:-1])
 
         repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
@@ -614,9 +631,8 @@ def add_vendors():
     base64string = base64.b64encode(str_to_encode)
     if sys.version_info >= (3, 4):
         base64string = base64string.decode(encoding='utf-8', errors='strict')
-    response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic ' + base64string,
-                                                             'Content-type': 'application/yang-data+json',
-                                                             'Accept': 'application/yang-data+json'})
+    response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic {}'.format(base64string),
+                                                             **confd_headers})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
@@ -643,21 +659,17 @@ def add_vendors():
     for platform in platform_list:
         capability = platform.get('module-list-file')
         if capability is None:
-            return abort(400, description=
-            'bad request - at least on of platform "module-list-file" is missing and is mandatory')
+            return abort(400, description='bad request - at least on of platform "module-list-file" is missing and is mandatory')
         capability_path = capability.get('path')
         if capability_path is None:
-            return abort(400, description=
-            'bad request - at least on of platform module-list-file "path" for module is missing and is mandatory')
+            return abort(400, description='bad request - at least on of platform module-list-file "path" for module is missing and is mandatory')
         file_name = capability_path.split('/')[-1]
         repository = capability.get('repository')
         if repository is None:
-            return abort(400, description=
-            'bad request - at least on of platform module-list-file  "repository" for module is missing and is mandatory')
+            return abort(400, description='bad request - at least on of platform module-list-file  "repository" for module is missing and is mandatory')
         owner = capability.get('owner')
         if owner is None:
-            return abort(400, description=
-            'bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
+            return abort(400, description='bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
         if request.method == 'POST':
             repo_split = repository.split('.')[0]
             repoutil.pull(yc_gc.yang_models)
@@ -823,7 +835,7 @@ def get_job(job_id):
     split = result.split('#split#')
 
     reason = None
-    if split[0] == 'Failed':
+    if split[0] == 'Failed' or split[0] == 'Partially done':
         result = split[0]
         if len(split) == 2:
             reason = split[1]

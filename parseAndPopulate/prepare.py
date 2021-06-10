@@ -48,9 +48,6 @@ class Prepare:
         """
         global LOGGER
         LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
-        if len(LOGGER.handlers) > 1:
-            LOGGER.handlers[1].close()
-            LOGGER.removeHandler(LOGGER.handlers[1])
         self.file_name = file_name
         self.name_revision_organization = set()
         self.yang_modules = {}
@@ -61,7 +58,7 @@ class Prepare:
         Create key in format <module_name>@<revision>/<organization> from yang Modules object passed as argument.
         Dictionary of yang_modules is updated using created key and Modules object as a value.
 
-        :param yang     (obj) Modules object of yang module.
+        :param yang     (Modules) Modules object of yang module.
         """
         key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
         LOGGER.debug('Module {} parsed'.format(key))

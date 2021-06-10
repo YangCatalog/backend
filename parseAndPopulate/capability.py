@@ -50,7 +50,6 @@ github_raw = 'https://raw.githubusercontent.com/'
 github_url = 'https://github.com/'
 
 
-# searching for file based on pattern or pattern_with_revision
 def find_first_file(directory: str, pattern: str, pattern_with_revision: str):
     """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
 
@@ -74,11 +73,11 @@ class Capability:
 
     def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, integrity_checker,
                  api: bool, sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
-                 yang_models_dir: str, fileHasher: FileHasher, run_integrity: bool = False):
+                 yang_models_dir: str, fileHasher: FileHasher):
         """
         Preset Capability class to get capabilities from directory passed as argument.
         Based on passed arguments, Capability object will:
-        I. parse all the capability.xml files and pulls all the information from platfom-metadata.json file if it exist
+        I. parse all the capability.xml files and pulls all the information from platfom-metadata.json file if it exists
         II. parse ietf-yang-library.xml file if such file exists
         III. start to parse all the yang files in the directory if there are none .xml or .json files mentioned above
 
@@ -94,7 +93,6 @@ class Capability:
         :param private_dir          (str) path to the directory with private HTML result files
         :param yang_models_dir      (str) path to the directory where YangModels/yang repo is cloned
         :param filehasher           (FileHasher) fileHasher object
-        :param run_integrity        (bool) whether running integrity or not. NOTE: Some data will not be parsed if set to True
         """
 
         global LOGGER
@@ -102,7 +100,6 @@ class Capability:
         LOGGER.debug('Running Capability constructor')
         self.logger = log.get_logger('repoutil', '{}/parseAndPopulate.log'.format(log_directory))
         self.log_directory = log_directory
-        self.run_integrity = run_integrity
         self.save_file_to_dir = save_file_to_dir
         self.html_result_dir = html_result_dir
         self.json_dir = json_dir
@@ -141,7 +138,8 @@ class Capability:
             if os.path.isfile('{}/platform-metadata.json'.format(path)):
                 self.platform_data = []
                 with open('{}/platform-metadata.json'.format(path), 'r') as f:
-                    platforms = json.load(f)['platforms']['platform']
+                    data = json.load(f)
+                    platforms = data.get('platforms', {}).get('platform', [])
                 for implementation in platforms:
                     self.initialize(implementation)
             else:
@@ -183,21 +181,15 @@ class Capability:
                      'feature-set': "ALL",
                      'os': os_type,
                      'vendor': self.split[platform_index - 1]})
-            for data in self.platform_data:
-                if self.run_integrity:
-                    integrity_checker.add_platform('/'.join(self.split[:-2]), data['platform'])
-
-        self.parsed_jsons = None
-        if not run_integrity:
-            self.parsed_jsons = LoadFiles(private_dir, log_directory)
+        self.parsed_jsons = LoadFiles(private_dir, log_directory)
 
     def initialize(self, impl: dict):
         if impl['module-list-file']['path'] in self.hello_message_file:
             LOGGER.info('Parsing a received platform-metadata.json file')
-            self.owner = impl['module-list-file']['owner']
-            self.repo = impl['module-list-file']['repository'].split('.')[0]
-            self.path = impl['module-list-file']['path']
-            self.branch = impl['module-list-file'].get('branch')
+            self.owner = impl.get('module-list-file', {}).get('owner')
+            self.repo = impl.get('module-list-file', {}).get('repository').split('.')[0]
+            self.path = impl.get('module-list-file', {}).get('path')
+            self.branch = impl.get('module-list-file', {}).get('branch')
             repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
             repo = None
             if self.owner == 'YangModels' and self.repo == 'yang':
@@ -213,16 +205,16 @@ class Capability:
                                        'platform': impl['name'],
                                        'os-version': impl['software-version'],
                                        'software-version': impl['software-version'],
-                                       'feature-set': "ALL",
+                                       'feature-set': 'ALL',
                                        'vendor': impl['vendor'],
                                        'os': impl['os-type']})
 
     def parse_and_dump_sdo(self, repo=None):
-        """
-        If modules were sent via API, content of prepare-sdo.json file is parsed and modules are loaded from Git repository.
+        """ If modules were sent via API, content of prepare-sdo.json file is parsed and modules are loaded from Git repository.
         Otherwise, all the .yang files in the directory are parsed.
 
-        :param repo     Git repository which contains .yang files
+        Argument:
+            :param repo     Git repository which contains .yang files
         """
         repo = repo
         branch = None
@@ -230,18 +222,18 @@ class Capability:
             LOGGER.debug('Parsing sdo files sent via API')
             with open('{}/prepare-sdo.json'.format(self.json_dir), 'r') as f:
                 sdos_json = json.load(f)
-            sdos_list = sdos_json['modules']['module']
+            sdos_list = sdos_json.get('modules', {}).get('module', [])
             for sdo in sdos_list:
-                file_name = unicodedata.normalize('NFKD', sdo['source-file']['path'].split('/')[-1]) \
+                file_name = unicodedata.normalize('NFKD', sdo.get('source-file', {}).get('path').split('/')[-1]) \
                     .encode('ascii', 'ignore')
                 LOGGER.info('Parsing sdo file sent via API {}'.format(file_name.decode('utf-8', 'strict')))
-                self.owner = sdo['source-file']['owner']
-                repo_file_path = sdo['source-file']['path']
-                self.repo = sdo['source-file']['repository'].split('.')[0]
+                self.owner = sdo.get('source-file', {}).get('owner')
+                repo_file_path = sdo.get('source-file', {}).get('path')
+                self.repo = sdo.get('source-file', {}).get('repository', '').split('.')[0]
                 if repo is None:
                     repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                     repo.clone()
-                self.branch = sdo['source-file'].get('branch')
+                self.branch = sdo.get('source-file', {}).get('branch')
                 if not self.branch:
                     self.branch = 'master'
                 if branch is None:
@@ -260,8 +252,8 @@ class Capability:
                     try:
                         yang = Modules(self.yang_models_dir, self.log_directory, path,
                                        self.html_result_dir, self.parsed_jsons, self.json_dir)
-                    except ParseException as e:
-                        LOGGER.error(e.msg)
+                    except ParseException:
+                        LOGGER.exception('ParseException while parsing {}'.format(file_name))
                         continue
                     name = file_name.split('.')[0].split('@')[0]
                     schema = '{}{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, repo_file_path)
@@ -273,6 +265,26 @@ class Capability:
         else:
             LOGGER.debug('Parsing sdo files from directory')
             for root, subdirs, sdos in os.walk('/'.join(self.split)):
+                # Load/clone YangModels/yang repo
+                self.owner = 'YangModels'
+                self.repo = 'yang'
+                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo = repoutil.load(self.yang_models_dir, repo_url)
+                if repo is None:
+                    repo = repoutil.RepoUtil(repo_url, self.logger)
+                    repo.clone()
+                is_submodule = False
+                # Check if repository submodule
+                for submodule in repo.repo.submodules:
+                    if submodule.name in root:
+                        is_submodule = True
+                        submodule_name = submodule.name
+                        repo_url = submodule.url
+                        repo_dir = '{}/{}'.format(self.yang_models_dir, submodule_name)
+                        repo = repoutil.load(repo_dir, repo_url)
+                        self.owner = repo.get_repo_owner()
+                        self.repo = repo.get_repo_dir().split('.git')[0]
+
                 for file_name in sdos:
                     # Process only SDO .yang files
                     if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
@@ -287,17 +299,13 @@ class Capability:
                             try:
                                 yang = Modules(self.yang_models_dir, self.log_directory, path,
                                                self.html_result_dir, self.parsed_jsons, self.json_dir)
-                            except ParseException as e:
-                                LOGGER.error(e.msg)
+                            except ParseException:
+                                LOGGER.exception('ParseException while parsing {}'.format(file_name))
                                 continue
                             name = file_name.split('.')[0].split('@')[0]
-                            self.owner = 'YangModels'
-                            self.repo = 'yang'
-                            repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
-                            repo = repoutil.load(self.yang_models_dir, repo_url)
-                            if repo is None:
-                                repo = repoutil.RepoUtil(repo_url, self.logger)
-                                repo.clone()
+                            # Check if not submodule
+                            if is_submodule:
+                                path = path.replace('{}/'.format(submodule_name), '')
                             self.branch = 'master'
                             abs_path = os.path.abspath(path)
                             if '/yangmodels/yang/' in abs_path:
@@ -341,7 +349,8 @@ class Capability:
             path = '/'.join(self.split[:-1])
             if os.path.isfile('{}/platform-metadata.json'.format(path)):
                 with open('{}/platform-metadata.json'.format(path), 'r') as f:
-                    platforms = json.load(f)['platforms']['platform']
+                    data = json.load(f)
+                    platforms = data.get('platforms', {}).get('platform', [])
                 for implementation in platforms:
                     if implementation['module-list-file']['path'] in self.hello_message_file:
                         caps = implementation.get('netconf-capabilities')
@@ -398,9 +407,9 @@ class Capability:
                     yang = Modules(self.yang_models_dir, self.log_directory,
                                    '/'.join(self.split), self.html_result_dir,
                                    self.parsed_jsons, self.json_dir, True, True,
-                                   yang_lib_info, run_integrity=self.run_integrity)
-                except ParseException as e:
-                    LOGGER.error(e.msg)
+                                   yang_lib_info)
+                except ParseException:
+                    LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
 
                 yang.parse_all(self.branch, module_name,
@@ -411,15 +420,10 @@ class Capability:
                                             capabilities, netconf_version,
                                             self.integrity_checker,
                                             self.split)
-                if self.run_integrity:
-                    yang.resolve_integrity(self.integrity_checker, self.split)
                 self.prepare.add_key_sdo_module(yang)
                 keys.add('{}@{}/{}'.format(yang.name, yang.revision, yang.organization))
                 set_of_names.add(yang.name)
             except FileNotFoundError:
-                if self.run_integrity:
-                    self.integrity_checker.add_module('/'.join(self.split),
-                                                      [module_name])
                 LOGGER.warning('File {} not found in the repository'.format(module_name))
 
             LOGGER.info('Starting to parse {}'.format(module_name))
@@ -432,7 +436,7 @@ class Capability:
                                set_of_names, False, schema_part, capabilities,
                                netconf_version)
 
-    def parse_and_dump(self):
+    def parse_and_dump_vendor(self):
         """ Load implementation information which are stored platform-metadata.json file.
         Set this implementation information for each module parsed out from capability xml file.
         """
@@ -450,7 +454,8 @@ class Capability:
         path = '/'.join(self.split[:-1])
         if os.path.isfile('{}/platform-metadata.json'.format(path)):
             with open('{}/platform-metadata.json'.format(path), 'r') as f:
-                platforms = json.load(f)['platforms']['platform']
+                data = json.load(f)
+                platforms = data.get('platforms', {}).get('platform', [])
             for implementation in platforms:
                 if implementation['module-list-file']['path'] in self.hello_message_file:
                     caps = implementation.get('netconf-capabilities')
@@ -497,10 +502,9 @@ class Capability:
                     try:
                         yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
                                        self.html_result_dir, self.parsed_jsons,
-                                       self.json_dir, True, data=module_and_more,
-                                       run_integrity=self.run_integrity)
-                    except ParseException as e:
-                        LOGGER.error(e.msg)
+                                       self.json_dir, True, data=module_and_more)
+                    except ParseException:
+                        LOGGER.exception('ParseException while parsing {}'.format(module_name))
                         continue
                     yang.parse_all(self.branch, module_name,
                                    self.prepare.name_revision_organization,
@@ -511,15 +515,11 @@ class Capability:
                                                 netconf_version,
                                                 self.integrity_checker,
                                                 self.split)
-                    if self.run_integrity:
-                        yang.resolve_integrity(self.integrity_checker, self.split)
                     self.prepare.add_key_sdo_module(yang)
                     key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
                     keys.add(key)
                     set_of_names.add(yang.name)
                 except FileNotFoundError:
-                    if self.run_integrity:
-                        self.integrity_checker.add_module('/'.join(self.split), [module_and_more.split('&')[0]])
                     LOGGER.warning('File {} not found in the repository'.format(module_name))
 
         for key in keys:
@@ -570,10 +570,9 @@ class Capability:
                         yang = Modules(self.yang_models_dir, self.log_directory,
                                        yang_file, self.html_result_dir,
                                        self.parsed_jsons, self.json_dir,
-                                       is_vendor_imp_inc=True,
-                                       run_integrity=self.run_integrity)
-                    except ParseException as e:
-                        LOGGER.error(e.msg)
+                                       is_vendor_imp_inc=True)
+                    except ParseException:
+                        LOGGER.exception('ParseException while parsing {}'.format(name))
                         continue
                     yang.parse_all(self.branch, name,
                                    self.prepare.name_revision_organization,
@@ -583,14 +582,10 @@ class Capability:
                                                 netconf_version,
                                                 self.integrity_checker,
                                                 self.split)
-                    if self.run_integrity:
-                        yang.resolve_integrity(self.integrity_checker, self.split)
                     self.prepare.add_key_sdo_module(yang)
                     self.parse_imp_inc(yang.submodule, set_of_names, True,
                                        schema_part, capabilities, netconf_version)
                     self.parse_imp_inc(yang.imports, set_of_names, False,
                                        schema_part, capabilities, netconf_version)
                 except FileNotFoundError:
-                    if self.run_integrity:
-                        self.integrity_checker.add_module('/'.join(self.split), [name])
                     LOGGER.warning('File {} not found in the repository'.format(name))

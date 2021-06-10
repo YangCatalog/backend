@@ -18,6 +18,7 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
 import unittest
+from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
@@ -27,17 +28,21 @@ class TestLoadFilesClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestLoadFilesClass, self).__init__(*args, **kwargs)
+        self.excluded_names = ['private', 'IETFCiscoAuthorsYANGPageCompilation']
+        self.test_private_dir = 'tests/resources/html/private'
 
     def test_loadJsonFiles(self):
         """
         Test if 'parsed_jsons' object has the individual attributes set correctly.
+        Excluded file names should no be present in 'parsed_json' dict as keys.
         """
-        parsed_jsons = LoadFiles(yc_gc.private_dir, yc_gc.logs_dir)
+        parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
 
         names = []
-        with open('{}/json_links'.format(yc_gc.private_dir), 'r') as f:
+        with open('{}/json_links'.format(self.test_private_dir), 'r') as f:
             for line in f:
                 names.append(line.replace('.json', '').replace('\n', ''))
+        names = [name for name in names if name not in self.excluded_names]
 
         # Object should containt following attributes
         self.assertTrue(hasattr(parsed_jsons, 'headers'))
@@ -50,6 +55,11 @@ class TestLoadFilesClass(unittest.TestCase):
         for name in names:
             self.assertIn(name, parsed_jsons.headers)
             self.assertIn(name, parsed_jsons.status)
+
+        # Property should NOT be set for excluded names
+        for name in self.excluded_names:
+            self.assertNotIn(name, parsed_jsons.headers)
+            self.assertNotIn(name, parsed_jsons.status)
 
     def test_loadJsonFiles_json_links_not_found(self):
         """
@@ -68,6 +78,30 @@ class TestLoadFilesClass(unittest.TestCase):
         self.assertEqual(parsed_jsons.names, [])
         self.assertEqual(parsed_jsons.headers, {})
         self.assertEqual(parsed_jsons.status, {})
+
+    @mock.patch('parseAndPopulate.loadJsonFiles.LoadFiles.load_names')
+    def test_loadJsonFiles_non_existing_json_file(self, mock_load_names: mock.MagicMock):
+        """
+        Test if 'parsed_jsons' object has the individual attributes set correctly.
+        load_names() method will return non-exisiting name of json file, so FileNotFound exceptions will be raised
+        while trying to load content of json/html files - headers and status properties should be empty for this name.
+
+        Arguments:
+        :param mock_load_names  (mock.MagicMock) load_names() method is patched, to return name of non-exisiting json
+        """
+        non_existing_json_name = 'SuperRandom'
+        mock_load_names.return_value = [non_existing_json_name]
+
+        parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+
+        # Object should containt following attributes
+        self.assertTrue(hasattr(parsed_jsons, 'headers'))
+        self.assertTrue(hasattr(parsed_jsons, 'names'))
+        self.assertTrue(hasattr(parsed_jsons, 'status'))
+
+        # Status and headers should be empty for non-existing json/html files
+        self.assertEqual(parsed_jsons.headers[non_existing_json_name], [])
+        self.assertEqual(parsed_jsons.status[non_existing_json_name], {})
 
 
 if __name__ == "__main__":

@@ -388,25 +388,6 @@ def fetch_module_by_schema(schema: str, dst_path: str):
     return file_exist
 
 
-def hash_file(path: str):
-    """ Create hash from content of the given file.
-
-    :param path     (str) Path fo file to be hashed
-    :return         SHA256 hash of the content of the given file
-    :rtype          str
-    """
-    BLOCK_SIZE = 65536  # The size of each read from the file
-
-    file_hash = hashlib.sha256()
-    with open(path, 'rb') as f:
-        fb = f.read(BLOCK_SIZE)
-        while len(fb) > 0:
-            file_hash.update(fb)
-            fb = f.read(BLOCK_SIZE)
-
-    return file_hash.hexdigest()
-
-
 def get_module_from_es(name: str, revision: str):
     """ Get module with the given name and revision from Elasticsearch.
 
