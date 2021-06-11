@@ -88,7 +88,7 @@ def delete_module(name: str, revision: str, organization: str):
     read = response.json()
     if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
         return abort(401, description='You do not have rights to delete module with organization {}'
-                     .format(read['yang-catalog:module']['organization']))
+                     .format(read['yang-catalog:module'][0].get('organization')))
 
     if read['yang-catalog:module'][0].get('implementations') is not None:
         return abort(400, description='This module has reference in vendors branch')
