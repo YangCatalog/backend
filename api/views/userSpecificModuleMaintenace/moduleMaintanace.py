@@ -74,23 +74,9 @@ def delete_module(name: str, revision: str, organization: str):
     yc_gc.LOGGER.info('Deleting module {},{},{}'.format(name, revision, organization))
     username = request.authorization['username']
     yc_gc.LOGGER.debug('Checking authorization for user {}'.format(username))
-    accessRigths = None
-    try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
-        if results_num == 1:
-            data = cursor.fetchone()
-            accessRigths = data[7]
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    accessRigths = get_user_access_rights(username)
 
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
     url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
         confd_prefix, name, revision, organization)
     response = requests.get(url,
@@ -155,24 +141,10 @@ def delete_modules():
 
     username = request.authorization['username']
     yc_gc.LOGGER.debug('Checking authorization for user {}'.format(username))
-    accessRigths = None
-    try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
-        if results_num == 1:
-            data = cursor.fetchone()
-            accessRigths = data[7]
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    accessRigths = get_user_access_rights(username)
 
     unavailable_modules = []
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
     for mod in modules:
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
             confd_prefix, mod['name'], mod['revision'], mod['organization'])
@@ -263,21 +235,7 @@ def delete_vendor(value):
     yc_gc.LOGGER.info('Deleting vendor on path {}'.format(value))
     username = request.authorization['username']
     yc_gc.LOGGER.debug('Checking authorization for user {}'.format(username))
-    accessRigths = None
-    try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
-        if results_num == 1:
-            data = cursor.fetchone()
-            accessRigths = data[8]
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    accessRigths = get_user_access_rights(username, is_vendor=True)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
@@ -295,9 +253,8 @@ def delete_vendor(value):
         if len(rights) > 3:
             check_software_flavor = rights[3]
 
-    path_to_delete = '{}://{}:{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(yc_gc.protocol,
-                                                                                       yc_gc.confd_ip,
-                                                                                       yc_gc.confdPort, value)
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    path_to_delete = '{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(confd_prefix, value)
 
     vendor = 'None'
     platform = 'None'
@@ -366,8 +323,8 @@ def add_modules():
     shutil.copy('./prepare-sdo.json', yc_gc.save_requests + '/sdo-'
                 + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
 
-    path = yc_gc.protocol + '://' + yc_gc.confd_ip + ':' + repr(
-        yc_gc.confdPort) + '/restconf/data/module-metadata:modules'
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    path = '{}/restconf/data/module-metadata:modules'.format(confd_prefix)
 
     str_to_encode = '%s:%s' % (yc_gc.credentials[0], yc_gc.credentials[1])
     if sys.version_info >= (3, 4):
@@ -682,21 +639,7 @@ def authorize_for_vendors(request, body):
     """
     username = request.authorization['username']
     yc_gc.LOGGER.info('Checking vendor authorization for user {}'.format(username))
-    accessRigths = None
-    try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
-        if results_num == 1:
-            data = cursor.fetchone()
-            accessRigths = data[8]
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    accessRigths = get_user_access_rights(username, is_vendor=True)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
@@ -743,21 +686,7 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
     """
     username = request.authorization['username']
     yc_gc.LOGGER.info('Checking sdo authorization for user {}'.format(username))
-    accessRigths = None
-    try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
-        if results_num == 1:
-            data = cursor.fetchone()
-            accessRigths = data[7]
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    accessRigths = get_user_access_rights(username)
 
     passed = False
     if accessRigths == '/':
@@ -793,3 +722,35 @@ def get_job(job_id):
                              'result': result,
                              'reason': reason}
                     })
+
+### HELPER DEFINITIONS ###
+
+
+def get_user_access_rights(username: str, is_vendor: bool = False):
+    """
+    Create MySQL connection and execute query to get information about user by given username.
+
+    Arguments:
+        :param username     (str) authorized user's username
+        :param is_vendor    (bool) whether method should return vendor or SDO accessRigt
+    """
+    accessRigths = None
+    try:
+        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
+        # prepare a cursor object using cursor() method
+        cursor = db.cursor()
+        # execute SQL query using execute() method.
+        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
+        if results_num == 1:
+            data = cursor.fetchone()
+            if is_vendor:
+                accessRigths = data[8]
+            else:
+                accessRigths = data[7]
+        db.close()
+    except MySQLdb.MySQLError as err:
+        if err.args[0] != 1049:
+            db.close()
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+
+    return accessRigths
