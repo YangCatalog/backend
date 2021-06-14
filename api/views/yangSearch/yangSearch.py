@@ -202,6 +202,48 @@ def tree_module_revision(module_name, revision):
     return make_response(jsonify(response), 200)
 
 
+@app.route('/impact-analysis', methods=['POST'])
+def impact_analysis():
+    if not request.json:
+        abort(400, description='No input data')
+    payload = request.json
+    app.LOGGER.info('Running impact analysis with following payload {}'.format(payload))
+    name = payload.get('name')
+    revision = payload.get('revision')
+    allowed_organizations = payload.get('organizations', [])
+    rfc_allowed = payload.get('allow-rfc', True)
+    submodules_allowed = payload.get('allow-submodules', True)
+    graph_directions = ['dependents', 'dependencies']
+    graph_direction = payload.get('graph-direction', graph_directions)
+    for direction in graph_direction:
+        if direction not in graph_directions:
+            abort(400, 'only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
+    # GET module details
+    response = {}
+
+    searched_module = module_details(name, revision, True)['metadata']
+    app.LOGGER.info('{}'.format(searched_module))
+    response['name'] = searched_module['name']
+    response['revision'] = searched_module['revision']
+    response['organization'] = searched_module['organization']
+    response['document-name'] = searched_module.get('reference', '')
+    response['dependents'] = []
+    response['dependencies'] = []
+    if 'dependents' in graph_directions:
+        for dependent in searched_module.get('dependents', []):
+            response['dependents'] += filter(None, [get_dependencies_dependents_data(dependent, submodules_allowed,
+                                                                                     allowed_organizations,
+                                                                                     rfc_allowed)])
+
+    if 'dependencies' in graph_directions:
+        for dependency in searched_module.get('dependencies', []):
+            response['dependencies'] += filter(None, [get_dependencies_dependents_data(dependency, submodules_allowed,
+                                                                                       allowed_organizations,
+                                                                                       rfc_allowed)])
+
+    return make_response(jsonify(response), 200)
+
+
 @app.route('/search', methods=['POST'])
 def search():
     if not request.json:
@@ -357,7 +399,7 @@ def module_details_no_revision(module: str):
 
 
 @app.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: str):
+def module_details(module: str, revision: str, json_data=False):
     """
     Search for data saved in our datastore (confd/redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -392,7 +434,10 @@ def module_details(module: str, revision: str):
         module_data = module_data.decode('utf-8')
         module_data = json.loads(module_data)
     resp['metadata'] = module_data
-    return make_response(jsonify(resp), 200)
+    if json_data:
+        return resp
+    else:
+        return make_response(jsonify(resp), 200)
 
 
 @app.route('/yang-catalog-help', methods=['GET'])
@@ -720,3 +765,23 @@ def get_type_str(json):
             else:
                 type_str += " {} {} {}".format('{', val, '}')
     return type_str
+
+
+def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_organizations, rfc_allowed):
+    module_detail = module_details(module_data['name'], module_data.get('revision'), True)['metadata']
+    module_type = module_detail.get('module-type', '')
+    if module_type == '':
+        app.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
+                                                                                module_detail.get('revision')))
+    if module_type == 'submodule' and not submodules_allowed:
+        return None
+    child = {}
+    child['name'] = module_detail['name']
+    child['revision'] = module_detail['revision']
+    child['organization'] = module_detail['organization']
+    if len(allowed_organizations) > 0 and child['organization'] not in allowed_organizations:
+        return None
+    if not rfc_allowed and module_detail.get('maturity-level', '') == 'ratified':
+        return None
+    child['document-name'] = module_detail.get('reference', '')
+    return child
