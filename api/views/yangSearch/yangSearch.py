@@ -150,7 +150,7 @@ def tree_module_revision(module_name, revision):
         ytree_dir = yc_gc.json_ytree
         yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
         response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
-                                                                 organization)).get('maturity-level').upper()
+                                                                 organization)).get('maturity-level', '').upper()
         response['import-include'] = import_inlcude_map
 
         if os.path.isfile(yang_tree_file_path):
