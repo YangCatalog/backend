@@ -21,10 +21,9 @@ import json
 import os
 
 import requests
-from flask import Blueprint, make_response, jsonify, abort, request
-
 from api.authentication.auth import auth, check_authorized
 from api.globalConfig import yc_gc
+from flask import Blueprint, abort, jsonify, make_response, request
 from utility import messageFactory, repoutil
 from utility.util import get_curr_dir
 
@@ -68,19 +67,17 @@ def check_local():
         check_authorized(request.headers.environ['HTTP_SIGNATURE'], request.form['payload'])
         yc_gc.LOGGER.info('Authorization successful')
     except:
-        yc_gc.LOGGER.critical('Authorization failed. Request did not come from Travis')
+        yc_gc.LOGGER.exception('Authorization failed. Request did not come from Travis')
         mf = messageFactory.MessageFactory()
         mf.send_travis_auth_failed()
         return abort(401)
 
     github_api_url = 'https://api.github.com'
-    github_repos_url = github_api_url + '/repos'
-    yang_models_url = github_repos_url + '/YangModels/yang'
-
+    github_repos_url = '{}/repos'.format(github_api_url)
+    yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
 
     verify_commit = False
-    yc_gc.LOGGER.info('Checking commit SHA if it is the commit sent by yang-catalog'
-                'user.')
+    yc_gc.LOGGER.info('Checking commit SHA if it is the commit sent by yang-catalog user.')
     if body['repository']['owner_name'] == 'yang-catalog':
         commit_sha = body['commit']
     else:
@@ -94,6 +91,7 @@ def check_local():
     except:
         return abort(404)
 
+    token_header_value = 'token {}'.format(yc_gc.token)
     if verify_commit:
         yc_gc.LOGGER.info('commit verified')
         if body['repository']['owner_name'] == 'yang-catalog':
@@ -107,8 +105,9 @@ def check_local():
                         "base": "master"
                     }))
 
-                    r = requests.post(yang_models_url + '/pulls',
-                                      json=json_body, headers={'Authorization': 'token ' + yc_gc.token})
+                    url = '{}/pulls'.format(yang_models_url)
+                    r = requests.post(url,
+                                      json=json_body, headers={'Authorization': token_header_value})
                     if r.status_code == requests.codes.created:
                         yc_gc.LOGGER.info('Pull request created successfully')
                         return make_response(jsonify({'info': 'Success'}), 201)
@@ -118,26 +117,27 @@ def check_local():
             else:
                 yc_gc.LOGGER.warning('Travis job did not pass. Removing forked repository.')
                 requests.delete('https://api.github.com/repos/yang-catalog/yang',
-                                headers={'Authorization': 'token ' + yc_gc.token})
+                                headers={'Authorization': token_header_value})
                 return make_response(jsonify({'info': 'Failed'}), 406)
         elif body['repository']['owner_name'] == 'YangModels':
             if body['result_message'] == 'Passed':
                 if body['type'] == 'pull_request':
                     # If build was successful on pull request
+                    admin_token_header_value = 'token {}'.format(yc_gc.admin_token)
                     pull_number = body['pull_request_number']
                     yc_gc.LOGGER.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
-                    url = 'https://api.github.com/repos/YangModels/yang/pulls/'+ repr(pull_number) +'/reviews'
+                    url = 'https://api.github.com/repos/YangModels/yang/pulls/{}/reviews'.format(repr(pull_number))
                     data = json.dumps({
                         'body': 'AUTOMATED YANG CATALOG APPROVAL',
                         'event': 'APPROVE'
                     })
-                    response = requests.post(url, data, headers={'Authorization': 'token ' + yc_gc.admin_token})
+                    response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
                     yc_gc.LOGGER.info('review response code {}. Merge response {}.'.format(
-                            response.status_code, response.text))
+                        response.status_code, response.text))
                     data = json.dumps({'commit-title': 'Travis job passed',
                                        'sha': body['head_commit']})
-                    response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/' + repr(pull_number) +
-                                 '/merge', data, headers={'Authorization': 'token ' + yc_gc.admin_token})
+                    response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(repr(pull_number)),
+                                            data, headers={'Authorization': admin_token_header_value})
                     yc_gc.LOGGER.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.text))
                     return make_response(jsonify({'info': 'Success'}), 201)
             else:
@@ -149,12 +149,12 @@ def check_local():
                     "state": "closed",
                     "base": "master"
                 }))
-                requests.patch('https://api.github.com/repos/YangModels/yang/pulls/' + pull_number, json=json_body,
-                               headers={'Authorization': 'token ' + yc_gc.token})
+                requests.patch('https://api.github.com/repos/YangModels/yang/pulls/{}'.format(pull_number), json=json_body,
+                               headers={'Authorization': token_header_value})
                 yc_gc.LOGGER.warning('Travis job did not pass. Removing forked repository.')
                 requests.delete(
                     'https://api.github.com/repos/yang-catalog/yang',
-                    headers={'Authorization': 'token ' + yc_gc.token})
+                    headers={'Authorization': token_header_value})
                 return make_response(jsonify({'info': 'Failed'}), 406)
         else:
             yc_gc.LOGGER.warning('Owner name verification failed. Owner -> {}'.format(body['repository']['owner_name']))
@@ -162,7 +162,7 @@ def check_local():
                                  401)
     else:
         yc_gc.LOGGER.info('Commit verification failed. Commit sent by someone else.'
-                    'Not doing anything.')
+                          'Not doing anything.')
     return make_response(jsonify({'Error': 'Fails'}), 500)
 
 
@@ -205,7 +205,7 @@ def trigger_populate():
                 arguments = arguments + list(paths) + [yc_gc.yang_models, "github"]
                 yc_gc.sender.send("#".join(arguments))
             except:
-                yc_gc.LOGGER.error('Could not populate after git push')
+                yc_gc.LOGGER.exception('Could not populate after git push')
             return make_response(jsonify({'info': 'Success'}), 200)
         return make_response(jsonify({'info': 'Success'}), 200)
     except Exception as e:
@@ -221,3 +221,4 @@ def get_statistics():
             return make_response(jsonify(json.load(f)), 200)
     else:
         abort(404, description="Statistics file has not been generated yet")
+

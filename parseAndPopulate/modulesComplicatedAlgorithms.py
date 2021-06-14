@@ -266,8 +266,9 @@ class ModulesComplicatedAlgorithms:
             return True
 
         def is_combined(rows, output):
-            if output.split('\n')[1].endswith('-state'):
-                return False
+            for row in rows:
+                if row.endswith('-state') and not ('x--' in row or 'o--' in row):
+                    return False
             next_obsolete_or_deprecated = False
             for row in rows:
                 if next_obsolete_or_deprecated:
@@ -428,8 +429,6 @@ class ModulesComplicatedAlgorithms:
                                                  module['revision'])
             LOGGER.info(
                 'Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
-            LOGGER.debug(
-                'Get tree type from tag from module {}'.format(self.__path))
             if name_revision in self.__trees:
                 stdout = self.__trees[name_revision]
             else:
@@ -475,6 +474,7 @@ class ModulesComplicatedAlgorithms:
                     self.__trees[name_revision] = stdout
                 except:
                     module['tree-type'] = 'not-applicable'
+                    LOGGER.exception('not-applicable tree created')
                     continue
 
             if stdout == '':
@@ -497,6 +497,7 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'transitional-extra'
                 else:
                     module['tree-type'] = 'unclassified'
+            LOGGER.info('tree type for module {} is {}'.format(module['name'], module['tree-type']))
             if (self.__existing_modules_dict.get(name_revision) is None or
                     self.__existing_modules_dict[name_revision].get('tree-type') != module['tree-type']):
                 if self.new_modules.get(name_revision) is None:

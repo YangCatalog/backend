@@ -103,7 +103,7 @@ class RepoUtil(object):
         remove_temp_repo = False
         if path is not None:
             for submodule in self.repo.submodules:
-                if path in submodule.path:
+                if submodule.path in path:
                     repo_temp = RepoUtil(submodule._url)
                     repo_temp.clone()
                     remove_temp_repo = True

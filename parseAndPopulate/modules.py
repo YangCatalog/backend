@@ -34,7 +34,7 @@ import unicodedata
 from datetime import datetime
 
 import statistic.statistics as stats
-from utility import log, yangParser
+from utility import log, repoutil, yangParser
 from utility.util import find_first_file
 
 from parseAndPopulate.loadJsonFiles import LoadFiles
@@ -136,9 +136,6 @@ class Modules:
         """
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(log_directory))
-        if len(LOGGER.handlers) > 1:
-            LOGGER.handlers[1].close()
-            LOGGER.removeHandler(LOGGER.handlers[1])
         config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -333,14 +330,40 @@ class Modules:
                     dependency.schema = None
                 else:
                     try:
-                        if '/yangmodels/yang/' in yang_file:
-                            suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
-                            prefix = 'https://raw.githubusercontent.com/yangmodels'
-                            dependency.schema = '{}/yang/master/{}'.format(prefix, suffix)
-                        elif git_commit_hash in yang_file:
-                            prefix = self.schema.split('/{}/'.format(git_commit_hash))[0]
-                            suffix = os.path.abspath(yang_file).split('/{}/'.format(git_commit_hash))[1]
-                            dependency.schema = '{}/master/{}'.format(prefix, suffix)
+                        if os.path.dirname(yang_file) == os.path.dirname(self.__path):
+                            schema = '/'.join(self.schema.split('/')[0:-1])
+                            schema += '/{}'.format(yang_file.split('/')[-1])
+
+                            dependency.schema = schema
+                        else:
+                            if '/yangmodels/yang/' in yang_file:
+                                suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
+                                # First load/clone YangModels/yang repo
+                                owner_name = 'YangModels'
+                                repo_name = 'yang'
+                                repo_url = '{}{}/{}'.format(github, owner_name, repo_name)
+                                repo = repoutil.load(self.yang_models, repo_url)
+                                if repo is None:
+                                    repo = repoutil.RepoUtil(repo_url)
+                                    repo.clone()
+                                # Check if repository submodule
+                                for submodule in repo.repo.submodules:
+                                    if submodule.name in suffix:
+                                        repo_url = submodule.url
+                                        repo_dir = '{}/{}'.format(self.yang_models, submodule.name)
+                                        repo = repoutil.load(repo_dir, repo_url)
+                                        owner_name = repo.get_repo_owner()
+                                        repo_name = repo.get_repo_dir().split('.git')[0]
+                                        suffix = suffix.replace('{}/'.format(submodule.name), '')
+
+                                branch = repo.get_commit_hash(suffix)
+                                schema = '{}{}/{}/{}/{}'.format(github_raw, owner_name, repo_name, branch, suffix)
+
+                                dependency.schema = schema
+                            elif git_commit_hash in yang_file:
+                                prefix = self.schema.split('/{}/'.format(git_commit_hash))[0]
+                                suffix = os.path.abspath(yang_file).split('/{}/'.format(git_commit_hash))[1]
+                                dependency.schema = '{}/master/{}'.format(prefix, suffix)
                     except:
                         LOGGER.ERROR('Unable to resolve schema for {}@{}.yang'.format(self.name, self.revision))
                         dependency.schema = None
@@ -663,6 +686,8 @@ class Modules:
                                        'confdrc': '', 'yumadump': '',
                                        'yanglint': ''}
         self.compilation_result = self.__create_compilation_result_file()
+        if self.compilation_status['status'] == 'unknown':
+            self.compilation_result = ''
         self.compilation_status = self.compilation_status['status']
 
     def __create_compilation_result_file(self):

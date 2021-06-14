@@ -40,20 +40,14 @@ class LoadFiles:
         :param log_directory:   (str) directory where the log file is saved
         """
         LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
-        if len(LOGGER.handlers) > 1:
-            LOGGER.handlers[1].close()
-            LOGGER.removeHandler(LOGGER.handlers[1])
         LOGGER.debug('Loading compilation statuses and results')
-        self.names = []
-        try:
-            with open('{}/json_links'.format(private_dir), 'r') as f:
-                for line in f:
-                    self.names.append(line.replace('.json', '').replace('\n', ''))
-        except FileNotFoundError:
-            LOGGER.exception('json_links file was not found')
+        excluded_names = ['private', 'IETFCiscoAuthorsYANGPageCompilation']
 
+        self.names = self.load_names(private_dir, LOGGER)
+        self.names = [name for name in self.names if name not in excluded_names]
         self.status = {}
         self.headers = {}
+
         for name in self.names:
             try:
                 with open('{}/{}.json'.format(private_dir, name), 'r') as f:
@@ -83,3 +77,16 @@ class LoadFiles:
                     results.append(result)
             self.headers[name] = results
         LOGGER.debug('Compilation statuses and results loaded successfully')
+
+    def load_names(self, private_dir: str, LOGGER):
+        """ Load list of names of json files from json_links file.
+        """
+        names = []
+        try:
+            with open('{}/json_links'.format(private_dir), 'r') as f:
+                for line in f:
+                    names.append(line.replace('.json', '').replace('\n', ''))
+        except FileNotFoundError:
+            LOGGER.exception('json_links file was not found')
+
+        return names

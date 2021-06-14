@@ -33,7 +33,7 @@ class ParseException(Exception):
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(config_path)
-        var_path = config.get('Directory-Section', 'var', fallback="/var/yang")
+        var_path = config.get('Directory-Section', 'var', fallback='/var/yang')
         self.msg = 'Failed to parse module on path {}'.format(path)
         try:
             with open('{}/unparsable-modules.json'.format(var_path), 'r') as f:

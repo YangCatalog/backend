@@ -37,13 +37,10 @@ import os
 import shutil
 import sys
 import time
-import warnings
 
 import requests
 import utility.log as log
 from git.exc import GitCommandError
-from travispy import TravisPy
-from travispy.errors import TravisError
 from utility import messageFactory, repoutil
 from utility.util import job_log
 
@@ -152,27 +149,6 @@ def main(scriptConf=None):
                     raise Exception()
         LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
 
-        # Try to activate Travis CI
-        retry = 3
-        while True:
-            try:
-                LOGGER.info('Activating Travis')
-                travis = TravisPy.github_auth(token)
-                break
-            except:
-                retry -= 1
-                LOGGER.warning('Travis CI not ready yet')
-                time.sleep(10)
-                if retry == 0:
-                    LOGGER.exception('Activating Travis - Failed')
-                    LOGGER.info('Removing local directory and deleting forked repository')
-                    requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
-                                    headers={'Authorization': token_header_value})
-                    repo.remove()
-                    e = 'Failed to activate Travis'
-                    job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-                    sys.exit(500)
-
         # Get rfc.tgz file
         response = requests.get(ietf_rfc_url)
         tgz_path = '{}/rfc.tgz'.format(repo.localdir)
@@ -229,22 +205,6 @@ def main(scriptConf=None):
 
         messages = []
         try:
-            # Get user and sync
-            with warnings.catch_warnings(record=True):
-                travis_user = travis.user()
-            LOGGER.info('Syncing repo user for Travis')
-            response = travis_user.sync()
-            travis_repo = travis.repo('{}/{}'.format(username, repo_name))
-            LOGGER.info('Enabling repo for Travis')
-            travis_repo.enable()  # Switch is now on
-            travis_enabled_retry = 5
-            while not travis_repo.active:
-                LOGGER.warning('Travis repo not enabled retrying')
-                time.sleep(3)
-                travis_enabled_retry -= 1
-                travis_repo.enable()
-                if travis_enabled_retry == 0:
-                    raise Exception()
             # Add commit and push to the forked repository
             LOGGER.info('Adding all untracked files locally')
             repo.add_all_untracked()
@@ -256,11 +216,6 @@ def main(scriptConf=None):
             with open(commit_dir, 'w+') as f:
                 f.write('{}\n'.format(commit_hash))
             repo.push()
-        except TravisError as e:
-            LOGGER.exception('Error while pushing procedure - Travis error')
-            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
-                            headers={'Authorization': token_header_value})
-            raise e
         except GitCommandError as e:
             message = 'Error while pushing procedure - git command error: \n {} \n git command out: \n {}'.format(e.stderr, e.stdout)
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
