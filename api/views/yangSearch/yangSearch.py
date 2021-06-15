@@ -411,7 +411,11 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
     if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
         abort(400, description='Revision provided has wrong format please use "YYYY-MM-DD" format')
 
-    revisions, organization = get_modules_revision_organization(module, None)
+    elk_response = get_modules_revision_organization(module, None, warnings)
+    if 'warning' in elk_response:
+        return elk_response
+    else:
+        revisions, organization = elk_response
     if len(revisions) == 0:
         if warnings:
             return {'warning': 'module {} does not exists in API'.format(module)}
@@ -513,7 +517,7 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
 
 
-def get_modules_revision_organization(module_name, revision=None):
+def get_modules_revision_organization(module_name, revision=None, warnings=False):
     """
     Get list of revision of module_name that we have in our database and organization as well
     :param module_name: module name of searched module
@@ -553,8 +557,11 @@ def get_modules_revision_organization(module_name, revision=None):
         return revisions, organization
     except Exception as e:
         app.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
-        abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
-              .format(module_name, revision))
+        if warnings:
+            return {'warning': 'Failed to find module {}@{} in elasticsearch'.format(module_name, revision)}
+        else:
+            abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
+                  .format(module_name, revision))
 
 
 def get_latest_module(module_name):
