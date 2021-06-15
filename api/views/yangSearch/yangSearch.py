@@ -774,9 +774,11 @@ def get_type_str(json):
 
 
 def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_organizations, rfc_allowed):
-    module_detail = module_details(module_data['name'], module_data.get('revision'), True, True)['metadata']
+    module_detail = module_details(module_data['name'], module_data.get('revision'), True, True)
     if 'warning' in module_detail:
         return module_detail
+    else:
+        module_detail = module_detail['metadata']
     module_type = module_detail.get('module-type', '')
     if module_type == '':
         app.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
