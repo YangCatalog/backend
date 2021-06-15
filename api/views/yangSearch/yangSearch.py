@@ -399,7 +399,7 @@ def module_details_no_revision(module: str):
 
 
 @app.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: str, json_data=False):
+def module_details(module: str, revision: str, json_data=False, warnings=False):
     """
     Search for data saved in our datastore (confd/redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -412,7 +412,10 @@ def module_details(module: str, revision: str, json_data=False):
 
     revisions, organization = get_modules_revision_organization(module, None)
     if len(revisions) == 0:
-        abort(404, description='Provided module does not exist')
+        if warnings:
+            return {'warning': 'module {} does not exists in API'.format(module)}
+        else:
+            abort(404, description='Provided module does not exist')
 
     if revision is None:
         # get latest revision of provided module
@@ -429,7 +432,10 @@ def module_details(module: str, revision: str, json_data=False):
     app.LOGGER.info('searching for module {}'.format(module_index))
     module_data = yc_gc.redis.get(module_index)
     if module_data is None:
-        abort(404, description='Provided module does not exist')
+        if warnings:
+            return {'warning': 'module {} does not exists in API'.format(module_index)}
+        else:
+            abort(404, description='Provided module does not exist')
     else:
         module_data = module_data.decode('utf-8')
         module_data = json.loads(module_data)
@@ -768,7 +774,9 @@ def get_type_str(json):
 
 
 def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_organizations, rfc_allowed):
-    module_detail = module_details(module_data['name'], module_data.get('revision'), True)['metadata']
+    module_detail = module_details(module_data['name'], module_data.get('revision'), True, True)['metadata']
+    if 'warning' in module_detail:
+        return module_detail
     module_type = module_detail.get('module-type', '')
     if module_type == '':
         app.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
