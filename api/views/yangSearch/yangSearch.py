@@ -227,6 +227,7 @@ def impact_analysis():
     response['revision'] = searched_module['revision']
     response['organization'] = searched_module['organization']
     response['document-name'] = searched_module.get('reference', '')
+    response['maturity-level'] = searched_module.get('maturity-level', '')
     response['dependents'] = []
     response['dependencies'] = []
     if 'dependents' in graph_directions:
@@ -794,4 +795,5 @@ def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_or
     if not rfc_allowed and module_detail.get('maturity-level', '') == 'ratified':
         return None
     child['document-name'] = module_detail.get('reference', '')
+    child['maturity-level'] = module_detail.get('maturity-level', '')
     return child
