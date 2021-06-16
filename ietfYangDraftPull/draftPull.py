@@ -14,15 +14,13 @@
 # limitations under the License.
 
 """
-Cronjob tool that automatically pushes new ietf
-draft yang modules to github repository old ones
-are removed and naming is corrected to
-<name>@<revision>.yang. New ietf RFC modules are
-checked too but they are not automatically added.
-E-mail is sent to yangcatalog admin users if such
-thing occurs. Message about new RFC or DRAFT modules
-is also sent to Cisco webex teams yangcatalog admin
-room
+Cronjob tool that automatically pushes new IETF
+draft yang modules to the Github repository. Old ones
+are removed and naming is corrected to <name>@<revision>.yang.
+New IETF RFC modules are checked too, but they are not automatically added.
+E-mail is sent to yangcatalog admin users if such thing occurs.
+Message about new RFC or DRAFT yang modules is also sent
+to the Cisco Webex Teams, room: YANG Catalog Admin.
 """
 
 __author__ = "Miroslav Kovac"
@@ -59,16 +57,16 @@ class ScriptConfig:
 
     def __init__(self):
         parser = argparse.ArgumentParser()
-        self.help = 'Pull the latest ietf files and add them to github if there are any new ietf draf files. If there' \
-                    'are new RFC files it will produce automated message that will be sent to webex teams and admin' \
-                    ' emails notifying you that these need to be added to yangModels/yang github manualy. This runs as ' \
-                    'a daily cronjob'
+        self.help = 'Pull the latest IETF files and add them to the Github if there are any new IETF draft files.' \
+                    'If there are new RFC files it will produce automated message that will be sent to the ' \
+                    'Cisco Webex Teams and admin emails notifying you that these need to be added to YangModels/yang ' \
+                    'Github repository manualy. This script runs as a daily cronjob.'
         parser.add_argument('--config-path', type=str,
                             default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
         parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
-                            ' to cisco webex teams and to emails')
-        self.args, extra_args = parser.parse_known_args()
+                            ' to Cisco Webex Teams and to emails')
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -113,6 +111,8 @@ def main(scriptConf=None):
     ietf_models_url_suffix = config.get('Web-Section', 'yang-models-repo-url-suffix')
     ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
+    is_production = config.get('General-Section', 'is-prod')
+    is_production = True if is_production == 'True' else False
     LOGGER = log.get_logger('draftPull', '{}/jobs/draft-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job IETF pull request')
     github_credentials = ''
@@ -121,14 +121,17 @@ def main(scriptConf=None):
 
     token_header_value = 'token {}'.format(token)
     # Remove old fork
-    requests.delete('{}yang'.format(ietf_models_forked_url), headers={'Authorization': token_header_value})
-    time.sleep(20)
+    if is_production:
+        LOGGER.info('Deleting existing fork')
+        requests.delete('{}yang'.format(ietf_models_forked_url), headers={'Authorization': token_header_value})
+        time.sleep(20)
 
-    # Fork YangModels/yang repository
-    LOGGER.info('Cloning repository')
-    response = requests.post('https://{}{}'.format(github_credentials, ietf_models_url_suffix))
-    repo_name = response.json()['name']
-    repo = None
+        # Fork YangModels/yang repository
+        response = requests.post('https://{}{}'.format(github_credentials, ietf_models_url_suffix))
+        repo_name = response.json()['name']
+    else:
+        username = 'YangModels'
+        repo_name = 'yang'
     try:
         # Try to clone YangModels/yang repo
         retry = 3
@@ -136,7 +139,7 @@ def main(scriptConf=None):
             try:
                 repourl = 'https://{}@github.com/{}/{}.git'.format(token, username, repo_name)
                 repo = repoutil.RepoUtil(repourl)
-                LOGGER.info(repourl)
+                LOGGER.info('Cloning repository from: {}'.format(repourl))
                 repo.clone(config_name, config_email)
                 break
             except Exception as e:
@@ -160,7 +163,7 @@ def main(scriptConf=None):
             diff_files = []
             new_files = []
 
-            for root, subdirs, sdos in os.walk('{}/standard/ietf/RFCtemp'.format(repo.localdir)):
+            for root, _, sdos in os.walk('{}/standard/ietf/RFCtemp'.format(repo.localdir)):
                 for file_name in sdos:
                     if '.yang' in file_name:
                         if os.path.exists('{}/standard/ietf/RFC/{}'.format(repo.localdir, file_name)):
@@ -207,6 +210,7 @@ def main(scriptConf=None):
         try:
             # Add commit and push to the forked repository
             LOGGER.info('Adding all untracked files locally')
+            untracked_files = repo.repo.untracked_files
             repo.add_all_untracked()
             LOGGER.info('Committing all files locally')
             repo.commit_all('Cronjob - every day pull of ietf draft yang files.')
@@ -215,7 +219,12 @@ def main(scriptConf=None):
             LOGGER.info('Commit hash {}'.format(commit_hash))
             with open(commit_dir, 'w+') as f:
                 f.write('{}\n'.format(commit_hash))
-            repo.push()
+            if is_production:
+                LOGGER.info('Pushing untracked and modified files to remote repository')
+                repo.push()
+            else:
+                LOGGER.info('DEV environment - not pushing changes into remote repository')
+                LOGGER.debug('List of all untracked and modified files:\n{}'.format('\n'.join(untracked_files)))
         except GitCommandError as e:
             message = 'Error while pushing procedure - git command error: \n {} \n git command out: \n {}'.format(e.stderr, e.stdout)
             requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
