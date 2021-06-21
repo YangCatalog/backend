@@ -295,5 +295,16 @@
                 ]
             }
         }
+    },
+    "delete_modules": {
+        "input": {
+            "modules": [
+                {
+                    "name": "yang-catalog",
+                    "revision": "2018-04-03",
+                    "organization": "ietf"
+                }
+            ]
+        }
     }
 }
