@@ -20,8 +20,9 @@ __email__ = "slavomir.mazur@pantheon.tech"
 import json
 import time
 
-import MySQLdb
+from MySQLdb import MySQLError
 import requests
+from flask import current_app
 import utility.log as log
 from api.globalConfig import yc_gc
 from elasticsearch import Elasticsearch
@@ -40,6 +41,7 @@ class HealthcheckBlueprint(Blueprint):
 
 
 app = HealthcheckBlueprint('healthcheck', __name__)
+db = yc_gc.sqlalchemy
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
@@ -58,16 +60,9 @@ def get_services_list():
 @app.route('/my-sql', methods=['GET'])
 def health_check_mysql():
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser,
-                             passwd=yc_gc.dbPass)
         if db is not None:
             app.LOGGER.info('Successfully connected to database: {}'.format(yc_gc.dbName))
-            # prepare a cursor object using cursor() method
-            cursor = db.cursor()
-            # test if there are tables in db
-            cursor.execute('USE {}'.format(yc_gc.dbName))
-            cursor.execute('SHOW TABLES')
-            tables = cursor.fetchall()
+            tables = db.inspect(db.engine).get_table_names()
             if len(tables):
                 response = {'info': 'MySQL is running',
                             'status': 'running',
@@ -77,9 +72,8 @@ def health_check_mysql():
                             'status': 'problem',
                             'message': 'No tables found in the database: {}'.format(yc_gc.dbName)}
             app.LOGGER.info('{} tables available in the database: {}'.format(len(tables), yc_gc.dbName))
-            db.close()
             return make_response(jsonify(response), 200)
-    except MySQLdb.MySQLError as err:
+    except MySQLError as err:
         app.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         if err.args[0] in [1044, 1045]:
             return make_response(jsonify({'info': 'Not OK - Access denied',

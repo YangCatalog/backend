@@ -2,13 +2,16 @@ import base64
 import hashlib
 import sys
 
-import MySQLdb
 import requests
+from flask import current_app
+from MySQLdb import MySQLError
 from api.globalConfig import yc_gc
+from api.models import User
 from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 
 auth = HTTPBasicAuth()
+db = yc_gc.sqlalchemy
 
 
 @auth.hash_password
@@ -33,22 +36,8 @@ def get_password(username: str):
         :return hashed password from database
     """
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username, ))
-        db.close()
-        if results_num == 0:
-            return None
-        else:
-            data = cursor.fetchone()
-            return data[2]
-
-    except MySQLdb.MySQLError as err:
-        if err.args[0] not in [1049, 2013]:
-            db.close()
+        return User.query.filter_by(Username=username).first().Password
+    except MySQLError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         return None
 
