@@ -228,8 +228,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_sender.send.return_value = 1
         vendor_name = 'fujitsu'
         path = 'vendor/{}'.format(vendor_name)
-        result = self.client.delete('api/vendors/{}'.format(path))
-        print(result.data)
+        result = self.client.delete('api/vendors/{}'.format(path), auth=('admin', 'admin'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 401)
