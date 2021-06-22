@@ -36,7 +36,7 @@ def get_password(username: str):
         :return hashed password from database
     """
     try:
-        db.session.query(User.Password).filter_by(Username=username).first()
+        return db.session.query(User.Password).filter_by(Username=username).first()
     except MySQLError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         return None
