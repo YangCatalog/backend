@@ -559,7 +559,7 @@ def create_sql_row(table):
     if model is User and sdo_access == '' and vendor_access == '':
         return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
-        user = User(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
+        user = model(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
                     ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
         db.session.add(user)
         db.session.commit()
