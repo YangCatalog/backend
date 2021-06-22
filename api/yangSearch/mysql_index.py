@@ -133,4 +133,3 @@ def do_search(options, dbHost, dbName, dbPass,  dbUser):
         conn.close()
         raise Exception("Error searching for {}: {}".format(
             opts['search'], e.args[0]))
-

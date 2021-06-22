@@ -32,12 +32,13 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-import MySQLdb
+from MySQLdb import MySQLError
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, make_response, redirect, request
+from flask import Blueprint, abort, jsonify, make_response, redirect, request, current_app
 from flask_cors import CORS
 from utility.util import create_signature
+from api.models import User, TempUser
 
 
 class YangCatalogAdminBlueprint(Blueprint):
@@ -50,6 +51,7 @@ class YangCatalogAdminBlueprint(Blueprint):
 
 app = YangCatalogAdminBlueprint('admin', __name__)
 CORS(app, supports_credentials=True)
+db = yc_gc.sqlalchemy
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 
@@ -508,56 +510,20 @@ def move_user():
     if sdo_access == '' and vendor_access == '':
         return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-
-        cursor = db.cursor()
-        sql = """SELECT * FROM `{}` WHERE Id = %s""".format('users_temp')
-        cursor.execute(sql, (unique_id,))
-
-        data = cursor.fetchall()
-
-        password = ''
-        for x in data:
-            if x[0] == int(unique_id):
-                password = x[2]
-
-        sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
-         FirstName, LastName, AccessRightsSdo, AccessRightsVendor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
-            .format('users')
-        cursor.execute(sql, (username, password, email, models_provider,
-                             name, last_name, sdo_access, vendor_access,))
-        db.commit()
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] not in [1049, 2013]:
-            db.close()
+        password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first() or ''
+        user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
+                    FirstName=name, LastName=name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+        db.session.add(user)
+        db.session.commit()
+    except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        sql = """SELECT * FROM `{}` WHERE Id = %s""".format('users_temp')
-        cursor.execute(sql, (unique_id,))
-
-        data = cursor.fetchall()
-
-        found = False
-        for x in data:
-            if x[0] == int(unique_id):
-                found = True
-        if found:
-            # execute SQL query using execute() method.
-            cursor = db.cursor()
-            sql = """DELETE FROM `{}` WHERE Id = %s""".format('users_temp')
-            cursor.execute(sql, (unique_id,))
-            db.commit()
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] not in [1049, 2013]:
-            db.close()
+        user = db.session.query(TempUser).filter_by(Id=unique_id).first()
+        if user:
+            db.session.execute(db.delete(user))
+            db.session.commit()
+    except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     response = {'info': 'data successfully added to database users and removed from users_temp',
@@ -570,6 +536,7 @@ def create_sql_row(table):
     if table not in ['users', 'users_temp']:
         return make_response(jsonify({'error': 'table {} not implemented use only users or users_temp'.format(table)}),
                              501)
+    model = get_class_by_tablename(table)
     body = request.json.get('input')
     if body is None:
         return abort(400, description='bad request - did you not start with input json container?')
@@ -578,7 +545,7 @@ def create_sql_row(table):
     last_name = body.get('last-name')
     email = body.get('email')
     password = body.get('password')
-    if body is None or username is None or name is None or last_name is None or email is None or password is None:
+    if not all((body, username, name, last_name, email, password)):
         return abort(400, description='username - {}, firstname - {}, last-name - {}, email - {} and password - {} must be specified'.format(
             username,
             name,
@@ -589,25 +556,17 @@ def create_sql_row(table):
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
-    if table == 'users' and sdo_access == '' and vendor_access == '':
+    if model is User and sdo_access == '' and vendor_access == '':
         return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
-         FirstName, LastName, AccessRightsSdo, AccessRightsVendor) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)""" \
-            .format(table)
-        cursor.execute(sql, (username, hashed_password, email, models_provider,
-                             name, last_name, sdo_access, vendor_access,))
-        db.commit()
-        db.close()
+        user = User(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
+                    ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+        db.session.add(user)
+        db.session.commit()
         response = {'info': 'data successfully added to database',
                     'data': body}
         return make_response(jsonify(response), 201)
-    except MySQLdb.MySQLError as err:
-        if err.args[0] not in [1049, 2013]:
-            db.close()
+    except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
 
@@ -615,32 +574,14 @@ def create_sql_row(table):
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
 def delete_sql_row(table, unique_id):
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        sql = """SELECT * FROM `{}` WHERE Id = %s""".format(table)
-        cursor.execute(sql, (unique_id,))
-
-        data = cursor.fetchall()
-
-        found = False
-        for x in data:
-            if x[0] == int(unique_id):
-                found = True
-        if found:
-            # execute SQL query using execute() method.
-            cursor = db.cursor()
-            sql = """DELETE FROM `{}` WHERE Id = %s""".format(table)
-            cursor.execute(sql, (unique_id,))
-            db.commit()
-
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] not in [1049, 2013]:
-            db.close()
+        model = get_class_by_tablename(table)
+        user = db.session.query(model).filter_by(Id=unique_id).first()
+        db.session.execute(db.delete(user))
+        db.session.commit()
+    except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
-    if found:
+    if user:
         return make_response(jsonify({'info': 'id {} deleted successfully'.format(unique_id)}), 200)
     else:
         return abort(404, description='id {} not found in table {}'.format(unique_id, table))
@@ -649,41 +590,22 @@ def delete_sql_row(table, unique_id):
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
 def update_sql_row(table, unique_id):
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        sql = """SELECT * FROM `{}` WHERE Id = %s""".format(table)
-        cursor.execute(sql, (unique_id,))
-
-        data = cursor.fetchall()
-
-        body = request.json.get('input')
-        username = body.get('username')
-        email = body.get('email')
-        models_provider = body.get('models-provider')
-        first_name = body.get('first-name')
-        last_name = body.get('last-name')
-        access_rights_sdo = body.get('access-rights-sdo', '')
-        access_rights_vendor = body.get('access-rights-vendor', '')
-        found = False
-        for x in data:
-            if x[0] == int(unique_id):
-                found = True
-        if found:
-            # execute SQL query using execute() method.
-            cursor = db.cursor()
-            sql = """UPDATE {} SET Username=%s, Email=%s, ModelsProvider=%s, FirstName=%s,
-                    LastName=%s, AccessRightsSdo=%s, AccessRightsVendor=%s WHERE Id=%s""".format(table)
-            cursor.execute(sql, (username, email, models_provider, first_name, last_name, access_rights_sdo, access_rights_vendor, unique_id,))
-            db.commit()
-
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] not in [1049, 2013]:
-            db.close()
+        model = get_class_by_tablename(table)
+        user = db.session.query(model).filter_by(Id=unique_id).first()
+        if user:
+            body = request.json.get('input')
+            user.Username = body.get('username')
+            user.Email = body.get('email')
+            user.ModelsProvider = body.get('models-provider')
+            user.FirstName = body.get('first-name')
+            user.LastName = body.get('last-name')
+            user.AccessRightsSdo = body.get('access-rights-sdo', '')
+            user.AccessRightsVendor = body.get('access-rights-vendor', '')
+            db.session.commit()
+    except MySQLError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
-    if found:
+    if user:
         yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return make_response(jsonify({'info': 'ID {} updated successfully'.format(unique_id)}), 200)
     else:
@@ -693,30 +615,21 @@ def update_sql_row(table, unique_id):
 @app.route('/api/admin/sql-tables/<table>', methods=['GET'])
 def get_sql_rows(table):
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        sql = """SELECT * FROM {}""".format(table)
-        cursor.execute(sql)
-        data = cursor.fetchall()
-        db.close()
-
-    except MySQLdb.MySQLError as err:
+        model = get_class_by_tablename(table)
+        users = db.session.query(model)
+    except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
-        if err.args[0] not in [1049, 2013]:
-            db.close()
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     ret = []
-    for row in data:
-        data_set = {'id': row[0],
-                    'username': row[1],
-                    'email': row[3],
-                    'models-provider': row[4],
-                    'first-name': row[5],
-                    'last-name': row[6],
-                    'access-rights-sdo': row[7],
-                    'access-rights-vendor': row[8]}
+    for user in users:
+        data_set = {'id': user.Id,
+                    'username': user.Username,
+                    'email': user.Email,
+                    'models-provider': user.ModelsProvider,
+                    'first-name': user.FirstName,
+                    'last-name': user.LastName,
+                    'access-rights-sdo': user.AccessRightsSdo,
+                    'access-rights-vendor': user.AccessRightsVendor}
         ret.append(data_set)
     return make_response(jsonify(ret), 200)
 
@@ -803,3 +716,9 @@ def hash_pw(password):
     if sys.version_info >= (3, 4):
         password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(password).hexdigest()
+
+def get_class_by_tablename(name):
+    with current_app.app_context():
+        for mapper in db.Model.registry.mappers:
+            if hasattr(mapper.class, '__tablename__') and mapper.class.__tablename__ == table:
+                return mapper.class
