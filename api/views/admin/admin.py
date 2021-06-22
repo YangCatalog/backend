@@ -521,7 +521,7 @@ def move_user():
     try:
         user = db.session.query(TempUser).filter_by(Id=unique_id).first()
         if user:
-            db.session.execute(db.delete(user))
+            db.session.delete(user)
             db.session.commit()
     except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
@@ -576,7 +576,7 @@ def delete_sql_row(table, unique_id):
     try:
         model = get_class_by_tablename(table)
         user = db.session.query(model).filter_by(Id=unique_id).first()
-        db.session.execute(db.delete(user))
+        db.session.delete(user)
         db.session.commit()
     except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
@@ -717,8 +717,9 @@ def hash_pw(password):
         password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(password).hexdigest()
 
+
 def get_class_by_tablename(name):
     with current_app.app_context():
         for mapper in db.Model.registry.mappers:
-            if hasattr(mapper.class, '__tablename__') and mapper.class.__tablename__ == table:
-                return mapper.class
+            if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
+                return mapper.class_
