@@ -519,7 +519,7 @@ def move_user():
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     try:
-        user = db.session.query(TempUser).filter_by(Id=unique_id).first()
+        user = TempUser.query.filter_by(Id=unique_id).first()
         if user:
             db.session.delete(user)
             db.session.commit()
@@ -575,7 +575,7 @@ def create_sql_row(table):
 def delete_sql_row(table, unique_id):
     try:
         model = get_class_by_tablename(table)
-        user = db.session.query(model).filter_by(Id=unique_id).first()
+        user = model.query.filter_by(Id=unique_id).first()
         db.session.delete(user)
         db.session.commit()
     except MySQLError as err:
@@ -591,7 +591,7 @@ def delete_sql_row(table, unique_id):
 def update_sql_row(table, unique_id):
     try:
         model = get_class_by_tablename(table)
-        user = db.session.query(model).filter_by(Id=unique_id).first()
+        user = model.query.filter_by(Id=unique_id).first()
         if user:
             body = request.json.get('input')
             user.Username = body.get('username')
@@ -616,7 +616,7 @@ def update_sql_row(table, unique_id):
 def get_sql_rows(table):
     try:
         model = get_class_by_tablename(table)
-        users = db.session.query(model)
+        users = model.query.all()
     except MySQLError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
