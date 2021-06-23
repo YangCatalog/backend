@@ -64,10 +64,7 @@ class MessageFactory:
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
         self.__is_production = config.get('General-Section', 'is-prod')
-        if self.__is_production == 'True':
-            self.__is_production = True
-        else:
-            self.__is_production = False
+        self.__is_production = True if self.__is_production == 'True' else False
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__developers_email = config.get('Message-Section', 'developers-email').split()
         self.__api = CiscoSparkAPI(access_token=token)
@@ -89,15 +86,13 @@ class MessageFactory:
         self.__room = rooms[0]
         self.__smtp = smtplib.SMTP('localhost')
 
-    def __post_to_spark(self, msg, markdown=False, files=None):
+    def __post_to_spark(self, msg: str, markdown: bool = False, files: list = None):
         """Send message to a spark room
 
-            Arguments:
-                :param msg: (str) message to send
-                :param markdown: (boolean) whether to use markdown.
-                    Default False
-                :param files: (list) list of paths to files that
-                    need to be attache with a message. Default None
+        Arguments:
+            :param msg          (str) message to send
+            :param markdown     (bool) whether to use markdown. Default False
+            :param files        (list) list of paths to files that need to be attache with a message. Default None
         """
         msg += '\n\nMessage sent from {}'.format(self.__me)
         if not self.__is_production:

@@ -54,18 +54,20 @@ from datetime import datetime, timedelta
 from threading import Lock
 
 import requests
-from flask import Flask, Response, abort, jsonify, make_response, redirect, request
+from flask import (Flask, Response, abort, jsonify, make_response, redirect,
+                   request)
 from flask_cors import CORS
-from flask_oidc import discovery, OpenIDConnect
+from flask_oidc import OpenIDConnect, discovery
 
-from api.authentication.auth import auth, hash_pw, get_password
+from api.authentication.auth import auth, get_password, hash_pw
 from api.globalConfig import yc_gc
 from api.views.errorHandlers.errorHandler import app as error_handling_app
-from api.views.userSpecificModuleMaintenace.moduleMaintanace import app as user_maintenance_app
+from api.views.healthCheck.healthCheck import app as healthcheck_app
+from api.views.userSpecificModuleMaintenace.moduleMaintanace import \
+    app as user_maintenance_app
+from api.views.yangSearch.yangSearch import app as yang_search_app
 from api.views.ycJobs.ycJobs import app as jobs_app
 from api.views.ycSearch.ycSearch import app as search_app
-from api.views.healthCheck.healthCheck import app as healthcheck_app
-from api.views.yangSearch.yangSearch import app as yang_serach_app
 
 
 class MyFlask(Flask):
@@ -399,7 +401,7 @@ application.register_blueprint(user_maintenance_app, url_prefix="/api")
 application.register_blueprint(jobs_app, url_prefix="/api")
 application.register_blueprint(search_app, url_prefix="/api")
 application.register_blueprint(healthcheck_app, url_prefix="/api/admin/healthcheck")
-application.register_blueprint(yang_serach_app, url_prefix="/api/yang-search/v2")
+application.register_blueprint(yang_search_app, url_prefix="/api/yang-search/v2")
 
 CORS(application, supports_credentials=True)
 #csrf = CSRFProtect(application)
@@ -536,10 +538,8 @@ def load_uwsgi_cache():
     response, data = make_cache(yc_gc.credentials, response)
     cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
     modules = cat['modules']
-    if cat.get('vendors'):
-        vendors = cat['vendors']
-    else:
-        vendors = {}
+    vendors = cat.get('vendors', {})
+
     yc_gc.redis.set("modules-data", json.dumps(modules))
     yc_gc.redis.set("vendors-data", json.dumps(vendors))
     if len(modules) != 0:
