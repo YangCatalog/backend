@@ -334,6 +334,7 @@ application.config["OIDC_SCOPES"] = ["openid", "email", "profile"]
 application.config["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
 application.config["SQLALCHEMY_DATABASE_URI"] = URL.create('mysql', username=yc_gc.dbUser, password=yc_gc.dbPass,
                                                            host=yc_gc.dbHost, database=yc_gc.dbName)
+#TODO: move global config to application config, see backend issue #287
 yc_gc.sqlalchemy.init_app(application)
 try:
     with application.app_context():
