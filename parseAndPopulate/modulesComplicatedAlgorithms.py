@@ -424,9 +424,11 @@ class ModulesComplicatedAlgorithms:
         for module in self.__all_modules.get('module', []):
             x += 1
             name_revision = '{}@{}'.format(module['name'], module['revision'])
-            self.__path = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                 module['name'],
-                                                 module['revision'])
+            self.__path = '{}/{}.yang'.format(self.__save_file_dir, name_revision)
+            yang_file_exists = self.__check_schema_file(module)
+            if not yang_file_exists:
+                LOGGER.error('Skipping module: {}'.format(name_revision))
+                continue
             LOGGER.info(
                 'Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
             if name_revision in self.__trees:

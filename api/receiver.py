@@ -451,10 +451,10 @@ class Receiver:
                 self.LOGGER.error("Couldn't delete module on path {}. Error: {}".format(path, response.text))
                 if reason == '':
                     reason = 'modules-not-deleted:'
-                module = path.split('/')[-1]
+                module = path.split('module=')[-1]
                 reason += ':{}'.format(module)
 
-            name, revision, organization = path.split('/')[-1].split(',')
+            name, revision, organization = path.split('module=')[-1].split(',')
             modules_to_index.append('{}@{}/{}'.format(name, revision, organization))
         if self.__notify_indexing:
             confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
