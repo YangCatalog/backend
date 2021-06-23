@@ -32,7 +32,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from MySQLdb import MySQLError
+from sqlalchemy.exc import SQLAlchemyError
 import requests
 from api.globalConfig import yc_gc
 from flask import Blueprint, abort, jsonify, make_response, redirect, request, current_app
@@ -515,7 +515,7 @@ def move_user():
                     FirstName=name, LastName=name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
         db.session.add(user)
         db.session.commit()
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     try:
@@ -523,7 +523,7 @@ def move_user():
         if user:
             db.session.delete(user)
             db.session.commit()
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     response = {'info': 'data successfully added to database users and removed from users_temp',
@@ -566,7 +566,7 @@ def create_sql_row(table):
         response = {'info': 'data successfully added to database',
                     'data': body}
         return make_response(jsonify(response), 201)
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
 
@@ -578,7 +578,7 @@ def delete_sql_row(table, unique_id):
         user = model.query.filter_by(Id=unique_id).first()
         db.session.delete(user)
         db.session.commit()
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     if user:
@@ -602,7 +602,7 @@ def update_sql_row(table, unique_id):
             user.AccessRightsSdo = body.get('access-rights-sdo', '')
             user.AccessRightsVendor = body.get('access-rights-vendor', '')
             db.session.commit()
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     if user:
@@ -617,7 +617,7 @@ def get_sql_rows(table):
     try:
         model = get_class_by_tablename(table)
         users = model.query.all()
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     ret = []

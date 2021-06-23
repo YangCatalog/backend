@@ -25,7 +25,7 @@ import shutil
 import sys
 from datetime import datetime
 
-from MySQLdb import MySQLError
+from sqlalchemy.exc import SQLAlchemyError
 import requests
 from flask import Blueprint, request, abort, make_response, jsonify, current_app
 from git import GitCommandError
@@ -789,7 +789,7 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
             result = User.query.filter_by(Username=username).first()
             if result:
                 return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     return accessRigths

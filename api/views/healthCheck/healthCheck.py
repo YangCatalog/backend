@@ -20,7 +20,7 @@ __email__ = "slavomir.mazur@pantheon.tech"
 import json
 import time
 
-from MySQLdb import MySQLError
+from sqlalchemy.exc import SQLAlchemyError
 import requests
 from flask import current_app
 import utility.log as log
@@ -73,7 +73,7 @@ def health_check_mysql():
                             'message': 'No tables found in the database: {}'.format(yc_gc.dbName)}
             app.LOGGER.info('{} tables available in the database: {}'.format(len(tables), yc_gc.dbName))
             return make_response(jsonify(response), 200)
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         app.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         if err.args[0] in [1044, 1045]:
             return make_response(jsonify({'info': 'Not OK - Access denied',

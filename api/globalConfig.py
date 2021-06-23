@@ -145,6 +145,7 @@ class YangCatalogApiGlobalConfig():
         self.dbNameSearch = config.get('DB-Section', 'name-search', fallback='')
         self.dbUser = config.get('DB-Section', 'user', fallback='')
         self.dbPass = config.get('Secrets-Section', 'mysql-password', fallback='')
+        self.sqlalchemy = SQLAlchemy(engine_options={'future': True})
         self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
         self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='yangcatalog.org')
