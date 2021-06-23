@@ -38,7 +38,7 @@ from api.globalConfig import yc_gc
 from flask import Blueprint, abort, jsonify, make_response, redirect, request, current_app
 from flask_cors import CORS
 from utility.util import create_signature
-from api.models import User, TempUser
+from api.models import Base, User, TempUser
 
 
 class YangCatalogAdminBlueprint(Blueprint):
@@ -519,7 +519,7 @@ def move_user():
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     try:
-        user = TempUser.query.filter_by(Id=unique_id).first()
+        user = db.session.query(TempUser).filter_by(Id=unique_id).first()
         if user:
             db.session.delete(user)
             db.session.commit()
@@ -575,7 +575,7 @@ def create_sql_row(table):
 def delete_sql_row(table, unique_id):
     try:
         model = get_class_by_tablename(table)
-        user = model.query.filter_by(Id=unique_id).first()
+        user = db.session.query(model).filter_by(Id=unique_id).first()
         db.session.delete(user)
         db.session.commit()
     except SQLAlchemyError as err:
@@ -591,7 +591,7 @@ def delete_sql_row(table, unique_id):
 def update_sql_row(table, unique_id):
     try:
         model = get_class_by_tablename(table)
-        user = model.query.filter_by(Id=unique_id).first()
+        user = db.session.query(model).filter_by(Id=unique_id).first()
         if user:
             body = request.json.get('input')
             user.Username = body.get('username')
@@ -616,7 +616,7 @@ def update_sql_row(table, unique_id):
 def get_sql_rows(table):
     try:
         model = get_class_by_tablename(table)
-        users = model.query.all()
+        users = db.session.query(model).all()
     except SQLAlchemyError as err:
         yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
@@ -720,6 +720,6 @@ def hash_pw(password):
 
 def get_class_by_tablename(name):
     with current_app.app_context():
-        for mapper in db.Model.registry.mappers:
+        for mapper in Base.registry.mappers:
             if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
                 return mapper.class_

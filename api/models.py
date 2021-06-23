@@ -18,23 +18,24 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
+from sqlalchemy import Column, Integer, String
 from sqlalchemy.ext.declarative import DeferredReflection
-from api.globalConfig import yc_gc
+from sqlalchemy.orm import declarative_base
 
-db = yc_gc.sqlalchemy
+Base = declarative_base()
 
 
-class BaseUser(DeferredReflection, db.Model):
+class BaseUser(DeferredReflection, Base):
     __abstract__ = True
-    Id = db.Column(db.Integer, primary_key=True)
-    Username = db.Column(db.String(255), nullable=False, unique=False)
-    Password = db.Column(db.String(255), nullable=False)
-    Email = db.Column(db.String(255), unique=True)
-    ModelsProvider = db.Column(db.String(255))
-    FirstName = db.Column(db.String(255))
-    LastName = db.Column(db.String(255))
-    AccessRightsSdo = db.Column(db.String(255))
-    AccessRightsVendor = db.Column(db.String(255))
+    Id = Column(Integer, primary_key=True)
+    Username = Column(String(255), nullable=False, unique=False)
+    Password = Column(String(255), nullable=False)
+    Email = Column(String(255), unique=True)
+    ModelsProvider = Column(String(255))
+    FirstName = Column(String(255))
+    LastName = Column(String(255))
+    AccessRightsSdo = Column(String(255))
+    AccessRightsVendor = Column(String(255))
 
 
 class User(BaseUser):

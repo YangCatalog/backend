@@ -786,7 +786,7 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     accessRigths = None
     try:
         with current_app.app_context():
-            result = User.query.filter_by(Username=username).first()
+            result = db.session.query(User).filter_by(Username=username).first()
             if result:
                 return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
     except SQLAlchemyError as err:

@@ -36,7 +36,7 @@ def get_password(username: str):
         :return hashed password from database
     """
     try:
-        return User.query.filter_by(Username=username).first().Password
+        return db.session.query(User).filter_by(Username=username).first().Password
     except SQLAlchemyError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         return None
