@@ -34,7 +34,7 @@ from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
 from utility.util import context_check_update_from, get_curr_dir
 from utility.yangParser import create_context
-
+from flask_deprecate import deprecate_route
 
 class YcSearch(Blueprint):
 
@@ -49,6 +49,7 @@ app = YcSearch('ycSearch', __name__)
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @app.route('/fast', methods=['POST'])
+@deprecate_route("Use foo instead")
 def fast_search():
     """Search through the YANG keyword index for a given search pattern.
        The arguments are a payload specifying search options and filters.
@@ -1157,7 +1158,6 @@ def create_reference(name: str, revision: str):
         :return preformatted HTML with corresponding data
     """
     path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
-    yang_file_content = ''
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_content = f.read()

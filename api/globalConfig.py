@@ -22,7 +22,11 @@ import time
 from threading import Lock
 
 import redis
+
+from elasticsearch import Elasticsearch
+
 from utility import log
+
 
 from api.sender import Sender
 
@@ -33,7 +37,6 @@ else:
 
 
 class YangCatalogApiGlobalConfig():
-
     loading = True
 
     def __init__(self):
@@ -53,6 +56,7 @@ class YangCatalogApiGlobalConfig():
         self.dbName = config.get('DB-Section', 'name-users', fallback='')
         self.dbNameSearch = config.get('DB-Section', 'name-search', fallback='')
         self.dbUser = config.get('DB-Section', 'user', fallback='')
+        self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
         self.dbPass = config.get('Secrets-Section', 'mysql-password', fallback='')
         self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
@@ -78,18 +82,27 @@ class YangCatalogApiGlobalConfig():
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='https')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
+        self.is_prod = config.get('General-Section', 'is-prod', fallback='False')
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')
         self.my_uri = config.get('Web-Section', 'my-uri', fallback='http://localhost')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
+        self.yang_models = config.get('Directory-Section', 'yang-models-dir',
+                                      fallback='tests/resources/yangmodels/yang')
         self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytree')
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         if self.es_aws == 'True':
             self.es_aws = True
         else:
             self.es_aws = False
+        if self.es_aws:
+            self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
+                                    scheme="https", port=443)
+        else:
+            self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -152,20 +165,30 @@ class YangCatalogApiGlobalConfig():
         self.oidc_redirects = config.get('Web-Section', 'redirect-oidc', fallback='').split(' ')
         self.oidc_issuer = config.get('Web-Section', 'issuer', fallback='')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
+        self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='https')
+        self.is_prod = config.get('General-Section', 'is-prod', fallback='False')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')
         self.my_uri = config.get('Web-Section', 'my-uri', fallback='http://localhost')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
+        self.yang_models = config.get('Directory-Section', 'yang-models-dir',
+                                      fallback='tests/resources/yangmodels/yang')
         self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
         if self.es_aws == 'True':
             self.es_aws = True
         else:
             self.es_aws = False
+        if self.es_aws:
+            self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
+                                    scheme="https", port=443)
+        else:
+            self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+
         rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
@@ -178,7 +201,7 @@ class YangCatalogApiGlobalConfig():
                              rabbitmq_virtual_host=rabbitmq_virtual_host,
                              rabbitmq_username=rabbitmq_username,
                              rabbitmq_password=rabbitmq_password
-                            )
+                             )
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':

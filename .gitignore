@@ -9,7 +9,7 @@ api/vendor
 api/standard
 **/*.json
 **/*.html
-!api/template/*
+!api/json/**/*
 /venv
 !statistics/template/stats.html
 yang.egg-info
