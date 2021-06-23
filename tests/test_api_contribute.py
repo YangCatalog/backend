@@ -22,7 +22,15 @@ import unittest
 from unittest import mock
 import json
 
+from flask import app
+
 from api.yangCatalogApi import application
+from api.globalConfig import yc_gc
+from api.models import User
+from api.views.admin.admin import hash_pw
+
+db = yc_gc.sqlalchemy
+
 
 class TestApiContributeClass(unittest.TestCase):
 
@@ -32,20 +40,30 @@ class TestApiContributeClass(unittest.TestCase):
         self.client = application.test_client()
         #TODO: setup authentication - create new user maybe?
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_module(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
-        """get_user_access_rights patched to give admin access.
-        Sender patched to return job-id 1.
-        Test correct action is taken for a valid deletion attempt.
+    def setUp(self):
+        self.patcher = mock.patch.object(yc_gc.sender, 'send')
+        self.mock_send = self.patcher.start()
+        self.mock_send.return_value = 1
+        with application.app_context():
+            self.user = User(Username='test', Password=hash_pw('test'), Email='test@test.test',
+                        AccessRightsSdo='/', AccessRightsVendor='/')
+            db.session.add(self.user)
+            db.session.commit()
+
+    def tearDown(self):
+        self.patcher.stop()
+        with application.app_context():
+            db.session.delete(self.user)
+            db.session.commit()
+
+    def test_delete_module(self):
+        """Test correct action is taken for a valid deletion attempt.
         """
-        mock_sender.send.return_value = 1
-        mock_access_rights.return_value = '/'
         name = 'yang-catalog'
         revision = '2018-04-03'
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 202)
@@ -55,19 +73,14 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_module_not_found(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
-        """get_user_access_rights patched to give admin access.
-        Test error response when the specified module is not in the database.
+    def test_delete_module_not_found(self):
+        """Test error response when the specified module is not in the database.
         """
-        mock_sender.send.return_value = 1
-        mock_access_rights.return_value = '/'
         name = 'nonexistent'
         revision = 'nonexistent'
         organization = 'nonexistent'
         path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
@@ -76,18 +89,16 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'Module not found in ConfD database')
 
     @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_module_insufficient_rights(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
+    def test_delete_module_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         """get_user_access_rights patched to give no rights.
         Test error response when the user has insufficient rights.
         """
-        mock_sender.send.return_value = 1
         mock_access_rights.return_value = ''
         name = 'yang-catalog'
         revision = '2017-09-26'
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 401)
@@ -96,19 +107,14 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'],
                          'You do not have rights to delete module with organization {}'.format(organization))
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_module_has_implementation(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
-        """get_user_access_rights patched to give admin access.
-        Test error response when the module has implementations.
+    def test_delete_module_has_implementation(self):
+        """Test error response when the module has implementations.
         """
-        mock_sender.send.return_value = 1
-        mock_access_rights.return_value = '/'
         name = 'ietf-yang-types'
         revision = '2013-07-15'
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -116,19 +122,14 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'This module has reference in vendors branch')
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_module_dependency(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
-        """get_user_access_rights patched to give admin access.
-        Test error response when the module has dependents.
+    def test_delete_module_dependency(self):
+        """Test error response when the module has dependents.
         """
-        mock_sender.send.return_value = 1
-        mock_access_rights.return_value = '/'
         name = 'ietf-snmp-community'
         revision = '2014-12-10'
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -139,19 +140,14 @@ class TestApiContributeClass(unittest.TestCase):
                             .format(name, revision)),
                          True)
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_module_submodule(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
-        """get_user_access_rights patched to give admin access.
-        Test error response when the module is a submodule.
+    def test_delete_module_submodule(self):
+        """Test error response when the module is a submodule.
         """
-        mock_sender.send.return_value = 1
-        mock_access_rights.return_value = '/'
         name = 'ietf-ipv6-router-advertisements'
         revision = '2018-03-13'
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -162,14 +158,12 @@ class TestApiContributeClass(unittest.TestCase):
                             .format(name, revision)),
                          True)
 
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_modules(self, mock_sender: mock.MagicMock):
-        mock_sender.send.return_value = 1
+    def test_delete_modules(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         body = content.get('delete_modules')
 
-        result = self.client.delete('api/modules', json=body, auth=('admin', 'admin'))
+        result = self.client.delete('api/modules', json=body, auth=('test', 'test'))
         data = json.loads(result.data)
         self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
@@ -178,10 +172,8 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_modules_missing_data(self, mock_sender: mock.MagicMock):
-        mock_sender.send.return_value = 1
-        result = self.client.delete('api/modules', auth=('admin', 'admin'))
+    def test_delete_modules_missing_data(self):
+        result = self.client.delete('api/modules', auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -189,10 +181,8 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Missing input data to know which modules we want to delete')
 
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_modules_missing_input(self, mock_sender: mock.MagicMock):
-        mock_sender.send.return_value = 1
-        result = self.client.delete('api/modules', json={'input': {}}, auth=('admin', 'admin'))
+    def test_delete_modules_missing_input(self):
+        result = self.client.delete('api/modules', json={'input': {}}, auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
@@ -200,17 +190,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], "Data must start with 'input' root element in json")
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_vendor(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
-        """get_user_access_rights patched to give admin access.
-        Sender patched to return job-id 1.
-        Test correct action is taken for a valid deletion attempt.
+    def test_delete_vendor(self):
+        """Test correct action is taken for a valid deletion attempt.
         """
-        mock_access_rights.return_value = '/'
-        mock_sender.send.return_value = 1
         path = 'nonexistent'
-        result = self.client.delete('api/vendors/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 202)
@@ -222,13 +206,11 @@ class TestApiContributeClass(unittest.TestCase):
 
     #TODO: fix this
     @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
-    @mock.patch('api.globalConfig.yc_gc.sender')
-    def test_delete_vendor_insufficient_rights(self, mock_sender: mock.MagicMock, mock_access_rights: mock.MagicMock):
+    def test_delete_vendor_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = 'cisco'
-        mock_sender.send.return_value = 1
         vendor_name = 'fujitsu'
         path = 'vendor/{}'.format(vendor_name)
-        result = self.client.delete('api/vendors/{}'.format(path), auth=('admin', 'admin'))
+        result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 401)
@@ -240,7 +222,7 @@ class TestApiContributeClass(unittest.TestCase):
         pass
 
     def test_add_modules_no_json(self):
-        result =  self.client.put('api/modules', auth=('admin', 'admin'))
+        result =  self.client.put('api/modules', auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -250,7 +232,7 @@ class TestApiContributeClass(unittest.TestCase):
                                               ' module-metadata.yang module. Received no json')
 
     def test_add_modules_missing_modules(self):
-        result =  self.client.put('api/modules', json={'invalid': True}, auth=('admin', 'admin'))
+        result =  self.client.put('api/modules', json={'invalid': True}, auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -259,7 +241,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'bad request - "modules" json object is missing and is mandatory')
 
     def test_add_modules_missing_module(self):
-        result =  self.client.put('api/modules', json={'modules': {}}, auth=('admin', 'admin'))
+        result =  self.client.put('api/modules', json={'modules': {}}, auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
