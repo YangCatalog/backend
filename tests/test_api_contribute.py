@@ -43,6 +43,7 @@ class TestApiContributeClass(unittest.TestCase):
     def setUp(self):
         self.patcher = mock.patch.object(yc_gc.sender, 'send')
         self.mock_send = self.patcher.start()
+        self.addCleanup(self.patcher.stop)
         self.mock_send.return_value = 1
         with application.app_context():
             self.user = User(Username='test', Password=hash_pw('test'), Email='test@test.test',
@@ -51,7 +52,6 @@ class TestApiContributeClass(unittest.TestCase):
             db.session.commit()
 
     def tearDown(self):
-        self.patcher.stop()
         with application.app_context():
             db.session.delete(self.user)
             db.session.commit()
@@ -135,10 +135,9 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
-        self.assertEqual(data['description']
+        self.assertTrue(data['description']
                             .startswith('{}@{} module has reference in another module '
-                            .format(name, revision)),
-                         True)
+                            .format(name, revision)))
 
     def test_delete_module_submodule(self):
         """Test error response when the module is a submodule.
@@ -153,10 +152,9 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
-        self.assertEqual(data['description']
+        self.assertTrue(data['description']
                             .startswith('{}@{} module has reference in another module '
-                            .format(name, revision)),
-                         True)
+                            .format(name, revision)))
 
     def test_delete_modules(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
@@ -165,6 +163,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         result = self.client.delete('api/modules', json=body, auth=('test', 'test'))
         data = json.loads(result.data)
+
         self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('info', data)
@@ -204,7 +203,6 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    #TODO: fix this
     @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
     def test_delete_vendor_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = 'cisco'
@@ -241,13 +239,49 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'bad request - "modules" json object is missing and is mandatory')
 
     def test_add_modules_missing_module(self):
-        result =  self.client.put('api/modules', json={'modules': {}}, auth=('test', 'test'))
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules'] = {}
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - "module" json list is missing and is mandatory')
+
+    def test_add_modules_unparsable(self):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'] = False
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertTrue(data['description'].startswith('The body you have provided could not be parsed. Confd error text: '))
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_source_file(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'] = [{}]
+        mock_put.return_value = mock.MagicMock().status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        print(result.data)
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "source-file" is missing and is mandatory')
 
     def test_get_job(self):
         job_id = 'invalid-id'

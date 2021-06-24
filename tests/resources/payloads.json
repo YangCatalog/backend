@@ -306,5 +306,17 @@
                 }
             ]
         }
+    },
+    "add_modules": {
+        "modules": {
+            "module": [
+                {
+                    "source-file":
+                    {
+                        
+                    }
+                }
+            ]
+        }
     }
 }
