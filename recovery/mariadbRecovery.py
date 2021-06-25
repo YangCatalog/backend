@@ -1,5 +1,4 @@
-# Copyright The IETF Trust 2019, All Rights Reserved
-# Copyright 2018 Cisco and its affiliates
+# Copyright The IETF Trust 2021, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,7 +18,7 @@ stored in mariadb.
 """
 
 __author__ = "Richard Zilincik"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
+__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
