@@ -311,9 +311,17 @@
         "modules": {
             "module": [
                 {
+                    "name": "example-jukebox",
+                    "revision": "2014-07-03",
+                    "organization": "example",
+                    "maturity-level": "ratified",
+                    "author-email": "foo@bar.com",
+                    "module-classification": "network-element",
                     "source-file":
                     {
-                        
+                        "repository": "yang",
+                        "owner": "YangModels",
+                        "path": "standard/ietf/DRAFT/example-jukebox.yang"
                     }
                 }
             ]

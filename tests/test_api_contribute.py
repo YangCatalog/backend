@@ -38,7 +38,6 @@ class TestApiContributeClass(unittest.TestCase):
         super(TestApiContributeClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
         self.client = application.test_client()
-        #TODO: setup authentication - create new user maybe?
 
     def setUp(self):
         self.patcher = mock.patch.object(yc_gc.sender, 'send')
@@ -216,8 +215,28 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User not authorized to supply data for this vendor')
 
-    def test_add_modules(self):
-        pass
+    @mock.patch('shutil.move')
+    @mock.patch('shutil.copy')
+    @mock.patch('shutil.rmtree')
+    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch('requests.put')
+    def test_add_modules(self, mock_put: mock.MagicMock, *args):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertIn(result.status_code, (200, 202))
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
 
     def test_add_modules_no_json(self):
         result =  self.client.put('api/modules', auth=('test', 'test'))
@@ -271,17 +290,169 @@ class TestApiContributeClass(unittest.TestCase):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         body = content.get('add_modules')
-        body['modules']['module'] = [{}]
-        mock_put.return_value = mock.MagicMock().status_code = 200
+        body['modules']['module'][0].pop('source-file')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        print(result.data)
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules "source-file" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_organization(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('organization')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "organization" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_name(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('name')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "name" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_revision(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('revision')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "revision" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_path(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file'].pop('path')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules source file "path" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_repository(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file'].pop('repository')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules source file "repository" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_owner(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file'].pop('owner')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules source file "owner" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_invalid_repo(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file']['owner'] = 'foobar'
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
+                                                       ' Please check owner, repository and path of the request - '))
+
+
+    @mock.patch('shutil.move')
+    @mock.patch('shutil.copy')
+    @mock.patch('shutil.rmtree')
+    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
+    @mock.patch('requests.put')
+    def test_add_modules_unauthorized(self, mock_put: mock.MagicMock, mock_access_rights: mock.MagicMock, *args):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+        mock_access_rights.return_value = ''
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        data = json.loads(result.data)
+
+        self.assertEqual(result.status_code, 401)
+        self.assertEqual(result.content_type, 'application/json')
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'Unauthorized for server unknown reason')
 
     def test_get_job(self):
         job_id = 'invalid-id'
