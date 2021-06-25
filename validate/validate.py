@@ -40,7 +40,8 @@ import smtplib
 import sys
 from email.mime.text import MIMEText
 
-from sqlalchemy import create_engine, Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.declarative import DeferredReflection
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import SQLAlchemyError
@@ -158,7 +159,9 @@ def query_create(question, yang_models, LOGGER):
 def connect(engine, dbHost, dbName, dbUser, dbPass, LOGGER):
     try:
         with Session(engine) as session:
-            return session.query(User).all()
+            users = session.query(TempUser).all()
+            print(users)
+            return users
     except SQLAlchemyError as err:
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
@@ -166,7 +169,7 @@ def connect(engine, dbHost, dbName, dbUser, dbPass, LOGGER):
 def delete(engine, dbHost, dbName, dbPass, dbUser, row_id, LOGGER):
     try:
         with Session(engine) as session:
-            session.query(TempUser).filter_by(Id=row_id).limit(1).delete()
+            session.delete(session.get(TempUser, row_id))
             session.commit()
             local_print('User ID: {} has been removed from users_temp table'.format(row_id), LOGGER)
     except SQLAlchemyError as err:
@@ -176,7 +179,7 @@ def delete(engine, dbHost, dbName, dbPass, dbUser, row_id, LOGGER):
 def copy(engine, dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER):
     try:
         with Session(engine) as session:
-            user_temp = session.query(TempUser).filter_by(Id=row_id)
+            user_temp = session.query(TempUser).filter_by(Id=row_id).first()
             user_temp.AccessRightsVendor = vendor_path
             user_temp.AccessRightsSdo = sdo_path
             user = User(Username=user_temp.Username, Password=user_temp.Password, Email=user_temp.Email,
@@ -249,7 +252,7 @@ def main(scriptConf=None):
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     uri = URL.create('mysql', username=dbUser, password=dbPass, host=dbHost, database=dbName)
     engine = create_engine(uri, future=True)
-    Base.metadata.create_all()
+    Base.metadata.create_all(engine)
     DeferredReflection.prepare(engine)
     users = connect(engine, dbHost, dbName, dbUser, dbPass, LOGGER)
     pull(yang_models)
@@ -261,6 +264,7 @@ def main(scriptConf=None):
         vendor_path = None
         sdo_path = None
         for user in users:
+            print(user.Id)
             while True:
                 local_print('The user {} {} ({}) is from organization {}'
                             .format(user.FirstName, user.LastName, user.Username, user.ModelsProvider),

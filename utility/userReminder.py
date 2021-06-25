@@ -1,7 +1,8 @@
 import sys
 from datetime import datetime
 
-from sqlalchemy import create_engine, Session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 from sqlalchemy.ext.declarative import DeferredReflection
 from sqlalchemy.engine.url import URL
 from sqlalchemy.exc import SQLAlchemyError
@@ -68,7 +69,7 @@ class UserReminder:
 
 if __name__ == '__main__':
     ur = UserReminder()
-    Base.metadata.create_all()
+    Base.metadata.create_all(ur.engine)
     DeferredReflection.prepare(ur.engine)
     if ur.check_date():
         ur.send_message()
