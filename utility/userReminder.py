@@ -30,7 +30,7 @@ class UserReminder:
         self.dbPass = config.get('Secrets-Section', 'mysql-password')
         self.month = datetime.now().date().month
         self.day = datetime.now().date().day
-        uri = URL.create('mysql', username=ur.dbUser, password=ur.dbPass, host=ur.dbHost, database=ur.dbName)
+        uri = URL.create('mysql', username=self.dbUser, password=self.dbPass, host=self.dbHost, database=self.dbName)
         self.engine = create_engine(uri, future=True)
 
 
@@ -51,8 +51,8 @@ class UserReminder:
             with Session(self.engine) as session:
                 users = session.query(User).all()
                 for user in users:
-                    ret_text += (f'\n{user.Username:<25}{user.FirstName:<20}{user.LastName:<20}{user.AccessRightsSdo:<20}'
-                                    f'{user.AccessRightsVendor:<20}{user.ModelsProvider:<30}{user.Email:<30}')
+                    ret_text += (f'\n{str(user.Username):<25}{str(user.FirstName):<20}{str(user.LastName):<20}{str(user.AccessRightsSdo):<20}'
+                                    f'{str(user.AccessRightsVendor):<20}{str(user.ModelsProvider):<30}{str(user.Email):<30}')
         except SQLAlchemyError as err:
             pass
         ret_text += '\n\n\nusers_temp table'
@@ -61,7 +61,7 @@ class UserReminder:
             with Session(self.engine) as session:
                 users = session.query(TempUser).all()
                 for user in users:
-                    ret_text += f'\n{user.Username:<25}{user.FirstName:<20}{user.LastName:<20}{user.ModelsProvider:<30}{user.Email:<30}'
+                    ret_text += f'\n{str(user.Username):<25}{str(user.FirstName):<20}{str(user.LastName):<20}{str(user.ModelsProvider):<30}{str(user.Email):<30}'
         except SQLAlchemyError as err:
             pass
         return ret_text
