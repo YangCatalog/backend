@@ -63,10 +63,10 @@ class TestApiContributeClass(unittest.TestCase):
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Verification successful')
         self.assertIn('job-id', data)
@@ -80,10 +80,10 @@ class TestApiContributeClass(unittest.TestCase):
         organization = 'nonexistent'
         path = '{},{},{}'.format(name, revision, organization)
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Module not found in ConfD database')
 
@@ -98,10 +98,10 @@ class TestApiContributeClass(unittest.TestCase):
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 401)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'],
                          'You do not have rights to delete module with organization {}'.format(organization))
@@ -114,10 +114,10 @@ class TestApiContributeClass(unittest.TestCase):
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'This module has reference in vendors branch')
 
@@ -129,10 +129,10 @@ class TestApiContributeClass(unittest.TestCase):
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertTrue(data['description']
                             .startswith('{}@{} module has reference in another module '
@@ -146,10 +146,10 @@ class TestApiContributeClass(unittest.TestCase):
         organization = 'ietf'
         path = '{},{},{}'.format(name, revision, organization)
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertTrue(data['description']
                             .startswith('{}@{} module has reference in another module '
@@ -161,10 +161,10 @@ class TestApiContributeClass(unittest.TestCase):
         body = content.get('delete_modules')
 
         result = self.client.delete('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Verification successful')
         self.assertIn('job-id', data)
@@ -172,19 +172,19 @@ class TestApiContributeClass(unittest.TestCase):
 
     def test_delete_modules_missing_data(self):
         result = self.client.delete('api/modules', auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Missing input data to know which modules we want to delete')
 
     def test_delete_modules_missing_input(self):
         result = self.client.delete('api/modules', json={'input': {}}, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], "Data must start with 'input' root element in json")
 
@@ -193,10 +193,10 @@ class TestApiContributeClass(unittest.TestCase):
         """
         path = 'nonexistent'
         result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Verification successful')
         self.assertIn('job-id', data)
@@ -208,10 +208,10 @@ class TestApiContributeClass(unittest.TestCase):
         vendor_name = 'fujitsu'
         path = 'vendor/{}'.format(vendor_name)
         result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 401)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User not authorized to supply data for this vendor')
 
@@ -229,10 +229,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertIn(result.status_code, (200, 202))
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Verification successful')
         self.assertIn('job-id', data)
@@ -240,20 +240,20 @@ class TestApiContributeClass(unittest.TestCase):
 
     def test_add_modules_no_json(self):
         result =  self.client.put('api/modules', auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - you need to input json body that conforms with'
                                               ' module-metadata.yang module. Received no json')
 
     def test_add_modules_missing_modules(self):
         result =  self.client.put('api/modules', json={'invalid': True}, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - "modules" json object is missing and is mandatory')
 
@@ -264,10 +264,10 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules'] = {}
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - "module" json list is missing and is mandatory')
 
@@ -278,10 +278,10 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'] = False
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertTrue(data['description'].startswith('The body you have provided could not be parsed. Confd error text: '))
 
@@ -296,10 +296,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules "source-file" is missing and is mandatory')
 
@@ -314,10 +314,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules "organization" is missing and is mandatory')
 
@@ -332,10 +332,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules "name" is missing and is mandatory')
 
@@ -350,10 +350,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules "revision" is missing and is mandatory')
 
@@ -368,10 +368,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules source file "path" is missing and is mandatory')
 
@@ -386,10 +386,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules source file "repository" is missing and is mandatory')
 
@@ -404,10 +404,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - at least one of modules source file "owner" is missing and is mandatory')
 
@@ -422,10 +422,10 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value = mock_response
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
                                                        ' Please check owner, repository and path of the request - '))
@@ -447,20 +447,20 @@ class TestApiContributeClass(unittest.TestCase):
         mock_access_rights.return_value = ''
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 401)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Unauthorized for server unknown reason')
 
     def test_get_job(self):
         job_id = 'invalid-id'
         result = self.client.get('api/job/{}'.format(job_id))
-        data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
         self.assertIn('info', data)
         self.assertIn('job-id', data['info'])
         self.assertEqual(data['info']['job-id'], 'invalid-id')
