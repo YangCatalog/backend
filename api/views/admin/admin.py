@@ -512,7 +512,7 @@ def move_user():
     try:
         password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first() or ''
         user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                    FirstName=name, LastName=name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+                    FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
         db.session.add(user)
         db.session.commit()
     except SQLAlchemyError as err:
