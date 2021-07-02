@@ -150,43 +150,42 @@ def get_var_yang_directory_structure(direc):
 
     def walk_through_dir(path):
         structure = {'folders': [], 'files': []}
-        for root, dirs, files in os.walk(path):
-            structure['name'] = os.path.basename(root)
-            for f in files:
-                file_structure = {'name': f}
-                file_stat = Path('{}/{}'.format(path, f)).stat()
-                file_structure['size'] = file_stat.st_size
-                try:
-                    file_structure['group'] = grp.getgrgid(file_stat.st_gid).gr_name
-                except:
-                    file_structure['group'] = file_stat.st_gid
+        root, dirs, files = next(os.walk(path))
+        structure['name'] = os.path.basename(root)
+        for f in files:
+            file_structure = {'name': f}
+            file_stat = Path('{}/{}'.format(path, f)).stat()
+            file_structure['size'] = file_stat.st_size
+            try:
+                file_structure['group'] = grp.getgrgid(file_stat.st_gid).gr_name
+            except:
+                file_structure['group'] = file_stat.st_gid
 
-                try:
-                    file_structure['user'] = pwd.getpwuid(file_stat.st_uid).pw_name
-                except:
-                    file_structure['user'] = file_stat.st_uid
-                file_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, f)).st_mode))
-                file_structure['modification'] = int(file_stat.st_mtime)
-                structure['files'].append(file_structure)
-            for directory in dirs:
-                dir_structure = {'name': directory}
-                p = Path('{}/{}'.format(path, directory))
-                dir_size = sum(f.stat().st_size for f in p.glob('**/*') if f.is_file())
-                dir_stat = p.stat()
-                try:
-                    dir_structure['group'] = grp.getgrgid(dir_stat.st_gid).gr_name
-                except:
-                    dir_structure['group'] = dir_stat.st_gid
+            try:
+                file_structure['user'] = pwd.getpwuid(file_stat.st_uid).pw_name
+            except:
+                file_structure['user'] = file_stat.st_uid
+            file_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, f)).st_mode))
+            file_structure['modification'] = int(file_stat.st_mtime)
+            structure['files'].append(file_structure)
+        for directory in dirs:
+            dir_structure = {'name': directory}
+            p = Path('{}/{}'.format(path, directory))
+            dir_size = sum(f.stat().st_size for f in p.glob('**/*') if f.is_file())
+            dir_stat = p.stat()
+            try:
+                dir_structure['group'] = grp.getgrgid(dir_stat.st_gid).gr_name
+            except:
+                dir_structure['group'] = dir_stat.st_gid
 
-                try:
-                    dir_structure['user'] = pwd.getpwuid(dir_stat.st_uid).pw_name
-                except:
-                    dir_structure['user'] = dir_stat.st_uid
-                dir_structure['size'] = dir_size
-                dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, directory)).st_mode))
-                dir_structure['modification'] = int(dir_stat.st_mtime)
-                structure['folders'].append(dir_structure)
-            break
+            try:
+                dir_structure['user'] = pwd.getpwuid(dir_stat.st_uid).pw_name
+            except:
+                dir_structure['user'] = dir_stat.st_uid
+            dir_structure['size'] = dir_size
+            dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, directory)).st_mode))
+            dir_structure['modification'] = int(dir_stat.st_mtime)
+            structure['folders'].append(dir_structure)
         return structure
 
     yc_gc.LOGGER.info('Getting directory structure')
@@ -297,12 +296,11 @@ def get_log_files():
 def get_logs():
 
     def find_files(directory, pattern):
-        for root, dirs, files in os.walk(directory):
-            for basename in files:
-                if fnmatch.fnmatch(basename, pattern):
-                    filename = os.path.join(root, basename)
-                    yield filename
-            break
+        root, dirs, files = next(os.walk(directory))
+        for basename in files:
+            if fnmatch.fnmatch(basename, pattern):
+                filename = os.path.join(root, basename)
+                yield filename
 
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
     time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
@@ -493,15 +491,17 @@ def get_sql_tables():
 def move_user():
     body = get_input(request.json)
     unique_id = body.get('id')
-    if unique_id is None:
-        return abort(400, description='Id of a user is missing')
+    username = body.get('username')
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
-    username = body.get('username')
     name = body.get('first-name')
     last_name = body.get('last-name')
     email = body.get('email')
+    if unique_id is None:
+        abort(400, description='Id of a user is missing')
+    if username is None:
+        abort(400, description='username must be specified')
     if sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
