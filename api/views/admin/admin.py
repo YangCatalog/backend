@@ -35,7 +35,7 @@ from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, make_response, redirect, request, current_app
+from flask import Blueprint, abort, jsonify, redirect, request, current_app
 from flask_cors import CORS
 from utility.util import create_signature
 from api.models import Base, User, TempUser
@@ -65,29 +65,23 @@ def login():
         return redirect('{}/admin/healthcheck'.format(yc_gc.my_uri), code=302)
     else:
         abort(401, 'user not logged in')
-    return make_response(jsonify({'info': 'Success'}), 200)
 
 
 @app.route('/api/admin/logout', methods=['POST'])
 def logout():
     yc_gc.oidc.logout()
-    return make_response(jsonify({'info': 'Success'}), 200)
+    return {'info': 'Success'}
 
 
 @app.route('/api/admin/ping')
 def ping():
     yc_gc.LOGGER.info('ping {}'.format(yc_gc.oidc.user_loggedin))
-    if yc_gc.oidc.user_loggedin:
-        response = {'info': 'Success'}
-    else:
-        response = {'info': 'user not logged in'}
-    return make_response(jsonify(response), 200)
+    return {'info': 'Success'}
 
 
 @app.route('/api/admin/check', methods=['GET'])
 def check():
-    response = {'info': 'Success'}
-    return make_response(jsonify(response), 200)
+    return {'info': 'Success'}
 
 
 @app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
@@ -102,12 +96,12 @@ def read_admin_file(direc):
             processed_file = f.read()
         response = {'info': 'Success',
                     'data': processed_file}
-        return make_response(jsonify(response), 200)
+        return response
     else:
-        return abort(400, description='error - file does not exist')
+        abort(400, description='error - file does not exist')
 
 
-@app.route("/api/admin/directory-structure", defaults={"direc": ""}, methods=['DELETE'])
+@app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
     yc_gc.LOGGER.info('Deleting admin file {}'.format(direc))
@@ -122,19 +116,19 @@ def delete_admin_file(direc):
             shutil.rmtree('{}/{}'.format(yc_gc.var_yang, direc))
         response = {'info': 'Success',
                     'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(yc_gc.var_yang, direc))}
-        return make_response(jsonify(response), 200)
+        return response
     else:
-        return abort(400, description='error - file or folder does not exist')
+        abort(400, description='error - file or folder does not exist')
 
 
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    yc_gc.LOGGER.info("Updating file on path {}".format(direc))
+    yc_gc.LOGGER.info('Updating file on path {}'.format(direc))
 
-    body = request.json
-    input = body.get('input')
-    if input is None or input.get('data') is None:
-        return make_response(jsonify({'error': 'payload needs to have body with input and data container'}), 400)
+    body = get_input(request.json)
+    if 'data' not in body:
+        abort(400, description='"data" must be specified')
+    data = body['data']
 
     try:
         file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
@@ -142,15 +136,15 @@ def write_to_directory_structure(direc):
         file_exist = False
     if file_exist:
         with open('{}/{}'.format(yc_gc.var_yang, direc), 'w') as f:
-            f.write(input['data'])
+            f.write(data)
         response = {'info': 'Success',
-                    'data': input['data']}
-        return make_response(jsonify(response), 200)
+                    'data': data}
+        return response
     else:
-        return abort(400, description='error - file does not exist')
+        abort(400, description='error - file does not exist')
 
 
-@app.route("/api/admin/directory-structure", defaults={"direc": ""}, methods=['GET'])
+@app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['GET'])
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['GET'])
 def get_var_yang_directory_structure(direc):
 
@@ -200,7 +194,7 @@ def get_var_yang_directory_structure(direc):
     ret = walk_through_dir('/var/yang/{}'.format(direc))
     response = {'info': 'Success',
                 'data': ret}
-    return make_response(jsonify(response), 200)
+    return response
 
 
 @app.route('/api/admin/yangcatalog-nginx', methods=['GET'])
@@ -213,7 +207,7 @@ def read_yangcatalog_nginx_files():
     files_final.extend(['conf.d/' + sub for sub in files])
     response = {'info': 'Success',
                 'data': files_final}
-    return make_response(jsonify(response), 200)
+    return response
 
 
 @app.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
@@ -223,7 +217,7 @@ def read_yangcatalog_nginx(nginx_file):
         nginx_config = f.read()
     response = {'info': 'Success',
                 'data': nginx_config}
-    return make_response(jsonify(response), 200)
+    return response
 
 
 @app.route('/api/admin/yangcatalog-config', methods=['GET'])
@@ -234,30 +228,35 @@ def read_yangcatalog_config():
         yangcatalog_config = f.read()
     response = {'info': 'Success',
                 'data': yangcatalog_config}
-    return make_response(jsonify(response), 200)
+    return response
 
 
 @app.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
     yc_gc.LOGGER.info('Updating yangcatalog config file')
-    body = request.json
-    input = body.get('input')
-    if input is None or input.get('data') is None:
-        return abort(400, description='payload needs to have body with "input" and "data" container')
+    body = get_input(request.json)
+    if 'data' not in body:
+        abort(400, description='"data" must be specified')
 
     with open(yc_gc.config_path, 'w') as f:
-        f.write(input['data'])
-    resp = {'api': 'error loading data',
-            'yang-search': 'error loading data',
-            'receiver': 'error loading data'}
-    yc_gc.load_config()
-    resp['api'] = 'data loaded successfully'
-    yc_gc.sender.send('reload_config')
-    resp['receiver'] = 'data loaded succesfully'
+        f.write(body['data'])
+    resp = {}
+    try:
+        yc_gc.load_config()
+    except:
+        resp['api'] = 'error loading data'
+    else:
+        resp['api'] = 'data loaded successfully'
+    try:
+        yc_gc.sender.send('reload_config')
+    except:
+        resp['receiver'] ='error loading data'
+    else:
+        resp['receiver'] = 'data loaded succesfully'
     path = '{}://{}/yang-search/reload_config'.format(yc_gc.api_protocol, yc_gc.ip)
-    signature = create_signature(yc_gc.search_key, json.dumps(input))
+    signature = create_signature(yc_gc.search_key, json.dumps(body))
 
-    response = requests.post(path, data=json.dumps(input),
+    response = requests.post(path, data=json.dumps(body),
                              headers={'Content-Type': 'app/json', 'Accept': 'app/json',
                                       'X-YC-Signature': 'sha1={}'.format(signature)}, verify=False)
     code = response.status_code
@@ -265,11 +264,12 @@ def update_yangcatalog_config():
     if code != 200 and code != 201 and code != 204:
         yc_gc.LOGGER.error('could not send data to realod config. Reason: {}'
                            .format(response.text))
+        resp['yang-search'] = 'error loading data'
     else:
         resp['yang-search'] = response.json()['info']
     response = {'info': resp,
-                'new-data': input['data']}
-    return make_response(jsonify(response), 200)
+                'new-data': body['data']}
+    return response
 
 
 @app.route('/api/admin/logs', methods=['GET'])
@@ -288,8 +288,9 @@ def get_log_files():
     resp = set()
     for f in files:
         resp.add(f.split('/logs/')[-1].split('.')[0])
-    return make_response(jsonify({'info': 'success',
-                                  'data': list(resp)}), 200)
+    response = {'info': 'Success',
+                'data': list(resp)}
+    return response
 
 
 @app.route('/api/admin/logs', methods=['POST'])
@@ -306,13 +307,8 @@ def get_logs():
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
     time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
     yc_gc.LOGGER.info('Reading yangcatalog log file')
-    if request.json is None:
-        return abort(400, description='bad-request - body has to start with "input" and can not be empty')
+    body = get_input(request.json)
 
-    body = request.json.get('input')
-
-    if body is None:
-        return abort(400, description='bad-request - body has to start with "input" and can not be empty')
     number_of_lines_per_page = body.get('lines-per-page', 1000)
     page_num = body.get('page', 1)
     filter = body.get('filter')
@@ -474,13 +470,14 @@ def get_logs():
         output = send_out[from_line:]
     else:
         output = send_out[from_line:page_num * number_of_lines_per_page]
-    return make_response(jsonify({'meta': metadata,
-                                  'output': output}), 200)
+    response = {'meta': metadata,
+                'output': output}
+    return response
 
 
 @app.route('/api/admin/sql-tables', methods=['GET'])
 def get_sql_tables():
-    return make_response(jsonify([
+    return jsonify([
         {
             'name': 'users',
             'label': 'approved users'
@@ -489,14 +486,12 @@ def get_sql_tables():
             'name': 'users_temp',
             'label': 'users waiting for approval'
         }
-    ]), 200)
+    ])
 
 
 @app.route('/api/admin/move-user', methods=['POST'])
 def move_user():
-    body = request.json.get('input')
-    if body is None:
-        return abort(400, description='bad request - did you not start with input json container?')
+    body = get_input(request.json)
     unique_id = body.get('id')
     if unique_id is None:
         return abort(400, description='Id of a user is missing')
@@ -508,7 +503,7 @@ def move_user():
     last_name = body.get('last-name')
     email = body.get('email')
     if sdo_access == '' and vendor_access == '':
-        return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
+        abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
         password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first() or ''
         user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
@@ -516,48 +511,42 @@ def move_user():
         db.session.add(user)
         db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
-        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     try:
         user = db.session.query(TempUser).filter_by(Id=unique_id).first()
         if user:
             db.session.delete(user)
             db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
-        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     response = {'info': 'data successfully added to database users and removed from users_temp',
                 'data': body}
-    return make_response(jsonify(response), 201)
+    return (response, 201)
 
 
 @app.route('/api/admin/sql-tables/<table>', methods=['POST'])
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
-        return make_response(jsonify({'error': 'table {} not implemented use only users or users_temp'.format(table)}),
-                             501)
+        return ({'error': 'table {} not implemented use only users or users_temp'.format(table)}, 501)
     model = get_class_by_tablename(table)
-    body = request.json.get('input')
-    if body is None:
-        return abort(400, description='bad request - did you not start with input json container?')
+    body = get_input(request.json)
     username = body.get('username')
     name = body.get('first-name')
     last_name = body.get('last-name')
     email = body.get('email')
     password = body.get('password')
     if not all((body, username, name, last_name, email, password)):
-        return abort(400, description='username - {}, firstname - {}, last-name - {}, email - {} and password - {} must be specified'.format(
-            username,
-            name,
-            last_name,
-            email,
-            password))
+        abort(400, description='username - {}, firstname - {}, last-name - {},'
+                               ' email - {} and password - {} must be specified'
+                               .format(username, name, last_name, email, password))
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
     if model is User and sdo_access == '' and vendor_access == '':
-        return abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
+        abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     try:
         user = model(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
                     ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
@@ -565,35 +554,39 @@ def create_sql_row(table):
         db.session.commit()
         response = {'info': 'data successfully added to database',
                     'data': body}
-        return make_response(jsonify(response), 201)
+        return (response, 201)
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
-        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
 
 
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
 def delete_sql_row(table, unique_id):
+    if table not in ['users', 'users_temp']:
+        return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
     try:
         model = get_class_by_tablename(table)
         user = db.session.query(model).filter_by(Id=unique_id).first()
         db.session.delete(user)
         db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
-        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     if user:
-        return make_response(jsonify({'info': 'id {} deleted successfully'.format(unique_id)}), 200)
+        return {'info': 'id {} deleted successfully'.format(unique_id)}
     else:
-        return abort(404, description='id {} not found in table {}'.format(unique_id, table))
+        abort(404, description='id {} not found in table {}'.format(unique_id, table))
 
 
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
 def update_sql_row(table, unique_id):
+    if table not in ['users', 'users_temp']:
+        return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
     try:
         model = get_class_by_tablename(table)
         user = db.session.query(model).filter_by(Id=unique_id).first()
         if user:
-            body = request.json.get('input')
+            body = get_input(request.json)
             user.Username = body.get('username')
             user.Email = body.get('email')
             user.ModelsProvider = body.get('models-provider')
@@ -601,15 +594,17 @@ def update_sql_row(table, unique_id):
             user.LastName = body.get('last-name')
             user.AccessRightsSdo = body.get('access-rights-sdo', '')
             user.AccessRightsVendor = body.get('access-rights-vendor', '')
+            if not user.Username or not user.Email:
+                abort(400, description='username and email must be specified')
             db.session.commit()
     except SQLAlchemyError as err:
         yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+        return ({'error': 'Server problem connecting to database'}, 500)
     if user:
         yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
-        return make_response(jsonify({'info': 'ID {} updated successfully'.format(unique_id)}), 200)
+        return {'info': 'ID {} updated successfully'.format(unique_id)}
     else:
-        return abort(404, description='ID {} not found in table {}'.format(unique_id, table))
+        abort(404, description='ID {} not found in table {}'.format(unique_id, table))
 
 
 @app.route('/api/admin/sql-tables/<table>', methods=['GET'])
@@ -618,8 +613,8 @@ def get_sql_rows(table):
         model = get_class_by_tablename(table)
         users = db.session.query(model).all()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
-        return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
+        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     ret = []
     for user in users:
         data_set = {'id': user.Id,
@@ -631,14 +626,14 @@ def get_sql_rows(table):
                     'access-rights-sdo': user.AccessRightsSdo,
                     'access-rights-vendor': user.AccessRightsVendor}
         ret.append(data_set)
-    return make_response(jsonify(ret), 200)
+    return ret
 
 
 @app.route('/api/admin/scripts/<script>', methods=['GET'])
 def get_script_details(script):
     module_name = get_module_name(script)
     if module_name is None:
-        return abort(400, description='"{}" is not valid script name'.format(script))
+        abort(400, description='"{}" is not valid script name'.format(script))
 
     module = __import__(module_name, fromlist=[script])
     submodule = getattr(module, script)
@@ -648,40 +643,35 @@ def get_script_details(script):
 
     response = {'data': script_args_list}
     response.update(script_conf.get_help())
-    return make_response(jsonify(response), 200)
+    return response
 
 
 @app.route('/api/admin/scripts/<script>', methods=['POST'])
 def run_script_with_args(script):
     module_name = get_module_name(script)
     if module_name is None:
-        return abort(400, description='"{}" is not valid script name'.format(script))
+        abort(400, description='"{}" is not valid script name'.format(script))
 
-    body = request.json
-
-    if body is None:
-        return abort(400, description='bad-request - body can not be empty')
-    if body.get('input') is None:
-        return abort(400, description='missing "input" root json object')
+    body = get_input(request.json)
     if script == 'validate':
         try:
-            if not body['input']['row_id'] or not body['input']['user_email']:
-                return abort(400, description='Failed to validate - user-email and row-id cannot be empty strings')
-        except:
-            return abort(400, description='Failed to validate - user-email and row-id must exist')
+            if not body['row_id'] or not body['user_email']:
+                abort(400, description='Failed to validate - user-email and row-id cannot be empty strings')
+        except KeyError:
+            abort(400, description='Failed to validate - user-email and row-id must exist')
 
-    arguments = ['run_script', module_name, script, json.dumps(body['input'])]
+    arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     yc_gc.LOGGER.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}), 202)
+    return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
 @app.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery']
-    return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
+    return {'data': scripts_names, 'info': 'Success'}
 
 
 @app.route('/api/admin/disk-usage', methods=['GET'])
@@ -691,7 +681,7 @@ def get_disk_usage():
     usage['total'] = total
     usage['used'] = used
     usage['free'] = free
-    return make_response(jsonify({'data': usage, 'info': 'Success'}), 200)
+    return {'data': usage, 'info': 'Success'}
 
 
 ### HELPER DEFINITIONS ###
@@ -723,3 +713,11 @@ def get_class_by_tablename(name):
         for mapper in Base.registry.mappers:
             if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
                 return mapper.class_
+
+def get_input(body):
+    if body is None:
+        abort(400, description='bad-request - body can not be empty')
+    if 'input' not in body:
+        abort(400, description='bad-request - body has to start with "input" and can not be empty')
+    else:
+        return body['input']
