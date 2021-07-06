@@ -31,6 +31,7 @@ import stat
 import sys
 from datetime import datetime
 from pathlib import Path
+from functools import wraps
 
 from sqlalchemy.exc import SQLAlchemyError
 import requests
@@ -55,6 +56,7 @@ db = yc_gc.sqlalchemy
 
 
 def catch_db_error(f):
+    @wraps(f)
     def df(*args, **kwargs):
         try:
             return f(*args, **kwargs)
