@@ -53,6 +53,18 @@ app = YangCatalogAdminBlueprint('admin', __name__)
 CORS(app, supports_credentials=True)
 db = yc_gc.sqlalchemy
 
+
+def catch_db_error(f):
+    def df(*args, **kwargs):
+        try:
+            return f(*args, **kwargs)
+        except SQLAlchemyError as err:
+            yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+            return ({'error': 'Server problem connecting to database'}, 500)
+    
+    return df
+
+
 ### ROUTE ENDPOINT DEFINITIONS ###
 
 
@@ -488,6 +500,7 @@ def get_sql_tables():
 
 
 @app.route('/api/admin/move-user', methods=['POST'])
+@catch_db_error
 def move_user():
     body = get_input(request.json)
     unique_id = body.get('id')
@@ -504,27 +517,23 @@ def move_user():
         abort(400, description='username must be specified')
     if sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    try:
-        password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first() or ''
-        user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                    FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
-        db.session.add(user)
+    password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first() or ''
+    user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
+                FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+    db.session.add(user)
+    db.session.commit()
+
+    user = db.session.query(TempUser).filter_by(Id=unique_id).first()
+    if user:
+        db.session.delete(user)
         db.session.commit()
-    except SQLAlchemyError as err:
-        return db_error(err)
-    try:
-        user = db.session.query(TempUser).filter_by(Id=unique_id).first()
-        if user:
-            db.session.delete(user)
-            db.session.commit()
-    except SQLAlchemyError as err:
-        return db_error(err)
     response = {'info': 'data successfully added to database users and removed from users_temp',
                 'data': body}
     return (response, 201)
 
 
 @app.route('/api/admin/sql-tables/<table>', methods=['POST'])
+@catch_db_error
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
         return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
@@ -545,29 +554,24 @@ def create_sql_row(table):
     hashed_password = hash_pw(password)
     if model is User and sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    try:
-        user = model(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
-                    ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
-        db.session.add(user)
-        db.session.commit()
-        response = {'info': 'data successfully added to database',
-                    'data': body}
-        return (response, 201)
-    except SQLAlchemyError as err:
-        return db_error(err)
+    user = model(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
+                ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+    db.session.add(user)
+    db.session.commit()
+    response = {'info': 'data successfully added to database',
+                'data': body}
+    return (response, 201)
 
 
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
+@catch_db_error
 def delete_sql_row(table, unique_id):
     if table not in ['users', 'users_temp']:
         return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
-    try:
-        model = get_class_by_tablename(table)
-        user = db.session.query(model).filter_by(Id=unique_id).first()
-        db.session.delete(user)
-        db.session.commit()
-    except SQLAlchemyError as err:
-        return db_error(err)
+    model = get_class_by_tablename(table)
+    user = db.session.query(model).filter_by(Id=unique_id).first()
+    db.session.delete(user)
+    db.session.commit()
     if user:
         return {'info': 'id {} deleted successfully'.format(unique_id)}
     else:
@@ -575,26 +579,24 @@ def delete_sql_row(table, unique_id):
 
 
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
+@catch_db_error
 def update_sql_row(table, unique_id):
     if table not in ['users', 'users_temp']:
         return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
-    try:
-        model = get_class_by_tablename(table)
-        user = db.session.query(model).filter_by(Id=unique_id).first()
-        if user:
-            body = get_input(request.json)
-            user.Username = body.get('username')
-            user.Email = body.get('email')
-            user.ModelsProvider = body.get('models-provider')
-            user.FirstName = body.get('first-name')
-            user.LastName = body.get('last-name')
-            user.AccessRightsSdo = body.get('access-rights-sdo', '')
-            user.AccessRightsVendor = body.get('access-rights-vendor', '')
-            if not user.Username or not user.Email:
-                abort(400, description='username and email must be specified')
-            db.session.commit()
-    except SQLAlchemyError as err:
-        return db_error(err)
+    model = get_class_by_tablename(table)
+    user = db.session.query(model).filter_by(Id=unique_id).first()
+    if user:
+        body = get_input(request.json)
+        user.Username = body.get('username')
+        user.Email = body.get('email')
+        user.ModelsProvider = body.get('models-provider')
+        user.FirstName = body.get('first-name')
+        user.LastName = body.get('last-name')
+        user.AccessRightsSdo = body.get('access-rights-sdo', '')
+        user.AccessRightsVendor = body.get('access-rights-vendor', '')
+        if not user.Username or not user.Email:
+            abort(400, description='username and email must be specified')
+        db.session.commit()
     if user:
         yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return {'info': 'ID {} updated successfully'.format(unique_id)}
@@ -603,12 +605,10 @@ def update_sql_row(table, unique_id):
 
 
 @app.route('/api/admin/sql-tables/<table>', methods=['GET'])
+@catch_db_error
 def get_sql_rows(table):
-    try:
-        model = get_class_by_tablename(table)
-        users = db.session.query(model).all()
-    except SQLAlchemyError as err:
-        return db_error(err)
+    model = get_class_by_tablename(table)
+    users = db.session.query(model).all()
     ret = []
     for user in users:
         data_set = {'id': user.Id,
@@ -715,7 +715,3 @@ def get_input(body):
         abort(400, description='bad-request - body has to start with "input" and can not be empty')
     else:
         return body['input']
-
-def db_error(err):
-    yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-    return ({'error': 'Server problem connecting to database'}, 500)
