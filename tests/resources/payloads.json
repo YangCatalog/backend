@@ -335,5 +335,14 @@
         "commit": "test",
         "head_commit": "test",
         "pull_request_number": 1
+    },
+    "create_sql_row": {
+        "input": {
+            "username": "test",
+            "first-name": "test",
+            "last-name": "test",
+            "email": "test",
+            "password": "test"
+        }
     }
 }
