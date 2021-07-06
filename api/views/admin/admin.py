@@ -511,16 +511,14 @@ def move_user():
         db.session.add(user)
         db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return ({'error': 'Server problem connecting to database'}, 500)
+        return db_error(err)
     try:
         user = db.session.query(TempUser).filter_by(Id=unique_id).first()
         if user:
             db.session.delete(user)
             db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return ({'error': 'Server problem connecting to database'}, 500)
+        return db_error(err)
     response = {'info': 'data successfully added to database users and removed from users_temp',
                 'data': body}
     return (response, 201)
@@ -529,7 +527,7 @@ def move_user():
 @app.route('/api/admin/sql-tables/<table>', methods=['POST'])
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
-        return ({'error': 'table {} not implemented use only users or users_temp'.format(table)}, 501)
+        return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
     model = get_class_by_tablename(table)
     body = get_input(request.json)
     username = body.get('username')
@@ -556,8 +554,7 @@ def create_sql_row(table):
                     'data': body}
         return (response, 201)
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return ({'error': 'Server problem connecting to database'}, 500)
+        return db_error(err)
 
 
 @app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
@@ -570,8 +567,7 @@ def delete_sql_row(table, unique_id):
         db.session.delete(user)
         db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return ({'error': 'Server problem connecting to database'}, 500)
+        return db_error(err)
     if user:
         return {'info': 'id {} deleted successfully'.format(unique_id)}
     else:
@@ -598,8 +594,7 @@ def update_sql_row(table, unique_id):
                 abort(400, description='username and email must be specified')
             db.session.commit()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return ({'error': 'Server problem connecting to database'}, 500)
+        return db_error(err)
     if user:
         yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return {'info': 'ID {} updated successfully'.format(unique_id)}
@@ -613,8 +608,7 @@ def get_sql_rows(table):
         model = get_class_by_tablename(table)
         users = db.session.query(model).all()
     except SQLAlchemyError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        return ({'error': 'Server problem connecting to database'}, 500)
+        return db_error(err)
     ret = []
     for user in users:
         data_set = {'id': user.Id,
@@ -721,3 +715,7 @@ def get_input(body):
         abort(400, description='bad-request - body has to start with "input" and can not be empty')
     else:
         return body['input']
+
+def db_error(err):
+    yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+    return ({'error': 'Server problem connecting to database'}, 500)
