@@ -306,88 +306,64 @@ def get_log_files():
     return response
 
 
-@app.route('/api/admin/logs', methods=['POST'])
-def get_logs():
+def find_files(directory, pattern):
+    root, dirs, files = next(os.walk(directory))
+    for basename in files:
+        if fnmatch.fnmatch(basename, pattern):
+            filename = os.path.join(root, basename)
+            yield filename
 
-    def find_files(directory, pattern):
-        root, dirs, files = next(os.walk(directory))
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
-                yield filename
 
-    date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
-    time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-    yc_gc.LOGGER.info('Reading yangcatalog log file')
-    body = get_input(request.json)
-
-    number_of_lines_per_page = body.get('lines-per-page', 1000)
-    page_num = body.get('page', 1)
-    filter = body.get('filter')
-    from_date_timestamp = body.get('from-date', None)
-    to_date_timestamp = body.get('to-date', None)
-    file_names = body.get('file-names', ['yang'])
-    log_files = []
-
-    # Check if file modification date is greater than from timestamp
-    for file_name in file_names:
-        if from_date_timestamp is None:
-            log_files.append('{}/{}.log'.format(yc_gc.logs_dir, file_name))
-        else:
-            files = find_files('{}/{}'.format(yc_gc.logs_dir, '/'.join(file_name.split('/')[:-1])),
-                               '{}.log*'.format(file_name.split('/')[-1]))
+def filter_from_date(file_names, from_timestamp):
+    if from_timestamp is None:
+        return ['{}/{}.log'.format(yc_gc.logs_dir, file_name) for file_name in file_names]
+    else:
+        r = []
+        for file_name in file_names:
+            files = find_files('{}/{}'.format(yc_gc.logs_dir, os.path.dirname(file_name)),
+                                '{}.log*'.format(os.path.basename(file_name)))
             for f in files:
-                if os.path.getmtime(f) >= from_date_timestamp:
-                    log_files.append(f)
-    send_out = []
+                if os.path.getmtime(f) >= from_timestamp:
+                    r.append(f)
+        return r
 
-    # Try to find a timestamp in a log file using regex
-    if from_date_timestamp is None:
-        with open(log_files[0], 'r') as f:
-            for line in f.readlines():
-                if from_date_timestamp is None:
+
+def determine_formatting(log_files, date_regex, time_regex):
+    for log_file in log_files:
+        with gzip.open(log_file, 'rt') if '.gz' in log_file else open(log_file, 'r') as f:
+            file_stream = f.read()
+            level_regex = r'[A-Z]{4,10}'
+            two_words_regex = r'(\s*(\S*)\s*){2}'
+            line_regex = '({} {}[ ]{}{}[=][>])'.format(date_regex, time_regex, level_regex, two_words_regex)
+            hits = re.findall(line_regex, file_stream)
+            if len(hits) <= 1 and file_stream:
+                return False
+    return True
+
+
+def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp, date_regex, time_regex):
+    send_out = []
+    for log_file in log_files:
+        # Different way to open a file, but both will return a file object
+        with gzip.open(log_file, 'rt') if '.gz' in log_file else open(log_file, 'r') as f:
+            whole_line = ''
+            for line in reversed(f.readlines()):
+                if format_text:
+                    line_timestamp = None
                     try:
                         d = re.findall(date_regex, line)[0][0]
                         t = re.findall(time_regex, line)[0]
-                        from_date_timestamp = datetime.strptime('{} {}'.format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+                        line_beginning = '{} {}'.format(d, t)
+                        line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
                     except:
                         # ignore and accept
                         pass
-                else:
-                    break
-
-    yc_gc.LOGGER.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
-    whole_line = ''
-    if to_date_timestamp is None:
-        to_date_timestamp = datetime.now().timestamp()
-
-    log_files.reverse()
-    # Decide whether the output will be formatted or not (default False)
-    format_text = False
-    for log_file in log_files:
-        if '.gz' in log_file:
-            f = gzip.open(log_file, 'rt')
-        else:
-            f = open(log_file, 'r')
-        file_stream = f.read()
-        level_regex = r'[A-Z]{4,10}'
-        two_words_regex = r'(\s*(\S*)\s*){2}'
-        line_regex = '({} {}[ ]{}{}[=][>])'.format(date_regex, time_regex, level_regex, two_words_regex)
-        hits = re.findall(line_regex, file_stream)
-        if len(hits) > 1 or file_stream == '':
-            format_text = True
-        else:
-            format_text = False
-            break
-
-    if not format_text:
-        for log_file in log_files:
-            # Different way to open a file, but both will return a file object
-            if '.gz' in log_file:
-                f = gzip.open(log_file, 'rt')
-            else:
-                f = open(log_file, 'r')
-            for line in reversed(f.readlines()):
+                    if line_timestamp is None or not line.startswith(line_beginning):
+                        whole_line = '{}{}'.format(line, whole_line)
+                        continue
+                    if not from_timestamp <= line_timestamp <= to_timestamp:
+                        whole_line = ''
+                        continue
                 if filter is not None:
                     match_case = filter.get('match-case', False)
                     match_whole_words = filter.get('match-words', False)
@@ -406,65 +382,59 @@ def get_logs():
                         if level_format in line:
                             if match_case and searched_string in line:
                                 if filter_out is not None and filter_out in line:
+                                    whole_line = ''
                                     continue
-                                send_out.append('{}'.format(line).rstrip())
+                                send_out.append('{}{}'.format(line, whole_line).rstrip())
                             elif not match_case and searched_string.lower() in line.lower():
                                 if filter_out is not None and filter_out.lower() in line.lower():
+                                    whole_line = ''
                                     continue
-                                send_out.append('{}'.format(line).rstrip())
+                                send_out.append('{}{}'.format(line, whole_line).rstrip())
                 else:
-                    send_out.append('{}'.format(line).rstrip())
-
-    if format_text:
-        for log_file in log_files:
-            # Different way to open a file, but both will return a file object
-            if '.gz' in log_file:
-                f = gzip.open(log_file, 'rt')
-            else:
-                f = open(log_file, 'r')
-            for line in reversed(f.readlines()):
-                line_timestamp = None
-                try:
-                    d = re.findall(date_regex, line)[0][0]
-                    t = re.findall(time_regex, line)[0]
-                    line_beginning = '{} {}'.format(d, t)
-                    line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
-                except:
-                    # ignore and accept
-                    pass
-                if line_timestamp is None or not line.startswith(line_beginning):
-                    whole_line = '{}{}'.format(line, whole_line)
-                    continue
-                if from_date_timestamp <= line_timestamp <= to_date_timestamp:
-                    if filter is not None:
-                        match_case = filter.get('match-case', False)
-                        match_whole_words = filter.get('match-words', False)
-                        filter_out = filter.get('filter-out', None)
-                        searched_string = filter.get('search-for', '')
-                        level = filter.get('level', '').upper()
-                        level_formats = ['']
-                        if level != '':
-                            level_formats = [
-                                ' {} '.format(level), '<{}>'.format(level),
-                                '[{}]'.format(level).lower(), '{}:'.format(level)]
-                        if match_whole_words:
-                            if searched_string != '':
-                                searched_string = ' {} '.format(searched_string)
-                        for level_format in level_formats:
-                            if level_format in line:
-                                if match_case and searched_string in line:
-                                    if filter_out is not None and filter_out in line:
-                                        whole_line = ''
-                                        continue
-                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
-                                elif not match_case and searched_string.lower() in line.lower():
-                                    if filter_out is not None and filter_out.lower() in line.lower():
-                                        whole_line = ''
-                                        continue
-                                    send_out.append('{}{}'.format(line, whole_line).rstrip())
-                    else:
-                        send_out.append('{}{}'.format(line, whole_line).rstrip())
+                    send_out.append('{}{}'.format(line, whole_line).rstrip())
                 whole_line = ''
+    return send_out
+
+
+def find_timestamp(file, date_regex, time_regex):
+    with open(file, 'r') as f:
+        for line in f.readlines():
+            try:
+                d = re.findall(date_regex, line)[0][0]
+                t = re.findall(time_regex, line)[0]
+                return datetime.strptime('{} {}'.format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+            except:
+                pass
+
+
+@app.route('/api/admin/logs', methods=['POST'])
+def get_logs():
+    date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
+    time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
+    yc_gc.LOGGER.info('Reading yangcatalog log file')
+    body = get_input(request.json)
+
+    number_of_lines_per_page = body.get('lines-per-page', 1000)
+    page_num = body.get('page', 1)
+    filter = body.get('filter')
+    from_date_timestamp = body.get('from-date', None)
+    to_date_timestamp = body.get('to-date', None)
+    file_names = body.get('file-names', ['yang'])
+    log_files = filter_from_date(file_names, from_date_timestamp)
+
+    # Try to find a timestamp in a log file using regex
+    if from_date_timestamp is None:
+        from_date_timestamp = find_timestamp(log_files[0], date_regex, time_regex)
+
+    yc_gc.LOGGER.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
+    if to_date_timestamp is None:
+        to_date_timestamp = datetime.now().timestamp()
+
+    log_files.reverse()
+    format_text = determine_formatting(log_files, date_regex, time_regex)
+
+    send_out = generate_output(format_text, log_files, filter,
+                               from_date_timestamp, to_date_timestamp, date_regex, time_regex)
 
     pages = math.ceil(len(send_out) / number_of_lines_per_page)
     len_send_out = len(send_out)
