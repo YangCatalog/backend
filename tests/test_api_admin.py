@@ -17,18 +17,20 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
-from pathlib import Path
-from unittest import mock
 import unittest
 import os
 import json
+from pathlib import Path
+from unittest import mock
 
+import flask_oidc
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.globalConfig import yc_gc
 from api.yangCatalogApi import application
 from api.models import User
-from api.views.admin.admin import catch_db_error
+from api.views.admin.admin import (catch_db_error, find_files, filter_from_date, find_timestamp,
+                                   generate_output)
 
 
 class TestApiAdminClass(unittest.TestCase):
@@ -39,7 +41,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.client = application.test_client()
 
     def setUp(self):
-        self.patcher = mock.patch('flask_oidc.OpenIDConnect.user_loggedin')
+        self.patcher = mock.patch.object(flask_oidc.OpenIDConnect, 'user_loggedin')
         self.mock_user_loggedin = self.patcher.start()
         self.addCleanup(self.patcher.stop)
         self.mock_user_loggedin = True
@@ -245,19 +247,15 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], 'test')
 
-    # unfinished
-    # redis is trowing an error for some reason
-    @mock.patch('builtins.open')
-    def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
-        return
-        mock.mock_open(mock_open)
-        result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
+    def test_update_yangcatalog_config(self):
+        with open(yc_gc.config_path) as f:
+            result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': f.read()}})
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
 
     @mock.patch('requests.post')
-    @mock.patch.object(yc_gc.sender, 'send')
+    @mock.patch('api.sender.Sender.send')
     @mock.patch.object(yc_gc, 'load_config')
     @mock.patch('builtins.open')
     def test_update_yangcatalog_config_errors(self, mock_open: mock.MagicMock, mock_load_config: mock.MagicMock,
@@ -303,9 +301,91 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], ['test'])
 
-    # this is my bane
+    @mock.patch('os.walk')
+    def test_find_files(self, mock_walk: mock.MagicMock):
+        mock_walk.return_value = iter((('/', (), ('thing.bad', 'badlog', 'good.log', 'good.log-more')),))
+        result = tuple(find_files('/', 'good.log*'))
+
+        self.assertEqual(result, ('/good.log', '/good.log-more'))
+
+    @mock.patch('os.path.getmtime')
+    @mock.patch('api.views.admin.admin.find_files')
+    def test_filter_from_date(self, mock_find_files: mock.MagicMock, mock_getmtime: mock.MagicMock):
+        mock_find_files.return_value = iter(('test1', 'test2', 'test3'))
+        mock_getmtime.side_effect = (1, 2, 3)
+
+        result = filter_from_date(['logfile'], 2)
+
+        self.assertEqual(result, ['test2', 'test3'])
+
+    def test_filter_from_date_no_from_timestamp(self):
+        result = filter_from_date(['logfile'], None)
+
+        self.assertEqual(result, ['{}/{}.log'.format(yc_gc.logs_dir, 'logfile')])
+
+    def test_generate_output(self):
+        with open('{}/testlog.log'.format(self.resources_path), 'r') as f:
+            text = f.read()
+
+        date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
+        time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
+        with mock.patch('builtins.open', mock.mock_open(read_data=text)):
+            result = generate_output(False, ['test'], None, None, None, date_regex, time_regex)
+
+        self.assertEqual(result, list(reversed(text.splitlines())))
+
+    def test_generate_output_filter(self):
+        with open('{}/testlog.log'.format(self.resources_path), 'r') as f:
+            text = f.read()
+
+        filter = {
+            'match-case': False,
+            'match-words': True,
+            'filter-out': 'deleting',
+            'search-for': 'yangcatalog',
+            'level': 'warning'
+        }
+        date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
+        time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
+        with mock.patch('builtins.open', mock.mock_open(read_data=text)):
+            result = generate_output(True, ['test'], filter, 1609455600.0, 1640905200.0, date_regex, time_regex)
+
+        self.assertEqual(result,
+                         ['2021-07-07 11:02:39 WARNING     admin.py   api => Getting yangcatalog log files - 298\nt'])
+
+    @mock.patch('api.views.admin.admin.generate_output', new=mock.MagicMock(return_value=3 * ['test']))
+    @mock.patch('api.views.admin.admin.determine_formatting', new=mock.MagicMock(return_value=True))
+    @mock.patch('api.views.admin.admin.find_timestamp', new=mock.MagicMock(return_value=0))
+    @mock.patch('api.views.admin.admin.filter_from_date', new=mock.MagicMock())
     def test_get_logs(self):
-        pass
+        body = {
+            'input': {
+                'lines-per-page': 2,
+                'page': 2,
+                'from-date': 0,
+                'to-date': 0
+            }
+        }
+
+        result = self.client.post('/api/admin/logs', json=body)
+
+        self.assertEqual(result.status_code, 200)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('meta', data)
+        meta = {
+            'file-names': ['yang'],
+            'from-date': 0,
+            'to-date': 0,
+            'lines-per-page': 2,
+            'page': 2,
+            'pages': 2,
+            'filter': None,
+            'format': True
+        }
+        self.assertEqual(data['meta'], meta)
+        self.assertIn('output', data)
+        self.assertEqual(data['output'], ['test'])
 
     def test_get_sql_tables(self):
         result = self.client.get('api/admin/sql-tables')
@@ -323,9 +403,6 @@ class TestApiAdminClass(unittest.TestCase):
                 'label': 'users waiting for approval'
             }
         ])
-    
-    def test_move_user(self):
-        pass
 
     def test_move_user_no_id(self):
         result = self.client.post('api/admin/move-user', json={'input': {}})
@@ -336,13 +413,11 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Id of a user is missing')
 
-    # skip db stuff for now
-
     @mock.patch.object(yc_gc.sqlalchemy.session, 'add')
     def test_create_sql_row(self, mock_add: mock.MagicMock):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('create_sql_row')
+        body = content.get('sql_row')
 
         result = self.client.post('/api/admin/sql-tables/users_temp', json=body)
 
@@ -353,13 +428,12 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['info'], 'data successfully added to database')
         self.assertIn('data', data)
         self.assertEqual(data['data'], body['input'])
-        # test for correct user object?
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add')
-    def test_create_sql_row_invalid_table(self, mock_add: mock.MagicMock):
+    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', new=mock.MagicMock())
+    def test_create_sql_row_invalid_table(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('create_sql_row')
+        body = content.get('sql_row')
 
         result = self.client.post('/api/admin/sql-tables/fake', json=body)
 
@@ -369,11 +443,27 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
 
+    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', new=mock.MagicMock())
+    def test_create_sql_row_args_missing(self):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('sql_row')
+        body['input']['username'] = ''
+
+        result = self.client.post('/api/admin/sql-tables/users_temp', json=body)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'username - , firstname - test, last-name - test,'
+                                              ' email - test and password - test must be specified')
+
     @mock.patch.object(yc_gc.sqlalchemy.session, 'add')
     def test_create_sql_row_missing_access_rights(self, mock_add: mock.MagicMock):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('create_sql_row')
+        body = content.get('sql_row')
 
         result = self.client.post('/api/admin/sql-tables/users', json=body)
 
@@ -418,6 +508,20 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'id 24857629847625894258476 not found in table users')
 
+    @mock.patch.object(yc_gc.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    def test_update_sql_row(self):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('sql_row')
+
+        result = self.client.put('/api/admin/sql-tables/users/id/1', json=body)
+
+        self.assertEqual(result.status_code, 200)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'ID 1 updated successfully')
+
     def test_update_sql_row_invalid_table(self):
         result = self.client.put('/api/admin/sql-tables/fake/id/24857629847625894258476')
 
@@ -436,6 +540,16 @@ class TestApiAdminClass(unittest.TestCase):
         data = result.json
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'username and email must be specified')
+
+    @mock.patch.object(yc_gc.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    def test_update_sql_row_id_not_found(self):
+        result = self.client.put('/api/admin/sql-tables/users/id/24857629847625894258476')
+
+        self.assertEqual(result.status_code, 404)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'ID 24857629847625894258476 not found in table users')
 
     def test_get_script_details_invalid_name(self):
         result = self.client.get('/api/admin/scripts/invalid')
