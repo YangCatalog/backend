@@ -29,7 +29,7 @@ import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, Response, abort, jsonify, make_response, request
+from flask import Blueprint, Response, abort, jsonify, make_response, request, escape
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
 from utility.util import context_check_update_from, get_curr_dir
@@ -1160,7 +1160,7 @@ def create_reference(name: str, revision: str):
     path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
-            yang_file_content = f.read()
+            yang_file_content = escape(f.read())
     except FileNotFoundError:
         message = 'File {}@{}.yang was not found.'.format(name, revision)
         return create_bootstrap_danger(message)
