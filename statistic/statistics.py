@@ -44,9 +44,9 @@ import time
 
 import jinja2
 import requests
-
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.staticVariables import json_headers
 from utility.util import get_curr_dir, job_log
 
 if sys.version_info >= (3, 4):
@@ -328,9 +328,11 @@ def solve_platforms(path, platform, LOGGER):
     """
     Resolve all the platforms on specified path and fills the platform
     set variable with the found data
-    :param path: (str) path to a specific Cisco platform
-    :param platform: (set) empty set of platforms. This should return
-        filled with platforms data on specified path
+
+    Arguments:
+        :param path         (str) path to a specific Cisco platform
+        :param platform     (set) empty set of platforms - will be filled with platforms data on specified path
+        :param LOGGER       (obj) formated logger with the specified name
     """
     matches = []
     for root, dirnames, filenames in os.walk(path):
@@ -373,36 +375,36 @@ def main(scriptConf=None):
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
+    private_dir = config.get('Web-Section', 'private-directory')
 
     global LOGGER
-    LOGGER = log.get_logger('statistics', log_directory + '/statistics/yang.log')
+    LOGGER = log.get_logger('statistics', '{}/statistics/yang.log'.format(log_directory))
     separator = ':'
     suffix = api_port
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
     global yangcatalog_api_prefix
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip,
-                                                   separator, suffix)
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip, separator, suffix)
     LOGGER.info('Starting statistics')
     repo = None
 
     # Fetch the list of all modules known by YangCatalog
-    path = yangcatalog_api_prefix + 'search/modules'
+    url = '{}search/modules'.format(yangcatalog_api_prefix)
     try:
-        response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+        response = requests.get(url, auth=(auth[0], auth[1]), headers=json_headers)
         if response.status_code != 200:
-            LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
+            LOGGER.error('Cannot access {}, response code: {}'.format(url, response.status_code))
             sys.exit(1)
         else:
             all_modules_data = response.json()
     except requests.exceptions.RequestException as e:
-        LOGGER.error("Cannot access " + path + ', response code: ' + str(e.response))
+        LOGGER.error('Cannot access {}, response code: {}'.format(url, e.response))
         # Let's try again, who knows?
         time.sleep(120)
-        response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+        response = requests.get(url, auth=(auth[0], auth[1]), headers=json_headers)
         all_modules_data = response.json()
-        LOGGER.error("After a while, OK to access " + path)
+        LOGGER.error('After a while, OK to access {}'.format(url))
 
     vendor_data = {}
     for m in all_modules_data['module']:
@@ -729,7 +731,7 @@ def main(scriptConf=None):
                    'xr_values': xr_values,
                    'current_date': time.strftime("%d/%m/%y")}
         LOGGER.info('Rendering data')
-        with open('{}/../resources/stats.json'.format(get_curr_dir(__file__)), 'w') as f:
+        with open('{}/stats/stats.json'.format(private_dir), 'w') as f:
             for sdo in sdo_list:
                 sdo['num_github'] = int(sdo['num_github'])
                 sdo['percentage_compile'] = float(sdo['percentage_compile'].split(' ')[0])
