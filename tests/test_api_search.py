@@ -23,6 +23,8 @@ import os
 import unittest
 from unittest import mock
 
+from flask import escape
+
 import api.views.ycSearch.ycSearch as search_bp
 from api.globalConfig import yc_gc
 from api.yangCatalogApi import application
@@ -1069,7 +1071,7 @@ class TestApiSearchClass(unittest.TestCase):
         response_text = data.split('</pre>')[0].split('<pre>')[1]
 
         with open('{}all_modules/yang-catalog@2018-04-03.yang'.format(self.resources_path), 'r') as f:
-            yang_file_data = f.read()
+            yang_file_data = escape(f.read())
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(yang_file_data, response_text)
