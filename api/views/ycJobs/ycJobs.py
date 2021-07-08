@@ -25,7 +25,6 @@ from api.authentication.auth import auth, check_authorized
 from api.globalConfig import yc_gc
 from flask import Blueprint, abort, jsonify, make_response, request
 from utility import messageFactory, repoutil
-from utility.util import get_curr_dir
 
 
 class YcJobs(Blueprint):
@@ -215,10 +214,9 @@ def trigger_populate():
 
 @app.route('/get-statistics', methods=['GET'])
 def get_statistics():
-    stats_path = '{}/../../../resources/stats.json'.format(get_curr_dir(__file__))
+    stats_path = '{}/stats/stats.json'.format(yc_gc.private_dir)
     if os.path.exists(stats_path):
         with open(stats_path, 'r') as f:
             return make_response(jsonify(json.load(f)), 200)
     else:
-        abort(404, description="Statistics file has not been generated yet")
-
+        abort(404, description='Statistics file has not been generated yet')
