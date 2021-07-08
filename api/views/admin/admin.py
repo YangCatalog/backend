@@ -256,16 +256,14 @@ def update_yangcatalog_config():
     resp = {}
     try:
         yc_gc.load_config()
+        resp['api'] = 'data loaded successfully'
     except:
         resp['api'] = 'error loading data'
-    else:
-        resp['api'] = 'data loaded successfully'
     try:
         yc_gc.sender.send('reload_config')
+        resp['receiver'] = 'data loaded successfully'
     except:
         resp['receiver'] ='error loading data'
-    else:
-        resp['receiver'] = 'data loaded succesfully'
     path = '{}://{}/yang-search/reload_config'.format(yc_gc.api_protocol, yc_gc.ip)
     signature = create_signature(yc_gc.search_key, json.dumps(body))
 
@@ -326,6 +324,17 @@ def filter_from_date(file_names, from_timestamp):
                 if os.path.getmtime(f) >= from_timestamp:
                     r.append(f)
         return r
+
+
+def find_timestamp(file, date_regex, time_regex):
+    with open(file, 'r') as f:
+        for line in f.readlines():
+            try:
+                d = re.findall(date_regex, line)[0][0]
+                t = re.findall(time_regex, line)[0]
+                return datetime.strptime('{} {}'.format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
+            except:
+                pass
 
 
 def determine_formatting(log_files, date_regex, time_regex):
@@ -396,17 +405,6 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
     return send_out
 
 
-def find_timestamp(file, date_regex, time_regex):
-    with open(file, 'r') as f:
-        for line in f.readlines():
-            try:
-                d = re.findall(date_regex, line)[0][0]
-                t = re.findall(time_regex, line)[0]
-                return datetime.strptime('{} {}'.format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
-            except:
-                pass
-
-
 @app.route('/api/admin/logs', methods=['POST'])
 def get_logs():
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
@@ -437,21 +435,17 @@ def get_logs():
                                from_date_timestamp, to_date_timestamp, date_regex, time_regex)
 
     pages = math.ceil(len(send_out) / number_of_lines_per_page)
-    len_send_out = len(send_out)
 
     metadata = {'file-names': file_names,
                 'from-date': from_date_timestamp,
-                'to-data': to_date_timestamp,
+                'to-date': to_date_timestamp,
                 'lines-per-page': number_of_lines_per_page,
                 'page': page_num,
                 'pages': pages,
                 'filter': filter,
                 'format': format_text}
     from_line = (page_num - 1) * number_of_lines_per_page
-    if page_num * number_of_lines_per_page > len_send_out:
-        output = send_out[from_line:]
-    else:
-        output = send_out[from_line:page_num * number_of_lines_per_page]
+    output = send_out[from_line:page_num * number_of_lines_per_page]
     response = {'meta': metadata,
                 'output': output}
     return response
