@@ -517,10 +517,7 @@ def add_modules():
             shutil.rmtree(direc)
             for key in repo:
                 repo[key].remove()
-            if isinstance(resolved_authorization, str):
-                return abort(401, description="You can not remove module with organization {}".format(organization))
-            else:
-                return abort(401, description="Unauthorized for server unknown reason")
+            return abort(401, description="Unauthorized for server unknown reason")
         if 'organization' in repr(resolved_authorization):
             warning.append('{} {}'.format(sdo['path'].split('/')[-1], resolved_authorization))
 
