@@ -2,6 +2,22 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v4.0.0 - 2021-07-09
+
+  * MAJOR UPDATE: YANG search API moved under backend repository
+  * Bugfix: Text displaying for api/service/reference endpoint [#296](https://github.com/YangCatalog/backend/issues/296))
+  * stats.json file places to persistent folder [#294](https://github.com/YangCatalog/backend/issues/294))
+  * Pyang update to version 2.5.0 [deployment #85](https://github.com/YangCatalog/deployment/issues/85)
+  * tree-type property generating changed for nmda-compatible tree types [#289](https://github.com/YangCatalog/backend/issues/289))
+  * Healthcheck endpoints adjustments after minor changes in API
+  * YangModels/yang repo forking changes in draftPull.py script [#283](https://github.com/YangCatalog/backend/issues/283))
+  * Sandbox: find_conflicting_files.py script created [#301](https://github.com/YangCatalog/backend/issues/301))
+  * Various existing tests updated
+  * Removed manipulation with Travis in draftPull.py after migration [#300](https://github.com/YangCatalog/backend/issues/300))
+  * TravisCI migrated from travis-ci.org to travis-ci.com [#250](https://github.com/YangCatalog/backend/issues/250))
+  * yang2.amsl.com mailname replaced by yangcatalog.org [deployment #73](https://github.com/YangCatalog/deployment/issues/73)
+  * Updated all the Flask dependecies [#299](https://github.com/YangCatalog/backend/issues/299))
+
 * ##### v3.2.1 - 2021-05-04
 
   * Sandbox: compare_databases.py script updated to compare in both ways [#266](https://github.com/YangCatalog/backend/issues/266)
