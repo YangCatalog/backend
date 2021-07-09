@@ -34,8 +34,6 @@ from git import GitCommandError
 from api.authentication.auth import auth, hash_pw
 
 from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, make_response, request
-from git import GitCommandError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import confd_headers
