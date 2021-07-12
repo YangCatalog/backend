@@ -84,6 +84,7 @@ def main(scriptConf=None):
     config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(args.config_path)
     log_directory = config.get('Directory-Section', 'logs')
+    backup_directory = '{}/mariadb'.format(config.get('Directory-Section', 'cache'))
     db_host = config.get('DB-Section', 'host')
     db_name = config.get('DB-Section', 'name-users')
     db_user = config.get('DB-Section', 'user')
@@ -92,13 +93,14 @@ def main(scriptConf=None):
     if not args.load:
         if not args.dir:
             args.dir = str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC'
+        backup_directory = '{}/{}'.format(backup_directory, args.dir)
         run(['mydumper', '--database', db_name, '--outputdir', args.dir,
              '--host', db_host, '--user', db_user, '--password', db_pass, '--lock-all-tables'])
     else:
         if not args.dir:
             LOGGER.error('Load directory must be specified')
             return
-        cmd = ['myloader', '--database', db_name, '--directory', args.dir,
+        cmd = ['myloader', '--database', db_name, '--directory', backup_directory,
                '--host', db_host, '--user', db_user, '--password', db_pass]
         if args.overwrite_tables:
             cmd.append('--overwrite-tables')
