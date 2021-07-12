@@ -767,7 +767,7 @@ def run_script_with_args(script):
 @app.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration']
+                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery']
     return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
 
 
@@ -783,11 +783,11 @@ def get_disk_usage():
 
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
-    if script_name == 'populate' or script_name == 'runCapabilities':
+    if script_name in ['populate', 'runCapabilities']:
         return 'parseAndPopulate'
-    elif script_name == 'draftPull' or script_name == 'draftPullLocal' or script_name == 'openconfigPullLocal':
+    elif script_name in ['draftPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
-    elif script_name == 'recovery' or script_name == 'elkRecovery' or script_name == 'elkFill':
+    elif script_name in ['recovery', 'elkRecovery', 'elkFill', 'mariadbRecovery']:
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'
