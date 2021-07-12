@@ -783,9 +783,9 @@ def get_disk_usage():
 
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
-    if script_name == 'populate' or script_name == 'runCapabilities':
+    if script_name in ['pupulate', 'runCapabilities']:
         return 'parseAndPopulate'
-    elif script_name == 'draftPull' or script_name == 'draftPullLocal' or script_name == 'openconfigPullLocal':
+    elif script_name in ['draftPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
     elif script_name in ['recovery', 'elkRecovery', 'elkFill', 'mariadbRecovery']:
         return 'recovery'
