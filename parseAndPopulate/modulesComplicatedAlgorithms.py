@@ -967,4 +967,4 @@ class ModulesComplicatedAlgorithms:
         Argument:
             :param module   (dict) Details of currently parsed module
         """
-        return module['revision'] >= self.__latest_revisions.get(module['name'])
+        return module.get('revision', '') >= self.__latest_revisions.get(module['name'], '')
