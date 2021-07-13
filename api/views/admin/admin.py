@@ -669,10 +669,9 @@ def hash_pw(password):
 
 
 def get_class_by_tablename(name):
-    with current_app.app_context():
-        for mapper in Base.registry.mappers:
-            if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
-                return mapper.class_
+    for mapper in Base.registry.mappers:
+        if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
+            return mapper.class_
 
 def get_input(body):
     if body is None:
