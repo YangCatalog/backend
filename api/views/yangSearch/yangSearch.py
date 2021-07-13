@@ -21,7 +21,7 @@ import json
 import os
 
 import re
-from flask import Blueprint, make_response, jsonify, abort, request
+from flask import Blueprint, make_response, jsonify, abort, request, current_app
 from pyang import plugin
 
 import utility.log as log
@@ -358,7 +358,7 @@ def show_node_with_revision(name, path, revision):
     :return: returns json to show node
     """
     properties = []
-    yc_gc.LOGGER.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
+    current_app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
         with open(get_curr_dir(__file__) + '/../../json/es/show_node.json', 'r') as f:

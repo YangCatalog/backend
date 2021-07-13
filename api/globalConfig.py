@@ -108,7 +108,7 @@ class YangCatalogApiGlobalConfig():
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
-        self.LOGGER = log.get_logger('api', '{}/yang.log'.format(self.logs_dir))
+        self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
 
         self.sender = Sender(self.logs_dir, self.temp_dir,
                              rabbitmq_host=rabbitmq_host,
@@ -194,7 +194,7 @@ class YangCatalogApiGlobalConfig():
         rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
-        self.LOGGER = log.get_logger('api', '{}/yang.log'.format(self.logs_dir))
+        self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
         self.sender = Sender(self.logs_dir, self.temp_dir,
                              rabbitmq_host=rabbitmq_host,
                              rabbitmq_port=rabbitmq_port,

@@ -29,7 +29,7 @@ import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, Response, abort, jsonify, make_response, request, escape
+from flask import Blueprint, Response, abort, jsonify, make_response, request, escape, current_app
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
 from utility.util import context_check_update_from, get_curr_dir
@@ -59,14 +59,14 @@ def fast_search():
 
     limit = 1000000
     payload = request.json
-    yc_gc.LOGGER.info(payload)
+    current_app.logger.info(payload)
     if 'search' not in payload:
         abort(400, description='You must specify a "search" argument')
     try:
         count = 0
         search_res, limit_reached = inde.do_search(payload, yc_gc.es_host,
                                                    yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
-                                                   yc_gc.LOGGER)
+                                                   current_app.logger)
         if search_res is None and limit_reached is None:
             return abort(400, description='Search is too broad. Please search for something more specific')
         res = []
@@ -96,7 +96,7 @@ def fast_search():
                             mod_meta = search_module(m_name, m_revision.replace('02-28', '02-29'), m_organization)
                         if mod_meta.status_code == 404:
                             not_founds.append(mod_sig)
-                            yc_gc.LOGGER.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
+                            current_app.logger.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
                             res_row = {'module': {'error': 'no {}@{} in API'.format(m_name, m_revision)}}
                             res.append(res_row)
                             continue
@@ -153,7 +153,7 @@ def search(value: str):
             :return response to the request.
     """
     path = value
-    yc_gc.LOGGER.info('Searching for {}'.format(value))
+    current_app.logger.info('Searching for {}'.format(value))
     split = value.split('/')[:-1]
     key = '/'.join(value.split('/')[:-1])
     value = value.split('/')[-1]
@@ -226,7 +226,7 @@ def rpc_search(body: dict = None):
     if body is None:
         body = request.json
         from_api = True
-    yc_gc.LOGGER.info('Searching and filtering modules based on RPC {}'
+    current_app.logger.info('Searching and filtering modules based on RPC {}'
                       .format(json.dumps(body)))
     data = modules_data().get('module', {})
     body = body.get('input')
@@ -667,7 +667,7 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
         with open(schema1, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_1_content = f.read()
     except FileNotFoundError:
-        yc_gc.LOGGER.warn('File {}@{}.yang was not found.'.format(name1, revision1))
+        current_app.logger.warn('File {}@{}.yang was not found.'.format(name1, revision1))
 
     with open('{}/{}'.format(yc_gc.diff_file_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_1_content))
@@ -678,7 +678,7 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
         with open(schema2, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_2_content = f.read()
     except FileNotFoundError:
-        yc_gc.LOGGER.warn('File {}@{}.yang was not found.'.format(name2, revision2))
+        current_app.logger.warn('File {}@{}.yang was not found.'.format(name2, revision2))
     with open('{}/{}'.format(yc_gc.diff_file_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_2_content))
     tree1 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name1)
@@ -944,7 +944,7 @@ def search_vendor_statistics(vendor: str):
             :return statistics of the vendor's os-types, os-versions and platforms
             :rtype dict
     """
-    yc_gc.LOGGER.info('Searching for vendors')
+    current_app.logger.info('Searching for vendors')
     data = vendors_data(False).get('vendor', {})
     ven_data = None
     for d in data:
@@ -987,7 +987,7 @@ def search_vendors(value: str):
                 ends with /value searched for
             :return response to the request.
     """
-    yc_gc.LOGGER.info('Searching for specific vendors {}'.format(value))
+    current_app.logger.info('Searching for specific vendors {}'.format(value))
     vendors_data = get_vendors().json
 
     if 'vendor/' in value:
@@ -1055,7 +1055,7 @@ def search_module(name: str, revision: str, organization: str):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    yc_gc.LOGGER.info('Searching for module {}, {}, {}'.format(name, revision, organization))
+    current_app.logger.info('Searching for module {}, {}, {}'.format(name, revision, organization))
     module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization))
     if module_data is not None:
         module_data = module_data.decode('utf-8')
@@ -1070,7 +1070,7 @@ def get_modules():
     """Search for all the modules populated in confd
         :return response to the request with all the modules
     """
-    yc_gc.LOGGER.info('Searching for modules')
+    current_app.logger.info('Searching for modules')
     data = json.dumps(modules_data())
     if data is None or data == '{}':
         return abort(404, description="No module is loaded")
@@ -1082,7 +1082,7 @@ def get_vendors():
     """Search for all the vendors populated in confd
         :return response to the request with all the vendors
     """
-    yc_gc.LOGGER.info('Searching for vendors')
+    current_app.logger.info('Searching for vendors')
     data = json.dumps(vendors_data())
     if data is None or data == '{}':
         return abort(404, description="No vendor is loaded")
@@ -1094,7 +1094,7 @@ def get_catalog():
     """Search for a all the data populated in confd
         :return response to the request with all the data
     """
-    yc_gc.LOGGER.info('Searching for catalog data')
+    current_app.logger.info('Searching for catalog data')
     data = json.dumps(catalog_data())
     if data is None or data == '{}':
         return abort(404, description='No data loaded to YangCatalog')
@@ -1386,7 +1386,7 @@ def create_bootstrap_info():
 
 
 def create_bootstrap_warning(text: str, message: str):
-    yc_gc.LOGGER.info('Rendering bootstrap warning data')
+    current_app.logger.info('Rendering bootstrap warning data')
     context = {'warn_text': text, 'warn_message': message}
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/warning.html')
 
@@ -1395,7 +1395,7 @@ def create_bootstrap_warning(text: str, message: str):
 
 
 def create_bootstrap_danger(message: str):
-    yc_gc.LOGGER.info('Rendering bootstrap danger data')
+    current_app.logger.info('Rendering bootstrap danger data')
     context = {'danger_message': message}
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
 
