@@ -19,14 +19,13 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
 import os
-
 import re
-from flask import Blueprint, make_response, jsonify, abort, request
-from pyang import plugin
 
 import utility.log as log
 from api.globalConfig import yc_gc
 from api.views.yangSearch.elkSearch import ElkSearch
+from flask import Blueprint, abort, jsonify, make_response, request
+from pyang import plugin
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
@@ -746,7 +745,7 @@ def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False)
                 path_list = jsont['path'].split('/')[1:]
                 path = ''
                 for schema in enumerate(pass_on_schemas):
-                    path = '{}{}?{}/'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                    path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
                 node['data']['show_node_path'] = path
                 pass_on_schemas.pop()
     elif jsont.get('children') is not None:
