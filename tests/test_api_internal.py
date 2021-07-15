@@ -24,6 +24,7 @@ import json
 
 from api.globalConfig import yc_gc
 from api.yangCatalogApi import application
+from api.authentication.auth import auth
 
 
 class TestApiInternalClass(unittest.TestCase):
@@ -32,6 +33,30 @@ class TestApiInternalClass(unittest.TestCase):
         super(TestApiInternalClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
         self.client = application.test_client()
+
+    @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock(return_value=1))
+    def test_trigger_ietf_pull(self):
+        auth.hash_password(lambda: True)
+        auth.get_password(lambda: True)
+        result = self.client.get('api/ietf', auth=('admin', 'admin'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock(return_value=1))
+    def test_trigger_ietf_pull_not_admin(self):
+        auth.hash_password(lambda: True)
+        auth.get_password(lambda: True)
+        result = self.client.get('api/ietf', auth=('user', 'user'))
+
+        self.assertEqual(result.status_code, 401)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'User must be admin')
 
     @mock.patch('requests.post')
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
