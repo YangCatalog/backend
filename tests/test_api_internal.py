@@ -36,8 +36,8 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull(self):
-        auth.hash_password(lambda: True)
-        auth.get_password(lambda: True)
+        auth.hash_password(lambda _: 'True')
+        auth.get_password(lambda _: 'True')
         result = self.client.get('api/ietf', auth=('admin', 'admin'))
 
         self.assertEqual(result.status_code, 202)
@@ -48,8 +48,8 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull_not_admin(self):
-        auth.hash_password(lambda: True)
-        auth.get_password(lambda: True)
+        auth.hash_password(lambda _: 'True')
+        auth.get_password(lambda _: 'True')
         result = self.client.get('api/ietf', auth=('user', 'user'))
 
         self.assertEqual(result.status_code, 401)
@@ -268,3 +268,6 @@ class TestApiInternalClass(unittest.TestCase):
         data = result.json
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Statistics file has not been generated yet')
+
+if __name__ == "__main__":
+    unittest.main()

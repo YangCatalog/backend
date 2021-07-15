@@ -39,8 +39,8 @@ app = YcJobs('ycJobs', __name__)
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@auth.login_required
 @app.route('/ietf', methods=['GET'])
+@auth.login_required
 def trigger_ietf_pull():
     username = request.authorization['username']
     if username != 'admin':
