@@ -474,7 +474,7 @@ def get_yang_catalog_help():
             continue
         if m.get('argument') is not None:
             if m.get('description') is not None:
-                help_text = m.get('description')
+                help_text = m.get('description').replace('\\n', '\n')
             nprops = json.loads(m['properties'])
             for prop in nprops:
                 if prop.get('type') is not None:
@@ -483,8 +483,8 @@ def get_yang_catalog_help():
                             if child.get('enum') and child['enum']['has_children']:
                                 for echild in child['enum']['children']:
                                     if echild.get('description') is not None:
-                                        description = echild['description']['value'].replace('\n', "<br/>\r\n")
-                                        help_text += "<br/>\r\n<br/>\r\n{} : {}".format(child['enum']['value'],
+                                        description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
+                                        help_text += "<br/>\r\n<br/>\r\n{}: {}".format(child['enum']['value'],
                                                                                         description)
 
                 break
@@ -699,7 +699,7 @@ def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False)
     }
     node['data']['text'] = jsont['name']
     if jsont.get('description') is not None:
-        node['data']['description'] = jsont['description'].replace('\n', ' ')
+        node['data']['description'] = jsont['description'].replace('\\n', '\n')
     else:
         node['data']['description'] = jsont['name']
     if pass_on_schemas is None:
