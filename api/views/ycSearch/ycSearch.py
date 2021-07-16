@@ -68,7 +68,7 @@ def fast_search():
                                                    yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
                                                    yc_gc.LOGGER)
         if search_res is None and limit_reached is None:
-            return abort(400, description='Search is too broad. Please search for something more specific')
+            abort(400, description='Search is too broad. Please search for something more specific')
         res = []
         found_modules = {}
         rejects = []
@@ -138,9 +138,9 @@ def fast_search():
                 rejects.append(mod_sig)
             if count >= limit:
                 break
-        return jsonify({'results': res, 'limit_reched': limit_reached})
+        return {'results': res, 'limit_reched': limit_reached}
     except Exception as e:
-        return make_response(jsonify({'error': str(e)}), 500)
+        return ({'error': str(e)}, 500)
 
 
 @app.route('/search/<path:value>', methods=['GET'])
@@ -164,7 +164,7 @@ def search(value: str):
         if key == module_key:
             data = modules_data().get('module')
             if data is None:
-                return abort(404, description='No module found in confd database')
+                abort(404, description='No module found in confd database')
             passed_data = []
             for module in data:
                 count = -1
@@ -173,14 +173,14 @@ def search(value: str):
             if len(passed_data) > 0:
                 modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
                     .decode(json.dumps(passed_data))
-                return Response(json.dumps({
+                return {
                     'yang-catalog:modules': {
                         'module': modules
                     }
-                }), mimetype='application/json')
+                }
             else:
-                return abort(404, description='No module found using provided input data')
-    return abort(400, description='Search on path {} is not supported'.format(path))
+                abort(404, description='No module found using provided input data')
+    abort(400, description='Search on path {} is not supported'.format(path))
 
 
 @app.route('/search-filter/<leaf>', methods=['POST'])
@@ -189,20 +189,19 @@ def rpc_search_get_one(leaf: str):
     """
     body = request.json
     if body is None:
-        return abort(400, description='body of request is empty')
+        abort(400, description='body of request is empty')
     if body.get('input') is None:
-        return abort(400, description='body of request need to start with input')
+        abort(400, description='body of request need to start with input')
 
     recursive = body['input'].get('recursive')
     if recursive:
         body['input'].pop('recursive')
 
-    response = rpc_search(body)
-    data = json.loads(response.data)
+    data = rpc_search(body)
     modules = data['yang-catalog:modules']['module']
 
     if len(modules) == 0:
-        return abort(404, description='No module found in confd database')
+        abort(404, description='No module found in confd database')
     output = set()
     resolved = set()
     for module in modules:
@@ -212,10 +211,9 @@ def rpc_search_get_one(leaf: str):
         if metadata is not None:
             output.add(metadata)
     if len(output) == 0:
-        return abort(404, description='No module found using provided input data')
+        abort(404, description='No module found using provided input data')
     else:
-        return Response(json.dumps({'output': {leaf: list(output)}}),
-                        mimetype='application/json', status=200)
+        return {'output': {leaf: list(output)}}
 
 
 @app.route('/search-filter', methods=['POST'])
@@ -583,17 +581,17 @@ def rpc_search(body: dict = None):
                 if passed:
                     passed_modules.append(module)
         if from_api and len(passed_modules) == 0:
-            return abort(404, description='No modules found with provided input')
+            abort(404, description='No modules found with provided input')
         else:
             modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
                 .decode(json.dumps(passed_modules))
-            return Response(json.dumps({
+            return {
                 'yang-catalog:modules': {
                     'module': modules
                 }
-            }), mimetype='application/json')
+            }
     else:
-        return abort(400, description='body request has to start with "input" container')
+        abort(400, description='body request has to start with "input" container')
 
 
 @app.route('/contributors', methods=['GET'])
@@ -606,8 +604,7 @@ def get_organizations():
         if module['organization'] != 'example' and module['organization'] != 'missing element':
             orgs.add(module['organization'])
     orgs = list(orgs)
-    response = make_response(jsonify({'contributors': orgs}), 200)
-    return response
+    return {'contributors': orgs}
 
 
 @app.route('/services/file1=<name1>@<revision1>/check-update-from/file2=<name2>@<revision2>', methods=['GET'])
@@ -766,23 +763,23 @@ def get_common():
     """
     body = request.json
     if body is None:
-        return abort(400, description='body of request is empty')
+        abort(400, description='body of request is empty')
     if body.get('input') is None:
-        return abort(400, description='body of request need to start with input')
+        abort(400, description='body of request need to start with input')
     if body['input'].get('first') is None or body['input'].get('second') is None:
-        return abort(400, description='body of request need to contain first and second container')
+        abort(400, description='body of request need to contain first and second container')
     response_first = rpc_search({'input': body['input']['first']})
     response_second = rpc_search({'input': body['input']['second']})
 
     data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
-        .decode(response_first.get_data(as_text=True))
+        .decode(json.dumps(response_first))
     modules_first = data['yang-catalog:modules']['module']
     data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
-        .decode(response_second.get_data(as_text=True))
+        .decode(json.dumps(response_second))
     modules_second = data['yang-catalog:modules']['module']
 
     if len(modules_first) == 0 or len(modules_second) == 0:
-        return abort(404, description='No hits found either in first or second input')
+        abort(404, description='No hits found either in first or second input')
 
     output_modules_list = []
     names = []
@@ -793,10 +790,8 @@ def get_common():
                     names.append(mod_first['name'])
                     output_modules_list.append(mod_first)
     if len(output_modules_list) == 0:
-        return abort(404, description='No common modules found within provided input')
-    return Response(json.dumps({'output': output_modules_list}),
-                    mimetype='application/json')
-
+        abort(404, description='No common modules found within provided input')
+    return {'output': output_modules_list}
 
 @app.route('/compare', methods=['POST'])
 def compare():
@@ -805,21 +800,21 @@ def compare():
     """
     body = request.json
     if body is None:
-        return abort(400, description='body of request is empty')
+        abort(400, description='body of request is empty')
     if body.get('input') is None:
-        return abort(400, description='body of request need to start with input')
+        abort(400, description='body of request need to start with input')
     if body['input'].get('old') is None or body['input'].get('new') is None:
-        return abort(400, description='body of request need to contain new and old container')
+        abort(400, description='body of request need to contain new and old container')
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
-    data = json.loads(response_new.data)
+    data = response_new
     modules_new = data['yang-catalog:modules']['module']
-    data = json.loads(response_old.data)
+    data = response_old
     modules_old = data['yang-catalog:modules']['module']
 
     if len(modules_new) == 0 or len(modules_old) == 0:
-        return abort(404, description='No hits found either in old or new input')
+        abort(404, description='No hits found either in old or new input')
 
     new_mods = []
     for mod_new in modules_new:
@@ -842,9 +837,9 @@ def compare():
             mod_new['reason-to-show'] = 'Different revision'
             new_mods.append(mod_new)
     if len(new_mods) == 0:
-        return abort(404, description='No new modules or modules with different revisions found')
+        abort(404, description='No new modules or modules with different revisions found')
     output = {'output': new_mods}
-    return make_response(jsonify(output), 200)
+    return output
 
 
 @app.route('/check-semantic-version', methods=['POST'])
@@ -856,21 +851,21 @@ def check_semver():
     """
     body = request.json
     if body is None:
-        return abort(400, description='body of request is empty')
+        abort(400, description='body of request is empty')
     if body.get('input') is None:
-        return abort(400, description='body of request need to start with input')
+        abort(400, description='body of request need to start with input')
     if body['input'].get('old') is None or body['input'].get('new') is None:
-        return abort(400, description='body of request need to contain new and old container')
+        abort(400, description='body of request need to contain new and old container')
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
-    data = json.loads(response_new.data)
+    data = response_new
     modules_new = data['yang-catalog:modules']['module']
-    data = json.loads(response_old.data)
+    data = response_old
     modules_old = data['yang-catalog:modules']['module']
 
     if len(modules_new) == 0 or len(modules_old) == 0:
-        return abort(404, description='No hits found either in old or new input')
+        abort(404, description='No hits found either in old or new input')
 
     output_modules_list = []
     for mod_old in modules_old:
@@ -931,9 +926,9 @@ def check_semver():
                     output_mod['yang-module-diff'] = diff
                     output_modules_list.append(output_mod)
     if len(output_modules_list) == 0:
-        return abort(404, description='No different semantic versions with provided input')
+        abort(404, description='No different semantic versions with provided input')
     output = {'output': output_modules_list}
-    return make_response(jsonify(output), 200)
+    return output
 
 
 @app.route('/search/vendor/<vendor>', methods=['GET'])
@@ -975,7 +970,7 @@ def search_vendor_statistics(vendor: str):
         os_types[key] = {}
         for key2, val in os_type[key].items():
             os_types[key][key2] = list(os_type[key][key2])
-    return Response(json.dumps(os_types), mimetype='application/json')
+    return os_types
 
 
 @app.route('/search/vendors/<path:value>', methods=['GET'])
@@ -988,7 +983,7 @@ def search_vendors(value: str):
             :return response to the request.
     """
     yc_gc.LOGGER.info('Searching for specific vendors {}'.format(value))
-    vendors_data = get_vendors().json
+    vendors_data = get_vendors()
 
     if 'vendor/' in value:
         found = False
@@ -998,9 +993,9 @@ def search_vendors(value: str):
                 vendors_data = vendor
                 found = True
         if found == False:
-            return abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No vendors found on path {}'.format(value))
     else:
-        return Response(json.dumps(vendors_data), mimetype='application/json')
+        return vendors_data
 
     if 'platform/' in value:
         found = False
@@ -1010,10 +1005,10 @@ def search_vendors(value: str):
                 vendors_data = platform
                 found = True
         if found == False:
-            return abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No vendors found on path {}'.format(value))
     else:
         vendors_data = {'yang-catalog:vendor': [vendors_data]}
-        return Response(json.dumps(vendors_data), mimetype='application/json')
+        return vendors_data
 
     if 'software-version/' in value:
         found = False
@@ -1023,10 +1018,10 @@ def search_vendors(value: str):
                 vendors_data = software_version
                 found = True
         if found == False:
-            return abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No vendors found on path {}'.format(value))
     else:
         vendors_data = {'yang-catalog:platform': [vendors_data]}
-        return Response(json.dumps(vendors_data), mimetype='application/json')
+        return vendors_data
 
     if 'software-flavor/' in value:
         found = False
@@ -1036,13 +1031,13 @@ def search_vendors(value: str):
                 vendors_data = software_flavor
                 found = True
         if found == False:
-            return abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No vendors found on path {}'.format(value))
         else:
             vendors_data = {'yang-catalog:software-flavor': [vendors_data]}
-            return Response(json.dumps(vendors_data), mimetype='application/json')
+            return vendors_data
     else:
         vendors_data = {'yang-catalog:software-version': [vendors_data]}
-        return Response(json.dumps(vendors_data), mimetype='application/json')
+        return vendors_data
 
 
 @app.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
@@ -1059,10 +1054,10 @@ def search_module(name: str, revision: str, organization: str):
     module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization))
     if module_data is not None:
         module_data = module_data.decode('utf-8')
-        return Response(json.dumps({'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
+        return {'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
                                                .decode(module_data)]
-                                    }), mimetype='application/json')
-    return abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
+                                    }
+    abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
 
 
 @app.route('/search/modules', methods=['GET'])
@@ -1071,10 +1066,10 @@ def get_modules():
         :return response to the request with all the modules
     """
     yc_gc.LOGGER.info('Searching for modules')
-    data = json.dumps(modules_data())
-    if data is None or data == '{}':
-        return abort(404, description="No module is loaded")
-    return Response(data, mimetype='application/json')
+    data = modules_data()
+    if data is None or data == {}:
+        abort(404, description="No module is loaded")
+    return data
 
 
 @app.route('/search/vendors', methods=['GET'])
@@ -1083,10 +1078,10 @@ def get_vendors():
         :return response to the request with all the vendors
     """
     yc_gc.LOGGER.info('Searching for vendors')
-    data = json.dumps(vendors_data())
-    if data is None or data == '{}':
-        return abort(404, description="No vendor is loaded")
-    return Response(data, mimetype='application/json')
+    data = vendors_data()
+    if data is None or data == {}:
+        abort(404, description="No vendor is loaded")
+    return data
 
 
 @app.route('/search/catalog', methods=['GET'])
@@ -1095,11 +1090,11 @@ def get_catalog():
         :return response to the request with all the data
     """
     yc_gc.LOGGER.info('Searching for catalog data')
-    data = json.dumps(catalog_data())
-    if data is None or data == '{}':
-        return abort(404, description='No data loaded to YangCatalog')
+    data = catalog_data()
+    if data is None or data == {}:
+        abort(404, description='No data loaded to YangCatalog')
     else:
-        return Response(data, mimetype='application/json')
+        return data
 
 
 @app.route('/services/tree/<name>@<revision>.yang', methods=['GET'])
@@ -1298,7 +1293,7 @@ def search_recursive(output: set, module: dict, leaf: str, resolved: set):
     if r_name not in resolved:
         resolved.add(r_name)
         response = rpc_search({'input': {'dependencies': [{'name': r_name}]}})
-        modules = json.loads(response.get_data(as_text=True)).get('yang-catalog:modules')
+        modules = response.get('yang-catalog:modules')
         if modules is None:
             return
         modules = modules.get('module')
