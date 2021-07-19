@@ -23,13 +23,13 @@ import io
 import json
 import os
 import re
-from copy import deepcopy
+from operator import eq, contains
 
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, Response, abort, jsonify, make_response, request, escape
+from flask import Blueprint, Response, abort, request, escape
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
 from utility.util import context_check_update_from, get_curr_dir
@@ -215,7 +215,6 @@ def rpc_search_get_one(leaf: str):
     else:
         return {'output': {leaf: list(output)}}
 
-
 @app.route('/search-filter', methods=['POST'])
 def rpc_search(body: dict = None):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
@@ -229,362 +228,38 @@ def rpc_search(body: dict = None):
     data = modules_data().get('module', {})
     body = body.get('input')
     if body:
-        partial = body.get('partial')
-        if partial is None:
-            partial = False
-        passed_modules = []
-        if partial:
-            for module in data:
-                passed = True
-                if 'dependencies' in body:
-                    submodules = deepcopy(module.get('dependencies'))
-                    if submodules is None:
-                        continue
-                    for sub in body['dependencies']:
-                        found = True
-                        name = sub.get('name')
-                        revision = sub.get('revision')
-                        schema = sub.get('schema')
-                        for submodule in submodules:
-                            found = True
-                            if name:
-                                if name not in submodule['name']:
-                                    found = False
-                            if not found:
-                                continue
-                            if revision:
-                                if revision not in submodule['revision']:
-                                    found = False
-                            if not found:
-                                continue
-                            if schema:
-                                if schema not in submodule['schema']:
-                                    found = False
-                            if found:
-                                break
+        matched_modules = []
+        operator = contains if body.get('partial') is not None else eq
 
-                        if not found:
-                            passed = False
+        def matches(module, body):
+            if not isinstance(module, type(body)):
+                return False
+            if isinstance(body, str):
+                return operator(module, body)
+            elif isinstance(body, list):
+                for i in body:
+                    for j in module:
+                        if matches(j, i):
                             break
-                if not passed:
-                    continue
-                if 'dependents' in body:
-                    submodules = deepcopy(module.get('dependents'))
-                    if submodules is None:
-                        continue
-                    for sub in body['dependents']:
-                        found = True
-                        name = sub.get('name')
-                        revision = sub.get('revision')
-                        schema = sub.get('schema')
-                        for submodule in submodules:
-                            found = True
-                            if name:
-                                if name not in submodule['name']:
-                                    found = False
-                            if not found:
-                                continue
-                            if revision:
-                                if revision not in submodule['revision']:
-                                    found = False
-                            if not found:
-                                continue
-                            if schema:
-                                if schema not in submodule['schema']:
-                                    found = False
-                            if found:
-                                break
+                    else:
+                        return False
+                return True
+            elif isinstance(body, dict):
+                for key in body:
+                    if not matches(module.get(key), body[key]):
+                        break
+                else:
+                    return True
+                return False
 
-                        if not found:
-                            passed = False
-                            break
-                if not passed:
-                    continue
-                if 'submodule' in body:
-                    submodules = deepcopy(module.get('submodule'))
-                    if submodules is None:
-                        continue
-                    for sub in body['submodule']:
-                        found = True
-                        name = sub.get('name')
-                        revision = sub.get('revision')
-                        schema = sub.get('schema')
-                        for submodule in submodules:
-                            found = True
-                            if name:
-                                if name not in submodule['name']:
-                                    found = False
-                            if not found:
-                                continue
-                            if revision:
-                                if revision not in submodule['revision']:
-                                    found = False
-                            if not found:
-                                continue
-                            if schema:
-                                if schema not in submodule['schema']:
-                                    found = False
-                            if found:
-                                break
-
-                        if not found:
-                            passed = False
-                            break
-                if not passed:
-                    continue
-                if 'implementations' in body:
-                    implementations = deepcopy(module.get('implementations'))
-                    if implementations is None:
-                        continue
-                    passed = True
-                    for imp in body['implementations']['implementation']:
-                        if not passed:
-                            break
-                        for leaf in imp:
-                            found = False
-                            impls = []
-                            if leaf == 'deviation':
-                                for implementation in implementations['implementation']:
-                                    deviations = implementation.get('deviation')
-                                    if deviations is None:
-                                        continue
-                                    for dev in imp[leaf]:
-                                        found = True
-                                        name = dev.get('name')
-                                        revision = dev.get('revision')
-                                        for deviation in deviations:
-                                            found = True
-                                            if name:
-                                                if name not in deviation['name']:
-                                                    found = False
-                                            if not found:
-                                                continue
-                                            if revision:
-                                                if revision not in deviation['revision']:
-                                                    found = False
-                                            if found:
-                                                break
-                                        if not found:
-                                            break
-                                    if not found:
-                                        continue
-                                    else:
-                                        impls.append(implementation)
-                                if not found:
-                                    passed = False
-                                    break
-                            elif leaf == 'feature':
-                                for implementation in implementations['implementation']:
-                                    if implementation.get(leaf) is None:
-                                        continue
-                                    if imp[leaf] in implementation[leaf]:
-                                        found = True
-                                        impls.append(implementation)
-                                        continue
-                                if not found:
-                                    passed = False
-                            else:
-                                for implementation in implementations['implementation']:
-                                    if implementation.get(leaf) is None:
-                                        continue
-                                    if imp[leaf] in implementation[leaf]:
-                                        found = True
-                                        impls.append(implementation)
-                                        continue
-                                if not found:
-                                    passed = False
-                            if not passed:
-                                break
-                            implementations['implementation'] = impls
-                if not passed:
-                    continue
-                for leaf in body:
-                    if leaf != 'implementations' and leaf != 'submodule':
-                        module_leaf = module.get(leaf)
-                        if module_leaf:
-                            if body[leaf] not in module_leaf:
-                                passed = False
-                                break
-                if passed:
-                    passed_modules.append(module)
-        else:
-            for module in data:
-                passed = True
-                if 'dependencies' in body:
-                    submodules = deepcopy(module.get('dependencies'))
-                    if submodules is None:
-                        continue
-                    for sub in body['dependencies']:
-                        found = True
-                        name = sub.get('name')
-                        revision = sub.get('revision')
-                        schema = sub.get('schema')
-                        for submodule in submodules:
-                            found = True
-                            if name:
-                                if name != submodule['name']:
-                                    found = False
-                            if not found:
-                                continue
-                            if revision:
-                                if revision != submodule['revision']:
-                                    found = False
-                            if not found:
-                                continue
-                            if schema:
-                                if schema != submodule['schema']:
-                                    found = False
-                            if found:
-                                break
-
-                        if not found:
-                            passed = False
-                            break
-                if not passed:
-                    continue
-                if 'dependents' in body:
-                    submodules = deepcopy(module.get('dependents'))
-                    if submodules is None:
-                        continue
-                    for sub in body['dependents']:
-                        found = True
-                        name = sub.get('name')
-                        revision = sub.get('revision')
-                        schema = sub.get('schema')
-                        for submodule in submodules:
-                            found = True
-                            if name:
-                                if name != submodule['name']:
-                                    found = False
-                            if not found:
-                                continue
-                            if revision:
-                                if revision != submodule['revision']:
-                                    found = False
-                            if not found:
-                                continue
-                            if schema:
-                                if schema != submodule['schema']:
-                                    found = False
-                            if found:
-                                break
-
-                        if not found:
-                            passed = False
-                            break
-                if not passed:
-                    continue
-                if 'submodule' in body:
-                    submodules = deepcopy(module.get('submodule'))
-                    if submodules is None:
-                        continue
-                    for sub in body['submodule']:
-                        found = True
-                        name = sub.get('name')
-                        revision = sub.get('revision')
-                        schema = sub.get('schema')
-                        for submodule in submodules:
-                            found = True
-                            if name:
-                                if name != submodule['name']:
-                                    found = False
-                            if not found:
-                                continue
-                            if revision:
-                                if revision != submodule['revision']:
-                                    found = False
-                            if not found:
-                                continue
-                            if schema:
-                                if schema != submodule['schema']:
-                                    found = False
-                            if found:
-                                break
-
-                        if not found:
-                            passed = False
-                            break
-                if not passed:
-                    continue
-                if 'implementations' in body:
-                    implementations = deepcopy(module.get('implementations'))
-                    if implementations is None:
-                        continue
-                    passed = True
-                    for imp in body['implementations']['implementation']:
-                        if not passed:
-                            break
-                        for leaf in imp:
-                            found = False
-                            impls = []
-                            if leaf == 'deviation':
-                                for implementation in implementations['implementation']:
-                                    deviations = implementation.get('deviation')
-                                    if deviations is None:
-                                        continue
-                                    for dev in imp[leaf]:
-                                        found = True
-                                        name = dev.get('name')
-                                        revision = dev.get('revision')
-                                        for deviation in deviations:
-                                            found = True
-                                            if name:
-                                                if name != deviation['name']:
-                                                    found = False
-                                            if not found:
-                                                continue
-                                            if revision:
-                                                if revision != deviation['revision']:
-                                                    found = False
-                                            if found:
-                                                break
-                                        if not found:
-                                            break
-                                    if not found:
-                                        continue
-                                    else:
-                                        impls.append(implementation)
-                                if not found:
-                                    passed = False
-                                    break
-                            elif leaf == 'feature':
-                                for implementation in implementations['implementation']:
-                                    if implementation.get(leaf) is None:
-                                        continue
-                                    if imp[leaf] == implementation[leaf]:
-                                        found = True
-                                        impls.append(implementation)
-                                        continue
-                                if not found:
-                                    passed = False
-                            else:
-                                for implementation in implementations['implementation']:
-                                    if implementation.get(leaf) is None:
-                                        continue
-                                    if imp[leaf] == implementation[leaf]:
-                                        found = True
-                                        impls.append(implementation)
-                                        continue
-                                if not found:
-                                    passed = False
-                            if not passed:
-                                break
-                            implementations['implementation'] = impls
-                if not passed:
-                    continue
-                for leaf in body:
-                    if (leaf != 'implementations' and leaf != 'submodule'
-                            and leaf != 'dependencies' and leaf != 'dependents'):
-                        if body[leaf] != module.get(leaf):
-                            passed = False
-                            break
-                if passed:
-                    passed_modules.append(module)
-        if from_api and len(passed_modules) == 0:
+        for module in data:
+            if matches(module, body):
+                matched_modules.append(module)
+        if from_api and len(matched_modules) == 0:
             abort(404, description='No modules found with provided input')
         else:
             modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-                .decode(json.dumps(passed_modules))
+                .decode(json.dumps(matched_modules))
             return {
                 'yang-catalog:modules': {
                     'module': modules
@@ -808,10 +483,8 @@ def compare():
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
-    data = response_new
-    modules_new = data['yang-catalog:modules']['module']
-    data = response_old
-    modules_old = data['yang-catalog:modules']['module']
+    modules_new = response_new['yang-catalog:modules']['module']
+    modules_old = response_old['yang-catalog:modules']['module']
 
     if len(modules_new) == 0 or len(modules_old) == 0:
         abort(404, description='No hits found either in old or new input')
@@ -859,10 +532,8 @@ def check_semver():
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
-    data = response_new
-    modules_new = data['yang-catalog:modules']['module']
-    data = response_old
-    modules_old = data['yang-catalog:modules']['module']
+    modules_new = response_new['yang-catalog:modules']['module']
+    modules_old = response_old['yang-catalog:modules']['module']
 
     if len(modules_new) == 0 or len(modules_old) == 0:
         abort(404, description='No hits found either in old or new input')
