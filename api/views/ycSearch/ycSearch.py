@@ -446,12 +446,8 @@ def get_common():
     response_first = rpc_search({'input': body['input']['first']})
     response_second = rpc_search({'input': body['input']['second']})
 
-    data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
-        .decode(json.dumps(response_first))
-    modules_first = data['yang-catalog:modules']['module']
-    data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict)\
-        .decode(json.dumps(response_second))
-    modules_second = data['yang-catalog:modules']['module']
+    modules_first = response_first['yang-catalog:modules']['module']
+    modules_second = response_second['yang-catalog:modules']['module']
 
     if len(modules_first) == 0 or len(modules_second) == 0:
         abort(404, description='No hits found either in first or second input')
