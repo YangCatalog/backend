@@ -35,7 +35,7 @@ from pathlib import Path
 import MySQLdb
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, make_response, redirect, request
+from flask import Blueprint, abort, jsonify, make_response, redirect, request, current_app
 from flask_cors import CORS
 from utility.util import create_signature
 
@@ -74,7 +74,7 @@ def logout():
 
 @app.route('/api/admin/ping')
 def ping():
-    yc_gc.LOGGER.info('ping {}'.format(yc_gc.oidc.user_loggedin))
+    current_app.logger.info('ping {}'.format(yc_gc.oidc.user_loggedin))
     if yc_gc.oidc.user_loggedin:
         response = {'info': 'Success'}
     else:
@@ -90,7 +90,7 @@ def check():
 
 @app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
-    yc_gc.LOGGER.info('Reading admin file {}'.format(direc))
+    current_app.logger.info('Reading admin file {}'.format(direc))
     try:
         file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
     except:
@@ -108,7 +108,7 @@ def read_admin_file(direc):
 @app.route("/api/admin/directory-structure", defaults={"direc": ""}, methods=['DELETE'])
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
-    yc_gc.LOGGER.info('Deleting admin file {}'.format(direc))
+    current_app.logger.info('Deleting admin file {}'.format(direc))
     try:
         exist = os.path.exists('{}/{}'.format(yc_gc.var_yang, direc))
     except:
@@ -127,7 +127,7 @@ def delete_admin_file(direc):
 
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    yc_gc.LOGGER.info("Updating file on path {}".format(direc))
+    current_app.logger.info("Updating file on path {}".format(direc))
 
     body = request.json
     input = body.get('input')
@@ -193,7 +193,7 @@ def get_var_yang_directory_structure(direc):
             break
         return structure
 
-    yc_gc.LOGGER.info('Getting directory structure')
+    current_app.logger.info('Getting directory structure')
 
     ret = walk_through_dir('/var/yang/{}'.format(direc))
     response = {'info': 'Success',
@@ -203,7 +203,7 @@ def get_var_yang_directory_structure(direc):
 
 @app.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
-    yc_gc.LOGGER.info('Getting list of nginx files')
+    current_app.logger.info('Getting list of nginx files')
     files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
     files_final = ['sites-enabled/' + sub for sub in files]
     files_final.append('nginx.conf')
@@ -216,7 +216,7 @@ def read_yangcatalog_nginx_files():
 
 @app.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
-    yc_gc.LOGGER.info('Reading nginx file {}'.format(nginx_file))
+    current_app.logger.info('Reading nginx file {}'.format(nginx_file))
     with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
         nginx_config = f.read()
     response = {'info': 'Success',
@@ -226,7 +226,7 @@ def read_yangcatalog_nginx(nginx_file):
 
 @app.route('/api/admin/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
-    yc_gc.LOGGER.info('Reading yangcatalog config file')
+    current_app.logger.info('Reading yangcatalog config file')
 
     with open(yc_gc.config_path, 'r') as f:
         yangcatalog_config = f.read()
@@ -237,7 +237,7 @@ def read_yangcatalog_config():
 
 @app.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
-    yc_gc.LOGGER.info('Updating yangcatalog config file')
+    current_app.logger.info('Updating yangcatalog config file')
     body = request.json
     input = body.get('input')
     if input is None or input.get('data') is None:
@@ -261,7 +261,7 @@ def update_yangcatalog_config():
     code = response.status_code
 
     if code != 200 and code != 201 and code != 204:
-        yc_gc.LOGGER.error('could not send data to realod config. Reason: {}'
+        current_app.logger.error('could not send data to realod config. Reason: {}'
                            .format(response.text))
     else:
         resp['yang-search'] = response.json()['info']
@@ -280,7 +280,7 @@ def get_log_files():
                     filename = os.path.join(root, basename)
                     yield filename
 
-    yc_gc.LOGGER.info('Getting yangcatalog log files')
+    current_app.logger.info('Getting yangcatalog log files')
 
     files = find_files(yc_gc.logs_dir, '*.log*')
     resp = set()
@@ -303,7 +303,7 @@ def get_logs():
 
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
     time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-    yc_gc.LOGGER.info('Reading yangcatalog log file')
+    current_app.logger.info('Reading yangcatalog log file')
     if request.json is None:
         return abort(400, description='bad-request - body has to start with "input" and can not be empty')
 
@@ -346,7 +346,7 @@ def get_logs():
                 else:
                     break
 
-    yc_gc.LOGGER.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
+    current_app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
     whole_line = ''
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
@@ -533,7 +533,7 @@ def move_user():
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
             db.close()
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        current_app.logger.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     try:
         db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
@@ -558,7 +558,7 @@ def move_user():
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
             db.close()
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        current_app.logger.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     response = {'info': 'data successfully added to database users and removed from users_temp',
                 'data': body}
@@ -608,7 +608,7 @@ def create_sql_row(table):
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
             db.close()
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        current_app.logger.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
 
 
@@ -638,7 +638,7 @@ def delete_sql_row(table, unique_id):
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
             db.close()
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        current_app.logger.error("Cannot connect to database. MySQL error: {}".format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     if found:
         return make_response(jsonify({'info': 'id {} deleted successfully'.format(unique_id)}), 200)
@@ -681,10 +681,10 @@ def update_sql_row(table, unique_id):
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
             db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
     if found:
-        yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
+        current_app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return make_response(jsonify({'info': 'ID {} updated successfully'.format(unique_id)}), 200)
     else:
         return abort(404, description='ID {} not found in table {}'.format(unique_id, table))
@@ -703,7 +703,7 @@ def get_sql_rows(table):
         db.close()
 
     except MySQLdb.MySQLError as err:
-        yc_gc.LOGGER.error("Cannot connect to database. MySQL error: {}".format(err))
+        current_app.logger.error("Cannot connect to database. MySQL error: {}".format(err))
         if err.args[0] not in [1049, 2013]:
             db.close()
         return make_response(jsonify({'error': 'Server problem connecting to database'}), 500)
@@ -760,14 +760,14 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body['input'])]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
-    yc_gc.LOGGER.info('job_id {}'.format(job_id))
+    current_app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}), 202)
 
 
 @app.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery']
+                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery', 'reviseSemver']
     return make_response(jsonify({'data': scripts_names, 'info': 'Success'}), 200)
 
 
@@ -783,7 +783,7 @@ def get_disk_usage():
 
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
-    if script_name in ['populate', 'runCapabilities']:
+    if script_name in ['populate', 'runCapabilities', 'reviseSemver']:
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'

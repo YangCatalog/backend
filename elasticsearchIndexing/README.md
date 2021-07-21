@@ -1,14 +1,14 @@
 # YANG Search Data Maintenance
 
-All those scripts maintain the MySQL tables `modules` and `yindex`.
+All of those scripts maintain the MySQL tables `modules` and `yindex`.
 
 A cronjob is executed every minute and calls: `process-changed-mods.py --time -1`
 
 ## process-changed-mods.py
 
-Take on argument: the number of minutes to search for new modules.
+Takes as argument: the number of minutes to search for new modules.
 
-Read the JSON file YANG_CACHE_FILE for the list of modules (also making a .bak before truncating it to 0), it is actually the list of modules to be processed.
+Read the JSON file YANG_CACHE_FILE for the list of modules (also making a .bak before truncating it to 0), this is the list of modules to be processed.
 
 Read the JSON file YANG_DELETE_FILE for the list of deleted modules (also making a .bak before truncating it to 0), then request SQL to delete the rows related to deleted modules.
 
