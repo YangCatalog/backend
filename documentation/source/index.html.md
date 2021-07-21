@@ -1462,7 +1462,7 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 ```
 
 This endpoint serves to get output from pyang tool with option --check-update-from
-for all the modules between <first> and <second> filter. If module
+for all the modules between "old" and "new" filter. If module
 compilation failed it will give you only link to get diff in between
 two yang modules. if check-update-from has an output it will provide tree
 diff and output of the pyang together with diff between two files
@@ -1474,7 +1474,7 @@ diff and output of the pyang together with diff between two files
 ### Body Parameters
 
 Inside of the body we need to start with "input" container which needs
-to contain containers "first" and "second" to which we provide all the leafs
+to contain containers "old" and "new" to which we provide all the leafs
 with data that need to be filtered out of yangcatalog. All the leafs can
 be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
 
