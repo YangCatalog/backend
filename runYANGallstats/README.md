@@ -2,15 +2,15 @@ runYANGallStats
 ===============
 
 This package contains a python script to count all the yang
-files on provided directory
+files of the provided directory
 
-use --rootdir option to get count all yang files from path you 
+use the --rootdir option to count all yang files from a path you 
 provide
 
-use --excludedir option to exclude directory with modules which you don t 
-want to have in your counts
+use the --excludedir option to exclude a directory with modules which you don't 
+want to count
 
-use --excludekeyword option to exclude some keywords from the YANG module name.
+use the --excludekeyword option to exclude some keywords from the YANG module name.
  Example: show
  
-use --removedup option to remove duplicate YANG module. Default False.
+use the --removedup option to remove duplicate YANG modules. Default False.

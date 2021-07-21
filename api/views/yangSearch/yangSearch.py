@@ -19,14 +19,13 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
 import os
-
 import re
-from flask import Blueprint, make_response, jsonify, abort, request, current_app
-from pyang import plugin
 
 import utility.log as log
 from api.globalConfig import yc_gc
 from api.views.yangSearch.elkSearch import ElkSearch
+from flask import Blueprint, abort, jsonify, make_response, request
+from pyang import plugin
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
@@ -475,7 +474,7 @@ def get_yang_catalog_help():
             continue
         if m.get('argument') is not None:
             if m.get('description') is not None:
-                help_text = m.get('description')
+                help_text = m.get('description').replace('\\n', '\n')
             nprops = json.loads(m['properties'])
             for prop in nprops:
                 if prop.get('type') is not None:
@@ -484,8 +483,8 @@ def get_yang_catalog_help():
                             if child.get('enum') and child['enum']['has_children']:
                                 for echild in child['enum']['children']:
                                     if echild.get('description') is not None:
-                                        description = echild['description']['value'].replace('\n', "<br/>\r\n")
-                                        help_text += "<br/>\r\n<br/>\r\n{} : {}".format(child['enum']['value'],
+                                        description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
+                                        help_text += "<br/>\r\n<br/>\r\n{}: {}".format(child['enum']['value'],
                                                                                         description)
 
                 break
@@ -700,7 +699,7 @@ def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False)
     }
     node['data']['text'] = jsont['name']
     if jsont.get('description') is not None:
-        node['data']['description'] = jsont['description'].replace('\n', ' ')
+        node['data']['description'] = jsont['description'].replace('\\n', '\n')
     else:
         node['data']['description'] = jsont['name']
     if pass_on_schemas is None:
@@ -746,7 +745,7 @@ def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False)
                 path_list = jsont['path'].split('/')[1:]
                 path = ''
                 for schema in enumerate(pass_on_schemas):
-                    path = '{}{}?{}/'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                    path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
                 node['data']['show_node_path'] = path
                 pass_on_schemas.pop()
     elif jsont.get('children') is not None:
