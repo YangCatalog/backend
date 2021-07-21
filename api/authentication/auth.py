@@ -4,6 +4,8 @@ import sys
 
 import MySQLdb
 import requests
+from flask import current_app
+
 from api.globalConfig import yc_gc
 from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
@@ -49,7 +51,7 @@ def get_password(username: str):
     except MySQLdb.MySQLError as err:
         if err.args[0] not in [1049, 2013]:
             db.close()
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
         return None
 
 

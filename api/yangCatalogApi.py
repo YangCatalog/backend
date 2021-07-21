@@ -50,12 +50,15 @@ import sys
 import threading
 import time
 import uuid
+import stat
+import logging
 from datetime import datetime, timedelta
 from threading import Lock
 
 import requests
 from flask import (Flask, Response, abort, jsonify, make_response, redirect,
                    request)
+from flask.logging import default_handler
 from flask_cors import CORS
 from flask_oidc import OpenIDConnect, discovery
 
@@ -83,8 +86,6 @@ class MyFlask(Flask):
         self.release_locked = []
         self.secret_key = yc_gc.secret_key
         self.permanent_session_lifetime = timedelta(minutes=20)
-        yc_gc.LOGGER.debug('API initialized at ' + yc_gc.yangcatalog_api_prefix)
-        yc_gc.LOGGER.debug('Starting api')
 
     def process_response(self, response):
         response = super().process_response(response)
@@ -93,7 +94,7 @@ class MyFlask(Flask):
 
         try:
             if not 'admin' in request.path:
-                yc_gc.LOGGER.debug('after request response processing have {}'.format(request.special_id))
+                application.logger.debug('after request response processing have {}'.format(request.special_id))
             if request.special_id != 0:
                 if request.special_id not in self.release_locked:
                     self.release_locked.append(request.special_id)
@@ -107,9 +108,9 @@ class MyFlask(Flask):
         super().preprocess_request()
         request.special_id = 0
         if not 'admin' in request.path:
-           yc_gc.LOGGER.info(request.path)
+           application.logger.info(request.path)
         if 'api/admin' in request.path and not 'api/admin/healthcheck' in request.path and not 'api/admin/ping' in request.path:
-            yc_gc.LOGGER.info('User logged in {}'.format(yc_gc.oidc.user_loggedin))
+            application.logger.info('User logged in {}'.format(yc_gc.oidc.user_loggedin))
             if not yc_gc.oidc.user_loggedin and 'login' not in request.path:
                 return abort(401, description='not yet Authorized')
 
@@ -329,6 +330,24 @@ application.config["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
 application.config["OIDC_SCOPES"] = ["openid", "email", "profile"]
 application.config["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
 
+# configure the logger
+application.logger.removeHandler(default_handler)
+file_name_path = '{}/yang.log'.format(yc_gc.logs_dir)
+if os.path.isfile(file_name_path):
+    exists = True
+FORMAT = '%(asctime)-15s %(levelname)-8s %(filename)s api => %(message)s - %(lineno)d'
+DATEFMT = '%Y-%m-%d %H:%M:%S'
+handler = logging.FileHandler(file_name_path)
+handler.setFormatter(logging.Formatter(FORMAT, DATEFMT))
+application.logger.setLevel(logging.DEBUG)
+application.logger.addHandler(handler)
+if not exists:
+    os.chmod(file_name_path, 0o664 | stat.S_ISGID)
+
+application.logger.debug('API initialized at ' + yc_gc.yangcatalog_api_prefix)
+application.logger.debug('Starting api')
+
+
 def create_secrets(discovered_secrets: dict):
     """
     Create secrets object and fill with actual user information.
@@ -365,10 +384,10 @@ def retry_OP_discovery():
             discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
             create_secrets(discovered_secrets)
             yc_gc.redis.set('secrets-oidc', json.dumps(discovered_secrets))
-            yc_gc.LOGGER.info('OpenID Provider information discovered successfully')
+            application.logger.info('OpenID Provider information discovered successfully')
             break
         except:
-            yc_gc.LOGGER.warning('OpenID Provider information discovery failed')
+            application.logger.warning('OpenID Provider information discovery failed')
             time.sleep(30)
     return True
 
@@ -376,17 +395,17 @@ discovered = False
 discovered_secrets = None
 try:
     discovered_secrets = discovery.discover_OP_information(yc_gc.oidc_issuer)
-    yc_gc.LOGGER.info('OpenID Provider information discovered successfully')
+    application.logger.info('OpenID Provider information discovered successfully')
     yc_gc.redis.set('secrets-oidc', json.dumps(discovered_secrets))
     discovered = True
-    yc_gc.LOGGER.debug('Newly OpenID Provider discovered information saved to cache')
+    application.logger.debug('Newly OpenID Provider discovered information saved to cache')
 except:
     data = yc_gc.redis.get('secrets-oidc')
 
     if data is not None:
         data = data.decode('utf-8')
         discovered_secrets = json.loads(data)
-        yc_gc.LOGGER.info('OpenID Provider information loaded from cache')
+        application.logger.info('OpenID Provider information loaded from cache')
 
 if discovered_secrets is not None:
     create_secrets(discovered_secrets)
@@ -423,29 +442,29 @@ def make_cache(credentials, response, data=None):
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
-                yc_gc.LOGGER.debug("Loading data from confd")
+                application.logger.debug("Loading data from confd")
                 path = '{}://{}:{}//restconf/data/yang-catalog:catalog'.format(yc_gc.protocol, yc_gc.confd_ip,
                                                                                yc_gc.confdPort)
                 try:
                     data = requests.get(path, auth=(credentials[0], credentials[1]),
                                         headers={'Accept': 'application/yang-data+json'}).json()
                     data = json.dumps(data)
-                    yc_gc.LOGGER.debug("Data loaded and parsed to json from confd db successfully")
+                    application.logger.debug("Data loaded and parsed to json from confd db successfully")
                 except ValueError as e:
-                    yc_gc.LOGGER.warning('not valid json returned')
+                    application.logger.warning('not valid json returned')
                     data = ''
                 except Exception:
-                    yc_gc.LOGGER.warning('exception during loading data from confd')
+                    application.logger.warning('exception during loading data from confd')
                     data = None
                 if data is None or len(data) == 0 or data == 'None' or data == '':
                     secs = 30
-                    yc_gc.LOGGER.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
+                    application.logger.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
-        #yc_gc.LOGGER.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
+        #application.logger.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
         yc_gc.redis.set('all-catalog-data', data)
     except:
         e = sys.exc_info()[0]
-        yc_gc.LOGGER.error('Could not load json to cache. Error: {}'.format(e))
+        application.logger.error('Could not load json to cache. Error: {}'.format(e))
         return 'Server error - downloading cache', None
     return response, data
 
@@ -507,7 +526,7 @@ def load():
         application.special_id_counter[special_id] += 1
         while True:
             time.sleep(5)
-            yc_gc.LOGGER.info('application wating for reload with id - {}'.format(special_id))
+            application.logger.info('application wating for reload with id - {}'.format(special_id))
             if special_id in application.release_locked:
                 code = application.response_waiting.status_code
                 body = application.response_waiting.json
@@ -519,17 +538,17 @@ def load():
                 return make_response(jsonify(body), code)
     else:
         if lock_for_load.locked():
-            yc_gc.LOGGER.info('application locked for reload')
+            application.logger.info('application locked for reload')
             application.waiting_for_reload = True
             special_id = str(uuid.uuid4())
             request.special_id = special_id
             application.special_id = special_id
             application.special_id_counter[special_id] = 0
-            yc_gc.LOGGER.info('Special ids {}'.format(application.special_id_counter))
+            application.logger.info('Special ids {}'.format(application.special_id_counter))
     with lock_for_load:
-        yc_gc.LOGGER.info('application not locked for reload')
+        application.logger.info('application not locked for reload')
         load_uwsgi_cache()
-        yc_gc.LOGGER.info("Cache loaded successfully")
+        application.logger.info("Cache loaded successfully")
         application.loading = False
 
 
@@ -558,14 +577,14 @@ def load_uwsgi_cache():
             yc_gc.redis.delete(*list_to_delete_keys_from_redis)
 
     if response != 'work':
-        yc_gc.LOGGER.error('Could not load or create cache')
+        application.logger.error('Could not load or create cache')
         sys.exit(500)
 
 
 def load_app_first_time():
     while yc_gc.redis.get('yang-catalog@2018-04-03/ietf') is None:
         sec = 5
-        yc_gc.LOGGER.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
+        application.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
         time.sleep(sec)
 
 
