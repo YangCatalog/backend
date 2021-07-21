@@ -17,16 +17,16 @@ search: true
 Welcome to the Yangcatalog API! You can use our API to access information on various yang modules in our database.
 To test out the various endpoints on Postman, you can [download our Postman collection here](https://yangcatalog.org/downloadables/yangcatalog.postman_collection.json)
 
-We have language examples in Shell and Python! You can view code examples in the dark area to the right, and you can switch the programming language of the examples with the tabs in the top right.
+We have examples in Shell and Python! You can view code examples in the dark area to the right, and you can switch the programming language of the examples with the tabs to the top right.
 
-This example API documentation page was created with [Slate](https://github.com/lord/slate). Feel free to edit it, create pull or create and issute request
+This example API documentation page was created with [Slate](https://github.com/lord/slate). Feel free to edit it, create a pull request or issue
 if you find anything that doesn`t work as expected.
 
 # Contribute
 
-This section is for users who wants to directly contribute with some yang modules to yangcatalog.org database without using YangModels/yang repository, but
-adding files from your own repository instead. For this you need to have access credentials which you ll create by [creating an account](https://www.yangcatalog.org/create.html) in
-yangcatalog.org. Full description on how to proceed can be found on [contribute page](https://www.yangcatalog.org/contribute.html)
+This section is for users who wants to directly contribute yang modules to the yangcatalog.org database without using the YangModels/yang repository,
+adding files from their own repository instead. For this you need to have access credentials which you'll create by [creating an account](https://www.yangcatalog.org/create.html) on yangcatalog.org.
+Full description on how to proceed can be found on [contribute page](https://www.yangcatalog.org/contribute.html)
 
 ## Update model metadata
 
@@ -80,10 +80,10 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to add and updated all the modules from provided
-json as body of the request. It will parse all the modules on the
-provided paths. Since this job takes some time the request will response
-only with verification information and job-id on which you can
+This endpoint serves to add and update all the modules from the json provided
+as the body of the request. It will parse all the modules on the
+provided paths. Since this job takes some time the the endpoint will respond
+only with verification information and a job-id on which you can
 [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -96,7 +96,7 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### Body Parameters
 
-Inside of the body we need to provide list of modules with following,
+Inside of the body we need to provide a list of modules with the following,
 parameters for each module
 
 Parameter | Description
@@ -164,12 +164,12 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to add all the modules from provided
-json as body of the request. If the module already exist with given name
-and revision, module will not be updated or added, instead it will be
-skipped not doing anything with that. Next it will parse all rest of the
-modules on the provided paths. Since this job takes some time request
-will response only with verification information and job-id on which you
+This endpoint serves to add all the modules from the json provided
+as the body of the request. If a module already exist with the given name
+and revision, the module will not be updated or added, instead it will be
+skipped and ignored. Next it will parse the rest of the
+modules on the provided paths. Since this job takes some time, the endpoint
+will respond only with verification information and a job-id on which you
 can [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -182,7 +182,7 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### Body Parameters
 
-Inside of the body we need to provide list of modules with following,
+Inside of the body we need to provide a list of modules with following,
 parameters for each module
 
 Parameter | Description
@@ -221,7 +221,7 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-  "platforms" {
+  "platforms": {
     "platform": [
       {
         "vendor": "example",
@@ -253,12 +253,12 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to add or update all the modules from provided json
-path which should be path to the capabilities xml file or to the
+This endpoint serves to add or update all the modules from the path
+provided in the json, which should be a path to a capabilities.xml file or to a
 yang-library file which is constructed according to [RFC7895](https://tools.ietf.org/html/rfc7895).
-Next it will parse all the modules on the provided xml files. Since this
-job takes some time request will response only with verification
-information and job-id on which you can
+Next it will parse all the modules in the provided xml files. Since this
+job takes some time, the endpoint will respond only with verification
+information and a job-id on which you can
 [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -271,7 +271,7 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### Body Parameters
 
-Inside of the body we need to provide list of platforms with following,
+Inside of the body we need to provide a list of platforms with following,
 parameters for each platform
 
 Parameter | Description
@@ -282,7 +282,7 @@ module-list-file | Object with source file information
 type | capabilities or yang-library
 repository | Name of the repository
 owner | Name of the owner of the repository
-path | Path in the repository for the given <type> file
+path | Path in the repository for the given "type" file
 platform-ids | The specific product ID or IDs to which this data applies
 software-flavor | A variation of a specific version where YANG model support may be different
 software-version | Name of the version of software
@@ -311,7 +311,7 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-  "platforms" {
+  "platforms": {
     "platform": [
       {
         "vendor": "example",
@@ -343,13 +343,13 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to add all the modules from provided json path
-which should be path to the capabilities xml file or to the yang-library
+This endpoint serves to add all the modules from the path provided in the json,
+which should be a path to a capabilities xml file or to a yang-library
 file which is constructed according to [RFC7895](https://tools.ietf.org/html/rfc7895).
 This will only parse new capability files. If the file already exist it
-will skip this file. Next it will parse all the modules on the provided
-xml files. Since this job takes some time request will response only
-with verification information and job-id on which you can
+will skip this file. Next it will parse all the modules in the provided
+xml files. Since this job takes some time, the endpoint will respond only
+with verification information and a job-id on which you can
 [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -362,7 +362,7 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### Body Parameters
 
-Inside of the body we need to provide list of platforms with following,
+Inside of the body we need to provide a list of platforms with following
 parameters for each platform
 
 Parameter | Description
@@ -373,7 +373,7 @@ module-list-file | Object with source file information
 type | capabilities or yang-library
 repository | Name of the repository
 owner | Name of the owner of the repository
-path | Path in the repository for the given <type> file
+path | Path in the repository for the given "type" file
 platform-ids | The specific product ID or IDs to which this data applies
 software-flavor | A variation of a specific version where YANG model support may be different
 software-version | Name of the version of software
@@ -402,7 +402,7 @@ curl -X DELETE -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-  "input" {
+  "input": {
     "modules": [
       {
         "name": "<name>",
@@ -423,10 +423,10 @@ curl -X DELETE -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to remove all the modules from provided json modules.
-Modules is a list of modules that contain main information about module,
-which is name, revision, organization. Since this job takes some time
-request will response only with verification information and job-id on
+This endpoint serves to remove all the modules provided in the json.
+Modules is a list of modules that contain the main information about a module,
+which is the name, revision, organization. Since this job takes some time,
+the endpoint will respond only with verification information and job-id on
 which you can [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -439,7 +439,7 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### Body Parameters
 
-Inside of the body we need to provide list of modules with following,
+Inside of the body we need to provide a list of modules with following,
 parameters for each platform
 
 Parameter | Description
@@ -474,8 +474,8 @@ curl -X DELETE -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to remove the specific module provided on path.
-Since this job takes some time request will response only with
+This endpoint serves to remove the specific module on the provided path.
+Since this job takes some time the endpoint will respond only with
 verification information and job-id on which you can
 [track the job status](#get-job-status).
 
@@ -522,7 +522,7 @@ curl -X DELETE -H "Accept: application/json" -H "Content-type: application/json"
 ```
 
 This endpoint serves to remove all the modules from provided path. Since
-this job takes some time request will response only with verification
+this job takes some time the endpoint will respond only with verification
 information and job-id on which you can [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -742,7 +742,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/mo
 }
 ```
 
-This endpoint serves to get specific module metadata
+This endpoint serves to get a specific module's metadata
 
 ### HTTP Request
 
@@ -771,7 +771,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/ve
 
 > The above command returns JSON-formatted implementation metadata
 
-This endpoint serves to get specific module metadata
+This endpoint serves to get a specific module's metadata
 
 ### HTTP Request
 
@@ -781,7 +781,7 @@ This endpoint serves to get specific module metadata
 
 Parameter | Description
 --------- | -----------
-path:value | Path to a specific vendor modules you want to remove (example: cisco/xe/1632 would delete all 1632 xe cisco modules)
+path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules)
 
 ## Get organization platform list
 
@@ -827,7 +827,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/ve
         .
 ```
 
-This endpoint serves to get all the platforms where specific organization contains some yang modules.
+This endpoint serves to get all the platforms where a specific organization has yang modules.
 
 ### HTTP Request
 
@@ -906,7 +906,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/<p
         .
 ```
 
-This endpoint serves to get all the modules that correspond with provided
+This endpoint serves to get all the modules that correspond with the provided
 keyword
 
 ### HTTP Request
@@ -917,13 +917,13 @@ keyword
 
 Parameter | Description
 --------- | -----------
-path:value | Path to a specific vendor modules you want to remove (example: cisco/xe/1632 would delete all 1632 xe cisco modules)
+path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules)
 
 ### Query Parameters
 
 Parameter | Default | Description
 --------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only for latest revision of found yang modules.
+latest-revision | false | If set to true, the result will filter only the latest revisions of found yang modules.
 
 # RPC search
 
@@ -1010,8 +1010,8 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
         .
 ```
 
-This endpoint serves to get all the modules that contains all the leafs
-with data as provided by <data> in body of the request
+This endpoint serves to get all the modules that contain all the leafs
+with data as provided by `<data>` in body of the request
 
 ### HTTP Request
 
@@ -1021,7 +1021,7 @@ with data as provided by <data> in body of the request
 
 Parameter | Default | Description
 --------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only for latest revision of found yang modules.
+latest-revision | false | If set to true, the result will filter only the latest revisions of found yang modules.
 
 ### Body Parameters
 
@@ -1134,8 +1134,8 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
     .
 ```
 
-This endpoint serves to get all the common modules out of two different filtering
-by leafs with data provided by <data> in body of the request
+This endpoint serves to get all the common modules between the results of two filters
+by leafs with data provided in `<data>` in the body of the request
 
 ### HTTP Request
 
@@ -1145,11 +1145,11 @@ by leafs with data provided by <data> in body of the request
 
 Parameter | Default | Description
 --------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only for latest revision of found yang modules.
+latest-revision | false | If set to true, the result will filter only the latest revisions of found yang modules.
 
 ### Body Parameters
 
-Inside of the body we need to start with "input" container which needs
+Inside of the body we need to start with an "input" container which needs
 to contain containers "first" and "second" to which we provide all the leafs
 with data that need to be filtered out of yangcatalog. All the leafs can
 be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
@@ -1267,9 +1267,9 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
     .
 ```
 
-This endpoint serves to compare and find different modules out of two different filtering
-by leafs with data provided by <data> in body of the request. Output contains module metadata
-with reason-to-show data as well which can be showing either 'New module' or 'Different revision'
+This endpoint serves to compare and find differences between the results of filters
+by leafs with data provided in `<data>` in the body of the request. Output also contains module metadata
+with reason-to-show data which shows either 'New module' or 'Different revision'
 
 ### HTTP Request
 
@@ -1283,7 +1283,7 @@ latest-revision | false | If set to true, the result will filter only for latest
 
 ### Body Parameters
 
-Inside of the body we need to start with "input" container which needs
+Inside of the body we need to start with a "input" container which needs
 to contain containers "new" and "old" to which we provide all the leafs
 with data that need to be filtered out of yangcatalog. All the leafs can
 be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
@@ -1368,7 +1368,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 </pre></body></html>
 ```
 
-This endpoint serves to get reference schema of a specific yang module
+This endpoint serves to get the reference schema of a specific yang module
 
 ### HTTP Request
 
@@ -1461,11 +1461,11 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
     .
 ```
 
-This endpoint serves to get output from pyang tool with option --check-update-from
-for all the modules between <first> and <second> filter. If module
-compilation failed it will give you only link to get diff in between
-two yang modules. if check-update-from has an output it will provide tree
-diff and output of the pyang together with diff between two files
+This endpoint serves to get output from the pyang tool with the option --check-update-from
+for all the modules between the "first" and the "second" filter. If module
+compilation failed it will only give you the link to get the diff of the
+two yang modules. if check-update-from has an output it will provide a tree
+diff and output of the pyang together with the diff of the two files
 
 ### HTTP Request
 
@@ -1473,9 +1473,9 @@ diff and output of the pyang together with diff between two files
 
 ### Body Parameters
 
-Inside of the body we need to start with "input" container which needs
-to contain containers "first" and "second" to which we provide all the leafs
-with data that need to be filtered out of yangcatalog. All the leafs can
+Inside of the body we need to start with an "input" container which needs
+to contain the containers "first" and "second" to which we provide all the leafs
+with data that needs to be filtered out of yangcatalog. All the leafs can
 be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
 
 ## Get file difference
@@ -1623,8 +1623,8 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 </pre></body></html>
 ```
 
-This endpoint serves to get output from pyang tool with option --check-update-from
-in between two modules provided in path of the request
+This endpoint serves to get the output from the pyang tool with the option --check-update-from
+between two modules provided in the path of the request
 
 ### HTTP Request
 
@@ -1684,8 +1684,8 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to get list of specified <leaf> in filtered set
-of modules. Filter is specified in body of the request
+This endpoint serves to get a list of leafs specified by `<leaf>` from a filtered set
+of modules. The filter is specified in the body of the request
 
 ### HTTP Request
 
@@ -1696,9 +1696,9 @@ of modules. Filter is specified in body of the request
 Inside of the body we need to start with "input" to which we provide all
 the leafs with data that need to be filtered out of yangcatalog.
 All the leafs can be found in [draft-clacla-netmod-model-catalog-03 section 2-2](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.2)
-In this request there is one option data that can be inserted in called
+In this request there an option that can be inserted called
 "recursive". If set to true it will look for all dependencies of the
-module and search for <leaf> data in those too.
+module and search for `<leaf>` data in those too.
 
 ## Get raw module
 
@@ -1758,7 +1758,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 .
 ```
 
-This endpoint serves to get raw yang module in html form
+This endpoint serves to get a raw yang module in html form
 
 ### HTTP Request
 
@@ -1787,13 +1787,13 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/yangsuite/<id>"
 ```
 
-> The above command should redirect you to yangsuite main page
+> The above command should redirect you to yangsuite's main page
 with predefined yang modules and yangsuite user
 
-This endpoint serves to redirect user to yangsuite main page with
+This endpoint serves to redirect the user to yangsuite's main page with
 predefined yang modules and yangsuite user. This link is generated
-with every [search of specific yang module](#get-specific-module) if
-YANGSUITE header is set to true. That way you ll receive <id> together
+with every [search for a specific yang module](#get-specific-module) if
+the YANGSUITE header is set to true. That way you'll receive `<id>` together
 with yang module response.
 
 ### HTTP Request
@@ -1819,15 +1819,15 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 > The above command should trigger automatic ietf pull of all new
 yang modules
 
-This endpoint serves to run two different process:
+This endpoint serves to run two different processes:
 
 1. draftPullLocal.py
 2. openconfigPullLocall.py
 
-These scripts serves as a automated tool to parse and populate all
+These scripts serve as automated tools to parse and populate all
 the new openconfig yang modules and ietf DRAFT and RFC yang modules
-to yangcatalog. Since this job takes some time the request will response
-only with verification information and job-id on which you can
+to yangcatalog. Since this job takes some time the endpoint will respond
+only with verification information and a job-id on which you can
 [track the job status](#get-job-status).
 
 ### HTTP Request
@@ -1840,9 +1840,9 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ## Travis check
 
-This endpoint is used by travis. When a pull request by yang-catalog
-user was created travis job runs and at the end it calls this api.
-This endpoint will merge the pull request automatically if job didn`t
+This endpoint is used by travis. When a pull request by a yang-catalog
+user is created a travis job runs afterwards it calls this api.
+This endpoint will merge the pull request automatically if the job didn`t
 fail.
 
 ### HTTP Request
@@ -1854,8 +1854,8 @@ by travis request
 
 ## Yang search and impact analysis tool
 
-This endpoint is used by yang search and impact analysis tool to
-through the YANG keyword index for a given search pattern. The arguments
+This endpoint is used by the yang search and impact analysis tool to
+look through the YANG keyword index for a given search pattern. The arguments
 are a payload specifying search options and filters.
 
 ### HTTP Request
@@ -1864,8 +1864,8 @@ are a payload specifying search options and filters.
 
 ## New vendor modules added
 
-This endpoint is used within github. Whenever something is merged to [YangModles/yang](https://github.com/YangModels/yang) github repository this endpoint is
-triggered and checks if there is an updated platform-metadata.json file which is then used withing [populate.py](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py) script.
+This endpoint is used within github. Whenever something is merged to the [YangModles/yang](https://github.com/YangModels/yang) github repository this endpoint is
+triggered and checks if there is an updated platform-metadata.json file which is then used within the [populate.py](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py) script.
 
 ### HTTP Request
 
@@ -1873,8 +1873,8 @@ triggered and checks if there is an updated platform-metadata.json file which is
 
 ## Yang search and impact analysis tool
 
-This endpoint is used by yang search and impact analysis tool to
-through the YANG keyword index for a given search pattern. The arguments
+This endpoint is used by the yang search and impact analysis tool to
+look through the YANG keyword index for a given search pattern. The arguments
 are a payload specifying search options and filters.
 
 ### HTTP Request
@@ -1901,8 +1901,8 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 api
 
 This endpoint serves to reload api cached modules after new modules have
-been added to the yangcatalog. This should be a non-blocking code. There
-are two caches create which should be identical and one of them should
+been added to the yangcatalog. This should be non-blocking code. There
+are two caches created which should be identical and one of them should
 always be available for the users
 
 ### HTTP Request
@@ -1930,8 +1930,8 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 > The above command should return all organizations that contributed
 with yang modules to yangcatalog
 
-This endpoint serves to provide with all the organizations that
-contributed with yang modules to yangcatalog
+This endpoint serves to list all the organizations that
+contributed to yangcatalog with yang modules
 
 ### HTTP Request
 
@@ -1939,11 +1939,11 @@ contributed with yang modules to yangcatalog
 
 # ADMIN
 
-The following endpoints are only for admin UI and you need to be signed in to ietf account using single sign on to be able
-to use any of the following endpoints. Once signed in and token is aquired you will be able to create these requests.
+The following endpoints are only for the admin UI and you need to be signed in to an ietf account using single sign on to be able
+to use any of the following endpoints. Once signed in and a token is aquired you will be able to create these requests.
 
-The admin UI serves to authorized IETF personel only who have access to manage users read through log files and all
-the yangcatalog files which can be deleted update or read by them.
+The admin UI serves to authorized IETF personel only who have access to manage users, read through log files, and all
+the yangcatalog files which can be deleted, updated or read by them.
 
 ## Login
 
@@ -1984,10 +1984,10 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/admin/login"
 ```
 
-> The above command should redirect you to datatracker login page
+> The above command should redirect you to the datatracker login page
 
 This endpoint serves to make a SSO to ietf which will let you access all the admin endpoints. This endpoint will
-redirect you to datatracker.ietf.org login page which after successful login will redirect you back to yangcatalog UI
+redirect you to the datatracker.ietf.org login page which after successful login will redirect you back to the yangcatalog UI
 healthcheck page.
 
 ### HTTP Request
@@ -2012,9 +2012,9 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/admin/logout"
 ```
 
-> The above command should remove all the remebered token and sessions from OIDC
+> The above command should remove all the remebered tokens and sessions from OIDC
 
-This endpoint serves to log user out
+This endpoint serves to log users out
 
 ### HTTP Request
 
@@ -2034,16 +2034,16 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/admin/ping"
 ```
 
-> The above command should not be used and is for ietf datatracker to redirect here once user has successfully signed in
+> The above command should not be used and is for the ietf datatracker to redirect here once a user has successfully signed in
 
-This endpoint serves to comunicate with ietf datatracker as an redirection link for OIDC
+This endpoint serves to comunicate with the ietf datatracker as a redirection link for OIDC
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/ping`
 
 <aside class="warning">
-This endpoint hould not be used and is for ietf datatracker to redirect here once user has successfully signed in
+This endpoint should not be used and is for the ietf datatracker to redirect here once the user has successfully signed in
 </aside>
 
 ## Admin check
@@ -2068,15 +2068,15 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to admin UI to check if the user is logged in. If he receives 200 all is ok otherwise we are not
-logged in and should not let you get into admin UI
+This endpoint serves for the admin UI to check if the user is logged in. If he receives 200 all is ok, otherwise the user is not
+logged in and should be able to get into the admin UI
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/check`
 
 
-## Get file output
+## Get file content
 
 ```python
 import requests
@@ -2098,7 +2098,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/dir
 }
 ```
 
-This endpoint serves to get output of the file specified from /var/yang folder. This is used with admin UI.
+This endpoint serves to get the content of the file specified from the /var/yang folder. This is used with the admin UI.
 
 ### HTTP Request
 
@@ -2137,15 +2137,15 @@ curl -X DELETE -H "Accept: application/json" "https://yangcatalog.org/api/admin/
 }
 ```
 
-This endpoint serves to delete a file from /var/yang folder. This is used with admin UI.
+This endpoint serves to delete a file from the /var/yang folder. This is used with the admin UI.
 
 ### HTTP Request
 
 `DELETE https://yangcatalog.org/api/admin/directory-structure/<path:direc>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you'll get an unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2190,15 +2190,15 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to update a file from /var/yang folder. This is used with admin UI.
+This endpoint serves to update a file from the /var/yang folder. This is used with the admin UI.
 
 ### HTTP Request
 
 `PUT https://yangcatalog.org/api/admin/directory-structure/<path:direc>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you'll get an unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2256,23 +2256,23 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/dir
 }
 ```
 
-This endpoint serves to receive list of files and folders on given path with their name, group id, user id size and permissions.
-This is used in admin UI
+This endpoint serves to receive a list of files and folders on a given path with their name, group id, user id size and permissions.
+This is used in the admin UI
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/directory-structure/<path:direc>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
 
 Parameter | Description
 --------- | -----------
-path:direc | path to the file we want to read from /var/yang folder. This can be empty
+path:direc | path to the file we want to read from the /var/yang folder. This can be empty
 
 ### Ouptut Parameters
 
@@ -2311,15 +2311,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yan
 }
 ```
 
-This endpoint serves to receive list of used nginx files. This is used with admin UI.
+This endpoint serves to receive a list of used nginx files. This is used with thr admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/yangcatalog-nginx`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## Read nginx file
@@ -2344,15 +2344,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yan
 }
 ```
 
-This endpoint serves to read a nginx file. This is used with admin UI.
+This endpoint serves to read a nginx file. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/yangcatalog-nginx/<path:nginx_file>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2383,15 +2383,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yan
 }
 ```
 
-This endpoint serves to read a yangcatalog config file. This is used with admin UI.
+This endpoint serves to read a yangcatalog config file. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/yangcatalog-config`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## Update yangcatalog config file
@@ -2430,7 +2430,7 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to update yangcatalog config file. This is used with admin UI.
+This endpoint serves to update the yangcatalog config file. This is used with the admin UI.
 
 ### HTTP Request
 
@@ -2466,15 +2466,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/log
 }
 ```
 
-This endpoint serves to list all the log files we have in yangcatalog.org. This is used with admin UI.
+This endpoint serves to list all the log files we have in yangcatalog.org. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/logs`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## Search and filter for specific output in log files
@@ -2533,15 +2533,15 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to read and filter log files. This is used with admin UI.
+This endpoint serves to read and filter log files. This is used with the admin UI.
 
 ### HTTP Request
 
 `POST https://yangcatalog.org/api/admin/logs`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## List all sql tables
@@ -2572,15 +2572,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
 ]
 ```
 
-This endpoint serves to list all the sql tables that exists in yangcatalog.org. This is used with admin UI.
+This endpoint serves to list all the sql tables that exists in yangcatalog.org. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/sql-tables`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## Accept user
@@ -2633,16 +2633,16 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to approve yangcatalog user and set his rights so he can be adding or removing modules based on the
-'access-rights-sdo' adn 'access-rights-vendor'. This is used with admin UI.
+This endpoint serves to approve a yangcatalog user and set his rights so he can add or remove modules based on the
+'access-rights-sdo' and 'access-rights-vendor'. This is used with the admin UI.
 
 ### HTTP Request
 
 `POST https://yangcatalog.org/api/admin/move-user`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## Add user
@@ -2697,16 +2697,16 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to add new user to any database that we have in yangcatalog.org (users or users_temp database).
-This is used with admin UI.
+This endpoint serves to add a new user to any database that we have in yangcatalog.org (users or users_temp database).
+This is used with the admin UI.
 
 ### HTTP Request
 
 `POST https://yangcatalog.org/api/admin/sql-tables/<table>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2729,16 +2729,16 @@ curl -X DELETE -H "Accept: application/json"
  "https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>"
 ```
 
-This endpoint serves to remove user from any database that we have in yangcatalog.org (users or users_temp database).
-This is used with admin UI.
+This endpoint serves to remove a user from any database that we have in yangcatalog.org (users or users_temp database).
+This is used with the admin UI.
 
 ### HTTP Request
 
 `DELETE https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2792,15 +2792,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
 ```
 
 This endpoint serves to list all the rows from the specified sql table that exists in yangcatalog.org.
-This is used with admin UI.
+This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/sql-tables/<table>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2842,15 +2842,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
 }
 ```
 
-This endpoint serves to receive list of scripts that are available to use. This is used with admin UI.
+This endpoint serves to receive a list of scripts that are available to use. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/scripts`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ## Get script details
@@ -2943,16 +2943,16 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
 }
 ```
 
-This endpoint serves to receive detail information about script you are running. It will show you what options you can
-use with its default values and help if it contains any. This is used with admin UI.
+This endpoint serves to receive details about the script you are running. It will show you what options you can
+use with its default values and help if it contains any. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/scripts/<script>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -2999,17 +2999,17 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to run scripts manualy from yangcatalog.org. We need to provide a payload with arguments for given
-script where key is a name of the option and value is an value you want to provide to that specific option of the script.
-This is used with admin UI.
+This endpoint serves to run scripts manualy from yangcatalog.org. We need to provide a payload with arguments for a given
+script where key is a name of the option and value is a value you want to provide to that specific option of the script.
+This is used with the admin UI.
 
 ### HTTP Request
 
 `POST https://yangcatalog.org/api/admin/scripts/<script>`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -3044,15 +3044,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/dis
 }
 ```
 
-This endpoint serves to receive disk space information in bytes. This is used with admin UI.
+This endpoint serves to receive disk space information in bytes. This is used with the admin UI.
 
 ### HTTP Request
 
 `GET https://yangcatalog.org/api/admin/disk-usage`
 
 <aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after token has been received and
-session created. Otherwise you ll get unauthorized 401 response.
+This URL works only after you are signed in using single sign on from ietf and after a token has been received and
+a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
 ### URL Parameters
@@ -3064,10 +3064,10 @@ script | Name of the script you want to use
 
 # Healthchecks
 
-The following enpoints serve to check the health status of the yangcatalog.org. AWS where yangcatalog.org is running is
-checking the following endpoints from several locations every minute several times. When any of the healthcheck fails it
-will send the message to preset mailing list and informs about this failure. If the failure is on backend API itself all
-of the healthcheck endpoint will consequently fail even if it is a false failure. These endpoints are used within admin UI
+The following enpoints serve to check the health status of yangcatalog.org. AWS where yangcatalog.org is running
+checks the following endpoints from several locations every minute several times. When any of the healthchecks fails it
+sends the message to a preset mailing list and informs about this failure. If the failure is on the backend API itself, all
+of the healthcheck endpoints will consequently fail even if it is a false failure. These endpoints are used within the admin UI
 as well.
 
 ## Get list of services
@@ -3084,7 +3084,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/admin/healthcheck/services-list"
 ```
 
-> The above command should return services with their endpoints for healthcheck (just the last part) we need to use
+> The above command should return services with their endpoints for healthchecks (just the last part) we need to use
 > https://yangcatalog.org/api/admin/healthcheck/ in front of all of them
 
 ```json
@@ -3124,7 +3124,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 ]
 ```
 
-This endpoint serves to provide with all the services we have with its endpoints to check their healthstatus
+This endpoint serves to provide with all the services we have with endpoints to check their healthstatus
 
 ### HTTP Request
 
@@ -3144,7 +3144,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/admin/healthcheck/<service-name>"
 ```
 
-> The above command should return service health status (example output with my-sql)
+> The above command should return the service health status (example output with my-sql)
 
 ```json
 {
@@ -3154,7 +3154,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to provide service health status
+This endpoint serves to provide the service health status
 
 ### HTTP Request
 
@@ -3188,7 +3188,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/admin/healthcheck/<service-name>-admin"
 ```
 
-> The above command should return service admin health status (example output with yangre-admin)
+> The above command should return the service admin health status (example output with yangre-admin)
 
 ```json
 {
@@ -3198,9 +3198,9 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to provide service admin health status. This is valid only for yang-validator-admin, yangre-admin and
+This endpoint serves to provide the service admin health status. This is valid only for yang-validator-admin, yangre-admin and
 yang-search-admin. These endpoints are not checking only if the service itself is running (django or flask application with uwsgi),
-but also it s trying to make request on some real data and checking if it is getting valid response.
+but also trying to make requests on some real data and checking if they are getting valid responses.
 
 ### HTTP Request
 
@@ -3291,8 +3291,8 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 }
 ```
 
-This endpoint serves to provide information about cronjob that are running on daily or weekly basis. each one contains information
-about its startint and ending timestamp, status if it failed or run successfully, error message and last successful run timestamp
+This endpoint serves to provide information about cronjobs that are running on a daily or weekly basis. each one contains information
+about its starting and ending timestamp, status if it failed or run successfully, error message and last successful run timestamp
 
 ### HTTP Request
 
@@ -3300,7 +3300,7 @@ about its startint and ending timestamp, status if it failed or run successfully
 
 ### Output Parameters
 
-each cronjob contains following data
+each cronjob contains the following data
 
 Parameter | Description
 --------- | -----------
