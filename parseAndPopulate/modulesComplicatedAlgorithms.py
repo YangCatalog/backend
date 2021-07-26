@@ -303,7 +303,7 @@ class ModulesComplicatedAlgorithms:
                         next_obsolete_or_deprecated = True
             return True
 
-        def is_transational(rows, output):
+        def is_transitional(rows, output):
             if output.split('\n')[1].endswith('-state'):
                 if '+--rw' in output:
                     return False
@@ -500,11 +500,11 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'not-applicable'
                 elif is_latest_revision and is_combined(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'nmda-compatible'
-                elif is_openconfig(pyang_list_of_rows, stdout):
-                    module['tree-type'] = 'openconfig'
                 elif is_split(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'split'
-                elif is_transational(pyang_list_of_rows, stdout):
+                elif is_openconfig(pyang_list_of_rows, stdout):
+                    module['tree-type'] = 'openconfig'
+                elif is_transitional(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'transitional-extra'
                 else:
                     module['tree-type'] = 'unclassified'
