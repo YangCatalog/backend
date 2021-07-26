@@ -79,11 +79,11 @@ class ModulesComplicatedAlgorithms:
             if latest_revision is None:
                 self.__latest_revisions[module['name']] = module['revision']
             else:
-                self.__latest_revisions[module['name']] = module['revision'] if latest_revision < module['revision'] else latest_revision
+                self.__latest_revisions[module['name']] = max(module['revision'], latest_revision)
 
             sem_ver = module.get('derived-semantic-version')
             tree_type = module.get('tree-type')
-            if sem_ver is None or sem_ver == '' or tree_type is None or tree_type == '':
+            if not (sem_ver and tree_type):
                 continue
             self.__existing_modules_dict['{}@{}'.format(module['name'], module['revision'])] = module
 
@@ -342,7 +342,7 @@ class ModulesComplicatedAlgorithms:
                                       ctx.opts.tree_line_length, path)
                             stdout = f.getvalue()
                         except:
-                            stdout = ""
+                            stdout = ''
 
                         pyang_list_of_rows = stdout.split('\n')[2:]
                         if len(ctx.errors) != 0 and len(stdout) == 0:
@@ -366,11 +366,10 @@ class ModulesComplicatedAlgorithms:
                                 rows[x].split('+--ro ')[1].split(' ')[0].split(
                                     '?')[0]
 
-                            dataExist = False
                             for y in range(0, len(pyang_list_of_rows)):
                                 if leaf in pyang_list_of_rows[y]:
-                                    dataExist = True
-                            if not dataExist:
+                                    break
+                            else:
                                 return False
                     return True
                 else:
@@ -853,7 +852,7 @@ class ModulesComplicatedAlgorithms:
 
     def __parse_dependents(self):
         x = 0
-        if self.__existing_modules_dict.values() is not None:
+        if self.__existing_modules_dict:
             for mod in self.__all_modules.get('module', []):
                 name_revision = '{}@{}'.format(mod['name'], mod['revision'])
                 x += 1
@@ -865,13 +864,9 @@ class ModulesComplicatedAlgorithms:
                 mod['dependents'] = mod.get('dependents', [])
                 # add dependents to already existing modules based on new dependencies from new modules
                 for new_dep in new_dependencies:
-                    if new_dep.get('revision'):
-                        search = {'name': new_dep['name'], 'revision': new_dep['revision']}
-                    else:
-                        search = {'name': new_dep['name']}
                     for module in self.__existing_modules_dict.values():
-                        if module['name'] == search['name']:
-                            rev = search.get('revision')
+                        if module['name'] == new_dep['name']:
+                            rev = new_dep.get('revision')
                             if rev is None or rev == module['revision']:
                                 new = {'name': name,
                                        'revision': revision,
@@ -893,39 +888,22 @@ class ModulesComplicatedAlgorithms:
                 for module in self.__existing_modules_dict.values():
                     if module.get('dependencies') is not None:
                         for dependency in module['dependencies']:
-                            n = dependency.get('name')
-                            if n == name:
-                                r = dependency.get('revision')
-                                if r is not None:
-                                    if r == revision:
-                                        new = {'name': module['name'],
-                                               'revision': module['revision'],
-                                               'schema': module['schema']}
-                                        if new not in mod['dependents']:
-                                            mod['dependents'].append(new)
-                                            name_revision = '{}@{}'.format(mod['name'], mod['revision'])
-                                            if self.new_modules.get(name_revision) is None:
-                                                self.new_modules[name_revision] = mod
+                            if dependency.get('name') == name:
+                                rev = dependency.get('revision')
+                                if rev is None or rev == revision:
+                                    new = {'name': module['name'],
+                                            'revision': module['revision'],
+                                            'schema': module['schema']}
+                                    if new not in mod['dependents']:
+                                        mod['dependents'].append(new)
+                                        name_revision = '{}@{}'.format(mod['name'], mod['revision'])
+                                        if self.new_modules.get(name_revision) is None:
+                                            self.new_modules[name_revision] = mod
+                                        else:
+                                            if self.new_modules[name_revision].get('dependents') is None:
+                                                self.new_modules[name_revision]['dependents'] = mod['dependents']
                                             else:
-                                                if self.new_modules[name_revision].get('dependents') is None:
-                                                    self.new_modules[name_revision]['dependents'] = mod['dependents']
-                                                else:
-                                                    self.new_modules[name_revision]['dependents'].append(new)
-                                else:
-                                    if n == name:
-                                        new = {'name': module['name'],
-                                               'revision': module['revision'],
-                                               'schema': module['schema']}
-                                        if new not in mod['dependents']:
-                                            mod['dependents'].append(new)
-                                            name_revision = '{}@{}'.format(mod['name'], mod['revision'])
-                                            if self.new_modules.get(name_revision) is None:
-                                                self.new_modules[name_revision] = mod
-                                            else:
-                                                if self.new_modules[name_revision].get('dependents') is None:
-                                                    self.new_modules[name_revision]['dependents'] = mod['dependents']
-                                                else:
-                                                    self.new_modules[name_revision]['dependents'].append(new)
+                                                self.new_modules[name_revision]['dependents'].append(new)
 
     def __find_file(self, name: str, revision: str = '*'):
         yang_name = '{}.yang'.format(name)
