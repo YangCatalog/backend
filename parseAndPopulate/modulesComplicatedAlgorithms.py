@@ -135,23 +135,20 @@ class ModulesComplicatedAlgorithms:
                     for dep in val['dependents']:
                         found = False
                         for old_dep in old_module['dependents']:
-                            if (dep.get('name') == old_dep.get('name') or
-                                    dep.get('revision') == old_dep.get('revision') or
+                            if (dep.get('name') == old_dep.get('name') and
+                                    dep.get('revision') == old_dep.get('revision') and
                                     dep.get('schema') == old_dep.get('schema')):
-                                found = True
                                 break
-                        if not found:
+                        else:
                             if ret_modules.get(key) is None:
                                 ret_modules[key] = val
-                                break
-                            if ret_modules[key].get('dependents') is None:
+                            elif ret_modules[key].get('dependents') is None:
                                 ret_modules[key]['dependents'] = []
                             ret_modules[key]['name'] = val['name']
                             ret_modules[key]['revision'] = val['revision']
                             ret_modules[key]['organization'] = val['organization']
                             ret_modules[key]['dependents'].append(dep)
                             LOGGER.debug('dependents {} vs {}'.format(old_module['dependents'], dep))
-                            break
         end = time.time()
         LOGGER.debug('time taken to merge and remove {} seconds'.format(int(end - start)))
         return list(ret_modules.values())
