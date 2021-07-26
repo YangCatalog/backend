@@ -100,55 +100,40 @@ class ModulesComplicatedAlgorithms:
     def merge_modules_and_remove_not_updated(self):
         start = time.time()
         ret_modules = {}
-        for val in self.new_modules.values():
-            key = '{}@{}'.format(val['name'], val['revision'])
+        for key, new_module in self.new_modules.items():
             old_module = self.__existing_modules_dict.get(key)
             if old_module is None:
-                ret_modules[key] = val
+                ret_modules[key] = new_module
             else:
-                if (old_module.get('tree-type') != val.get('tree-type') or
-                        old_module.get('derived-semantic-version') != val.get('derived-semantic-version')):
+                if (old_module.get('tree-type') != new_module.get('tree-type') or
+                        old_module.get('derived-semantic-version') != new_module.get('derived-semantic-version')):
                     LOGGER.debug('{} tree {} vs {}, semver {} vs {}'.format(
-                        key, old_module.get('tree-type'), val.get('tree-type'),
-                        old_module.get('derived-semantic-version'), val.get('derived-semantic-version'))
+                        key, old_module.get('tree-type'), new_module.get('tree-type'),
+                        old_module.get('derived-semantic-version'), new_module.get('derived-semantic-version'))
                     )
-                    if ret_modules.get(key) is None:
-                        ret_modules[key] = val
-                    else:
-                        ret_modules[key]['name'] = val['name']
-                        ret_modules[key]['revision'] = val['revision']
-                        ret_modules[key]['organization'] = val['organization']
-                        ret_modules[key]['tree-type'] = val.get('tree-type')
-                        ret_modules[key]['derived-semantic-version'] = val.get('derived-semantic-version')
-                if val.get('dependents') is not None and len(val.get('dependents')) != 0:
+                    ret_modules[key] = new_module
+                if new_module.get('dependents'):
                     if old_module.get('dependents') is None:
                         if ret_modules.get(key) is None:
-                            ret_modules[key] = val
-                            LOGGER.debug('dependents {} vs {}'.format(None, val['dependents']))
-                            continue
-                        ret_modules[key]['name'] = val['name']
-                        ret_modules[key]['revision'] = val['revision']
-                        ret_modules[key]['organization'] = val['organization']
-                        ret_modules[key]['dependents'] = val['dependents']
-                        LOGGER.debug('dependents {} vs {}'.format(None, val['dependents']))
+                            ret_modules[key] = new_module
+                        LOGGER.debug('dependents {} vs {}'.format(None, new_module['dependents']))
                         continue
-                    for dep in val['dependents']:
-                        found = False
+                    for new_dep in new_module['dependents']:
                         for old_dep in old_module['dependents']:
-                            if (dep.get('name') == old_dep.get('name') and
-                                    dep.get('revision') == old_dep.get('revision') and
-                                    dep.get('schema') == old_dep.get('schema')):
+                            if (new_dep.get('name') == old_dep.get('name') and
+                                    new_dep.get('revision') == old_dep.get('revision') and
+                                    new_dep.get('schema') == old_dep.get('schema')):
                                 break
                         else:
                             if ret_modules.get(key) is None:
-                                ret_modules[key] = val
+                                ret_modules[key] = new_module
                             elif ret_modules[key].get('dependents') is None:
                                 ret_modules[key]['dependents'] = []
-                            ret_modules[key]['name'] = val['name']
-                            ret_modules[key]['revision'] = val['revision']
-                            ret_modules[key]['organization'] = val['organization']
-                            ret_modules[key]['dependents'].append(dep)
-                            LOGGER.debug('dependents {} vs {}'.format(old_module['dependents'], dep))
+                            ret_modules[key]['name'] = new_module['name']
+                            ret_modules[key]['revision'] = new_module['revision']
+                            ret_modules[key]['organization'] = new_module['organization']
+                            ret_modules[key]['dependents'].append(new_dep)
+                        LOGGER.debug('dependents {} vs {}'.format(old_module['dependents'], new_dep))
         end = time.time()
         LOGGER.debug('time taken to merge and remove {} seconds'.format(int(end - start)))
         return list(ret_modules.values())
