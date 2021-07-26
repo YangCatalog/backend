@@ -30,6 +30,7 @@ import configparser as ConfigParser
 
 import requests
 
+import utility.log as log
 from utility.util import job_log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
@@ -73,6 +74,8 @@ def main(scriptConf=None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
     log_directory = scriptConf.log_directory
+    LOGGER = log.get_logger('reviseTreeType', '{}/parseAndPopulate.log'.format(log_directory))
+    LOGGER.info('Starting Cron job for reviseTreeType')
     api_protocol = scriptConf.api_protocol
     ip = scriptConf.ip
     api_port = scriptConf.api_port
@@ -97,6 +100,7 @@ def main(scriptConf=None):
                                                                     direc, {}, yang_models, temp_dir)
     response = requests.get('{}search/modules'.format(yangcatalog_api_prefix))
     if response.status_code != 200:
+        LOGGER.error('Failed to fetch list of modules')
         job_log(start_time, temp_dir, os.path.basename(__file__), error=response.text, status='Fail')
         return
     modules_revise = []
@@ -105,8 +109,10 @@ def main(scriptConf=None):
         if module.get('tree-type') == 'nmda-compatible':
             if not complicatedAlgorithms.check_if_latest_revision(module):
                 modules_revise.append(module)
+    LOGGER.info('Resolving tree-types for {} modules'.format(len(modules_revise)))
     complicatedAlgorithms.resolve_tree_type({'module': modules_revise})
     complicatedAlgorithms.populate()
+    LOGGER.info('Job finished successfully')
     job_log(start_time, temp_dir, os.path.basename(__file__), status='Success')
 
 if __name__ == '__main__':
