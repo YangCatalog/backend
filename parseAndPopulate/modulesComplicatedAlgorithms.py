@@ -836,59 +836,37 @@ class ModulesComplicatedAlgorithms:
             mf.send_unavailable_modules(self.__unavailable_modules)
 
     def __parse_dependents(self):
-        x = 0
-        if self.__existing_modules_dict:
-            for mod in self.__all_modules.get('module', []):
-                name_revision = '{}@{}'.format(mod['name'], mod['revision'])
+        def add_dependents(dependents, dependencies):
+            x = 0
+            for dependent in dependents:
                 x += 1
-                LOGGER.info('Searching dependents for {}. {} out of {}'.format(name_revision, x,
-                                                                               len(self.__all_modules['module'])))
-                name = mod['name']
-                revision = mod['revision']
-                new_dependencies = mod.get('dependencies', [])
-                mod['dependents'] = mod.get('dependents', [])
-                # add dependents to already existing modules based on new dependencies from new modules
-                for new_dep in new_dependencies:
-                    for module in self.__existing_modules_dict.values():
-                        if module['name'] == new_dep['name']:
-                            rev = new_dep.get('revision')
-                            if rev is None or rev == module['revision']:
-                                new = {'name': name,
-                                       'revision': revision,
-                                       'schema': mod['schema']}
-                                if module.get('dependents') is None:
-                                    module['dependents'] = []
-                                if new not in module['dependents']:
-                                    module['dependents'].append(new)
-                                    name_revision = '{}@{}'.format(module['name'], module['revision'])
-                                    if self.new_modules.get(name_revision) is None:
-                                        self.new_modules[name_revision] = module
-                                    else:
-                                        if self.new_modules[name_revision].get('dependents') is None:
-                                            self.new_modules[name_revision]['dependents'] = module['dependents']
-                                        else:
-                                            self.new_modules[name_revision]['dependents'].append(new)
-
-                # add dependents to new modules based on existing modules dependencies
-                for module in self.__existing_modules_dict.values():
-                    if module.get('dependencies') is not None:
-                        for dependency in module['dependencies']:
-                            if dependency.get('name') == name:
-                                rev = dependency.get('revision')
-                                if rev is None or rev == revision:
-                                    new = {'name': module['name'],
-                                            'revision': module['revision'],
-                                            'schema': module['schema']}
-                                    if new not in mod['dependents']:
-                                        mod['dependents'].append(new)
-                                        name_revision = '{}@{}'.format(mod['name'], mod['revision'])
-                                        if self.new_modules.get(name_revision) is None:
-                                            self.new_modules[name_revision] = mod
-                                        else:
-                                            if self.new_modules[name_revision].get('dependents') is None:
-                                                self.new_modules[name_revision]['dependents'] = mod['dependents']
-                                            else:
-                                                self.new_modules[name_revision]['dependents'].append(new)
+                LOGGER.info('Adding {}@{} as dependent. {} out of {}'
+                            .format(dependent['name'], dependent['revision'], x, len(dependents)))
+                for dep_filter in dependent.get('dependencies', ()):
+                    name = dep_filter['name']
+                    revision = dep_filter.get('revision')
+                    for dependency in dependencies:
+                        if dependency['name'] == name and revision in (dependency['revision'], None):
+                            name_revision = '{}@{}'.format(dependency['name'], dependency['revision'])
+                            if name_revision not in self.new_modules:
+                                self.new_modules[name_revision] = dependency
+                            if 'dependents' not in self.new_modules[name_revision]:
+                                self.new_modules[name_revision]['dependents'] = []
+                            details = {
+                                'name': dependent['name'],
+                                'revision': dependent['revision'],
+                            }
+                            if 'schema' in dependent:
+                                details['schema'] = dependent['schema']
+                            if details not in self.new_modules[name_revision]['dependents']:
+                                self.new_modules[name_revision]['dependents'].append(details)
+        
+        all_modules = self.__all_modules.get('module')
+        existing_modules = list(self.__existing_modules_dict.values())
+        LOGGER.info('Adding new modules as dependents')
+        add_dependents(all_modules, all_modules + existing_modules)
+        LOGGER.info('Adding existing modules as dependents')
+        add_dependents(existing_modules, all_modules)
 
     def __find_file(self, name: str, revision: str = '*'):
         yang_name = '{}.yang'.format(name)
