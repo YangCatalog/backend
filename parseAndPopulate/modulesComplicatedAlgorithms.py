@@ -286,7 +286,7 @@ class ModulesComplicatedAlgorithms:
             return True
 
         def is_transitional(rows, output):
-            if output.split('\n')[1].endswith('-state'):
+            if output.split('\n')[1].endswith('-state') and output.split('\n')[0].endswith('-state'):
                 if '+--rw' in output:
                     return False
                 if output.startswith('\n'):
