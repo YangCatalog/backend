@@ -32,7 +32,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestModulesComplicatedAlgorithmsClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.prepare_json = self.load_from_json('modulesComplicatedAlgorithms_prepare_json')
+        self.semver_prepare_json = self.load_from_json('modulesComplicatedAlgorithms_prepare_json')
+        self.tree_type_prepare_json = self.load_from_json('parse_tree_type')
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'
         self.save_file_dir = '{}/all_modules'.format(self.resources_path)
         self.direc = '{}/tmp/mca-tests'.format(self.resources_path)
@@ -62,7 +63,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Arguments:
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -96,7 +97,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Arguments:
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -130,7 +131,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Arguments:
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -165,7 +166,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Arguments:
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -200,7 +201,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Arguments:
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -235,7 +236,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Arguments:
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -273,7 +274,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         expected_semver_order = ['1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1']
-        modules = self.prepare_json.get('module')
+        modules = self.semver_prepare_json.get('module')
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
@@ -297,6 +298,45 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         for revision, expected_version in zip(revisions, expected_semver_order):
             new_module = complicatedAlgorithms.new_modules['semver-test'].get(revision, {})
             self.assertEqual(new_module.get('derived-semantic-version'), expected_version)
+
+    @mock.patch('parseAndPopulate.prepare.requests.get')
+    def test_parse_non_requests_openconfig(self, mock_requests_get: mock.MagicMock):
+        module = self.tree_type_prepare_json.get('module')[0]
+        all_modules = {'module': [module]}
+        mock_requests_get.return_value.json.return_value = {'module': []}
+
+        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+        complicatedAlgorithms.parse_non_requests()
+        name_revision = '{}@{}'.format(module['name'], module['revision'])
+        self.assertEqual(complicatedAlgorithms.new_modules[name_revision]['tree-type'], 'openconfig')
+
+    @mock.patch('parseAndPopulate.prepare.requests.get')
+    def test_parse_non_requests_split(self, mock_requests_get: mock.MagicMock):
+        module = self.tree_type_prepare_json.get('module')[1]
+        all_modules = {'module': [module]}
+        mock_requests_get.return_value.json.return_value = {'module': []}
+
+        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+        complicatedAlgorithms.parse_non_requests()
+        name_revision = '{}@{}'.format(module['name'], module['revision'])
+        self.assertEqual(complicatedAlgorithms.new_modules[name_revision]['tree-type'], 'split')
+
+    @mock.patch('parseAndPopulate.prepare.requests.get')
+    def test_parse_non_requests_combined(self, mock_requests_get: mock.MagicMock):
+        module = self.tree_type_prepare_json.get('module')[2]
+        all_modules = {'module': [module]}
+        mock_requests_get.return_value.json.return_value = {'module': []}
+
+        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
+                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+        complicatedAlgorithms.parse_non_requests()
+        name_revision = '{}@{}'.format(module['name'], module['revision'])
+        self.assertEqual(complicatedAlgorithms.new_modules[name_revision]['tree-type'], 'nmda-compatible')
 
     ##########################
     ### HELPER DEFINITIONS ###
