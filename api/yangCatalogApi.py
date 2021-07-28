@@ -43,15 +43,15 @@ import collections
 import errno
 import grp
 import json
+import logging
 import os
 import pwd
 import shutil
+import stat
 import sys
 import threading
 import time
 import uuid
-import stat
-import logging
 from datetime import datetime, timedelta
 from threading import Lock
 
@@ -137,7 +137,7 @@ class MyFlask(Flask):
                 if modules:
                     if len(modules) > 0:
                         newlist = sorted(modules, key=lambda k: k['name'])
-                        temp_module = None
+                        temp_module = {}
                         i = 0
                         for mod in newlist:
                             name = mod['name']
@@ -564,8 +564,8 @@ def load_uwsgi_cache():
     if len(modules) != 0:
         existing_keys = ["modules-data", "vendors-data", "all-catalog-data"]
         # recreate keys to redis if there are any
-        for i, mod in enumerate(modules['module']):
-            key = mod['name'] + '@' + mod['revision'] + '/' + mod['organization']
+        for _, mod in enumerate(modules['module']):
+            key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
             existing_keys.append(key)
             value = json.dumps(mod)
             yc_gc.redis.set(key, value)
