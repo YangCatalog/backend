@@ -529,6 +529,58 @@ class ModulesComplicatedAlgorithms:
             else:
                 self.new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
 
+        def get_trees(new, old):
+            new_name_revision = '{}@{}'.format(new['name'], new['revision'])
+            old_name_revision = '{}@{}'.format(old['name'], old['revision'])
+            new_schema = '{}/{}.yang'.format(self.__save_file_dir, new_name_revision)
+            old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
+            new_schema_exist = self.__check_schema_file(new)
+            old_schema_exist = self.__check_schema_file(old)
+
+            if old_schema_exist and new_schema_exist:
+                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
+                                                                self.__yang_models,
+                                                                self.__save_file_dir)
+                if len(ctx.errors) == 0:
+                    if new_name_revision in self.__trees and old_name_revision in self.__trees:
+                        new_yang_tree = self.__trees[new_name_revision]
+                        old_yang_tree = self.__trees[old_name_revision]
+                    else:
+                        with open(old_schema, 'r', errors='ignore') as f:
+                            old_schema_ctx = ctx.add_module(old_schema, f.read())
+                        if ctx.opts.tree_path is not None:
+                            path = ctx.opts.tree_path.split('/')
+                            if path[0] == '':
+                                path = path[1:]
+                        else:
+                            path = None
+                        retry = 5
+                        while retry:
+                            try:
+                                ctx.validate()
+                                break
+                            except Exception as e:
+                                retry -= 1
+                                if retry == 0:
+                                    raise e
+                        try:
+                            f = io.StringIO()
+                            emit_tree(ctx, [new_schema_ctx], f, ctx.opts.tree_depth,
+                                        ctx.opts.tree_line_length, path)
+                            new_yang_tree = f.getvalue()
+                        except:
+                            new_yang_tree = ''
+                        try:
+                            f = io.StringIO()
+                            emit_tree(ctx, [old_schema_ctx], f, ctx.opts.tree_depth,
+                                        ctx.opts.tree_line_length, path)
+                            old_yang_tree = f.getvalue()
+                        except:
+                            old_yang_tree = '2'
+                    return (new_yang_tree, old_yang_tree)
+                else:
+                    raise Exception
+
         z = 0
         for module in self.__all_modules.get('module', []):
             z += 1
@@ -600,69 +652,21 @@ class ModulesComplicatedAlgorithms:
                     else:
                         if mod_details[-2]['compilation'] != 'passed':
                             update_semver(mod_details[-2], module, 0)
-                            continue
                         else:
-                            new_name_revision = '{}@{}'.format(mod_details[-1]['name'], mod_details[-1]['revision'])
-                            old_name_revision = '{}@{}'.format(mod_details[-2]['name'], mod_details[-2]['revision'])
-                            new_schema = '{}/{}.yang'.format(self.__save_file_dir, new_name_revision)
-                            old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
-                            old_schema_exist = self.__check_schema_file(mod_details[-2])
-                            new_schema_exist = self.__check_schema_file(mod_details[-1])
-
-                            if old_schema_exist and new_schema_exist:
-                                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
-                                                                                self.__yang_models,
-                                                                                self.__save_file_dir)
-                                if len(ctx.errors) == 0:
-                                    if new_name_revision in self.__trees and old_name_revision in self.__trees:
-                                        new_yang_tree = self.__trees[new_name_revision]
-                                        old_yang_tree = self.__trees[old_name_revision]
-                                    else:
-                                        with open(old_schema, 'r', errors='ignore') as f:
-                                            old_schema_ctx = ctx.add_module(old_schema, f.read())
-                                        if ctx.opts.tree_path is not None:
-                                            path = ctx.opts.tree_path.split('/')
-                                            if path[0] == '':
-                                                path = path[1:]
-                                        else:
-                                            path = None
-                                        retry = 5
-                                        while retry:
-                                            try:
-                                                ctx.validate()
-                                                break
-                                            except Exception as e:
-                                                retry -= 1
-                                                if retry == 0:
-                                                    raise e
-                                        try:
-                                            f = io.StringIO()
-                                            emit_tree(ctx, [new_schema_ctx], f, ctx.opts.tree_depth,
-                                                      ctx.opts.tree_line_length, path)
-                                            new_yang_tree = f.getvalue()
-                                        except:
-                                            new_yang_tree = ''
-
-                                        try:
-                                            f = io.StringIO()
-                                            emit_tree(ctx, [old_schema_ctx], f, ctx.opts.tree_depth,
-                                                      ctx.opts.tree_line_length, path)
-                                            old_yang_tree = f.getvalue()
-                                        except:
-                                            old_yang_tree = '2'
-
+                            try:
+                                trees = get_trees(mod_details[-1], mod_details[-2])
+                                # if schemas do not exist, trees will be None
+                                if trees:
+                                    new_yang_tree, old_yang_tree = trees
                                     if old_yang_tree == new_yang_tree:
                                         # yang trees are the same - update only the patch version
                                         update_semver(mod_details[-2], module, 2)
-                                        continue
                                     else:
                                         # yang trees have changed - update minor version
                                         update_semver(mod_details[-2], module, 1)
-                                        continue
-                                else:
-                                    # pyang found an error - update major version
-                                    update_semver(mod_details[-2], module, 0)
-                                    continue
+                            except:
+                                # pyang found an error - update major version
+                                update_semver(mod_details[-2], module, 0)
                 # If we are adding new module in the middle (between two revisions) of existing modules with this name
                 else:
                     name_revision = '{}@{}'.format(mod_details[0]['name'], mod_details[0]['revision'])
@@ -686,53 +690,12 @@ class ModulesComplicatedAlgorithms:
                                 update_semver(mod_details[x - 1], module, 0)
                                 mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
                             else:
-                                #TODO: duplication
                                 # Both actual and previous revisions have the compilation status 'passed'
-                                new_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, mod_details[x]['name'], mod_details[x]['revision'])
-                                old_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, mod_details[x - 1]['name'], mod_details[x - 1]['revision'])
-                                old_schema_exist = self.__check_schema_file(mod_details[x - 1])
-                                new_schema_exist = self.__check_schema_file(mod_details[x])
-
-                                if old_schema_exist and new_schema_exist:
-                                    ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, self.__yang_models, self.__save_file_dir)
-                                    if len(ctx.errors) == 0:
-                                        if ('{}@{}'.format(mod_details[x - 1]['name'], mod_details[x - 1]['revision']) in self.__trees and
-                                                '{}@{}'.format(mod_details[x]['name'], mod_details[x]['revision']) in self.__trees):
-                                            old_yang_tree = self.__trees['{}@{}'.format(mod_details[x - 1]['name'], mod_details[x - 1]['revision'])]
-                                            new_yang_tree = self.__trees['{}@{}'.format(mod_details[x]['name'], mod_details[x]['revision'])]
-                                        else:
-                                            with open(old_schema, 'r', errors='ignore') as f:
-                                                old_schema_ctx = ctx.add_module(old_schema, f.read())
-                                            if ctx.opts.tree_path is not None:
-                                                path = ctx.opts.tree_path.split('/')
-                                                if path[0] == '':
-                                                    path = path[1:]
-                                            else:
-                                                path = None
-                                            retry = 5
-                                            while retry:
-                                                try:
-                                                    ctx.validate()
-                                                    break
-                                                except Exception as e:
-                                                    retry -= 1
-                                                    if retry == 0:
-                                                        raise e
-                                            try:
-                                                f = io.StringIO()
-                                                emit_tree(ctx, [new_schema_ctx], f, ctx.opts.tree_depth,
-                                                          ctx.opts.tree_line_length, path)
-                                                new_yang_tree = f.getvalue()
-                                            except:
-                                                new_yang_tree = ''
-                                            try:
-                                                f = io.StringIO()
-
-                                                emit_tree(ctx, [old_schema_ctx], f, ctx.opts.tree_depth,
-                                                          ctx.opts.tree_line_length, path)
-                                                old_yang_tree = f.getvalue()
-                                            except:
-                                                old_yang_tree = '2'
+                                try:
+                                    trees = get_trees(mod_details[x], mod_details[x - 1])
+                                    # if schemas do not exist, trees will be None
+                                    if trees:
+                                        new_yang_tree, old_yang_tree = trees
                                         if old_yang_tree == new_yang_tree:
                                             # yang trees are the same - update only the patch version
                                             update_semver(mod_details[x - 1], module, 2)
@@ -743,10 +706,10 @@ class ModulesComplicatedAlgorithms:
                                             update_semver(mod_details[x - 1], module, 1)
                                             mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
                                                                                         1)
-                                    else:
-                                        # pyang found an error - update major version
-                                        update_semver(mod_details[x - 1], module, 0)
-                                        mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
+                                except:
+                                    # pyang found an error - update major version
+                                    update_semver(mod_details[x - 1], module, 0)
+                                    mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
 
         if len(self.__unavailable_modules) != 0:
             mf = messageFactory.MessageFactory()
