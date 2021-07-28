@@ -132,6 +132,53 @@
         {"compilation-result": "https://yangcatalog.org/results/fujitsu-ip@2018-04-17_ietf.html", "compilation-status": "failed", "contact": "Fujitsu Ltd.\n\nAddress: 2801 Telecom Parkway\nRichardson, Texas 75082\n\nTel: +1-800-USE-FTAC (1-800-873-3822)\nEmail: ftac@fnc.fujitsu.com\nWeb: www.fujitsu.com/us/services/telecom", "dependencies": [{"name": "ietf-interfaces", "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T100/2.4/yang/standards/ietf-interfaces.yang"}, {"name": "ietf-ip", "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T100/2.4/yang/standards/ietf-ip.yang"}, {"name": "ietf-yang-types", "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T100/2.4/yang/standards/ietf-yang-types.yang"}], "derived-semantic-version": "1.0.0", "description": "This file contains the extensions\nfor the ietf ip yang model.\n\n Copyright (c) 2016 Fujitsu Ltd.\n   All rights reserved. ", "expired": "not-applicable", "generated-from": "not-applicable", "implementations": {"implementation": [{"conformance-type": "implement", "feature-set": "ALL", "os-type": "FSS2 Linux", "os-version": "2.4", "platform": "T100", "software-flavor": "Linux", "software-version": "2.4", "vendor": "fujitsu"}]}, "maturity-level": "not-applicable", "module-classification": "unknown", "module-type": "module", "name": "fujitsu-ip", "namespace": "urn:fujitsu:params:xml:ns:yang:ietf-ip-ext", "organization": "ietf", "prefix": "fujitsu-ip", "revision": "2018-04-17", "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/c2811ba575971f160911dbcaf4d7d37449091eba/FSS2-API-Yang/T100/2.4/yang/fujitsu-ip.yang", "tree-type": "split", "yang-tree": "https://yangcatalog.org/api/services/tree/fujitsu-ip@2018-04-17.yang", "yang-version": "1.0"},
         {"compilation-result": "https://yangcatalog.org/results/fujitsu-database@2017-11-13_fujitsu.html", "compilation-status": "failed", "contact": "Fujitsu Limited\n\nAddress: 2801 Telecom Parkway\n         Richardson, Texas 75082\n\nTel: +1-800-USE-FTAC (1-800-873-3822)\nEmail: ftac@fnc.fujitsu.com\nWeb: www.fujitsu.com/us/services/telecom", "dependencies": [{"name": "ietf-yang-types", "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T100/2.4/yang/standards/ietf-yang-types.yang"}], "derived-semantic-version": "1.0.0", "description": "This module contains definitions for System Management.\n\nCopyright (c) 2015 Fujitsu Limited\nAll rights reserved. ", "expired": "not-applicable", "generated-from": "not-applicable", "implementations": {"implementation": [{"conformance-type": "implement", "feature-set": "ALL", "os-type": "FSS2 Linux", "os-version": "2.4", "platform": "T100", "software-flavor": "Linux", "software-version": "2.4", "vendor": "fujitsu"}]}, "maturity-level": "not-applicable", "module-classification": "unknown", "module-type": "module", "name": "fujitsu-database", "namespace": "urn:fujitsu:params:xml:ns:yang:fujitsu-database", "organization": "fujitsu", "prefix": "fujitsu-database", "revision": "2017-11-13", "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/c2811ba575971f160911dbcaf4d7d37449091eba/FSS2-API-Yang/T100/2.4/yang/fujitsu-database.yang", "tree-type": "nmda-compatible", "yang-tree": "https://yangcatalog.org/api/services/tree/fujitsu-database@2017-11-13.yang", "yang-version": "1.0"}]
     },
+    "parse_dependents": [
+        {
+            "existing": [
+                {
+                    "name": "e1",
+                    "revision": "1",
+                    "tree-type": "oak",
+                    "derived-semantic-version": "1",
+                    "dependents": [],
+                    "dependencies": []
+                },
+                {
+                    "name": "e2",
+                    "revision": "1",
+                    "tree-type": "oak",
+                    "derived-semantic-version": "1",
+                    "dependents": [],
+                    "dependencies": [{
+                        "name": "n1"
+                    }]
+                }
+            ],
+            "new": [
+                {
+                    "name": "n1",
+                    "revision": "1",
+                    "dependents": [],
+                    "dependencies": [{
+                        "name": "e1"
+                    }]
+                },
+                {
+                    "name": "n2",
+                    "revision": "1",
+                    "dependents": [],
+                    "dependencies": [
+                        {
+                            "name": "n1"
+                        },
+                        {
+                            "name": "e1"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
     "git_submodule_huawei": {
         "module": [{"name": "huawei-aaa", "revision": "2020-07-01", "organization": "huawei", "schema": "https://raw.githubusercontent.com/Huawei/yang/master/network-router/8.20.0/ne5000e/huawei-aaa.yang", "generated-from": "not-applicable", "module-classification": "unknown", "compilation-status": "unknown", "compilation-result": "https://yangcatalog.org/results/huawei-aaa@2020-07-01_huawei.html", "prefix": "aaa", "yang-version": "1.0", "description": "Security management, which includes the management on authentication, authorization, accounting, domains, and users.", "contact": "Huawei Industrial Base\nBantian, Longgang\nShenzhen 518129\nPeople's Republic of China\nWebsite: http://www.huawei.com\nEmail: support@huawei.com", "module-type": "module", "yang-tree": "https://yangcatalog.org/api/services/tree/huawei-aaa@2020-07-01.yang", "namespace": "urn:huawei:yang:huawei-aaa", "dependencies": [{"name": "huawei-hwtacacs"}, {"name": "huawei-extension"}]}]
     }
