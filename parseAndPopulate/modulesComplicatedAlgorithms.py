@@ -498,7 +498,7 @@ class ModulesComplicatedAlgorithms:
                     self.new_modules[name_revision]['tree-type'] = module['tree-type']
 
     def parse_semver(self):
-        def __get_revision_datetime(module: dict):
+        def get_revision_datetime(module: dict):
             rev = module['revision'].split('-')
             try:
                 date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
@@ -512,6 +512,22 @@ class ModulesComplicatedAlgorithms:
                 except Exception:
                     date = datetime(1970, 1, 1)
             return date
+
+        def increment_semver(old, significance):
+            versions = old.split('.')
+            versions = list(map(int, versions))
+            versions[significance] += 1
+            versions[significance + 1:] = [0] * len(versions[significance + 1:])
+            return '{}.{}.{}'.format(*versions)
+
+        def update_semver(old_details, new_module, significance):
+            name_revision = '{}@{}'.format(new_module['name'], new_module['revision'])
+            upgraded_version = increment_semver(old_details['semver'], significance)
+            new_module['derived-semantic-version'] = upgraded_version
+            if name_revision not in self.new_modules:
+                self.new_modules[name_revision] = new_module
+            else:
+                self.new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
 
         z = 0
         for module in self.__all_modules.get('module', []):
@@ -535,7 +551,7 @@ class ModulesComplicatedAlgorithms:
                     self.new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
             else:
                 # If there is at least one revision for this module
-                date = __get_revision_datetime(module)
+                date = get_revision_datetime(module)
                 module_temp = {}
                 module_temp['name'] = module['name']
                 module_temp['revision'] = module['revision']
@@ -543,44 +559,36 @@ class ModulesComplicatedAlgorithms:
                 module_temp['compilation'] = module.get('compilation-status', 'PENDING')
                 module_temp['date'] = date
                 module_temp['schema'] = module['schema']
-                modules = [module_temp]
-                semver_exist = True
-                if sys.version_info >= (3, 4):
-                    mod_list = data.items()
-                else:
-                    mod_list = data.iteritems()
+                mod_details = [module_temp]
 
                 # Loop through all other available revisions of the module
-                for key, mod in mod_list:
+                for mod in data.values():
                     module_temp = {}
                     revision = mod['revision']
                     if revision == module['revision']:
                         continue
                     module_temp['revision'] = revision
-                    module_temp['date'] = __get_revision_datetime(mod)
+                    module_temp['date'] = get_revision_datetime(mod)
                     module_temp['name'] = mod['name']
                     module_temp['organization'] = mod.get('organization')
                     module_temp['schema'] = mod.get('schema')
                     module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
-                    module_temp['semver'] = mod.get('derived-semantic-version')
-                    if module_temp['semver'] is None:
-                        semver_exist = False
-                    modules.append(module_temp)
+                    module_temp['semver'] = mod['derived-semantic-version']
+                    mod_details.append(module_temp)
                 data[name_revision] = module
-                # NOTE: Can the following IF branch ever be True?
-                if len(modules) == 1:
+                if len(mod_details) == 1:
                     module['derived-semantic-version'] = '1.0.0'
                     if self.new_modules.get(name_revision) is None:
                         self.new_modules[name_revision] = module
                     else:
                         self.new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
                     continue
-                modules = sorted(modules, key=lambda k: k['date'])
-                # If we are adding new module to the end (latest revision) of existing modules with this name
+                mod_details = sorted(mod_details, key=lambda k: k['date'])
+                # If we are adding a new module to the end (latest revision) of existing modules with this name
                 # and all modules with this name have semver already assigned except for the last one
-                if modules[-1]['date'] == date and semver_exist:
-                    if modules[-1]['compilation'] != 'passed':
-                        versions = modules[-2]['semver'].split('.')
+                if mod_details[-1]['date'] == date:
+                    if mod_details[-1]['compilation'] != 'passed':
+                        versions = mod_details[-2]['semver'].split('.')
                         major_ver = int(versions[0])
                         major_ver += 1
                         upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
@@ -590,30 +598,25 @@ class ModulesComplicatedAlgorithms:
                         else:
                             self.new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
                     else:
-                        if modules[-2]['compilation'] != 'passed':
-                            versions = modules[-2]['semver'].split('.')
-                            major_ver = int(versions[0])
-                            major_ver += 1
-                            upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
-                            module['derived-semantic-version'] = upgraded_version
-                            if self.new_modules.get(name_revision) is None:
-                                self.new_modules[name_revision] = module
-                            else:
-                                self.new_modules[name_revision]['derived-semantic-version'] = module['derived-semantic-version']
+                        if mod_details[-2]['compilation'] != 'passed':
+                            update_semver(mod_details[-2], module, 0)
                             continue
                         else:
-                            new_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[-1]['name'], modules[-1]['revision'])
-                            old_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[-2]['name'], modules[-2]['revision'])
-                            old_schema_exist = self.__check_schema_file(modules[-2])
-                            new_schema_exist = self.__check_schema_file(modules[-1])
+                            new_name_revision = '{}@{}'.format(mod_details[-1]['name'], mod_details[-1]['revision'])
+                            old_name_revision = '{}@{}'.format(mod_details[-2]['name'], mod_details[-2]['revision'])
+                            new_schema = '{}/{}.yang'.format(self.__save_file_dir, new_name_revision)
+                            old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
+                            old_schema_exist = self.__check_schema_file(mod_details[-2])
+                            new_schema_exist = self.__check_schema_file(mod_details[-1])
 
                             if old_schema_exist and new_schema_exist:
-                                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, self.__yang_models, self.__save_file_dir)
+                                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
+                                                                                self.__yang_models,
+                                                                                self.__save_file_dir)
                                 if len(ctx.errors) == 0:
-                                    if ('{}@{}'.format(modules[-1]['name'], modules[-1]['revision']) in self.__trees and
-                                            '{}@{}'.format(modules[-2]['name'], modules[-2]['revision']) in self.__trees):
-                                        new_yang_tree = self.__trees['{}@{}'.format(modules[-1]['name'], modules[-1]['revision'])]
-                                        old_yang_tree = self.__trees['{}@{}'.format(modules[-2]['name'], modules[-2]['revision'])]
+                                    if new_name_revision in self.__trees and old_name_revision in self.__trees:
+                                        new_yang_tree = self.__trees[new_name_revision]
+                                        old_yang_tree = self.__trees[old_name_revision]
                                     else:
                                         with open(old_schema, 'r', errors='ignore') as f:
                                             old_schema_ctx = ctx.add_module(old_schema, f.read())
@@ -650,108 +653,53 @@ class ModulesComplicatedAlgorithms:
 
                                     if old_yang_tree == new_yang_tree:
                                         # yang trees are the same - update only the patch version
-                                        versions = modules[-2]['semver'].split('.')
-                                        patch_ver = int(versions[2])
-                                        patch_ver += 1
-                                        upgraded_version = '{}.{}.{}'.format(versions[0], versions[1], patch_ver)
-                                        module['derived-semantic-version'] = upgraded_version
-                                        if self.new_modules.get(name_revision) is None:
-                                            self.new_modules[name_revision] = module
-                                        else:
-                                            self.new_modules[name_revision]['derived-semantic-version'] = module[
-                                                'derived-semantic-version']
+                                        update_semver(mod_details[-2], module, 2)
                                         continue
                                     else:
                                         # yang trees have changed - update minor version
-                                        versions = modules[-2]['semver'].split('.')
-                                        minor_ver = int(versions[1])
-                                        minor_ver += 1
-                                        upgraded_version = '{}.{}.{}'.format(versions[0], minor_ver, 0)
-                                        module['derived-semantic-version'] = upgraded_version
-                                        if self.new_modules.get(name_revision) is None:
-                                            self.new_modules[name_revision] = module
-                                        else:
-                                            self.new_modules[name_revision]['derived-semantic-version'] = module[
-                                                'derived-semantic-version']
+                                        update_semver(mod_details[-2], module, 1)
                                         continue
                                 else:
                                     # pyang found an error - update major version
-                                    versions = modules[-2]['semver'].split('.')
-                                    major_ver = int(versions[0])
-                                    major_ver += 1
-                                    upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
-                                    module['derived-semantic-version'] = upgraded_version
-                                    if self.new_modules.get(name_revision) is None:
-                                        self.new_modules[name_revision] = module
-                                    else:
-                                        self.new_modules[name_revision]['derived-semantic-version'] = module[
-                                            'derived-semantic-version']
+                                    update_semver(mod_details[-2], module, 0)
                                     continue
+                # If we are adding new module in the middle (between two revisions) of existing modules with this name
                 else:
-                    # If we are adding new module in the middle (between two revisions) of existing modules with this name
-                    mod = {}
-                    mod['name'] = modules[0]['name']
-                    mod['revision'] = modules[0]['revision']
-                    mod['organization'] = modules[0]['organization']
-                    modules[0]['semver'] = '1.0.0'
-                    response = data['{}@{}'.format(mod['name'], mod['revision'])]
+                    name_revision = '{}@{}'.format(mod_details[0]['name'], mod_details[0]['revision'])
+                    mod_details[0]['semver'] = '1.0.0'
+                    response = data[name_revision]
                     response['derived-semantic-version'] = '1.0.0'
-                    name_revision = '{}@{}'.format(response['name'], response['revision'])
-                    if self.new_modules.get(name_revision) is None:
+                    if name_revision not in self.new_modules:
                         self.new_modules[name_revision] = response
                     else:
                         self.new_modules[name_revision]['derived-semantic-version'] = response[
                             'derived-semantic-version']
-                    for x in range(1, len(modules)):
-                        mod = {}
-                        mod['name'] = modules[x]['name']
-                        mod['revision'] = modules[x]['revision']
-                        mod['organization'] = modules[x]['organization']
-                        if modules[x]['compilation'] != 'passed':
-                            versions = modules[x - 1]['semver'].split('.')
-                            major_ver = int(versions[0])
-                            major_ver += 1
-                            upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
-                            modules[x]['semver'] = upgraded_version
-                            response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                            response['derived-semantic-version'] = upgraded_version
-                            name_revision = '{}@{}'.format(response['name'], response['revision'])
-                            if self.new_modules.get(name_revision) is None:
-                                self.new_modules[name_revision] = response
-                            else:
-                                self.new_modules[name_revision]['derived-semantic-version'] = response[
-                                    'derived-semantic-version']
+                    for x in range(1, len(mod_details)):
+                        name_revision = '{}@{}'.format(mod_details[x]['name'], mod_details[x]['revision'])
+                        module = data[name_revision]
+                        if mod_details[x]['compilation'] != 'passed':
+                            update_semver(mod_details[x - 1], module, 0)
+                            mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
                         else:
                             # If the previous revision has the compilation status 'passed'
-                            if modules[x - 1]['compilation'] != 'passed':
-                                versions = modules[x - 1]['semver'].split('.')
-                                major_ver = int(versions[0])
-                                major_ver += 1
-                                upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
-                                modules[x]['semver'] = upgraded_version
-                                response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                                response['derived-semantic-version'] = upgraded_version
-                                name_revision = '{}@{}'.format(response['name'], response['revision'])
-                                if self.new_modules.get(name_revision) is None:
-                                    self.new_modules[name_revision] = response
-                                else:
-                                    self.new_modules[name_revision]['derived-semantic-version'] = response[
-                                        'derived-semantic-version']
-                                continue
+                            if mod_details[x - 1]['compilation'] != 'passed':
+                                update_semver(mod_details[x - 1], module, 0)
+                                mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
                             else:
+                                #TODO: duplication
                                 # Both actual and previous revisions have the compilation status 'passed'
-                                new_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[x]['name'], modules[x]['revision'])
-                                old_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, modules[x - 1]['name'], modules[x - 1]['revision'])
-                                old_schema_exist = self.__check_schema_file(modules[x - 1])
-                                new_schema_exist = self.__check_schema_file(modules[x])
+                                new_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, mod_details[x]['name'], mod_details[x]['revision'])
+                                old_schema = '{}/{}@{}.yang'.format(self.__save_file_dir, mod_details[x - 1]['name'], mod_details[x - 1]['revision'])
+                                old_schema_exist = self.__check_schema_file(mod_details[x - 1])
+                                new_schema_exist = self.__check_schema_file(mod_details[x])
 
                                 if old_schema_exist and new_schema_exist:
                                     ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, self.__yang_models, self.__save_file_dir)
                                     if len(ctx.errors) == 0:
-                                        if ('{}@{}'.format(modules[x - 1]['name'], modules[x - 1]['revision']) in self.__trees and
-                                                '{}@{}'.format(modules[x]['name'], modules[x]['revision']) in self.__trees):
-                                            old_yang_tree = self.__trees['{}@{}'.format(modules[x - 1]['name'], modules[x - 1]['revision'])]
-                                            new_yang_tree = self.__trees['{}@{}'.format(modules[x]['name'], modules[x]['revision'])]
+                                        if ('{}@{}'.format(mod_details[x - 1]['name'], mod_details[x - 1]['revision']) in self.__trees and
+                                                '{}@{}'.format(mod_details[x]['name'], mod_details[x]['revision']) in self.__trees):
+                                            old_yang_tree = self.__trees['{}@{}'.format(mod_details[x - 1]['name'], mod_details[x - 1]['revision'])]
+                                            new_yang_tree = self.__trees['{}@{}'.format(mod_details[x]['name'], mod_details[x]['revision'])]
                                         else:
                                             with open(old_schema, 'r', errors='ignore') as f:
                                                 old_schema_ctx = ctx.add_module(old_schema, f.read())
@@ -787,49 +735,18 @@ class ModulesComplicatedAlgorithms:
                                                 old_yang_tree = '2'
                                         if old_yang_tree == new_yang_tree:
                                             # yang trees are the same - update only the patch version
-                                            versions = modules[x - 1]['semver'].split('.')
-                                            patch_ver = int(versions[2])
-                                            patch_ver += 1
-                                            upgraded_version = '{}.{}.{}'.format(versions[0], versions[1], patch_ver)
-                                            modules[x]['semver'] = upgraded_version
-                                            response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                                            response['derived-semantic-version'] = upgraded_version
-                                            name_revision = '{}@{}'.format(response['name'], response['revision'])
-                                            if self.new_modules.get(name_revision) is None:
-                                                self.new_modules[name_revision] = response
-                                            else:
-                                                self.new_modules[name_revision]['derived-semantic-version'] = response[
-                                                    'derived-semantic-version']
+                                            update_semver(mod_details[x - 1], module, 2)
+                                            mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
+                                                                                        2)
                                         else:
                                             # yang trees have changed - update minor version
-                                            versions = modules[x - 1]['semver'].split('.')
-                                            minor_ver = int(versions[1])
-                                            minor_ver += 1
-                                            upgraded_version = '{}.{}.{}'.format(versions[0], minor_ver, 0)
-                                            modules[x]['semver'] = upgraded_version
-                                            response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                                            response['derived-semantic-version'] = upgraded_version
-                                            name_revision = '{}@{}'.format(response['name'], response['revision'])
-                                            if self.new_modules.get(name_revision) is None:
-                                                self.new_modules[name_revision] = response
-                                            else:
-                                                self.new_modules[name_revision]['derived-semantic-version'] = response[
-                                                    'derived-semantic-version']
+                                            update_semver(mod_details[x - 1], module, 1)
+                                            mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
+                                                                                        1)
                                     else:
                                         # pyang found an error - update major version
-                                        versions = modules[x - 1]['semver'].split('.')
-                                        major_ver = int(versions[0])
-                                        major_ver += 1
-                                        upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
-                                        modules[x]['semver'] = upgraded_version
-                                        response = data['{}@{}'.format(mod['name'], mod['revision'])]
-                                        response['derived-semantic-version'] = upgraded_version
-                                        name_revision = '{}@{}'.format(response['name'], response['revision'])
-                                        if self.new_modules.get(name_revision) is None:
-                                            self.new_modules[name_revision] = response
-                                        else:
-                                            self.new_modules[name_revision]['derived-semantic-version'] = response[
-                                                'derived-semantic-version']
+                                        update_semver(mod_details[x - 1], module, 0)
+                                        mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
 
         if len(self.__unavailable_modules) != 0:
             mf = messageFactory.MessageFactory()
