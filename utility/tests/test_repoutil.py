@@ -17,14 +17,15 @@ __copyright__ = "Copyright The IETF Trust 2019, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "stanislav.chlebec@pantheon.tech"
 
-import unittest
-import utility.repoutil as repo
-import os
-from git.exc import GitCommandError
-import logging
 import configparser
-from git import Repo
+import logging
+import os
 import subprocess
+import unittest
+
+import utility.repoutil as repo
+from git import Repo
+from git.exc import GitCommandError
 
 test_repo_dir = '~/work/yang'
 
@@ -237,7 +238,7 @@ class TestRepoutil(unittest.TestCase):
 
 		self.assertEqual(self.repo5.get_commit_hash(), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
 		self.assertEqual(self.repo5.get_commit_hash(None, 'master'), '007fdc8e7d9c6ff70f2c9624c68aa83ef993b45a')
-		self.assertEqual(self.repo5.get_commit_hash('backend','tests'), 'd7d499416b443f2e0d7594cad0b13b551d90dd3a')
+		self.assertEqual(self.repo5.get_commit_hash('backend','tests'), '9de21fe79fc4c467a9c89b5140398efc8c47fa5c')
 		self.assertEqual(self.repo5.get_commit_hash('bottle-yang-extractor-validator','tests'), 'd1ec44dbe8995f282355d5d30402c5e6fa13a477')
 
 		self.repo5.remove()

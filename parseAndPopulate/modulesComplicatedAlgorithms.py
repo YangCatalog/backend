@@ -89,7 +89,7 @@ class ModulesComplicatedAlgorithms:
 
     def parse_non_requests(self):
         LOGGER.info("parsing tree types")
-        self.__resolve_tree_type()
+        self.resolve_tree_type(self.__all_modules)
 
     def parse_requests(self):
         LOGGER.info("parsing semantic version")
@@ -200,7 +200,7 @@ class ModulesComplicatedAlgorithms:
             LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
                            .format(response.status_code, response.text))
 
-    def __resolve_tree_type(self):
+    def resolve_tree_type(self, all_modules):
         def is_openconfig(rows, output):
             count_config = output.count('+-- config')
             count_state = output.count('+-- state')
@@ -429,17 +429,17 @@ class ModulesComplicatedAlgorithms:
                 return True
 
         x = 0
-        for module in self.__all_modules.get('module', []):
+        for module in all_modules.get('module', []):
             x += 1
             name_revision = '{}@{}'.format(module['name'], module['revision'])
             self.__path = '{}/{}.yang'.format(self.__save_file_dir, name_revision)
             yang_file_exists = self.__check_schema_file(module)
-            is_latest_revision = self.__check_if_latest_revision(module)
+            is_latest_revision = self.check_if_latest_revision(module)
             if not yang_file_exists:
                 LOGGER.error('Skipping module: {}'.format(name_revision))
                 continue
             LOGGER.info(
-                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(self.__all_modules['module'])))
+                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules['module'])))
             if name_revision in self.__trees:
                 stdout = self.__trees[name_revision]
             else:
@@ -961,10 +961,10 @@ class ModulesComplicatedAlgorithms:
 
         return result
 
-    def __check_if_latest_revision(self, module: dict):
+    def check_if_latest_revision(self, module: dict):
         """ Check if the parsed module is the latest revision.
 
         Argument:
             :param module   (dict) Details of currently parsed module
         """
-        return module['revision'] >= self.__latest_revisions.get(module['name'])
+        return module.get('revision', '') >= self.__latest_revisions.get(module['name'], '')

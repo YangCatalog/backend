@@ -1,19 +1,19 @@
 Statistics
 =====
 
-This package contains a python script to create statistics.html file:
+This package contains a python script to create a statistics.html file:
 
   * template directory containing jinja template for html file
   * statistics.py containing script to get all statistics
 
-Statistics script goes through all the files in githup repo and also through all the
- modules populated in confd catalog using api search. It counts all the modules for 
+The statistics script goes through all the files in the githup repo and also through all the
+ modules populated in the confd catalog using the search api. It counts all the modules for 
  each sdo and vendor and it calculates percentage that pass the compilations.
  
-This script will create statistics.html file which will be automatically added to yc.o
+This script will create a statistics.html file which will be automatically added to yc.o
 at [https://www.yangcatalog.org/statistics.html](https://www.yangcatalog.org/statistics.html)
 
-This html file is divided to four categories:
+This html file is divided into four categories:
 1. SDO and Opensource statistics
     - IETF
     - BBF

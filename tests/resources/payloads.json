@@ -295,5 +295,45 @@
                 ]
             }
         }
+    },
+    "delete_modules": {
+        "input": {
+            "modules": [
+                {
+                    "name": "yang-catalog",
+                    "revision": "2018-04-03",
+                    "organization": "ietf"
+                }
+            ]
+        }
+    },
+    "add_modules": {
+        "modules": {
+            "module": [
+                {
+                    "name": "example-jukebox",
+                    "revision": "2014-07-03",
+                    "organization": "example",
+                    "maturity-level": "ratified",
+                    "author-email": "foo@bar.com",
+                    "module-classification": "network-element",
+                    "source-file":
+                    {
+                        "repository": "yang",
+                        "owner": "YangModels",
+                        "path": "standard/ietf/DRAFT/example-jukebox.yang"
+                    }
+                }
+            ]
+        }
+    },
+    "check_local": {
+        "type": "test",
+        "repository": {
+            "owner_name": "test"
+        },
+        "commit": "test",
+        "head_commit": "test",
+        "pull_request_number": 1
     }
 }
