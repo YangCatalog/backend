@@ -309,8 +309,9 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_non_requests()
-        name_revision = '{}@{}'.format(module['name'], module['revision'])
-        self.assertEqual(complicatedAlgorithms.new_modules[name_revision]['tree-type'], 'openconfig')
+        name = module['name']
+        revision = module['revision']
+        self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'openconfig')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
     def test_parse_non_requests_split(self, mock_requests_get: mock.MagicMock):
@@ -322,8 +323,9 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_non_requests()
-        name_revision = '{}@{}'.format(module['name'], module['revision'])
-        self.assertEqual(complicatedAlgorithms.new_modules[name_revision]['tree-type'], 'split')
+        name = module['name']
+        revision = module['revision']
+        self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'split')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
     def test_parse_non_requests_combined(self, mock_requests_get: mock.MagicMock):
@@ -335,8 +337,9 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_non_requests()
-        name_revision = '{}@{}'.format(module['name'], module['revision'])
-        self.assertEqual(complicatedAlgorithms.new_modules[name_revision]['tree-type'], 'nmda-compatible')
+        name = module['name']
+        revision = module['revision']
+        self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'nmda-compatible')
 
     @mock.patch('parseAndPopulate.modulesComplicatedAlgorithms.ModulesComplicatedAlgorithms.parse_semver',
                 mock.MagicMock())
@@ -351,12 +354,12 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
                                                              self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_requests()
         new = complicatedAlgorithms.new_modules
-        self.assertIn({'name': 'n1', 'revision': '1'}, new['e1@1']['dependents'])
-        self.assertIn({'name': 'n2', 'revision': '1'}, new['e1@1']['dependents'])
-        self.assertNotIn('e2@1', new)
-        self.assertIn({'name': 'n2', 'revision': '1'}, new['n1@1']['dependents'])
-        self.assertIn({'name': 'e2', 'revision': '1'}, new['n1@1']['dependents'])
-        self.assertNotIn('n2@1', new)
+        self.assertIn({'name': 'n1', 'revision': '1'}, new['e1']['1']['dependents'])
+        self.assertIn({'name': 'n2', 'revision': '1'}, new['e1']['1']['dependents'])
+        self.assertNotIn('1', new['e2'])
+        self.assertIn({'name': 'n2', 'revision': '1'}, new['n1']['1']['dependents'])
+        self.assertIn({'name': 'e2', 'revision': '1'}, new['n1']['1']['dependents'])
+        self.assertNotIn('1', new['n2'])
 
 
     ##########################
