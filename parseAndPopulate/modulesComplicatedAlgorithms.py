@@ -147,8 +147,10 @@ class ModulesComplicatedAlgorithms:
         module_to_populate = self.merge_modules_and_remove_not_updated()
         LOGGER.info('populate with module complicated data after merging. amount of new data is {}'.format(len(module_to_populate)))
         x = -1
-        for x in range(0, int(len(module_to_populate) / 250)):
-            json_modules_data = json.dumps({'modules': {'module': module_to_populate[x * 250: (x * 250) + 250]}})
+        chunk_size = 250
+        chunks = (len(module_to_populate) - 1) // chunk_size + 1
+        for x in range(chunks):
+            json_modules_data = json.dumps({'modules': {'module': module_to_populate[x * chunk_size: (x * chunk_size) + chunk_size]}})
             if '{"module": []}' not in json_modules_data:
                 url = self.__confd_prefix + '/restconf/data/yang-catalog:catalog/modules/'
                 response = requests.patch(url, data=json_modules_data,
@@ -163,21 +165,6 @@ class ModulesComplicatedAlgorithms:
                                  format(path_to_file, url,
                                         response.text))
 
-        json_modules_data = json.dumps(
-            {'modules': {'module': module_to_populate[(x * 250) + 250:]}})
-        if '{"module": []}' not in json_modules_data:
-            url = self.__confd_prefix + '/restconf/data/yang-catalog:catalog/modules/'
-            response = requests.patch(url, data=json_modules_data,
-                                      auth=(self.__credentials[0],
-                                            self.__credentials[1]),
-                                      headers=confd_headers)
-            if response.status_code < 200 or response.status_code > 299:
-                path_to_file = '{}/modulesComplicatedAlgorithms-data-rest'.format(self.__direc)
-                with open(path_to_file, 'w') as f:
-                    json.dump(json_modules_data, f)
-                LOGGER.error('Request with body {} on path {} failed with {}'.
-                             format(path_to_file, url,
-                                    response.text))
         url = (self.__yangcatalog_api_prefix + 'load-cache')
         response = requests.post(url, None,
                                  auth=(self.__credentials[0],
