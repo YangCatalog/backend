@@ -722,7 +722,7 @@ class ModulesComplicatedAlgorithms:
                 x += 1
                 LOGGER.info('Adding {}@{} as dependent. {} out of {}'
                             .format(dependent['name'], dependent['revision'], x, len(dependents)))
-                for dep_filter in dependent.get('dependencies', ()):
+                for dep_filter in dependent.get('dependencies', []):
                     name = dep_filter['name']
                     revision = dep_filter.get('revision')
                     for dependency in dependencies:
