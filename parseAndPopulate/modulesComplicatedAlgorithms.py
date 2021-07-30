@@ -98,59 +98,17 @@ class ModulesComplicatedAlgorithms:
         LOGGER.info("parsing dependents")
         self.__parse_dependents()
 
-    def merge_modules_and_remove_not_updated(self):
-        start = time.time()
-        ret_modules = {}
-        for new_module in [revision for name in self.new_modules.values() for revision in name]:
-            name = new_module['name']
-            revision = new_module['revision']
-            key = '{}@{}'.format(name, revision)
-            if revision not in self.__existing_modules_dict[name]:
-                ret_modules[key] = new_module
-            else:
-                old_module = self.__existing_modules_dict[name][revision]
-                if (old_module.get('tree-type') != new_module.get('tree-type') or
-                        old_module.get('derived-semantic-version') != new_module.get('derived-semantic-version')):
-                    LOGGER.debug('{} tree {} vs {}, semver {} vs {}'.format(
-                        key, old_module.get('tree-type'), new_module.get('tree-type'),
-                        old_module.get('derived-semantic-version'), new_module.get('derived-semantic-version'))
-                    )
-                    ret_modules[key] = new_module
-                elif new_module.get('dependents'):
-                    if 'dependents' not in old_module:
-                        if key in ret_modules:
-                            ret_modules[key] = new_module
-                        LOGGER.debug('dependents {} vs {}'.format(None, new_module['dependents']))
-                        continue
-                    for new_dep in new_module['dependents']:
-                        for old_dep in old_module['dependents']:
-                            if (new_dep.get('name') == old_dep.get('name') and
-                                    new_dep.get('revision') == old_dep.get('revision') and
-                                    new_dep.get('schema') == old_dep.get('schema')):
-                                break
-                        else:
-                            if ret_modules.get(key) is None:
-                                ret_modules[key] = new_module
-                            elif ret_modules[key].get('dependents') is None:
-                                ret_modules[key]['dependents'] = []
-                            ret_modules[key]['name'] = new_module['name']
-                            ret_modules[key]['revision'] = new_module['revision']
-                            ret_modules[key]['organization'] = new_module['organization']
-                            ret_modules[key]['dependents'].append(new_dep)
-                        LOGGER.debug('dependents {} vs {}'.format(old_module['dependents'], new_dep))
-        end = time.time()
-        LOGGER.debug('time taken to merge and remove {} seconds'.format(int(end - start)))
-        return list(ret_modules.values())
-
     def populate(self):
-        LOGGER.info('populate with module complicated data. amount of new data is {}'.format(len(self.new_modules.values())))
-        module_to_populate = self.merge_modules_and_remove_not_updated()
-        LOGGER.info('populate with module complicated data after merging. amount of new data is {}'.format(len(module_to_populate)))
+        LOGGER.info('populate with module complicated data. amount of new data is {}'
+                    .format(len(self.new_modules.values())))
+        LOGGER.info('populate with module complicated data after merging. amount of new data is {}'
+                    .format(len(self.new_modules)))
         x = -1
         chunk_size = 250
-        chunks = (len(module_to_populate) - 1) // chunk_size + 1
+        chunks = (len(self.new_modules) - 1) // chunk_size + 1
         for x in range(chunks):
-            json_modules_data = json.dumps({'modules': {'module': module_to_populate[x * chunk_size: (x * chunk_size) + chunk_size]}})
+            payload = {'modules': {'module': self.new_modules[x * chunk_size: (x * chunk_size) + chunk_size]}}
+            json_modules_data = json.dumps(payload)
             if '{"module": []}' not in json_modules_data:
                 url = self.__confd_prefix + '/restconf/data/yang-catalog:catalog/modules/'
                 response = requests.patch(url, data=json_modules_data,
@@ -717,6 +675,19 @@ class ModulesComplicatedAlgorithms:
             mf.send_unavailable_modules(self.__unavailable_modules)
 
     def __parse_dependents(self):
+
+        def check_latest_revision_and_remove(dependent, dependency):
+            for i in len(dependency.get('dependents'), []):
+                existing_dependent = dependency['dependents'][i]
+                if existing_dependent['name'] == dependent['name']:
+                    if existing_dependent['revision'] > dependent['revision']:
+                        return True
+                    else:
+                        dependency['dependents'].pop(i)
+                        break
+            return False
+
+
         def add_dependents(dependents, dependencies):
             x = 0
             for dependent in dependents:
@@ -736,26 +707,29 @@ class ModulesComplicatedAlgorithms:
                                 it = []
                         for dependency in it:
                             revision = dependency['revision']
-                            if revision not in self.new_modules[name]:
-                                self.new_modules[name][revision] = dependency
-                            if 'dependents' not in self.new_modules[name][revision]:
-                                self.new_modules[name][revision]['dependents'] = []
-                            details = {
-                                'name': dependent['name'],
-                                'revision': dependent['revision'],
-                            }
-                            if 'schema' in dependent:
-                                details['schema'] = dependent['schema']
-                            if details not in self.new_modules[name][revision]['dependents']:
-                                self.new_modules[name][revision]['dependents'].append(details)
+                            if revision in self.new_modules[name]:
+                                dependency_copy = self.new_modules[name][revision]
+                            elif revision in self.__existing_modules_dict[name]:
+                                dependency_copy = deepcopy(self.__existing_modules_dict[name][revision])
+                            else:
+                                dependency_copy = dependency
+                            if not check_latest_revision_and_remove(dependent, dependency_copy):
+                                details = {
+                                    'name': dependent['name'],
+                                    'revision': dependent['revision'],
+                                }
+                                if 'schema' in dependent:
+                                    details['schema'] = dependent['schema']
+                                dependency_copy.setdefault('dependents', []).append(details)
+                                self.new_modules[name][revision] = dependency_copy
         
         all_modules = self.__all_modules.get('module')
         all_modules_dict = defaultdict(dict)
         for i in all_modules:
-            all_modules_dict[i['name']][i['revision']] = i
+            all_modules_dict[i['name']][i['revision']] = deepcopy(i)
         both_dict = deepcopy(self.__existing_modules_dict)
         for name, revisions in all_modules_dict.items():
-            both_dict[name] |= revisions
+            both_dict[name] |= deepcopy(revisions)
         existing_modules = [revision for name in self.__existing_modules_dict.values() for revision in name.values()]
         LOGGER.info('Adding new modules as dependents')
         add_dependents(all_modules, both_dict)
