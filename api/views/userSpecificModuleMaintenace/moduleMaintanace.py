@@ -25,9 +25,8 @@ import shutil
 import sys
 from datetime import datetime
 
-import MySQLdb
+from sqlalchemy.exc import SQLAlchemyError
 import requests
-
 from flask import Blueprint, request, abort, make_response, jsonify, current_app
 from git import GitCommandError
 
@@ -37,6 +36,7 @@ from api.globalConfig import yc_gc
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import confd_headers
+from api.models import User
 
 
 NS_MAP = {
@@ -58,6 +58,7 @@ class UserSpecificModuleMaintenance(Blueprint):
 
 
 app = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
+db = yc_gc.sqlalchemy
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
@@ -784,21 +785,10 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     """
     accessRigths = None
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT * FROM `users` where Username=%s""", (username,))
-        if results_num == 1:
-            data = cursor.fetchone()
-            if is_vendor:
-                accessRigths = data[8]
-            else:
-                accessRigths = data[7]
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
+        result = db.session.query(User).filter_by(Username=username).first()
+        if result:
+            return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
+    except SQLAlchemyError as err:
         current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     return accessRigths

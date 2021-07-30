@@ -1,9 +1,14 @@
 import sys
 from datetime import datetime
 
-import MySQLdb
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.declarative import DeferredReflection
+from sqlalchemy.engine.url import URL
+from sqlalchemy.exc import SQLAlchemyError
 
 from utility import messageFactory
+from api.models import Base, User, TempUser
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -25,6 +30,9 @@ class UserReminder:
         self.dbPass = config.get('Secrets-Section', 'mysql-password')
         self.month = datetime.now().date().month
         self.day = datetime.now().date().day
+        uri = URL.create('mysql', username=self.dbUser, password=self.dbPass, host=self.dbHost, database=self.dbName)
+        self.engine = create_engine(uri, future=True)
+
 
     def check_date(self):
         if (self.month == 3 or self.month == 9) and (self.day == 1):
@@ -40,37 +48,28 @@ class UserReminder:
         ret_text = 'users table'
         ret_text += f'\n{str("user"):<25}{str("name"):<20}{str("surname"):<20}{str("sdo_rights"):<20}{str("vendor_rights"):<20}{str("organization"):<30}{str("email"):<30}'
         try:
-            db = MySQLdb.connect(host=self.dbHost, db=self.dbName, user=self.dbUser, passwd=self.dbPass)
-            # prepare a cursor object using cursor() method
-            cursor = db.cursor()
-            cursor.execute("""SELECT * FROM `users`""")
-            data = cursor.fetchall()
-
-            for x in data:
-                ret_text += f'\n{str(x[1]):<25}{str(x[5]):<20}{str(x[6]):<20}{str(x[7]):<20}{str(x[8]):<20}{str(x[4]):<30}{str(x[3]):<30}'
-            db.close()
-        except MySQLdb.MySQLError as err:
-            if err.args[0] != 1049:
-                db.close()
+            with Session(self.engine) as session:
+                users = session.query(User).all()
+                for user in users:
+                    ret_text += (f'\n{str(user.Username):<25}{str(user.FirstName):<20}{str(user.LastName):<20}{str(user.AccessRightsSdo):<20}'
+                                    f'{str(user.AccessRightsVendor):<20}{str(user.ModelsProvider):<30}{str(user.Email):<30}')
+        except SQLAlchemyError as err:
+            pass
         ret_text += '\n\n\nusers_temp table'
         ret_text += f'\n{str("user"):<25}{str("name"):<20}{str("surname"):<20}{str("organization"):<30}{str("email"):<30}'
         try:
-            db = MySQLdb.connect(host=self.dbHost, db=self.dbName, user=self.dbUser, passwd=self.dbPass)
-            # prepare a cursor object using cursor() method
-            cursor = db.cursor()
-            cursor.execute("""SELECT * FROM `users_temp`""")
-            data = cursor.fetchall()
-
-            for x in data:
-                ret_text += f'\n{str(x[1]):<25}{str(x[5]):<20}{str(x[6]):<20}{str(x[4]):<30}{str(x[3]):<30}'
-            db.close()
-        except MySQLdb.MySQLError as err:
-            if err.args[0] != 1049:
-                db.close()
+            with Session(self.engine) as session:
+                users = session.query(TempUser).all()
+                for user in users:
+                    ret_text += f'\n{str(user.Username):<25}{str(user.FirstName):<20}{str(user.LastName):<20}{str(user.ModelsProvider):<30}{str(user.Email):<30}'
+        except SQLAlchemyError as err:
+            pass
         return ret_text
 
 
 if __name__ == '__main__':
     ur = UserReminder()
+    Base.metadata.create_all(ur.engine)
+    DeferredReflection.prepare(ur.engine)
     if ur.check_date():
         ur.send_message()

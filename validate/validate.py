@@ -40,10 +40,15 @@ import smtplib
 import sys
 from email.mime.text import MIMEText
 
-import MySQLdb
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.ext.declarative import DeferredReflection
+from sqlalchemy.engine.url import URL
+from sqlalchemy.exc import SQLAlchemyError
 
 import utility.log as log
 from utility.repoutil import pull
+from api.models import Base, User, TempUser
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -151,52 +156,40 @@ def query_create(question, yang_models, LOGGER):
                 return choice
 
 
-def connect(dbHost, dbName, dbUser, dbPass, LOGGER):
+def connect(engine, dbHost, dbName, dbUser, dbPass, LOGGER):
     try:
-        db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        cursor.execute("SELECT * FROM users_temp")
-        data = cursor.fetchall()
-        db.close()
-
-        return data
-    except MySQLdb.MySQLError as err:
+        with Session(engine) as session:
+            users = session.query(TempUser).all()
+            print(users)
+            return users
+    except SQLAlchemyError as err:
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def delete(dbHost, dbName, dbPass, dbUser, row_id, LOGGER):
+def delete(engine, dbHost, dbName, dbPass, dbUser, row_id, LOGGER):
     try:
-        db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        cursor.execute("""DELETE FROM users_temp WHERE Id=%s LIMIT 1""", (row_id, ))
-        db.commit()
-        db.close()
-        local_print('User ID: {} has been removed from users_temp table'.format(row_id), LOGGER)
-    except MySQLdb.MySQLError as err:
+        with Session(engine) as session:
+            session.delete(session.get(TempUser, row_id))
+            session.commit()
+            local_print('User ID: {} has been removed from users_temp table'.format(row_id), LOGGER)
+    except SQLAlchemyError as err:
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
-def copy(dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER):
+def copy(engine, dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER):
     try:
-        db = MySQLdb.connect(host=dbHost, db=dbName, user=dbUser, passwd=dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-
-        cursor.execute("""UPDATE users_temp SET AccessRightsVendor=%s, AccessRightsSdo=%s WHERE Id=%s""",
-                       (vendor_path, sdo_path, str(row_id), ))
-        cursor.execute("""INSERT INTO users(Username, Password, Email, ModelsProvider, FirstName, LastName,
-                          AccessRightsVendor, AccessRightsSdo) SELECT Username, Password, Email, ModelsProvider,
-                          FirstName, LastName, AccessRightsVendor, AccessRightsSdo FROM users_temp WHERE Id=%s""",
-                       (str(row_id), ))
-        db.commit()
-        db.close()
-        local_print('User ID: {} has been copied to the users table'.format(row_id), LOGGER)
-    except MySQLdb.MySQLError as err:
+        with Session(engine) as session:
+            user_temp = session.query(TempUser).filter_by(Id=row_id).first()
+            user_temp.AccessRightsVendor = vendor_path
+            user_temp.AccessRightsSdo = sdo_path
+            user = User(Username=user_temp.Username, Password=user_temp.Password, Email=user_temp.Email,
+                        ModelsProvider=user_temp.ModelsProvider, FirstName=user_temp.FirstName,
+                        LastName=user_temp.LastName, AccessRightsVendor=user_temp.AccessRightsVendor,
+                        AccessRightsSdo=user_temp.AccessRightsSdo)
+            session.add(user)
+            session.commit()
+            local_print('User ID: {} has been copied to the users table'.format(row_id), LOGGER)
+    except SQLAlchemyError as err:
         local_print("Cannot connect to database. MySQL error: " + str(err), LOGGER)
 
 
@@ -218,13 +211,13 @@ def local_print(text, LOGGER):
         print(text)
 
 
-def create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email, email_from):
+def create(engine, sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email, email_from):
     if sdo_path is None:
         sdo_path = ''
     if vendor_path is None:
         vendor_path = ''
-    copy(dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER)
-    delete(dbHost, dbName, dbPass, dbUser, row_id, LOGGER)
+    copy(engine, dbHost, dbName, dbPass, dbUser, row_id, vendor_path, sdo_path, LOGGER)
+    delete(engine, dbHost, dbName, dbPass, dbUser, row_id, LOGGER)
     send_email(user_email, repr(vendor_path), repr(sdo_path), email_from)
 
 
@@ -257,17 +250,24 @@ def main(scriptConf=None):
     dbUser = config.get('DB-Section', 'user')
     dbPass = config.get('Secrets-Section', 'mysql-password')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
-    dbData = connect(dbHost, dbName, dbUser, dbPass, LOGGER)
+    uri = URL.create('mysql', username=dbUser, password=dbPass, host=dbHost, database=dbName)
+    engine = create_engine(uri, future=True)
+    Base.metadata.create_all(engine)
+    DeferredReflection.prepare(engine)
+    users = connect(engine, dbHost, dbName, dbUser, dbPass, LOGGER)
     pull(yang_models)
     if (vendor_access and vendor_path) or (sdo_access and sdo_path):
-        create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row_id, LOGGER, config, user_email, email_from)
+        create(engine, sdo_path, vendor_path, dbHost, dbName, dbPass,
+               dbUser, row_id, LOGGER, config, user_email, email_from)
         local_print('User ID: {} has been validated based on arguments'.format(row_id), LOGGER)
     else:
         vendor_path = None
         sdo_path = None
-        for row in dbData:
+        for user in users:
+            print(user.Id)
             while True:
-                local_print('The user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' is from organization ' + row[4],
+                local_print('The user {} {} ({}) is from organization {}'
+                            .format(user.FirstName, user.LastName, user.Username, user.ModelsProvider),
                             LOGGER)
                 vendor_access = query_yes_no('Do they need vendor access?')
                 if vendor_access:
@@ -277,17 +277,20 @@ def main(scriptConf=None):
                     sdo_path = query_create('What is their model organization ', yang_models, LOGGER)
                 want_to_create = False
                 if sdo_path or vendor_path:
-                    want_to_create = query_yes_no('Do you want to create user ' + row[5] + ' ' + row[6] + ' (' + row[1]
-                                                + ')' + ' from organization ' + row[4] + ' with path for vendor '
-                                                + repr(vendor_path) + ' and organization for sdo ' + repr(sdo_path))
+                    want_to_create = query_yes_no('Do you want to create user {} {} ({}) from organization {}'
+                                                  ' with path for vendor {} and organization for sdo {}'
+                                                  .format(user.FirstName, user.LastName, user.Username,
+                                                          user.ModelsProvider, repr(vendor_path), repr(sdo_path)))
                 if want_to_create:
-                    create(sdo_path, vendor_path, dbHost, dbName, dbPass, dbUser, row[0], LOGGER, config, row[3], email_from)
+                    create(engine, sdo_path, vendor_path, dbHost, dbName, dbPass,
+                           dbUser, user.Id, LOGGER, config, user.Email, email_from)
                     break
                 else:
-                    local_print('Skipping user ' + row[5] + ' ' + row[6] + ' (' + row[1] + ')' + ' from organization ' + row[4]
-                        + ' has no path set.', LOGGER)
+                    local_print('Skipping user {} {} ({}) from organization {} has no path set.'
+                                .format(user.FirstName, user.LastName, user.Username, user.ModelsProvider),
+                                LOGGER)
                     if query_yes_no('Would you like to delete this user from temporary database?'):
-                        delete(dbHost, dbName, dbPass, dbUser, row[0], LOGGER)
+                        delete(engine, dbHost, dbName, dbPass, dbUser, user.Id, LOGGER)
                     break
 
 if __name__ == "__main__":

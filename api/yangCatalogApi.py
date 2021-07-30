@@ -43,15 +43,15 @@ import collections
 import errno
 import grp
 import json
+import logging
 import os
 import pwd
 import shutil
+import stat
 import sys
 import threading
 import time
 import uuid
-import stat
-import logging
 from datetime import datetime, timedelta
 from threading import Lock
 
@@ -61,6 +61,8 @@ from flask import (Flask, Response, abort, jsonify, make_response, redirect,
 from flask.logging import default_handler
 from flask_cors import CORS
 from flask_oidc import OpenIDConnect, discovery
+from sqlalchemy.engine import URL
+from sqlalchemy.ext.declarative import DeferredReflection
 
 from api.authentication.auth import auth, get_password, hash_pw
 from api.globalConfig import yc_gc
@@ -71,6 +73,8 @@ from api.views.userSpecificModuleMaintenace.moduleMaintanace import \
 from api.views.yangSearch.yangSearch import app as yang_search_app
 from api.views.ycJobs.ycJobs import app as jobs_app
 from api.views.ycSearch.ycSearch import app as search_app
+from api.views.healthCheck.healthCheck import app as healthcheck_app
+from api.models import User, TempUser
 
 
 class MyFlask(Flask):
@@ -137,7 +141,7 @@ class MyFlask(Flask):
                 if modules:
                     if len(modules) > 0:
                         newlist = sorted(modules, key=lambda k: k['name'])
-                        temp_module = None
+                        temp_module = {}
                         i = 0
                         for mod in newlist:
                             name = mod['name']
@@ -329,6 +333,16 @@ application.config["OIDC_COOKIE_SECURE"] = False
 application.config["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
 application.config["OIDC_SCOPES"] = ["openid", "email", "profile"]
 application.config["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
+application.config["SQLALCHEMY_DATABASE_URI"] = URL.create('mysql', username=yc_gc.dbUser, password=yc_gc.dbPass,
+                                                           host=yc_gc.dbHost, database=yc_gc.dbName)
+#TODO: move global config to application config, see backend issue #287
+yc_gc.sqlalchemy.init_app(application)
+try:
+    with application.app_context():
+        yc_gc.sqlalchemy.create_all()
+        DeferredReflection.prepare(yc_gc.sqlalchemy.engine)
+except Exception as e:
+    yc_gc.LOGGER.error(e)
 
 # configure the logger
 application.logger.removeHandler(default_handler)
@@ -564,8 +578,8 @@ def load_uwsgi_cache():
     if len(modules) != 0:
         existing_keys = ["modules-data", "vendors-data", "all-catalog-data"]
         # recreate keys to redis if there are any
-        for i, mod in enumerate(modules['module']):
-            key = mod['name'] + '@' + mod['revision'] + '/' + mod['organization']
+        for _, mod in enumerate(modules['module']):
+            key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
             existing_keys.append(key)
             value = json.dumps(mod)
             yc_gc.redis.set(key, value)
