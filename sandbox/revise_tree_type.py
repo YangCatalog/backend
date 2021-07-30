@@ -23,7 +23,7 @@ if __name__ == '__main__':
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-    yang_models = config.get('Directory-Section', 'yang-models-dir')
+    yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))

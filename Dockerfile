@@ -12,7 +12,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get -y update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl
+RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl mydumper
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
@@ -56,6 +56,9 @@ RUN chown -R yang:yang /var/run/mysqld
 RUN chmod 777 /var/run/mysqld
 
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
+
+COPY ./backend/elasticsearchIndexing/pyang_plugin/json_tree.py /backend/lib/python3.9/site-packages/pyang/plugins/.
+COPY ./backend/elasticsearchIndexing/pyang_plugin/yang_catalog_index_es.py /backend/lib/python3.9/site-packages/pyang/plugins/.
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 

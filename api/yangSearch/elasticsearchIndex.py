@@ -177,13 +177,11 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
     Simple abstraction on top of the
     :meth:`~elasticsearch.Elasticsearch.scroll` api - a simple iterator that
     yields all hits as returned by underlining scroll requests.
-
     By default scan does not return results in any pre-determined order. To
     have a standard order in the returned documents (either by score or
     explicit sort definition) when scrolling, use ``preserve_order=True``. This
     may be an expensive operation and will negate the performance benefits of
     using ``scan``.
-
     :arg client: instance of :class:`~elasticsearch.Elasticsearch` to use
     :arg query: body for the :meth:`~elasticsearch.Elasticsearch.search` api
     :arg scroll: Specify how long a consistent view of the index should be
@@ -201,19 +199,15 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
         to true.
     :arg scroll_kwargs: additional kwargs to be passed to
         :meth:`~elasticsearch.Elasticsearch.scroll`
-
     Any additional keyword arguments will be passed to the initial
     :meth:`~elasticsearch.Elasticsearch.search` call::
-
         scan(es,
             query={"query": {"match": {"title": "python"}}},
             index="orders-*",
             doc_type="books"
         )
-
     """
     scroll_kwargs = scroll_kwargs or {}
-
     if not preserve_order:
         query = query.copy() if query else {}
         query["sort"] = "_doc"
@@ -227,7 +221,6 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
     scroll_id = resp.get('_scroll_id')
     if scroll_id is None:
         return
-
     try:
         limit = 0
         first_run = True
@@ -241,15 +234,13 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
                 resp = client.scroll(scroll_id, scroll=scroll,
                                      request_timeout=request_timeout,
                                      **scroll_kwargs)
-
             if limit > yeald_limit:
                 for hit in resp['hits']['hits']:
                     yield hit
-
-            # check if we have any errrors
+            # check if we have any errors
             if resp["_shards"]["successful"] < resp["_shards"]["total"]:
                 LOGGER.warning(
-                    'Scroll request has only succeeded on %d shards out of %d.',
+                   'Scroll request has only succeeded on %d shards out of %d.',
                     resp['_shards']['successful'], resp['_shards']['total']
                 )
                 if raise_on_error:
@@ -258,7 +249,6 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
                         'Scroll request has only succeeded on %d shards out of %d.' %
                         (resp['_shards']['successful'], resp['_shards']['total'])
                     )
-
             scroll_id = resp.get('_scroll_id')
             # end of scroll
             if scroll_id is None or not resp['hits']['hits']:
@@ -275,5 +265,3 @@ class LimitReacher():
 
     def __init__(self):
         self.limit_reached = False
-
-

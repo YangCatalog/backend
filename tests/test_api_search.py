@@ -26,6 +26,7 @@ from unittest import mock
 import api.views.ycSearch.ycSearch as search_bp
 from api.globalConfig import yc_gc
 from api.yangCatalogApi import application
+from flask import escape
 from lxml import etree as ET
 from werkzeug.exceptions import BadRequest, NotFound
 
@@ -913,8 +914,9 @@ class TestApiSearchClass(unittest.TestCase):
         revision = ''
         organization = ''
 
-        with self.assertRaises(NotFound) as http_error:
-            search_bp.search_module(name, revision, organization)
+        with application.app_context():
+            with self.assertRaises(NotFound) as http_error:
+                search_bp.search_module(name, revision, organization)
 
         self.assertEqual(http_error.exception.code, 404)
         self.assertEqual(http_error.exception.description, 'Module {}@{}/{} not found'.format(name, revision, organization))
@@ -1069,7 +1071,7 @@ class TestApiSearchClass(unittest.TestCase):
         response_text = data.split('</pre>')[0].split('<pre>')[1]
 
         with open('{}all_modules/yang-catalog@2018-04-03.yang'.format(self.resources_path), 'r') as f:
-            yang_file_data = f.read()
+            yang_file_data = escape(f.read())
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(yang_file_data, response_text)

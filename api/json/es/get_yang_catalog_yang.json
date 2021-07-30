@@ -1,0 +1,22 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "match_phrase": {
+            "module.keyword": {
+              "query": "yang-catalog"
+            }
+          }
+        },
+        {
+          "match_phrase": {
+            "revision": {
+              "query": ""
+            }
+          }
+        }
+      ]
+    }
+  }
+}

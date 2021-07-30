@@ -20,14 +20,14 @@ __email__ = "slavomir.mazur@pantheon.tech"
 import json
 import time
 
-from MySQLdb import MySQLError
+from sqlalchemy.exc import SQLAlchemyError
 import requests
 from flask import current_app
 import utility.log as log
 from api.globalConfig import yc_gc
 from elasticsearch import Elasticsearch
 from flask import Blueprint, jsonify, make_response
-from utility.staticVariables import confd_headers
+from utility.staticVariables import confd_headers, json_headers
 from utility.util import create_signature
 
 
@@ -73,7 +73,7 @@ def health_check_mysql():
                             'message': 'No tables found in the database: {}'.format(yc_gc.dbName)}
             app.LOGGER.info('{} tables available in the database: {}'.format(len(tables), yc_gc.dbName))
             return make_response(jsonify(response), 200)
-    except MySQLError as err:
+    except SQLAlchemyError as err:
         app.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
         if err.args[0] in [1044, 1045]:
             return make_response(jsonify({'info': 'Not OK - Access denied',
@@ -90,7 +90,8 @@ def health_check_elk():
     service_name = 'Elasticsearch'
     try:
         if yc_gc.es_aws:
-            es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]), scheme="https", port=443)
+            es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]),
+                               scheme="https", port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(yc_gc.es_host), 'port': yc_gc.es_port}])
 
@@ -170,8 +171,7 @@ def health_check_yang_search():
     yang_search_preffix = '{}://{}/yang-search'.format(yc_gc.api_protocol, yc_gc.ip)
     body = json.dumps({'input': {'data': 'ping'}})
     signature = create_signature(yc_gc.search_key, body)
-    headers = {'Content-Type': 'application/json',
-               'Accept': 'application/json',
+    headers = {**json_headers,
                'X-YC-Signature': 'sha1={}'.format(signature)}
     try:
         response = requests.post('{}/ping'.format(yang_search_preffix), data=body, headers=headers)
@@ -198,9 +198,8 @@ def health_check_yang_validator():
     service_name = 'yang-validator'
     yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
     body = json.dumps({'input': {'data': 'ping'}})
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     try:
-        response = requests.post('{}/ping'.format(yang_validator_preffix), data=body, headers=headers)
+        response = requests.post('{}/ping'.format(yang_validator_preffix), data=body, headers=json_headers)
         app.LOGGER.info('yang-validator responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             return make_response(jsonify({'info': '{} is available'.format(service_name),
@@ -223,9 +222,8 @@ def health_check_yangre():
     service_name = 'yangre'
     yangre_preffix = '{}://{}/yangre'.format(yc_gc.api_protocol, yc_gc.ip)
     body = json.dumps({'input': {'data': 'ping'}})
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     try:
-        response = requests.post('{}/ping'.format(yangre_preffix), data=body, headers=headers)
+        response = requests.post('{}/ping'.format(yangre_preffix), data=body, headers=json_headers)
         app.LOGGER.info('yangre responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             return make_response(jsonify({'info': '{} is available'.format(service_name),
@@ -247,9 +245,8 @@ def health_check_yangre():
 def health_check_nginx():
     service_name = 'NGINX'
     preffix = '{}://{}'.format(yc_gc.api_protocol, yc_gc.ip)
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     try:
-        response = requests.get('{}/nginx-health'.format(preffix), headers=headers)
+        response = requests.get('{}/nginx-health'.format(preffix), headers=json_headers)
         app.LOGGER.info('NGINX responded with a code {}'.format(response.status_code))
         if response.status_code == 200 and response.text == 'healthy':
             return make_response(jsonify({'info': 'NGINX is available',
@@ -270,14 +267,13 @@ def health_check_rabbitmq():
 
     arguments = ['run_ping', 'ping']
     preffix = '{}://{}/api/job'.format(yc_gc.api_protocol, yc_gc.ip)
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
     try:
         job_id = yc_gc.sender.send('#'.join(arguments))
         if job_id:
             app.LOGGER.info('Sender successfully connected to RabbitMQ')
         response_type = 'In progress'
         while response_type == 'In progress':
-            response = requests.get('{}/{}'.format(preffix, job_id), headers=headers)
+            response = requests.get('{}/{}'.format(preffix, job_id), headers=json_headers)
             response_type = response.json()['info']['result']
             if response.status_code == 200 and response_type == 'Finished successfully':
                 break
@@ -303,10 +299,8 @@ def health_check_yangre_admin():
     pattern = '[0-9]*'
     content = '123456789'
     body = json.dumps({'pattern': pattern, 'content': content, 'inverted': False, 'pattern_nb': '1'})
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-
     try:
-        response = requests.post('{}/v1/yangre'.format(yangre_preffix), data=body, headers=headers)
+        response = requests.post('{}/v1/yangre'.format(yangre_preffix), data=body, headers=json_headers)
         app.LOGGER.info('yangre responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             response_message = response.json()
@@ -336,10 +330,9 @@ def health_check_yang_validator_admin():
     yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
 
     rfc_number = '7223'
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-
+    body = json.dumps({'rfc': rfc_number, 'latest': True})
     try:
-        response = requests.get('{}/api/rfc/{}'.format(yang_validator_preffix, rfc_number), headers=headers)
+        response = requests.post('{}/v2/rfc'.format(yang_validator_preffix), data=body, headers=json_headers)
         app.LOGGER.info('yang-validator responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             response_message = response.json()
@@ -367,12 +360,9 @@ def health_check_yang_validator_admin():
 def health_check_yang_search_admin():
     service_name = 'yang-search'
     yang_search_preffix = '{}://{}/api/search'.format(yc_gc.api_protocol, yc_gc.ip)
-
     module_name = 'ietf-syslog,2018-03-15,ietf'
-    headers = {'Content-Type': 'application/json', 'Accept': 'application/json'}
-
     try:
-        response = requests.get('{}/modules/{}'.format(yang_search_preffix, module_name), headers=headers)
+        response = requests.get('{}/modules/{}'.format(yang_search_preffix, module_name), headers=json_headers)
         app.LOGGER.info('yang-search responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             response_message = response.json()

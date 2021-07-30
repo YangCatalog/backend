@@ -4,7 +4,8 @@ import sys
 
 import requests
 from flask import current_app
-from MySQLdb import MySQLError
+from sqlalchemy.exc import SQLAlchemyError
+
 from api.globalConfig import yc_gc
 from api.models import User
 from flask_httpauth import HTTPBasicAuth
@@ -36,9 +37,9 @@ def get_password(username: str):
         :return hashed password from database
     """
     try:
-        return User.query.filter_by(Username=username).first().Password
-    except MySQLError as err:
-        yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return db.session.query(User).filter_by(Username=username).first().Password
+    except SQLAlchemyError as err:
+        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
         return None
 
 

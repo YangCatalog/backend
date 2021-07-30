@@ -39,7 +39,7 @@ import requests
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
 from utility import log, messageFactory
-from utility.staticVariables import confd_headers
+from utility.staticVariables import confd_headers, json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,
                           find_first_file)
 from utility.yangParser import create_context
@@ -69,10 +69,18 @@ class ModulesComplicatedAlgorithms:
         self.__unavailable_modules = []
         LOGGER.info('get all existing modules')
         response = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix),
-                                headers={'Accept': 'application/json'})
+                                headers=json_headers)
         existing_modules = response.json().get('module', [])
         self.__existing_modules_dict = {}
+        self.__latest_revisions = {}
         for module in existing_modules:
+            # Store latest revision of each module - used in resolving tree-type
+            latest_revision = self.__latest_revisions.get(module['name'])
+            if latest_revision is None:
+                self.__latest_revisions[module['name']] = module['revision']
+            else:
+                self.__latest_revisions[module['name']] = module['revision'] if latest_revision < module['revision'] else latest_revision
+
             sem_ver = module.get('derived-semantic-version')
             tree_type = module.get('tree-type')
             if sem_ver is None or sem_ver == '' or tree_type is None or tree_type == '':
@@ -81,7 +89,7 @@ class ModulesComplicatedAlgorithms:
 
     def parse_non_requests(self):
         LOGGER.info("parsing tree types")
-        self.__resolve_tree_type()
+        self.resolve_tree_type(self.__all_modules)
 
     def parse_requests(self):
         LOGGER.info("parsing semantic version")
@@ -192,7 +200,7 @@ class ModulesComplicatedAlgorithms:
             LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
                            .format(response.status_code, response.text))
 
-    def __resolve_tree_type(self):
+    def resolve_tree_type(self, all_modules):
         def is_openconfig(rows, output):
             count_config = output.count('+-- config')
             count_state = output.count('+-- state')
@@ -421,14 +429,17 @@ class ModulesComplicatedAlgorithms:
                 return True
 
         x = 0
-        for module in self.__all_modules.get('module', []):
+        for module in all_modules.get('module', []):
             x += 1
             name_revision = '{}@{}'.format(module['name'], module['revision'])
-            self.__path = '{}/{}@{}.yang'.format(self.__save_file_dir,
-                                                 module['name'],
-                                                 module['revision'])
+            self.__path = '{}/{}.yang'.format(self.__save_file_dir, name_revision)
+            yang_file_exists = self.__check_schema_file(module)
+            is_latest_revision = self.check_if_latest_revision(module)
+            if not yang_file_exists:
+                LOGGER.error('Skipping module: {}'.format(name_revision))
+                continue
             LOGGER.info(
-                'Searching tree type for {}. {} out of {}'.format(module['name'], x, len(self.__all_modules['module'])))
+                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules['module'])))
             if name_revision in self.__trees:
                 stdout = self.__trees[name_revision]
             else:
@@ -487,7 +498,7 @@ class ModulesComplicatedAlgorithms:
                 if 'submodule' == module['module-type']:
                     LOGGER.debug('Module {} is a submodule'.format(self.__path))
                     module['tree-type'] = 'not-applicable'
-                elif is_combined(pyang_list_of_rows, stdout):
+                elif is_latest_revision and is_combined(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'nmda-compatible'
                 elif is_openconfig(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'openconfig'
@@ -533,7 +544,7 @@ class ModulesComplicatedAlgorithms:
                         data['{}@{}'.format(m['name'], m['revision'])] = deepcopy(m)
 
             LOGGER.info(
-                'Searching semver for {}. {} out of {}'.format(module['name'], z, len(self.__all_modules['module'])))
+                'Searching semver for {}. {} out of {}'.format(name_revision, z, len(self.__all_modules['module'])))
             if len(data) == 0:
                 # If there is no other revision for this module
                 module['derived-semantic-version'] = '1.0.0'
@@ -847,8 +858,9 @@ class ModulesComplicatedAlgorithms:
         x = 0
         if self.__existing_modules_dict.values() is not None:
             for mod in self.__all_modules.get('module', []):
+                name_revision = '{}@{}'.format(mod['name'], mod['revision'])
                 x += 1
-                LOGGER.info('Searching dependents for {}. {} out of {}'.format(mod['name'], x,
+                LOGGER.info('Searching dependents for {}. {} out of {}'.format(name_revision, x,
                                                                                len(self.__all_modules['module'])))
                 name = mod['name']
                 revision = mod['revision']
@@ -948,3 +960,11 @@ class ModulesComplicatedAlgorithms:
                 LOGGER.error('Unable to retrieve file content from GitHub using module schema')
 
         return result
+
+    def check_if_latest_revision(self, module: dict):
+        """ Check if the parsed module is the latest revision.
+
+        Argument:
+            :param module   (dict) Details of currently parsed module
+        """
+        return module.get('revision', '') >= self.__latest_revisions.get(module['name'], '')

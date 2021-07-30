@@ -8,8 +8,7 @@ export YANG_MODELS_DIR=$BACKEND/tests/resources/yangmodels/yang
 mkdir -p $YANG_MODELS_DIR
 git clone --depth 1 https://github.com/YangModels/yang.git $YANG_MODELS_DIR
 cd $YANG_MODELS_DIR
-git submodule init
-git submodule update
+git submodule update --init vendor/huawei
 # Prepare files and folder structure for capability.py tests
 # Create folders which match YangModels/yang cisco vendor structure, then copy certain files to these folders
 mkdir -p $BACKEND/tests/resources/tmp/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC
@@ -28,14 +27,16 @@ cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $BACKEND/test
 cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $BACKEND/tests/resources/tmp/master/vendor/cisco/xe/16101/
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $BACKEND/tests/resources/tmp/temp/standard/ietf/RFC
 # Prepare Huawei dir for ietf-yang-lib based tests
-cd $YANG_MODELS_DIR/vendor/huawei
-git pull origin master
+rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/atn980b
+rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne40e-x8x16
 export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne5000e
 mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e
 cp $YANG_MODELS_HUAWEI_DIR/huawei-aaa* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
 cp $BACKEND/tests/resources/platform-metadata.json $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
 cp $BACKEND/tests/resources/ietf-yang-library.xml $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2016-06-21.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2019-01-04.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-inet-types@2013-07-15.yang $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
 # Prepare directory structure need for test_util.py
 export UTILITY_RESOURCES=$BACKEND/utility/tests/resources
 mkdir -p $UTILITY_RESOURCES/modules

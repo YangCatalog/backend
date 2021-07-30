@@ -3,19 +3,19 @@ Documentation
 
 ##### Powered by slate
 
-This package contains API documentation and description of yangcatalog.org
+This package contains API documentation and descriptions of yangcatalog.org
 endpoints that can be used to search for modules
 
-To generate html file you need to have:
+To generate the html file you need to have:
 * **Ruby, version 2.3.1 or newer**
 * **Bundler** — If Ruby is already installed, but the bundle command
  doesn't work, just run *gem install bundler* in a terminal.
 * **Slate**
 
-To get slate and create html documentation:
+To get slate and create the html documentation:
 1. Clone the [repository](https://github.com/lord/slate)
 2. cd slate
-3. Replace [source](source) directory into cloned slate project
+3. Place [source](source) directory into cloned slate project
 4. Run **bundle exec middleman build --clean** - this will create a
 build directory with static files. Copy those files to your server www
 directory

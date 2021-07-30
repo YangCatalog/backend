@@ -41,11 +41,12 @@ import time
 import requests
 import utility.log as log
 from utility.staticVariables import confd_headers
-from utility.util import prepare_to_indexing, send_to_indexing
+from utility.util import prepare_to_indexing, send_to_indexing2
 
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
+
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -63,8 +64,10 @@ class ScriptConfig:
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
-        self.key = config.get('Secrets-Section', 'update-signature')
+        self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
         self.cache_dir = config.get('Directory-Section', 'cache')
+        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.lock_file = config.get('Directory-Section', 'lock')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__confd_port = config.get('Web-Section', 'confd-port')
@@ -193,7 +196,6 @@ def main(scriptConf=None):
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
     cache_dir = scriptConf.cache_dir
-    key = scriptConf.key
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
@@ -230,7 +232,7 @@ def main(scriptConf=None):
         LOGGER.error('runCapabilities error:\n{}'.format(e))
         raise e
 
-    body_to_send = ''
+    body_to_send = {}
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc), args.credentials,
@@ -333,9 +335,10 @@ def main(scriptConf=None):
                 LOGGER.error('Request with body {} on path {} failed with {}'
                              .format(json_implementations_data, url,
                                      response.text))
-    if body_to_send != '':
+    if len(body_to_send) > 0:
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, args.credentials, args.api_protocol, LOGGER, key, args.api_ip)
+        send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
+                          scriptConf.lock_file)
     if not args.api:
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
                                                        args=(args.credentials, yangcatalog_api_prefix,))

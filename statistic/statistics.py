@@ -44,9 +44,9 @@ import time
 
 import jinja2
 import requests
-
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.staticVariables import json_headers
 from utility.util import get_curr_dir, job_log
 
 if sys.version_info >= (3, 4):
@@ -314,12 +314,12 @@ def process_data(out, save_list, path, name):
         modules = out.split(path + ' : ')[1].split('\n')[0]
     num_in_catalog, passed = get_specifics(path)
     table_sdo['name'] = name
-    table_sdo['num_gituhub'] = modules
+    table_sdo['num_github'] = modules
     table_sdo['num_catalog'] = num_in_catalog
     try:
         table_sdo['percentage_compile'] = repr(round((float(passed) / num_in_catalog) * 100, 2)) + ' %'
     except ZeroDivisionError:
-        table_sdo['percentage_compile'] = 0
+        table_sdo['percentage_compile'] = '0.0 %'
     table_sdo['percentage_extra'] = 'unknown'
     save_list.append(table_sdo)
 
@@ -328,9 +328,11 @@ def solve_platforms(path, platform, LOGGER):
     """
     Resolve all the platforms on specified path and fills the platform
     set variable with the found data
-    :param path: (str) path to a specific Cisco platform
-    :param platform: (set) empty set of platforms. This should return
-        filled with platforms data on specified path
+
+    Arguments:
+        :param path         (str) path to a specific Cisco platform
+        :param platform     (set) empty set of platforms - will be filled with platforms data on specified path
+        :param LOGGER       (obj) formated logger with the specified name
     """
     matches = []
     for root, dirnames, filenames in os.walk(path):
@@ -373,36 +375,36 @@ def main(scriptConf=None):
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
+    private_dir = config.get('Web-Section', 'private-directory')
 
     global LOGGER
-    LOGGER = log.get_logger('statistics', log_directory + '/statistics/yang.log')
+    LOGGER = log.get_logger('statistics', '{}/statistics/yang.log'.format(log_directory))
     separator = ':'
     suffix = api_port
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
     global yangcatalog_api_prefix
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip,
-                                                   separator, suffix)
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip, separator, suffix)
     LOGGER.info('Starting statistics')
     repo = None
 
     # Fetch the list of all modules known by YangCatalog
-    path = yangcatalog_api_prefix + 'search/modules'
+    url = '{}search/modules'.format(yangcatalog_api_prefix)
     try:
-        response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+        response = requests.get(url, auth=(auth[0], auth[1]), headers=json_headers)
         if response.status_code != 200:
-            LOGGER.error("Cannot access " + path + ', response code: ' + str(response.status_code))
+            LOGGER.error('Cannot access {}, response code: {}'.format(url, response.status_code))
             sys.exit(1)
         else:
             all_modules_data = response.json()
     except requests.exceptions.RequestException as e:
-        LOGGER.error("Cannot access " + path + ', response code: ' + str(e.response))
+        LOGGER.error('Cannot access {}, response code: {}'.format(url, e.response))
         # Let's try again, who knows?
         time.sleep(120)
-        response = requests.get(path, auth=(auth[0], auth[1]), headers={'Accept': 'application/json'})
+        response = requests.get(url, auth=(auth[0], auth[1]), headers=json_headers)
         all_modules_data = response.json()
-        LOGGER.error("After a while, OK to access " + path)
+        LOGGER.error('After a while, OK to access {}'.format(url))
 
     vendor_data = {}
     for m in all_modules_data['module']:
@@ -426,6 +428,10 @@ def main(scriptConf=None):
         nx = set()
         xe = set()
 
+        xr_json_output = {}
+        nx_json_output = {}
+        xe_json_output = {}
+
         solve_platforms(yang_models + '/vendor/cisco/xr', xr, LOGGER)
         solve_platforms(yang_models + '/vendor/cisco/xe', xe, LOGGER)
         solve_platforms(yang_models + '/vendor/cisco/nx', nx, LOGGER)
@@ -447,6 +453,7 @@ def main(scriptConf=None):
                 j = []
 
             values = [version]
+            xr_json_output[version] = {}
             for value in xr:
                 if version == '':
                     ver = ''
@@ -455,22 +462,34 @@ def main(scriptConf=None):
                 found = False
                 if vendor_data.get('IOS-XR') is None:
                     exist = '<i class="fa fa-times"></i>'
+                    exist_json = False
                 else:
                     if vendor_data['IOS-XR'].get(ver) is None:
                         exist = '<i class="fa fa-times"></i>'
+                        exist_json = False
                     else:
                         if value in vendor_data['IOS-XR'][ver]:
                             exist = '<i class="fa fa-check"></i>'
+                            exist_json = True
                         else:
                             exist = '<i class="fa fa-times"></i>'
+                            exist_json = False
                 for platform in j:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
                         values.append('<i class="fa fa-check"></i>/{}'.format(exist))
+                        xr_json_output[version][value] = {
+                            "yangcatalog": True,
+                            "github": exist_json
+                        }
                         found = True
                         break
                 if not found:
                     values.append('<i class="fa fa-times"></i>/{}'.format(exist))
+                    xr_json_output[version][value] = {
+                        "yangcatalog": False,
+                        "github": exist_json
+                    }
             xr_values.append(values)
 
         for version in xe_versions:
@@ -482,26 +501,39 @@ def main(scriptConf=None):
             except:
                 j = []
             values = [version]
+            xe_json_output[version] = {}
             for value in xe:
                 found = False
                 if vendor_data.get('IOS-XE') is None:
                     exist = '<i class="fa fa-times"></i>'
+                    exist_json = False
                 else:
                     if vendor_data['IOS-XE'].get(version) is None:
                         exist = '<i class="fa fa-times"></i>'
+                        exist_json = False
                     else:
                         if value in vendor_data['IOS-XE'][version]:
                             exist = '<i class="fa fa-check"></i>'
+                            exist_json = True
                         else:
                             exist = '<i class="fa fa-times"></i>'
+                            exist_json = False
                 for platform in j:
                     if (platform['name'] == value and
                             ''.join(platform['software-version'].split('.')) == version):
                         values.append('<i class="fa fa-check"></i>/{}'.format(exist))
+                        xe_json_output[version][value] = {
+                            "yangcatalog": True,
+                            "github": exist_json
+                        }
                         found = True
                         break
                 if not found:
                     values.append('<i class="fa fa-times"></i>/{}'.format(exist))
+                    xe_json_output[version][value] = {
+                        "yangcatalog": False,
+                        "github": exist_json
+                    }
             xe_values.append(values)
 
         for version in nx_versions:
@@ -513,6 +545,7 @@ def main(scriptConf=None):
             except:
                 j = []
             values = [version]
+            nx_json_output[version] = {}
             for value in nx:
                 ver = version.split('-')
                 try:
@@ -523,22 +556,34 @@ def main(scriptConf=None):
                 found = False
                 if vendor_data.get('NX-OS') is None:
                     exist = '<i class="fa fa-times"></i>'
+                    exist_json = False
                 else:
                     if vendor_data['NX-OS'].get(ver) is None:
                         exist = '<i class="fa fa-times"></i>'
+                        exist_json = False
                     else:
                         if value in vendor_data['NX-OS'][ver]:
                             exist = '<i class="fa fa-check"></i>'
+                            exist_json = True
                         else:
                             exist = '<i class="fa fa-times"></i>'
+                            exist_json = False
                 for platform in j:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
                         values.append('<i class="fa fa-check"></i>/{}'.format(exist))
+                        nx_json_output[version][value] = {
+                            "yangcatalog": True,
+                            "github": exist_json
+                        }
                         found = True
                         break
                 if not found:
                     values.append('<i class="fa fa-times"></i>/{}'.format(exist))
+                    nx_json_output[version][value] = {
+                        "yangcatalog": False,
+                        "github": exist_json
+                    }
             nx_values.append(values)
 
         global all_modules_data_unique
@@ -686,6 +731,26 @@ def main(scriptConf=None):
                    'xr_values': xr_values,
                    'current_date': time.strftime("%d/%m/%y")}
         LOGGER.info('Rendering data')
+        with open('{}/stats/stats.json'.format(private_dir), 'w') as f:
+            for sdo in sdo_list:
+                sdo['num_github'] = int(sdo['num_github'])
+                sdo['percentage_compile'] = float(sdo['percentage_compile'].split(' ')[0])
+            for vendor in vendor_list:
+                vendor['num_github'] = int(vendor['num_github'])
+                vendor['percentage_compile'] = float(vendor['percentage_compile'].split(' ')[0])
+            output = {'table_sdo': sdo_list,
+                       'table_vendor': vendor_list,
+                       'num_yang_files_vendor': int(vendor_modules),
+                       'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
+                       'num_yang_files_standard': int(standard_modules),
+                       'num_yang_files_standard_ndp': int(standard_modules_ndp),
+                       'num_parsed_files': all_modules_data,
+                       'num_unique_parsed_files': len(all_modules_data_unique),
+                       'nx': nx_json_output,
+                       'xr': xr_json_output,
+                       'xe': xe_json_output,
+                       'current_date': time.strftime("%d/%m/%y")}
+            json.dump(output, f)
         result = render(get_curr_dir(__file__) + '/./template/stats.html', context)
         with open(get_curr_dir(__file__) + '/./statistics.html', 'w+') as f:
             f.write(result)
