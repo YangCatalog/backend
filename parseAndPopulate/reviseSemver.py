@@ -13,13 +13,49 @@ import configparser as ConfigParser
 import json
 import sys
 import time
+import os
 from datetime import datetime
 
 import requests
 import utility.log as log
+from utility.util import job_log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
+class ScriptConfig:
+    def __init__(self):
+        self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
+                    ' to confd directory'
+        config_path = '/etc/yangcatalog/yangcatalog.conf'
+        config = ConfigParser.ConfigParser()
+        config._interpolation = ConfigParser.ExtendedInterpolation()
+        config.read(config_path)
+        self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
+        self.ip = config.get('Web-Section', 'ip', fallback='localhost')
+        self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
+        self.confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
+        self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
+        self.confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
+        self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
+        self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
+        self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
+        self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
+        self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+
+    def get_args_list(self):
+        """ Return a list of the arguments of the script, along with the default values.
+        """
+        args_dict = {}
+        return args_dict
+
+    def get_help(self):
+        """ Return script help along with help for each argument.
+        """
+        ret = {}
+        ret['help'] = self.help
+        ret['options'] = {}
+        return ret
 
 def get_date(revision: str):
     rev = revision.split('-')
@@ -63,10 +99,8 @@ def get_list_of_unique_modules(all_existing_modules: list):
         unique_modules.append(module)
 
     dump_to_json(path, unique_modules)
-    all_modules = {}
-    all_modules['module'] = unique_modules
 
-    return all_modules
+    return {'module': unique_modules}
 
 
 def dump_to_json(path: str, modules: list):
@@ -77,31 +111,30 @@ def dump_to_json(path: str, modules: list):
 
 def load_from_json(path: str):
     # Load dumped data from json file
-    all_modules = {}
     with open(path, 'r') as f:
-        all_modules = json.load(f)
-
-    return all_modules
+        return json.load(f)
 
 
-if __name__ == '__main__':
-    start = time.time()
+def main(scriptConf=None):
+    start_time = int(time.time())
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
     config_path = '/etc/yangcatalog/yangcatalog.conf'
     config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
+    config._interpolation = ConfigParser.ExtendedInterpolation( )
     config.read(config_path)
-    api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
-    ip = config.get('Web-Section', 'ip', fallback='localhost')
-    api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-    confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
-    confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
-    confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
-    is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
-    temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
-    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-    save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-    yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
-    credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+    api_protocol = scriptConf.api_protocol
+    ip = scriptConf.ip
+    api_port = scriptConf.api_port
+    confd_protocol = scriptConf.confd_protocol
+    confd_ip = scriptConf.confd_ip
+    confd_port = scriptConf.confd_port
+    is_uwsgi = scriptConf.is_uwsgi
+    temp_dir = scriptConf.temp_dir
+    log_directory = scriptConf.log_directory
+    save_file_dir = scriptConf.save_file_dir
+    yang_models = scriptConf.yang_models
+    credentials = scriptConf.credentials
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
@@ -119,6 +152,7 @@ if __name__ == '__main__':
 
     all_existing_modules = response.json().get('module', [])
 
+    global path
     path = '{}/semver_prepare.json'.format(temp_dir)
 
     all_modules = get_list_of_unique_modules(all_existing_modules)
@@ -151,4 +185,11 @@ if __name__ == '__main__':
             LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
     end = time.time()
-    LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
+    LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start_time)))
+    filename = os.path.basename(__file__).split('.py')[0]
+    job_log(start_time, temp_dir, filename, status='Success')
+
+
+if __name__ == '__main__':
+    path = ''
+    main()

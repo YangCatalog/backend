@@ -61,7 +61,7 @@ def catch_db_error(f):
         try:
             return f(*args, **kwargs)
         except SQLAlchemyError as err:
-            yc_gc.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
+            current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
             return ({'error': 'Server problem connecting to database'}, 500)
     
     return df
@@ -89,7 +89,7 @@ def logout():
 
 @app.route('/api/admin/ping')
 def ping():
-    yc_gc.LOGGER.info('ping {}'.format(yc_gc.oidc.user_loggedin))
+    current_app.logger.info('ping {}'.format(yc_gc.oidc.user_loggedin))
     return {'info': 'Success'}
 
 
@@ -100,7 +100,7 @@ def check():
 
 @app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
-    yc_gc.LOGGER.info('Reading admin file {}'.format(direc))
+    current_app.logger.info('Reading admin file {}'.format(direc))
     try:
         file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
     except:
@@ -118,7 +118,7 @@ def read_admin_file(direc):
 @app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
-    yc_gc.LOGGER.info('Deleting admin file {}'.format(direc))
+    current_app.logger.info('Deleting admin file {}'.format(direc))
     try:
         exist = os.path.exists('{}/{}'.format(yc_gc.var_yang, direc))
     except:
@@ -137,7 +137,7 @@ def delete_admin_file(direc):
 
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    yc_gc.LOGGER.info('Updating file on path {}'.format(direc))
+    current_app.logger.info("Updating file on path {}".format(direc))
 
     body = get_input(request.json)
     if 'data' not in body:
@@ -202,7 +202,7 @@ def get_var_yang_directory_structure(direc):
             structure['folders'].append(dir_structure)
         return structure
 
-    yc_gc.LOGGER.info('Getting directory structure')
+    current_app.logger.info('Getting directory structure')
 
     ret = walk_through_dir('/var/yang/{}'.format(direc))
     response = {'info': 'Success',
@@ -212,7 +212,7 @@ def get_var_yang_directory_structure(direc):
 
 @app.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
-    yc_gc.LOGGER.info('Getting list of nginx files')
+    current_app.logger.info('Getting list of nginx files')
     files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
     files_final = ['sites-enabled/' + sub for sub in files]
     files_final.append('nginx.conf')
@@ -225,7 +225,7 @@ def read_yangcatalog_nginx_files():
 
 @app.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
-    yc_gc.LOGGER.info('Reading nginx file {}'.format(nginx_file))
+    current_app.logger.info('Reading nginx file {}'.format(nginx_file))
     with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
         nginx_config = f.read()
     response = {'info': 'Success',
@@ -235,7 +235,7 @@ def read_yangcatalog_nginx(nginx_file):
 
 @app.route('/api/admin/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
-    yc_gc.LOGGER.info('Reading yangcatalog config file')
+    current_app.logger.info('Reading yangcatalog config file')
 
     with open(yc_gc.config_path, 'r') as f:
         yangcatalog_config = f.read()
@@ -246,7 +246,7 @@ def read_yangcatalog_config():
 
 @app.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
-    yc_gc.LOGGER.info('Updating yangcatalog config file')
+    current_app.logger.info('Updating yangcatalog config file')
     body = get_input(request.json)
     if 'data' not in body:
         abort(400, description='"data" must be specified')
@@ -273,7 +273,7 @@ def update_yangcatalog_config():
     code = response.status_code
 
     if code != 200 and code != 201 and code != 204:
-        yc_gc.LOGGER.error('could not send data to realod config. Reason: {}'
+        current_app.logger.error('could not send data to realod config. Reason: {}'
                            .format(response.text))
         resp['yang-search'] = 'error loading data'
     else:
@@ -293,7 +293,7 @@ def get_log_files():
                     filename = os.path.join(root, basename)
                     yield filename
 
-    yc_gc.LOGGER.info('Getting yangcatalog log files')
+    current_app.logger.info('Getting yangcatalog log files')
 
     files = find_files(yc_gc.logs_dir, '*.log*')
     resp = set()
@@ -409,7 +409,7 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
 def get_logs():
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
     time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-    yc_gc.LOGGER.info('Reading yangcatalog log file')
+    current_app.logger.info('Reading yangcatalog log file')
     body = get_input(request.json)
 
     number_of_lines_per_page = body.get('lines-per-page', 1000)
@@ -424,7 +424,7 @@ def get_logs():
     if from_date_timestamp is None:
         from_date_timestamp = find_timestamp(log_files[0], date_regex, time_regex)
 
-    yc_gc.LOGGER.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
+    current_app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
@@ -564,7 +564,7 @@ def update_sql_row(table, unique_id):
             abort(400, description='username and email must be specified')
         db.session.commit()
     if user:
-        yc_gc.LOGGER.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
+        current_app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return {'info': 'ID {} updated successfully'.format(unique_id)}
     else:
         abort(404, description='ID {} not found in table {}'.format(unique_id, table))
@@ -623,14 +623,14 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
-    yc_gc.LOGGER.info('job_id {}'.format(job_id))
+    current_app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
 @app.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery']
+                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
 
@@ -646,7 +646,7 @@ def get_disk_usage():
 
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
-    if script_name in ['populate', 'runCapabilities']:
+    if script_name in ['populate', 'runCapabilities', 'reviseSemver']:
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
