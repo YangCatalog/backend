@@ -24,7 +24,8 @@ import re
 import utility.log as log
 from api.globalConfig import yc_gc
 from api.views.yangSearch.elkSearch import ElkSearch
-from flask import Blueprint, abort, jsonify, make_response, request
+from flask import (Blueprint, abort, current_app, jsonify, make_response,
+                   request)
 from pyang import plugin
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
@@ -485,7 +486,7 @@ def get_yang_catalog_help():
                                     if echild.get('description') is not None:
                                         description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
                                         help_text += "<br/>\r\n<br/>\r\n{}: {}".format(child['enum']['value'],
-                                                                                        description)
+                                                                                       description)
 
                 break
         paths.reverse()

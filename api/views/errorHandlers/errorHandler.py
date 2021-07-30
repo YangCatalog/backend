@@ -17,7 +17,7 @@ __copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-from flask import Blueprint, make_response, jsonify
+from flask import Blueprint, jsonify, make_response
 
 app = Blueprint('error-handling', __name__)
 
@@ -44,7 +44,7 @@ def bad_request(e):
 
 
 @app.app_errorhandler(409)
-def bad_request(e):
+def conflict(e):
     """Return message that can not be resolved"""
     return make_response(jsonify({'error': 'Conflict',
                                   'description': e.description}), 409)
