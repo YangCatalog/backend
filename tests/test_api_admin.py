@@ -29,8 +29,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from api.globalConfig import yc_gc
 from api.yangCatalogApi import application
 from api.models import User
-from api.views.admin.admin import (catch_db_error, find_files, filter_from_date, find_timestamp,
-                                   generate_output)
+from api.views.admin.admin import catch_db_error, find_files, filter_from_date, generate_output
 
 
 class TestApiAdminClass(unittest.TestCase):
@@ -47,9 +46,10 @@ class TestApiAdminClass(unittest.TestCase):
         self.mock_user_loggedin = True
 
     def test_catch_db_error(self):
-        def error():
-            raise SQLAlchemyError
-        result = catch_db_error(error)()
+        with application.app_context():
+            def error():
+                raise SQLAlchemyError
+            result = catch_db_error(error)()
 
         self.assertEqual(result, ({'error': 'Server problem connecting to database'}, 500))
 
