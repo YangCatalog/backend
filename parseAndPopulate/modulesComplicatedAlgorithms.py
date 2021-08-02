@@ -676,7 +676,7 @@ class ModulesComplicatedAlgorithms:
     def __parse_dependents(self):
 
         def check_latest_revision_and_remove(dependent, dependency):
-            for i in range(len(dependency.get('dependents'), [])):
+            for i in range(len(dependency.get('dependents', []))):
                 existing_dependent = dependency['dependents'][i]
                 if existing_dependent['name'] == dependent['name']:
                     if existing_dependent['revision'] > dependent['revision']:
