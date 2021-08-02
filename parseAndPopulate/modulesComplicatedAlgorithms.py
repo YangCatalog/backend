@@ -722,7 +722,7 @@ class ModulesComplicatedAlgorithms:
                                 dependency_copy.setdefault('dependents', []).append(details)
                                 self.new_modules[name][revision] = dependency_copy
         
-        all_modules = self.__all_modules.get('module')
+        all_modules = self.__all_modules.get('module', [])
         all_modules_dict = defaultdict(dict)
         for i in all_modules:
             all_modules_dict[i['name']][i['revision']] = deepcopy(i)
