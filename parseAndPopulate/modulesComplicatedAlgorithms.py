@@ -99,15 +99,14 @@ class ModulesComplicatedAlgorithms:
         self.__parse_dependents()
 
     def populate(self):
+        new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
         LOGGER.info('populate with module complicated data. amount of new data is {}'
-                    .format(len(self.new_modules.values())))
-        LOGGER.info('populate with module complicated data after merging. amount of new data is {}'
                     .format(len(self.new_modules)))
         x = -1
         chunk_size = 250
-        chunks = (len(self.new_modules) - 1) // chunk_size + 1
+        chunks = (len(new_modules) - 1) // chunk_size + 1
         for x in range(chunks):
-            payload = {'modules': {'module': self.new_modules[x * chunk_size: (x * chunk_size) + chunk_size]}}
+            payload = {'modules': {'module': new_modules[x * chunk_size: (x * chunk_size) + chunk_size]}}
             json_modules_data = json.dumps(payload)
             if '{"module": []}' not in json_modules_data:
                 url = self.__confd_prefix + '/restconf/data/yang-catalog:catalog/modules/'
@@ -677,7 +676,7 @@ class ModulesComplicatedAlgorithms:
     def __parse_dependents(self):
 
         def check_latest_revision_and_remove(dependent, dependency):
-            for i in len(dependency.get('dependents'), []):
+            for i in range(len(dependency.get('dependents'), [])):
                 existing_dependent = dependency['dependents'][i]
                 if existing_dependent['name'] == dependent['name']:
                     if existing_dependent['revision'] > dependent['revision']:
