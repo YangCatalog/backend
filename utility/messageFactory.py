@@ -218,7 +218,6 @@ class MessageFactory:
         self.LOGGER.info('Sending notification about new user')
 
         subject = 'Request for access confirmation'
-        msg = 'User {} with email {} is requesting access \n Please go to yang project run python validate.py and follow ' \
-              'the instructions. The script can be found in yangcatalog.org under ' \
-              '/home/miroslav/yang/tools/validate/validate.py'.format(username, email)
+        msg = 'User {} with email {} is requesting access.\nPlease go to https://yangcatalog.org/admin/mysql-management ' \
+              'and approve or reject this request in Users tab.'.format(username, email)
         self.__post_to_email(msg, subject=subject)
