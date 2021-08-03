@@ -259,10 +259,13 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], 'test')
 
-    def test_update_yangcatalog_config(self):
-        with open(yc_gc.config_path) as f:
-            result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': f.read()}})
+    @mock.patch('api.views.admin.admin.open')
+    def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
+        mock.mock_open(mock_open)
+        result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
 
+        f = mock_open()
+        f.write.assert_called_with('test')
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
 
