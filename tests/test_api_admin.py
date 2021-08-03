@@ -31,6 +31,8 @@ from api.yangCatalogApi import application
 from api.models import User
 from api.views.admin.admin import catch_db_error, find_files, filter_from_date, generate_output
 
+db = yc_gc.sqlalchemy
+
 
 class TestApiAdminClass(unittest.TestCase):
 
@@ -40,10 +42,20 @@ class TestApiAdminClass(unittest.TestCase):
         self.client = application.test_client()
 
     def setUp(self):
+        user = User(Username='test', Password='test', Email='test')
+        with application.app_context():
+            db.session.add(user)
+            db.session.commit()
+            self.uid = user.Id
         self.patcher = mock.patch.object(flask_oidc.OpenIDConnect, 'user_loggedin')
         self.mock_user_loggedin = self.patcher.start()
         self.addCleanup(self.patcher.stop)
         self.mock_user_loggedin = True
+
+    def tearDown(self):
+        with application.app_context():
+            db.session.query(User).filter_by(Id=self.uid).delete()
+            db.session.commit()
 
     def test_catch_db_error(self):
         with application.app_context():
@@ -476,21 +488,21 @@ class TestApiAdminClass(unittest.TestCase):
     @mock.patch.object(yc_gc.sqlalchemy.session, 'delete')
     def test_delete_sql_row(self, mock_delete: mock.MagicMock):
         mock_delete.side_effect = yc_gc.sqlalchemy.session.expunge
-        result = self.client.delete('/api/admin/sql-tables/users/id/1')
+        result = self.client.delete('/api/admin/sql-tables/users/id/{}'.format(self.uid))
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
-        self.assertEqual(data['info'], 'id 1 deleted successfully')
+        self.assertEqual(data['info'], 'id {} deleted successfully'.format(self.uid))
         self.assertTrue(len(mock_delete.call_args.args))
         user = mock_delete.call_args.args[0]
         self.assertTrue(isinstance(user, User))
-        self.assertEqual(user.Id, 1)
+        self.assertEqual(user.Id, self.uid)
 
     @mock.patch.object(yc_gc.sqlalchemy.session, 'delete')
     def test_delete_sql_row_invalid_table(self, mock_delete: mock.MagicMock):
-        result = self.client.delete('/api/admin/sql-tables/fake/id/1')
+        result = self.client.delete('/api/admin/sql-tables/fake/id/{}'.format(self.uid))
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -514,13 +526,13 @@ class TestApiAdminClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('sql_row')
 
-        result = self.client.put('/api/admin/sql-tables/users/id/1', json=body)
+        result = self.client.put('/api/admin/sql-tables/users/id/{}'.format(self.uid), json=body)
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
-        self.assertEqual(data['info'], 'ID 1 updated successfully')
+        self.assertEqual(data['info'], 'ID {} updated successfully'.format(self.uid))
 
     def test_update_sql_row_invalid_table(self):
         result = self.client.put('/api/admin/sql-tables/fake/id/24857629847625894258476')
@@ -533,7 +545,7 @@ class TestApiAdminClass(unittest.TestCase):
     
     @mock.patch.object(yc_gc.sqlalchemy.session, 'commit', new=mock.MagicMock())
     def test_update_sql_row_args_missing(self):
-        result = self.client.put('/api/admin/sql-tables/users/id/1', json={'input': {}})
+        result = self.client.put('/api/admin/sql-tables/users/id/{}'.format(self.uid), json={'input': {}})
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
