@@ -342,7 +342,7 @@ try:
         yc_gc.sqlalchemy.create_all()
         DeferredReflection.prepare(yc_gc.sqlalchemy.engine)
 except Exception as e:
-    yc_gc.LOGGER.error(e)
+    application.logger.error(e)
 
 # configure the logger
 application.logger.removeHandler(default_handler)
