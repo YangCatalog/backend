@@ -120,13 +120,15 @@ class ModulesComplicatedAlgorithms:
                                  format(path_to_file, url,
                                         response.text))
 
-        url = (self.__yangcatalog_api_prefix + 'load-cache')
-        response = requests.post(url, None,
-                                 auth=(self.__credentials[0],
-                                       self.__credentials[1]))
-        if response.status_code != 201:
-            LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
-                           .format(response.status_code, response.text))
+        if len(new_modules) > 0:
+            url = '{}load-cache'.format(self.__yangcatalog_api_prefix)
+            response = requests.post(url, None,
+                                     auth=(self.__credentials[0], self.__credentials[1]))
+            if response.status_code != 201:
+                LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
+                               .format(response.status_code, response.text))
+            else:
+                LOGGER.info('load-cache responded with status code {}'.format(response.status_code))
 
     def resolve_tree_type(self, all_modules):
         def is_openconfig(rows, output):
@@ -439,9 +441,9 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'unclassified'
             LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
             if (revision not in self.__existing_modules_dict[name] or
-                    self.__existing_modules_dict[name][revision].get('tree-type') != module['tree-type']):
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('tree-type') != module['tree-type']):
                 LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
-                    self.__existing_modules_dict[name][revision].get('tree-type'), module['tree-type'],
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('tree-type'), module['tree-type'],
                     module['name'], module['revision']))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
@@ -533,9 +535,9 @@ class ModulesComplicatedAlgorithms:
             name = new_module['name']
             revision = new_module['revision']
             if (revision not in self.__existing_modules_dict[name] or
-                    self.__existing_modules_dict[name][revision].get('derived-semantic-version') != new_module['derived-semantic-version']):
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('derived-semantic-version') != new_module['derived-semantic-version']):
                 LOGGER.info('semver {} vs {} for module {}@{}'.format(
-                    self.__existing_modules_dict[name][revision].get('derived-semantic-version'),
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('derived-semantic-version'),
                     new_module['derived-semantic-version'], name, revision))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = new_module
@@ -694,7 +696,7 @@ class ModulesComplicatedAlgorithms:
                             if revision in self.new_modules[name]:
                                 dependency_copy = self.new_modules[name][revision]
                             elif revision in self.__existing_modules_dict[name]:
-                                dependency_copy = deepcopy(self.__existing_modules_dict[name][revision])
+                                dependency_copy = deepcopy(self.__existing_modules_dict.get(name, {}).get(revision, {}))
                             else:
                                 dependency_copy = dependency
                             if not check_latest_revision_and_remove(dependent, dependency_copy):
