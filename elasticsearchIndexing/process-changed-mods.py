@@ -21,9 +21,9 @@ import sys
 
 import dateutil.parser
 from elasticsearch import Elasticsearch, NotFoundError
+from utility import log
 
 from elasticsearchIndexing import build_yindex
-from utility import log
 
 __author__ = "Miroslav Kovac, Joe Clarke"
 __copyright__ = "Copyright 2018 Cisco and its affiliates"
@@ -92,10 +92,9 @@ if __name__ == '__main__':
             f = open(changes_cache_dir, 'r+')
             changes_cache = json.load(f)
 
-            # Backup the contents just in case.
-            bfd = open(changes_cache_dir + '.bak', 'w')
-            json.dump(changes_cache, bfd)
-            bfd.close()
+            # Backup the contents just in case
+            with open('{}.bak'.format(changes_cache_dir), 'w') as bfd:
+                json.dump(changes_cache, bfd)
 
             f.truncate(0)
             f.close()
@@ -105,10 +104,9 @@ if __name__ == '__main__':
             f = open(delete_cache_dir, 'r+')
             delete_cache = json.load(f)
 
-            # Backup the contents just in case.
-            bfd = open(delete_cache_dir + '.bak', 'w')
-            json.dump(delete_cache, bfd)
-            bfd.close()
+            # Backup the contents just in case
+            with open('{}.bak'.format(delete_cache_dir), 'w') as bfd:
+                json.dump(delete_cache, bfd)
 
             f.truncate(0)
             f.close()
@@ -135,7 +133,7 @@ if __name__ == '__main__':
 
             try:
                 dateutil.parser.parse(mrev)
-            except ValueError as e:
+            except ValueError:
                 if mrev[-2:] == '29' and mrev[-5:-3] == '02':
                     mrev = mrev.replace('02-29', '02-28')
                 else:
@@ -165,46 +163,56 @@ if __name__ == '__main__':
                 es.delete_by_query(index='yindex', body=query, doc_type='modules', conflicts='proceed',
                                    request_timeout=40)
                 query['query']['bool']['must'].append({
-                                    "match_phrase": {
-                                        "organization": {
-                                            "query": morg
-                                        }
-                                    }
-                                })
+                    "match_phrase": {
+                        "organization": {
+                            "query": morg
+                        }
+                    }
+                })
                 LOGGER.info('deleting {}'.format(query))
                 es.delete_by_query(index='modules', body=query, doc_type='modules', conflicts='proceed',
                                    request_timeout=40)
-            except NotFoundError as e:
-                LOGGER.warning('module not found {}'.format(e))
+            except NotFoundError:
+                LOGGER.exception('Module not found')
                 pass
 
     if len(changes_cache) == 0:
-        LOGGER.info("No module to be processed. Exiting.")
+        LOGGER.info('No module to be processed. Exiting.')
         os.unlink(lock_file_cron)
         sys.exit(0)
 
-    LOGGER.info('Pulling latest yangModels/yang repository')
+    LOGGER.info('Pulling latest YangModels/yang repository')
     pull(yang_models)
 
     mod_args = []
     if type(changes_cache) is list:
-        for mod_path in changes_cache:
-            if not mod_path.startswith('/'):
-                mod_path = yang_models + '/' + mod_path
-            mod_args.append(mod_path)
+        for module_path in changes_cache:
+            if not module_path.startswith('/'):
+                module_path = '{}/{}'.format(yang_models, module_path)
+            mod_args.append(module_path)
     else:
-        for m, mod_path in changes_cache.items():
-            mparts = m.split('/')
+        for key, module_path in changes_cache.items():
+            mparts = key.split('/')
             if len(mparts) == 2:
-                mod_path += ':' + mparts[1]
-            if not mod_path.startswith('/'):
-                mod_path = yang_models + '/' + mod_path
-            mod_args.append(mod_path)
+                module_path += ':' + mparts[1]
+            if not module_path.startswith('/'):
+                module_path = '{}/{}'.format(yang_models, module_path)
+            mod_args.append(module_path)
     sys.setrecursionlimit(50000)
-    build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir,
-                              es_host, es_port, es_aws, elk_credentials, threads,
-                              log_directory + '/process-changed-mods.log', failed_changes_cache_dir,
-                              temp_dir, processes)
+    try:
+        if es_aws:
+            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+        else:
+            es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+    except:
+        sys.setrecursionlimit(recursion_limit)
+        os.unlink(lock_file_cron)
+        LOGGER.exception('Unable to initialize Elasticsearch')
+        LOGGER.info('Job failed execution')
+        sys.exit()
+
+    build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
+                              log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
     sys.setrecursionlimit(recursion_limit)
     os.unlink(lock_file_cron)
-    LOGGER.info("Job finished successfully")
+    LOGGER.info('Job finished successfully')
