@@ -259,9 +259,13 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], 'test')
 
+    @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock)
+    @mock.patch('requests.post')
     @mock.patch('api.views.admin.admin.open')
-    def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
+    def test_update_yangcatalog_config(self, mock_open: mock.MagicMock, mock_post: mock.MagicMock):
         mock.mock_open(mock_open)
+        mock_post.return_value.status_code = 200
+        mock_post.return_value.json.return_value = {'info': 'test'}
         result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
 
         f = mock_open()
