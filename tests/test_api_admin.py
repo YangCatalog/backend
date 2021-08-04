@@ -570,6 +570,14 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'ID 24857629847625894258476 not found in table users')
 
+    def test_get_sql_row(self):
+        result = self.client.get('/api/admin/sql-tables/users')
+
+        self.assertEqual(result.status_code, 200)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertTrue(isinstance(data, list))
+
     def test_get_script_details_invalid_name(self):
         result = self.client.get('/api/admin/scripts/invalid')
 
