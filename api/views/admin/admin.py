@@ -38,7 +38,6 @@ import requests
 from api.globalConfig import yc_gc
 from flask import Blueprint, abort, jsonify, redirect, request, current_app
 from flask_cors import CORS
-from utility.util import create_signature
 from api.models import Base, User, TempUser
 
 
@@ -264,20 +263,6 @@ def update_yangcatalog_config():
         resp['receiver'] = 'data loaded successfully'
     except:
         resp['receiver'] ='error loading data'
-    path = '{}://{}/yang-search/reload_config'.format(yc_gc.api_protocol, yc_gc.ip)
-    signature = create_signature(yc_gc.search_key, json.dumps(body))
-
-    response = requests.post(path, data=json.dumps(body),
-                             headers={'Content-Type': 'app/json', 'Accept': 'app/json',
-                                      'X-YC-Signature': 'sha1={}'.format(signature)}, verify=False)
-    code = response.status_code
-
-    if code != 200 and code != 201 and code != 204:
-        current_app.logger.error('could not send data to realod config. Reason: {}'
-                           .format(response.text))
-        resp['yang-search'] = 'error loading data'
-    else:
-        resp['yang-search'] = response.json()['info']
     response = {'info': resp,
                 'new-data': body['data']}
     return response
