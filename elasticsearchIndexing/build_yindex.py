@@ -20,20 +20,23 @@ __email__ = "miroslav.kovac@pantheon.tech, jclarke@cisco.com"
 import io
 import json
 import logging
+import os
 import subprocess
 import traceback
 from datetime import datetime
 
 import dateutil.parser
-from elasticsearch import ConnectionError, ConnectionTimeout, Elasticsearch, NotFoundError
+import requests
+from elasticsearch import (ConnectionError, ConnectionTimeout, Elasticsearch,
+                           NotFoundError)
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
 from pyang.plugins.name import emit_name
-from pyang.plugins.yang_catalog_index_es import IndexerPlugin, resolve_organization
+from pyang.plugins.yang_catalog_index_es import (IndexerPlugin,
+                                                 resolve_organization)
 from pyang.util import get_latest_revision
-
-from utility.util import get_curr_dir
+from utility.util import fetch_module_by_schema, get_curr_dir
 from utility.yangParser import create_context
 
 
@@ -53,12 +56,7 @@ def __run_pyang_commands(commands, output_only=True, decode=True):
         return stdout, stderr
 
 
-def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es_aws, elk_credentials,
-                 threads, log_file, failed_changes_dir, temp_dir, processes):
-    if es_aws:
-        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
-    else:
-        es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_file, failed_changes_dir, temp_dir):
     initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
         __file__)), 'r'))
     initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
@@ -76,20 +74,38 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
             x += 1
             LOGGER.info('yindex on module {}. module {} out of {}'.format(module.split('/')[-1], x, len(modules)))
             # split to module with path and organization
-            m_parts = module.split(":")
-            m = m_parts[0]
+            module_path, organization = module.split(':')
             plugin.init([])
             ctx = create_context('{}'.format(save_file_dir))
             ctx.opts.lint_namespace_prefixes = []
             ctx.opts.lint_modulename_prefixes = []
             for p in plugin.plugins:
                 p.setup_ctx(ctx)
-            with open(m, 'r') as f:
-                parsed_module = ctx.add_module(m, f.read())
-            ctx.validate()
 
+            if not os.path.isfile(module_path):
+                result = False
+                try:
+                    module_name = module_path.split('/')[-1].split('.yang')[0]
+                    name, revision = module_name.split('@')
+                    module_detail = requests.get('https://yangcatalog.org/api/search/modules/{},{},{}'
+                                                 .format(name, revision, organization)).json().get('module', [])
+                    schema = module_detail[0].get('schema')
+                    result = fetch_module_by_schema(schema, module_path)
+                except Exception:
+                    msg = 'Unable to retrieve content of {}'.format(module_name)
+                    raise Exception(msg)
+                if result:
+                    LOGGER.info('File content successfully retrieved from GitHub using module schema')
+                else:
+                    msg = 'Unable to retrieve content of {}'.format(module_name)
+                    raise Exception(msg)
+
+            with open(module_path, 'r') as f:
+                parsed_module = ctx.add_module(module_path, f.read())
             if parsed_module is None:
                 raise Exception('Unable to pyang parse module')
+            ctx.validate()
+
             f = io.StringIO()
             ctx.opts.print_revision = True
             emit_name(ctx, [parsed_module], f)
@@ -117,7 +133,7 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
                 name = name.split(' ')[0]
             try:
                 dateutil.parser.parse(revision)
-            except Exception as e:
+            except Exception:
                 if revision[-2:] == '29' and revision[-5:-3] == '02':
                     revision = revision.replace('02-29', '02-28')
                 else:
@@ -141,7 +157,7 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
 
                         try:
                             dateutil.parser.parse(r)
-                        except Exception as e:
+                        except Exception:
                             if r[-2:] == '29' and r[-5:-3] == '02':
                                 r = r.replace('02-29', '02-28')
                             else:
@@ -172,12 +188,12 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
                             LOGGER.debug('deleting data from yindex')
                             es.delete_by_query(index='yindex', body=query, doc_type='modules', conflicts='proceed',
                                                request_timeout=40)
-                        except NotFoundError as e:
+                        except NotFoundError:
                             pass
                     for key in yindexes:
                         j = -1
                         for j in range(0, int(len(yindexes[key]) / 30)):
-                            LOGGER.debug('pushing new data to yindex {} of {}'.format(j, int(len(yindexes[key]) / 30)))
+                            LOGGER.debug('pushing new data to yindex {} out of {}'.format(j + 1, int(len(yindexes[key]) / 30)))
                             for success, info in parallel_bulk(es, yindexes[key][j * 30: (j * 30) + 30],
                                                                thread_count=int(threads), index='yindex',
                                                                doc_type='modules', request_timeout=40):
@@ -197,7 +213,7 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
                         revision = rev
                     try:
                         dateutil.parser.parse(revision)
-                    except Exception as e:
+                    except Exception:
                         if revision[-2:] == '29' and revision[-5:-3] == '02':
                             revision = revision.replace('02-29', '02-28')
                         else:
@@ -244,7 +260,7 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
                     if retry > 0:
                         LOGGER.warning('module {}@{} timed out'.format(name, revision))
                     else:
-                        LOGGER.error('module {}@{} timed out too many times failing'.format(name, revision))
+                        LOGGER.exception('module {}@{} timed out too many times failing'.format(name, revision))
                         raise e
 
             with open('{}/{}@{}.json'.format(ytree_dir, name, revision), 'w') as f:
@@ -253,22 +269,24 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es_host, es_port, es
                 except Exception as e:
                     # create empty file so we still have access to that
                     LOGGER.warning('unable to create ytree for module {}@{} creating empty file')
-                    f.write("")
+                    f.write('')
             with open('{}/rest-of-elk-data.json'.format(temp_dir), 'w') as f:
                 json.dump(modules_copy, f)
 
-        except Exception as e:
-            with open(log_file, 'a') as f:
-                traceback.print_exc(file=f)
-            m_parts = module.split(":")
+        except Exception:
+            LOGGER.exception('Problem while processing module')
+            m_parts = module.split(':')
             key = '{}/{}'.format(m_parts[0].split('/')[-1][:-5], m_parts[1])
-            val = m_parts[0]
-            with open(failed_changes_dir, 'r') as f:
-                failed_mods = json.load(f)
-            if key not in failed_mods:
-                failed_mods[key] = val
+            module_path = m_parts[0]
+            try:
+                with open(failed_changes_dir, 'r') as f:
+                    failed_modules = json.load(f)
+            except:
+                failed_modules = {}
+            if key not in failed_modules:
+                failed_modules[key] = module_path
             with open(failed_changes_dir, 'w') as f:
-                json.dump(failed_mods, f)
+                json.dump(failed_modules, f)
 
 
 def find_submodules(ctx, mods, module):

@@ -30,8 +30,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import io
 import json
 import os
-import sys
-import time
+from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
 from collections import defaultdict
@@ -89,19 +88,19 @@ class ModulesComplicatedAlgorithms:
             self.__existing_modules_dict[module['name']][module['revision']] = module
 
     def parse_non_requests(self):
-        LOGGER.info("parsing tree types")
+        LOGGER.info('parsing tree types')
         self.resolve_tree_type(self.__all_modules)
 
     def parse_requests(self):
-        LOGGER.info("parsing semantic version")
+        LOGGER.info('parsing semantic version')
         self.parse_semver()
-        LOGGER.info("parsing dependents")
-        self.__parse_dependents()
+        LOGGER.info('parsing dependents')
+        self.parse_dependents()
 
     def populate(self):
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
         LOGGER.info('populate with module complicated data. amount of new data is {}'
-                    .format(len(self.new_modules)))
+                    .format(len(new_modules)))
         x = -1
         chunk_size = 250
         chunks = (len(new_modules) - 1) // chunk_size + 1
@@ -122,13 +121,15 @@ class ModulesComplicatedAlgorithms:
                                  format(path_to_file, url,
                                         response.text))
 
-        url = (self.__yangcatalog_api_prefix + 'load-cache')
-        response = requests.post(url, None,
-                                 auth=(self.__credentials[0],
-                                       self.__credentials[1]))
-        if response.status_code != 201:
-            LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
-                           .format(response.status_code, response.text))
+        if len(new_modules) > 0:
+            url = '{}load-cache'.format(self.__yangcatalog_api_prefix)
+            response = requests.post(url, None,
+                                     auth=(self.__credentials[0], self.__credentials[1]))
+            if response.status_code != 201:
+                LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
+                               .format(response.status_code, response.text))
+            else:
+                LOGGER.info('load-cache responded with status code {}'.format(response.status_code))
 
     def resolve_tree_type(self, all_modules):
         def is_openconfig(rows, output):
@@ -439,9 +440,12 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'transitional-extra'
                 else:
                     module['tree-type'] = 'unclassified'
-            LOGGER.info('tree type for module {} is {}'.format(module['name'], module['tree-type']))
+            LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
             if (revision not in self.__existing_modules_dict[name] or
-                    self.__existing_modules_dict[name][revision].get('tree-type') != module['tree-type']):
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('tree-type') != module['tree-type']):
+                LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('tree-type'), module['tree-type'],
+                    module['name'], module['revision']))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
                 else:
@@ -463,24 +467,19 @@ class ModulesComplicatedAlgorithms:
                     date = datetime(1970, 1, 1)
             return date
 
-        def increment_semver(old, significance):
+        def increment_semver(old: str, significance: int):
             versions = old.split('.')
             versions = list(map(int, versions))
             versions[significance] += 1
             versions[significance + 1:] = [0] * len(versions[significance + 1:])
             return '{}.{}.{}'.format(*versions)
 
-        def update_semver(old_details, new_module, significance):
-            name = new_module['name']
-            revision = new_module['revision']
+        def update_semver(old_details: dict, new_module: dict, significance: int):
             upgraded_version = increment_semver(old_details['semver'], significance)
             new_module['derived-semantic-version'] = upgraded_version
-            if revision not in self.new_modules[name]:
-                self.new_modules[name][revision] = new_module
-            else:
-                self.new_modules[name][revision]['derived-semantic-version'] = new_module['derived-semantic-version']
+            add_to_new_modules(new_module)
 
-        def get_trees(new, old):
+        def get_trees(new: dict, old: dict):
             new_name_revision = '{}@{}'.format(new['name'], new['revision'])
             old_name_revision = '{}@{}'.format(old['name'], old['revision'])
             new_schema = '{}/{}.yang'.format(self.__save_file_dir, new_name_revision)
@@ -518,20 +517,33 @@ class ModulesComplicatedAlgorithms:
                         try:
                             f = io.StringIO()
                             emit_tree(ctx, [new_schema_ctx], f, ctx.opts.tree_depth,
-                                        ctx.opts.tree_line_length, path)
+                                      ctx.opts.tree_line_length, path)
                             new_yang_tree = f.getvalue()
                         except:
                             new_yang_tree = ''
                         try:
                             f = io.StringIO()
                             emit_tree(ctx, [old_schema_ctx], f, ctx.opts.tree_depth,
-                                        ctx.opts.tree_line_length, path)
+                                      ctx.opts.tree_line_length, path)
                             old_yang_tree = f.getvalue()
                         except:
                             old_yang_tree = '2'
                     return (new_yang_tree, old_yang_tree)
                 else:
                     raise Exception
+
+        def add_to_new_modules(new_module: dict):
+            name = new_module['name']
+            revision = new_module['revision']
+            if (revision not in self.__existing_modules_dict[name] or
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('derived-semantic-version') != new_module['derived-semantic-version']):
+                LOGGER.info('semver {} vs {} for module {}@{}'.format(
+                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('derived-semantic-version'),
+                    new_module['derived-semantic-version'], name, revision))
+                if revision not in self.new_modules[name]:
+                    self.new_modules[name][revision] = new_module
+                else:
+                    self.new_modules[name][revision]['derived-semantic-version'] = new_module['derived-semantic-version']
 
         z = 0
         for new_module in self.__all_modules.get('module', []):
@@ -548,13 +560,9 @@ class ModulesComplicatedAlgorithms:
             LOGGER.info(
                 'Searching semver for {}. {} out of {}'.format(name_revision, z, len(self.__all_modules['module'])))
             if len(data) == 0:
-                # If there is no other revision for this module
+                # If there is no other revision for this module
                 new_module['derived-semantic-version'] = '1.0.0'
-                if new_revision not in self.new_modules[name]:
-                    self.new_modules[name][new_revision] = new_module
-                else:
-                    self.new_modules[name][new_revision]['derived-semantic-version'] = \
-                        new_module['derived-semantic-version']
+                add_to_new_modules(new_module)
             else:
                 # If there is at least one revision for this module
                 date = get_revision_datetime(new_module)
@@ -582,14 +590,6 @@ class ModulesComplicatedAlgorithms:
                     module_temp['semver'] = mod['derived-semantic-version']
                     mod_details.append(module_temp)
                 data[name][new_revision] = new_module
-                if len(mod_details) == 1:
-                    new_module['derived-semantic-version'] = '1.0.0'
-                    if new_revision not in self.new_modules[name]:
-                        self.new_modules[name][new_revision] = new_module
-                    else:
-                        self.new_modules[name][new_revision['revision']]['derived-semantic-version'] = \
-                            new_module['derived-semantic-version']
-                    continue
                 mod_details = sorted(mod_details, key=lambda k: k['date'])
                 # If we are adding a new module to the end (latest revision) of existing modules with this name
                 # and all modules with this name have semver already assigned except for the last one
@@ -600,11 +600,7 @@ class ModulesComplicatedAlgorithms:
                         major_ver += 1
                         upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
                         new_module['derived-semantic-version'] = upgraded_version
-                        if new_revision not in self.new_modules[name]:
-                            self.new_modules[name][new_revision] = new_module
-                        else:
-                            self.new_modules[name][new_revision]['derived-semantic-version'] = \
-                                new_module['derived-semantic-version']
+                        add_to_new_modules(new_module)
                     else:
                         if mod_details[-2]['compilation'] != 'passed':
                             update_semver(mod_details[-2], new_module, 0)
@@ -630,11 +626,8 @@ class ModulesComplicatedAlgorithms:
                     mod_details[0]['semver'] = '1.0.0'
                     response = data[name][revision]
                     response['derived-semantic-version'] = '1.0.0'
-                    if revision not in self.new_modules[name]:
-                        self.new_modules[name][revision] = response
-                    else:
-                        self.new_modules[name][revision]['derived-semantic-version'] = \
-                            response['derived-semantic-version']
+                    add_to_new_modules(response)
+
                     for x in range(1, len(mod_details)):
                         name = mod_details[x]['name']
                         revision = mod_details[x]['revision']
@@ -673,26 +666,21 @@ class ModulesComplicatedAlgorithms:
             mf = messageFactory.MessageFactory()
             mf.send_unavailable_modules(self.__unavailable_modules)
 
-    def __parse_dependents(self):
+    def parse_dependents(self):
 
         def check_latest_revision_and_remove(dependent, dependency):
             for i in range(len(dependency.get('dependents', []))):
                 existing_dependent = dependency['dependents'][i]
                 if existing_dependent['name'] == dependent['name']:
-                    if existing_dependent['revision'] > dependent['revision']:
+                    if existing_dependent['revision'] >= dependent['revision']:
                         return True
                     else:
                         dependency['dependents'].pop(i)
                         break
             return False
 
-
-        def add_dependents(dependents, dependencies):
-            x = 0
+        def add_dependents(dependents: list, dependencies):
             for dependent in dependents:
-                x += 1
-                LOGGER.info('Adding {}@{} as dependent. {} out of {}'
-                            .format(dependent['name'], dependent['revision'], x, len(dependents)))
                 for dep_filter in dependent.get('dependencies', []):
                     name = dep_filter['name']
                     revision = dep_filter.get('revision')
@@ -700,7 +688,7 @@ class ModulesComplicatedAlgorithms:
                         if revision is None:
                             it = dependencies[name].values()
                         else:
-                            if revision in dependencies:
+                            if revision in dependencies[name]:
                                 it = [dependencies[name][revision]]
                             else:
                                 it = []
@@ -709,7 +697,7 @@ class ModulesComplicatedAlgorithms:
                             if revision in self.new_modules[name]:
                                 dependency_copy = self.new_modules[name][revision]
                             elif revision in self.__existing_modules_dict[name]:
-                                dependency_copy = deepcopy(self.__existing_modules_dict[name][revision])
+                                dependency_copy = deepcopy(self.__existing_modules_dict.get(name, {}).get(revision, {}))
                             else:
                                 dependency_copy = dependency
                             if not check_latest_revision_and_remove(dependent, dependency_copy):
@@ -719,9 +707,11 @@ class ModulesComplicatedAlgorithms:
                                 }
                                 if 'schema' in dependent:
                                     details['schema'] = dependent['schema']
+                                LOGGER.info('Adding {}@{} as dependent of {}@{}'.format(
+                                    dependent['name'], dependent['revision'], name, revision))
                                 dependency_copy.setdefault('dependents', []).append(details)
                                 self.new_modules[name][revision] = dependency_copy
-        
+
         all_modules = self.__all_modules.get('module', [])
         all_modules_dict = defaultdict(dict)
         for i in all_modules:
