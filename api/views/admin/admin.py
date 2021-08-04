@@ -586,7 +586,7 @@ def get_sql_rows(table):
                     'access-rights-sdo': user.AccessRightsSdo,
                     'access-rights-vendor': user.AccessRightsVendor}
         ret.append(data_set)
-    return ret
+    return jsonify(ret)
 
 
 @app.route('/api/admin/scripts/<script>', methods=['GET'])
