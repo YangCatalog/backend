@@ -20,6 +20,7 @@ __email__ = "slavomir.mazur@pantheon.tech"
 import json
 import os
 import unittest
+from copy import deepcopy
 from unittest import mock
 
 from api.globalConfig import yc_gc
@@ -36,7 +37,6 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
             self.payloads = json.load(f)
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'
         self.save_file_dir = '{}/all_modules'.format(self.resources_path)
-        self.direc = '{}/tmp/mca-tests'.format(self.resources_path)
         self.confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
 
     #########################
@@ -66,26 +66,25 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
+        modules[0].pop('derived-semantic-version')
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].append(modules[0])
+        existing_modules['module'] = deepcopy(modules[:1])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[0]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '1.0.0')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
@@ -100,26 +99,25 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
+        modules[1].pop('derived-semantic-version')
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:2])
+        existing_modules['module'] = deepcopy(modules[:2])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[1]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '2.0.0')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
@@ -134,26 +132,25 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
+        modules[2].pop('derived-semantic-version')
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:3])
+        existing_modules['module'] = deepcopy(modules[:3])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[2]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '3.0.0')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
@@ -169,26 +166,25 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
+        modules[3].pop('derived-semantic-version')
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:4])
+        existing_modules['module'] = deepcopy(modules[:4])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[3]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.0.0')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
@@ -204,26 +200,25 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
+        modules[4].pop('derived-semantic-version')
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:5])
+        existing_modules['module'] = deepcopy(modules[:5])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[4]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.0')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
@@ -239,26 +234,25 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
+        modules[5].pop('derived-semantic-version')
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:6])
+        existing_modules['module'] = deepcopy(modules[:6])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[5]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.1')
 
     ### parse_semver() - parsing middle revision ###
@@ -278,18 +272,17 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
-        existing_modules['module'] = []
-        existing_modules['module'].extend(modules)
+        existing_modules['module'] = deepcopy([{k: v for k, v in mod.items() if k != 'derived-semantic-version'} for mod in modules])
+
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[4]
         all_modules = {}
-        all_modules['module'] = []
-        all_modules['module'].append(module_to_parse)
+        all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
 
         complicatedAlgorithms.parse_semver()
 
@@ -307,7 +300,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_non_requests()
         name = module['name']
         revision = module['revision']
@@ -321,7 +314,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_non_requests()
         name = module['name']
         revision = module['revision']
@@ -335,7 +328,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_non_requests()
         name = module['name']
         revision = module['revision']
@@ -351,7 +344,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
         complicatedAlgorithms.parse_requests()
         new = complicatedAlgorithms.new_modules
         self.assertIn({'name': 'n1', 'revision': '1'}, new['e1']['1']['dependents'])
@@ -360,7 +353,6 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertIn({'name': 'n2', 'revision': '1'}, new['n1']['1']['dependents'])
         self.assertIn({'name': 'e2', 'revision': '1'}, new['n1']['1']['dependents'])
         self.assertNotIn('1', new['n2'])
-
 
     ##########################
     ### HELPER DEFINITIONS ###

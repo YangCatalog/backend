@@ -70,7 +70,7 @@ class TestUtilClass(unittest.TestCase):
     def test_find_first_file_with_wildcard_revision(self):
         """ Try to find the first file that matches the pattern with
         an unspecified revision (specified by an asterisk).
-        Test if a module with the same name and some revision was found.
+        Test if a module with the same name and without revision in name is returned.
         """
         directory = 'utility/tests/resources/modules'
         pattern = 'ietf-yang-types.yang'
@@ -78,7 +78,7 @@ class TestUtilClass(unittest.TestCase):
 
         result = util.find_first_file(directory, pattern, pattern_with_revision)
 
-        self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types@2010-09-24.yang')
+        self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types.yang')
 
     def test_find_first_file_without_revision(self):
         """ Try to find the first file that matches the pattern without specified revision.
@@ -109,6 +109,7 @@ class TestUtilClass(unittest.TestCase):
 
     def test_find_first_file_empty_arguments(self):
         """ Test result of method, when empty strings are passed as an argument.
+        Nothing should be found in this case.
         """
         directory = ''
         pattern = ''
