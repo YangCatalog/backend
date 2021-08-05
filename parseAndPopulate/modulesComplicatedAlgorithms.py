@@ -509,12 +509,10 @@ class ModulesComplicatedAlgorithms:
                                                                 self.__save_file_dir)
                 if len(ctx.errors) == 0:
                     if os.path.exists(new_tree_path) and os.path.exists(old_tree_path):
-                        LOGGER.debug('{}, {}'.format(new_name_revision, old_name_revision))
                         with open(new_tree_path) as nf, open(old_tree_path) as of:
                             new_yang_tree = json.load(nf)
                             old_yang_tree = json.load(of)
                     else:
-                        LOGGER.debug('{}, {} not cached'.format(new_name_revision, old_name_revision))
                         with open(old_schema, 'r', errors='ignore') as f:
                             old_schema_ctx = ctx.add_module(old_schema, f.read())
                         if ctx.opts.tree_path is not None:
@@ -538,8 +536,7 @@ class ModulesComplicatedAlgorithms:
                             new_yang_tree = f.getvalue()
                             with open(new_tree_path, 'w') as f:
                                 f.write(new_yang_tree)
-                        except Exception as e:
-                            LOGGER.error(e)
+                        except:
                             new_yang_tree = ''
                         try:
                             f = io.StringIO()
@@ -547,8 +544,7 @@ class ModulesComplicatedAlgorithms:
                             old_yang_tree = f.getvalue()
                             with open(old_tree_path, 'w') as f:
                                 f.write(old_yang_tree)
-                        except Exception as e:
-                            LOGGER.error(e)
+                        except:
                             old_yang_tree = '2'
                     return (new_yang_tree, old_yang_tree)
                 else:
@@ -638,8 +634,7 @@ class ModulesComplicatedAlgorithms:
                                     else:
                                         # yang trees have changed - update minor version
                                         update_semver(mod_details[-2], new_module, 1)
-                            except Exception as e:
-                                LOGGER.error(e)
+                            except:
                                 # pyang found an error - update major version
                                 update_semver(mod_details[-2], new_module, 0)
                 # If we are adding new module in the middle (between two revisions) of existing modules with this name
@@ -681,8 +676,7 @@ class ModulesComplicatedAlgorithms:
                                             update_semver(mod_details[x - 1], module, 1)
                                             mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
                                                                                         1)
-                                except Exception as e:
-                                    LOGGER.error(e)
+                                except:
                                     # pyang found an error - update major version
                                     update_semver(mod_details[x - 1], module, 0)
                                     mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
