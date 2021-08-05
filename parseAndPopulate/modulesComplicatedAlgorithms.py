@@ -480,7 +480,7 @@ class ModulesComplicatedAlgorithms:
             new_module['derived-semantic-version'] = upgraded_version
             add_to_new_modules(new_module)
 
-        def trees_match(new, old):
+        def trees_match(new, old) -> bool:
             if type(new) != type(old):
                 return False
             elif isinstance(new, dict):
