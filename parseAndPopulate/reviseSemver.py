@@ -44,6 +44,7 @@ class ScriptConfig:
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
     def get_args_list(self):
         """ Return a list of the arguments of the script, along with the default values.
@@ -138,6 +139,7 @@ def main(scriptConf=None):
     save_file_dir = scriptConf.save_file_dir
     yang_models = scriptConf.yang_models
     credentials = scriptConf.credentials
+    json_ytree = scriptConf.json_ytree
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
@@ -180,7 +182,8 @@ def main(scriptConf=None):
             sys.setrecursionlimit(50000)
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  credentials, confd_prefix, save_file_dir,
-                                                                 direc, batch_modules, yang_models, temp_dir)
+                                                                 direc, batch_modules, yang_models, temp_dir,
+                                                                 json_ytree)
             complicatedAlgorithms.parse_semver()
             sys.setrecursionlimit(recursion_limit)
             complicatedAlgorithms.populate()

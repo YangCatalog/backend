@@ -37,6 +37,7 @@ from datetime import datetime
 import requests
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
+from pyang.plugins.json_tree import emit_tree as emit_json_tree
 from utility import log, messageFactory
 from utility.staticVariables import confd_headers, json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,
@@ -47,7 +48,7 @@ from utility.yangParser import create_context
 class ModulesComplicatedAlgorithms:
 
     def __init__(self, log_directory, yangcatalog_api_prefix, credentials, confd_prefix,
-                 save_file_dir, direc, all_modules, yang_models_dir, temp_dir):
+                 save_file_dir, direc, all_modules, yang_models_dir, temp_dir, ytree_dir='tests/resources/ytrees'):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:
@@ -63,6 +64,7 @@ class ModulesComplicatedAlgorithms:
         self.__confd_prefix = confd_prefix
         self.__yang_models = yang_models_dir
         self.temp_dir = temp_dir
+        self.ytree_dir = ytree_dir
         self.__direc = direc
         self.__trees = defaultdict(dict)
         self.__unavailable_modules = []
@@ -478,6 +480,19 @@ class ModulesComplicatedAlgorithms:
             new_module['derived-semantic-version'] = upgraded_version
             add_to_new_modules(new_module)
 
+        def trees_match(new, old):
+            if type(new) != type(old):
+                return False
+            elif isinstance(new, dict):
+                new.pop('description', None)
+                old.pop('description', None)
+                return new.keys() == old.keys() and all((trees_match(new[i], old[i]) for i in new))
+            elif isinstance(new, list):
+                return len(new) == len(old) and all(any((trees_match(i, j) for j in old)) for i in new)
+            elif type(new) in (str, set, bool):
+                return new == old
+
+
         def get_trees(new: dict, old: dict):
             new_name_revision = '{}@{}'.format(new['name'], new['revision'])
             old_name_revision = '{}@{}'.format(old['name'], old['revision'])
@@ -485,16 +500,21 @@ class ModulesComplicatedAlgorithms:
             old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
             new_schema_exist = self.__check_schema_file(new)
             old_schema_exist = self.__check_schema_file(old)
+            new_tree_path = '{}/{}.yang'.format(self.ytree_dir, new_name_revision)
+            old_tree_path = '{}/{}.yang'.format(self.ytree_dir, old_name_revision)
 
             if old_schema_exist and new_schema_exist:
                 ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
                                                                 self.__yang_models,
                                                                 self.__save_file_dir)
                 if len(ctx.errors) == 0:
-                    if new['revision'] in self.__trees[new['name']] and old['revision'] in self.__trees[old['name']]:
-                        new_yang_tree = self.__trees[new['name']][new['revision']]
-                        old_yang_tree = self.__trees[old['name']][old['revision']]
+                    if os.path.exists(new_tree_path) and os.path.exists(old_tree_path):
+                        LOGGER.debug('{}, {}'.format(new_name_revision, old_name_revision))
+                        with open(new_tree_path) as nf, open(old_tree_path) as of:
+                            new_yang_tree = json.load(nf)
+                            old_yang_tree = json.load(of)
                     else:
+                        LOGGER.debug('{}, {} not cached'.format(new_name_revision, old_name_revision))
                         with open(old_schema, 'r', errors='ignore') as f:
                             old_schema_ctx = ctx.add_module(old_schema, f.read())
                         if ctx.opts.tree_path is not None:
@@ -512,20 +532,23 @@ class ModulesComplicatedAlgorithms:
                                 retry -= 1
                                 if retry == 0:
                                     raise e
-                        # can we cache this?
                         try:
                             f = io.StringIO()
-                            emit_tree(ctx, [new_schema_ctx], f, ctx.opts.tree_depth,
-                                      ctx.opts.tree_line_length, path)
+                            emit_json_tree([new_schema_ctx], f, ctx)
                             new_yang_tree = f.getvalue()
-                        except:
+                            with open(new_tree_path, 'w') as f:
+                                f.write(new_yang_tree)
+                        except Exception as e:
+                            LOGGER.error(e)
                             new_yang_tree = ''
                         try:
                             f = io.StringIO()
-                            emit_tree(ctx, [old_schema_ctx], f, ctx.opts.tree_depth,
-                                      ctx.opts.tree_line_length, path)
+                            emit_json_tree([old_schema_ctx], f, ctx)
                             old_yang_tree = f.getvalue()
-                        except:
+                            with open(old_tree_path, 'w') as f:
+                                f.write(old_yang_tree)
+                        except Exception as e:
+                            LOGGER.error(e)
                             old_yang_tree = '2'
                     return (new_yang_tree, old_yang_tree)
                 else:
@@ -609,13 +632,14 @@ class ModulesComplicatedAlgorithms:
                                 # if schemas do not exist, trees will be None
                                 if trees:
                                     new_yang_tree, old_yang_tree = trees
-                                    if old_yang_tree == new_yang_tree:
+                                    if trees_match(new_yang_tree, old_yang_tree):
                                         # yang trees are the same - update only the patch version
                                         update_semver(mod_details[-2], new_module, 2)
                                     else:
                                         # yang trees have changed - update minor version
                                         update_semver(mod_details[-2], new_module, 1)
-                            except:
+                            except Exception as e:
+                                LOGGER.error(e)
                                 # pyang found an error - update major version
                                 update_semver(mod_details[-2], new_module, 0)
                 # If we are adding new module in the middle (between two revisions) of existing modules with this name
@@ -646,17 +670,19 @@ class ModulesComplicatedAlgorithms:
                                     # if schemas do not exist, trees will be None
                                     if trees:
                                         new_yang_tree, old_yang_tree = trees
-                                        if old_yang_tree == new_yang_tree:
+                                        if trees_match(new_yang_tree, old_yang_tree):
                                             # yang trees are the same - update only the patch version
                                             update_semver(mod_details[x - 1], module, 2)
                                             mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
                                                                                         2)
                                         else:
+                                            LOGGER.debug("didn't match")
                                             # yang trees have changed - update minor version
                                             update_semver(mod_details[x - 1], module, 1)
                                             mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
                                                                                         1)
-                                except:
+                                except Exception as e:
+                                    LOGGER.error(e)
                                     # pyang found an error - update major version
                                     update_semver(mod_details[x - 1], module, 0)
                                     mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)

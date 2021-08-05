@@ -58,6 +58,7 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir',
                                       fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
     def get_args_list(self):
         args_dict = {}
@@ -95,9 +96,11 @@ def main(scriptConf=None):
     direc = '/var/yang/tmp'
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
+    json_ytree = scriptConf.json_ytree
     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                    credentials, confd_prefix, save_file_dir,
-                                                                    direc, {}, yang_models, temp_dir)
+                                                         credentials, confd_prefix, save_file_dir,
+                                                         direc, {}, yang_models, temp_dir,
+                                                         json_ytree)
     response = requests.get('{}search/modules'.format(yangcatalog_api_prefix))
     if response.status_code != 200:
         LOGGER.error('Failed to fetch list of modules')

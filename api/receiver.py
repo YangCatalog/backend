@@ -527,6 +527,7 @@ class Receiver:
         self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
         logging.getLogger('pika').setLevel(logging.INFO)
         self.temp_dir = config.get('Directory-Section', 'temp')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
         if self.__notify_indexing == 'True':
             self.__notify_indexing = True
@@ -648,7 +649,7 @@ class Receiver:
                                                                               self.__confd_credentials, confd_prefix,
                                                                               self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
-                                                                              self.temp_dir)
+                                                                              self.temp_dir, self.json_ytree)
                         complicated_algorithms.parse_non_requests()
                         complicated_algorithms.parse_requests()
                         complicated_algorithms.populate()
