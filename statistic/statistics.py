@@ -47,7 +47,7 @@ import requests
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.staticVariables import json_headers
-from utility.util import get_curr_dir, job_log
+from utility.util import find_first_file, get_curr_dir, job_log
 
 if sys.version_info >= (3, 4):
     import configparser as ConfigParser
@@ -73,7 +73,7 @@ class ScriptConfig:
         parser = argparse.ArgumentParser()
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
-        self.args, extra_args = parser.parse_known_args()
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -93,29 +93,6 @@ class ScriptConfig:
         ret['options'] = {}
         ret['options']['config_path'] = 'Set path to config file'
         return ret
-
-
-def find_first_file(directory, pattern, pattern_with_revision):
-    """Search for yang file on path
-        Arguments:
-            :param directory: (str) directory which should be search recursively
-                for specified file.
-            :param pattern: (str) name of the yang file without revision
-            :param pattern_with_revision: (str) name of the yang file with
-                revision
-            :return path to a searched yang file
-    """
-
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern_with_revision):
-                filename = os.path.join(root, basename)
-                return filename
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
-                return filename
 
 
 def render(tpl_path, context):
@@ -141,7 +118,7 @@ def list_of_yang_modules_in_subdir(srcdir):
             :return: list of YANG files
     """
     ll = []
-    for root, dirs, files in os.walk(srcdir):
+    for root, _, files in os.walk(srcdir):
         for f in files:
             if f.endswith(".yang"):
                 ll.append(os.path.join(root, f))
@@ -258,8 +235,9 @@ def resolve_organization(path, parsed_yang):
             organization = MISSING_ELEMENT
             return organization
         try:
-            yang_file = find_first_file('/'.join(path.split('/')[:-1]), belongs_to + '.yang'
-                                        , belongs_to + '@*.yang')
+            pattern = '{}.yang'.format(belongs_to)
+            pattern_with_revision = '{}@*.yang'.format(belongs_to)
+            yang_file = find_first_file('/'.join(path.split('/')[:-1]), pattern, pattern_with_revision)
             namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
             for ns, org in NS_MAP.items():
                 if ns in namespace:
@@ -276,8 +254,9 @@ def resolve_organization(path, parsed_yang):
             return organization
         except:
             try:
-                yang_file = find_first_file('/'.join(path.split('/')[:-2]), belongs_to + '.yang'
-                                            , belongs_to + '@*.yang')
+                pattern = '{}.yang'.format(belongs_to)
+                pattern_with_revision = '{}@*.yang'.format(belongs_to)
+                yang_file = find_first_file('/'.join(path.split('/')[:-2]), pattern, pattern_with_revision)
                 namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
                 for ns, org in NS_MAP.items():
                     if ns in namespace:
@@ -335,7 +314,7 @@ def solve_platforms(path, platform, LOGGER):
         :param LOGGER       (obj) formated logger with the specified name
     """
     matches = []
-    for root, dirnames, filenames in os.walk(path):
+    for root, _, filenames in os.walk(path):
         for filename in fnmatch.filter(filenames, 'platform-metadata.json'):
             matches.append(os.path.join(root, filename))
     for match in matches:
@@ -407,9 +386,9 @@ def main(scriptConf=None):
         LOGGER.error('After a while, OK to access {}'.format(url))
 
     vendor_data = {}
-    for m in all_modules_data['module']:
-        if m.get('implementations') is not None:
-            for impl in m['implementations']['implementation']:
+    for module in all_modules_data['module']:
+        if module.get('implementations') is not None:
+            for impl in module.get('implementations', {}).get('implementation', []):
                 if impl['vendor'] == 'cisco':
                     if vendor_data.get(impl['os-type']) is None:
                         vendor_data[impl['os-type']] = {}
@@ -432,25 +411,26 @@ def main(scriptConf=None):
         nx_json_output = {}
         xe_json_output = {}
 
-        solve_platforms(yang_models + '/vendor/cisco/xr', xr, LOGGER)
-        solve_platforms(yang_models + '/vendor/cisco/xe', xe, LOGGER)
-        solve_platforms(yang_models + '/vendor/cisco/nx', nx, LOGGER)
+        solve_platforms('{}/vendor/cisco/xr'.format(yang_models), xr, LOGGER)
+        solve_platforms('{}/vendor/cisco/xe'.format(yang_models), xe, LOGGER)
+        solve_platforms('{}/vendor/cisco/nx'.format(yang_models), nx, LOGGER)
 
-        xr_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/xr'))[1])
-        nx_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/nx'))[1])
-        xe_versions = sorted(next(os.walk(yang_models + '/vendor/cisco/xe'))[1])
+        xr_versions = sorted(next(os.walk('{}/vendor/cisco/xr'.format(yang_models)))[1])
+        nx_versions = sorted(next(os.walk('{}/vendor/cisco/nx'.format(yang_models)))[1])
+        xe_versions = sorted(next(os.walk('{}/vendor/cisco/xe'.format(yang_models)))[1])
         xr_values = []
         nx_values = []
         xe_values = []
 
         for version in xr_versions:
-            j = None
+            platforms = None
             try:
-                with open(yang_models + '/vendor/cisco/xr/' + version + '/platform-metadata.json', 'r') as f:
-                    j = json.load(f)
-                    j = j['platforms']['platform']
+                path = '{}/vendor/cisco/xr/{}/platform-metadata.json'.format(yang_models, version)
+                with open(path, 'r') as f:
+                    data = json.load(f)
+                    platforms = data['platforms']['platform']
             except:
-                j = []
+                platforms = []
 
             values = [version]
             xr_json_output[version] = {}
@@ -474,7 +454,7 @@ def main(scriptConf=None):
                         else:
                             exist = '<i class="fa fa-times"></i>'
                             exist_json = False
-                for platform in j:
+                for platform in platforms:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
                         values.append('<i class="fa fa-check"></i>/{}'.format(exist))
@@ -493,13 +473,14 @@ def main(scriptConf=None):
             xr_values.append(values)
 
         for version in xe_versions:
-            j = None
+            platforms = None
             try:
-                with open(yang_models + '/vendor/cisco/xe/' + version + '/platform-metadata.json', 'r') as f:
-                    j = json.load(f)
-                    j = j['platforms']['platform']
+                path = '{}/vendor/cisco/xe/{}/platform-metadata.json'.format(yang_models, version)
+                with open(path, 'r') as f:
+                    data = json.load(f)
+                    platforms = data['platforms']['platform']
             except:
-                j = []
+                platforms = []
             values = [version]
             xe_json_output[version] = {}
             for value in xe:
@@ -518,7 +499,7 @@ def main(scriptConf=None):
                         else:
                             exist = '<i class="fa fa-times"></i>'
                             exist_json = False
-                for platform in j:
+                for platform in platforms:
                     if (platform['name'] == value and
                             ''.join(platform['software-version'].split('.')) == version):
                         values.append('<i class="fa fa-check"></i>/{}'.format(exist))
@@ -537,13 +518,14 @@ def main(scriptConf=None):
             xe_values.append(values)
 
         for version in nx_versions:
-            j = None
+            platforms = None
             try:
-                with open(yang_models + '/vendor/cisco/nx/' + version + '/platform-metadata.json', 'r') as f:
-                    j = json.load(f)
-                    j = j['platforms']['platform']
+                path = '{}/vendor/cisco/nx/{}/platform-metadata.json'.format(yang_models, version)
+                with open(path, 'r') as f:
+                    data = json.load(f)
+                    platforms = data['platforms']['platform']
             except:
-                j = []
+                platforms = []
             values = [version]
             nx_json_output[version] = {}
             for value in nx:
@@ -568,7 +550,7 @@ def main(scriptConf=None):
                         else:
                             exist = '<i class="fa fa-times"></i>'
                             exist_json = False
-                for platform in j:
+                for platform in platforms:
                     if (platform['name'] == value and
                             platform['software-version'] == ver):
                         values.append('<i class="fa fa-check"></i>/{}'.format(exist))
@@ -604,7 +586,7 @@ def main(scriptConf=None):
                 LOGGER.info('{}'.format(get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py'))
                 process = subprocess.Popen(
                     ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', vendor_direc,
-                    '--removedup', 'True'], stdout=subprocess.PIPE)
+                     '--removedup', 'True'], stdout=subprocess.PIPE)
                 out, err = process.communicate()
                 process_data(out, vendor_list, vendor_direc, direc)
 
@@ -739,17 +721,17 @@ def main(scriptConf=None):
                 vendor['num_github'] = int(vendor['num_github'])
                 vendor['percentage_compile'] = float(vendor['percentage_compile'].split(' ')[0])
             output = {'table_sdo': sdo_list,
-                       'table_vendor': vendor_list,
-                       'num_yang_files_vendor': int(vendor_modules),
-                       'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
-                       'num_yang_files_standard': int(standard_modules),
-                       'num_yang_files_standard_ndp': int(standard_modules_ndp),
-                       'num_parsed_files': all_modules_data,
-                       'num_unique_parsed_files': len(all_modules_data_unique),
-                       'nx': nx_json_output,
-                       'xr': xr_json_output,
-                       'xe': xe_json_output,
-                       'current_date': time.strftime("%d/%m/%y")}
+                      'table_vendor': vendor_list,
+                      'num_yang_files_vendor': int(vendor_modules),
+                      'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
+                      'num_yang_files_standard': int(standard_modules),
+                      'num_yang_files_standard_ndp': int(standard_modules_ndp),
+                      'num_parsed_files': all_modules_data,
+                      'num_unique_parsed_files': len(all_modules_data_unique),
+                      'nx': nx_json_output,
+                      'xr': xr_json_output,
+                      'xe': xe_json_output,
+                      'current_date': time.strftime("%d/%m/%y")}
             json.dump(output, f)
         result = render(get_curr_dir(__file__) + '/./template/stats.html', context)
         with open(get_curr_dir(__file__) + '/./statistics.html', 'w+') as f:

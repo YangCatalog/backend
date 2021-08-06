@@ -20,13 +20,11 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import configparser as ConfigParser
 import fnmatch
-import hashlib
 import json
 import optparse
 import os
 import socket
 import stat
-import subprocess
 import sys
 import time
 import warnings
@@ -56,24 +54,38 @@ def get_curr_dir(path: str):
         return cur_dir
 
 
-def find_first_file(directory: str, pattern: str, pattern_with_revision: str):
+def find_first_file(directory: str, pattern: str, pattern_with_revision: str, yang_models_dir: str = ''):
     """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
 
     Arguments:
         :param directory                (str) directory where to look for a file
         :param pattern                  (str) name of the yang file
         :param pattern_with_revision    (str) name and revision of the module in format <name>@<revision>
+        :param yang_models_dir          (str) path to the directory where YangModels/yang repo is cloned
         :return path to current directory
     """
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern_with_revision):
-                filename = os.path.join(root, basename)
-                return filename
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
+    def __match_file(directory, pattern):
+        for root, _, files in os.walk(directory):
+            for basename in files:
+                if fnmatch.fnmatch(basename, pattern):
+                    filename = os.path.join(root, basename)
+                    return filename
+
+    rfcs_dir = '{}/standard/ietf/RFC'.format(yang_models_dir)
+    standards_dir = '{}/standard'.format(yang_models_dir)
+    experimental_dir = '{}/experimental/ietf-extracted-YANG-modules'.format(yang_models_dir)
+    paths_to_check = [directory, rfcs_dir, standards_dir, experimental_dir, yang_models_dir]
+    patterns_order = []
+
+    if '*' not in pattern_with_revision:
+        patterns_order = [pattern_with_revision, pattern]
+    else:
+        patterns_order = [pattern, pattern_with_revision]
+
+    for path in paths_to_check:
+        for pattern in patterns_order:
+            filename = __match_file(path, pattern)
+            if filename:
                 try:
                     revision = yangParser.parse(filename).search('revision')[0].arg
                 except:
@@ -381,6 +393,7 @@ def fetch_module_by_schema(schema: str, dst_path: str):
         if yang_file_response.status_code == 200:
             with open(dst_path, 'w') as f:
                 f.write(yang_file_content)
+            os.chmod(dst_path, 0o644)
             file_exist = os.path.isfile(dst_path)
     except:
         file_exist = os.path.isfile(dst_path)
