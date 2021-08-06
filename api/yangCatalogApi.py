@@ -424,7 +424,7 @@ except:
 if discovered_secrets is not None:
     create_secrets(discovered_secrets)
 
-yc_gc.oidc = OpenIDConnect(application)
+yc_gc.oidc.init_app(application)
 from api.views.admin.admin import app as admin_app
 
 # Register blueprint(s)

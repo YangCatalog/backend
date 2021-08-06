@@ -19,6 +19,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import sys
 import time
+from flask_oidc import OpenIDConnect
 from threading import Lock
 from flask_sqlalchemy import SQLAlchemy
 
@@ -41,7 +42,7 @@ class YangCatalogApiGlobalConfig():
     loading = True
 
     def __init__(self):
-        self.oidc = None
+        self.oidc = OpenIDConnect()
         self.config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
