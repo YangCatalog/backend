@@ -58,7 +58,7 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir',
                                       fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
-        self.json_ytree = config.get('Directory-Section', 'json-ytree')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', '/var/yang/ytrees')
 
     def get_args_list(self):
         args_dict = {}

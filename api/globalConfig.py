@@ -181,7 +181,7 @@ class YangCatalogApiGlobalConfig():
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytree')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytrees')
         if self.es_aws == 'True':
             self.es_aws = True
         else:

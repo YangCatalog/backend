@@ -111,7 +111,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
+                                                             yc_gc.json_ytree)
 
         complicatedAlgorithms.parse_semver()
 
@@ -145,7 +146,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
+                                                             yc_gc.json_ytree)
 
         complicatedAlgorithms.parse_semver()
 
@@ -180,7 +182,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
+                                                             yc_gc.json_ytree)
 
         complicatedAlgorithms.parse_semver()
 
@@ -215,7 +218,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
+                                                             yc_gc.json_ytree)
 
         complicatedAlgorithms.parse_semver()
 
@@ -250,7 +254,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
+                                                             yc_gc.json_ytree)
 
         complicatedAlgorithms.parse_semver()
 
@@ -288,7 +293,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.confd_prefix, self.save_file_dir,
-                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir)
+                                                             self.direc, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
+                                                             yc_gc.json_ytree)
 
         complicatedAlgorithms.parse_semver()
 
