@@ -500,8 +500,8 @@ class ModulesComplicatedAlgorithms:
             old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
             new_schema_exist = self.__check_schema_file(new)
             old_schema_exist = self.__check_schema_file(old)
-            new_tree_path = '{}/{}.yang'.format(self.ytree_dir, new_name_revision)
-            old_tree_path = '{}/{}.yang'.format(self.ytree_dir, old_name_revision)
+            new_tree_path = '{}/{}.json'.format(self.ytree_dir, new_name_revision)
+            old_tree_path = '{}/{}.json'.format(self.ytree_dir, old_name_revision)
 
             if old_schema_exist and new_schema_exist:
                 ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
