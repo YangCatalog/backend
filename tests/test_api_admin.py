@@ -288,8 +288,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('info', data)
         info = {
             'api': 'error loading data',
-            'receiver': 'error loading data',
-            'yang-search': 'error loading data'
+            'receiver': 'error loading data'
         }
         self.assertEqual(data['info'], info)
         self.assertIn('new-data', data)
@@ -628,3 +627,6 @@ class TestApiAdminClass(unittest.TestCase):
         data = result.json
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Failed to validate - user-email and row-id must exist')
+
+if __name__ == "__main__":
+    unittest.main()
