@@ -68,7 +68,6 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].append(modules[0])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[0]
@@ -102,7 +101,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:2])
+        existing_modules['module'].extend(modules[0:1])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[1]
@@ -136,7 +135,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:3])
+        existing_modules['module'].extend(modules[0:2])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[2]
@@ -171,7 +170,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:4])
+        existing_modules['module'].extend(modules[0:3])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[3]
@@ -206,7 +205,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:5])
+        existing_modules['module'].extend(modules[0:4])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[4]
@@ -241,7 +240,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].extend(modules[0:6])
+        existing_modules['module'].extend(modules[0:5])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[5]
@@ -279,7 +278,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         # List od modules returned from patched /api/search/modules GET request
         existing_modules = {}
         existing_modules['module'] = []
-        existing_modules['module'].extend(modules)
+        existing_modules['module'].extend(modules[:4] + modules[5:6])
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[4]
@@ -294,10 +293,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         complicatedAlgorithms.parse_semver()
 
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
-        revisions = sorted(complicatedAlgorithms.new_modules['semver-test'])
-        for revision, expected_version in zip(revisions, expected_semver_order):
-            new_module = complicatedAlgorithms.new_modules['semver-test'].get(revision, {})
-            self.assertEqual(new_module.get('derived-semantic-version'), expected_version)
+        new_module = complicatedAlgorithms.new_modules['semver-test'].get('2020-05-01', {})
+        self.assertEqual(new_module.get('derived-semantic-version'), '4.1.0')
 
     @mock.patch('parseAndPopulate.prepare.requests.get')
     def test_parse_non_requests_openconfig(self, mock_requests_get: mock.MagicMock):
