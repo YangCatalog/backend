@@ -100,11 +100,7 @@ def check():
 @app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
     current_app.logger.info('Reading admin file {}'.format(direc))
-    try:
-        file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
-    except:
-        file_exist = False
-    if file_exist:
+    if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
         with open('{}/{}'.format(yc_gc.var_yang, direc), 'r') as f:
             processed_file = f.read()
         response = {'info': 'Success',
@@ -118,11 +114,7 @@ def read_admin_file(direc):
 @app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
     current_app.logger.info('Deleting admin file {}'.format(direc))
-    try:
-        exist = os.path.exists('{}/{}'.format(yc_gc.var_yang, direc))
-    except:
-        exist = False
-    if exist:
+    if os.path.exists('{}/{}'.format(yc_gc.var_yang, direc)):
         if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
             os.unlink('{}/{}'.format(yc_gc.var_yang, direc))
         else:
@@ -143,11 +135,7 @@ def write_to_directory_structure(direc):
         abort(400, description='"data" must be specified')
     data = body['data']
 
-    try:
-        file_exist = os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc))
-    except:
-        file_exist = False
-    if file_exist:
+    if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
         with open('{}/{}'.format(yc_gc.var_yang, direc), 'w') as f:
             f.write(data)
         response = {'info': 'Success',
