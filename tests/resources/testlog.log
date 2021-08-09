@@ -7,7 +7,7 @@
 2021-07-07 11:02:39 WARNING     yangCatalogApi.py   api => User logged in testuser - 120
 2021-07-07 11:02:39 WARNING     admin.py   api => Deleting admin file all_modules/yang-catalog@2018-04-03.yang - 121
 2021-07-07 11:02:39 WARNING     yangCatalogApi.py   api => User logged in testuser - 120
-2021-07-07 11:02:39 WARNING     admin.py   api => Deleting admin file  - 121
+2021-07-07 11:02:39 WARNING     admin.py   api => Deleting admin file yangcatalog - 121
 2021-07-07 11:02:39 WARNING     yangCatalogApi.py   api => User logged in testuser - 120
 2021-07-07 11:02:39 WARNING     yangCatalogApi.py   api => User logged in testuser - 120
 2021-07-07 11:02:39 WARNING     yangCatalogApi.py   api => User logged in testuser - 120
