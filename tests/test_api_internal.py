@@ -34,7 +34,7 @@ class TestApiInternalClass(unittest.TestCase):
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
         self.client = application.test_client()
 
-    @mock.patch('api.sender.Sender.send')
+    @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull(self):
         auth.hash_password(lambda _: 'True')
         auth.get_password(lambda _: 'True')
@@ -46,7 +46,7 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.sender.Sender.send')
+    @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull_not_admin(self):
         auth.hash_password(lambda _: 'True')
         auth.get_password(lambda _: 'True')
