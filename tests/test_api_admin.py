@@ -710,7 +710,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(isinstance(data, list))
 
     def test_get_script_details(self):
-        result = self.client.get('api/admin/scripts/recovery')
+        result = self.client.get('api/admin/scripts/reviseSemver')
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)

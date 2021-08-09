@@ -43,7 +43,7 @@ class ScriptConfig:
         self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
 
     def get_args_list(self):
         """ Return a list of the arguments of the script, along with the default values.
