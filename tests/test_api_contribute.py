@@ -273,7 +273,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'bad request - "module" json list is missing and is mandatory')
 
-    def test_add_modules_unparsable(self):
+    @mock.patch('requests.put')
+    def test_add_modules_unparsable(self, mock_put: mock.MagicMock):
+        mock_put.return_value.status_code = 400
+        mock_put.return_value.text = 'test'
+        mock_put.return_value.headers = {}
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         body = content.get('add_modules')
@@ -293,9 +297,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0].pop('source-file')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -311,9 +313,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0].pop('organization')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -329,9 +329,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0].pop('name')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -347,9 +345,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0].pop('revision')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -365,9 +361,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0]['source-file'].pop('path')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -383,9 +377,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0]['source-file'].pop('repository')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -401,9 +393,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0]['source-file'].pop('owner')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -419,9 +409,7 @@ class TestApiContributeClass(unittest.TestCase):
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'][0]['source-file']['owner'] = 'foobar'
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
 
@@ -443,9 +431,7 @@ class TestApiContributeClass(unittest.TestCase):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         body = content.get('add_modules')
-        mock_response = mock.MagicMock()
-        mock_response.status_code = 200
-        mock_put.return_value = mock_response
+        mock_put.return_value.status_code = 200
         mock_access_rights.return_value = ''
 
         result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
@@ -456,6 +442,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Unauthorized for server unknown reason')
 
+    @mock.patch.object(yc_gc.sender, 'get_response', mock.MagicMock(return_value='does not exist'))
     def test_get_job(self):
         job_id = 'invalid-id'
         result = self.client.get('api/job/{}'.format(job_id))
