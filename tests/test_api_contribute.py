@@ -22,8 +22,6 @@ import unittest
 from unittest import mock
 import json
 
-from flask import app
-
 from api.yangCatalogApi import application
 from api.globalConfig import yc_gc
 from api.models import User
@@ -40,10 +38,14 @@ class TestApiContributeClass(unittest.TestCase):
         self.client = application.test_client()
 
     def setUp(self):
-        self.patcher = mock.patch.object(yc_gc.sender, 'send')
-        self.mock_send = self.patcher.start()
-        self.addCleanup(self.patcher.stop)
+        self.send_patcher = mock.patch.object(yc_gc.sender, 'send')
+        self.mock_send = self.send_patcher.start()
+        self.addCleanup(self.send_patcher.stop)
         self.mock_send.return_value = 1
+        self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_mod_confd')
+        self.mock_confd_get = self.confd_patcher.start()
+        self.addCleanup(self.confd_patcher.stop)
+        self.mock_confd_get.side_effect = mock_confd_get
         with application.app_context():
             self.user = User(Username='test', Password=hash_pw('test'), Email='test@test.test',
                         AccessRightsSdo='/', AccessRightsVendor='/')
@@ -468,4 +470,17 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['info']['result'], 'does not exist')
         self.assertIn('reason', data['info'])
         self.assertEqual(data['info']['reason'], None)
-        
+
+def mock_confd_get(name, revision, organization):
+    file = 'tests/resources/confd_responses/{}@{}.json'.format(name, revision)
+    r = mock.MagicMock()
+    if not os.path.isfile(file):
+        r.status_code = 404
+    else:
+        with open(file) as f:
+            r.json.return_value = json.load(f)
+            r.status_code = 200
+    return r
+
+if __name__ == '__main__':
+    unittest.main()
