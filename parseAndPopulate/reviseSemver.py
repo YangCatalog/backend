@@ -11,16 +11,18 @@ cache will be re-loaded using api/load-cache endpoint.
 """
 import configparser as ConfigParser
 import json
+import os
 import sys
 import time
-import os
 from datetime import datetime
 
 import requests
 import utility.log as log
 from utility.util import job_log
+
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
+
 
 class ScriptConfig:
     def __init__(self):
@@ -56,6 +58,7 @@ class ScriptConfig:
         ret['help'] = self.help
         ret['options'] = {}
         return ret
+
 
 def get_date(revision: str):
     rev = revision.split('-')
@@ -121,7 +124,7 @@ def main(scriptConf=None):
         scriptConf = ScriptConfig()
     config_path = '/etc/yangcatalog/yangcatalog.conf'
     config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation( )
+    config._interpolation = ConfigParser.ExtendedInterpolation()
     config.read(config_path)
     api_protocol = scriptConf.api_protocol
     ip = scriptConf.ip
@@ -176,18 +179,23 @@ def main(scriptConf=None):
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                    credentials, confd_prefix, save_file_dir,
-                                                                    direc, batch_modules, yang_models, temp_dir)
+                                                                 credentials, confd_prefix, save_file_dir,
+                                                                 direc, batch_modules, yang_models, temp_dir)
             complicatedAlgorithms.parse_semver()
             sys.setrecursionlimit(recursion_limit)
             complicatedAlgorithms.populate()
         except:
             LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
+
+    messages = [
+        {'label': 'Number of modules checked', 'message': num_of_modules}
+    ]
     end = time.time()
     LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start_time)))
     filename = os.path.basename(__file__).split('.py')[0]
-    job_log(start_time, temp_dir, filename, status='Success')
+    job_log(start_time, temp_dir, filename, messages=messages, status='Success')
+    LOGGER.info('Job finished successfully')
 
 
 if __name__ == '__main__':

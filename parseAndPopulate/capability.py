@@ -39,6 +39,7 @@ import xml.etree.ElementTree as ET
 
 import utility.log as log
 from utility import repoutil
+from utility.util import find_first_file
 
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
@@ -48,25 +49,6 @@ from parseAndPopulate.prepare import Prepare
 
 github_raw = 'https://raw.githubusercontent.com/'
 github_url = 'https://github.com/'
-
-
-def find_first_file(directory: str, pattern: str, pattern_with_revision: str):
-    """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
-
-    :param directory                (str) path to directory with yang modules
-    :param pattern                  (str) pattern - name of yang file to search in directory
-    :param pattern_with_revision    (str) pattern - name of yang file with revision to search in directory
-    """
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern_with_revision):
-                filename = os.path.join(root, basename)
-                return filename
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
-                return filename
 
 
 class Capability:
@@ -264,7 +246,7 @@ class Capability:
 
         else:
             LOGGER.debug('Parsing sdo files from directory')
-            for root, subdirs, sdos in os.walk('/'.join(self.split)):
+            for root, _, sdos in os.walk('/'.join(self.split)):
                 # Load/clone YangModels/yang repo
                 self.owner = 'YangModels'
                 self.repo = 'yang'
@@ -559,9 +541,8 @@ class Capability:
                 path = '/'.join(self.split[0:-1])
                 pattern = '{}.yang'.format(name)
                 pattern_with_revision = '{}@*.yang'.format(name)
-                yang_file = find_first_file(path, pattern, pattern_with_revision)
-                if yang_file is None:
-                    yang_file = find_first_file(self.yang_models_dir, pattern, pattern_with_revision)
+                yang_file = find_first_file(path, pattern, pattern_with_revision, self.yang_models_dir)
+
                 if yang_file is None:
                     # TODO add integrity that this file is missing
                     return

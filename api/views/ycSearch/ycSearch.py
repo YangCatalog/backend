@@ -23,18 +23,19 @@ import io
 import json
 import os
 import re
-from operator import eq, contains
+from operator import contains, eq
 
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, Response, abort, request, escape, current_app
+from flask import Blueprint, Response, abort, current_app, escape, request
+from flask_deprecate import deprecate_route
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
 from utility.util import context_check_update_from, get_curr_dir
 from utility.yangParser import create_context
-from flask_deprecate import deprecate_route
+
 
 class YcSearch(Blueprint):
 
@@ -215,6 +216,7 @@ def rpc_search_get_one(leaf: str):
     else:
         return {'output': {leaf: list(output)}}
 
+
 @app.route('/search-filter', methods=['POST'])
 def rpc_search(body: dict = None):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
@@ -224,7 +226,7 @@ def rpc_search(body: dict = None):
         body = request.json
         from_api = True
     current_app.logger.info('Searching and filtering modules based on RPC {}'
-                      .format(json.dumps(body)))
+                            .format(json.dumps(body)))
     data = modules_data().get('module', {})
     body = body.get('input')
     if body:
@@ -300,7 +302,7 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
             return 'Server error - could not create directory'
     new_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
     old_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
-    ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
+    ctx, _ = context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
 
     errors = []
     for ctx_err in ctx.errors:
@@ -463,6 +465,7 @@ def get_common():
     if len(output_modules_list) == 0:
         abort(404, description='No common modules found within provided input')
     return {'output': output_modules_list}
+
 
 @app.route('/compare', methods=['POST'])
 def compare():
@@ -722,8 +725,8 @@ def search_module(name: str, revision: str, organization: str):
     if module_data is not None:
         module_data = module_data.decode('utf-8')
         return {'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
-                                               .decode(module_data)]
-                                    }
+                           .decode(module_data)]
+                }
     abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
 
 

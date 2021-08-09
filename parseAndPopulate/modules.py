@@ -444,11 +444,11 @@ class Modules:
             rev_parts = self.revision.split('-')
             try:
                 self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
-            except ValueError as e:
+            except ValueError:
                 try:
                     if int(rev_parts[2]) == 29 and int(rev_parts[1]) == 2:
                         self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
-                except ValueError as e2:
+                except ValueError:
                     self.revision = '1970-01-01'
                     self.__missing_revision = self.name
 
@@ -617,7 +617,7 @@ class Modules:
                 sub.revision = chunk.search('revision-date')[0].arg
 
             if sub.revision:
-                yang_file = self.__find_file(sub.name, sub.revision, True)
+                yang_file = self.__find_file(sub.name, sub.revision, submodule=True)
                 dep.revision = sub.revision
             else:
                 yang_file = self.__find_file(sub.name, submodule=True)
@@ -986,18 +986,16 @@ class Modules:
                 pass
         return [None, None]
 
-    def __find_file(self, name, revision='*', submodule=False,
-                    normal_search=True):
-        yang_name = '{}.yang'.format(name)
-        yang_name_rev = '{}@{}.yang'.format(name, revision)
-        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]), yang_name, yang_name_rev)
+    def __find_file(self, name: str, revision: str = '*', submodule: bool = False, normal_search: bool = True):
+        pattern = '{}.yang'.format(name)
+        pattern_with_revision = '{}@{}.yang'.format(name, revision)
+        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]), pattern, pattern_with_revision, self.yang_models)
         if yang_file is None:
             if normal_search:
                 if submodule:
                     self.__missing_submodules.append(name)
                 else:
                     self.__missing_modules.append(name)
-            yang_file = find_first_file(self.yang_models, yang_name, yang_name_rev)
         return yang_file
 
     class Submodules:
@@ -1033,6 +1031,7 @@ class Modules:
                 self.revision = None
                 self.schema = None
 
+    # Currently deprecated and not used
     def resolve_integrity(self, integrity_checker, split):
         key = '/'.join(split[0:-1])
         key2 = '{}/{}'.format(key, split[-1])
@@ -1043,7 +1042,7 @@ class Modules:
         integrity_checker.add_revision(key2, self.__missing_revision)
 
         if self.__missing_namespace is None:
-            for ns, org in NS_MAP.items():
+            for ns, _ in NS_MAP.items():
                 if (ns not in self.namespace and 'urn:' not in self.namespace)\
                         or 'urn:cisco' in self.namespace:
                     self.__missing_namespace = '{} : {}'.format(self.name, self.namespace)
