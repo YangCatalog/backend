@@ -41,7 +41,7 @@ cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-inet-types@2013-07-15.yang $BACKEND/t
 export UTILITY_RESOURCES=$BACKEND/utility/tests/resources
 mkdir -p $UTILITY_RESOURCES/modules
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types.yang $UTILITY_RESOURCES/modules/
-touch $UTILITY_RESOURCES/modules/ietf-yang-types@2010-09-24.yang
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2010-09-24.yang $UTILITY_RESOURCES/modules/
 cd $BACKEND
 # Prepare directory structure need for resolveExpiration.py
 # TODO: Adjust existing tests to use directory structure in /var/yang if this will work in TravisCI

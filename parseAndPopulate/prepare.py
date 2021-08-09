@@ -134,7 +134,7 @@ class Prepare:
                     } for implementation in
                         self.yang_modules[key].implementation],
                 }
-            } for key in self.name_revision_organization]}, prepare_model, cls=NullJsonEncoder)
+            } for key in sorted(self.name_revision_organization)]}, prepare_model, cls=NullJsonEncoder)
 
     def dump_vendors(self, directory: str):
         """
@@ -192,7 +192,7 @@ class Prepare:
                                 }
                             }]
                         }
-                    } for key in self.name_revision_organization for impl in
+                    } for key in sorted(self.name_revision_organization) for impl in
                         self.yang_modules[key].implementation]
                 }
             }, ietf_model, cls=NullJsonEncoder)

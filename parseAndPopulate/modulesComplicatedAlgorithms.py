@@ -82,10 +82,6 @@ class ModulesComplicatedAlgorithms:
             else:
                 self.__latest_revisions[module['name']] = max(module['revision'], latest_revision)
 
-            sem_ver = module.get('derived-semantic-version')
-            tree_type = module.get('tree-type')
-            if not (sem_ver and tree_type):
-                continue
             self.__existing_modules_dict[module['name']][module['revision']] = module
 
     def parse_non_requests(self):
@@ -443,9 +439,9 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'unclassified'
             LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
             if (revision not in self.__existing_modules_dict[name] or
-                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('tree-type') != module['tree-type']):
+                    self.__existing_modules_dict.get(name).get(revision).get('tree-type') != module['tree-type']):
                 LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
-                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('tree-type'), module['tree-type'],
+                    self.__existing_modules_dict.get(name).get(revision, {}).get('tree-type'), module['tree-type'],
                     module['name'], module['revision']))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
@@ -554,9 +550,9 @@ class ModulesComplicatedAlgorithms:
             name = new_module['name']
             revision = new_module['revision']
             if (revision not in self.__existing_modules_dict[name] or
-                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('derived-semantic-version') != new_module['derived-semantic-version']):
+                    self.__existing_modules_dict.get(name).get(revision).get('derived-semantic-version') != new_module['derived-semantic-version']):
                 LOGGER.info('semver {} vs {} for module {}@{}'.format(
-                    self.__existing_modules_dict.get(name, {}).get(revision, {}).get('derived-semantic-version'),
+                    self.__existing_modules_dict.get(name).get(revision, {}).get('derived-semantic-version'),
                     new_module['derived-semantic-version'], name, revision))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = new_module
@@ -605,7 +601,7 @@ class ModulesComplicatedAlgorithms:
                     module_temp['organization'] = mod.get('organization')
                     module_temp['schema'] = mod.get('schema')
                     module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
-                    module_temp['semver'] = mod['derived-semantic-version']
+                    module_temp['semver'] = mod.get('derived-semantic-version')
                     mod_details.append(module_temp)
                 data[name][new_revision] = new_module
                 mod_details = sorted(mod_details, key=lambda k: k['date'])
@@ -716,7 +712,7 @@ class ModulesComplicatedAlgorithms:
                             if revision in self.new_modules[name]:
                                 dependency_copy = self.new_modules[name][revision]
                             elif revision in self.__existing_modules_dict[name]:
-                                dependency_copy = deepcopy(self.__existing_modules_dict.get(name, {}).get(revision, {}))
+                                dependency_copy = deepcopy(self.__existing_modules_dict.get(name).get(revision))
                             else:
                                 dependency_copy = dependency
                             if not check_latest_revision_and_remove(dependent, dependency_copy):
@@ -737,7 +733,7 @@ class ModulesComplicatedAlgorithms:
             all_modules_dict[i['name']][i['revision']] = deepcopy(i)
         both_dict = deepcopy(self.__existing_modules_dict)
         for name, revisions in all_modules_dict.items():
-            both_dict[name] |= deepcopy(revisions)
+            both_dict[name].update(deepcopy(revisions))
         existing_modules = [revision for name in self.__existing_modules_dict.values() for revision in name.values()]
         LOGGER.info('Adding new modules as dependents')
         add_dependents(all_modules, both_dict)
@@ -747,9 +743,8 @@ class ModulesComplicatedAlgorithms:
     def __find_file(self, name: str, revision: str = '*'):
         yang_name = '{}.yang'.format(name)
         yang_name_rev = '{}@{}.yang'.format(name, revision)
-        yang_file = find_first_file('/'.join(self.__path.split('/')[0:-1]), yang_name, yang_name_rev)
-        if yang_file is None:
-            yang_file = find_first_file(self.__yang_models, yang_name, yang_name_rev)
+        directory = '/'.join(self.__path.split('/')[0:-1])
+        yang_file = find_first_file(directory, yang_name, yang_name_rev, self.__yang_models)
 
         return yang_file
 

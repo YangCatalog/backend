@@ -1,0 +1,247 @@
+module fujitsu-database {
+  namespace "urn:fujitsu:params:xml:ns:yang:fujitsu-database";
+  prefix fujitsu-database;
+
+  import ietf-yang-types {
+    prefix yang;
+  }
+
+  organization
+    "Fujitsu Limited ";
+  contact
+    "Fujitsu Limited
+     
+     Address: 2801 Telecom Parkway
+              Richardson, Texas 75082
+     
+     Tel: +1-800-USE-FTAC (1-800-873-3822)
+     Email: ftac@fnc.fujitsu.com
+     Web: www.fujitsu.com/us/services/telecom";
+  description
+    "This module contains definitions for System Management.
+     
+     Copyright (c) 2015 Fujitsu Limited
+     All rights reserved. ";
+
+  revision 2017-11-13 {
+    description
+      "Add a pattern for the db-activate rollBackTimer to limit
+       the range of acceptable input. Minimum rollBackTimer is 00-20-00
+       (20 minutes).";
+  }
+  revision 2015-09-28 {
+    description
+      "Initial revision.";
+  }
+
+  typedef dbBankType {
+    type enumeration {
+      enum "ACTIVE" {
+        value 0;
+        description
+          "Active Bank";
+      }
+      enum "STANDBY" {
+        value 1;
+        description
+          "STANDBY Bank";
+      }
+    }
+    description
+      "Database Banks";
+  }
+
+  grouping db-bank {
+    leaf bankType {
+      type dbBankType;
+      description
+        "db bank type ";
+    }
+    leaf gdbissue {
+      type string;
+      description
+        "DB version running with this SW";
+    }
+    leaf sysName {
+      type string;
+      description
+        "sysName which is stored in this DB ";
+    }
+    leaf neType {
+      type string;
+      description
+        "neType which is stored in this DB ";
+    }
+    leaf activation-date-time {
+      type yang:date-and-time;
+      description
+        "activation date and time: The date and time DB was activated";
+    }
+  }
+
+  rpc db-backup {
+    description
+      "copy running DB to user provided file to a given path";
+    input {
+      leaf filename {
+        type string {
+          length "10..255";
+        }
+        description
+          "Path and file name is used with back-up.(xxx.DBS)";
+      }
+    }
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+  rpc db-restore {
+    description
+      "Restore database ";
+    input {
+      leaf filename {
+        type string {
+          length "10..255";
+        }
+        description
+          "PATH/file name use file name.(xxx.DBS)";
+      }
+      leaf sysNameCheck {
+        type boolean;
+        default "true";
+        description
+          "Flag to indicate if sysNameCheck is required";
+      }
+    }
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+  rpc db-activate {
+    description
+      "activate the database";
+    input {
+      leaf rollBackTimer {
+        type string {
+          pattern "(00-[2-5][0-9]|0[1-9]-[0-5][0-9]|[1-9][0-9]-[0-5][0-9])-[0-5][0-9]";
+        }
+        description
+          "RollBackTimer in hh-mm-ss (00-20-00 to 99-59-59)";
+      }
+    }
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+  rpc cancel-rollback-timer {
+    description
+      "Cancel roll back timer which user provisioned as part of activate command";
+    input {
+      leaf accept {
+        type boolean;
+        description
+          " TRUE means rollback timer is cancelled and new load is accepted";
+      }
+    }
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+  rpc db-init {
+    description
+      "Initialize the database";
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+  rpc factory-db-init {
+    description
+      "Initialize the database but the system will not restart. Power down the system";
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+  rpc db-show {
+    description
+      "retrieve database information";
+    output {
+      leaf-list status {
+        type string {
+          length "1..255";
+        }
+        description
+          "Display database information";
+      }
+    }
+  }
+  rpc set-shelfmode {
+    description
+      "set shelf mode";
+    input {
+      leaf shelfid {
+        type string {
+          length "1..3";
+        }
+        description
+          "Shelf ID 1 to 200.";
+      }
+      leaf shelfrole {
+        type string {
+          length "4..100";
+        }
+        description
+          "shelf role MAIN or TRIB. MAIN must have shelf ID 1.";
+      }
+      leaf reset {
+        type empty;
+        description
+          "reset the shelf to shelf provision mode.";
+      }
+    }
+    output {
+      leaf status {
+        type string {
+          length "4..255";
+        }
+        description
+          "response of the command";
+      }
+    }
+  }
+}
