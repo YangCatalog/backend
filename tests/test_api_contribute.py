@@ -38,7 +38,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.client = application.test_client()
 
     def setUp(self):
-        self.send_patcher = mock.patch.object(yc_gc.sender, 'send')
+        self.send_patcher = mock.patch('api.sender.Sender.send')
         self.mock_send = self.send_patcher.start()
         self.addCleanup(self.send_patcher.stop)
         self.mock_send.return_value = 1
@@ -442,7 +442,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Unauthorized for server unknown reason')
 
-    @mock.patch.object(yc_gc.sender, 'get_response', mock.MagicMock(return_value='does not exist'))
+    @mock.patch('api.sender.Sender.get_response', mock.MagicMock(return_value='does not exist'))
     def test_get_job(self):
         job_id = 'invalid-id'
         result = self.client.get('api/job/{}'.format(job_id))
