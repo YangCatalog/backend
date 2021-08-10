@@ -206,49 +206,25 @@ def delete_vendor(value):
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
     rights = accessRigths.split('/')
-    check_vendor = None
-    check_platform = None
-    check_software_version = None
-    check_software_flavor = None
-    if not rights[0] == '':
-        check_vendor = rights[0]
-        if len(rights) > 1:
-            check_platform = rights[1]
-        if len(rights) > 2:
-            check_software_version = rights[2]
-        if len(rights) > 3:
-            check_software_flavor = rights[3]
+    rights += [None] * (4 - len(rights))
 
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
     path_to_delete = '{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(confd_prefix, value)
 
-    vendor = 'None'
-    platform = 'None'
-    software_version = 'None'
-    software_flavor = 'None'
-    if '/vendor/' in path_to_delete:
-        vendor = path_to_delete.split('/vendor/')[1].split('/')[0]
-        path_to_delete = path_to_delete.replace('/vendor/', '/vendor=')
-    if '/platform/' in path_to_delete:
-        platform = path_to_delete.split('/platform/')[1].split('/')[0]
-        path_to_delete = path_to_delete.replace('/platform/', '/platform=')
-    if '/software-version/' in path_to_delete:
-        software_version = path_to_delete.split('/software-version/')[1].split('/')[0]
-        path_to_delete = path_to_delete.replace('/software-version/', '/software-version=')
-    if '/software-flavor/' in path_to_delete:
-        software_flavor = path_to_delete.split('/software-flavor/')[1].split('/')[0]
-        path_to_delete = path_to_delete.replace('/software-flavor/', '/software-flavor=')
+    param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
+    params = []
+    for param_name in param_names:
+        path_to_delete = path_to_delete.replace('/{}/'.format(param_name), '/{}='.format(param_name))
+        if '/{}/'.format(param_name) in path_to_delete:
+            params.append(path_to_delete.split('/vendor/')[1].split('/')[0])
+        else:
+            params.append('None')
+    
+    for param_name, param, right in param_names, params, rights:
+        if right and param != right:
+            abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    if check_platform and platform != check_platform:
-        abort(401, description="User not authorized to supply data for this platform")
-    if check_software_version and software_version != check_software_version:
-        abort(401, description="User not authorized to supply data for this software version")
-    if check_software_flavor and software_flavor != check_software_flavor:
-        abort(401, description="User not authorized to supply data for this software flavor")
-    if check_vendor and vendor != check_vendor:
-        abort(401, description="User not authorized to supply data for this vendor")
-
-    arguments = [vendor, platform, software_version, software_flavor, yc_gc.protocol, yc_gc.confd_ip,
+    arguments = [*params, yc_gc.protocol, yc_gc.confd_ip,
                  repr(yc_gc.confdPort), yc_gc.credentials[0],
                  yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
