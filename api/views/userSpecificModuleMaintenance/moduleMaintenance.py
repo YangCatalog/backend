@@ -64,11 +64,11 @@ db = yc_gc.sqlalchemy
 @app.route('/register-user', methods=['POST'])
 def register_user():
     if not request.json:
-        return abort(400, description='bad request - no data received')
+        abort(400, description='bad request - no data received')
     body = request.json
     for data in ['username', 'password', 'password-confirm', 'email', 'company', 'first-name', 'last-name']:
         if data not in body:
-            return abort(400, description='bad request - missing {} data in input'.format(data))
+            abort(400, description='bad request - missing {} data in input'.format(data))
     username = body['username']
 
     password = hash_pw(body['password'])
@@ -78,12 +78,12 @@ def register_user():
     name = body['first-name']
     last_name = body['last-name']
     if password != confirm_password:
-        return abort(400, 'Passwords do not match')
+        abort(400, 'Passwords do not match')
     try:
         if db.session.query(User).filter_by(Username=username).all():
-            return abort(409, 'User with username {} already exists'.format(username))
+            abort(409, 'User with username {} already exists'.format(username))
         if db.session.query(TempUser).filter_by(Username=username).all():
-            return abort(409, 'User with username {} is pending for permissions'.format(username))
+            abort(409, 'User with username {} is pending for permissions'.format(username))
         temp_user = TempUser(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
                              FirstName=name, LastName=last_name)
         db.session.add(temp_user)
@@ -92,7 +92,7 @@ def register_user():
         current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
     mf = MessageFactory()
     mf.send_new_user(username, email)
-    return make_response(jsonify({'info': 'User created successfully'}), 201)
+    return ({'info': 'User created successfully'}, 201)
 
 
 @app.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
@@ -119,29 +119,29 @@ def delete_module(name: str, revision: str, organization: str):
     response = get_mod_confd(name, revision, organization)
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        return abort(404, description='Module not found in ConfD database')
+        abort(404, description='Module not found in ConfD database')
     read = response.json()
     if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
-        return abort(401, description='You do not have rights to delete module with organization {}'
+        abort(401, description='You do not have rights to delete module with organization {}'
                      .format(read['yang-catalog:module'][0].get('organization')))
 
     if read['yang-catalog:module'][0].get('implementations') is not None:
-        return abort(400, description='This module has reference in vendors branch')
+        abort(400, description='This module has reference in vendors branch')
 
     all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
 
     for existing_module in all_mods['module']:
-        if existing_module.get('dependencies') is not None:
-            dependencies = existing_module.get('dependencies')
+        if 'dependencies' in existing_module:
+            dependencies = existing_module['dependencies']
             for dependency in dependencies:
                 if dependency.get('name') == name and dependency.get('revision') == revision:
-                    return abort(400, description='{}@{} module has reference in another module dependency: {}@{}'
+                    abort(400, description='{}@{} module has reference in another module dependency: {}@{}'
                                  .format(name, revision, existing_module.get('name'), existing_module.get('revision')))
-        if existing_module.get('submodule') is not None:
+        if 'submodule' in existing_module:
             submodule = existing_module['submodule']
             for sub in submodule:
                 if sub.get('name') == name and sub.get('revision') == revision:
-                    return abort(400, description='{}@{} module has reference in another module submodule: {}@{}'
+                    abort(400, description='{}@{} module has reference in another module submodule: {}@{}'
                                  .format(name, revision, existing_module.get('name'), existing_module.get('revision')))
     path_to_delete = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
         confd_prefix, name, revision, organization)
@@ -151,7 +151,7 @@ def delete_module(name: str, revision: str, organization: str):
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     current_app.logger.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
+    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
 @app.route('/modules', methods=['DELETE'])
@@ -172,7 +172,7 @@ def delete_modules():
     if rpc.get('input'):
         modules = rpc['input'].get('modules', [])
     else:
-        return abort(404, description="Data must start with 'input' root element in json")
+        abort(404, description="Data must start with 'input' root element in json")
 
     username = request.authorization['username']
     current_app.logger.debug('Checking authorization for user {}'.format(username))
@@ -248,7 +248,7 @@ def delete_modules():
     payload = {'info': 'Verification successful', 'job-id': job_id}
     if len(unavailable_modules) > 0:
         payload['skipped'] = unavailable_modules
-    return make_response(jsonify(payload), 202)
+    return (payload, 202)
 
 
 @app.route('/vendors/<path:value>', methods=['DELETE'])
@@ -305,13 +305,13 @@ def delete_vendor(value):
         path_to_delete = path_to_delete.replace('/software-flavor/', '/software-flavor=')
 
     if check_platform and platform != check_platform:
-        return abort(401, description="User not authorized to supply data for this platform")
+        abort(401, description="User not authorized to supply data for this platform")
     if check_software_version and software_version != check_software_version:
-        return abort(401, description="User not authorized to supply data for this software version")
+        abort(401, description="User not authorized to supply data for this software version")
     if check_software_flavor and software_flavor != check_software_flavor:
-        return abort(401, description="User not authorized to supply data for this software flavor")
+        abort(401, description="User not authorized to supply data for this software flavor")
     if check_vendor and vendor != check_vendor:
-        return abort(401, description="User not authorized to supply data for this vendor")
+        abort(401, description="User not authorized to supply data for this vendor")
 
     arguments = [vendor, platform, software_version, software_flavor, yc_gc.protocol, yc_gc.confd_ip,
                  repr(yc_gc.confdPort), yc_gc.credentials[0],
@@ -319,7 +319,7 @@ def delete_vendor(value):
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     current_app.logger.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
+    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
 @app.route('/modules', methods=['PUT', 'POST'])
@@ -336,15 +336,15 @@ def add_modules():
                     see if the job is still on or Failed or Finished successfully
     """
     if not request.json:
-        return abort(400, description='bad request - you need to input json body that conforms with'
+        abort(400, description='bad request - you need to input json body that conforms with'
                                       ' module-metadata.yang module. Received no json')
     body = request.json
     modules_cont = body.get('modules')
     if modules_cont is None:
-        return abort(400, description='bad request - "modules" json object is missing and is mandatory')
+        abort(400, description='bad request - "modules" json object is missing and is mandatory')
     module_list = modules_cont.get('module')
     if module_list is None:
-        return abort(400, description='bad request - "module" json list is missing and is mandatory')
+        abort(400, description='bad request - "module" json list is missing and is mandatory')
 
     current_app.logger.info('Adding modules with body {}'.format(body))
     tree_created = False
@@ -367,7 +367,7 @@ def add_modules():
                                                              **confd_headers})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        return abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
+        abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
                                       " error code: {} \n error header items: {}"
                      .format(response.text, response.status_code, response.headers.items()))
     repo = {}
@@ -391,18 +391,18 @@ def add_modules():
         current_app.logger.info('{}'.format(mod))
         sdo = mod.get('source-file')
         if sdo is None:
-            return abort(400,
+            abort(400,
                          description='bad request - at least one of modules "source-file" is missing and is mandatory')
         orgz = mod.get('organization')
         if orgz is None:
-            return abort(400,
+            abort(400,
                          description='bad request - at least one of modules "organization" is missing and is mandatory')
         mod_name = mod.get('name')
         if mod_name is None:
-            return abort(400, description='bad request - at least one of modules "name" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules "name" is missing and is mandatory')
         mod_revision = mod.get('revision')
         if mod_revision is None:
-            return abort(400,
+            abort(400,
                          description='bad request - at least one of modules "revision" is missing and is mandatory')
         if request.method == 'POST':
             response = get_mod_confd(mod_name, mod_revision, orgz)
@@ -410,13 +410,13 @@ def add_modules():
                 continue
         sdo_path = sdo.get('path')
         if sdo_path is None:
-            return abort(400, description='bad request - at least one of modules source file "path" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules source file "path" is missing and is mandatory')
         sdo_repo = sdo.get('repository')
         if sdo_repo is None:
-            return abort(400, description='bad request - at least one of modules source file "repository" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules source file "repository" is missing and is mandatory')
         sdo_owner = sdo.get('owner')
         if sdo_owner is None:
-            return abort(400, description='bad request - at least one of modules source file "owner" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules source file "owner" is missing and is mandatory')
         directory = '/'.join(sdo_path.split('/')[:-1])
 
         repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
@@ -426,7 +426,7 @@ def add_modules():
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
             except GitCommandError as e:
-                return abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+                abort(400, description='bad request - cound not clone the github repository. Please check owner,'
                                               ' repository and path of the request - {}'.format(e.stderr))
 
         try:
@@ -441,7 +441,7 @@ def add_modules():
             else:
                 branch = repo_url_dir_branch[repo_url_dir_branch_temp]
         except GitCommandError as e:
-            return abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+            abort(400, description='bad request - cound not clone the github repository. Please check owner,'
                                           ' repository and path of the request - {}'.format(e.stderr))
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, sdo_owner, sdo_repo.split('.')[0], branch, directory)
         try:
@@ -491,7 +491,7 @@ def add_modules():
             shutil.rmtree(direc)
             for key in repo:
                 repo[key].remove()
-            return abort(401, description="Unauthorized for server unknown reason")
+            abort(401, description="Unauthorized for server unknown reason")
         if 'organization' in repr(resolved_authorization):
             warning.append('{} {}'.format(sdo['path'].split('/')[-1], resolved_authorization))
 
@@ -508,10 +508,9 @@ def add_modules():
     job_id = yc_gc.sender.send('#'.join(arguments))
     current_app.logger.info('job_id {}'.format(job_id))
     if len(warning) > 0:
-        return jsonify({'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val}
-                                                                                          for val in warning]})
+        return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
     else:
-        return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
+        return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
 @app.route('/platforms', methods=['PUT', 'POST'])
@@ -528,16 +527,16 @@ def add_vendors():
                     see if the job is still on or Failed or Finished successfully
     """
     if not request.json:
-        return abort(400, description='bad request - you need to input json body that conforms with'
+        abort(400, description='bad request - you need to input json body that conforms with'
                                       ' platform-implementation-metadata.yang module. Received no json')
     body = request.json
 
     platforms_cont = body.get('platforms')
     if platforms_cont is None:
-        return abort(400, description='bad request - "platforms" json object is missing and is mandatory')
+        abort(400, description='bad request - "platforms" json object is missing and is mandatory')
     platform_list = platforms_cont.get('platform')
     if platform_list is None:
-        return abort(400, description='bad request - "platform" json list is missing and is mandatory')
+        abort(400, description='bad request - "platform" json list is missing and is mandatory')
 
     current_app.logger.info('Adding vendor with body {}'.format(body))
     tree_created = False
@@ -561,7 +560,7 @@ def add_vendors():
                                                              **confd_headers})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        return abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
+        abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
                                       " error code: {} \n error header items: {}"
                      .format(response.text, response.status_code, response.headers.items()))
 
@@ -585,17 +584,17 @@ def add_vendors():
     for platform in platform_list:
         capability = platform.get('module-list-file')
         if capability is None:
-            return abort(400, description='bad request - at least on of platform "module-list-file" is missing and is mandatory')
+            abort(400, description='bad request - at least on of platform "module-list-file" is missing and is mandatory')
         capability_path = capability.get('path')
         if capability_path is None:
-            return abort(400, description='bad request - at least on of platform module-list-file "path" for module is missing and is mandatory')
+            abort(400, description='bad request - at least on of platform module-list-file "path" for module is missing and is mandatory')
         file_name = capability_path.split('/')[-1]
         repository = capability.get('repository')
         if repository is None:
-            return abort(400, description='bad request - at least on of platform module-list-file  "repository" for module is missing and is mandatory')
+            abort(400, description='bad request - at least on of platform module-list-file  "repository" for module is missing and is mandatory')
         owner = capability.get('owner')
         if owner is None:
-            return abort(400, description='bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
+            abort(400, description='bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
         if request.method == 'POST':
             repo_split = repository.split('.')[0]
             repoutil.pull(yc_gc.yang_models)
@@ -611,7 +610,7 @@ def add_vendors():
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
             except GitCommandError as e:
-                return abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+                abort(400, description='bad request - cound not clone the github repository. Please check owner,'
                                               ' repository and path of the request - {}'.format(e.stderr))
         try:
             if capability.get('branch'):
@@ -625,7 +624,7 @@ def add_vendors():
             else:
                 branch = repo_url_dir_branch[repo_url_dir_branch_temp]
         except GitCommandError as e:
-            return abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+            abort(400, description='bad request - cound not clone the github repository. Please check owner,'
                                           ' repository and path of the request - {}'.format(e.stderr))
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
 
@@ -648,7 +647,7 @@ def add_vendors():
                  yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
     current_app.logger.info('job_id {}'.format(job_id))
-    return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
+    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
 def authorize_for_vendors(request, body):
@@ -688,13 +687,13 @@ def authorize_for_vendors(request, body):
         software_flavor = platform['software-flavor']
 
         if check_platform and platform_name != check_platform:
-            return abort(401, description="User not authorized to supply data for this platform")
+            abort(401, description="User not authorized to supply data for this platform")
         if check_software_version and software_version != check_software_version:
-            return abort(401, description="User not authorized to supply data for this software version")
+            abort(401, description="User not authorized to supply data for this software version")
         if check_software_flavor and software_flavor != check_software_flavor:
-            return abort(401, description="User not authorized to supply data for this software flavor")
+            abort(401, description="User not authorized to supply data for this software flavor")
         if vendor != check_vendor:
-            return abort(401, description="User not authorized to supply data for this vendor")
+            abort(401, description="User not authorized to supply data for this vendor")
     return 'passed'
 
 
@@ -740,10 +739,10 @@ def get_job(job_id):
         else:
             reason = ''
 
-    return jsonify({'info': {'job-id': job_id,
-                             'result': result,
-                             'reason': reason}
-                    })
+    return {'info': {'job-id': job_id,
+                     'result': result,
+                     'reason': reason}
+                    }
 
 ### HELPER DEFINITIONS ###
 
