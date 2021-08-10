@@ -19,6 +19,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import base64
 import errno
+import functools
 import json
 import os
 import shutil
@@ -27,7 +28,7 @@ from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 import requests
-from flask import Blueprint, request, abort, make_response, jsonify, current_app
+from flask import Blueprint, request, abort, current_app
 from git import GitCommandError
 
 from api.authentication.auth import auth, hash_pw
@@ -170,7 +171,7 @@ def delete_modules():
         abort(400, description='Missing input data to know which modules we want to delete')
     rpc = request.json
     if rpc.get('input'):
-        modules = rpc['input'].get('modules', [])
+        input_modules = rpc['input'].get('modules', [])
     else:
         abort(404, description="Data must start with 'input' root element in json")
 
@@ -179,8 +180,7 @@ def delete_modules():
     accessRigths = get_user_access_rights(username)
 
     unavailable_modules = []
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
-    for mod in modules:
+    for mod in input_modules:
         response = get_mod_confd(mod['name'], mod['revision'], mod['organization'])
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
             # If admin, then possible to delete this module from other's modules dependents
@@ -196,46 +196,32 @@ def delete_modules():
             unavailable_modules.append(mod)
 
     all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
-    modules_to_delete = {'modules': []}
     # Filter out unavailble modules
-    modules = [x for x in modules if x not in unavailable_modules]
+    input_modules = [x for x in input_modules if x not in unavailable_modules]
 
-    for mod in modules:
-        if mod in unavailable_modules:
-            continue
-        delete_module = True
+    def module_in(name: str, revision: str, modules: list):
+        for module in modules:
+            if module['name'] == name and module['revision'] == revision:
+                return True
+        return False
+
+    @functools.lru_cache(maxsize=None)
+    def can_delete(name: str, revision: str):
         for existing_module in all_mods['module']:
-            if existing_module.get('dependencies') is not None:
-                dependencies = existing_module.get('dependencies', [])
-                for dependency in dependencies:
-                    if dependency.get('name') == mod.get('name') and dependency.get('revision') == mod.get('revision'):
-                        will_be_deleted = False
-                        for mod2 in modules:
-                            if mod2.get('name') == existing_module.get('name') and mod2.get('revision') == existing_module.get('revision'):
-                                will_be_deleted = True
-                                break
-                        if not will_be_deleted:
-                            delete_module = False
-                            current_app.logger.error('{}@{} module has reference in another module dependency: {}@{}'
-                                               .format(mod.get('name'), mod.get('revision'),
-                                                       existing_module.get('name'), existing_module.get('revision')))
+            for dep_type in ['dependencies', 'submodule']:
+                if module_in(name, revision, existing_module.get(dep_type, [])):
+                    if module_in(existing_module['name'], existing_module['revision'], input_modules):
+                        if can_delete(existing_module['name'], existing_module['revision']):
+                            continue
+                    else:
+                        current_app.logger.error('{}@{} module has reference in another module dependency: {}@{}'
+                                                 .format(name, revision,
+                                                         existing_module.get('name'), existing_module.get('revision')))
+                        return False
+        return True
 
-            if existing_module.get('submodule') is not None:
-                submodule = existing_module.get('submodule', [])
-                for sub in submodule:
-                    if sub.get('name') == mod.get('name') and sub.get('revision') == mod.get('revision'):
-                        will_be_deleted = False
-                        for mod2 in modules:
-                            if mod2.get('name') == existing_module.get('name') and mod2.get('revision') == existing_module.get('revision'):
-                                will_be_deleted = True
-                                break
-                        if not will_be_deleted:
-                            delete_module = False
-                            current_app.logger.error('{}@{} module has reference in another module submodule: {}@{}'
-                                               .format(mod.get('name'), mod.get('revision'),
-                                                       existing_module.get('name'), existing_module.get('revision')))
-        if delete_module:
-            modules_to_delete['modules'].append(mod)
+    modules_to_delete = {}
+    modules_to_delete['modules'] = [x for x in input_modules if can_delete(x.get('name'), x.get('revision'))]
 
     path_to_delete = json.dumps(modules_to_delete)
 
