@@ -19,16 +19,13 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import sys
 import time
-from flask_oidc import OpenIDConnect
 from threading import Lock
-from flask_sqlalchemy import SQLAlchemy
 
 import redis
-
 from elasticsearch import Elasticsearch
-
+from flask_oidc import OpenIDConnect
+from flask_sqlalchemy import SQLAlchemy
 from utility import log
-
 
 from api.sender import Sender
 
@@ -93,7 +90,7 @@ class YangCatalogApiGlobalConfig():
         self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='tests/resources/ytrees')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         if self.es_aws == 'True':
@@ -182,7 +179,7 @@ class YangCatalogApiGlobalConfig():
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='test/resources/ytrees')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
         if self.es_aws == 'True':
             self.es_aws = True
         else:

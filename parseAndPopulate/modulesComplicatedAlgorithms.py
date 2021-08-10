@@ -36,8 +36,8 @@ from datetime import datetime
 
 import requests
 from pyang import plugin
-from pyang.plugins.tree import emit_tree
 from pyang.plugins.json_tree import emit_tree as emit_json_tree
+from pyang.plugins.tree import emit_tree
 from utility import log, messageFactory
 from utility.staticVariables import confd_headers, json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,

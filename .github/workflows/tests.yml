@@ -50,8 +50,8 @@ jobs:
 
       - name: Copy json_tree pyang plugin
         run: |
-          sudo mkdir -p $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins
-          sudo cp elasticsearchIndexing/pyang_plugin/json_tree.py $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins/.
+          mkdir -p $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins
+          cp elasticsearchIndexing/pyang_plugin/json_tree.py $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins/.
 
       - name: Test with pytest
         run: |
