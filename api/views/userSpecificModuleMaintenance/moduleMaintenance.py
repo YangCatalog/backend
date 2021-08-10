@@ -95,69 +95,10 @@ def register_user():
     mf.send_new_user(username, email)
     return ({'info': 'User created successfully'}, 201)
 
-
 @app.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
-@auth.login_required
-def delete_module(name: str, revision: str, organization: str):
-    """Delete a specific module defined with name, revision and organization. This is
-    not done right away but it will send a request to receiver which will work on deleting
-    while this request will send a job_id of the request which user can use to see the job
-    process.
-
-    Arguments:
-        :param name             (str) name of the module
-        :param revision         (str) revision of the module
-        :param organization     (str) organization of the module
-        :return response to the request with job_id that user can use to
-            see if the job is still on or 'Failed' or 'Finished successfully'.
-    """
-    current_app.logger.info('Deleting module {},{},{}'.format(name, revision, organization))
-    username = request.authorization['username']
-    current_app.logger.debug('Checking authorization for user {}'.format(username))
-    accessRigths = get_user_access_rights(username)
-
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
-    response = get_mod_confd(name, revision, organization)
-
-    if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        abort(404, description='Module not found in ConfD database')
-    read = response.json()
-    if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
-        abort(401, description='You do not have rights to delete module with organization {}'
-                     .format(read['yang-catalog:module'][0].get('organization')))
-
-    if read['yang-catalog:module'][0].get('implementations') is not None:
-        abort(400, description='This module has reference in vendors branch')
-
-    all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
-
-    for existing_module in all_mods['module']:
-        if 'dependencies' in existing_module:
-            dependencies = existing_module['dependencies']
-            for dependency in dependencies:
-                if dependency.get('name') == name and dependency.get('revision') == revision:
-                    abort(400, description='{}@{} module has reference in another module dependency: {}@{}'
-                                 .format(name, revision, existing_module.get('name'), existing_module.get('revision')))
-        if 'submodule' in existing_module:
-            submodule = existing_module['submodule']
-            for sub in submodule:
-                if sub.get('name') == name and sub.get('revision') == revision:
-                    abort(400, description='{}@{} module has reference in another module submodule: {}@{}'
-                                 .format(name, revision, existing_module.get('name'), existing_module.get('revision')))
-    path_to_delete = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-        confd_prefix, name, revision, organization)
-
-    arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
-
-    current_app.logger.info('job_id {}'.format(job_id))
-    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
-
-
 @app.route('/modules', methods=['DELETE'])
 @auth.login_required
-def delete_modules():
+def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     """Delete a specific modules defined with name, revision and organization. This is
     not done right away but it will send a request to receiver which will work on deleting
     while this request will send a job_id of the request which user can use to see the job
@@ -167,13 +108,20 @@ def delete_modules():
         :return response to the request with job_id that user can use to
             see if the job is still on or Failed or Finished successfully
     """
-    if not request.json:
-        abort(400, description='Missing input data to know which modules we want to delete')
-    rpc = request.json
-    if rpc.get('input'):
-        input_modules = rpc['input'].get('modules', [])
+    if all(name, revision, organization):
+        input_modules = {
+            'name': name,
+            'revision': revision,
+            'organization': organization
+        }
     else:
-        abort(404, description="Data must start with 'input' root element in json")
+        if not request.json:
+            abort(400, description='Missing input data to know which modules we want to delete')
+        rpc = request.json
+        if rpc.get('input'):
+            input_modules = rpc['input'].get('modules', [])
+        else:
+            abort(404, description="Data must start with 'input' root element in json")
 
     username = request.authorization['username']
     current_app.logger.debug('Checking authorization for user {}'.format(username))
@@ -190,7 +138,8 @@ def delete_modules():
         read = response.json()
 
         if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
-            unavailable_modules.append(mod)
+            abort(401, description='You do not have rights to delete modules with organization {}'
+                       .format(read['yang-catalog:module'][0].get('organization')))
 
         if read['yang-catalog:module'][0].get('implementations') is not None:
             unavailable_modules.append(mod)
@@ -214,8 +163,8 @@ def delete_modules():
                         if can_delete(existing_module['name'], existing_module['revision']):
                             continue
                     else:
-                        current_app.logger.error('{}@{} module has reference in another module dependency: {}@{}'
-                                                 .format(name, revision,
+                        current_app.logger.error('{}@{} module has reference in another module\'s {}: {}@{}'
+                                                 .format(name, revision, dep_type,
                                                          existing_module.get('name'), existing_module.get('revision')))
                         return False
         return True
@@ -226,13 +175,13 @@ def delete_modules():
     path_to_delete = json.dumps(modules_to_delete)
 
     arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE_MULTIPLE',
+                 yc_gc.credentials[1], path_to_delete, 'DELETE',
                  yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
     current_app.logger.info('job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
-    if len(unavailable_modules) > 0:
+    if unavailable_modules:
         payload['skipped'] = unavailable_modules
     return (payload, 202)
 
