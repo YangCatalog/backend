@@ -181,3 +181,4 @@ if __name__ == '__main__':
     result['modules_to_index'] = modules_to_index_dict
     with open('{}/compared_databases.json'.format(temp_dir), 'w') as f:
         json.dump(result, f)
+    LOGGER.info('Job finished successfully')

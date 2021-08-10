@@ -73,7 +73,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         capability.parse_and_dump_sdo(repo)
 
-        for root, subdirs, sdos in os.walk(path):
+        for root, _, sdos in os.walk(path):
             for file_name in sdos:
                 if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
                     path_to_yang = '{}/{}'.format(path, file_name)
@@ -115,21 +115,20 @@ class TestCapabilityClass(unittest.TestCase):
             key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
             self.assertIn(key, capability.prepare.yang_modules)
 
-    @mock.patch('parseAndPopulate.capability.os.walk')
     @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
-    def test_capability_parse_and_dump_sdo_submodule(self, mock_hash: mock.MagicMock, mock_os_walk: mock.MagicMock):
+    @mock.patch('parseAndPopulate.prepare.requests.get')
+    def test_capability_parse_and_dump_sdo_submodule(self, mock_requests_get: mock.MagicMock, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and prepare object values were set correctly
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
 
         Arguments:
-        :param mock_os_walk     (mock.MagicMock) os.walk() method is patched, to return only one file to speed up test
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+        :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
+        mock_requests_get.return_value.json = {}
         mock_hash.return_value = 'master'
         path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path)
-        os_walk_items = [(path, [], ['huawei-aaa.yang'])]
-        mock_os_walk.return_value = os_walk_items
         repo = self.get_yangmodels_repository()
         api = False
         sdo = True

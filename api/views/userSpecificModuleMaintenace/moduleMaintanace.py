@@ -36,7 +36,7 @@ from api.globalConfig import yc_gc
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import confd_headers
-from api.models import User
+from api.models import User, TempUser
 
 NS_MAP = {
     "http://cisco.com/": "cisco",
@@ -80,27 +80,15 @@ def register_user():
     if password != confirm_password:
         return abort(400, 'Passwords do not match')
     try:
-        db = MySQLdb.connect(host=yc_gc.dbHost, db=yc_gc.dbName, user=yc_gc.dbUser, passwd=yc_gc.dbPass)
-        # prepare a cursor object using cursor() method
-        cursor = db.cursor()
-        # execute SQL query using execute() method.
-        results_num = cursor.execute("""SELECT Username FROM `users` where Username=%s""", (username,))
-        if results_num >= 1:
+        if db.session.query(User).filter_by(Username=username).all():
             return abort(409, 'User with username {} already exists'.format(username))
-        results_num = cursor.execute("""SELECT Username FROM `users_temp` where Username=%s""", (username,))
-        if results_num >= 1:
+        if db.session.query(TempUser).filter_by(Username=username).all():
             return abort(409, 'User with username {} is pending for permissions'.format(username))
-
-        sql = """INSERT INTO `{}` (Username, Password, Email, ModelsProvider,
-         FirstName, LastName) VALUES (%s, %s, %s, %s, %s, %s)""" \
-            .format('users_temp')
-        cursor.execute(sql, (username, password, email, models_provider,
-                             name, last_name,))
-        db.commit()
-        db.close()
-    except MySQLdb.MySQLError as err:
-        if err.args[0] != 1049:
-            db.close()
+        temp_user = TempUser(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
+                             FirstName=name, LastName=last_name)
+        db.session.add(temp_user)
+        db.session.commit()
+    except SQLAlchemyError as err:
         current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
     mf = MessageFactory()
     mf.send_new_user(username, email)

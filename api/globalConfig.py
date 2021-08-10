@@ -19,6 +19,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import sys
 import time
+from flask_oidc import OpenIDConnect
 from threading import Lock
 from flask_sqlalchemy import SQLAlchemy
 
@@ -41,7 +42,7 @@ class YangCatalogApiGlobalConfig():
     loading = True
 
     def __init__(self):
-        self.oidc = None
+        self.oidc = OpenIDConnect()
         self.config_path = '/etc/yangcatalog/yangcatalog.conf'
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
@@ -68,7 +69,7 @@ class YangCatalogApiGlobalConfig():
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='tests/resources/requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-        self.var_yang = config.get('Directory-Section', 'var', fallback='')
+        self.var_yang = config.get('Directory-Section', 'var', fallback='tests/resources')
         self.logs_dir = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.token = config.get('Secrets-Section', 'yang-catalog-token', fallback='')
         self.admin_token = config.get('Secrets-Section', 'admin-token', fallback='')
@@ -154,7 +155,7 @@ class YangCatalogApiGlobalConfig():
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='tests/resources/requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-        self.var_yang = config.get('Directory-Section', 'var', fallback='')
+        self.var_yang = config.get('Directory-Section', 'var', fallback='tests/resources')
         self.logs_dir = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.token = config.get('Secrets-Section', 'yang-catalog-token', fallback='')
         self.admin_token = config.get('Secrets-Section', 'admin-token', fallback='')
