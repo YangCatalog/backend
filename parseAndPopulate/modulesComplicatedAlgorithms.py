@@ -667,7 +667,6 @@ class ModulesComplicatedAlgorithms:
                                             mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
                                                                                         2)
                                         else:
-                                            LOGGER.debug("didn't match")
                                             # yang trees have changed - update minor version
                                             update_semver(mod_details[x - 1], module, 1)
                                             mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
