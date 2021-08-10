@@ -38,7 +38,6 @@ from utility.messageFactory import MessageFactory
 from utility.staticVariables import confd_headers
 from api.models import User, TempUser
 
-
 NS_MAP = {
     "http://cisco.com/": "cisco",
     "http://www.huawei.com/netconf": "huawei",
@@ -117,11 +116,7 @@ def delete_module(name: str, revision: str, organization: str):
     accessRigths = get_user_access_rights(username)
 
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
-    url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-        confd_prefix, name, revision, organization)
-    response = requests.get(url,
-                            auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                            headers=confd_headers)
+    response = get_mod_confd(name, revision, organization)
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         return abort(404, description='Module not found in ConfD database')
@@ -186,11 +181,7 @@ def delete_modules():
     unavailable_modules = []
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
     for mod in modules:
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-            confd_prefix, mod['name'], mod['revision'], mod['organization'])
-        response = requests.get(url,
-                                auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                                headers=confd_headers)
+        response = get_mod_confd(mod['name'], mod['revision'], mod['organization'])
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
             # If admin, then possible to delete this module from other's modules dependents
             if accessRigths != '/':
@@ -414,13 +405,7 @@ def add_modules():
             return abort(400,
                          description='bad request - at least one of modules "revision" is missing and is mandatory')
         if request.method == 'POST':
-            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(yc_gc.protocol,
-                                                                                                  yc_gc.confd_ip,
-                                                                                                  yc_gc.confdPort,
-                                                                                                  mod_name,
-                                                                                                  mod_revision, orgz)
-            response = requests.get(path, auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
-                                    headers=confd_headers)
+            response = get_mod_confd(mod_name, mod_revision, orgz)
             if response.status_code != 404:
                 continue
         sdo_path = sdo.get('path')
@@ -780,3 +765,9 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
         current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     return accessRigths
+
+def get_mod_confd(name: str, revision: str, organization: str):
+    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+        confd_prefix, name, revision, organization)
+    return requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
