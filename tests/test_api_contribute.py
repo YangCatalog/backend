@@ -45,6 +45,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_mod_confd')
         self.mock_confd_get = self.confd_patcher.start()
         self.addCleanup(self.confd_patcher.stop)
+        self.get_patcher = mock.patch('requests.get')
+        self.mock_get = self.get_patcher.start()
+        self.addCleanup(self.get_patcher.stop)
+        self.mock_get.return_value.json.return_value = json.loads(yc_gc.redis.get('modules-data') or '{}')
         self.mock_confd_get.side_effect = mock_confd_get
         with application.app_context():
             self.user = User(Username='test', Password=hash_pw('test'), Email='test@test.test',
