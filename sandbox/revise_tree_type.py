@@ -25,6 +25,7 @@ if __name__ == '__main__':
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
     yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+    json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
@@ -57,7 +58,8 @@ if __name__ == '__main__':
             sys.setrecursionlimit(50000)
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  credentials, confd_prefix, save_file_dir,
-                                                                 direc, batch_modules, yang_models, temp_dir)
+                                                                 direc, batch_modules, yang_models, temp_dir,
+                                                                 json_ytree)
             complicatedAlgorithms.parse_non_requests()
             sys.setrecursionlimit(recursion_limit)
             complicatedAlgorithms.populate()

@@ -68,6 +68,7 @@ class ScriptConfig:
         self.cache_dir = config.get('Directory-Section', 'cache')
         self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
         self.lock_file = config.get('Directory-Section', 'lock')
+        self.ytree_dir = config.get('Directory-Section', 'json-ytree')
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__confd_port = config.get('Web-Section', 'confd-port')
@@ -196,6 +197,7 @@ def main(scriptConf=None):
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
     cache_dir = scriptConf.cache_dir
+    ytree_dir = scriptConf.ytree_dir
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
@@ -347,9 +349,9 @@ def main(scriptConf=None):
         recursion_limit = sys.getrecursionlimit()
         sys.setrecursionlimit(50000)
         complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                             args.credentials,
-                                                             confd_prefix, args.save_file_dir,
-                                                             direc, None, yang_models, temp_dir)
+                                                             args.credentials, confd_prefix, 
+                                                             args.save_file_dir, direc, None,
+                                                             yang_models, temp_dir, ytree_dir)
         complicatedAlgorithms.parse_non_requests()
         LOGGER.info('Waiting for cache reload to finish')
         process_reload_cache.join()
