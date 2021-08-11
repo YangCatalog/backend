@@ -1,4 +1,3 @@
-import configparser as ConfigParser
 import sys
 import time
 
@@ -6,13 +5,11 @@ import requests
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
+from utility.util import create_config
 
 if __name__ == '__main__':
     start = time.time()
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))

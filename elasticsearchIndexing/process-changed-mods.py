@@ -13,11 +13,11 @@
 # limitations under the License.
 
 import argparse
-import configparser
 import json
 import logging
 import os
 import sys
+from utility.util import create_config
 
 import dateutil.parser
 from elasticsearch import Elasticsearch, NotFoundError
@@ -34,13 +34,11 @@ from utility.repoutil import pull
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Process changed modules in a git repo")
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args = parser.parse_args()
     config_path = args.config_path
-    config = configparser.ConfigParser()
-    config._interpolation = configparser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     LOGGER = log.get_logger('process_changed_mods', '{}/process-changed-mods.log'.format(log_directory))
 

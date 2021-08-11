@@ -35,15 +35,10 @@ from datetime import datetime
 
 import statistic.statistics as stats
 from utility import log, repoutil, yangParser
-from utility.util import find_first_file
+from utility.util import create_config, find_first_file
 
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.parseException import ParseException
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 IETF_RFC_MAP = {
     "iana-crypt-hash@2014-08-06.yang": "NETMOD",
@@ -136,10 +131,7 @@ class Modules:
         """
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(log_directory))
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.__web_uri = config.get('Web-Section', 'my-uri', fallback='https://yangcatalog.org')
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir

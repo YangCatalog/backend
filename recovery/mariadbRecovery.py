@@ -27,13 +27,9 @@ import datetime
 import os
 import sys
 from subprocess import run
+from utility.util import create_config
 
 import utility.log as log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
@@ -48,7 +44,7 @@ class ScriptConfig:
                           help='Set whether you want to load from snapshot. Default is False')
         parser.add_argument('--overwrite-tables', default=False,
                             help='Overwrite tables when loading')
-        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
 
         self.args, _ = parser.parse_known_args()
@@ -81,9 +77,7 @@ def main(scriptConf=None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(args.config_path)
+    config = create_config(args.config_path)
     log_directory = config.get('Directory-Section', 'logs')
     cache_dir = config.get('Directory-Section', 'cache')
     db_host = config.get('DB-Section', 'host')

@@ -2,17 +2,13 @@
 Code might need to be updated everytime to filter out the modules which are
 meant to be deleted (currently set to organization = Huawei).
 """
-import configparser as ConfigParser
-import json
 import os
+from utility.util import create_config
 
 import requests
 
 if __name__ == '__main__':
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))

@@ -41,25 +41,16 @@ import time
 import requests
 import utility.log as log
 from utility.staticVariables import confd_headers
-from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.util import create_config, prepare_to_indexing, send_to_indexing2
 
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
 
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-
-
 class ScriptConfig:
     def __init__(self):
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')

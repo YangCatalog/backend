@@ -408,10 +408,7 @@ def get_module_from_es(name: str, revision: str):
         :param name         (str) name of the module
         :param revision     (str) revision of the module in format YYYY-MM-DD
     """
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     es_aws = config.get('DB-Section', 'es-aws', fallback=False)
     es_host = config.get('DB-Section', 'es-host', fallback='localhost')
     es_port = config.get('DB-Section', 'es-port', fallback='9200')
@@ -491,3 +488,9 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
                 raise e
 
     return ctx, new_schema_ctx
+
+def create_config(config_path=os.environ['YANGCATALOG_CONFIG_PATH']):
+    config = ConfigParser.ConfigParser()
+    config._interpolation = ConfigParser.ExtendedInterpolation()
+    config.read(config_path)
+    return config

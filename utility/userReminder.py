@@ -1,5 +1,6 @@
 import sys
 from datetime import datetime
+from utility.util import create_config
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -10,20 +11,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from utility import messageFactory
 from api.models import Base, User, TempUser
 
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-
 
 class UserReminder:
 
     def __init__(self):
         self.__mf = messageFactory.MessageFactory()
-        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.config_path)
+        config = create_config()
         self.dbHost = config.get('DB-Section', 'host')
         self.dbName = config.get('DB-Section', 'name-users')
         self.dbUser = config.get('DB-Section', 'user')

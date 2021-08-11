@@ -23,7 +23,6 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
-import configparser as ConfigParser
 import json
 import os
 import random
@@ -34,14 +33,11 @@ import requests
 
 import utility.log as log
 from utility.staticVariables import confd_headers
-from utility.util import job_log
+from utility.util import create_config, job_log
 
 if __name__ == '__main__':
     start_time = int(time.time())
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
     confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
     confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))

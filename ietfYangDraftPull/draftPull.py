@@ -40,17 +40,12 @@ import requests
 import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory, repoutil
-from utility.util import job_log
+from utility.util import create_config, job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 check_name_no_revision_exist,
                                                 extract_rfc_tgz,
                                                 get_draft_module_content)
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
@@ -62,7 +57,7 @@ class ScriptConfig:
                     'Cisco Webex Teams and admin emails notifying you that these need to be added to YangModels/yang ' \
                     'Github repository manualy. This script runs as a daily cronjob.'
         parser.add_argument('--config-path', type=str,
-                            default='/etc/yangcatalog/yangcatalog.conf',
+                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
                             ' to Cisco Webex Teams and to emails')
@@ -96,9 +91,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     commit_dir = config.get('Directory-Section', 'commit-dir')

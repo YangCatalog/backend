@@ -9,7 +9,6 @@ each module (and all of the revisions).
 Lastly, populate() method will send PATCH request to ConfD and
 cache will be re-loaded using api/load-cache endpoint.
 """
-import configparser as ConfigParser
 import json
 import os
 import sys
@@ -18,7 +17,7 @@ from datetime import datetime
 
 import requests
 import utility.log as log
-from utility.util import job_log
+from utility.util import create_config, job_log
 
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
@@ -28,10 +27,7 @@ class ScriptConfig:
     def __init__(self):
         self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
                     ' to confd directory'
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
@@ -123,10 +119,6 @@ def main(scriptConf=None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
     api_protocol = scriptConf.api_protocol
     ip = scriptConf.ip
     api_port = scriptConf.api_port

@@ -52,23 +52,15 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
 
-from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.util import create_config, prepare_to_indexing, send_to_indexing2
 from utility.staticVariables import confd_headers, json_headers
-
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class Receiver:
 
     def __init__(self, config_path):
         self.__config_path = config_path
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.__config_path)
+        config = create_config(self.__config_path)
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
         self.__confd_port = int(config.get('Web-Section', 'confd-port'))
         self.__protocol = config.get('General-Section', 'protocol-api')
@@ -502,9 +494,7 @@ class Receiver:
 
     def load_config(self):
         self.LOGGER.info('reloading config')
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.__config_path)
+        config = create_config(self.__config_path)
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
         self.__confd_port = int(config.get('Web-Section', 'confd-port'))
         self.__protocol = config.get('General-Section', 'protocol-api')
@@ -732,7 +722,7 @@ class Receiver:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args, extra_args = parser.parse_known_args()
     config_path = args.config_path

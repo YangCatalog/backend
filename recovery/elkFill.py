@@ -28,19 +28,13 @@ import sys
 
 import requests
 
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
+from utility.util import create_config
 
 
 class ScriptConfig:
 
     def __init__(self):
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.__api_protocol = config.get('General-Section', 'protocol-api')
         self.__api_port = config.get('Web-Section', 'api-port')
         self.__api_host = config.get('Web-Section', 'ip')

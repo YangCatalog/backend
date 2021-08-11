@@ -17,7 +17,6 @@ __copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import sys
 import time
 from threading import Lock
 
@@ -26,13 +25,9 @@ from elasticsearch import Elasticsearch
 from flask_oidc import OpenIDConnect
 from flask_sqlalchemy import SQLAlchemy
 from utility import log
+from utility.util import create_config
 
 from api.sender import Sender
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class YangCatalogApiGlobalConfig():
@@ -40,10 +35,7 @@ class YangCatalogApiGlobalConfig():
 
     def __init__(self):
         self.oidc = OpenIDConnect()
-        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.config_path)
+        config = create_config()
         self.lock_uwsgi_cache1 = Lock()
         self.lock_uwsgi_cache2 = Lock()
         self.search_key = config.get('Secrets-Section', 'update-signature', fallback='')
@@ -129,10 +121,7 @@ class YangCatalogApiGlobalConfig():
         self.check_wait_redis_connected()
 
     def load_config(self):
-        self.config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.config_path)
+        config = create_config()
         self.search_key = config.get('Secrets-Section', 'update-signature', fallback='')
         self.secret_key = config.get('Secrets-Section', 'flask-secret-key', fallback='S3CR3T!')
         self.nginx_dir = config.get('Directory-Section', 'nginx-conf', fallback='')

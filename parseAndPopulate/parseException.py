@@ -19,20 +19,13 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
 import sys
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
+from utility.util import create_config
 
 
 class ParseException(Exception):
 
     def __init__(self, path):
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         var_path = config.get('Directory-Section', 'var', fallback='/var/yang')
         self.msg = 'Failed to parse module on path {}'.format(path)
         try:

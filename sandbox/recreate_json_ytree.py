@@ -1,6 +1,7 @@
 import argparse
-import configparser
 import glob
+import os
+from utility.util import create_config
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
 from scripts.yangParser import create_context
@@ -13,13 +14,11 @@ if __name__ == '__main__':
         description="Process changed modules in a git repo")
     parser.add_argument('--time', type=str,
                         help='Modified time argument to find(1)', required=False)
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args = parser.parse_args()
     config_path = args.config_path
-    config = configparser.ConfigParser()
-    config._interpolation = configparser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     ytree_dir = config.get('Directory-Section', 'json-ytree')
 
