@@ -108,12 +108,12 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         :return response to the request with job_id that user can use to
             see if the job is still on or Failed or Finished successfully
     """
-    if all(name, revision, organization):
-        input_modules = {
+    if all((name, revision, organization)):
+        input_modules = [{
             'name': name,
             'revision': revision,
             'organization': organization
-        }
+        }]
     else:
         if not request.json:
             abort(400, description='Missing input data to know which modules we want to delete')
@@ -220,7 +220,7 @@ def delete_vendor(value):
         else:
             params.append('None')
     
-    for param_name, param, right in param_names, params, rights:
+    for param_name, param, right in zip(param_names, params, rights):
         if right and param != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
@@ -248,7 +248,7 @@ def add_modules():
     """
     if not request.json:
         abort(400, description='bad request - you need to input json body that conforms with'
-                                      ' module-metadata.yang module. Received no json')
+                               ' module-metadata.yang module. Received no json')
     body = request.json
     modules_cont = body.get('modules')
     if modules_cont is None:
@@ -278,18 +278,16 @@ def add_modules():
                                                              **confd_headers})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
-                                      " error code: {} \n error header items: {}"
-                     .format(response.text, response.status_code, response.headers.items()))
+        abort(400,
+              description="The body you have provided could not be parsed. Confd error text: {} \n"
+                          " error code: {} \n error header items: {}"
+                          .format(response.text, response.status_code, response.headers.items()))
     repo = {}
     warning = []
 
     direc = 0
-    while True:
-        if os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
-            direc += 1
-        else:
-            break
+    while os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
+        direc += 1
     direc = '{}/{}'.format(yc_gc.temp_dir, direc)
     try:
         os.makedirs(direc)
@@ -302,19 +300,16 @@ def add_modules():
         current_app.logger.info('{}'.format(mod))
         sdo = mod.get('source-file')
         if sdo is None:
-            abort(400,
-                         description='bad request - at least one of modules "source-file" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules "source-file" is missing and is mandatory')
         orgz = mod.get('organization')
         if orgz is None:
-            abort(400,
-                         description='bad request - at least one of modules "organization" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules "organization" is missing and is mandatory')
         mod_name = mod.get('name')
         if mod_name is None:
             abort(400, description='bad request - at least one of modules "name" is missing and is mandatory')
         mod_revision = mod.get('revision')
         if mod_revision is None:
-            abort(400,
-                         description='bad request - at least one of modules "revision" is missing and is mandatory')
+            abort(400, description='bad request - at least one of modules "revision" is missing and is mandatory')
         if request.method == 'POST':
             response = get_mod_confd(mod_name, mod_revision, orgz)
             if response.status_code != 404:
@@ -338,22 +333,22 @@ def add_modules():
                 repo[repo_url].clone()
             except GitCommandError as e:
                 abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                              ' repository and path of the request - {}'.format(e.stderr))
+                                        ' repository and path of the request - {}'.format(e.stderr))
 
         try:
-            if sdo.get('branch'):
+            if 'branch' in sdo:
                 branch = sdo.get('branch')
             else:
                 branch = 'master'
             repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, branch, directory)
-            if repo_url_dir_branch.get(repo_url_dir_branch_temp) is None:
+            if repo_url_dir_branch_temp not in repo_url_dir_branch:
                 branch = repo[repo_url].get_commit_hash(directory, branch)
                 repo_url_dir_branch[repo_url_dir_branch_temp] = branch
             else:
                 branch = repo_url_dir_branch[repo_url_dir_branch_temp]
         except GitCommandError as e:
             abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                          ' repository and path of the request - {}'.format(e.stderr))
+                                   ' repository and path of the request - {}'.format(e.stderr))
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, sdo_owner, sdo_repo.split('.')[0], branch, directory)
         try:
             os.makedirs(save_to)
@@ -383,11 +378,11 @@ def add_modules():
                 except:
                     break
                 try:
-                    namespace = yangParser.parse(os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
-                                                                                        '/'.join(
-                                                                                            sdo_path.split('/')[:-1]),
-                                                                                        belongs_to))) \
-                        .search('namespace')[0].arg
+                    namespace = yangParser.parse(
+                        os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
+                                                               '/'.join(sdo_path.split('/')[:-1]),
+                                                               belongs_to))
+                        ).search('namespace')[0].arg
                     for ns, org in NS_MAP.items():
                         if ns in namespace:
                             organization = org
@@ -402,7 +397,7 @@ def add_modules():
             shutil.rmtree(direc)
             for key in repo:
                 repo[key].remove()
-            abort(401, description="Unauthorized for server unknown reason")
+            abort(401, description='Unauthorized for server unknown reason')
         if 'organization' in repr(resolved_authorization):
             warning.append('{} {}'.format(sdo['path'].split('/')[-1], resolved_authorization))
 
@@ -412,9 +407,9 @@ def add_modules():
         repo[key].remove()
 
     current_app.logger.debug('Sending a new job')
-    populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../parseAndPopulate/populate.py")
-    arguments = ["python", populate_path, "--sdo", "--port", repr(yc_gc.confdPort), "--dir", direc, "--api",
-                 "--ip", yc_gc.confd_ip, "--credentials", yc_gc.credentials[0], yc_gc.credentials[1],
+    populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + '/../../../parseAndPopulate/populate.py')
+    arguments = ['python', populate_path, '--sdo', '--port', repr(yc_gc.confdPort), '--dir', direc, '--api',
+                 '--ip', yc_gc.confd_ip, '--credentials', yc_gc.credentials[0], yc_gc.credentials[1],
                  repr(tree_created), yc_gc.protocol, yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
     current_app.logger.info('job_id {}'.format(job_id))
@@ -439,7 +434,7 @@ def add_vendors():
     """
     if not request.json:
         abort(400, description='bad request - you need to input json body that conforms with'
-                                      ' platform-implementation-metadata.yang module. Received no json')
+                               ' platform-implementation-metadata.yang module. Received no json')
     body = request.json
 
     platforms_cont = body.get('platforms')
@@ -524,19 +519,19 @@ def add_vendors():
                 abort(400, description='bad request - cound not clone the github repository. Please check owner,'
                                               ' repository and path of the request - {}'.format(e.stderr))
         try:
-            if capability.get('branch'):
+            if 'branch' in capability:
                 branch = capability.get('branch')
             else:
                 branch = 'master'
             repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url_dir_branch, directory, branch)
-            if repo_url_dir_branch.get(repo_url_dir_branch_temp) is None:
+            if repo_url_dir_branch_temp not in repo_url_dir_branch:
                 branch = repo[repo_url].get_commit_hash(directory, branch)
                 repo_url_dir_branch[repo_url_dir_branch_temp] = branch
             else:
                 branch = repo_url_dir_branch[repo_url_dir_branch_temp]
         except GitCommandError as e:
             abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                          ' repository and path of the request - {}'.format(e.stderr))
+                                   ' repository and path of the request - {}'.format(e.stderr))
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
 
         try:
@@ -552,8 +547,8 @@ def add_vendors():
     for key in repo:
         repo[key].remove()
     populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../parseAndPopulate/populate.py")
-    arguments = ["python", populate_path, "--port", repr(yc_gc.confdPort), "--dir", direc, "--api", "--ip",
-                 yc_gc.confd_ip, "--credentials", yc_gc.credentials[0], yc_gc.credentials[1],
+    arguments = ['python', populate_path, '--port', repr(yc_gc.confdPort), '--dir', direc, '--api', '--ip',
+                 yc_gc.confd_ip, '--credentials', yc_gc.credentials[0], yc_gc.credentials[1],
                  repr(tree_created), yc_gc.integrity_file_location, yc_gc.protocol,
                  yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
@@ -576,35 +571,17 @@ def authorize_for_vendors(request, body):
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
     rights = accessRigths.split('/')
-    check_vendor = None
-    check_platform = None
-    check_software_version = None
-    check_software_flavor = None
+    rights += [None] * (4 - len(rights))
     if rights[0] == '':
         return 'passed'
-    else:
-        check_vendor = rights[0]
-    if len(rights) > 1:
-        check_platform = rights[1]
-    if len(rights) > 2:
-        check_software_version = rights[2]
-    if len(rights) > 3:
-        check_software_flavor = rights[3]
 
+    param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     for platform in body['platforms']['platform']:
-        vendor = platform['vendor']
-        platform_name = platform['name']
-        software_version = platform['software-version']
-        software_flavor = platform['software-flavor']
-
-        if check_platform and platform_name != check_platform:
-            abort(401, description="User not authorized to supply data for this platform")
-        if check_software_version and software_version != check_software_version:
-            abort(401, description="User not authorized to supply data for this software version")
-        if check_software_flavor and software_flavor != check_software_flavor:
-            abort(401, description="User not authorized to supply data for this software flavor")
-        if vendor != check_vendor:
-            abort(401, description="User not authorized to supply data for this vendor")
+        platform['platform'] = platform['name']
+        params = [platform[param_name] for param_name in param_names]
+        for param_name, param, right in zip(param_names, params, rights):
+            if right and param != right:
+                abort(401, description='User not authorized to supply data for this {}'.format(param_name))
     return 'passed'
 
 
