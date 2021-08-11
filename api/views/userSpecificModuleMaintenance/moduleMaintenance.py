@@ -169,8 +169,12 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
                         return False
         return True
 
-    modules_to_delete = {}
-    modules_to_delete['modules'] = [x for x in input_modules if can_delete(x.get('name'), x.get('revision'))]
+    modules_to_delete = {'modules': []}
+    for module in input_modules:
+        if can_delete(module.get('name'), module.get('revision')):
+            modules_to_delete['modules'].append(module)
+        else:
+            unavailable_modules.append(module)
 
     path_to_delete = json.dumps(modules_to_delete)
 
