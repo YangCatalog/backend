@@ -42,7 +42,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.mock_send = self.send_patcher.start()
         self.addCleanup(self.send_patcher.stop)
         self.mock_send.return_value = 1
-        self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_mod_confd')
+        self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_mod_confd')
         self.mock_confd_get = self.confd_patcher.start()
         self.addCleanup(self.confd_patcher.stop)
         self.get_patcher = mock.patch('requests.get')
@@ -78,31 +78,18 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    def test_delete_module_not_found(self):
-        """Test error response when the specified module is not in the database.
-        """
-        name = 'nonexistent'
-        revision = 'nonexistent'
-        organization = 'nonexistent'
-        path = '{},{},{}'.format(name, revision, organization)
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-
-        self.assertEqual(result.status_code, 404)
-        self.assertEqual(result.content_type, 'application/json')
-        data = json.loads(result.data)
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Module not found in ConfD database')
-
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     def test_delete_module_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         """get_user_access_rights patched to give no rights.
         Test error response when the user has insufficient rights.
         """
         mock_access_rights.return_value = ''
-        name = 'yang-catalog'
-        revision = '2017-09-26'
-        organization = 'ietf'
-        path = '{},{},{}'.format(name, revision, organization)
+        mod = {
+            'name': 'yang-catalog',
+            'revision': '2017-09-26',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 401)
@@ -110,56 +97,58 @@ class TestApiContributeClass(unittest.TestCase):
         data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'],
-                         'You do not have rights to delete module with organization {}'.format(organization))
+                         'You do not have rights to delete modules with organization {}'.format(mod['organization']))
 
     def test_delete_module_has_implementation(self):
         """Test error response when the module has implementations.
         """
-        name = 'ietf-yang-types'
-        revision = '2013-07-15'
-        organization = 'ietf'
-        path = '{},{},{}'.format(name, revision, organization)
+        mod = {
+            'name': 'ietf-yang-types',
+            'revision': '2013-07-15',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
-        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'This module has reference in vendors branch')
+        self.assertIn('skipped', data)
+        self.assertEqual(data['skipped'], [mod])
 
     def test_delete_module_dependency(self):
         """Test error response when the module has dependents.
         """
-        name = 'ietf-snmp-community'
-        revision = '2014-12-10'
-        organization = 'ietf'
-        path = '{},{},{}'.format(name, revision, organization)
+        mod = {
+            'name': 'ietf-snmp-community',
+            'revision': '2014-12-10',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
-        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
-        self.assertIn('description', data)
-        self.assertTrue(data['description']
-                            .startswith('{}@{} module has reference in another module '
-                            .format(name, revision)))
+        self.assertIn('skipped', data)
+        self.assertEqual(data['skipped'], [mod])
 
     def test_delete_module_submodule(self):
         """Test error response when the module is a submodule.
         """
-        name = 'ietf-ipv6-router-advertisements'
-        revision = '2018-03-13'
-        organization = 'ietf'
-        path = '{},{},{}'.format(name, revision, organization)
+        mod = {
+            'name': 'ietf-ipv6-router-advertisements',
+            'revision': '2018-03-13',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
-        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.status_code, 202)
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
-        self.assertIn('description', data)
-        self.assertTrue(data['description']
-                            .startswith('{}@{} module has reference in another module '
-                            .format(name, revision)))
+        self.assertIn('skipped', data)
+        self.assertEqual(data['skipped'], [mod])
 
     def test_delete_modules(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
@@ -208,7 +197,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     def test_delete_vendor_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = 'cisco'
         vendor_name = 'fujitsu'
@@ -429,7 +418,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('shutil.copy')
     @mock.patch('shutil.rmtree')
     @mock.patch('utility.repoutil.RepoUtil')
-    @mock.patch('api.views.userSpecificModuleMaintenace.moduleMaintanace.get_user_access_rights')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     @mock.patch('requests.put')
     def test_add_modules_unauthorized(self, mock_put: mock.MagicMock, mock_access_rights: mock.MagicMock, *args):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
