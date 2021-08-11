@@ -24,16 +24,16 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
+import configparser as ConfigParser
 import os
 import time
-import configparser as ConfigParser
 
 import requests
+from parseAndPopulate.modulesComplicatedAlgorithms import \
+    ModulesComplicatedAlgorithms
 
 import utility.log as log
 from utility.util import job_log
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
 
 
 class ScriptConfig:
@@ -58,7 +58,7 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir',
                                       fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', '/var/yang/ytrees')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
     def get_args_list(self):
         args_dict = {}
@@ -69,6 +69,7 @@ class ScriptConfig:
         ret['help'] = self.help
         ret['options'] = {}
         return ret
+
 
 def main(scriptConf=None):
     start_time = int(time.time())
@@ -117,6 +118,7 @@ def main(scriptConf=None):
     complicatedAlgorithms.populate()
     LOGGER.info('Job finished successfully')
     job_log(start_time, temp_dir, os.path.basename(__file__), status='Success')
+
 
 if __name__ == '__main__':
     main()

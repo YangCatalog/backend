@@ -23,8 +23,9 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
 import argparse
-import sys
 import datetime
+import os
+import sys
 from subprocess import run
 
 import utility.log as log
@@ -42,15 +43,15 @@ class ScriptConfig:
         type = parser.add_mutually_exclusive_group()
         parser.add_argument('--dir', default='', help='Set name of the backup directory')
         type.add_argument('--save', action='store_true', default=True,
-                            help='Set whether you want to create snapshot. Default is True')
+                          help='Set whether you want to create snapshot. Default is True')
         type.add_argument('--load', action='store_true', default=False,
-                            help='Set whether you want to load from snapshot. Default is False')
+                          help='Set whether you want to load from snapshot. Default is False')
         parser.add_argument('--overwrite-tables', default=False,
                             help='Overwrite tables when loading')
         parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
                             help='Set path to config file')
 
-        self.args, extra_args = parser.parse_known_args()
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -94,7 +95,9 @@ def main(scriptConf=None):
     if not args.load:
         if not args.dir:
             args.dir = str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC'
-        run(['mydumper', '--database', db_name, '--outputdir', '{}/{}'.format(backup_directory, args.dir),
+        output_dir = '{}/{}'.format(backup_directory, args.dir)
+        os.makedirs(output_dir, exist_ok=True)
+        run(['mydumper', '--database', db_name, '--outputdir', output_dir,
              '--host', db_host, '--user', db_user, '--password', db_pass, '--lock-all-tables'])
     else:
         if not args.dir:
@@ -105,7 +108,6 @@ def main(scriptConf=None):
         if args.overwrite_tables:
             cmd.append('--overwrite-tables')
         run(cmd)
-            
 
 
 if __name__ == '__main__':
