@@ -29,3 +29,4 @@ yang-catalog.service
 /venv/
 /api/test.py
 /.vscode/
+htmlcov/

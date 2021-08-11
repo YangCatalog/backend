@@ -68,7 +68,7 @@ from api.authentication.auth import auth, get_password, hash_pw
 from api.globalConfig import yc_gc
 from api.views.errorHandlers.errorHandler import app as error_handling_app
 from api.views.healthCheck.healthCheck import app as healthcheck_app
-from api.views.userSpecificModuleMaintenace.moduleMaintanace import \
+from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
     app as user_maintenance_app
 from api.views.yangSearch.yangSearch import app as yang_search_app
 from api.views.ycJobs.ycJobs import app as jobs_app

@@ -400,7 +400,7 @@ class Receiver:
             self.LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
         return response
 
-    def process_module_deletion(self, arguments: list, multiple: bool = False):
+    def process_module_deletion(self, arguments: list):
         """ Deleteing one or more modules. It calls the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
         yang-catalog.yang module. It will also call indexing script to update searching.
@@ -415,17 +415,11 @@ class Receiver:
         path_to_delete = arguments[5]
         confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
         reason = ''
-        if multiple:
-            paths = []
-            modules = json.loads(path_to_delete)['modules']
-            for mod in modules:
-                paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-                    confd_url, mod['name'], mod['revision'], mod['organization']))
-        else:
-            name_rev_org_with_commas = path_to_delete.split('/')[-1]
-            name, rev, org = name_rev_org_with_commas.split(',')
-            modules = [{'name': name, 'revision': rev, 'organization': org}]
-            paths = [path_to_delete]
+        paths = []
+        modules = json.loads(path_to_delete)['modules']
+        for mod in modules:
+            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+                confd_url, mod['name'], mod['revision'], mod['organization']))
         all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
 
         for mod in modules:
@@ -620,10 +614,6 @@ class Receiver:
                     else:
                         final_response = self.process_vendor_deletion(arguments)
                         credentials = arguments[7:9]
-                elif arguments[-3] == 'DELETE_MULTIPLE':
-                    self.LOGGER.info('Deleting multiple modules')
-                    final_response = self.process_module_deletion(arguments, True)
-                    credentials = arguments[3:5]
                 elif '--sdo' in arguments[2]:
                     final_response = self.process_sdo(arguments, all_modules)
                     credentials = arguments[11:13]
