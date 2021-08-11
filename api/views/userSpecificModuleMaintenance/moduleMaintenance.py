@@ -218,11 +218,11 @@ def delete_vendor(value):
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     params = []
     for param_name in param_names:
-        path_to_delete = path_to_delete.replace('/{}/'.format(param_name), '/{}='.format(param_name))
         if '/{}/'.format(param_name) in path_to_delete:
-            params.append(path_to_delete.split('/vendor/')[1].split('/')[0])
+            params.append(path_to_delete.split('/{}/'.format(param_name))[1].split('/')[0])
         else:
             params.append('None')
+        path_to_delete = path_to_delete.replace('/{}/'.format(param_name), '/{}='.format(param_name))
     
     for param_name, param, right in zip(param_names, params, rights):
         if right and param != right:
