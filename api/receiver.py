@@ -66,54 +66,8 @@ class Receiver:
 
     def __init__(self, config_path):
         self.__config_path = config_path
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.__config_path)
-        self.__confd_ip = config.get('Web-Section', 'confd-ip')
-        self.__confd_port = int(config.get('Web-Section', 'confd-port'))
-        self.__protocol = config.get('General-Section', 'protocol-api')
-        self.__api_ip = config.get('Web-Section', 'ip')
-        self.__api_port = int(config.get('Web-Section', 'api-port'))
-        self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
-        self.__key = config.get('Secrets-Section', 'update-signature')
-        self.__notify_indexing = config.get('General-Section', 'notify-index')
-        self.__result_dir = config.get('Web-Section', 'result-html-dir')
-        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        self.__yang_models = config.get('Directory-Section', 'yang-models-dir')
-        self.__is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
-        self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
-
-        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
-        self.__lock_file = config.get('Directory-Section', 'lock')
-        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
-        rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
-        self.__log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
-        logging.getLogger('pika').setLevel(logging.INFO)
-        self.temp_dir = config.get('Directory-Section', 'temp')
-        self.__confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-
+        self.load_config()
         self.LOGGER.info('Starting receiver')
-
-        if self.__notify_indexing == 'True':
-            self.__notify_indexing = True
-        else:
-            self.__notify_indexing = False
-        separator = ':'
-        suffix = self.__api_port
-        if self.__is_uwsgi == 'True':
-            separator = '/'
-            suffix = 'api'
-        self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
-                                                              separator, suffix)
-        self.__response_type = ['Failed', 'Finished successfully', 'Partially done']
-        self.__rabbitmq_credentials = pika.PlainCredentials(
-            username=rabbitmq_username,
-            password=rabbitmq_password)
         self.channel = None
         self.connection = None
 
@@ -501,10 +455,13 @@ class Receiver:
             return self.__response_type[0]
 
     def load_config(self):
-        self.LOGGER.info('reloading config')
         config = ConfigParser.ConfigParser()
         config._interpolation = ConfigParser.ExtendedInterpolation()
         config.read(self.__config_path)
+        self.__log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
+        self.LOGGER.info('reloading config')
+        logging.getLogger('pika').setLevel(logging.INFO)
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
         self.__confd_port = int(config.get('Web-Section', 'confd-port'))
         self.__protocol = config.get('General-Section', 'protocol-api')
@@ -521,12 +478,13 @@ class Receiver:
         self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
+        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.__lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
-        self.__log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
-        logging.getLogger('pika').setLevel(logging.INFO)
         self.temp_dir = config.get('Directory-Section', 'temp')
+        self.__confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
         if self.__notify_indexing == 'True':
