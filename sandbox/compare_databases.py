@@ -16,7 +16,8 @@ import redis
 import utility.log as log
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
-from utility.util import create_config, fetch_module_by_schema
+from utility.create_config import create_config
+from utility.util import fetch_module_by_schema
 
 
 def create_query(name: str, revision: str):

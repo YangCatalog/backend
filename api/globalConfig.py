@@ -25,7 +25,7 @@ from elasticsearch import Elasticsearch
 from flask_oidc import OpenIDConnect
 from flask_sqlalchemy import SQLAlchemy
 from utility import log
-from utility.util import create_config
+from utility.create_config import create_config
 
 from api.sender import Sender
 

@@ -28,7 +28,7 @@ import datetime
 import sys
 import os
 from operator import itemgetter
-from utility.util import create_config
+from utility.create_config import create_config
 
 from elasticsearch import Elasticsearch
 

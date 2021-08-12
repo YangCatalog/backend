@@ -31,7 +31,7 @@ from email.mime.text import MIMEText
 from ciscosparkapi import CiscoSparkAPI
 
 import utility.log as log
-from utility.util import create_config
+from utility.create_config import create_config
 
 GREETINGS = 'Hello from yang-catalog'
 

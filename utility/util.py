@@ -18,7 +18,6 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import configparser as ConfigParser
 import fnmatch
 import json
 import optparse
@@ -488,9 +487,3 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
                 raise e
 
     return ctx, new_schema_ctx
-
-def create_config(config_path=os.environ['YANGCATALOG_CONFIG_PATH']):
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
-    return config

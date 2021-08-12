@@ -1,7 +1,7 @@
 import argparse
 import glob
 import os
-from utility.util import create_config
+from utility.create_config import create_config
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
 from scripts.yangParser import create_context

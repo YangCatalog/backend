@@ -1,6 +1,6 @@
 import sys
 from datetime import datetime
-from utility.util import create_config
+from utility.create_config import create_config
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session

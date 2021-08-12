@@ -32,7 +32,8 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
 import utility.log as log
-from utility.util import create_config, job_log
+from utility.create_config import create_config
+from utility.util import job_log
 
 
 class ScriptConfig:

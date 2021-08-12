@@ -33,7 +33,8 @@ import time
 
 import utility.log as log
 from utility import repoutil, yangParser
-from utility.util import create_config, job_log
+from utility.create_config import create_config
+from utility.util import job_log
 
 class ScriptConfig:
     def __init__(self):

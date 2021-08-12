@@ -38,7 +38,8 @@ from os import unlink
 
 import utility.log as lo
 from dateutil.parser import parse
-from utility.util import create_config, job_log
+from utility.create_config import create_config
+from utility.util import job_log
 from elasticsearch import Elasticsearch
 
 def represents_int(s):

@@ -46,8 +46,9 @@ import jinja2
 import requests
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.create_config import create_config
 from utility.staticVariables import json_headers
-from utility.util import create_config, find_first_file, get_curr_dir, job_log
+from utility.util import find_first_file, get_curr_dir, job_log
 
 NS_MAP = {
     "http://cisco.com/": "cisco",

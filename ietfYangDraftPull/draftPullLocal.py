@@ -33,7 +33,8 @@ import time
 import requests
 import utility.log as log
 from utility import repoutil
-from utility.util import create_config, job_log
+from utility.create_config import create_config
+from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 check_name_no_revision_exist,

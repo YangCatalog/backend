@@ -39,7 +39,7 @@ import os
 import smtplib
 import sys
 from email.mime.text import MIMEText
-from utility.util import create_config
+from utility.create_config import create_config
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session

@@ -40,7 +40,8 @@ import requests
 import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory, repoutil
-from utility.util import create_config, job_log
+from utility.create_config import create_config
+from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 check_name_no_revision_exist,

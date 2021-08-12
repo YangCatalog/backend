@@ -17,7 +17,7 @@ import json
 import logging
 import os
 import sys
-from utility.util import create_config
+from utility.create_config import create_config
 
 import dateutil.parser
 from elasticsearch import Elasticsearch, NotFoundError

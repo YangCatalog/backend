@@ -15,7 +15,7 @@ import json
 import requests
 import utility.log as log
 from utility import repoutil, yangParser
-from utility.util import create_config
+from utility.create_config import create_config
 
 
 def get_repo_owner_name(schema: str):

@@ -34,7 +34,7 @@ import sys
 import time
 
 import utility.log as log
-from utility.util import create_config
+from utility.create_config import create_config
 
 from parseAndPopulate import integrity
 from parseAndPopulate.capability import Capability

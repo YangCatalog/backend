@@ -28,7 +28,7 @@ import sys
 
 import requests
 
-from utility.util import create_config
+from utility.create_config import create_config
 
 
 class ScriptConfig:

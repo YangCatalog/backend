@@ -27,7 +27,7 @@ import datetime
 import os
 import sys
 from subprocess import run
-from utility.util import create_config
+from utility.create_config import create_config
 
 import utility.log as log
 

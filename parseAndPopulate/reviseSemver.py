@@ -17,7 +17,8 @@ from datetime import datetime
 
 import requests
 import utility.log as log
-from utility.util import create_config, job_log
+from utility.create_config import create_config
+from utility.util import job_log
 
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms

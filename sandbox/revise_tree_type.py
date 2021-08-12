@@ -5,7 +5,7 @@ import requests
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
-from utility.util import create_config
+from utility.create_config import create_config
 
 if __name__ == '__main__':
     start = time.time()

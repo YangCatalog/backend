@@ -32,8 +32,9 @@ import time
 import requests
 
 import utility.log as log
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers
-from utility.util import create_config, job_log
+from utility.util import job_log
 
 if __name__ == '__main__':
     start_time = int(time.time())

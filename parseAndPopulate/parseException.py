@@ -19,7 +19,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
 import sys
-from utility.util import create_config
+from utility.create_config import create_config
 
 
 class ParseException(Exception):

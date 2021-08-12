@@ -35,7 +35,8 @@ from datetime import datetime
 
 import statistic.statistics as stats
 from utility import log, repoutil, yangParser
-from utility.util import create_config, find_first_file
+from utility.create_config import create_config
+from utility.util import find_first_file
 
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.parseException import ParseException

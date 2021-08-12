@@ -52,7 +52,8 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
 
-from utility.util import create_config, prepare_to_indexing, send_to_indexing2
+from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
 
 

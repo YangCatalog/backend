@@ -3,7 +3,7 @@ Code might need to be updated everytime to filter out the modules which are
 meant to be deleted (currently set to organization = Huawei).
 """
 import os
-from utility.util import create_config
+from utility.create_config import create_config
 
 import requests
 
