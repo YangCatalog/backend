@@ -35,6 +35,7 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
 from utility.yangParser import create_context
 
