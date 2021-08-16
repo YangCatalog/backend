@@ -56,7 +56,7 @@ from datetime import datetime, timedelta
 from threading import Lock
 
 import requests
-from flask import (Flask, Response, abort, jsonify, make_response, redirect,
+from flask import (Flask, Config, Response, abort, jsonify, make_response, redirect,
                    request)
 from flask.logging import default_handler
 from flask_cors import CORS
@@ -77,7 +77,18 @@ from api.views.healthCheck.healthCheck import app as healthcheck_app
 from api.models import User, TempUser
 
 
+class MyConfig(Config):
+
+    def __getattr__(self, name: str):
+        try:
+            return self[name.uppper().replace('_', '-')]
+        except KeyError:
+            raise AttributeError(name)
+
+
 class MyFlask(Flask):
+
+    config_class = MyConfig
 
     def __init__(self, import_name):
         self.loading = True
@@ -90,6 +101,14 @@ class MyFlask(Flask):
         self.release_locked = []
         self.secret_key = yc_gc.secret_key
         self.permanent_session_lifetime = timedelta(minutes=20)
+        self.config.from_file('/etc/yangcatalog/yangcatalog.conf', load=self.config_load)
+
+    def config_load(self, file):
+        parser = configparser.ConfigParser()
+        parser._interpolation = configparser.ExtendedInterpolation()
+        parser.read(file.name)
+        return {key.upper(): value for section in parser.sections() for key, value in parser.items(section)}
+
 
     def process_response(self, response):
         response = super().process_response(response)
