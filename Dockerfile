@@ -2,10 +2,12 @@ FROM python:3.9
 ARG YANG_ID
 ARG YANG_GID
 ARG CRON_MAIL_TO
+ARG YANGCATALOG_CONFIG_PATH
 
 ENV YANG_ID "$YANG_ID"
 ENV YANG_GID "$YANG_GID"
 ENV CRON_MAIL_TO "$CRON_MAIL_TO"
+ENV YANGCATALOG_CONFIG_PATH "$YANGCATALOG_CONFIG_PATH"
 ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
@@ -47,7 +49,8 @@ COPY ./backend/crontab /etc/cron.d/yang-cron
 RUN mkdir /var/run/yang
 
 RUN chown yang:yang /etc/cron.d/yang-cron
-RUN sed -i "s|<MAIL_TO>|${CRON_MAIL_TO} |g" /etc/cron.d/yang-cron
+RUN sed -i "s|<MAIL_TO>|${CRON_MAIL_TO}|g" /etc/cron.d/yang-cron
+RUN sed -i "s|<YANGCATALOG_CONFIG_PATH>|${YANGCATALOG_CONFIG_PATH}|g" /etc/cron.d/yang-cron
 RUN chown -R yang:yang $VIRTUAL_ENV
 RUN chown -R yang:yang /var/run/yang
 
@@ -86,6 +89,6 @@ RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
-CMD chown -R yang:yang /var/run/yang && cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
+CMD chown -R yang:yang /var/run/yang && cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py --preload
 
 EXPOSE 3031

@@ -10,12 +10,12 @@ Patch request to ConfD request is made for each module that has been modified.
 Also reload-cache is called after each phase.
 Finally, unavailable schemas are dumped into JSON file.
 """
-import configparser as ConfigParser
 import json
 
 import requests
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.create_config import create_config
 
 
 def get_repo_owner_name(schema: str):
@@ -114,10 +114,7 @@ def __print_patch_response(key: str, response):
 
 
 if __name__ == '__main__':
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
