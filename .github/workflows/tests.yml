@@ -55,4 +55,4 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pytest
+          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf pytest
