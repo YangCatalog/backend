@@ -224,7 +224,7 @@ def read_yangcatalog_nginx(nginx_file):
 def read_yangcatalog_config():
     current_app.logger.info('Reading yangcatalog config file')
 
-    with open(yc_gc.config_path, 'r') as f:
+    with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'r') as f:
         yangcatalog_config = f.read()
     response = {'info': 'Success',
                 'data': yangcatalog_config}
@@ -238,7 +238,7 @@ def update_yangcatalog_config():
     if 'data' not in body:
         abort(400, description='"data" must be specified')
 
-    with open(yc_gc.config_path, 'w') as f:
+    with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'w') as f:
         f.write(body['data'])
     resp = {}
     try:
