@@ -27,7 +27,8 @@ from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 import requests
-from flask import Blueprint, request, abort, make_response, jsonify, current_app
+from flask import current_app as app
+from flask import Blueprint, request, abort, make_response, jsonify
 from git import GitCommandError
 
 from api.authentication.auth import auth, hash_pw
@@ -57,12 +58,12 @@ class UserSpecificModuleMaintenance(Blueprint):
                          url_defaults, root_path)
 
 
-app = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
+bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
 db = yc_gc.sqlalchemy
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@app.route('/register-user', methods=['POST'])
+@bp.route('/register-user', methods=['POST'])
 def register_user():
     if not request.json:
         return abort(400, description='bad request - no data received')
@@ -90,13 +91,13 @@ def register_user():
         db.session.add(temp_user)
         db.session.commit()
     except SQLAlchemyError as err:
-        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
     mf = MessageFactory()
     mf.send_new_user(username, email)
     return make_response(jsonify({'info': 'User created successfully'}), 201)
 
 
-@app.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
+@bp.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
 @auth.login_required
 def delete_module(name: str, revision: str, organization: str):
     """Delete a specific module defined with name, revision and organization. This is
@@ -111,9 +112,9 @@ def delete_module(name: str, revision: str, organization: str):
         :return response to the request with job_id that user can use to
             see if the job is still on or 'Failed' or 'Finished successfully'.
     """
-    current_app.logger.info('Deleting module {},{},{}'.format(name, revision, organization))
+    app.logger.info('Deleting module {},{},{}'.format(name, revision, organization))
     username = request.authorization['username']
-    current_app.logger.debug('Checking authorization for user {}'.format(username))
+    app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
 
     confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
@@ -155,11 +156,11 @@ def delete_module(name: str, revision: str, organization: str):
                  yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
-@app.route('/modules', methods=['DELETE'])
+@bp.route('/modules', methods=['DELETE'])
 @auth.login_required
 def delete_modules():
     """Delete a specific modules defined with name, revision and organization. This is
@@ -180,7 +181,7 @@ def delete_modules():
         return abort(404, description="Data must start with 'input' root element in json")
 
     username = request.authorization['username']
-    current_app.logger.debug('Checking authorization for user {}'.format(username))
+    app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
 
     unavailable_modules = []
@@ -225,7 +226,7 @@ def delete_modules():
                                 break
                         if not will_be_deleted:
                             delete_module = False
-                            current_app.logger.error('{}@{} module has reference in another module dependency: {}@{}'
+                            app.logger.error('{}@{} module has reference in another module dependency: {}@{}'
                                                .format(mod.get('name'), mod.get('revision'),
                                                        existing_module.get('name'), existing_module.get('revision')))
 
@@ -240,7 +241,7 @@ def delete_modules():
                                 break
                         if not will_be_deleted:
                             delete_module = False
-                            current_app.logger.error('{}@{} module has reference in another module submodule: {}@{}'
+                            app.logger.error('{}@{} module has reference in another module submodule: {}@{}'
                                                .format(mod.get('name'), mod.get('revision'),
                                                        existing_module.get('name'), existing_module.get('revision')))
         if delete_module:
@@ -253,14 +254,14 @@ def delete_modules():
                  yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
     if len(unavailable_modules) > 0:
         payload['skipped'] = unavailable_modules
     return make_response(jsonify(payload), 202)
 
 
-@app.route('/vendors/<path:value>', methods=['DELETE'])
+@bp.route('/vendors/<path:value>', methods=['DELETE'])
 @auth.login_required
 def delete_vendor(value):
     """Delete a specific vendor defined with path. This is not done right away but it
@@ -272,9 +273,9 @@ def delete_vendor(value):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    current_app.logger.info('Deleting vendor on path {}'.format(value))
+    app.logger.info('Deleting vendor on path {}'.format(value))
     username = request.authorization['username']
-    current_app.logger.debug('Checking authorization for user {}'.format(username))
+    app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
@@ -327,11 +328,11 @@ def delete_vendor(value):
                  yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
-@app.route('/modules', methods=['PUT', 'POST'])
+@bp.route('/modules', methods=['PUT', 'POST'])
 @auth.login_required
 def add_modules():
     """Add a new module. Use PUT request when we want to update every module there is
@@ -355,7 +356,7 @@ def add_modules():
     if module_list is None:
         return abort(400, description='bad request - "module" json list is missing and is mandatory')
 
-    current_app.logger.info('Adding modules with body {}'.format(body))
+    app.logger.info('Adding modules with body {}'.format(body))
     tree_created = False
 
     with open('./prepare-sdo.json', "w") as plat:
@@ -397,7 +398,7 @@ def add_modules():
             raise
     repo_url_dir_branch = {}
     for mod in module_list:
-        current_app.logger.info('{}'.format(mod))
+        app.logger.info('{}'.format(mod))
         sdo = mod.get('source-file')
         if sdo is None:
             return abort(400,
@@ -436,7 +437,7 @@ def add_modules():
 
         repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
         if repo_url not in repo:
-            current_app.logger.info('Downloading repo {}'.format(repo_url))
+            app.logger.info('Downloading repo {}'.format(repo_url))
             try:
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
@@ -515,13 +516,13 @@ def add_modules():
     for key in repo:
         repo[key].remove()
 
-    current_app.logger.debug('Sending a new job')
+    app.logger.debug('Sending a new job')
     populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../parseAndPopulate/populate.py")
     arguments = ["python", populate_path, "--sdo", "--port", repr(yc_gc.confdPort), "--dir", direc, "--api",
                  "--ip", yc_gc.confd_ip, "--credentials", yc_gc.credentials[0], yc_gc.credentials[1],
                  repr(tree_created), yc_gc.protocol, yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     if len(warning) > 0:
         return jsonify({'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val}
                                                                                           for val in warning]})
@@ -529,7 +530,7 @@ def add_modules():
         return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
-@app.route('/platforms', methods=['PUT', 'POST'])
+@bp.route('/platforms', methods=['PUT', 'POST'])
 @auth.login_required
 def add_vendors():
     """Add a new vendors. Use PUT request when we want to update every module there is
@@ -554,7 +555,7 @@ def add_vendors():
     if platform_list is None:
         return abort(400, description='bad request - "platform" json list is missing and is mandatory')
 
-    current_app.logger.info('Adding vendor with body {}'.format(body))
+    app.logger.info('Adding vendor with body {}'.format(body))
     tree_created = False
     resolved_authorization = authorize_for_vendors(request, body)
     if 'passed' != resolved_authorization:
@@ -621,7 +622,7 @@ def add_vendors():
         repo_url = '{}{}/{}'.format(url, owner, repository)
 
         if repo_url not in repo:
-            current_app.logger.info('Downloading repo {}'.format(repo_url))
+            app.logger.info('Downloading repo {}'.format(repo_url))
             try:
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
@@ -662,7 +663,7 @@ def add_vendors():
                  repr(tree_created), yc_gc.integrity_file_location, yc_gc.protocol,
                  yc_gc.api_protocol, repr(yc_gc.api_port)]
     job_id = yc_gc.sender.send('#'.join(arguments))
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
 
@@ -675,7 +676,7 @@ def authorize_for_vendors(request, body):
                     :return whether authorization passed.
     """
     username = request.authorization['username']
-    current_app.logger.info('Checking vendor authorization for user {}'.format(username))
+    app.logger.info('Checking vendor authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
@@ -722,7 +723,7 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
                 :return whether authorization passed.
     """
     username = request.authorization['username']
-    current_app.logger.info('Checking sdo authorization for user {}'.format(username))
+    app.logger.info('Checking sdo authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
 
     passed = False
@@ -737,12 +738,12 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
     return passed
 
 
-@app.route('/job/<job_id>', methods=['GET'])
+@bp.route('/job/<job_id>', methods=['GET'])
 def get_job(job_id):
     """Search for a job_id to see the process of the job
                 :return response to the request with the job
     """
-    current_app.logger.info('Searching for job_id {}'.format(job_id))
+    app.logger.info('Searching for job_id {}'.format(job_id))
     # EVY result = application.sender.get_response(job_id)
     result = yc_gc.sender.get_response(job_id)
     split = result.split('#split#')
@@ -777,6 +778,6 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
         if result:
             return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
     except SQLAlchemyError as err:
-        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     return accessRigths

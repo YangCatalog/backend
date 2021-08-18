@@ -70,14 +70,13 @@ from sqlalchemy.ext.declarative import DeferredReflection
 
 from api.authentication.auth import auth, get_password, hash_pw
 from api.sender import Sender
-from api.views.errorHandlers.errorHandler import app as error_handling_app
-from api.views.healthCheck.healthCheck import app as healthcheck_app
+from api.views.errorHandlers.errorHandler import bp as error_handling_bp
+from api.views.healthCheck.healthCheck import bp as healthcheck_bp
 from api.views.userSpecificModuleMaintenace.moduleMaintanace import \
-    app as user_maintenance_app
-from api.views.yangSearch.yangSearch import app as yang_search_app
-from api.views.ycJobs.ycJobs import app as jobs_app
-from api.views.ycSearch.ycSearch import app as search_app
-from api.views.healthCheck.healthCheck import app as healthcheck_app
+    bp as user_maintenance_bp
+from api.views.yangSearch.yangSearch import bp as yang_search_bp
+from api.views.ycJobs.ycJobs import bp as jobs_bp
+from api.views.ycSearch.ycSearch import bp as search_bp
 from api.models import User, TempUser
 
 
@@ -506,16 +505,16 @@ if discovered_secrets is not None:
     create_secrets(discovered_secrets)
 
 ac.oidc.init_app(application)
-from api.views.admin.admin import app as admin_app
+from api.views.admin.admin import bp as admin_bp
 
 # Register blueprint(s)
-application.register_blueprint(admin_app)
-application.register_blueprint(error_handling_app, url_prefix="/api")
-application.register_blueprint(user_maintenance_app, url_prefix="/api")
-application.register_blueprint(jobs_app, url_prefix="/api")
-application.register_blueprint(search_app, url_prefix="/api")
-application.register_blueprint(healthcheck_app, url_prefix="/api/admin/healthcheck")
-application.register_blueprint(yang_search_app, url_prefix="/api/yang-search/v2")
+application.register_blueprint(admin_bp)
+application.register_blueprint(error_handling_bp, url_prefix="/api")
+application.register_blueprint(user_maintenance_bp, url_prefix="/api")
+application.register_blueprint(jobs_bp, url_prefix="/api")
+application.register_blueprint(search_bp, url_prefix="/api")
+application.register_blueprint(healthcheck_bp, url_prefix="/api/admin/healthcheck")
+application.register_blueprint(yang_search_bp, url_prefix="/api/yang-search/v2")
 
 CORS(application, supports_credentials=True)
 #csrf = CSRFProtect(application)

@@ -36,7 +36,8 @@ from functools import wraps
 from sqlalchemy.exc import SQLAlchemyError
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, redirect, request, current_app
+from flask import current_app as app
+from flask import Blueprint, abort, jsonify, redirect, request
 from flask_cors import CORS
 from api.models import Base, User, TempUser
 
@@ -49,8 +50,8 @@ class YangCatalogAdminBlueprint(Blueprint):
                          url_defaults, root_path)
 
 
-app = YangCatalogAdminBlueprint('admin', __name__)
-CORS(app, supports_credentials=True)
+bp = YangCatalogAdminBlueprint('admin', __name__)
+CORS(bp, supports_credentials=True)
 db = yc_gc.sqlalchemy
 
 
@@ -60,7 +61,7 @@ def catch_db_error(f):
         try:
             return f(*args, **kwargs)
         except SQLAlchemyError as err:
-            current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+            app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
             return ({'error': 'Server problem connecting to database'}, 500)
     
     return df
@@ -69,9 +70,9 @@ def catch_db_error(f):
 ### ROUTE ENDPOINT DEFINITIONS ###
 
 
-@app.route('/api/admin/login')
-@app.route('/admin')
-@app.route('/admin/login')
+@bp.route('/api/admin/login')
+@bp.route('/admin')
+@bp.route('/admin/login')
 @yc_gc.oidc.require_login
 def login():
     if yc_gc.oidc.user_loggedin:
@@ -80,26 +81,26 @@ def login():
         abort(401, 'user not logged in')
 
 
-@app.route('/api/admin/logout', methods=['POST'])
+@bp.route('/api/admin/logout', methods=['POST'])
 def logout():
     yc_gc.oidc.logout()
     return {'info': 'Success'}
 
 
-@app.route('/api/admin/ping')
+@bp.route('/api/admin/ping')
 def ping():
-    current_app.logger.info('ping {}'.format(yc_gc.oidc.user_loggedin))
+    app.logger.info('ping {}'.format(yc_gc.oidc.user_loggedin))
     return {'info': 'Success'}
 
 
-@app.route('/api/admin/check', methods=['GET'])
+@bp.route('/api/admin/check', methods=['GET'])
 def check():
     return {'info': 'Success'}
 
 
-@app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
+@bp.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
-    current_app.logger.info('Reading admin file {}'.format(direc))
+    app.logger.info('Reading admin file {}'.format(direc))
     if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
         with open('{}/{}'.format(yc_gc.var_yang, direc), 'r') as f:
             processed_file = f.read()
@@ -110,10 +111,10 @@ def read_admin_file(direc):
         abort(400, description='error - file does not exist')
 
 
-@app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
-@app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
+@bp.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
+@bp.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
-    current_app.logger.info('Deleting admin file {}'.format(direc))
+    app.logger.info('Deleting admin file {}'.format(direc))
     if os.path.exists('{}/{}'.format(yc_gc.var_yang, direc)):
         if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
             os.unlink('{}/{}'.format(yc_gc.var_yang, direc))
@@ -126,9 +127,9 @@ def delete_admin_file(direc):
         abort(400, description='error - file or folder does not exist')
 
 
-@app.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
+@bp.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    current_app.logger.info("Updating file on path {}".format(direc))
+    app.logger.info("Updating file on path {}".format(direc))
 
     body = get_input(request.json)
     if 'data' not in body:
@@ -145,8 +146,8 @@ def write_to_directory_structure(direc):
         abort(400, description='error - file does not exist')
 
 
-@app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['GET'])
-@app.route('/api/admin/directory-structure/<path:direc>', methods=['GET'])
+@bp.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['GET'])
+@bp.route('/api/admin/directory-structure/<path:direc>', methods=['GET'])
 def get_var_yang_directory_structure(direc):
 
     def walk_through_dir(path):
@@ -189,7 +190,7 @@ def get_var_yang_directory_structure(direc):
             structure['folders'].append(dir_structure)
         return structure
 
-    current_app.logger.info('Getting directory structure')
+    app.logger.info('Getting directory structure')
 
     ret = walk_through_dir('/var/yang/{}'.format(direc))
     response = {'info': 'Success',
@@ -197,9 +198,9 @@ def get_var_yang_directory_structure(direc):
     return response
 
 
-@app.route('/api/admin/yangcatalog-nginx', methods=['GET'])
+@bp.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
-    current_app.logger.info('Getting list of nginx files')
+    app.logger.info('Getting list of nginx files')
     files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
     files_final = ['sites-enabled/' + sub for sub in files]
     files_final.append('nginx.conf')
@@ -210,9 +211,9 @@ def read_yangcatalog_nginx_files():
     return response
 
 
-@app.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
+@bp.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
-    current_app.logger.info('Reading nginx file {}'.format(nginx_file))
+    app.logger.info('Reading nginx file {}'.format(nginx_file))
     with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
         nginx_config = f.read()
     response = {'info': 'Success',
@@ -220,9 +221,9 @@ def read_yangcatalog_nginx(nginx_file):
     return response
 
 
-@app.route('/api/admin/yangcatalog-config', methods=['GET'])
+@bp.route('/api/admin/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
-    current_app.logger.info('Reading yangcatalog config file')
+    app.logger.info('Reading yangcatalog config file')
 
     with open(yc_gc.config_path, 'r') as f:
         yangcatalog_config = f.read()
@@ -231,9 +232,9 @@ def read_yangcatalog_config():
     return response
 
 
-@app.route('/api/admin/yangcatalog-config', methods=['PUT'])
+@bp.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
-    current_app.logger.info('Updating yangcatalog config file')
+    app.logger.info('Updating yangcatalog config file')
     body = get_input(request.json)
     if 'data' not in body:
         abort(400, description='"data" must be specified')
@@ -256,7 +257,7 @@ def update_yangcatalog_config():
     return response
 
 
-@app.route('/api/admin/logs', methods=['GET'])
+@bp.route('/api/admin/logs', methods=['GET'])
 def get_log_files():
 
     def find_files(directory, pattern):
@@ -266,7 +267,7 @@ def get_log_files():
                     filename = os.path.join(root, basename)
                     yield filename
 
-    current_app.logger.info('Getting yangcatalog log files')
+    app.logger.info('Getting yangcatalog log files')
 
     files = find_files(yc_gc.logs_dir, '*.log*')
     resp = set()
@@ -378,11 +379,11 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
     return send_out
 
 
-@app.route('/api/admin/logs', methods=['POST'])
+@bp.route('/api/admin/logs', methods=['POST'])
 def get_logs():
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
     time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-    current_app.logger.info('Reading yangcatalog log file')
+    app.logger.info('Reading yangcatalog log file')
     body = get_input(request.json)
 
     number_of_lines_per_page = body.get('lines-per-page', 1000)
@@ -397,7 +398,7 @@ def get_logs():
     if from_date_timestamp is None:
         from_date_timestamp = find_timestamp(log_files[0], date_regex, time_regex)
 
-    current_app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
+    app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
@@ -424,7 +425,7 @@ def get_logs():
     return response
 
 
-@app.route('/api/admin/sql-tables', methods=['GET'])
+@bp.route('/api/admin/sql-tables', methods=['GET'])
 def get_sql_tables():
     return jsonify([
         {
@@ -438,7 +439,7 @@ def get_sql_tables():
     ])
 
 
-@app.route('/api/admin/move-user', methods=['POST'])
+@bp.route('/api/admin/move-user', methods=['POST'])
 @catch_db_error
 def move_user():
     body = get_input(request.json)
@@ -471,7 +472,7 @@ def move_user():
     return (response, 201)
 
 
-@app.route('/api/admin/sql-tables/<table>', methods=['POST'])
+@bp.route('/api/admin/sql-tables/<table>', methods=['POST'])
 @catch_db_error
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
@@ -502,7 +503,7 @@ def create_sql_row(table):
     return (response, 201)
 
 
-@app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
+@bp.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
 @catch_db_error
 def delete_sql_row(table, unique_id):
     if table not in ['users', 'users_temp']:
@@ -517,7 +518,7 @@ def delete_sql_row(table, unique_id):
         abort(404, description='id {} not found in table {}'.format(unique_id, table))
 
 
-@app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
+@bp.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
 @catch_db_error
 def update_sql_row(table, unique_id):
     if table not in ['users', 'users_temp']:
@@ -537,13 +538,13 @@ def update_sql_row(table, unique_id):
             abort(400, description='username and email must be specified')
         db.session.commit()
     if user:
-        current_app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
+        app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return {'info': 'ID {} updated successfully'.format(unique_id)}
     else:
         abort(404, description='ID {} not found in table {}'.format(unique_id, table))
 
 
-@app.route('/api/admin/sql-tables/<table>', methods=['GET'])
+@bp.route('/api/admin/sql-tables/<table>', methods=['GET'])
 @catch_db_error
 def get_sql_rows(table):
     model = get_class_by_tablename(table)
@@ -562,7 +563,7 @@ def get_sql_rows(table):
     return jsonify(ret)
 
 
-@app.route('/api/admin/scripts/<script>', methods=['GET'])
+@bp.route('/api/admin/scripts/<script>', methods=['GET'])
 def get_script_details(script):
     module_name = get_module_name(script)
     if module_name is None:
@@ -579,7 +580,7 @@ def get_script_details(script):
     return response
 
 
-@app.route('/api/admin/scripts/<script>', methods=['POST'])
+@bp.route('/api/admin/scripts/<script>', methods=['POST'])
 def run_script_with_args(script):
     module_name = get_module_name(script)
     if module_name is None:
@@ -596,18 +597,18 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = yc_gc.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
-@app.route('/api/admin/scripts', methods=['GET'])
+@bp.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
 
-@app.route('/api/admin/disk-usage', methods=['GET'])
+@bp.route('/api/admin/disk-usage', methods=['GET'])
 def get_disk_usage():
     total, used, free = shutil.disk_usage('/')
     usage = {}

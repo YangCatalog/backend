@@ -24,8 +24,8 @@ import re
 import utility.log as log
 from api.globalConfig import yc_gc
 from api.views.yangSearch.elkSearch import ElkSearch
-from flask import (Blueprint, abort, current_app, jsonify, make_response,
-                   request)
+from flask import current_app as app
+from flask import Blueprint, abort, jsonify, make_response, request
 from pyang import plugin
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
@@ -84,11 +84,11 @@ class YangSearch(Blueprint):
             }
 
 
-app = YangSearch('yangSearch', __name__)
+bp = YangSearch('yangSearch', __name__)
 
 
 # ROUTE ENDPOINT DEFINITIONS
-@app.route('/tree/<module_name>', methods=['GET'])
+@bp.route('/tree/<module_name>', methods=['GET'])
 def tree_module(module_name):
     """
     Generates yang tree view of the module.
@@ -98,7 +98,7 @@ def tree_module(module_name):
     return tree_module_revision(module_name, None)
 
 
-@app.route('/tree/<module_name>@<revision>', methods=['GET'])
+@bp.route('/tree/<module_name>@<revision>', methods=['GET'])
 def tree_module_revision(module_name, revision):
     """
     Generates yang tree view of the module.
@@ -202,12 +202,12 @@ def tree_module_revision(module_name, revision):
     return make_response(jsonify(response), 200)
 
 
-@app.route('/impact-analysis', methods=['POST'])
+@bp.route('/impact-analysis', methods=['POST'])
 def impact_analysis():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    app.LOGGER.info('Running impact analysis with following payload {}'.format(payload))
+    bp.LOGGER.info('Running impact analysis with following payload {}'.format(payload))
     name = payload.get('name')
     revision = payload.get('revision')
     allowed_organizations = payload.get('organizations', [])
@@ -222,7 +222,7 @@ def impact_analysis():
     response = {}
 
     searched_module = module_details(name, revision, True)['metadata']
-    app.LOGGER.info('{}'.format(searched_module))
+    bp.LOGGER.info('{}'.format(searched_module))
     response['name'] = searched_module['name']
     response['revision'] = searched_module['revision']
     response['organization'] = searched_module['organization']
@@ -245,12 +245,12 @@ def impact_analysis():
     return make_response(jsonify(response), 200)
 
 
-@app.route('/search', methods=['POST'])
+@bp.route('/search', methods=['POST'])
 def search():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    app.LOGGER.info('Running search with following payload {}'.format(payload))
+    bp.LOGGER.info('Running search with following payload {}'.format(payload))
     searched_term = payload.get('searched-term')
     if searched_term is None or searched_term == '' or len(searched_term) < 2 or not isinstance(searched_term, str):
         abort(400, description='You have to write "searched-term" key containing at least 2 characters')
@@ -300,7 +300,7 @@ def search():
     return make_response(jsonify(response), 200)
 
 
-@app.route('/completions/<type>/<pattern>', methods=['GET'])
+@bp.route('/completions/<type>/<pattern>', methods=['GET'])
 def get_services_list(type: str, pattern: str):
     """
     Provides auto-completions for search bars on web pages impact_analysis
@@ -330,12 +330,12 @@ def get_services_list(type: str, pattern: str):
                 res.append(row['key'])
 
     except:
-        app.LOGGER.exception("Failed to get completions result")
+        bp.LOGGER.exception("Failed to get completions result")
         return make_response(jsonify(res), 400)
     return make_response(jsonify(res), 200)
 
 
-@app.route('/show-node/<name>/<path:path>', methods=['GET'])
+@bp.route('/show-node/<name>/<path:path>', methods=['GET'])
 def show_node(name, path):
     """
     View for show_node page, which provides context for show_node.html
@@ -347,7 +347,7 @@ def show_node(name, path):
     return show_node_with_revision(name, path, None)
 
 
-@app.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
+@bp.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
 def show_node_with_revision(name, path, revision):
     """
     View for show_node page, which provides context for show_node.html
@@ -358,7 +358,7 @@ def show_node_with_revision(name, path, revision):
     :return: returns json to show node
     """
     properties = []
-    current_app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
+    app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
         with open(get_curr_dir(__file__) + '/../../json/es/show_node.json', 'r') as f:
@@ -371,7 +371,7 @@ def show_node_with_revision(name, path, revision):
             abort(400, description='You must specify a "path" argument')
 
         if revision is None:
-            app.LOGGER.warning("Revision not submitted getting latest")
+            bp.LOGGER.warning("Revision not submitted getting latest")
 
         if not revision:
             revision = get_latest_module(name)
@@ -389,7 +389,7 @@ def show_node_with_revision(name, path, revision):
     return make_response(jsonify(properties), 200)
 
 
-@app.route('/module-details/<module>', methods=['GET'])
+@bp.route('/module-details/<module>', methods=['GET'])
 def module_details_no_revision(module: str):
     """
     Search for data saved in our datastore (confd/redis) based on specific module with no revision.
@@ -399,7 +399,7 @@ def module_details_no_revision(module: str):
     return module_details(module, None)
 
 
-@app.route('/module-details/<module>@<revision>', methods=['GET'])
+@bp.route('/module-details/<module>@<revision>', methods=['GET'])
 def module_details(module: str, revision: str, json_data=False, warnings=False):
     """
     Search for data saved in our datastore (confd/redis) based on specific module with some revision.
@@ -434,7 +434,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
 
     # get module from redis
     module_index = "{}@{}/{}".format(module, revision, organization)
-    app.LOGGER.info('searching for module {}'.format(module_index))
+    bp.LOGGER.info('searching for module {}'.format(module_index))
     module_data = yc_gc.redis.get(module_index)
     if module_data is None:
         if warnings:
@@ -451,7 +451,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
         return make_response(jsonify(resp), 200)
 
 
-@app.route('/yang-catalog-help', methods=['GET'])
+@bp.route('/yang-catalog-help', methods=['GET'])
 def get_yang_catalog_help():
     """
     Iterate through all the different descriptions of the yang-catalog yang module and provide
@@ -513,7 +513,7 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
     if module_details_data.get(last_path_data):
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
     else:
-        module_details_data[last_path_data] = {'ordering': app.order.get(last_path_data, '')}
+        module_details_data[last_path_data] = {'ordering': bp.order.get(last_path_data, '')}
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
 
 
@@ -556,7 +556,7 @@ def get_modules_revision_organization(module_name, revision=None, warnings=False
             revisions.append(hit['revision'])
         return revisions, organization
     except Exception as e:
-        app.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
+        bp.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
         if warnings:
             return {'warning': 'Failed to find module {}@{} in elasticsearch'.format(module_name, revision)}
         else:
@@ -575,7 +575,7 @@ def get_latest_module(module_name):
         rev_org = yc_gc.es.search(index='modules', doc_type='modules', body=query)['hits']['hits'][0]['_source']
         return rev_org['revision']
     except Exception as e:
-        app.LOGGER.exception('Failed to get revision for {}'.format(module_name))
+        bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))
         abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
 
 
@@ -670,7 +670,7 @@ def eachKeyIsOneOf(payload, payload_key, keys):
 
 
 def get_module_data(module_index):
-    app.LOGGER.info('searching for module {}'.format(module_index))
+    bp.LOGGER.info('searching for module {}'.format(module_index))
     module_data = yc_gc.redis.get(module_index)
     if module_data is None:
         abort(404, description='Provided module does not exist')
@@ -789,7 +789,7 @@ def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_or
         module_detail = module_detail['metadata']
     module_type = module_detail.get('module-type', '')
     if module_type == '':
-        app.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
+        bp.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
                                                                                 module_detail.get('revision')))
     if module_type == 'submodule' and not submodules_allowed:
         return None
