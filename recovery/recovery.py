@@ -41,12 +41,8 @@ import requests
 import utility.log as log
 from dateutil.parser import parse
 from requests import ConnectionError
+from utility.create_config import create_config
 from utility.util import job_log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
@@ -58,10 +54,7 @@ class ScriptConfig:
                     'file with name that would be set as a argument or it will be set to ' \
                     'a current time and date. Load will read the file and make a PUT request ' \
                     'to write all data to yangcatalog.org. This runs as a daily cronjob to save latest state of confd'
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__confd_port = config.get('Web-Section', 'confd-port')

@@ -39,6 +39,7 @@ import os
 import smtplib
 import sys
 from email.mime.text import MIMEText
+from utility.create_config import create_config
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
@@ -50,15 +51,11 @@ import utility.log as log
 from utility.repoutil import pull
 from api.models import Base, User, TempUser
 
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 class ScriptConfig:
     def __init__(self):
         parser = argparse.ArgumentParser(description="Script to validate user and add him to database")
-        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         parser.add_argument('--vendor-access', action='store_true', default=False, help='If user need vendor access')
         parser.add_argument('--vendor-path', type=str, default='', help='What is vendor branch of user')
@@ -233,10 +230,7 @@ def main(scriptConf=None):
     user_email = args.user_email
 
     config_path = args.config_path
-
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     global USE_LOGGER
     if vendor_access is False:

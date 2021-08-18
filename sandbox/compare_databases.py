@@ -9,7 +9,6 @@ Search and scroll all the documents in the 'modules' index and check whether thi
 is also stored in Redis database
 Finally, all the information are dumped into json file, so they can be reviewed later.
 """
-import configparser as ConfigParser
 import json
 import os
 
@@ -17,6 +16,7 @@ import redis
 import utility.log as log
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
+from utility.create_config import create_config
 from utility.util import fetch_module_by_schema
 
 
@@ -63,10 +63,7 @@ def check_module_in_redis(hits: list):
 
 
 if __name__ == '__main__':
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
     redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
     es_aws = config.get('DB-Section', 'es-aws', fallback=False)

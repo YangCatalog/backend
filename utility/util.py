@@ -18,7 +18,6 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import configparser as ConfigParser
 import fnmatch
 import json
 import optparse
@@ -36,6 +35,7 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
 from utility.yangParser import create_context
 
@@ -408,10 +408,7 @@ def get_module_from_es(name: str, revision: str):
         :param name         (str) name of the module
         :param revision     (str) revision of the module in format YYYY-MM-DD
     """
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     es_aws = config.get('DB-Section', 'es-aws', fallback=False)
     es_host = config.get('DB-Section', 'es-host', fallback='localhost')
     es_port = config.get('DB-Section', 'es-port', fallback='9200')

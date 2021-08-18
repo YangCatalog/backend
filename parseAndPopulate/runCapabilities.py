@@ -34,16 +34,12 @@ import sys
 import time
 
 import utility.log as log
+from utility.create_config import create_config
 
 from parseAndPopulate import integrity
 from parseAndPopulate.capability import Capability
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.prepare import Prepare
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
@@ -72,7 +68,7 @@ class ScriptConfig:
         parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
                             help='Set ip address where the api is started. Default -> yangcatalog.org')
         parser.add_argument('--config-path', type=str,
-                            default='/etc/yangcatalog/yangcatalog.conf',
+                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
 
         self.args, extra_args = parser.parse_known_args()
@@ -126,9 +122,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(log_directory))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')

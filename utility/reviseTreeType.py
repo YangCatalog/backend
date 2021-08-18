@@ -24,7 +24,6 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
-import configparser as ConfigParser
 import os
 import time
 
@@ -33,6 +32,7 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
 import utility.log as log
+from utility.create_config import create_config
 from utility.util import job_log
 
 
@@ -41,10 +41,7 @@ class ScriptConfig:
     def __init__(self):
         self.help = 'Resolve the tree-type for modules that are no longer the latest revision. ' \
                     'Runs as a daily cronjob.'
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))

@@ -53,13 +53,8 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
 from utility import messageFactory
 
 from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
-
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class Receiver:
@@ -455,9 +450,7 @@ class Receiver:
             return self.__response_type[0]
 
     def load_config(self):
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.__config_path)
+        config = create_config(self.__config_path)
         self.__log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
         self.LOGGER.info('reloading config')
@@ -690,7 +683,7 @@ class Receiver:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args, extra_args = parser.parse_known_args()
     config_path = args.config_path

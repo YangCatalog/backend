@@ -46,13 +46,9 @@ import jinja2
 import requests
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.create_config import create_config
 from utility.staticVariables import json_headers
 from utility.util import find_first_file, get_curr_dir, job_log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 NS_MAP = {
     "http://cisco.com/": "cisco",
@@ -71,7 +67,7 @@ class ScriptConfig:
                     'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily' \
                     ' cronjob'
         parser = argparse.ArgumentParser()
-        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -338,9 +334,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     protocol = config.get('General-Section', 'protocol-api')
     api_ip = config.get('Web-Section', 'ip')
     api_port = config.get('Web-Section', 'api-port')
