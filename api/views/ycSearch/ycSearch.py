@@ -47,6 +47,7 @@ class YcSearch(Blueprint):
 
 
 bp = YcSearch('ycSearch', __name__)
+ac = None
 
 @bp.before_request
 def set_config():
