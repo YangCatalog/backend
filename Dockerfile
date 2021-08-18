@@ -31,6 +31,12 @@ RUN groupadd -g ${YANG_GID} -r yang \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
 
+WORKDIR $VIRTUAL_ENV
+RUN git clone https://github.com/slatedocs/slate.git
+WORKDIR $VIRTUAL_ENV/slate
+RUN bundle install
+RUN bundle exec middleman build --clean
+
 COPY ./backend $VIRTUAL_ENV
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
@@ -67,8 +73,6 @@ RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 
 USER ${YANG_ID}:${YANG_GID}
 
-RUN git clone https://github.com/slatedocs/slate.git
-
 WORKDIR $VIRTUAL_ENV/slate
 
 RUN rm -rf source
@@ -80,10 +84,6 @@ WORKDIR $VIRTUAL_ENV
 RUN crontab /etc/cron.d/yang-cron
 
 USER root:root
-WORKDIR $VIRTUAL_ENV/slate
-RUN bundle install
-RUN bundle exec middleman build --clean
-WORKDIR $VIRTUAL_ENV
 RUN mkdir -p /usr/share/nginx/html/stats
 RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 RUN chown -R yang:yang /usr/share/nginx
