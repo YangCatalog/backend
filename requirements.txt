@@ -5,7 +5,7 @@ configparser==5.0.2
 requests==2.25.1
 jinja2==3.0.1
 pyang==2.5.0
-GitPython==3.1.17
+GitPython==3.1.18
 ciscosparkapi==0.10.1
 mysqlclient==2.0.3
 pika==1.2.0
