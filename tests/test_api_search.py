@@ -1097,7 +1097,8 @@ class TestApiSearchClass(unittest.TestCase):
         """
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
-        result = search_bp.modules_data()
+        with app.app_context():
+            result = search_bp.modules_data()
 
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
@@ -1109,7 +1110,8 @@ class TestApiSearchClass(unittest.TestCase):
         """
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
-        result = search_bp.vendors_data()
+        with app.app_context():
+            result = search_bp.vendors_data()
 
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
@@ -1121,7 +1123,8 @@ class TestApiSearchClass(unittest.TestCase):
         """
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
-        result = search_bp.catalog_data()
+        with app.app_context():
+            result = search_bp.catalog_data()
 
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
