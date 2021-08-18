@@ -112,7 +112,7 @@ class MyFlask(Flask):
 
     def load_config(self):
         self.init_config()
-        self.config.from_file('/etc/yangcatalog/yangcatalog.conf', load=self.config_reader)
+        self.config.from_file(os.environ['YANGCATALOG_CONFIG_PATH'], load=self.config_reader)
         self.setup_logger()
         self.post_config_load()
 
