@@ -59,7 +59,12 @@ class UserSpecificModuleMaintenance(Blueprint):
 
 
 bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
-db = yc_gc.sqlalchemy
+
+@bp.before_request
+def set_config():
+    global ac, db
+    ac = app.config
+    db = ac.sqlalchemy
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
@@ -117,11 +122,11 @@ def delete_module(name: str, revision: str, organization: str):
     app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
 
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
         confd_prefix, name, revision, organization)
     response = requests.get(url,
-                            auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
+                            auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]),
                             headers=confd_headers)
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
@@ -134,7 +139,7 @@ def delete_module(name: str, revision: str, organization: str):
     if read['yang-catalog:module'][0].get('implementations') is not None:
         return abort(400, description='This module has reference in vendors branch')
 
-    all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
+    all_mods = requests.get('{}search/modules'.format(ac.yangcatalog_api_prefix)).json()
 
     for existing_module in all_mods['module']:
         if existing_module.get('dependencies') is not None:
@@ -152,9 +157,9 @@ def delete_module(name: str, revision: str, organization: str):
     path_to_delete = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
         confd_prefix, name, revision, organization)
 
-    arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = [ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port, ac.s_confd_credentials[0],
+                 ac.s_confd_credentials[1], path_to_delete, 'DELETE', ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
 
     app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
@@ -185,12 +190,12 @@ def delete_modules():
     accessRigths = get_user_access_rights(username)
 
     unavailable_modules = []
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     for mod in modules:
         url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
             confd_prefix, mod['name'], mod['revision'], mod['organization'])
         response = requests.get(url,
-                                auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
+                                auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]),
                                 headers=confd_headers)
         if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
             # If admin, then possible to delete this module from other's modules dependents
@@ -205,7 +210,7 @@ def delete_modules():
         if read['yang-catalog:module'][0].get('implementations') is not None:
             unavailable_modules.append(mod)
 
-    all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
+    all_mods = requests.get('{}search/modules'.format(ac.yangcatalog_api_prefix)).json()
     modules_to_delete = {'modules': []}
     # Filter out unavailble modules
     modules = [x for x in modules if x not in unavailable_modules]
@@ -249,10 +254,10 @@ def delete_modules():
 
     path_to_delete = json.dumps(modules_to_delete)
 
-    arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE_MULTIPLE',
-                 yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = [ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port, ac.s_confd_credentials[0],
+                 ac.s_confd_credentials[1], path_to_delete, 'DELETE_MULTIPLE',
+                 ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
 
     app.logger.info('job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
@@ -294,7 +299,7 @@ def delete_vendor(value):
         if len(rights) > 3:
             check_software_flavor = rights[3]
 
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     path_to_delete = '{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(confd_prefix, value)
 
     vendor = 'None'
@@ -323,10 +328,10 @@ def delete_vendor(value):
     if check_vendor and vendor != check_vendor:
         return abort(401, description="User not authorized to supply data for this vendor")
 
-    arguments = [vendor, platform, software_version, software_flavor, yc_gc.protocol, yc_gc.confd_ip,
-                 repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = [vendor, platform, software_version, software_flavor, ac.g_protocol_confd, ac.w_confd_ip,
+                 ac.w_confd_port, ac.s_confd_credentials[0],
+                 ac.s_confd_credentials[1], path_to_delete, 'DELETE', ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
 
     app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
@@ -361,13 +366,13 @@ def add_modules():
 
     with open('./prepare-sdo.json', "w") as plat:
         json.dump(body, plat)
-    shutil.copy('./prepare-sdo.json', yc_gc.save_requests + '/sdo-'
+    shutil.copy('./prepare-sdo.json', ac.d_save_requests + '/sdo-'
                 + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
 
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     path = '{}/restconf/data/module-metadata:modules'.format(confd_prefix)
 
-    str_to_encode = '%s:%s' % (yc_gc.credentials[0], yc_gc.credentials[1])
+    str_to_encode = '%s:%s' % (ac.s_confd_credentials[0], ac.s_confd_credentials[1])
     if sys.version_info >= (3, 4):
         str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
     base64string = base64.b64encode(str_to_encode)
@@ -385,11 +390,11 @@ def add_modules():
 
     direc = 0
     while True:
-        if os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
+        if os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
             direc += 1
         else:
             break
-    direc = '{}/{}'.format(yc_gc.temp_dir, direc)
+    direc = '{}/{}'.format(ac.d_temp, direc)
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -415,12 +420,12 @@ def add_modules():
             return abort(400,
                          description='bad request - at least one of modules "revision" is missing and is mandatory')
         if request.method == 'POST':
-            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(yc_gc.protocol,
-                                                                                                  yc_gc.confd_ip,
-                                                                                                  yc_gc.confdPort,
+            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(ac.g_protocol_confd,
+                                                                                                  ac.w_confd_ip,
+                                                                                                  ac.w_confd_port,
                                                                                                   mod_name,
                                                                                                   mod_revision, orgz)
-            response = requests.get(path, auth=(yc_gc.credentials[0], yc_gc.credentials[1]),
+            response = requests.get(path, auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]),
                                     headers=confd_headers)
             if response.status_code != 404:
                 continue
@@ -518,10 +523,10 @@ def add_modules():
 
     app.logger.debug('Sending a new job')
     populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../parseAndPopulate/populate.py")
-    arguments = ["python", populate_path, "--sdo", "--port", repr(yc_gc.confdPort), "--dir", direc, "--api",
-                 "--ip", yc_gc.confd_ip, "--credentials", yc_gc.credentials[0], yc_gc.credentials[1],
-                 repr(tree_created), yc_gc.protocol, yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = ["python", populate_path, "--sdo", "--port", ac.w_confd_port, "--dir", direc, "--api",
+                 "--ip", ac.w_confd_ip, "--credentials", ac.s_confd_credentials[0], ac.s_confd_credentials[1],
+                 repr(tree_created), ac.g_protocol_confd, ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('job_id {}'.format(job_id))
     if len(warning) > 0:
         return jsonify({'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val}
@@ -560,14 +565,14 @@ def add_vendors():
     resolved_authorization = authorize_for_vendors(request, body)
     if 'passed' != resolved_authorization:
         return resolved_authorization
-    with open(yc_gc.save_requests + '/vendor-' + str(datetime.utcnow()).split('.')[0].replace(' ', '_') +
+    with open(ac.d_save_requests + '/vendor-' + str(datetime.utcnow()).split('.')[0].replace(' ', '_') +
               '-UTC.json', "w") as plat:
         json.dump(body, plat)
 
-    path = '{}://{}:{}/restconf/data/platform-implementation-metadata:platforms'.format(yc_gc.protocol, yc_gc.confd_ip,
-                                                                                        yc_gc.confdPort)
+    path = '{}://{}:{}/restconf/data/platform-implementation-metadata:platforms'.format(ac.g_protocol_confd, ac.w_confd_ip,
+                                                                                        ac.w_confd_port)
 
-    str_to_encode = '%s:%s' % (yc_gc.credentials[0], yc_gc.credentials[1])
+    str_to_encode = '%s:%s' % (ac.s_confd_credentials[0], ac.s_confd_credentials[1])
     if sys.version_info >= (3, 4):
         str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
     base64string = base64.b64encode(str_to_encode)
@@ -585,11 +590,11 @@ def add_vendors():
 
     direc = 0
     while True:
-        if os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
+        if os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
             direc += 1
         else:
             break
-    direc = '{}/{}'.format(yc_gc.temp_dir, direc)
+    direc = '{}/{}'.format(ac.d_temp, direc)
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -614,8 +619,8 @@ def add_vendors():
             return abort(400, description='bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
         if request.method == 'POST':
             repo_split = repository.split('.')[0]
-            repoutil.pull(yc_gc.yang_models)
-            if os.path.isfile(yc_gc.yang_models + '/vendor/' + owner + '/' + repo_split + '/' + capability_path):
+            repoutil.pull(ac.d_yang_models_dir)
+            if os.path.isfile(ac.d_yang_models_dir + '/vendor/' + owner + '/' + repo_split + '/' + capability_path):
                 continue
 
         directory = '/'.join(capability_path.split('/')[:-1])
@@ -658,11 +663,11 @@ def add_vendors():
     for key in repo:
         repo[key].remove()
     populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../parseAndPopulate/populate.py")
-    arguments = ["python", populate_path, "--port", repr(yc_gc.confdPort), "--dir", direc, "--api", "--ip",
-                 yc_gc.confd_ip, "--credentials", yc_gc.credentials[0], yc_gc.credentials[1],
-                 repr(tree_created), yc_gc.integrity_file_location, yc_gc.protocol,
-                 yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = ["python", populate_path, "--port", ac.w_confd_port, "--dir", direc, "--api", "--ip",
+                 ac.w_confd_ip, "--credentials", ac.s_confd_credentials[0], ac.s_confd_credentials[1],
+                 repr(tree_created), ac.w_public_directory, ac.g_protocol_confd,
+                 ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('job_id {}'.format(job_id))
     return make_response(jsonify({'info': 'Verification successful', 'job-id': job_id}), 202)
 
@@ -745,7 +750,7 @@ def get_job(job_id):
     """
     app.logger.info('Searching for job_id {}'.format(job_id))
     # EVY result = application.sender.get_response(job_id)
-    result = yc_gc.sender.get_response(job_id)
+    result = ac.sender.get_response(job_id)
     split = result.split('#split#')
 
     reason = None

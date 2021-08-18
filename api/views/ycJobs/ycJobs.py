@@ -39,6 +39,10 @@ class YcJobs(Blueprint):
 
 bp = YcJobs('ycJobs', __name__)
 
+@bp.before_request
+def set_config():
+    global ac
+    ac = app.config
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @bp.route('/ietf', methods=['GET'])
@@ -47,7 +51,7 @@ def trigger_ietf_pull():
     username = request.authorization['username']
     if username != 'admin':
         abort(401, description='User must be admin')
-    job_id = yc_gc.sender.send('run_ietf')
+    job_id = ac.sender.send('run_ietf')
     app.logger.info('job_id {}'.format(job_id))
     return ({'job-id': job_id}, 202)
 
@@ -84,7 +88,7 @@ def check_local():
     else:
         commit_sha = body['head_commit']
     try:
-        with open(yc_gc.commit_msg_file, 'r') as commit_file:
+        with open(ac.d_commit_dir, 'r') as commit_file:
             for line in commit_file:
                 if commit_sha in line:
                     verify_commit = True
@@ -92,7 +96,7 @@ def check_local():
     except:
         abort(404)
 
-    token_header_value = 'token {}'.format(yc_gc.token)
+    token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
     if verify_commit:
         app.logger.info('commit verified')
         if body['repository']['owner_name'] == 'yang-catalog':
@@ -124,7 +128,7 @@ def check_local():
             if body['result_message'] == 'Passed':
                 if body['type'] == 'pull_request':
                     # If build was successful on pull request
-                    admin_token_header_value = 'token {}'.format(yc_gc.admin_token)
+                    admin_token_header_value = 'token {}'.format(ac.s_admin_token)
                     pull_number = body['pull_request_number']
                     app.logger.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
                     url = 'https://api.github.com/repos/YangModels/yang/pulls/{}/reviews'.format(repr(pull_number))
@@ -169,7 +173,7 @@ def check_local():
 @bp.route('/check-platform-metadata', methods=['POST'])
 def trigger_populate():
     app.logger.info('Trigger populate if necessary')
-    repoutil.pull(yc_gc.yang_models)
+    repoutil.pull(ac.d_yang_models_dir)
     try:
         commits = request.json.get('commits') if request.is_json else None
         paths = set()
@@ -196,14 +200,14 @@ def trigger_populate():
             try:
                 populate_path = os.path.abspath(
                     os.path.dirname(os.path.realpath(__file__)) + '/../../../parseAndPopulate/populate.py')
-                arguments = ['python', populate_path, '--port', repr(yc_gc.confdPort), '--ip',
-                             yc_gc.confd_ip, '--api-protocol', yc_gc.api_protocol, '--api-port',
-                             repr(yc_gc.api_port), '--api-ip', yc_gc.ip,
-                             '--result-html-dir', yc_gc.result_dir,
-                             '--credentials', yc_gc.credentials[0], yc_gc.credentials[1],
-                             '--save-file-dir', yc_gc.save_file_dir, 'repoLocalDir']
-                arguments = arguments + list(paths) + [yc_gc.yang_models, 'github']
-                yc_gc.sender.send('#'.join(arguments))
+                arguments = ['python', populate_path, '--port', ac.w_confd_port, '--ip',
+                             ac.w_confd_ip, '--api-protocol', ac.g_protocol_api, '--api-port',
+                             ac.w_api_port, '--api-ip', ac.w_ip,
+                             '--result-html-dir', ac.w_result_html_dir,
+                             '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
+                             '--save-file-dir', ac.d_save_file_dir, 'repoLocalDir']
+                arguments = arguments + list(paths) + [ac.d_yang_models_dir, 'github']
+                ac.sender.send('#'.join(arguments))
             except:
                 app.logger.exception('Could not populate after git push')
     except Exception as e:
@@ -214,7 +218,7 @@ def trigger_populate():
 
 @bp.route('/get-statistics', methods=['GET'])
 def get_statistics():
-    stats_path = '{}/stats/stats.json'.format(yc_gc.private_dir)
+    stats_path = '{}/stats/stats.json'.format(ac.w_private_directory)
     if os.path.exists(stats_path):
         with open(stats_path, 'r') as f:
             return f.read()

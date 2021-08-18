@@ -37,6 +37,7 @@ class YangSearch(Blueprint):
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
+        #TODO: remove yc_gc
         self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
         # ordering important for frontend to show metadata in correct order
         self.order = \
@@ -86,6 +87,10 @@ class YangSearch(Blueprint):
 
 bp = YangSearch('yangSearch', __name__)
 
+@bp.before_request
+def set_config():
+    global ac
+    ac = app.config
 
 # ROUTE ENDPOINT DEFINITIONS
 @bp.route('/tree/<module_name>', methods=['GET'])
@@ -121,10 +126,10 @@ def tree_module_revision(module_name, revision):
             # get latest revision of provided module
             revision = revisions[0]
 
-        path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, module_name, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, module_name, revision)
         plugin.plugins = []
         plugin.init([])
-        ctx = create_context('{}'.format(yc_gc.yang_models))
+        ctx = create_context('{}'.format(ac.d_yang_models_dir))
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
 
@@ -147,7 +152,7 @@ def tree_module_revision(module_name, revision):
             else:
                 prefix = 'None'
             import_inlcude_map[prefix] = imp_inc.arg
-        ytree_dir = yc_gc.json_ytree
+        ytree_dir = ac.d_json_ytree
         yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
         response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
                                                                  organization)).get('maturity-level', '').upper()
@@ -291,8 +296,8 @@ def search():
     schema_types = isListOneOf(payload, 'schema-types', __schema_types)
     output_columns = isListOneOf(payload, 'output-columns', __output_columns)
     sub_search = eachKeyIsOneOf(payload, 'sub-search', __output_columns)
-    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, yc_gc.logs_dir,
-                           yc_gc.es, latest_revision, yc_gc.redis, include_mibs, yang_versions, output_columns,
+    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, ac.d_logs,
+                           ac.es, latest_revision, ac.redis, include_mibs, yang_versions, output_columns,
                            __output_columns, sub_search)
     elk_search.construct_query()
     response['rows'] = elk_search.search()
@@ -323,7 +328,7 @@ def get_services_list(type: str, pattern: str):
 
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
             completion['aggs']['groupby_module']['terms']['field'] = '{}.keyword'.format(type.lower())
-            rows = yc_gc.es.search(index='modules', doc_type='modules', body=completion,
+            rows = ac.es.search(index='modules', doc_type='modules', body=completion,
                                    size=0)['aggregations']['groupby_module']['buckets']
 
             for row in rows:
@@ -378,7 +383,7 @@ def show_node_with_revision(name, path, revision):
         query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = name
         query['query']['bool']['must'][1]['match_phrase']['path']['query'] = path
         query['query']['bool']['must'][2]['match_phrase']['revision']['query'] = revision
-        hits = yc_gc.es.search(index='yindex', doc_type='modules', body=query)['hits']['hits']
+        hits = ac.es.search(index='yindex', doc_type='modules', body=query)['hits']['hits']
         if len(hits) == 0:
             abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
         else:
@@ -435,7 +440,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
     # get module from redis
     module_index = "{}@{}/{}".format(module, revision, organization)
     bp.LOGGER.info('searching for module {}'.format(module_index))
-    module_data = yc_gc.redis.get(module_index)
+    module_data = ac.redis.get(module_index)
     if module_data is None:
         if warnings:
             return {'warning': 'module {} does not exists in API'.format(module_index)}
@@ -463,7 +468,7 @@ def get_yang_catalog_help():
     revision = get_latest_module('yang-catalog')
     query = json.load(open(get_curr_dir(__file__) + '/../../json/es/get_yang_catalog_yang.json', 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
-    yang_catalog_module = yc_gc.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
+    yang_catalog_module = ac.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details_data = {}
     skip_statement = ['typedef', 'grouping', 'identity']
     for m in yang_catalog_module:
@@ -548,7 +553,7 @@ def get_modules_revision_organization(module_name, revision=None, warnings=False
                         }
                     }
                 }
-        hits = yc_gc.es.search(index='modules', doc_type='modules', body=query, size=100)['hits']['hits']
+        hits = ac.es.search(index='modules', doc_type='modules', body=query, size=100)['hits']['hits']
         organization = hits[0]['_source']['organization']
         revisions = []
         for hit in hits:
@@ -572,7 +577,7 @@ def get_latest_module(module_name):
     """
     try:
         query = elasticsearch_descending_module_querry(module_name)
-        rev_org = yc_gc.es.search(index='modules', doc_type='modules', body=query)['hits']['hits'][0]['_source']
+        rev_org = ac.es.search(index='modules', doc_type='modules', body=query)['hits']['hits'][0]['_source']
         return rev_org['revision']
     except Exception as e:
         bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))
@@ -671,7 +676,7 @@ def eachKeyIsOneOf(payload, payload_key, keys):
 
 def get_module_data(module_index):
     bp.LOGGER.info('searching for module {}'.format(module_index))
-    module_data = yc_gc.redis.get(module_index)
+    module_data = ac.redis.get(module_index)
     if module_data is None:
         abort(404, description='Provided module does not exist')
     else:

@@ -48,6 +48,10 @@ class YcSearch(Blueprint):
 
 bp = YcSearch('ycSearch', __name__)
 
+@bp.before_request
+def set_config():
+    global ac
+    ac = app.config
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @bp.route('/fast', methods=['POST'])
@@ -66,8 +70,8 @@ def fast_search():
         abort(400, description='You must specify a "search" argument')
     try:
         count = 0
-        search_res, limit_reached = inde.do_search(payload, yc_gc.es_host,
-                                                   yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
+        search_res, limit_reached = inde.do_search(payload, ac.db_es_host,
+                                                   ac.db_es_port, ac.db_es_aws, ac.s_elk_credentials,
                                                    app.logger)
         if search_res is None and limit_reached is None:
             abort(400, description='Search is too broad. Please search for something more specific')
@@ -301,9 +305,9 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    new_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    old_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
-    ctx, _ = context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
+    new_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
+    old_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
+    ctx, _ = context_check_update_from(old_schema, new_schema, ac.d_yang_models_dir, ac.d_save_file_dir)
 
     errors = []
     for ctx_err in ctx.errors:
@@ -334,8 +338,8 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
+    schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
     file_name1 = 'schema1-file-diff.txt'
     yang_file_1_content = ''
     try:
@@ -344,7 +348,7 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
     except FileNotFoundError:
         app.logger.warn('File {}@{}.yang was not found.'.format(name1, revision1))
 
-    with open('{}/{}'.format(yc_gc.diff_file_dir, file_name1), 'w+') as f:
+    with open('{}/{}'.format(ac.d_save_diff_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_1_content))
 
     file_name2 = 'schema2-file-diff.txt'
@@ -354,15 +358,15 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
             yang_file_2_content = f.read()
     except FileNotFoundError:
         app.logger.warn('File {}@{}.yang was not found.'.format(name2, revision2))
-    with open('{}/{}'.format(yc_gc.diff_file_dir, file_name2), 'w+') as f:
+    with open('{}/{}'.format(ac.d_save_diff_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_2_content))
-    tree1 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name1)
-    tree2 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name2)
+    tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
+    tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
-    os.remove(yc_gc.diff_file_dir + '/' + file_name1)
-    os.remove(yc_gc.diff_file_dir + '/' + file_name2)
+    os.remove(ac.d_save_diff_dir + '/' + file_name1)
+    os.remove(ac.d_save_diff_dir + '/' + file_name2)
     return '<html><body>{}</body></html>'.format(response.text)
 
 
@@ -385,11 +389,11 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, file2, revision2)
+    schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, file2, revision2)
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
+    ctx = create_context('{}:{}'.format(ac.d_yang_models_dir, ac.d_save_file_dir))
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
     ctx.lax_quote_checks = True
@@ -412,7 +416,7 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name1 = 'schema1-tree-diff.txt'
-    full_path_file1 = '{}/{}'.format(yc_gc.diff_file_dir, file_name1)
+    full_path_file1 = '{}/{}'.format(ac.d_save_diff_dir, file_name1)
     with open(full_path_file1, 'w+') as ff:
         ff.write('<pre>{}</pre>'.format(stdout))
     with open(schema2, 'r') as ff:
@@ -422,11 +426,11 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name2 = 'schema2-tree-diff.txt'
-    full_path_file2 = '{}/{}'.format(yc_gc.diff_file_dir, file_name2)
+    full_path_file2 = '{}/{}'.format(ac.d_save_diff_dir, file_name2)
     with open(full_path_file2, 'w+') as ff:
         ff.write('<pre>{}</pre>'.format(stdout))
-    tree1 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name1)
-    tree2 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name2)
+    tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
+    tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
@@ -571,7 +575,7 @@ def check_semver():
                         reason = 'Newer module failed compilation'
                     else:
                         file_name = ('{}services/file1={}@{}/check-update-from/file2={}@{}'
-                                     .format(yc_gc.yangcatalog_api_prefix, name_new,
+                                     .format(ac.yangcatalog_api_prefix, name_new,
                                              revision_new, name_old,
                                              revision_old))
                         reason = ('pyang --check-update-from output: {}'.
@@ -579,7 +583,7 @@ def check_semver():
 
                     diff = (
                         '{}services/diff-tree/file1={}@{}/file2={}@{}'.
-                        format(yc_gc.yangcatalog_api_prefix, name_old,
+                        format(ac.yangcatalog_api_prefix, name_old,
                                revision_old, name_new, revision_new))
 
                     output_mod['yang-module-pyang-tree-diff'] = diff
@@ -592,7 +596,7 @@ def check_semver():
                     output_mod['new-derived-semantic-version'] = semver_new
                     output_mod['derived-semantic-version-results'] = reason
                     diff = ('{}services/diff-file/file1={}@{}/file2={}@{}'
-                            .format(yc_gc.yangcatalog_api_prefix, name_old,
+                            .format(ac.yangcatalog_api_prefix, name_old,
                                     revision_old, name_new, revision_new))
                     output_mod['yang-module-diff'] = diff
                     output_modules_list.append(output_mod)
@@ -722,7 +726,7 @@ def search_module(name: str, revision: str, organization: str):
                     see if the job is still on or Failed or Finished successfully
     """
     app.logger.info('Searching for module {}, {}, {}'.format(name, revision, organization))
-    module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization))
+    module_data = ac.redis.get("{}@{}/{}".format(name, revision, organization))
     if module_data is not None:
         module_data = module_data.decode('utf-8')
         return {'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
@@ -777,10 +781,10 @@ def create_tree(name: str, revision: str):
         :param revision (str) revision of the module in format YYYY-MM-DD
         :return preformatted HTML with corresponding data
     """
-    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
+    path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
+    ctx = create_context('{}:{}'.format(ac.d_yang_models_dir, ac.d_save_file_dir))
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
 
@@ -823,7 +827,7 @@ def create_reference(name: str, revision: str):
         :param revision (str) revision of the module in format YYYY-MM-DD
         :return preformatted HTML with corresponding data
     """
-    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
+    path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_content = escape(f.read())
@@ -1008,7 +1012,7 @@ def modules_data():
     """Get all the modules data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = yc_gc.redis.get('modules-data')
+    data = ac.redis.get('modules-data')
     if data is None:
         data = '{}'
     else:
@@ -1020,7 +1024,7 @@ def vendors_data(clean_data=True):
     """Get all the vendors data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = yc_gc.redis.get('vendors-data')
+    data = ac.redis.get('vendors-data')
     if data is None:
         data = '{}'
     else:
@@ -1037,7 +1041,7 @@ def catalog_data():
     """Get all the catalog data (modules and vendors) from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = yc_gc.redis.get('all-catalog-data')
+    data = ac.redis.get('all-catalog-data')
     if data is None:
         data = '{}'
     else:

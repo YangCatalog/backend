@@ -34,11 +34,11 @@ from pathlib import Path
 from functools import wraps
 
 from sqlalchemy.exc import SQLAlchemyError
-import requests
 from api.globalConfig import yc_gc
 from flask import current_app as app
 from flask import Blueprint, abort, jsonify, redirect, request
 from flask_cors import CORS
+from flask_oidc import OpenIDConnect
 from api.models import Base, User, TempUser
 
 
@@ -52,8 +52,13 @@ class YangCatalogAdminBlueprint(Blueprint):
 
 bp = YangCatalogAdminBlueprint('admin', __name__)
 CORS(bp, supports_credentials=True)
-db = yc_gc.sqlalchemy
+oidc = OpenIDConnect()
 
+@bp.before_request
+def set_config():
+    global ac, db
+    ac = app.config
+    db = ac.sqlalchemy
 
 def catch_db_error(f):
     @wraps(f)
@@ -73,23 +78,23 @@ def catch_db_error(f):
 @bp.route('/api/admin/login')
 @bp.route('/admin')
 @bp.route('/admin/login')
-@yc_gc.oidc.require_login
+@oidc.require_login
 def login():
-    if yc_gc.oidc.user_loggedin:
-        return redirect('{}/admin/healthcheck'.format(yc_gc.my_uri), code=302)
+    if oidc.user_loggedin:
+        return redirect('{}/admin/healthcheck'.format(ac.w_my_uri), code=302)
     else:
         abort(401, 'user not logged in')
 
 
 @bp.route('/api/admin/logout', methods=['POST'])
 def logout():
-    yc_gc.oidc.logout()
+    oidc.logout()
     return {'info': 'Success'}
 
 
 @bp.route('/api/admin/ping')
 def ping():
-    app.logger.info('ping {}'.format(yc_gc.oidc.user_loggedin))
+    app.logger.info('ping {}'.format(oidc.user_loggedin))
     return {'info': 'Success'}
 
 
@@ -101,8 +106,8 @@ def check():
 @bp.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
     app.logger.info('Reading admin file {}'.format(direc))
-    if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
-        with open('{}/{}'.format(yc_gc.var_yang, direc), 'r') as f:
+    if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
+        with open('{}/{}'.format(ac.d_var, direc), 'r') as f:
             processed_file = f.read()
         response = {'info': 'Success',
                     'data': processed_file}
@@ -115,13 +120,13 @@ def read_admin_file(direc):
 @bp.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
     app.logger.info('Deleting admin file {}'.format(direc))
-    if os.path.exists('{}/{}'.format(yc_gc.var_yang, direc)):
-        if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
-            os.unlink('{}/{}'.format(yc_gc.var_yang, direc))
+    if os.path.exists('{}/{}'.format(ac.d_var, direc)):
+        if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
+            os.unlink('{}/{}'.format(ac.d_var, direc))
         else:
-            shutil.rmtree('{}/{}'.format(yc_gc.var_yang, direc))
+            shutil.rmtree('{}/{}'.format(ac.d_var, direc))
         response = {'info': 'Success',
-                    'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(yc_gc.var_yang, direc))}
+                    'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(ac.d_var, direc))}
         return response
     else:
         abort(400, description='error - file or folder does not exist')
@@ -136,8 +141,8 @@ def write_to_directory_structure(direc):
         abort(400, description='"data" must be specified')
     data = body['data']
 
-    if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
-        with open('{}/{}'.format(yc_gc.var_yang, direc), 'w') as f:
+    if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
+        with open('{}/{}'.format(ac.d_var, direc), 'w') as f:
             f.write(data)
         response = {'info': 'Success',
                     'data': data}
@@ -201,10 +206,10 @@ def get_var_yang_directory_structure(direc):
 @bp.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
     app.logger.info('Getting list of nginx files')
-    files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
+    files = os.listdir('{}/sites-enabled'.format(ac.d_nginx_conf))
     files_final = ['sites-enabled/' + sub for sub in files]
     files_final.append('nginx.conf')
-    files = os.listdir('{}/conf.d'.format(yc_gc.nginx_dir))
+    files = os.listdir('{}/conf.d'.format(ac.d_nginx_conf))
     files_final.extend(['conf.d/' + sub for sub in files])
     response = {'info': 'Success',
                 'data': files_final}
@@ -214,7 +219,7 @@ def read_yangcatalog_nginx_files():
 @bp.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
     app.logger.info('Reading nginx file {}'.format(nginx_file))
-    with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
+    with open('{}/{}'.format(ac.d_nginx_conf, nginx_file), 'r') as f:
         nginx_config = f.read()
     response = {'info': 'Success',
                 'data': nginx_config}
@@ -243,12 +248,12 @@ def update_yangcatalog_config():
         f.write(body['data'])
     resp = {}
     try:
-        yc_gc.load_config()
+        app.load_config()
         resp['api'] = 'data loaded successfully'
     except:
         resp['api'] = 'error loading data'
     try:
-        yc_gc.sender.send('reload_config')
+        ac.sender.send('reload_config')
         resp['receiver'] = 'data loaded successfully'
     except:
         resp['receiver'] ='error loading data'
@@ -269,7 +274,7 @@ def get_log_files():
 
     app.logger.info('Getting yangcatalog log files')
 
-    files = find_files(yc_gc.logs_dir, '*.log*')
+    files = find_files(ac.d_logs, '*.log*')
     resp = set()
     for f in files:
         resp.add(f.split('/logs/')[-1].split('.')[0])
@@ -288,11 +293,11 @@ def find_files(directory, pattern):
 
 def filter_from_date(file_names, from_timestamp):
     if from_timestamp is None:
-        return ['{}/{}.log'.format(yc_gc.logs_dir, file_name) for file_name in file_names]
+        return ['{}/{}.log'.format(ac.d_logs, file_name) for file_name in file_names]
     else:
         r = []
         for file_name in file_names:
-            files = find_files('{}/{}'.format(yc_gc.logs_dir, os.path.dirname(file_name)),
+            files = find_files('{}/{}'.format(ac.d_logs, os.path.dirname(file_name)),
                                 '{}.log*'.format(os.path.basename(file_name)))
             for f in files:
                 if os.path.getmtime(f) >= from_timestamp:
@@ -595,7 +600,7 @@ def run_script_with_args(script):
             abort(400, description='Failed to validate - user-email and row-id must exist')
 
     arguments = ['run_script', module_name, script, json.dumps(body)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    job_id = ac.sender.send('#'.join(arguments))
 
     app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)

@@ -25,6 +25,7 @@ import requests
 import utility.log as log
 from api.globalConfig import yc_gc
 from elasticsearch import Elasticsearch
+from flask import current_app as app
 from flask import Blueprint, jsonify, make_response
 from utility.staticVariables import confd_headers, json_headers
 from utility.util import create_signature
@@ -34,13 +35,19 @@ class HealthcheckBlueprint(Blueprint):
 
     def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
+        #TODO: remove yc_gc
         self.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(yc_gc.logs_dir))
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
 
 
 bp = HealthcheckBlueprint('healthcheck', __name__)
-db = yc_gc.sqlalchemy
+
+@bp.before_request
+def set_config():
+    global ac, db
+    ac = app.config
+    db = ac.sqlalchemy
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
@@ -60,17 +67,17 @@ def get_services_list():
 def health_check_mysql():
     try:
         if db is not None:
-            bp.LOGGER.info('Successfully connected to database: {}'.format(yc_gc.dbName))
+            bp.LOGGER.info('Successfully connected to database: {}'.format(ac.db_name_users))
             tables = db.inspect(db.engine).get_table_names()
             if len(tables):
                 response = {'info': 'MySQL is running',
                             'status': 'running',
-                            'message': '{} tables available in the database: {}'.format(len(tables), yc_gc.dbName)}
+                            'message': '{} tables available in the database: {}'.format(len(tables), ac.db_name_users)}
             else:
                 response = {'info': 'MySQL is running',
                             'status': 'problem',
-                            'message': 'No tables found in the database: {}'.format(yc_gc.dbName)}
-            bp.LOGGER.info('{} tables available in the database: {}'.format(len(tables), yc_gc.dbName))
+                            'message': 'No tables found in the database: {}'.format(ac.db_name_users)}
+            bp.LOGGER.info('{} tables available in the database: {}'.format(len(tables), ac.db_name_users))
             return make_response(jsonify(response), 200)
     except SQLAlchemyError as err:
         bp.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
@@ -88,11 +95,11 @@ def health_check_mysql():
 def health_check_elk():
     service_name = 'Elasticsearch'
     try:
-        if yc_gc.es_aws:
-            es = Elasticsearch([yc_gc.es_host], http_auth=(yc_gc.elk_credentials[0], yc_gc.elk_credentials[1]),
+        if ac.db_es_aws:
+            es = Elasticsearch([ac.db_es_host], http_auth=(ac.s_elk_credentials[0], ac.s_elk_credentials[1]),
                                scheme="https", port=443)
         else:
-            es = Elasticsearch([{'host': '{}'.format(yc_gc.es_host), 'port': yc_gc.es_port}])
+            es = Elasticsearch([{'host': '{}'.format(ac.db_es_host), 'port': ac.db_es_port}])
 
         # try to ping Elasticsearch
         if es.ping():
@@ -125,18 +132,18 @@ def health_check_elk():
 @bp.route('/confd', methods=['GET'])
 def health_check_confd():
     service_name = 'ConfD'
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort))
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, repr(ac.w_confd_port))
 
     try:
         # Check if ConfD is running
         response = requests.get('{}/restconf'.format(confd_prefix),
-                                auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
+                                auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)
         if response.status_code == 200:
             bp.LOGGER.info('ConfD is running')
             # Check if ConfD is filled with data
             module_name = 'ietf-syslog,2018-03-15,ietf'
             response = requests.get('{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(confd_prefix, module_name),
-                                    auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
+                                    auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)
             bp.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, module_name))
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
                 response = {'info': 'Not OK - ConfD is not filled',
@@ -167,9 +174,9 @@ def health_check_confd():
 @bp.route('/yang-search', methods=['GET'])
 def health_check_yang_search():
     service_name = 'yang-search'
-    yang_search_preffix = '{}://{}/yang-search'.format(yc_gc.api_protocol, yc_gc.ip)
+    yang_search_preffix = '{}://{}/yang-search'.format(ac.g_protocol_api, ac.w_ip)
     body = json.dumps({'input': {'data': 'ping'}})
-    signature = create_signature(yc_gc.search_key, body)
+    signature = create_signature(ac.s_flask_search_key, body)
     headers = {**json_headers,
                'X-YC-Signature': 'sha1={}'.format(signature)}
     try:
@@ -195,7 +202,7 @@ def health_check_yang_search():
 @bp.route('/yang-validator', methods=['GET'])
 def health_check_yang_validator():
     service_name = 'yang-validator'
-    yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
+    yang_validator_preffix = '{}://{}/yangvalidator'.format(ac.g_protocol_api, ac.w_ip)
     body = json.dumps({'input': {'data': 'ping'}})
     try:
         response = requests.post('{}/ping'.format(yang_validator_preffix), data=body, headers=json_headers)
@@ -219,7 +226,7 @@ def health_check_yang_validator():
 @bp.route('/yangre', methods=['GET'])
 def health_check_yangre():
     service_name = 'yangre'
-    yangre_preffix = '{}://{}/yangre'.format(yc_gc.api_protocol, yc_gc.ip)
+    yangre_preffix = '{}://{}/yangre'.format(ac.g_protocol_api, ac.w_ip)
     body = json.dumps({'input': {'data': 'ping'}})
     try:
         response = requests.post('{}/ping'.format(yangre_preffix), data=body, headers=json_headers)
@@ -243,7 +250,7 @@ def health_check_yangre():
 @bp.route('/nginx', methods=['GET'])
 def health_check_nginx():
     service_name = 'NGINX'
-    preffix = '{}://{}'.format(yc_gc.api_protocol, yc_gc.ip)
+    preffix = '{}://{}'.format(ac.g_protocol_api, ac.w_ip)
     try:
         response = requests.get('{}/nginx-health'.format(preffix), headers=json_headers)
         bp.LOGGER.info('NGINX responded with a code {}'.format(response.status_code))
@@ -265,9 +272,9 @@ def health_check_rabbitmq():
     service_name = 'RabbitMQ'
 
     arguments = ['run_ping', 'ping']
-    preffix = '{}://{}/api/job'.format(yc_gc.api_protocol, yc_gc.ip)
+    preffix = '{}://{}/api/job'.format(ac.g_protocol_api, ac.w_ip)
     try:
-        job_id = yc_gc.sender.send('#'.join(arguments))
+        job_id = ac.sender.send('#'.join(arguments))
         if job_id:
             bp.LOGGER.info('Sender successfully connected to RabbitMQ')
         response_type = 'In progress'
@@ -293,7 +300,7 @@ def health_check_rabbitmq():
 @bp.route('/yangre-admin', methods=['GET'])
 def health_check_yangre_admin():
     service_name = 'yangre'
-    yangre_preffix = '{}://{}/yangre'.format(yc_gc.api_protocol, yc_gc.ip)
+    yangre_preffix = '{}://{}/yangre'.format(ac.g_protocol_api, ac.w_ip)
 
     pattern = '[0-9]*'
     content = '123456789'
@@ -326,7 +333,7 @@ def health_check_yangre_admin():
 @bp.route('/yang-validator-admin', methods=['GET'])
 def health_check_yang_validator_admin():
     service_name = 'yang-validator'
-    yang_validator_preffix = '{}://{}/yangvalidator'.format(yc_gc.api_protocol, yc_gc.ip)
+    yang_validator_preffix = '{}://{}/yangvalidator'.format(ac.g_protocol_api, ac.w_ip)
 
     rfc_number = '7223'
     body = json.dumps({'rfc': rfc_number, 'latest': True})
@@ -358,7 +365,7 @@ def health_check_yang_validator_admin():
 @bp.route('/yang-search-admin', methods=['GET'])
 def health_check_yang_search_admin():
     service_name = 'yang-search'
-    yang_search_preffix = '{}://{}/api/search'.format(yc_gc.api_protocol, yc_gc.ip)
+    yang_search_preffix = '{}://{}/api/search'.format(ac.g_protocol_api, ac.w_ip)
     module_name = 'ietf-syslog,2018-03-15,ietf'
     try:
         response = requests.get('{}/modules/{}'.format(yang_search_preffix, module_name), headers=json_headers)
@@ -431,7 +438,7 @@ def health_check_yangcatalog():
 @bp.route('/cronjobs', methods=['GET'])
 def check_cronjobs():
     try:
-        with open('{}/cronjob.json'.format(yc_gc.temp_dir), 'r') as f:
+        with open('{}/cronjob.json'.format(ac.d_temp), 'r') as f:
             file_content = json.load(f)
     except:
         return make_response(jsonify({'error': 'Data about cronjobs are not available.'}), 400)

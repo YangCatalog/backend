@@ -24,11 +24,12 @@ import unittest
 from unittest import mock
 
 import api.views.ycSearch.ycSearch as search_bp
-from api.globalConfig import yc_gc
-from api.yangCatalogApi import application
+from api.yangCatalogApi import app
 from flask import escape
 from lxml import etree as ET
 from werkzeug.exceptions import BadRequest, NotFound
+
+ac = app.config
 
 
 class TestApiSearchClass(unittest.TestCase):
@@ -37,7 +38,7 @@ class TestApiSearchClass(unittest.TestCase):
         super(TestApiSearchClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
         # self.resources_path = '{}'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.client = application.test_client()
+        self.client = app.test_client()
 
     def test_search_by_organization(self):
         """Test if response has the correct structure.
@@ -372,7 +373,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if payload contains desired output = comparasion of pyang outputs for two different yang module revisions.
         """
         desired_output = "{0}/yang-catalog@2018-04-03.yang:1: the grouping 'yang-lib-imlementation-leafs', "\
-            "defined at {0}/yang-catalog@2017-09-26.yang:599 is illegally removed\n".format(yc_gc.save_file_dir)
+            "defined at {0}/yang-catalog@2017-09-26.yang:599 is illegally removed\n".format(ac.d_save_file_dir)
         file1 = 'yang-catalog'
         revision1 = '2018-04-03'
         file2 = 'yang-catalog'
@@ -914,7 +915,7 @@ class TestApiSearchClass(unittest.TestCase):
         revision = ''
         organization = ''
 
-        with application.app_context():
+        with app.app_context():
             with self.assertRaises(NotFound) as http_error:
                 search_bp.search_module(name, revision, organization)
 
@@ -1034,7 +1035,7 @@ class TestApiSearchClass(unittest.TestCase):
         """
         filename = 'incorrect-yang-file'
         revision = '2018-01-01'
-        path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, filename, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, filename, revision)
 
         result = self.client.get('api/services/tree/{}@{}.yang'.format(filename, revision))
         data = json.loads(result.data)
@@ -1051,7 +1052,7 @@ class TestApiSearchClass(unittest.TestCase):
         """
         filename = ''
         revision = ''
-        path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, filename, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, filename, revision)
 
         with self.assertRaises(BadRequest) as http_error:
             search_bp.create_tree(filename, revision)

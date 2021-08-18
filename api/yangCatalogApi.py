@@ -62,7 +62,7 @@ from flask import (Flask, Config, Response, abort, jsonify, make_response, redir
                    request)
 from flask.logging import default_handler
 from flask_cors import CORS
-from flask_oidc import OpenIDConnect, discovery
+from flask_oidc import discovery
 from flask_sqlalchemy import SQLAlchemy
 from redis import Redis
 from sqlalchemy.engine import URL
@@ -70,6 +70,8 @@ from sqlalchemy.ext.declarative import DeferredReflection
 
 from api.authentication.auth import auth, get_password, hash_pw
 from api.sender import Sender
+from api.views.admin.admin import bp as admin_bp
+from api.views.admin.admin import oidc
 from api.views.errorHandlers.errorHandler import bp as error_handling_bp
 from api.views.healthCheck.healthCheck import bp as healthcheck_bp
 from api.views.userSpecificModuleMaintenace.moduleMaintanace import \
@@ -103,15 +105,18 @@ class MyFlask(Flask):
         self.special_id_counter = {}
         self.release_locked = []
         self.permanent_session_lifetime = timedelta(minutes=20)
-        self.init_config()
-        self.config.from_file('/etc/yangcatalog/yangcatalog.conf', load=self.config_load)
-        self.setup_logger()
-        self.post_config_load()
+        self.load_config()
         self.logger.debug('API initialized at ' + self.config.yangcatalog_api_prefix)
         self.logger.debug('Starting api')
         self.secret_key = self.config.s_flask_secret_key
 
-    def config_load(self, file):
+    def load_config(self):
+        self.init_config()
+        self.config.from_file('/etc/yangcatalog/yangcatalog.conf', load=self.config_reader)
+        self.setup_logger()
+        self.post_config_load()
+
+    def config_reader(self, file):
         parser = configparser.ConfigParser()
         parser._interpolation = configparser.ExtendedInterpolation()
         parser.read(file.name)
@@ -125,7 +130,7 @@ class MyFlask(Flask):
         return mapping
     
     def init_config(self):
-        self.config['OIDC'] = OpenIDConnect()
+        self.config['OIDC'] = oidc
         self.config['SQLALCHEMY'] = SQLAlchemy(self, engine_options={'future': True})
         self.config['LOCK-UWSGI-CACHE1'] = threading.Lock()
         self.config['LOCK-UWSGI-CACHE2'] = threading.Lock()
@@ -183,7 +188,7 @@ class MyFlask(Flask):
             port=self.config.db_redis_port
         )
         self.check_wait_redis_connected()
-    
+
     def check_wait_redis_connected(self):
         while not self.config.redis.ping():
             time.sleep(5)
@@ -196,7 +201,7 @@ class MyFlask(Flask):
 
         try:
             if not 'admin' in request.path:
-                application.logger.debug('after request response processing have {}'.format(request.special_id))
+                app.logger.debug('after request response processing have {}'.format(request.special_id))
             if request.special_id != 0:
                 if request.special_id not in self.release_locked:
                     self.release_locked.append(request.special_id)
@@ -210,9 +215,9 @@ class MyFlask(Flask):
         super().preprocess_request()
         request.special_id = 0
         if not 'admin' in request.path:
-           application.logger.info(request.path)
+           app.logger.info(request.path)
         if 'api/admin' in request.path and not 'api/admin/healthcheck' in request.path and not 'api/admin/ping' in request.path:
-            application.logger.info('User logged in {}'.format(self.config.oidc.user_loggedin))
+            app.logger.info('User logged in {}'.format(self.config.oidc.user_loggedin))
             if not self.config.oidc.user_loggedin and 'login' not in request.path:
                 return abort(401, description='not yet Authorized')
 
@@ -425,8 +430,8 @@ class MyFlask(Flask):
         else:
             return response
 
-application = MyFlask(__name__)
-ac = application.config
+app = MyFlask(__name__)
+ac = app.config
 ac["OIDC_CLIENT_SECRETS"] = "secrets_oidc.json"
 ac["OIDC_COOKIE_SECURE"] = False
 ac["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
@@ -435,11 +440,11 @@ ac["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
 ac["SQLALCHEMY_DATABASE_URI"] = URL.create('mysql', username=ac.db_user, password=ac.s_mysql_password,
                                            host=ac.db_host, database=ac.db_name_users)
 try:
-    with application.app_context():
+    with app.app_context():
         ac.sqlalchemy.create_all()
         DeferredReflection.prepare(ac.sqlalchemy.engine)
 except Exception as e:
-    application.logger.error(e)
+    app.logger.error(e)
 
 
 def create_secrets(discovered_secrets: dict):
@@ -478,10 +483,10 @@ def retry_OP_discovery():
             discovered_secrets = discovery.discover_OP_information(ac.w_issuer)
             create_secrets(discovered_secrets)
             ac.redis.set('secrets-oidc', json.dumps(discovered_secrets))
-            application.logger.info('OpenID Provider information discovered successfully')
+            app.logger.info('OpenID Provider information discovered successfully')
             break
         except:
-            application.logger.warning('OpenID Provider information discovery failed')
+            app.logger.warning('OpenID Provider information discovery failed')
             time.sleep(30)
     return True
 
@@ -489,34 +494,33 @@ discovered = False
 discovered_secrets = None
 try:
     discovered_secrets = discovery.discover_OP_information(ac.w_issuer)
-    application.logger.info('OpenID Provider information discovered successfully')
+    app.logger.info('OpenID Provider information discovered successfully')
     ac.redis.set('secrets-oidc', json.dumps(discovered_secrets))
     discovered = True
-    application.logger.debug('Newly OpenID Provider discovered information saved to cache')
+    app.logger.debug('Newly OpenID Provider discovered information saved to cache')
 except:
     data = ac.redis.get('secrets-oidc')
 
     if data is not None:
         data = data.decode('utf-8')
         discovered_secrets = json.loads(data)
-        application.logger.info('OpenID Provider information loaded from cache')
+        app.logger.info('OpenID Provider information loaded from cache')
 
 if discovered_secrets is not None:
     create_secrets(discovered_secrets)
 
-ac.oidc.init_app(application)
-from api.views.admin.admin import bp as admin_bp
+ac.oidc.init_app(app)
 
 # Register blueprint(s)
-application.register_blueprint(admin_bp)
-application.register_blueprint(error_handling_bp, url_prefix="/api")
-application.register_blueprint(user_maintenance_bp, url_prefix="/api")
-application.register_blueprint(jobs_bp, url_prefix="/api")
-application.register_blueprint(search_bp, url_prefix="/api")
-application.register_blueprint(healthcheck_bp, url_prefix="/api/admin/healthcheck")
-application.register_blueprint(yang_search_bp, url_prefix="/api/yang-search/v2")
+app.register_blueprint(admin_bp)
+app.register_blueprint(error_handling_bp, url_prefix="/api")
+app.register_blueprint(user_maintenance_bp, url_prefix="/api")
+app.register_blueprint(jobs_bp, url_prefix="/api")
+app.register_blueprint(search_bp, url_prefix="/api")
+app.register_blueprint(healthcheck_bp, url_prefix="/api/admin/healthcheck")
+app.register_blueprint(yang_search_bp, url_prefix="/api/yang-search/v2")
 
-CORS(application, supports_credentials=True)
+CORS(app, supports_credentials=True)
 #csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_for_load = Lock()
@@ -536,29 +540,29 @@ def make_cache(credentials, response, data=None):
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
-                application.logger.debug("Loading data from confd")
+                app.logger.debug("Loading data from confd")
                 path = '{}://{}:{}//restconf/data/yang-catalog:catalog'.format(ac.g_protocol_confd, ac.w_confd_ip,
                                                                                ac.w_confd_port)
                 try:
                     data = requests.get(path, auth=(credentials[0], credentials[1]),
                                         headers={'Accept': 'application/yang-data+json'}).json()
                     data = json.dumps(data)
-                    application.logger.debug("Data loaded and parsed to json from confd db successfully")
+                    app.logger.debug("Data loaded and parsed to json from confd db successfully")
                 except ValueError as e:
-                    application.logger.warning('not valid json returned')
+                    app.logger.warning('not valid json returned')
                     data = ''
                 except Exception:
-                    application.logger.warning('exception during loading data from confd')
+                    app.logger.warning('exception during loading data from confd')
                     data = None
                 if data is None or len(data) == 0 or data == 'None' or data == '':
                     secs = 30
-                    application.logger.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
+                    app.logger.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
         #application.logger.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
         ac.redis.set('all-catalog-data', data)
     except:
         e = sys.exc_info()[0]
-        application.logger.error('Could not load json to cache. Error: {}'.format(e))
+        app.logger.error('Could not load json to cache. Error: {}'.format(e))
         return 'Server error - downloading cache', None
     return response, data
 
@@ -583,14 +587,14 @@ def create_response(body, status, headers=None):
     return resp
 
 
-@application.route('/', defaults={'path': ''})
-@application.route('/<path:path>', methods=['PUT', 'POST', 'GET', 'DELETE', 'PATCH'])
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>', methods=['PUT', 'POST', 'GET', 'DELETE', 'PATCH'])
 def catch_all(path):
     """Catch all the rest api requests that are not supported"""
     return abort(404, description='Path "/{}" does not exist'.format(path))
 
 
-@application.route('/api/yangsuite/<id>', methods=['GET'])
+@app.route('/api/yangsuite/<id>', methods=['GET'])
 def yangsuite_redirect(id):
     local_ip = '127.0.0.1'
     if ac.g_uwsgi:
@@ -598,7 +602,7 @@ def yangsuite_redirect(id):
     return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
 
 
-@application.route('/api/load-cache', methods=['POST'])
+@app.route('/api/load-cache', methods=['POST'])
 @auth.login_required
 def load_to_memory():
     """Load all the data populated to yang-catalog to memory.
@@ -615,35 +619,35 @@ def load_to_memory():
 
 def load():
     """Load to cache from confd all the data populated to yang-catalog."""
-    if application.waiting_for_reload:
-        special_id = application.special_id
-        application.special_id_counter[special_id] += 1
+    if app.waiting_for_reload:
+        special_id = app.special_id
+        app.special_id_counter[special_id] += 1
         while True:
             time.sleep(5)
-            application.logger.info('application wating for reload with id - {}'.format(special_id))
-            if special_id in application.release_locked:
-                code = application.response_waiting.status_code
-                body = application.response_waiting.json
+            app.logger.info('application wating for reload with id - {}'.format(special_id))
+            if special_id in app.release_locked:
+                code = app.response_waiting.status_code
+                body = app.response_waiting.json
                 body['extra-info'] = "this message was generated with previous reload-cache response"
-                application.special_id_counter[special_id] -= 1
-                if application.special_id_counter[special_id] == 0:
-                    application.special_id_counter.pop(special_id)
-                    application.release_locked.remove(special_id)
+                app.special_id_counter[special_id] -= 1
+                if app.special_id_counter[special_id] == 0:
+                    app.special_id_counter.pop(special_id)
+                    app.release_locked.remove(special_id)
                 return make_response(jsonify(body), code)
     else:
         if lock_for_load.locked():
-            application.logger.info('application locked for reload')
-            application.waiting_for_reload = True
+            app.logger.info('application locked for reload')
+            app.waiting_for_reload = True
             special_id = str(uuid.uuid4())
             request.special_id = special_id
-            application.special_id = special_id
-            application.special_id_counter[special_id] = 0
-            application.logger.info('Special ids {}'.format(application.special_id_counter))
+            app.special_id = special_id
+            app.special_id_counter[special_id] = 0
+            app.logger.info('Special ids {}'.format(app.special_id_counter))
     with lock_for_load:
-        application.logger.info('application not locked for reload')
+        app.logger.info('application not locked for reload')
         load_uwsgi_cache()
-        application.logger.info("Cache loaded successfully")
-        application.loading = False
+        app.logger.info("Cache loaded successfully")
+        app.loading = False
 
 
 def load_uwsgi_cache():
@@ -671,14 +675,14 @@ def load_uwsgi_cache():
             ac.redis.delete(*list_to_delete_keys_from_redis)
 
     if response != 'work':
-        application.logger.error('Could not load or create cache')
+        app.logger.error('Could not load or create cache')
         sys.exit(500)
 
 
 def load_app_first_time():
     while ac.redis.get('yang-catalog@2018-04-03/ietf') is None:
         sec = 5
-        application.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
+        app.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
         time.sleep(sec)
 
 
