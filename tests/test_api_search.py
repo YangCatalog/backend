@@ -1091,7 +1091,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIn(expected_message, data)
 
     @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
-    @mock.patch.object(ac.redis, 'get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_modules_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method
@@ -1105,7 +1105,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIsInstance(result, collections.OrderedDict)
 
     @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
-    @mock.patch.object(ac.redis, 'get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_vendors_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from vendors_data() method
@@ -1119,7 +1119,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIsInstance(result, collections.OrderedDict)
 
     @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
-    @mock.patch.object(ac.redis, 'get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_catalog_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from catalog_data() method
