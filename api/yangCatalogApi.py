@@ -63,12 +63,11 @@ from flask import (Flask, Config, Response, abort, jsonify, make_response, redir
 from flask.logging import default_handler
 from flask_cors import CORS
 from flask_oidc import discovery
-from flask_sqlalchemy import SQLAlchemy
 from redis import Redis
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import DeferredReflection
 
-from api.authentication.auth import auth, get_password, hash_pw
+from api.authentication.auth import auth, get_password, hash_pw, db
 from api.sender import Sender
 from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import oidc
@@ -131,7 +130,8 @@ class MyFlask(Flask):
     
     def init_config(self):
         self.config['OIDC'] = oidc
-        self.config['SQLALCHEMY'] = SQLAlchemy(self, engine_options={'future': True})
+        self.config['SQLALCHEMY'] = db
+        self.config.sqlalchemy.init_app(self)
         self.config['LOCK-UWSGI-CACHE1'] = threading.Lock()
         self.config['LOCK-UWSGI-CACHE2'] = threading.Lock()
 

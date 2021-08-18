@@ -1116,6 +1116,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
+    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
     @mock.patch('api.globalConfig.redis.Redis.get')
     def test_catalog_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.

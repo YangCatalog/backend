@@ -4,6 +4,7 @@ import sys
 
 import requests
 from flask import current_app
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.globalConfig import yc_gc
@@ -12,8 +13,7 @@ from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 
 auth = HTTPBasicAuth()
-#TODO: remove yc_gc
-db = yc_gc.sqlalchemy
+db = SQLAlchemy(engine_options={'future': True})
 
 
 @auth.hash_password
