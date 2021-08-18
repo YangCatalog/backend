@@ -34,7 +34,6 @@ from pathlib import Path
 from functools import wraps
 
 from sqlalchemy.exc import SQLAlchemyError
-from api.globalConfig import yc_gc
 from flask import current_app as app
 from flask import Blueprint, abort, jsonify, redirect, request
 from flask_cors import CORS

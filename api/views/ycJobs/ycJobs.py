@@ -22,7 +22,6 @@ import os
 
 import requests
 from api.authentication.auth import auth, check_authorized
-from api.globalConfig import yc_gc
 
 from flask import current_app as app
 from flask import Blueprint, abort, request

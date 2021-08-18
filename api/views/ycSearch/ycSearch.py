@@ -28,7 +28,6 @@ from operator import contains, eq
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
-from api.globalConfig import yc_gc
 from flask import current_app as app
 from flask import Blueprint, Response, abort, escape, request
 from flask_deprecate import deprecate_route

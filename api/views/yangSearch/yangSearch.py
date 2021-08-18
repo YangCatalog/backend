@@ -22,7 +22,6 @@ import os
 import re
 
 import utility.log as log
-from api.globalConfig import yc_gc
 from api.views.yangSearch.elkSearch import ElkSearch
 from flask import current_app as app
 from flask import Blueprint, abort, jsonify, make_response, request
@@ -37,8 +36,6 @@ class YangSearch(Blueprint):
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
-        #TODO: remove yc_gc
-        self.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(yc_gc.logs_dir))
         # ordering important for frontend to show metadata in correct order
         self.order = \
             {
@@ -86,6 +83,11 @@ class YangSearch(Blueprint):
 
 
 bp = YangSearch('yangSearch', __name__)
+
+
+@bp.record
+def init_logger(state):
+    bp.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(state.app.config.d_logs))
 
 @bp.before_request
 def set_config():

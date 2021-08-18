@@ -23,7 +23,6 @@ import time
 from sqlalchemy.exc import SQLAlchemyError
 import requests
 import utility.log as log
-from api.globalConfig import yc_gc
 from elasticsearch import Elasticsearch
 from flask import current_app as app
 from flask import Blueprint, jsonify, make_response
@@ -35,13 +34,15 @@ class HealthcheckBlueprint(Blueprint):
 
     def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
-        #TODO: remove yc_gc
-        self.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(yc_gc.logs_dir))
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
 
 
 bp = HealthcheckBlueprint('healthcheck', __name__)
+
+@bp.record
+def init_logger(state):
+    bp.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(state.app.config.d_logs))
 
 @bp.before_request
 def set_config():
