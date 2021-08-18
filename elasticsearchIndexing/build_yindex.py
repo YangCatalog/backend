@@ -22,13 +22,11 @@ import json
 import logging
 import os
 import subprocess
-import traceback
 from datetime import datetime
 
 import dateutil.parser
 import requests
-from elasticsearch import (ConnectionError, ConnectionTimeout, Elasticsearch,
-                           NotFoundError)
+from elasticsearch import ConnectionError, ConnectionTimeout, NotFoundError
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
