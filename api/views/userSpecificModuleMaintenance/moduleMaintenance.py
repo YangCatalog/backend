@@ -450,17 +450,17 @@ def add_vendors():
 
     current_app.logger.info('Adding vendor with body {}'.format(body))
     tree_created = False
-    resolved_authorization = authorize_for_vendors(request, body)
-    if 'passed' != resolved_authorization:
-        return resolved_authorization
-    with open(yc_gc.save_requests + '/vendor-' + str(datetime.utcnow()).split('.')[0].replace(' ', '_') +
-              '-UTC.json', "w") as plat:
+    authorization = authorize_for_vendors(request, body)
+    if authorization is not True:
+        abort(401, description='User not authorized to supply data for this {}'.format(authorization))
+    path = '{}/vendor-{}-UTC.json'.format(yc_gc.save_requests, str(datetime.utcnow()).split('.')[0].replace(' ', '_'))
+    with open(path, 'w') as plat:
         json.dump(body, plat)
 
     path = '{}://{}:{}/restconf/data/platform-implementation-metadata:platforms'.format(yc_gc.protocol, yc_gc.confd_ip,
                                                                                         yc_gc.confdPort)
 
-    str_to_encode = '%s:%s' % (yc_gc.credentials[0], yc_gc.credentials[1])
+    str_to_encode = '{}:{}'.format(yc_gc.credentials[0], yc_gc.credentials[1])
     if sys.version_info >= (3, 4):
         str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
     base64string = base64.b64encode(str_to_encode)
@@ -470,18 +470,16 @@ def add_vendors():
                                                              **confd_headers})
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        abort(400, description="The body you have provided could not be parsed. Confd error text: {} \n"
-                                      " error code: {} \n error header items: {}"
-                     .format(response.text, response.status_code, response.headers.items()))
+        abort(400,
+              description='The body you have provided could not be parsed. Confd error text: {} \n'
+                          ' error code: {} \n error header items: {}'
+                          .format(response.text, response.status_code, response.headers.items()))
 
     repo = {}
 
     direc = 0
-    while True:
-        if os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
-            direc += 1
-        else:
-            break
+    while os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
+        direc += 1
     direc = '{}/{}'.format(yc_gc.temp_dir, direc)
     try:
         os.makedirs(direc)
@@ -508,7 +506,7 @@ def add_vendors():
         if request.method == 'POST':
             repo_split = repository.split('.')[0]
             repoutil.pull(yc_gc.yang_models)
-            if os.path.isfile(yc_gc.yang_models + '/vendor/' + owner + '/' + repo_split + '/' + capability_path):
+            if os.path.isfile('{}/vendor/{}/{}/{}'.format(yc_gc.yang_models, owner, repo_split, capability_path)):
                 continue
 
         directory = '/'.join(capability_path.split('/')[:-1])
@@ -539,18 +537,19 @@ def add_vendors():
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
 
         try:
-            shutil.copytree(repo[repo_url].localdir + '/' + directory, save_to,
+            shutil.copytree('{}/{}'.format(repo[repo_url].localdir, directory), save_to,
                             ignore=shutil.ignore_patterns('*.json', '*.xml', '*.sh', '*.md', '*.txt', '*.bin'))
         except OSError:
             pass
-        with open(save_to + '/' + file_name.split('.')[0] + '.json', "w") as f:
+        with open('{}/{}.json'.format(save_to, file_name.split('.')[0]), 'w') as f:
             json.dump(platform, f)
-        shutil.copy(repo[repo_url].localdir + '/' + capability['path'], save_to)
+        shutil.copy('{}/{}'.format(repo[repo_url].localdir, capability['path']), save_to)
         tree_created = True
 
     for key in repo:
         repo[key].remove()
-    populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + "/../../../parseAndPopulate/populate.py")
+    populate_path = os.path.abspath(
+        os.path.dirname('{}/../../../parseAndPopulate/populate.py'.format(os.path.realpath(__file__))))
     arguments = ['python', populate_path, '--port', repr(yc_gc.confdPort), '--dir', direc, '--api', '--ip',
                  yc_gc.confd_ip, '--credentials', yc_gc.credentials[0], yc_gc.credentials[1],
                  repr(tree_created), yc_gc.integrity_file_location, yc_gc.protocol,
@@ -577,7 +576,7 @@ def authorize_for_vendors(request, body):
     rights = accessRigths.split('/')
     rights += [None] * (4 - len(rights))
     if rights[0] == '':
-        return 'passed'
+        return True
 
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     for platform in body['platforms']['platform']:
@@ -585,8 +584,8 @@ def authorize_for_vendors(request, body):
         params = [platform[param_name] for param_name in param_names]
         for param_name, param, right in zip(param_names, params, rights):
             if right and param != right:
-                abort(401, description='User not authorized to supply data for this {}'.format(param_name))
-    return 'passed'
+                return param_name
+    return True
 
 
 def authorize_for_sdos(request, organizations_sent, organization_parsed):
