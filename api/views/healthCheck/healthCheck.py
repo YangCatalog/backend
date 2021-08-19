@@ -133,7 +133,7 @@ def health_check_elk():
 @bp.route('/confd', methods=['GET'])
 def health_check_confd():
     service_name = 'ConfD'
-    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, repr(ac.w_confd_port))
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
 
     try:
         # Check if ConfD is running
