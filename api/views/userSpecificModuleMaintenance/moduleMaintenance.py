@@ -525,7 +525,7 @@ def add_vendors():
                 branch = capability.get('branch')
             else:
                 branch = 'master'
-            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url_dir_branch, directory, branch)
+            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, directory, branch)
             if repo_url_dir_branch_temp not in repo_url_dir_branch:
                 branch = repo[repo_url].get_commit_hash(directory, branch)
                 repo_url_dir_branch[repo_url_dir_branch_temp] = branch
