@@ -39,13 +39,6 @@ from utility.messageFactory import MessageFactory
 from utility.staticVariables import confd_headers
 from api.models import User, TempUser
 
-NS_MAP = {
-    "http://cisco.com/": "cisco",
-    "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang": "openconfig",
-    "http://tail-f.com/": "tail-f",
-    "http://yang.juniper.net/": "juniper"
-}
 url = 'https://github.com/'
 
 
@@ -91,6 +84,7 @@ def register_user():
         db.session.commit()
     except SQLAlchemyError as err:
         current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     mf = MessageFactory()
     mf.send_new_user(username, email)
     return ({'info': 'User created successfully'}, 201)
@@ -236,6 +230,22 @@ def delete_vendor(value):
     current_app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
+def organization_by_namespace(namespace):
+    NS_MAP = {
+        "http://cisco.com/": "cisco",
+        "http://www.huawei.com/netconf": "huawei",
+        "http://openconfig.net/yang": "openconfig",
+        "http://tail-f.com/": "tail-f",
+        "http://yang.juniper.net/": "juniper"
+    }
+    for ns, org in NS_MAP.items():
+        if ns in namespace:
+                return org
+        else:
+            if 'urn:' in namespace:
+                return namespace.split('urn:')[1].split(':')[0]    
+            else:
+                return ''
 
 @app.route('/modules', methods=['PUT', 'POST'])
 @auth.login_required
@@ -367,13 +377,7 @@ def add_modules():
         try:
             namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, sdo_path.split('/')[-1]))) \
                 .search('namespace')[0].arg
-
-            for ns, org in NS_MAP.items():
-                if ns in namespace:
-                    organization = org
-            if organization == '':
-                if 'urn:' in namespace:
-                    organization = namespace.split('urn:')[1].split(':')[0]
+            organization = organization_by_namespace(namespace)
         except:
             while True:
                 try:
@@ -387,12 +391,7 @@ def add_modules():
                                                                '/'.join(sdo_path.split('/')[:-1]),
                                                                belongs_to))
                         ).search('namespace')[0].arg
-                    for ns, org in NS_MAP.items():
-                        if ns in namespace:
-                            organization = org
-                    if organization == '':
-                        if 'urn:' in namespace:
-                            organization = namespace.split('urn:')[1].split(':')[0]
+                    organization = organization_by_namespace(namespace)
                     break
                 except:
                     pass
