@@ -40,11 +40,11 @@ from utility.staticVariables import confd_headers
 from api.models import User, TempUser
 
 NS_MAP = {
-    "http://cisco.com/": "cisco",
-    "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang": "openconfig",
-    "http://tail-f.com/": "tail-f",
-    "http://yang.juniper.net/": "juniper"
+    'http://cisco.com/': 'cisco',
+    'http://www.huawei.com/netconf': 'huawei',
+    'http://openconfig.net/yang': 'openconfig',
+    'http://tail-f.com/': 'tail-f',
+    'http://yang.juniper.net/': 'juniper'
 }
 url = 'https://github.com/'
 
@@ -264,7 +264,7 @@ def add_modules():
     current_app.logger.info('Adding modules with body {}'.format(body))
     tree_created = False
 
-    with open('./prepare-sdo.json', "w") as plat:
+    with open('./prepare-sdo.json', 'w') as plat:
         json.dump(body, plat)
     shutil.copy('./prepare-sdo.json', yc_gc.save_requests + '/sdo-'
                 + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
@@ -283,8 +283,8 @@ def add_modules():
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         abort(400,
-              description="The body you have provided could not be parsed. Confd error text: {} \n"
-                          " error code: {} \n error header items: {}"
+              description='The body you have provided could not be parsed. Confd error text: {} \n'
+                          ' error code: {} \n error header items: {}'
                           .format(response.text, response.status_code, response.headers.items()))
     repo = {}
     warning = []
@@ -603,11 +603,11 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
     passed = False
     if accessRigths == '/':
         if organization_parsed != organizations_sent:
-            return "module`s organization is not the same as organization provided"
+            return 'module`s organization is not the same as organization provided'
         return True
     if organizations_sent in accessRigths.split(','):
         if organization_parsed != organizations_sent:
-            return "module`s organization is not in users rights"
+            return 'module`s organization is not in users rights'
         passed = True
     return passed
 
