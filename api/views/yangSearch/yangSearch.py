@@ -87,7 +87,7 @@ bp = YangSearch('yangSearch', __name__)
 
 @bp.record
 def init_logger(state):
-    bp.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(state.app.config.d_logs))
+    bp.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(state.app.config.d_logs))
 
 @bp.before_request
 def set_config():
