@@ -19,7 +19,6 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import base64
 import errno
-import functools
 import json
 import os
 import shutil
@@ -147,36 +146,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
-
-    def module_in(name: str, revision: str, modules: list):
-        for module in modules:
-            if module['name'] == name and module['revision'] == revision:
-                return True
-        return False
-
-    @functools.lru_cache(maxsize=None)
-    def can_delete(name: str, revision: str):
-        for existing_module in all_mods['module']:
-            for dep_type in ['dependencies', 'submodule']:
-                if module_in(name, revision, existing_module.get(dep_type, [])):
-                    if module_in(existing_module['name'], existing_module['revision'], input_modules):
-                        if can_delete(existing_module['name'], existing_module['revision']):
-                            continue
-                    else:
-                        current_app.logger.error('{}@{} module has reference in another module\'s {}: {}@{}'
-                                                 .format(name, revision, dep_type,
-                                                         existing_module.get('name'), existing_module.get('revision')))
-                        return False
-        return True
-
-    modules_to_delete = {'modules': []}
-    for module in input_modules:
-        if can_delete(module.get('name'), module.get('revision')):
-            modules_to_delete['modules'].append(module)
-        else:
-            unavailable_modules.append(module)
-
-    path_to_delete = json.dumps(modules_to_delete)
+    path_to_delete = json.dumps({'modules':input_modules})
 
     arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
                  yc_gc.credentials[1], path_to_delete, 'DELETE',

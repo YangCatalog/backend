@@ -34,6 +34,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import errno
+import functools
 import json
 import logging
 import multiprocessing
@@ -51,7 +52,6 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
-
 from utility.util import prepare_to_indexing, send_to_indexing2
 from utility.staticVariables import confd_headers, json_headers
 
@@ -417,12 +417,55 @@ class Receiver:
         reason = ''
         paths = []
         modules = json.loads(path_to_delete)['modules']
-        for mod in modules:
-            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-                confd_url, mod['name'], mod['revision'], mod['organization']))
         all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
 
-        for mod in modules:
+        def fix_dependencies(module):
+            all_modules = {'module': [module]}
+            confd_prefix = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
+            direc = '/var/yang/tmp'
+            mca = ModulesComplicatedAlgorithms(self.__log_directory, self.__yangcatalog_api_prefix,
+                                               self.__confd_credentials, confd_prefix, self.__save_file_dir, direc,
+                                               all_modules, self.__yang_models, self.temp_dir)
+            mca.set_dependency_revisions()
+            mca.populate()
+
+        def module_in(name: str, revision: str, modules: list):
+            for module in modules:
+                if module['name'] == name and module['revision'] == revision:
+                    return True
+            return False
+
+        @functools.lru_cache(maxsize=None)
+        def can_delete(name: str, revision: str):
+            for existing_module in all_mods['module']:
+                for dep_type in ['dependencies', 'submodule']:
+                    try:
+                        is_dep = module_in(name, revision, existing_module.get(dep_type, []))
+                    except KeyError:
+                        # some of our modules don't have revisions specified in dependencies
+                        fix_dependencies(existing_module)
+                        is_dep = module_in(name, revision, existing_module.get(dep_type, []))
+                    if is_dep:
+                        if module_in(existing_module['name'], existing_module['revision'], modules):
+                            if can_delete(existing_module['name'], existing_module['revision']):
+                                continue
+                        else:
+                            self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}@{}'
+                                                    .format(name, revision, dep_type,
+                                                            existing_module.get('name'), existing_module.get('revision')))
+                            return False
+            return True
+
+        modules_to_delete = []
+        for module in modules:
+            if can_delete(module.get('name'), module.get('revision')):
+                modules_to_delete.append(module)
+
+        for mod in modules_to_delete:
+            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+                confd_url, mod['name'], mod['revision'], mod['organization']))
+
+        for mod in modules_to_delete:
             for existing_module in all_mods['module']:
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
