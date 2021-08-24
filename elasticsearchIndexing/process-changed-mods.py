@@ -17,11 +17,11 @@ import json
 import logging
 import os
 import sys
-from utility.create_config import create_config
 
 import dateutil.parser
 from elasticsearch import Elasticsearch, NotFoundError
 from utility import log
+from utility.create_config import create_config
 from utility.util import get_curr_dir
 
 from elasticsearchIndexing import build_yindex
@@ -34,7 +34,7 @@ __email__ = "miroslav.kovac@pantheon.tech, jclarke@cisco.com"
 from utility.repoutil import pull
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Process changed modules in a git repo")
+    parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
     parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args = parser.parse_args()
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
     if len(delete_cache) > 0:
         if es_aws:
-            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
         initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
@@ -199,19 +199,21 @@ if __name__ == '__main__':
             mod_args.append(module_path)
     sys.setrecursionlimit(50000)
     try:
+        LOGGER.info('Trying to initialize Elasticsearch')
         if es_aws:
-            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+
+        build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
+                                  log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
     except:
         sys.setrecursionlimit(recursion_limit)
         os.unlink(lock_file_cron)
-        LOGGER.exception('Unable to initialize Elasticsearch')
+        LOGGER.exception('Error while running build_yindex.py script')
         LOGGER.info('Job failed execution')
         sys.exit()
 
-    build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
-                              log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
     sys.setrecursionlimit(recursion_limit)
     os.unlink(lock_file_cron)
     LOGGER.info('Job finished successfully')
