@@ -533,7 +533,7 @@ class Capability:
                         version = document_split[-1]
                         name = '-'.join(document_split[:-1])
                         additional_info['document-name'] = '{}-{}.txt'.format(name, version)
-                        additional_info['reference'] = 'https://datatracker.ietf.org/doc/{}/{}'.format(name, version)
+                        additional_info['reference'] = 'https://www.iana.org/go/{}-{}'.format(name, version)
                     else:
                         additional_info['document-name'] = xref_info.get('data')
                         additional_info['reference'] = 'https://www.iana.org/go/{}'.format(xref_info.get('data'))
