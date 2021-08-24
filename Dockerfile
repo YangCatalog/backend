@@ -14,7 +14,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get -y update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl mydumper
+RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl mydumper rsync
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
