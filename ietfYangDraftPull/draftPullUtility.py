@@ -21,7 +21,8 @@ Contains following method definitions:
     check_early_revisions()
     get_latest_revision()
     get_draft_module_content()
-    extract_rfc_tgz
+    extract_rfc_tgz()
+    set_permissions()
 """
 
 __author__ = "Slavomir Mazur"
@@ -29,6 +30,7 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
+import logging
 import os
 import tarfile
 from datetime import datetime
@@ -37,12 +39,12 @@ import requests
 from utility import yangParser
 
 
-def get_latest_revision(path: str, LOGGER):
+def get_latest_revision(path: str, LOGGER: logging.Logger):
     """ Search for revision in yang file
 
     Arguments:
         :param path     (str) full path to the yang file
-        :param LOGGER   (obj) formated logger with the specified name
+        :param LOGGER   (logging.Logger) formated logger with the specified name
         :return         revision of the module at the given path
     """
     stmt = yangParser.parse(path)
@@ -56,7 +58,7 @@ def get_latest_revision(path: str, LOGGER):
     return rev.arg
 
 
-def check_name_no_revision_exist(directory: str, LOGGER_temp=None):
+def check_name_no_revision_exist(directory: str, LOGGER_temp: logging.Logger = None):
     """
     This function checks the format of all the modules filename.
     If it contains module with a filename without revision,
@@ -66,11 +68,11 @@ def check_name_no_revision_exist(directory: str, LOGGER_temp=None):
 
     Arguments:
         :param directory    (str) full path to directory with yang modules
-        :param LOGGER_temp  (obj) formated logger with the specified name
+        :param LOGGER_temp  (logging.Logger) formated logger with the specified name
     """
     LOGGER = LOGGER_temp
     LOGGER.debug('Checking revision for directory: {}'.format(directory))
-    for root, dirs, files in os.walk(directory):
+    for _, _, files in os.walk(directory):
         for basename in files:
             if '@' in basename:
                 yang_file_name = basename.split('@')[0] + '.yang'
@@ -85,7 +87,7 @@ def check_name_no_revision_exist(directory: str, LOGGER_temp=None):
                         os.remove(yang_file_path)
 
 
-def check_early_revisions(directory: str, LOGGER_temp=None):
+def check_early_revisions(directory: str, LOGGER_temp: logging.Logger = None):
     """
     This function checks all modules revisions and keeps only
     ones that are the newest. If there are two modules with
@@ -93,7 +95,7 @@ def check_early_revisions(directory: str, LOGGER_temp=None):
 
     Arguments:
         :param directory    (str) full path to directory with yang modules
-        :param LOGGER_temp  (obj) formated logger with the specified name
+        :param LOGGER_temp  (logging.Logger) formated logger with the specified name
     """
     if LOGGER_temp is not None:
         LOGGER = LOGGER_temp
@@ -139,13 +141,13 @@ def check_early_revisions(directory: str, LOGGER_temp=None):
             os.remove('{}/{}'.format(directory, fi))
 
 
-def get_draft_module_content(ietf_draft_url: str, experimental_path: str, LOGGER):
+def get_draft_module_content(ietf_draft_url: str, experimental_path: str, LOGGER: logging.Logger):
     """ Update download links for each module found in IETFDraft.json and try to get their content.
 
     Aruments:
         :param ietf_draft_url       (str) URL to private IETFDraft.json file
         :param experimental_path    (str) full path to the cloned experimental modules
-        :param LOGGER               (obj) formated logger with the specified name
+        :param LOGGER               (logging.Logger) formated logger with the specified name
     """
     ietf_draft_json = {}
     response = requests.get(ietf_draft_url)
@@ -163,13 +165,13 @@ def get_draft_module_content(ietf_draft_url: str, experimental_path: str, LOGGER
                 yang_file.write('')
 
 
-def extract_rfc_tgz(tgz_path: str, extract_to: str, LOGGER):
+def extract_rfc_tgz(tgz_path: str, extract_to: str, LOGGER: logging.Logger):
     """ Extract downloaded rfc.tgz file to directory and remove file.
 
     Arguments:
         :param tgz_path     (str) full path to the rfc.tgz file
         :param extract_to   (str) path to the directory where rfc.tgz is extractracted to
-        :param LOGGER       (obj) formated logger with the specified name
+        :param LOGGER       (logging.Logger) formated logger with the specified name
     """
     tar_opened = False
     tgz = ''
@@ -184,3 +186,17 @@ def extract_rfc_tgz(tgz_path: str, extract_to: str, LOGGER):
     os.remove(tgz_path)
 
     return tar_opened
+
+
+def set_permissions(directory: str):
+    """ Use chown for all the files and folders recursively in provided directory.
+
+    Argument:
+        :param directory    (str) path to the directory where permissions should be set
+    """
+    os.chown(directory, int(os.environ['YANG_ID']), int(os.environ['YANG_GID']))
+    for root, dirs, files in os.walk(directory):
+        for dir in dirs:
+            os.chown(os.path.join(root, dir), int(os.environ['YANG_ID']), int(os.environ['YANG_GID']))
+        for file in files:
+            os.chown(os.path.join(root, file), int(os.environ['YANG_ID']), int(os.environ['YANG_GID']))

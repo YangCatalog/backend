@@ -30,15 +30,15 @@ import shutil
 import stat
 import sys
 from datetime import datetime
-from pathlib import Path
 from functools import wraps
+from pathlib import Path
 
-from sqlalchemy.exc import SQLAlchemyError
 import requests
 from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, redirect, request, current_app
+from api.models import Base, TempUser, User
+from flask import Blueprint, abort, current_app, jsonify, redirect, request
 from flask_cors import CORS
-from api.models import Base, User, TempUser
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class YangCatalogAdminBlueprint(Blueprint):
@@ -62,7 +62,7 @@ def catch_db_error(f):
         except SQLAlchemyError as err:
             current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
             return ({'error': 'Server problem connecting to database'}, 500)
-    
+
     return df
 
 
@@ -602,7 +602,7 @@ def run_script_with_args(script):
 
 @app.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
-    scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
+    scripts_names = ['populate', 'runCapabilities', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
@@ -621,7 +621,7 @@ def get_disk_usage():
 def get_module_name(script_name):
     if script_name in ['populate', 'runCapabilities', 'reviseSemver']:
         return 'parseAndPopulate'
-    elif script_name in ['draftPull', 'draftPullLocal', 'openconfigPullLocal']:
+    elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
     elif script_name in ['recovery', 'elkRecovery', 'elkFill', 'mariadbRecovery']:
         return 'recovery'
