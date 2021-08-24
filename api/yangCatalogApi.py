@@ -159,7 +159,7 @@ class MyFlask(Flask):
                                                          self.config.s_elk_credentials[1]),
                                               scheme="https", port=443)
         else:
-            self.es = Elasticsearch([{'host': '{}'.format(self.config.db_es_host), 'port': self.config.db_es_port}])
+            self.config['ES'] = Elasticsearch([{'host': '{}'.format(self.config.db_es_host), 'port': self.config.db_es_port}])
 
         rabbitmq_host = self.config.config_parser.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(self.config.config_parser.get('RabbitMQ-Section', 'port', fallback='5672'))
