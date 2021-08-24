@@ -244,9 +244,9 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
     LOGGER.info('Sending data for indexing')
     mf = messageFactory.MessageFactory()
     if delete:
-        post_body = json.dumps({'modules-to-delete': modules_to_index}, indent=4)
+        post_body = {'modules-to-delete': modules_to_index}
 
-        mf.send_removed_yang_files(post_body)
+        mf.send_removed_yang_files(json.dumps(post_body, indent=4))
         for mod in modules_to_index:
             name, revision_organization = mod.split('@')
             revision, organization = revision_organization.split('/')
