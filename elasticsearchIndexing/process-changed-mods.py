@@ -17,11 +17,12 @@ import json
 import logging
 import os
 import sys
-from utility.create_config import create_config
 
 import dateutil.parser
 from elasticsearch import Elasticsearch, NotFoundError
 from utility import log
+from utility.create_config import create_config
+from utility.util import get_curr_dir
 
 from elasticsearchIndexing import build_yindex
 
@@ -33,7 +34,7 @@ __email__ = "miroslav.kovac@pantheon.tech, jclarke@cisco.com"
 from utility.repoutil import pull
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Process changed modules in a git repo")
+    parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
     parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args = parser.parse_args()
@@ -112,11 +113,13 @@ if __name__ == '__main__':
 
     if len(delete_cache) > 0:
         if es_aws:
-            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
-        initialize_body_yindex = json.load(open('json/initialize_yindex_elasticsearch.json', 'r'))
-        initialize_body_modules = json.load(open('json/initialize_module_elasticsearch.json', 'r'))
+        initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
+            __file__)), 'r'))
+        initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
+            __file__)), 'r'))
 
         es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
         es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
@@ -124,18 +127,16 @@ if __name__ == '__main__':
         logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
         for mod in delete_cache:
-            mname = mod.split('@')[0]
-            mrev_org = mod.split('@')[1]
-            mrev = mrev_org.split('/')[0]
-            morg = '/'.join(mrev_org.split('/')[1:])
+            name, rev_org = mod.split('@')[0]
+            revision, organization = rev_org.split('/')
 
             try:
-                dateutil.parser.parse(mrev)
+                dateutil.parser.parse(revision)
             except ValueError:
-                if mrev[-2:] == '29' and mrev[-5:-3] == '02':
-                    mrev = mrev.replace('02-29', '02-28')
+                if revision[-2:] == '29' and revision[-5:-3] == '02':
+                    revision = revision.replace('02-29', '02-28')
                 else:
-                    mrev = '1970-01-01'
+                    revision = '1970-01-01'
 
             try:
                 query = \
@@ -145,13 +146,13 @@ if __name__ == '__main__':
                                 "must": [{
                                     "match_phrase": {
                                         "module.keyword": {
-                                            "query": mname
+                                            "query": name
                                         }
                                     }
                                 }, {
                                     "match_phrase": {
                                         "revision": {
-                                            "query": mrev
+                                            "query": revision
                                         }
                                     }
                                 }]
@@ -163,7 +164,7 @@ if __name__ == '__main__':
                 query['query']['bool']['must'].append({
                     "match_phrase": {
                         "organization": {
-                            "query": morg
+                            "query": organization
                         }
                     }
                 })
@@ -198,19 +199,21 @@ if __name__ == '__main__':
             mod_args.append(module_path)
     sys.setrecursionlimit(50000)
     try:
+        LOGGER.info('Trying to initialize Elasticsearch')
         if es_aws:
-            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+
+        build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
+                                  log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
     except:
         sys.setrecursionlimit(recursion_limit)
         os.unlink(lock_file_cron)
-        LOGGER.exception('Unable to initialize Elasticsearch')
+        LOGGER.exception('Error while running build_yindex.py script')
         LOGGER.info('Job failed execution')
         sys.exit()
 
-    build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
-                              log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
     sys.setrecursionlimit(recursion_limit)
     os.unlink(lock_file_cron)
     LOGGER.info('Job finished successfully')
