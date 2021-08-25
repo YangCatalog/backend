@@ -72,14 +72,14 @@ class ModulesComplicatedAlgorithms:
         existing_modules = response.json().get('module', [])
         self.__existing_modules_dict = defaultdict(dict)
         self.__latest_revisions = {}
-        for module in existing_modules + all_modules.get('module', []):
+        for module in existing_modules + self.__all_modules.get('module', []):
             # Store latest revision of each module - used in resolving tree-type
             latest_revision = self.__latest_revisions.get(module['name'])
             if latest_revision is None:
                 self.__latest_revisions[module['name']] = module['revision']
             else:
                 self.__latest_revisions[module['name']] = max(module['revision'], latest_revision)
-
+        for module in existing_modules:
             self.__existing_modules_dict[module['name']][module['revision']] = module
 
     def parse_non_requests(self):
@@ -725,7 +725,7 @@ class ModulesComplicatedAlgorithms:
     def set_dependency_revisions(self):
         for module in self.__all_modules.get('module', []):
             updated = False
-            dependencies = module.get('dependencies', [])
+            dependencies = deepcopy(module.get('dependencies', []))
             for dependency in dependencies:
                 if 'revision' not in dependency:
                     dependency['revision'] = self.__latest_revisions[dependency['name']]
