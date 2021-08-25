@@ -30,7 +30,6 @@ import json
 import os
 import re
 import sys
-import unicodedata
 from datetime import datetime
 
 import statistic.statistics as stats
@@ -221,7 +220,7 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, api_sdo_json: dict = None):
+    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, aditional_info: dict = None):
         """
         Parse all data that we can from the module.
         :param git_commit_hash: (str) name of the git commit hash where we can find the module
@@ -229,8 +228,7 @@ class Modules:
         :param keys:            (set) set of keys labeled as "<name>@<revision>/<organization>"
         :param schema:          (str) full url to raw github module
         :param to:              (str) directory, where all the modules are saved at
-        :param api_sdo_json:    (dict) some aditional information about module given from client
-                                using yangcatalog api
+        :param aditional_info   (dict) some aditional information about module given from client
         """
         def get_json(js):
             if js:
@@ -238,18 +236,14 @@ class Modules:
             else:
                 return u'missing element'
 
-        if api_sdo_json:
-            author_email = api_sdo_json.get('author-email')
-            maturity_level = api_sdo_json.get('maturity-level')
-            reference = api_sdo_json.get('reference')
-            document_name = api_sdo_json.get('document-name')
-            generated_from = api_sdo_json.get('generated-from')
-            if sys.version_info >= (3, 4):
-                organization = get_json(api_sdo_json.get('organization'))
-            else:
-                organization = unicodedata.normalize('NFKD', get_json(
-                    api_sdo_json.get('organization'))).encode('ascii', 'ignore')
-            module_classification = api_sdo_json.get('module-classification')
+        if aditional_info:
+            author_email = aditional_info.get('author-email')
+            maturity_level = aditional_info.get('maturity-level')
+            reference = aditional_info.get('reference')
+            document_name = aditional_info.get('document-name')
+            generated_from = aditional_info.get('generated-from')
+            organization = get_json(aditional_info.get('organization'))
+            module_classification = aditional_info.get('module-classification')
         else:
             author_email = None
             reference = None
@@ -623,8 +617,11 @@ class Modules:
             if yang_file is None:
                 LOGGER.error('Module can not be found')
                 continue
-            path = '/'.join(self.schema.split('/')[0:-1])
-            path += '/{}'.format(yang_file.split('/')[-1])
+            try:
+                path = '/'.join(self.schema.split('/')[0:-1])
+                path += '/{}'.format(yang_file.split('/')[-1])
+            except:
+                path = None
             if yang_file:
                 sub.schema = path
             dep.name = sub.name

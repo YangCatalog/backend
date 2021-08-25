@@ -18,7 +18,7 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
-import sys
+
 from utility.create_config import create_config
 
 
