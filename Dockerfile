@@ -37,17 +37,17 @@ WORKDIR $VIRTUAL_ENV/slate
 RUN bundle install
 RUN bundle exec middleman build --clean
 
-COPY ./backend $VIRTUAL_ENV
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
 
 WORKDIR $VIRTUAL_ENV
 
-RUN pip install -r requirements.txt \
-  && ./setup.py install
+COPY ./backend/requirements.txt .
+RUN pip install -r requirements.txt
 
-ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+COPY ./backend $VIRTUAL_ENV
+RUN ./setup.py install
 
 # Add crontab file in the cron directory
 COPY ./backend/crontab /etc/cron.d/yang-cron
