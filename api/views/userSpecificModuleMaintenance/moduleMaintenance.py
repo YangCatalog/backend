@@ -27,12 +27,12 @@ from datetime import datetime
 
 from sqlalchemy.exc import SQLAlchemyError
 import requests
-from flask import Blueprint, request, abort, current_app
+from flask import current_app as app
+from flask import Blueprint, request, abort
 from git import GitCommandError
 
 from api.authentication.auth import auth, hash_pw
 
-from api.globalConfig import yc_gc
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import confd_headers
@@ -56,12 +56,17 @@ class UserSpecificModuleMaintenance(Blueprint):
                          url_defaults, root_path)
 
 
-app = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
-db = yc_gc.sqlalchemy
+bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
+
+@bp.before_request
+def set_config():
+    global ac, db
+    ac = app.config
+    db = ac.sqlalchemy
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@app.route('/register-user', methods=['POST'])
+@bp.route('/register-user', methods=['POST'])
 def register_user():
     if not request.json:
         abort(400, description='bad request - no data received')
@@ -89,13 +94,13 @@ def register_user():
         db.session.add(temp_user)
         db.session.commit()
     except SQLAlchemyError as err:
-        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
     mf = MessageFactory()
     mf.send_new_user(username, email)
     return ({'info': 'User created successfully'}, 201)
 
-@app.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
-@app.route('/modules', methods=['DELETE'])
+@bp.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
+@bp.route('/modules', methods=['DELETE'])
 @auth.login_required
 def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     """Delete a specific modules defined with name, revision and organization. This is
@@ -123,7 +128,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
             abort(404, description="Data must start with 'input' root element in json")
 
     username = request.authorization['username']
-    current_app.logger.debug('Checking authorization for user {}'.format(username))
+    app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
 
     unavailable_modules = []
@@ -143,24 +148,24 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         if read['yang-catalog:module'][0].get('implementations') is not None:
             unavailable_modules.append(mod)
 
-    all_mods = requests.get('{}search/modules'.format(yc_gc.yangcatalog_api_prefix)).json()
+    all_mods = requests.get('{}search/modules'.format(ac.yangcatalog_api_prefix)).json()
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
     path_to_delete = json.dumps({'modules':input_modules})
 
-    arguments = [yc_gc.protocol, yc_gc.confd_ip, repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE',
-                 yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = [ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port, ac.s_confd_credentials[0],
+                 ac.s_confd_credentials[1], path_to_delete, 'DELETE',
+                 ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
     if unavailable_modules:
         payload['skipped'] = unavailable_modules
     return (payload, 202)
 
 
-@app.route('/vendors/<path:value>', methods=['DELETE'])
+@bp.route('/vendors/<path:value>', methods=['DELETE'])
 @auth.login_required
 def delete_vendor(value):
     """Delete a specific vendor defined with path. This is not done right away but it
@@ -172,9 +177,9 @@ def delete_vendor(value):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    current_app.logger.info('Deleting vendor on path {}'.format(value))
+    app.logger.info('Deleting vendor on path {}'.format(value))
     username = request.authorization['username']
-    current_app.logger.debug('Checking authorization for user {}'.format(username))
+    app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
@@ -182,7 +187,7 @@ def delete_vendor(value):
     rights = accessRigths.split('/')
     rights += [None] * (4 - len(rights))
 
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     path_to_delete = '{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(confd_prefix, value)
 
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
@@ -198,16 +203,16 @@ def delete_vendor(value):
         if right and param != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    arguments = [*params, yc_gc.protocol, yc_gc.confd_ip,
-                 repr(yc_gc.confdPort), yc_gc.credentials[0],
-                 yc_gc.credentials[1], path_to_delete, 'DELETE', yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    arguments = [*params, ac.g_protocol_confd, ac.w_confd_ip,
+                 ac.w_confd_port, ac.s_confd_credentials[0],
+                 ac.s_confd_credentials[1], path_to_delete, 'DELETE', ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
-@app.route('/modules', methods=['PUT', 'POST'])
+@bp.route('/modules', methods=['PUT', 'POST'])
 @auth.login_required
 def add_modules():
     """Add a new module. Use PUT request when we want to update every module there is
@@ -231,18 +236,18 @@ def add_modules():
     if module_list is None:
         abort(400, description='bad request - "module" json list is missing and is mandatory')
 
-    current_app.logger.info('Adding modules with body {}'.format(body))
+    app.logger.info('Adding modules with body {}'.format(body))
     tree_created = False
 
     with open('./prepare-sdo.json', 'w') as plat:
         json.dump(body, plat)
-    shutil.copy('./prepare-sdo.json', yc_gc.save_requests + '/sdo-'
+    shutil.copy('./prepare-sdo.json', ac.d_save_requests + '/sdo-'
                 + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
 
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     path = '{}/restconf/data/module-metadata:modules'.format(confd_prefix)
 
-    str_to_encode = '%s:%s' % (yc_gc.credentials[0], yc_gc.credentials[1])
+    str_to_encode = '%s:%s' % (ac.s_confd_credentials[0], ac.s_confd_credentials[1])
     if sys.version_info >= (3, 4):
         str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
     base64string = base64.b64encode(str_to_encode)
@@ -260,9 +265,9 @@ def add_modules():
     warning = []
 
     direc = 0
-    while os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
+    while os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
         direc += 1
-    direc = '{}/{}'.format(yc_gc.temp_dir, direc)
+    direc = '{}/{}'.format(ac.d_temp, direc)
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -271,7 +276,7 @@ def add_modules():
             raise
     repo_url_dir_branch = {}
     for mod in module_list:
-        current_app.logger.info('{}'.format(mod))
+        app.logger.info('{}'.format(mod))
         sdo = mod.get('source-file')
         if sdo is None:
             abort(400, description='bad request - at least one of modules "source-file" is missing and is mandatory')
@@ -301,7 +306,7 @@ def add_modules():
 
         repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
         if repo_url not in repo:
-            current_app.logger.info('Downloading repo {}'.format(repo_url))
+            app.logger.info('Downloading repo {}'.format(repo_url))
             try:
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
@@ -380,20 +385,20 @@ def add_modules():
     for key in repo:
         repo[key].remove()
 
-    current_app.logger.debug('Sending a new job')
+    app.logger.debug('Sending a new job')
     populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + '/../../../parseAndPopulate/populate.py')
-    arguments = ['python', populate_path, '--sdo', '--port', repr(yc_gc.confdPort), '--dir', direc, '--api',
-                 '--ip', yc_gc.confd_ip, '--credentials', yc_gc.credentials[0], yc_gc.credentials[1],
-                 repr(tree_created), yc_gc.protocol, yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
-    current_app.logger.info('job_id {}'.format(job_id))
+    arguments = ['python', populate_path, '--sdo', '--port', ac.w_confd_port, '--dir', direc, '--api',
+                 '--ip', ac.w_confd_ip, '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
+                 repr(tree_created), ac.g_protocol_confd, ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
+    app.logger.info('job_id {}'.format(job_id))
     if len(warning) > 0:
         return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
     else:
         return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
-@app.route('/platforms', methods=['PUT', 'POST'])
+@bp.route('/platforms', methods=['PUT', 'POST'])
 @auth.login_required
 def add_vendors():
     """Add a new vendors. Use PUT request when we want to update every module there is
@@ -418,19 +423,19 @@ def add_vendors():
     if platform_list is None:
         abort(400, description='bad request - "platform" json list is missing and is mandatory')
 
-    current_app.logger.info('Adding vendor with body {}'.format(body))
+    app.logger.info('Adding vendor with body {}'.format(body))
     tree_created = False
     authorization = authorize_for_vendors(request, body)
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
-    path = '{}/vendor-{}-UTC.json'.format(yc_gc.save_requests, str(datetime.utcnow()).split('.')[0].replace(' ', '_'))
+    path = '{}/vendor-{}-UTC.json'.format(ac.d_save_requests, str(datetime.utcnow()).split('.')[0].replace(' ', '_'))
     with open(path, 'w') as plat:
         json.dump(body, plat)
 
-    path = '{}://{}:{}/restconf/data/platform-implementation-metadata:platforms'.format(yc_gc.protocol, yc_gc.confd_ip,
-                                                                                        yc_gc.confdPort)
+    path = '{}://{}:{}/restconf/data/platform-implementation-metadata:platforms'.format(ac.g_protocol_confd, ac.w_confd_ip,
+                                                                                        ac.w_confd_port)
 
-    str_to_encode = '{}:{}'.format(yc_gc.credentials[0], yc_gc.credentials[1])
+    str_to_encode = '{}:{}'.format(ac.s_confd_credentials[0], ac.s_confd_credentials[1])
     if sys.version_info >= (3, 4):
         str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
     base64string = base64.b64encode(str_to_encode)
@@ -448,9 +453,9 @@ def add_vendors():
     repo = {}
 
     direc = 0
-    while os.path.isdir('{}/{}'.format(yc_gc.temp_dir, direc)):
+    while os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
         direc += 1
-    direc = '{}/{}'.format(yc_gc.temp_dir, direc)
+    direc = '{}/{}'.format(ac.d_temp, direc)
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -475,15 +480,15 @@ def add_vendors():
             abort(400, description='bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
         if request.method == 'POST':
             repo_split = repository.split('.')[0]
-            repoutil.pull(yc_gc.yang_models)
-            if os.path.isfile('{}/vendor/{}/{}/{}'.format(yc_gc.yang_models, owner, repo_split, capability_path)):
+            repoutil.pull(ac.d_yang_models_dir)
+            if os.path.isfile('{}/vendor/{}/{}/{}'.format(ac.d_yang_models_dir, owner, repo_split, capability_path)):
                 continue
 
         directory = '/'.join(capability_path.split('/')[:-1])
         repo_url = '{}{}/{}'.format(url, owner, repository)
 
         if repo_url not in repo:
-            current_app.logger.info('Downloading repo {}'.format(repo_url))
+            app.logger.info('Downloading repo {}'.format(repo_url))
             try:
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
@@ -520,12 +525,12 @@ def add_vendors():
         repo[key].remove()
     populate_path = os.path.abspath(
         os.path.dirname('{}/../../../parseAndPopulate/populate.py'.format(os.path.realpath(__file__))))
-    arguments = ['python', populate_path, '--port', repr(yc_gc.confdPort), '--dir', direc, '--api', '--ip',
-                 yc_gc.confd_ip, '--credentials', yc_gc.credentials[0], yc_gc.credentials[1],
-                 repr(tree_created), yc_gc.integrity_file_location, yc_gc.protocol,
-                 yc_gc.api_protocol, repr(yc_gc.api_port)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
-    current_app.logger.info('job_id {}'.format(job_id))
+    arguments = ['python', populate_path, '--port', ac.w_confd_port, '--dir', direc, '--api', '--ip',
+                 ac.w_confd_ip, '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
+                 repr(tree_created), ac.w_public_directory, ac.g_protocol_confd,
+                 ac.g_protocol_api, ac.w_api_port]
+    job_id = ac.sender.send('#'.join(arguments))
+    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
@@ -538,7 +543,7 @@ def authorize_for_vendors(request, body):
                     :return whether authorization passed.
     """
     username = request.authorization['username']
-    current_app.logger.info('Checking vendor authorization for user {}'.format(username))
+    app.logger.info('Checking vendor authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
@@ -567,7 +572,7 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
                 :return whether authorization passed.
     """
     username = request.authorization['username']
-    current_app.logger.info('Checking sdo authorization for user {}'.format(username))
+    app.logger.info('Checking sdo authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
 
     passed = False
@@ -582,14 +587,14 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
     return passed
 
 
-@app.route('/job/<job_id>', methods=['GET'])
+@bp.route('/job/<job_id>', methods=['GET'])
 def get_job(job_id):
     """Search for a job_id to see the process of the job
                 :return response to the request with the job
     """
-    current_app.logger.info('Searching for job_id {}'.format(job_id))
+    app.logger.info('Searching for job_id {}'.format(job_id))
     # EVY result = application.sender.get_response(job_id)
-    result = yc_gc.sender.get_response(job_id)
+    result = ac.sender.get_response(job_id)
     split = result.split('#split#')
 
     reason = None
@@ -622,12 +627,12 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
         if result:
             return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
     except SQLAlchemyError as err:
-        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
 
     return accessRigths
 
 def get_mod_confd(name: str, revision: str, organization: str):
-    confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
+    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
     url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
         confd_prefix, name, revision, organization)
-    return requests.get(url, auth=(yc_gc.credentials[0], yc_gc.credentials[1]), headers=confd_headers)
+    return requests.get(url, auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)

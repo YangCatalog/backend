@@ -41,7 +41,7 @@ class TestParseExceptionClass(unittest.TestCase):
         with self.assertRaises(ParseException):
             Modules(yc_gc.yang_models, yc_gc.logs_dir, path, yc_gc.result_dir, jsons, yc_gc.temp_dir)
 
-        with open('/var/yang/unparsable-modules.json', 'r') as f:
+        with open('tests/resources/unparsable-modules.json', 'r') as f:
             modules = json.load(f)
 
         self.assertNotEqual(modules, [])

@@ -19,31 +19,31 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 from flask import Blueprint, jsonify, make_response
 
-app = Blueprint('error-handling', __name__)
+bp = Blueprint('error-handling', __name__)
 
 
-@app.app_errorhandler(404)
+@bp.app_errorhandler(404)
 def not_found(e):
     """Error handler for 404"""
     return make_response(jsonify({'error': 'Not found -- in api code',
                                   'description': e.description}), 404)
 
 
-@app.app_errorhandler(401)
+@bp.app_errorhandler(401)
 def unauthorized(e):
     """Return unauthorized error message"""
     return make_response(jsonify({'error': 'Unauthorized access',
                                   'description': e.description}), 401)
 
 
-@app.app_errorhandler(400)
+@bp.app_errorhandler(400)
 def bad_request(e):
     """Return message that can not be resolved"""
     return make_response(jsonify({'error': 'YangCatalog did not understand the message you have sent',
                                   'description': e.description}), 400)
 
 
-@app.app_errorhandler(409)
+@bp.app_errorhandler(409)
 def conflict(e):
     """Return message that can not be resolved"""
     return make_response(jsonify({'error': 'Conflict',

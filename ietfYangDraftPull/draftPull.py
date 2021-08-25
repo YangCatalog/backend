@@ -40,17 +40,13 @@ import requests
 import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory, repoutil
+from utility.create_config import create_config
 from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 check_name_no_revision_exist,
                                                 extract_rfc_tgz,
                                                 get_draft_module_content)
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
@@ -62,7 +58,7 @@ class ScriptConfig:
                     'Cisco Webex Teams and admin emails notifying you that these need to be added to YangModels/yang ' \
                     'Github repository manualy. This script runs as a daily cronjob.'
         parser.add_argument('--config-path', type=str,
-                            default='/etc/yangcatalog/yangcatalog.conf',
+                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
                             ' to Cisco Webex Teams and to emails')
@@ -96,9 +92,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     commit_dir = config.get('Directory-Section', 'commit-dir')
@@ -107,33 +101,39 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     exceptions = config.get('Directory-Section', 'exceptions')
-    ietf_models_forked_url = config.get('Web-Section', 'yang-models-forked-repo-url')
-    ietf_models_url_suffix = config.get('Web-Section', 'yang-models-repo-url-suffix')
+    yang_models = config.get('Directory-Section', 'yang-models-dir')
     ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     is_production = config.get('General-Section', 'is-prod')
     is_production = True if is_production == 'True' else False
     LOGGER = log.get_logger('draftPull', '{}/jobs/draft-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job IETF pull request')
-    github_credentials = ''
-    if len(username) > 0:
-        github_credentials = '{}:{}@'.format(username, token)
 
-    token_header_value = 'token {}'.format(token)
-    # Remove old fork
-    if is_production:
-        LOGGER.info('Deleting existing fork')
-        requests.delete('{}yang'.format(ietf_models_forked_url), headers={'Authorization': token_header_value})
-        time.sleep(20)
-
-        # Fork YangModels/yang repository
-        response = requests.post('https://{}{}'.format(github_credentials, ietf_models_url_suffix))
-        repo_name = response.json()['name']
-    else:
-        username = 'YangModels'
-        repo_name = 'yang'
+    # Check whether fork repository is up-to-date
     try:
-        # Try to clone YangModels/yang repo
+        main_repo = repoutil.load(yang_models, 'https://github.com/YangModels/yang.git')
+        origin = main_repo.repo.remote('origin')
+        fork = main_repo.repo.remote('fork')
+
+        # git fetch --all
+        for remote in main_repo.repo.remotes:
+            info = remote.fetch('master')[0]
+            LOGGER.info('Remote: {} - Commit: {}'.format(remote.name, info.commit))
+
+        # git pull origin master
+        pull_info = origin.pull('master')[0]
+
+        # git push fork master
+        push_info = fork.push('master')[0]
+        LOGGER.info('Push info: {}'.format(push_info.summary))
+        if 'non-fast-forward' in push_info.summary:
+            LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
+    except:
+        LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
+
+    repo_name = 'yang'
+    try:
+        # Try to clone yang-catalog/yang repo
         retry = 3
         while True:
             try:
@@ -227,8 +227,6 @@ def main(scriptConf=None):
                 LOGGER.debug('List of all untracked and modified files:\n{}'.format('\n'.join(untracked_files)))
         except GitCommandError as e:
             message = 'Error while pushing procedure - git command error: \n {} \n git command out: \n {}'.format(e.stderr, e.stdout)
-            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
-                            headers={'Authorization': token_header_value})
             if 'Your branch is up to date' in e.stdout:
                 LOGGER.warning(message)
                 messages = [
@@ -240,19 +238,16 @@ def main(scriptConf=None):
         except Exception as e:
             LOGGER.exception(
                 'Error while pushing procedure {}'.format(sys.exc_info()[0]))
-            requests.delete('{}{}'.format(ietf_models_forked_url, repo_name),
-                            headers={'Authorization': token_header_value})
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-        requests.delete('{}{}'.format(ietf_models_forked_url, repo_name), headers={'Authorization': token_header_value})
         repo.remove()
         raise e
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
     repo.remove()
-    # we can not remove forked repository here since there could be new modules added
+
     if len(messages) == 0:
         messages = [
             {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}

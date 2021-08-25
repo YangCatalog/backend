@@ -10,7 +10,7 @@ jobs:
       matrix:
         python-version: [3.8, 3.9]
         redis-version: [6]
-        mariadb-version: [10.5.11-focal]
+        mariadb-version: [10.5.12-focal]
 
     steps:
       - uses: actions/checkout@v2
@@ -48,6 +48,11 @@ jobs:
         run: |
           python feed_redis.py
 
+      - name: Copy json_tree pyang plugin
+        run: |
+          mkdir -p $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins
+          cp elasticsearchIndexing/pyang_plugin/json_tree.py $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins/.
+
       - name: Test with pytest
         run: |
-          pytest
+          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf pytest

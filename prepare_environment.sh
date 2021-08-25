@@ -51,6 +51,7 @@ export SAVE_FILE_DIR=$var/all_modules
 sudo mkdir -p $var
 sudo chown -R $(whoami):$(whoami) $var
 mkdir -p $var/tmp
+mkdir -p $var/ytrees
 mkdir -p $SAVE_FILE_DIR
 mkdir -p $LOGS_DIR/jobs
 # Create logs directory and log files

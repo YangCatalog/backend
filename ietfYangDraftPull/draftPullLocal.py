@@ -33,12 +33,8 @@ import time
 import requests
 import utility.log as log
 from utility import repoutil
+from utility.create_config import create_config
 from utility.util import job_log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 check_name_no_revision_exist,
@@ -51,7 +47,7 @@ class ScriptConfig:
         self.help = 'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the' \
                     ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
         parser = argparse.ArgumentParser()
-        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -107,9 +103,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     notify = config.get('General-Section', 'notify-index')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')

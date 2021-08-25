@@ -24,11 +24,12 @@ import unittest
 from unittest import mock
 
 import api.views.ycSearch.ycSearch as search_bp
-from api.globalConfig import yc_gc
-from api.yangCatalogApi import application
+from api.yangCatalogApi import app
 from flask import escape
 from lxml import etree as ET
 from werkzeug.exceptions import BadRequest, NotFound
+
+ac = app.config
 
 
 class TestApiSearchClass(unittest.TestCase):
@@ -37,7 +38,7 @@ class TestApiSearchClass(unittest.TestCase):
         super(TestApiSearchClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
         # self.resources_path = '{}'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.client = application.test_client()
+        self.client = app.test_client()
 
     def test_search_by_organization(self):
         """Test if response has the correct structure.
@@ -92,7 +93,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['description'], 'No module found using provided input data')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_search_no_modules_loaded(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method.
@@ -200,7 +201,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['description'], 'No module found using provided input data')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_rpc_search_get_one_no_modules_loaded(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method.
@@ -352,7 +353,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIn('contributors', payload)
         self.assertNotEqual(len(contributors_list), 0)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_get_organizations_no_modules(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method.
@@ -372,7 +373,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if payload contains desired output = comparasion of pyang outputs for two different yang module revisions.
         """
         desired_output = "{0}/yang-catalog@2018-04-03.yang:1: the grouping 'yang-lib-imlementation-leafs', "\
-            "defined at {0}/yang-catalog@2017-09-26.yang:599 is illegally removed\n".format(yc_gc.save_file_dir)
+            "defined at {0}/yang-catalog@2017-09-26.yang:599 is illegally removed\n".format(ac.d_save_file_dir)
         file1 = 'yang-catalog'
         revision1 = '2018-04-03'
         file2 = 'yang-catalog'
@@ -914,7 +915,7 @@ class TestApiSearchClass(unittest.TestCase):
         revision = ''
         organization = ''
 
-        with application.app_context():
+        with app.app_context():
             with self.assertRaises(NotFound) as http_error:
                 search_bp.search_module(name, revision, organization)
 
@@ -934,7 +935,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIn('module', payload)
         self.assertNotEqual(len(modules), 0)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_get_modules_no_modules(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method.
@@ -964,7 +965,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIn('vendor', payload)
         self.assertNotEqual(len(vendors), 0)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_get_vendors_no_vendors(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from vendors_data() method.
@@ -995,7 +996,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertIn('modules', yang_catalog_data)
         self.assertIn('vendors', yang_catalog_data)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_get_catalog_no_catalog_data(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from catalog_data() method.
@@ -1034,7 +1035,7 @@ class TestApiSearchClass(unittest.TestCase):
         """
         filename = 'incorrect-yang-file'
         revision = '2018-01-01'
-        path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, filename, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, filename, revision)
 
         result = self.client.get('api/services/tree/{}@{}.yang'.format(filename, revision))
         data = json.loads(result.data)
@@ -1051,7 +1052,7 @@ class TestApiSearchClass(unittest.TestCase):
         """
         filename = ''
         revision = ''
-        path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, filename, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, filename, revision)
 
         with self.assertRaises(BadRequest) as http_error:
             search_bp.create_tree(filename, revision)
@@ -1089,38 +1090,44 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertIn(expected_message, data)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_modules_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method
         """
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
-        result = search_bp.modules_data()
+        with app.app_context():
+            result = search_bp.modules_data()
 
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_vendors_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from vendors_data() method
         """
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
-        result = search_bp.vendors_data()
+        with app.app_context():
+            result = search_bp.vendors_data()
 
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
-    @mock.patch('api.globalConfig.redis.Redis.get')
+    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
+    @mock.patch('api.yangCatalogApi.Redis.get')
     def test_catalog_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from catalog_data() method
         """
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
-        result = search_bp.catalog_data()
+        with app.app_context():
+            result = search_bp.catalog_data()
 
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)

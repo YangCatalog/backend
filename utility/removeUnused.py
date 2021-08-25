@@ -38,14 +38,9 @@ from os import unlink
 
 import utility.log as lo
 from dateutil.parser import parse
+from utility.create_config import create_config
 from utility.util import job_log
 from elasticsearch import Elasticsearch
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-
 
 def represents_int(s):
     try:
@@ -68,15 +63,13 @@ if __name__ == '__main__':
     start_time = int(time.time())
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     parser.add_argument('--compress', action='store_true', default=True,
                         help='Set whether to compress snapshot files. Default is True')
     args, extra_args = parser.parse_known_args()
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     ys_users = config.get('Directory-Section', 'ys-users')

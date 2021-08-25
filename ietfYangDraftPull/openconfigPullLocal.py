@@ -33,12 +33,8 @@ import time
 
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.create_config import create_config
 from utility.util import job_log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 class ScriptConfig:
     def __init__(self):
@@ -46,7 +42,7 @@ class ScriptConfig:
                     ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
         parser = argparse.ArgumentParser()
         parser.add_argument('--config-path', type=str,
-                            default='/etc/yangcatalog/yangcatalog.conf',
+                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -91,9 +87,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     api_ip = config.get('Web-Section', 'ip')
     api_port = int(config.get('Web-Section', 'api-port'))
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
