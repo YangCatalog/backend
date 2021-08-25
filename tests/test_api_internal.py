@@ -22,9 +22,10 @@ from unittest import mock
 import os
 import json
 
-from api.globalConfig import yc_gc
-from api.yangCatalogApi import application
+from api.yangCatalogApi import app
 from api.authentication.auth import auth
+
+ac = app.config
 
 
 class TestApiInternalClass(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestApiInternalClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestApiInternalClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.client = application.test_client()
+        self.client = app.test_client()
 
     @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull(self):
@@ -216,7 +217,7 @@ class TestApiInternalClass(unittest.TestCase):
 
         self.assertEqual(result.status_code, 401)
 
-    @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock())
+    @mock.patch.object(ac.sender, 'send', mock.MagicMock())
     @mock.patch('utility.messageFactory.MessageFactory')
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate(self, mock_message_factory: mock.MagicMock):
@@ -238,7 +239,7 @@ class TestApiInternalClass(unittest.TestCase):
             'vendor/cisco/xe/1651'
         )
 
-    @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock())
+    @mock.patch.object(ac.sender, 'send', mock.MagicMock())
     @mock.patch('utility.messageFactory.MessageFactory', mock.MagicMock())
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate_empty(self):

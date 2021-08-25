@@ -127,7 +127,7 @@ if __name__ == '__main__':
         logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
         for mod in delete_cache:
-            name, rev_org = mod.split('@')[0]
+            name, rev_org = mod.split('@')
             revision, organization = rev_org.split('/')
 
             try:

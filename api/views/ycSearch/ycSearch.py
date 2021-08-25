@@ -28,8 +28,8 @@ from operator import contains, eq
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
-from api.globalConfig import yc_gc
-from flask import Blueprint, Response, abort, current_app, escape, request
+from flask import current_app as app
+from flask import Blueprint, Response, abort, escape, request
 from flask_deprecate import deprecate_route
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
@@ -45,11 +45,16 @@ class YcSearch(Blueprint):
                          url_defaults, root_path)
 
 
-app = YcSearch('ycSearch', __name__)
+bp = YcSearch('ycSearch', __name__)
+ac = None
 
+@bp.before_request
+def set_config():
+    global ac
+    ac = app.config
 
 ### ROUTE ENDPOINT DEFINITIONS ###
-@app.route('/fast', methods=['POST'])
+@bp.route('/fast', methods=['POST'])
 @deprecate_route("Use foo instead")
 def fast_search():
     """Search through the YANG keyword index for a given search pattern.
@@ -60,14 +65,14 @@ def fast_search():
 
     limit = 1000000
     payload = request.json
-    current_app.logger.info(payload)
+    app.logger.info(payload)
     if 'search' not in payload:
         abort(400, description='You must specify a "search" argument')
     try:
         count = 0
-        search_res, limit_reached = inde.do_search(payload, yc_gc.es_host,
-                                                   yc_gc.es_port, yc_gc.es_aws, yc_gc.elk_credentials,
-                                                   current_app.logger)
+        search_res, limit_reached = inde.do_search(payload, ac.db_es_host,
+                                                   ac.db_es_port, ac.db_es_aws, ac.s_elk_credentials,
+                                                   app.logger)
         if search_res is None and limit_reached is None:
             abort(400, description='Search is too broad. Please search for something more specific')
         res = []
@@ -97,7 +102,7 @@ def fast_search():
                             mod_meta = search_module(m_name, m_revision.replace('02-28', '02-29'), m_organization)
                         if mod_meta.status_code == 404:
                             not_founds.append(mod_sig)
-                            current_app.logger.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
+                            app.logger.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
                             res_row = {'module': {'error': 'no {}@{} in API'.format(m_name, m_revision)}}
                             res.append(res_row)
                             continue
@@ -144,7 +149,7 @@ def fast_search():
         return ({'error': str(e)}, 500)
 
 
-@app.route('/search/<path:value>', methods=['GET'])
+@bp.route('/search/<path:value>', methods=['GET'])
 def search(value: str):
     """Search for a specific leaf from yang-catalog.yang module in modules
     branch. The key searched is defined in @module_keys variable.
@@ -154,7 +159,7 @@ def search(value: str):
             :return response to the request.
     """
     path = value
-    current_app.logger.info('Searching for {}'.format(value))
+    app.logger.info('Searching for {}'.format(value))
     split = value.split('/')[:-1]
     key = '/'.join(value.split('/')[:-1])
     value = value.split('/')[-1]
@@ -184,7 +189,7 @@ def search(value: str):
     abort(400, description='Search on path {} is not supported'.format(path))
 
 
-@app.route('/search-filter/<leaf>', methods=['POST'])
+@bp.route('/search-filter/<leaf>', methods=['POST'])
 def rpc_search_get_one(leaf: str):
     """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request.
     """
@@ -217,7 +222,7 @@ def rpc_search_get_one(leaf: str):
         return {'output': {leaf: list(output)}}
 
 
-@app.route('/search-filter', methods=['POST'])
+@bp.route('/search-filter', methods=['POST'])
 def rpc_search(body: dict = None):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
     """
@@ -225,7 +230,7 @@ def rpc_search(body: dict = None):
     if body is None:
         body = request.json
         from_api = True
-    current_app.logger.info('Searching and filtering modules based on RPC {}'
+    app.logger.info('Searching and filtering modules based on RPC {}'
                             .format(json.dumps(body)))
     data = modules_data().get('module', {})
     body = body.get('input')
@@ -271,7 +276,7 @@ def rpc_search(body: dict = None):
         abort(400, description='body request has to start with "input" container')
 
 
-@app.route('/contributors', methods=['GET'])
+@bp.route('/contributors', methods=['GET'])
 def get_organizations():
     """Loop through all the modules in catalog and create unique set of organizations.
     """
@@ -284,7 +289,7 @@ def get_organizations():
     return {'contributors': orgs}
 
 
-@app.route('/services/file1=<name1>@<revision1>/check-update-from/file2=<name2>@<revision2>', methods=['GET'])
+@bp.route('/services/file1=<name1>@<revision1>/check-update-from/file2=<name2>@<revision2>', methods=['GET'])
 def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
     """Create output from pyang tool with option --check-update-from for two modules with revisions
         Arguments:
@@ -300,9 +305,9 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    new_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    old_schema = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
-    ctx, _ = context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
+    new_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
+    old_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
+    ctx, _ = context_check_update_from(old_schema, new_schema, ac.d_yang_models_dir, ac.d_save_file_dir)
 
     errors = []
     for ctx_err in ctx.errors:
@@ -314,7 +319,7 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
     return '<html><body><pre>{}</pre></body></html>'.format(''.join(errors))
 
 
-@app.route('/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2>', methods=['GET'])
+@bp.route('/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2>', methods=['GET'])
 def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
     """Create preformated HTML which contains diff between two yang file.
     Dump content of yang files into tempporary schema-file-diff.txt file.
@@ -333,17 +338,17 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name2, revision2)
+    schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
     file_name1 = 'schema1-file-diff.txt'
     yang_file_1_content = ''
     try:
         with open(schema1, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_1_content = f.read()
     except FileNotFoundError:
-        current_app.logger.warn('File {}@{}.yang was not found.'.format(name1, revision1))
+        app.logger.warn('File {}@{}.yang was not found.'.format(name1, revision1))
 
-    with open('{}/{}'.format(yc_gc.diff_file_dir, file_name1), 'w+') as f:
+    with open('{}/{}'.format(ac.d_save_diff_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_1_content))
 
     file_name2 = 'schema2-file-diff.txt'
@@ -352,20 +357,20 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
         with open(schema2, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_2_content = f.read()
     except FileNotFoundError:
-        current_app.logger.warn('File {}@{}.yang was not found.'.format(name2, revision2))
-    with open('{}/{}'.format(yc_gc.diff_file_dir, file_name2), 'w+') as f:
+        app.logger.warn('File {}@{}.yang was not found.'.format(name2, revision2))
+    with open('{}/{}'.format(ac.d_save_diff_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_2_content))
-    tree1 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name1)
-    tree2 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name2)
+    tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
+    tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
-    os.remove(yc_gc.diff_file_dir + '/' + file_name1)
-    os.remove(yc_gc.diff_file_dir + '/' + file_name2)
+    os.remove(ac.d_save_diff_dir + '/' + file_name1)
+    os.remove(ac.d_save_diff_dir + '/' + file_name2)
     return '<html><body>{}</body></html>'.format(response.text)
 
 
-@app.route('/services/diff-tree/file1=<name1>@<revision1>/file2=<file2>@<revision2>', methods=['GET'])
+@bp.route('/services/diff-tree/file1=<name1>@<revision1>/file2=<file2>@<revision2>', methods=['GET'])
 def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     """Create preformated HTML which contains diff between two yang trees.
     Dump content of yang files into tempporary schema-tree-diff.txt file.
@@ -384,11 +389,11 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             return 'Server error - could not create directory'
-    schema1 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, file2, revision2)
+    schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
+    schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, file2, revision2)
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
+    ctx = create_context('{}:{}'.format(ac.d_yang_models_dir, ac.d_save_file_dir))
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
     ctx.lax_quote_checks = True
@@ -411,7 +416,7 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name1 = 'schema1-tree-diff.txt'
-    full_path_file1 = '{}/{}'.format(yc_gc.diff_file_dir, file_name1)
+    full_path_file1 = '{}/{}'.format(ac.d_save_diff_dir, file_name1)
     with open(full_path_file1, 'w+') as ff:
         ff.write('<pre>{}</pre>'.format(stdout))
     with open(schema2, 'r') as ff:
@@ -421,11 +426,11 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name2 = 'schema2-tree-diff.txt'
-    full_path_file2 = '{}/{}'.format(yc_gc.diff_file_dir, file_name2)
+    full_path_file2 = '{}/{}'.format(ac.d_save_diff_dir, file_name2)
     with open(full_path_file2, 'w+') as ff:
         ff.write('<pre>{}</pre>'.format(stdout))
-    tree1 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name1)
-    tree2 = '{}/compatibility/{}'.format(yc_gc.my_uri, file_name2)
+    tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
+    tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
@@ -434,7 +439,7 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     return '<html><body>{}</body></html>'.format(response.text)
 
 
-@app.route('/get-common', methods=['POST'])
+@bp.route('/get-common', methods=['POST'])
 def get_common():
     """Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
     """
@@ -467,7 +472,7 @@ def get_common():
     return {'output': output_modules_list}
 
 
-@app.route('/compare', methods=['POST'])
+@bp.route('/compare', methods=['POST'])
 def compare():
     """Compare and find different modules out of two different filtering by leafs with data provided by in body of the request.
     Output contains module metadata with 'reason-to-show' data as well which can be showing either 'New module' or 'Different revision'.
@@ -514,7 +519,7 @@ def compare():
     return output
 
 
-@app.route('/check-semantic-version', methods=['POST'])
+@bp.route('/check-semantic-version', methods=['POST'])
 # @cross_origin(headers='Content-Type')
 def check_semver():
     """Get output from pyang tool with option '--check-update-from' for all the modules between and filter.
@@ -570,7 +575,7 @@ def check_semver():
                         reason = 'Newer module failed compilation'
                     else:
                         file_name = ('{}services/file1={}@{}/check-update-from/file2={}@{}'
-                                     .format(yc_gc.yangcatalog_api_prefix, name_new,
+                                     .format(ac.yangcatalog_api_prefix, name_new,
                                              revision_new, name_old,
                                              revision_old))
                         reason = ('pyang --check-update-from output: {}'.
@@ -578,7 +583,7 @@ def check_semver():
 
                     diff = (
                         '{}services/diff-tree/file1={}@{}/file2={}@{}'.
-                        format(yc_gc.yangcatalog_api_prefix, name_old,
+                        format(ac.yangcatalog_api_prefix, name_old,
                                revision_old, name_new, revision_new))
 
                     output_mod['yang-module-pyang-tree-diff'] = diff
@@ -591,7 +596,7 @@ def check_semver():
                     output_mod['new-derived-semantic-version'] = semver_new
                     output_mod['derived-semantic-version-results'] = reason
                     diff = ('{}services/diff-file/file1={}@{}/file2={}@{}'
-                            .format(yc_gc.yangcatalog_api_prefix, name_old,
+                            .format(ac.yangcatalog_api_prefix, name_old,
                                     revision_old, name_new, revision_new))
                     output_mod['yang-module-diff'] = diff
                     output_modules_list.append(output_mod)
@@ -601,7 +606,7 @@ def check_semver():
     return output
 
 
-@app.route('/search/vendor/<vendor>', methods=['GET'])
+@bp.route('/search/vendor/<vendor>', methods=['GET'])
 def search_vendor_statistics(vendor: str):
     """Search for os-types of <vendor> with corresponding os-versions and platforms.
         Arguments:
@@ -609,7 +614,7 @@ def search_vendor_statistics(vendor: str):
             :return statistics of the vendor's os-types, os-versions and platforms
             :rtype dict
     """
-    current_app.logger.info('Searching for vendors')
+    app.logger.info('Searching for vendors')
     data = vendors_data(False).get('vendor', {})
     ven_data = None
     for d in data:
@@ -643,7 +648,7 @@ def search_vendor_statistics(vendor: str):
     return os_types
 
 
-@app.route('/search/vendors/<path:value>', methods=['GET'])
+@bp.route('/search/vendors/<path:value>', methods=['GET'])
 def search_vendors(value: str):
     """Search for a specific vendor, platform, os-type, os-version depending on
     the value sent via API.
@@ -652,7 +657,7 @@ def search_vendors(value: str):
                 ends with /value searched for
             :return response to the request.
     """
-    current_app.logger.info('Searching for specific vendors {}'.format(value))
+    app.logger.info('Searching for specific vendors {}'.format(value))
     vendors_data = get_vendors()
 
     if 'vendor/' in value:
@@ -710,7 +715,7 @@ def search_vendors(value: str):
         return vendors_data
 
 
-@app.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
+@bp.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
 def search_module(name: str, revision: str, organization: str):
     """Search for a specific module defined with name, revision and organization
             Arguments:
@@ -720,8 +725,8 @@ def search_module(name: str, revision: str, organization: str):
                 :return response to the request with job_id that user can use to
                     see if the job is still on or Failed or Finished successfully
     """
-    current_app.logger.info('Searching for module {}, {}, {}'.format(name, revision, organization))
-    module_data = yc_gc.redis.get("{}@{}/{}".format(name, revision, organization))
+    app.logger.info('Searching for module {}, {}, {}'.format(name, revision, organization))
+    module_data = ac.redis.get("{}@{}/{}".format(name, revision, organization))
     if module_data is not None:
         module_data = module_data.decode('utf-8')
         return {'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
@@ -730,36 +735,36 @@ def search_module(name: str, revision: str, organization: str):
     abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
 
 
-@app.route('/search/modules', methods=['GET'])
+@bp.route('/search/modules', methods=['GET'])
 def get_modules():
     """Search for all the modules populated in confd
         :return response to the request with all the modules
     """
-    current_app.logger.info('Searching for modules')
+    app.logger.info('Searching for modules')
     data = modules_data()
     if data is None or data == {}:
         abort(404, description="No module is loaded")
     return data
 
 
-@app.route('/search/vendors', methods=['GET'])
+@bp.route('/search/vendors', methods=['GET'])
 def get_vendors():
     """Search for all the vendors populated in confd
         :return response to the request with all the vendors
     """
-    current_app.logger.info('Searching for vendors')
+    app.logger.info('Searching for vendors')
     data = vendors_data()
     if data is None or data == {}:
         abort(404, description="No vendor is loaded")
     return data
 
 
-@app.route('/search/catalog', methods=['GET'])
+@bp.route('/search/catalog', methods=['GET'])
 def get_catalog():
     """Search for a all the data populated in confd
         :return response to the request with all the data
     """
-    current_app.logger.info('Searching for catalog data')
+    app.logger.info('Searching for catalog data')
     data = catalog_data()
     if data is None or data == {}:
         abort(404, description='No data loaded to YangCatalog')
@@ -767,7 +772,7 @@ def get_catalog():
         return data
 
 
-@app.route('/services/tree/<name>@<revision>.yang', methods=['GET'])
+@bp.route('/services/tree/<name>@<revision>.yang', methods=['GET'])
 def create_tree(name: str, revision: str):
     """
     Return yang tree representation of yang module with corresponding module name and revision.
@@ -776,10 +781,10 @@ def create_tree(name: str, revision: str):
         :param revision (str) revision of the module in format YYYY-MM-DD
         :return preformatted HTML with corresponding data
     """
-    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
+    path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context('{}:{}'.format(yc_gc.yang_models, yc_gc.save_file_dir))
+    ctx = create_context('{}:{}'.format(ac.d_yang_models_dir, ac.d_save_file_dir))
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
 
@@ -813,7 +818,7 @@ def create_tree(name: str, revision: str):
         return '<html><body><pre>{}</pre></body></html>'.format(stdout)
 
 
-@app.route('/services/reference/<name>@<revision>.yang', methods=['GET'])
+@bp.route('/services/reference/<name>@<revision>.yang', methods=['GET'])
 def create_reference(name: str, revision: str):
     """
     Return reference of yang file with corresponding module name and revision.
@@ -822,7 +827,7 @@ def create_reference(name: str, revision: str):
         :param revision (str) revision of the module in format YYYY-MM-DD
         :return preformatted HTML with corresponding data
     """
-    path_to_yang = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
+    path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_content = escape(f.read())
@@ -1007,7 +1012,7 @@ def modules_data():
     """Get all the modules data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = yc_gc.redis.get('modules-data')
+    data = ac.redis.get('modules-data')
     if data is None:
         data = '{}'
     else:
@@ -1019,7 +1024,7 @@ def vendors_data(clean_data=True):
     """Get all the vendors data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = yc_gc.redis.get('vendors-data')
+    data = ac.redis.get('vendors-data')
     if data is None:
         data = '{}'
     else:
@@ -1036,7 +1041,7 @@ def catalog_data():
     """Get all the catalog data (modules and vendors) from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = yc_gc.redis.get('all-catalog-data')
+    data = ac.redis.get('all-catalog-data')
     if data is None:
         data = '{}'
     else:
@@ -1051,7 +1056,7 @@ def create_bootstrap_info():
 
 
 def create_bootstrap_warning(text: str, message: str):
-    current_app.logger.info('Rendering bootstrap warning data')
+    app.logger.info('Rendering bootstrap warning data')
     context = {'warn_text': text, 'warn_message': message}
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/warning.html')
 
@@ -1060,7 +1065,7 @@ def create_bootstrap_warning(text: str, message: str):
 
 
 def create_bootstrap_danger(message: str):
-    current_app.logger.info('Rendering bootstrap danger data')
+    app.logger.info('Rendering bootstrap danger data')
     context = {'danger_message': message}
     path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
 
