@@ -99,19 +99,7 @@ class YangCatalogApiGlobalConfig():
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
 
-        rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
-        rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
-        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
-        rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
         self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
-        self.sender = Sender(self.logs_dir, self.temp_dir,
-                             rabbitmq_host=rabbitmq_host,
-                             rabbitmq_port=rabbitmq_port,
-                             rabbitmq_virtual_host=rabbitmq_virtual_host,
-                             rabbitmq_username=rabbitmq_username,
-                             rabbitmq_password=rabbitmq_password
-                             )
         separator = ':'
         suffix = self.api_port
         if self.is_uwsgi == 'True':
