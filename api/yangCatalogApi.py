@@ -105,7 +105,7 @@ class MyFlask(Flask):
         self.release_locked = []
         self.permanent_session_lifetime = timedelta(minutes=20)
         self.load_config()
-        self.logger.debug('API initialized at ' + self.config.yangcatalog_api_prefix)
+        self.logger.debug('API initialized at {}'.format(self.config.yangcatalog_api_prefix))
         self.logger.debug('Starting api')
         self.secret_key = self.config.s_flask_secret_key
 
@@ -131,7 +131,6 @@ class MyFlask(Flask):
     def init_config(self):
         self.config['OIDC'] = oidc
         self.config['SQLALCHEMY'] = db
-        self.config.sqlalchemy.init_app(self)
         self.config['LOCK-UWSGI-CACHE1'] = threading.Lock()
         self.config['LOCK-UWSGI-CACHE2'] = threading.Lock()
 
@@ -432,13 +431,15 @@ class MyFlask(Flask):
 
 app = MyFlask(__name__)
 ac = app.config
-ac["OIDC_CLIENT_SECRETS"] = "secrets_oidc.json"
-ac["OIDC_COOKIE_SECURE"] = False
-ac["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
-ac["OIDC_SCOPES"] = ["openid", "email", "profile"]
-ac["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
-ac["SQLALCHEMY_DATABASE_URI"] = URL.create('mysql', username=ac.db_user, password=ac.s_mysql_password,
+ac['OIDC_CLIENT_SECRETS'] = 'secrets_oidc.json'
+ac['OIDC_COOKIE_SECURE'] = False
+ac['OIDC_CALLBACK_ROUTE'] = '/api/admin/ping'
+ac['OIDC_SCOPES'] = ['openid', 'email', 'profile']
+ac['OIDC_ID_TOKEN_COOKIE_NAME'] = 'oidc_token'
+ac['SQLALCHEMY_DATABASE_URI'] = URL.create('mysql', username=ac.db_user, password=ac.s_mysql_password,
                                            host=ac.db_host, database=ac.db_name_users)
+ac['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+ac.sqlalchemy.init_app(app)
 try:
     with app.app_context():
         ac.sqlalchemy.create_all()
