@@ -38,6 +38,7 @@ import xml.etree.ElementTree as ET
 
 import utility.log as log
 from utility import repoutil
+from utility.staticVariables import github, github_raw
 from utility.util import find_first_file
 
 from parseAndPopulate.fileHasher import FileHasher
@@ -45,9 +46,6 @@ from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.parseException import ParseException
 from parseAndPopulate.prepare import Prepare
-
-github_raw = 'https://raw.githubusercontent.com/'
-github_url = 'https://github.com/'
 
 
 class Capability:
@@ -128,7 +126,7 @@ class Capability:
                 LOGGER.debug('Setting metadata concerning whole directory')
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo_url = '{}{}/{}'.format(github, self.owner, self.repo)
                 repo = repoutil.load(self.yang_models_dir, repo_url)
                 if repo is None:
                     repo = repoutil.RepoUtil(repo_url, self.logger)
@@ -171,7 +169,7 @@ class Capability:
             self.repo = impl.get('module-list-file', {}).get('repository').split('.')[0]
             self.path = impl.get('module-list-file', {}).get('path')
             self.branch = impl.get('module-list-file', {}).get('branch')
-            repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+            repo_url = '{}{}/{}'.format(github, self.owner, self.repo)
             repo = None
             if self.owner == 'YangModels' and self.repo == 'yang':
                 repo = repoutil.load(self.yang_models_dir, repo_url)
@@ -212,7 +210,7 @@ class Capability:
                 repo_file_path = sdo.get('source-file', {}).get('path')
                 self.repo = sdo.get('source-file', {}).get('repository', '').split('.')[0]
                 if repo is None:
-                    repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
+                    repo = repoutil.RepoUtil('{}{}/{}'.format(github, self.owner, self.repo), self.logger)
                     repo.clone()
                 self.branch = sdo.get('source-file', {}).get('branch')
                 if not self.branch:
@@ -249,7 +247,7 @@ class Capability:
                 # Load/clone YangModels/yang repo
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo_url = '{}{}/{}'.format(github, self.owner, self.repo)
                 repo = repoutil.load(self.yang_models_dir, repo_url)
                 if repo is None:
                     repo = repoutil.RepoUtil(repo_url, self.logger)
@@ -542,7 +540,7 @@ class Capability:
             if data.get('iana') == 'Y' and data.get('file'):
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo_url = '{}{}/{}'.format(github, self.owner, self.repo)
                 repo = repoutil.load(self.yang_models_dir, repo_url)
                 if repo is None:
                     repo = repoutil.RepoUtil(repo_url, self.logger)

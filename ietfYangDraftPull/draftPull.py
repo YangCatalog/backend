@@ -41,6 +41,7 @@ import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory, repoutil
 from utility.create_config import create_config
+from utility.staticVariables import github
 from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
@@ -111,7 +112,7 @@ def main(scriptConf=None):
 
     # Check whether fork repository is up-to-date
     try:
-        main_repo = repoutil.load(yang_models, 'https://github.com/YangModels/yang.git')
+        main_repo = repoutil.load(yang_models, '{}YangModels/yang.git'.format(github))
         origin = main_repo.repo.remote('origin')
         fork = main_repo.repo.remote('fork')
 

@@ -33,6 +33,7 @@ import requests
 import utility.log as log
 from utility import repoutil
 from utility.create_config import create_config
+from utility.staticVariables import github
 from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
@@ -122,7 +123,7 @@ def main(scriptConf=None):
         clone_dir = '{}/draftpulllocal'.format(temp_dir)
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
-        repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
+        repo = repoutil.RepoUtil('{}YangModels/yang.git'.format(github))
         repo.clone(config_name, config_email, clone_dir)
         LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.localdir))
 

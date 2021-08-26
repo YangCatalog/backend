@@ -30,6 +30,7 @@ from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.prepare import Prepare
 from utility import repoutil
+from utility.staticVariables import github, github_raw
 
 
 class TestCapabilityClass(unittest.TestCase):
@@ -354,7 +355,7 @@ class TestCapabilityClass(unittest.TestCase):
         """
         parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         module_name = path_to_yang.split('/')[-1].split('.yang')[0]
-        schema = 'https://raw.githubusercontent.com/YangModels/yang/master/standard/ietf/RFC/{}.yang'.format(module_name)
+        schema = '{}YangModels/yang/master/standard/ietf/RFC/{}.yang'.format(github_raw, module_name)
         if '@' in module_name:
             module_name = module_name.split('@')[0]
 
@@ -371,8 +372,7 @@ class TestCapabilityClass(unittest.TestCase):
         :returns:       Loaded Github repository
         :rtype:         repoutil.Repo
         """
-        github_url = 'https://github.com/'
-        repo_url = '{}{}/{}'.format(github_url, 'YangModels', 'yang')
+        repo_url = '{}{}/{}'.format(github, 'YangModels', 'yang')
         repo = repoutil.load(yc_gc.yang_models, repo_url)
 
         return repo

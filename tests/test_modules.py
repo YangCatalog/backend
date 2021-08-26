@@ -24,6 +24,7 @@ import unittest
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
+from utility.staticVariables import github_raw
 
 
 class TestModulesClass(unittest.TestCase):
@@ -32,7 +33,7 @@ class TestModulesClass(unittest.TestCase):
         super(TestModulesClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema = 'https://raw.githubusercontent.com/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types.yang'
+        self.schema = '{}YangModels/yang/master/standard/ietf/RFC/ietf-yang-types.yang'.format(github_raw)
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
@@ -171,7 +172,7 @@ class TestModulesClass(unittest.TestCase):
             'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
             'revision': '2020-07-01'
         }
-        schema_part = 'https://raw.githubusercontent.com/YangModels/yang/master/'
+        schema_part = '{}YangModels/yang/master/'.format(github_raw)
         xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(self.resources_path)
         module_name = 'huawei-aaa'
         platform_name = 'ne5000e'

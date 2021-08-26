@@ -35,18 +35,8 @@ from api.authentication.auth import auth, hash_pw
 
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
-from utility.staticVariables import confd_headers
+from utility.staticVariables import confd_headers, NS_MAP, github
 from api.models import User, TempUser
-
-
-NS_MAP = {
-    "http://cisco.com/": "cisco",
-    "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang": "openconfig",
-    "http://tail-f.com/": "tail-f",
-    "http://yang.juniper.net/": "juniper"
-}
-url = 'https://github.com/'
 
 
 class UserSpecificModuleMaintenance(Blueprint):
@@ -439,7 +429,7 @@ def add_modules():
             return abort(400, description='bad request - at least one of modules source file "owner" is missing and is mandatory')
         directory = '/'.join(sdo_path.split('/')[:-1])
 
-        repo_url = '{}{}/{}'.format(url, sdo_owner, sdo_repo)
+        repo_url = '{}{}/{}'.format(github, sdo_owner, sdo_repo)
         if repo_url not in repo:
             app.logger.info('Downloading repo {}'.format(repo_url))
             try:
@@ -623,7 +613,7 @@ def add_vendors():
                 continue
 
         directory = '/'.join(capability_path.split('/')[:-1])
-        repo_url = '{}{}/{}'.format(url, owner, repository)
+        repo_url = '{}{}/{}'.format(github, owner, repository)
 
         if repo_url not in repo:
             app.logger.info('Downloading repo {}'.format(repo_url))
