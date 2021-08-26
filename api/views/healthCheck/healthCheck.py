@@ -20,12 +20,13 @@ __email__ = "slavomir.mazur@pantheon.tech"
 import json
 import time
 
-from sqlalchemy.exc import SQLAlchemyError
 import requests
 import utility.log as log
 from elasticsearch import Elasticsearch
+from flask import Blueprint
 from flask import current_app as app
-from flask import Blueprint, jsonify, make_response
+from flask import jsonify, make_response
+from sqlalchemy.exc import SQLAlchemyError
 from utility.staticVariables import confd_headers, json_headers
 from utility.util import create_signature
 
@@ -40,9 +41,11 @@ class HealthcheckBlueprint(Blueprint):
 
 bp = HealthcheckBlueprint('healthcheck', __name__)
 
+
 @bp.record
 def init_logger(state):
     bp.LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(state.app.config.d_logs))
+
 
 @bp.before_request
 def set_config():
@@ -177,7 +180,7 @@ def health_check_yang_search():
     service_name = 'yang-search'
     yang_search_preffix = '{}://{}/yang-search'.format(ac.g_protocol_api, ac.w_ip)
     body = json.dumps({'input': {'data': 'ping'}})
-    signature = create_signature(ac.s_flask_search_key, body)
+    signature = create_signature(ac.s_flask_secret_key, body)
     headers = {**json_headers,
                'X-YC-Signature': 'sha1={}'.format(signature)}
     try:
