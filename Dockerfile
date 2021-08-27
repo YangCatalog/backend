@@ -89,6 +89,6 @@ RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
-CMD chown -R yang:yang /var/run/yang && cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py --preload
+CMD chown -R yang:yang /var/run/yang && cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
 EXPOSE 3031

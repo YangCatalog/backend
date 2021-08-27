@@ -521,24 +521,23 @@ class Capability:
 
         git_commit_hash = None
         for module in modules:
-            # additional_info = {}
+            additional_info = {}
             data = module.attrib
             for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
                 data[prop] = attributes.text
-                # TODO: If reference will be resolved: https://github.com/YangCatalog/backend/issues/342
-                # if prop == 'xref':
-                #     xref_info = attributes.attrib
-                #     if xref_info.get('type') == 'draft':
-                #         document_split = xref_info.get('data').replace('RFC', 'draft').split('-')
-                #         version = document_split[-1]
-                #         name = '-'.join(document_split[:-1])
-                #         additional_info['document-name'] = '{}-{}.txt'.format(name, version)
-                #         additional_info['reference'] = 'https://www.iana.org/go/{}-{}'.format(name, version)
-                #     else:
-                #         additional_info['document-name'] = xref_info.get('data')
-                #         additional_info['reference'] = 'https://www.iana.org/go/{}'.format(xref_info.get('data'))
-                # additional_info['organization'] = 'ietf'
+                if prop == 'xref':
+                    xref_info = attributes.attrib
+                    if xref_info.get('type') == 'draft':
+                        document_split = xref_info.get('data').replace('RFC', 'draft').split('-')
+                        version = document_split[-1]
+                        name = '-'.join(document_split[:-1])
+                        additional_info['document-name'] = '{}-{}.txt'.format(name, version)
+                        additional_info['reference'] = 'https://www.iana.org/go/{}-{}'.format(name, version)
+                    else:
+                        additional_info['document-name'] = xref_info.get('data')
+                        additional_info['reference'] = 'https://www.iana.org/go/{}'.format(xref_info.get('data'))
+                additional_info['organization'] = 'ietf'
 
             if data.get('iana') == 'Y' and data.get('file'):
                 self.owner = 'YangModels'
@@ -573,7 +572,7 @@ class Capability:
                 schema = '{}{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, git_commit_hash, path)
                 yang.parse_all(git_commit_hash, data['name'],
                                self.prepare.name_revision_organization,
-                               schema, self.path, self.save_file_to_dir)
+                               schema, self.path, self.save_file_to_dir, additional_info)
                 self.prepare.add_key_sdo_module(yang)
 
     def parse_imp_inc(self, modules: list, set_of_names: dict, is_include: bool, schema_part: str,
