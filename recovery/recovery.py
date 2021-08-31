@@ -28,7 +28,6 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import base64
 import datetime
-import glob
 import json
 import os
 import sys
@@ -39,10 +38,10 @@ from time import sleep
 import redis
 import requests
 import utility.log as log
-from dateutil.parser import parse
 from requests import ConnectionError
 from utility.create_config import create_config
-from utility.util import job_log
+from utility.staticVariables import confd_headers, date_format
+from utility.util import job_log, get_list_of_backups
 
 
 class ScriptConfig:
@@ -71,7 +70,7 @@ class ScriptConfig:
         parser.add_argument('--ip', default=self.__confd_host, type=str,
                             help='Set ip address where the confd is started. Default -> {}'.format(self.__confd_host))
         parser.add_argument('--name_save',
-                            default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC',
+                            default=datetime.datetime.utcnow().strftime(date_format),
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
         parser.add_argument('--name_load', type=str, default='',
                             help='Set name of the file to load. Default will take a last saved file')
@@ -121,6 +120,8 @@ def main(scriptConf=None):
     redis_host = scriptConf.redis_host
     redis_port = scriptConf.redis_port
 
+    confd_backups = os.path.join(cache_directory, 'confd')
+
     LOGGER = log.get_logger('recovery', log_directory + '/yang.log')
     prefix = args.protocol + '://{}:{}'.format(args.ip, args.port)
     LOGGER.info('Starting {} process of confd database'.format(args.type))
@@ -132,7 +133,7 @@ def main(scriptConf=None):
         LOGGER.info('Status code for hear request {} '.format(response.status_code))
     except ConnectionError as e:
         if tries == 0:
-            LOGGER.error('Unable to connect to confd for over a {} minutes'.format(tries))
+            LOGGER.exception('Unable to connect to confd for over a {} minutes'.format(tries))
             e = 'Unable to connect to confd'
             filename='{} - save'.format(os.path.basename(__file__).split('.py')[0])
             job_log(start_time, temp_dir, error=str(e), status='Fail', filename=filename)
@@ -141,12 +142,10 @@ def main(scriptConf=None):
         sleep(60)
 
     if 'save' == args.type:
-        file_save = open(cache_directory + '/' + args.name_save + '.json', 'w')
-        jsn = requests.get(prefix + '/restconf/data/yang-catalog:catalog',
+        file_save = open(os.path.join(confd_backups, '{}.json'.format(args.name_save)), 'w')
+        jsn = requests.get('{}/restconf/data/yang-catalog:catalog'.format(prefix),
                            auth=(credentials[0], credentials[1]),
-                           headers={
-                               'Accept': 'application/yang-data+json',
-                               'Content-type': 'application/yang-data+json'}).json()
+                           headers=confd_headers).json()
         file_save.write(json.dumps(jsn))
         file_save.close()
         num_of_modules = 0 if not jsn['yang-catalog:catalog'].get('modules', {}).get('module') \
@@ -162,125 +161,85 @@ def main(scriptConf=None):
         job_log(start_time, temp_dir, messages=messages, status='Success', filename=filename)
     else:
         if args.name_load:
-            file_load = open(cache_directory + '/' + args.name_load, 'r')
+            file_load = open(os.path.join(confd_backups, args.name_load), 'r')
         else:
-            list_of_files = glob.glob(cache_directory + '/*')
-            list_of_files = [i.split('/')[-1][:-5].replace('_', ' ')[:-4] for i in list_of_files]
-            list_of_dates = []
-            for f in list_of_files:
-                try:
-                    datetime_parsed = parse(f)
-                    file_name = '{}/{}-UTC.json'.format(cache_directory, f.replace(' ', '_'))
-                    if os.stat(file_name).st_size == 0:
-                        continue
-                    list_of_dates.append(datetime_parsed)
-                except ValueError as e:
-                    pass
-            list_of_dates = sorted(list_of_dates)
-            file_name = '{}/{}-UTC.json'.format(cache_directory, str(list_of_dates[-1]).replace(' ', '_'))
+            list_of_backups = get_list_of_backups(confd_backups)
+            file_name = os.path.join(confd_backups, '.'.join(list_of_backups[-1]))
             file_load = open(file_name, 'r')
         LOGGER.info('Loading file {}'.format(file_load.name))
         catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
-        str_to_encode = '%s:%s' % (credentials[0], credentials[1])
-        if sys.version_info >= (3, 4):
-            str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
+        str_to_encode = ':'.join(credentials)
+        str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
         base64string = base64.b64encode(str_to_encode)
-        if sys.version_info >= (3, 4):
-            base64string = base64string.decode(encoding='utf-8', errors='strict')
-        code = 500
-        failed = True
+        base64string = base64string.decode(encoding='utf-8', errors='strict')
         counter = 5
-        while failed:
-            if not str(code).startswith('2'):
-                time.sleep(10)
-                counter -= 1
-                try:
-                    catalog = catalog_data.get('yang-catalog:catalog')
+        while True:
+            if counter == 0:
+                LOGGER.error('failed to load vendor data')
+                break
+            try:
+                catalog = catalog_data.get('yang-catalog:catalog')
 
-                    modules_json = catalog['modules']['module']
-                    x = -1
-                    for x in range(0, int(len(modules_json) / 1000)):
-                        LOGGER.info('{} out of {}'.format(x, int(len(modules_json) / 1000)))
-                        json_modules_data = json.dumps({
-                            'modules':
-                                {
-                                    'module': modules_json[x * 1000: (x * 1000) + 1000]
-                                }
-                        })
-
-                        url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
-                        response = requests.patch(url, json_modules_data,
-                                                  headers={
-                                                      'Authorization': 'Basic ' + base64string,
-                                                      'Accept': 'application/yang-data+json',
-                                                      'Content-type': 'application/yang-data+json'})
-                        if response.status_code < 200 or response.status_code > 299:
-                            LOGGER.info('Request with body on path {} failed with {}'
-                                        .format(url, response.text))
+                modules_json = catalog['modules']['module']
+                for x in range(0, len(modules_json), 1000):
+                    LOGGER.info('{} out of {}'.format(x // 1000, len(modules_json) // 1000))
                     json_modules_data = json.dumps({
                         'modules':
                             {
-                                'module': modules_json[(x * 1000) + 1000:]
+                                'module': modules_json[x: x + 1000]
                             }
                     })
-                    url = prefix + '/restconf/data/yang-catalog:catalog/modules/'
-                    response = requests.patch(url, json_modules_data,
-                                              headers={
-                                                  'Authorization': 'Basic ' + base64string,
-                                                  'Accept': 'application/yang-data+json',
-                                                  'Content-type': 'application/yang-data+json'})
 
+                    url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(prefix)
+                    response = requests.patch(url, json_modules_data,
+                                                headers={
+                                                    'Authorization': 'Basic {}'.format(base64string),
+                                                    **confd_headers})
                     if response.status_code < 200 or response.status_code > 299:
                         LOGGER.info('Request with body on path {} failed with {}'
                                     .format(url, response.text))
 
-                    # In each json
-                    LOGGER.info('Starting to add vendors')
-                    x = -1
-                    vendors = catalog['vendors']['vendor']
-                    for v in vendors:
-                        name = v['name']
-                        for p in v['platforms']['platform']:
-                            pname = p['name']
-                            for s in p['software-versions']['software-version']:
-                                LOGGER.info(
-                                    '{} out of {}'.format(name, len(p['software-versions']['software-version'])))
-                                json_implementations_data = json.dumps({
-                                    'vendors':
-                                        {
-                                            'vendor': [{
-                                                'name': name,
-                                                'platforms': {
-                                                    'platform': [{
-                                                        'name': pname,
-                                                        'software-versions': {
-                                                            'software-version': [s]
-                                                        }
-                                                    }]
+                # In each json
+                LOGGER.info('Starting to add vendors')
+                vendors = catalog['vendors']['vendor']
+                for vendor in vendors:
+                    vendor_name = vendor['name']
+                    for platform in vendor['platforms']['platform']:
+                        platform_name = platform['name']
+                        for software_version in platform['software-versions']['software-version']:
+                            LOGGER.info(
+                                '{} out of {}'.format(vendor_name,
+                                                      len(platform['software-versions']['software-version'])))
+                            json_implementations_data = json.dumps({
+                                'vendors': {
+                                    'vendor': [{
+                                        'name': vendor_name,
+                                        'platforms': {
+                                            'platform': [{
+                                                'name': platform_name,
+                                                'software-versions': {
+                                                    'software-version': [software_version]
                                                 }
                                             }]
                                         }
-                                })
+                                    }]
+                                }
+                            })
 
-                                # Make a PATCH request to create a root for each file
-                                url = prefix + '/restconf/data/yang-catalog:catalog/vendors/'
-                                response = requests.patch(url, json_implementations_data,
-                                                          headers={
-                                                              'Authorization': 'Basic ' + base64string,
-                                                              'Accept': 'application/yang-data+json',
-                                                              'Content-type': 'application/yang-data+json'})
-                                if response.status_code < 200 or response.status_code > 299:
-                                    LOGGER.info('Request with body on path {} failed with {}'
-                                                .format(url, response.text))
-                    code = 200
-                    LOGGER.info('Confd recoverd with status code 200')
-                except:
-                    LOGGER.warning('Failed to load data. Counter: {}'.format(counter))
-            else:
-                failed = False
-            if counter == 0:
-                LOGGER.error('failed to load vendor data')
+                            # Make a PATCH request to create a root for each file
+                            url = '{}/restconf/data/yang-catalog:catalog/vendors/'.format(prefix)
+                            response = requests.patch(url, json_implementations_data,
+                                                        headers={
+                                                            'Authorization': 'Basic {}'.format(base64string),
+                                                            **confd_headers})
+                            if response.status_code < 200 or response.status_code > 299:
+                                LOGGER.info('Request with body on path {} failed with {}'
+                                            .format(url, response.text))
                 break
+            except:
+                LOGGER.warning('Failed to load data. Counter: {}'.format(counter))
+                counter -= 1
+                time.sleep(10)
 
         file_load.close()
         LOGGER.info('Cache reloaded to ConfD. Starting to load data into Redis.')
@@ -329,5 +288,5 @@ def main(scriptConf=None):
     LOGGER.info('Job finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
