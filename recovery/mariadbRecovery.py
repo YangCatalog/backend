@@ -25,8 +25,9 @@ __email__ = "richard.zilincik@pantheon.tech"
 import argparse
 import datetime
 import os
-import sys
 from subprocess import run
+from utility.staticVariables import date_format
+from utility.util import get_list_of_backups
 from utility.create_config import create_config
 
 import utility.log as log
@@ -84,20 +85,18 @@ def main(scriptConf=None):
     db_name = config.get('DB-Section', 'name-users')
     db_user = config.get('DB-Section', 'user')
     db_pass = config.get('Secrets-Section', 'mysql-password')
-    LOGGER = log.get_logger('mariadbRecovery', '{}/yang.log'.format(log_directory))
-    backup_directory = '{}/{}'.format(cache_dir, 'mariadb')
+    LOGGER = log.get_logger('mariadbRecovery', os.path.join(log_directory, 'yang.log'))
+    backup_directory = os.path.join(cache_dir, 'mariadb')
     if not args.load:
         if not args.dir:
-            args.dir = str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC'
+            args.dir = datetime.datetime.utcnow().strftime(date_format)
         output_dir = '{}/{}'.format(backup_directory, args.dir)
         os.makedirs(output_dir, exist_ok=True)
         run(['mydumper', '--database', db_name, '--outputdir', output_dir,
              '--host', db_host, '--user', db_user, '--password', db_pass, '--lock-all-tables'])
     else:
-        if not args.dir:
-            LOGGER.error('Load directory must be specified')
-            return
-        cmd = ['myloader', '--database', db_name, '--directory', '{}/{}'.format(backup_directory, args.dir),
+        args.dir = args.dir or '.'.join(get_list_of_backups(backup_directory)[-1])
+        cmd = ['myloader', '--database', db_name, '--directory', os.path.join(backup_directory, args.dir),
                '--host', db_host, '--user', db_user, '--password', db_pass]
         if args.overwrite_tables:
             cmd.append('--overwrite-tables')
