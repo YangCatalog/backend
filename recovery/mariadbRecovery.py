@@ -97,7 +97,7 @@ def main(scriptConf=None):
              '--host', db_host, '--user', db_user, '--password', db_pass, '--lock-all-tables'])
     else:
         LOGGER.info('Starting load of MariaDB')
-        args.dir = args.dir or '.'.join(get_list_of_backups(backup_directory)[-1])
+        args.dir = args.dir or ''.join(get_list_of_backups(backup_directory)[-1])
         cmd = ['myloader', '--database', db_name, '--directory', os.path.join(backup_directory, args.dir),
                '--host', db_host, '--user', db_user, '--password', db_pass]
         if args.overwrite_tables:

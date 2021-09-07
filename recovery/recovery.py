@@ -164,7 +164,7 @@ def main(scriptConf=None):
             file_load = open(os.path.join(confd_backups, args.name_load), 'r')
         else:
             list_of_backups = get_list_of_backups(confd_backups)
-            file_name = os.path.join(confd_backups, '.'.join(list_of_backups[-1]))
+            file_name = os.path.join(confd_backups, ''.join(list_of_backups[-1]))
             file_load = open(file_name, 'r')
         LOGGER.info('Loading file {}'.format(file_load.name))
         catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
