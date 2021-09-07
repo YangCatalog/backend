@@ -40,7 +40,7 @@ import requests
 import utility.log as log
 from requests import ConnectionError
 from utility.create_config import create_config
-from utility.staticVariables import confd_headers, date_format
+from utility.staticVariables import confd_headers, backup_date_format
 from utility.util import job_log, get_list_of_backups
 
 
@@ -70,7 +70,7 @@ class ScriptConfig:
         parser.add_argument('--ip', default=self.__confd_host, type=str,
                             help='Set ip address where the confd is started. Default -> {}'.format(self.__confd_host))
         parser.add_argument('--name_save',
-                            default=datetime.datetime.utcnow().strftime(date_format),
+                            default=datetime.datetime.utcnow().strftime(backup_date_format),
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
         parser.add_argument('--name_load', type=str, default='',
                             help='Set name of the file to load. Default will take a last saved file')

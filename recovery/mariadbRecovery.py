@@ -26,7 +26,7 @@ import argparse
 import datetime
 import os
 from subprocess import run
-from utility.staticVariables import date_format
+from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups
 from utility.create_config import create_config
 
@@ -88,19 +88,23 @@ def main(scriptConf=None):
     LOGGER = log.get_logger('mariadbRecovery', os.path.join(log_directory, 'yang.log'))
     backup_directory = os.path.join(cache_dir, 'mariadb')
     if not args.load:
+        LOGGER.info('Starting backup of MariaDB')
         if not args.dir:
-            args.dir = datetime.datetime.utcnow().strftime(date_format)
+            args.dir = datetime.datetime.utcnow().strftime(backup_date_format)
         output_dir = '{}/{}'.format(backup_directory, args.dir)
         os.makedirs(output_dir, exist_ok=True)
         run(['mydumper', '--database', db_name, '--outputdir', output_dir,
              '--host', db_host, '--user', db_user, '--password', db_pass, '--lock-all-tables'])
     else:
+        LOGGER.info('Starting load of MariaDB')
         args.dir = args.dir or '.'.join(get_list_of_backups(backup_directory)[-1])
         cmd = ['myloader', '--database', db_name, '--directory', os.path.join(backup_directory, args.dir),
                '--host', db_host, '--user', db_user, '--password', db_pass]
         if args.overwrite_tables:
+            LOGGER.info('Overwriting existing tables')
             cmd.append('--overwrite-tables')
         run(cmd)
+    LOGGER.info('Job completed successfully')
 
 
 if __name__ == '__main__':

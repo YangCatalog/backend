@@ -38,7 +38,7 @@ from os import unlink
 
 import utility.log as log
 from utility.create_config import create_config
-from utility.staticVariables import date_format
+from utility.staticVariables import backup_date_format
 from utility.util import job_log, get_list_of_backups
 from elasticsearch import Elasticsearch
 
@@ -155,7 +155,7 @@ if __name__ == '__main__':
                     root = root.split('/')[1:]
                     for filename in filenames:
                         file_path = os.path.join(root, filename)
-                        file_signature = file_path.encode() + hash_file()
+                        file_signature = file_path.encode() + hash_file(file_path)
                         sha1.update(file_signature)
             return sha1.digest()
         
@@ -175,7 +175,7 @@ if __name__ == '__main__':
 
             today = dt.now()
             for backup in list_of_backups:
-                backup_dt = dt.strptime(backup[0], date_format)
+                backup_dt = dt.strptime(backup[0], backup_date_format)
                 month_difference = diff_month(today, backup_dt)
                 if month_difference > 6:
                     to_remove.append(backup)
