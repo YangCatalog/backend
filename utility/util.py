@@ -320,7 +320,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         if len(post_body) > 0:
             post_body = {'modules-to-index': post_body}
         if len(post_body) > 0 and not force_indexing:
-            mf.send_added_new_yang_files(json.dumps(post_body))
+            mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
         if load_new_files_to_github:
             try:
                 LOGGER.info('Calling draftPull.py script')
