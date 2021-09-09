@@ -2,6 +2,14 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v4.2.0 - 2021-09-09
+
+  * Scripts to process IANA-maintained modules created [#342](https://github.com/YangCatalog/backend/issues/342)
+  * Bugfix: Incorrect path to some JSON files [#351](https://github.com/YangCatalog/backend/issues/351)
+  * Github Actions webhook consuming [#336](https://github.com/YangCatalog/backend/issues/336)
+  * Dockerfile reorganized - image build speed up [#350](https://github.com/YangCatalog/backend/issues/350)
+  * Config loading simplified [deployment #96](https://github.com/YangCatalog/deployment/issues/96)
+
 * ##### v4.1.0 - 2021-08-10
 
   * Use cached ytrees in to speed-up parse_semver() method [#312](https://github.com/YangCatalog/backend/issues/312)
