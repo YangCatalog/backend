@@ -18,6 +18,7 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
+import datetime
 import fnmatch
 import json
 import optparse
@@ -27,6 +28,7 @@ import stat
 import sys
 import time
 import warnings
+import typing as t
 
 import requests
 from Crypto.Hash import HMAC, SHA
@@ -488,3 +490,11 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
                 raise e
 
     return ctx, new_schema_ctx
+
+def get_list_of_backups(directory: str) -> t.List[datetime.datetime]:
+    dates = []
+    for name in os.listdir(directory):
+        if os.stat(os.path.join(directory, name)).st_size == 0:
+            continue
+        dates.append(os.path.splitext(name))
+    return sorted(dates)

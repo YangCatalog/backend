@@ -9,3 +9,5 @@ json_header_str = 'application/json'
 json_content_type = {'Content-type': json_header_str}
 json_accept = {'Accept': json_header_str}
 json_headers = {**json_content_type, **json_accept}
+
+backup_date_format = '%Y-%m-%d_%H:%M:%S-UTC'
