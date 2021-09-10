@@ -147,24 +147,24 @@ if __name__ == '__main__':
 
         def hash_node(path: str) -> bytes:
             if os.path.isfile(path):
-                hash_file(path)
+                return hash_file(path)
             elif os.path.isdir(path):
                 sha1 = hashlib.sha1()
                 for root, _, filenames in os.walk(path):
-                    # we only want to compare the contents, not the top directory name
-                    root = root.split('/')[1:]
                     for filename in filenames:
                         file_path = os.path.join(root, filename)
-                        file_signature = file_path.encode() + hash_file(file_path)
+                        # we only want to compare the contents, not the top directory name
+                        relative_path = file_path[len(path):]
+                        file_signature = relative_path.encode() + hash_file(file_path)
                         sha1.update(file_signature)
-            return sha1.digest()
-        
+                return sha1.digest()
+
         # remove  all files that are same keep the latest one only. Last two months keep all different content json files
         # other 4 months (6 in total) keep only latest, remove all other files
         def remove_old_backups(subdir: str):
             backup_directory = os.path.join(cache_directory, subdir)
             list_of_backups = get_list_of_backups(backup_directory)
-            backup_name_latest = os.path.join(backup_directory, '.'.join(list_of_backups[-1]))
+            backup_name_latest = os.path.join(backup_directory, ''.join(list_of_backups[-1]))
 
             def diff_month(later_datetime, earlier_datetime):
                 return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
@@ -190,7 +190,7 @@ if __name__ == '__main__':
                     else:
                         last_six_months[month] = backup
                 else:
-                    backup_path = os.path.join(backup_directory, '.'.join(backup))
+                    backup_path = os.path.join(backup_directory, ''.join(backup))
                     currently_processed_backup_hash = hash_node(backup_path)
                     if last_two_months.get(currently_processed_backup_hash) is not None:
                         if last_two_months.get(currently_processed_backup_hash) > backup:
@@ -199,10 +199,13 @@ if __name__ == '__main__':
                             to_remove.append(last_two_months.get(currently_processed_backup_hash))
                     last_two_months[currently_processed_backup_hash] = backup
             for backup in to_remove:
-                backup_path = os.path.join(backup_directory, '.'.join(backup))
+                backup_path = os.path.join(backup_directory, ''.join(backup))
                 if backup_path != backup_name_latest:
-                    unlink(backup_path)
-        
+                    if os.path.isdir(backup_path):
+                        shutil.rmtree(backup_path)
+                    elif os.path.isfile(backup_path):
+                        os.unlink(backup_path)
+
         LOGGER.info('Removing old cache json files')
         remove_old_backups('confd')
         LOGGER.info('Removing old MariaDB backups')
