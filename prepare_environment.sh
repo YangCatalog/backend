@@ -46,16 +46,12 @@ cd $BACKEND
 # Prepare directory structure need for resolveExpiration.py
 # TODO: Adjust existing tests to use directory structure in /var/yang if this will work in TravisCI
 export var=/var/yang
-export LOGS_DIR=$var/logs
 export SAVE_FILE_DIR=$var/all_modules
 sudo mkdir -p $var
 sudo chown -R $(whoami):$(whoami) $var
 mkdir -p $var/tmp
 mkdir -p $var/ytrees
 mkdir -p $SAVE_FILE_DIR
-mkdir -p $LOGS_DIR/jobs
-# Create logs directory and log files
-touch $LOGS_DIR/jobs/resolveExpiration.log $LOGS_DIR/healthcheck.log $LOGS_DIR/parseAndPopulate.log $LOGS_DIR/yang.log
 # Copy all RFC modules into /var/yang/all_modules directory
 cp $YANG_MODELS_DIR/standard/ietf/RFC/*@*.yang $SAVE_FILE_DIR
 cp $BACKEND/tests/resources/all_modules/* $SAVE_FILE_DIR

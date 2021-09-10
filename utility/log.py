@@ -20,7 +20,6 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import logging
 import os
-import stat
 
 
 def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging.DEBUG):
@@ -32,7 +31,7 @@ def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging
             :param level            (int) Optional - logging level of this logger.
             :return a logger with the specified name.
     """
-    # check if file exists
+    os.makedirs(os.path.dirname(file_name_path), exist_ok=True)
     exists = False
     if os.path.isfile(file_name_path):
         exists = True
@@ -49,5 +48,5 @@ def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging
         handler.close()
     # if file didn t exist we create it and now we can set chmod
     if not exists:
-        os.chmod(file_name_path, 0o664 | stat.S_ISGID)
+        os.chmod(file_name_path, 0o664)
     return logger

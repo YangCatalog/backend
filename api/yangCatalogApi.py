@@ -136,6 +136,8 @@ class MyFlask(Flask):
     def setup_logger(self):
         self.logger.removeHandler(default_handler)
         file_name_path = '{}/yang.log'.format(self.config.d_logs)
+        os.makedirs(os.path.dirname(file_name_path), exist_ok=True)
+        exists = False
         if os.path.isfile(file_name_path):
             exists = True
         FORMAT = '%(asctime)-15s %(levelname)-8s %(filename)s api => %(message)s - %(lineno)d'
@@ -145,7 +147,7 @@ class MyFlask(Flask):
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
         if not exists:
-            os.chmod(file_name_path, 0o664 | stat.S_ISGID)
+            os.chmod(file_name_path, 0o664)
 
     def post_config_load(self):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
