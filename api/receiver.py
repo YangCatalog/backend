@@ -34,6 +34,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import errno
+import functools
 import json
 import logging
 import multiprocessing
@@ -51,10 +52,9 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
-
-from utility.util import prepare_to_indexing, send_to_indexing2
 from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
+from utility.util import prepare_to_indexing, send_to_indexing2
 
 
 class Receiver:
@@ -349,13 +349,12 @@ class Receiver:
             self.LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
         return response
 
-    def process_module_deletion(self, arguments: list, multiple: bool = False):
+    def process_module_deletion(self, arguments: list):
         """ Deleteing one or more modules. It calls the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
         yang-catalog.yang module. It will also call indexing script to update searching.
 
-        Arguments:
-            :param multiple     (bool) removing multiple modules at once
+        Argument:
             :param arguments    (list) list of arguments sent from API sender
             :return (__response_type) one of the response types which
                 is either 'Finished successfully' or 'Partially done'
@@ -364,20 +363,42 @@ class Receiver:
         path_to_delete = arguments[5]
         confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
         reason = ''
-        if multiple:
-            paths = []
-            modules = json.loads(path_to_delete)['modules']
-            for mod in modules:
-                paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-                    confd_url, mod['name'], mod['revision'], mod['organization']))
-        else:
-            name_rev_org_with_commas = path_to_delete.split('/')[-1]
-            name, rev, org = name_rev_org_with_commas.split(',')
-            modules = [{'name': name, 'revision': rev, 'organization': org}]
-            paths = [path_to_delete]
+        paths = []
+        modules = json.loads(path_to_delete)['modules']
         all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
 
-        for mod in modules:
+        def module_in(name: str, revision: str, modules: list):
+            for module in modules:
+                if module['name'] == name and module.get('revision') == revision:
+                    return True
+            return False
+
+        @functools.lru_cache(maxsize=None)
+        def can_delete(name: str, revision: str):
+            for existing_module in all_mods['module']:
+                for dep_type in ['dependencies', 'submodule']:
+                    is_dep = module_in(name, revision, existing_module.get(dep_type, []))
+                    if is_dep:
+                        if module_in(existing_module['name'], existing_module['revision'], modules):
+                            if can_delete(existing_module['name'], existing_module['revision']):
+                                continue
+                        else:
+                            self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}@{}'
+                                                    .format(name, revision, dep_type,
+                                                            existing_module.get('name'), existing_module.get('revision')))
+                            return False
+            return True
+
+        modules_to_delete = []
+        for module in modules:
+            if can_delete(module.get('name'), module.get('revision')):
+                modules_to_delete.append(module)
+
+        for mod in modules_to_delete:
+            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+                confd_url, mod['name'], mod['revision'], mod['organization']))
+
+        for mod in modules_to_delete:
             for existing_module in all_mods['module']:
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
@@ -572,10 +593,6 @@ class Receiver:
                     else:
                         final_response = self.process_vendor_deletion(arguments)
                         credentials = arguments[7:9]
-                elif arguments[-3] == 'DELETE_MULTIPLE':
-                    self.LOGGER.info('Deleting multiple modules')
-                    final_response = self.process_module_deletion(arguments, True)
-                    credentials = arguments[3:5]
                 elif '--sdo' in arguments[2]:
                     final_response = self.process_sdo(arguments, all_modules)
                     credentials = arguments[11:13]

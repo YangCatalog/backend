@@ -72,7 +72,7 @@ from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import oidc
 from api.views.errorHandlers.errorHandler import bp as error_handling_bp
 from api.views.healthCheck.healthCheck import bp as healthcheck_bp
-from api.views.userSpecificModuleMaintenace.moduleMaintanace import \
+from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
     bp as user_maintenance_bp
 from api.views.yangSearch.yangSearch import bp as yang_search_bp
 from api.views.ycJobs.ycJobs import bp as jobs_bp
