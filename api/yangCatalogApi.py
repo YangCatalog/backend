@@ -48,7 +48,6 @@ import logging
 import os
 import pwd
 import shutil
-import stat
 import sys
 import threading
 import time
@@ -58,8 +57,8 @@ from threading import Lock
 
 import requests
 from elasticsearch import Elasticsearch
-from flask import (Flask, Config, Response, abort, jsonify, make_response, redirect,
-                   request)
+from flask import (Config, Flask, Response, abort, jsonify, make_response,
+                   redirect, request)
 from flask.logging import default_handler
 from flask_cors import CORS
 from flask_oidc import discovery
@@ -67,7 +66,7 @@ from redis import Redis
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import DeferredReflection
 
-from api.authentication.auth import auth, get_password, hash_pw, db
+from api.authentication.auth import auth, db, get_password, hash_pw
 from api.sender import Sender
 from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import oidc
@@ -78,7 +77,6 @@ from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
 from api.views.yangSearch.yangSearch import bp as yang_search_bp
 from api.views.ycJobs.ycJobs import bp as jobs_bp
 from api.views.ycSearch.ycSearch import bp as search_bp
-from api.models import User, TempUser
 
 
 class MyConfig(Config):
@@ -105,7 +103,7 @@ class MyFlask(Flask):
         self.release_locked = []
         self.permanent_session_lifetime = timedelta(minutes=20)
         self.load_config()
-        self.logger.debug('API initialized at ' + self.config.yangcatalog_api_prefix)
+        self.logger.debug('API initialized at {}'.format(self.config.yangcatalog_api_prefix))
         self.logger.debug('Starting api')
         self.secret_key = self.config.s_flask_secret_key
 
@@ -127,17 +125,18 @@ class MyFlask(Flask):
                 mapping[key] = value
         mapping['CONFIG-PARSER'] = parser
         return mapping
-    
+
     def init_config(self):
         self.config['OIDC'] = oidc
         self.config['SQLALCHEMY'] = db
-        self.config.sqlalchemy.init_app(self)
         self.config['LOCK-UWSGI-CACHE1'] = threading.Lock()
         self.config['LOCK-UWSGI-CACHE2'] = threading.Lock()
 
     def setup_logger(self):
         self.logger.removeHandler(default_handler)
         file_name_path = '{}/yang.log'.format(self.config.d_logs)
+        os.makedirs(os.path.dirname(file_name_path), exist_ok=True)
+        exists = False
         if os.path.isfile(file_name_path):
             exists = True
         FORMAT = '%(asctime)-15s %(levelname)-8s %(filename)s api => %(message)s - %(lineno)d'
@@ -147,17 +146,17 @@ class MyFlask(Flask):
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
         if not exists:
-            os.chmod(file_name_path, 0o664 | stat.S_ISGID)
+            os.chmod(file_name_path, 0o664)
 
     def post_config_load(self):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
         self.config['DB-ES-AWS'] = True if self.config.db_es_aws == 'True' else False
         if self.config.db_es_aws:
-            self.config['ES'] = Elasticsearch([self.config.es_host],
+            self.config['ES'] = Elasticsearch([self.config.db_es_host],
                                               http_auth=(self.config.s_elk_credentials[0],
                                                          self.config.s_elk_credentials[1]),
-                                              scheme="https", port=443)
+                                              scheme='https', port=443)
         else:
             self.config['ES'] = Elasticsearch([{'host': '{}'.format(self.config.db_es_host), 'port': self.config.db_es_port}])
 
@@ -182,7 +181,8 @@ class MyFlask(Flask):
             suffix = 'api'
         self.config['YANGCATALOG-API-PREFIX'] = '{}://{}{}{}/' \
             .format(self.config.g_protocol_api, self.config.w_ip, separator, suffix)
-        
+
+        self.config.g_is_prod = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(
             host=self.config.db_redis_host,
             port=self.config.db_redis_port
@@ -197,7 +197,7 @@ class MyFlask(Flask):
     def process_response(self, response):
         response = super().process_response(response)
         self.create_response_only_latest_revision(response)
-        #self.create_response_with_yangsuite_link(response)
+        # self.create_response_with_yangsuite_link(response)
 
         try:
             if not 'admin' in request.path:
@@ -215,21 +215,21 @@ class MyFlask(Flask):
         super().preprocess_request()
         request.special_id = 0
         if not 'admin' in request.path:
-           app.logger.info(request.path)
+            app.logger.info(request.path)
         if 'api/admin' in request.path and not 'api/admin/healthcheck' in request.path and not 'api/admin/ping' in request.path:
             app.logger.info('User logged in {}'.format(self.config.oidc.user_loggedin))
-            if not self.config.oidc.user_loggedin and 'login' not in request.path:
+            if self.config.g_is_prod and not self.config.oidc.user_loggedin and 'login' not in request.path:
                 return abort(401, description='not yet Authorized')
 
     def create_response_only_latest_revision(self, response):
         if request.args.get('latest-revision'):
             if 'True' == request.args.get('latest-revision'):
                 if response.data:
-                        if sys.version_info >= (3, 4):
-                            decoded_string = response.data.decode(encoding='utf-8', errors='strict')
-                        else:
-                            decoded_string = response.data
-                        json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(decoded_string)
+                    if sys.version_info >= (3, 4):
+                        decoded_string = response.data.decode(encoding='utf-8', errors='strict')
+                    else:
+                        decoded_string = response.data
+                    json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(decoded_string)
                 else:
                     return response
                 modules = None
@@ -376,8 +376,8 @@ class MyFlask(Flask):
                     inset.add(mod['name'])
                     self.get_dependencies(mod, mods, inset)
                 if (('openconfig-interfaces' in inset
-                    or 'ietf-interfaces' in inset)
-                    and 'iana-if-type' not in inset):
+                     or 'ietf-interfaces' in inset)
+                        and 'iana-if-type' not in inset):
                     resp = requests.get(
                         '{}search/name/iana-if-type?latest-revision=True'.format(self.config.yangcatalog_api_prefix),
                         headers={
@@ -394,8 +394,7 @@ class MyFlask(Flask):
                     if not os.path.exists(self.config.d_save_file_dir + '/' + mod):
                         continue
                     shutil.copy(self.config.d_save_file_dir + '/' + mod, ys_dir)
-                    modules.append([mod.split('@')[0], mod.split('@')[1]
-                                   .replace('.yang', '')])
+                    modules.append([mod.split('@')[0], mod.split('@')[1].replace('.yang', '')])
                 ys_dir = self.config.d_ys_users
                 ys_dir += '/' + id + '/yangsets'
                 try:
@@ -412,8 +411,8 @@ class MyFlask(Flask):
 
                 with open(ys_dir + '/' + defmod.split('@')[0].lower(), 'w') as f:
                     f.write(json.dumps(json_set, indent=4))
-                uid = pwd.getpwnam("yang").pw_uid
-                gid = grp.getgrnam("yang-dev").gr_gid
+                uid = pwd.getpwnam('yang').pw_uid
+                gid = grp.getgrnam('yang-dev').gr_gid
                 path = self.config.d_ys_users + '/' + id
                 for root, dirs, files in os.walk(path):
                     for momo in dirs:
@@ -430,15 +429,18 @@ class MyFlask(Flask):
         else:
             return response
 
+
 app = MyFlask(__name__)
 ac = app.config
-ac["OIDC_CLIENT_SECRETS"] = "secrets_oidc.json"
-ac["OIDC_COOKIE_SECURE"] = False
-ac["OIDC_CALLBACK_ROUTE"] = "/api/admin/ping"
-ac["OIDC_SCOPES"] = ["openid", "email", "profile"]
-ac["OIDC_ID_TOKEN_COOKIE_NAME"] = "oidc_token"
-ac["SQLALCHEMY_DATABASE_URI"] = URL.create('mysql', username=ac.db_user, password=ac.s_mysql_password,
+ac['OIDC_CLIENT_SECRETS'] = 'secrets_oidc.json'
+ac['OIDC_COOKIE_SECURE'] = False
+ac['OIDC_CALLBACK_ROUTE'] = '/api/admin/ping'
+ac['OIDC_SCOPES'] = ['openid', 'email', 'profile']
+ac['OIDC_ID_TOKEN_COOKIE_NAME'] = 'oidc_token'
+ac['SQLALCHEMY_DATABASE_URI'] = URL.create('mysql', username=ac.db_user, password=ac.s_mysql_password,
                                            host=ac.db_host, database=ac.db_name_users)
+ac['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+ac.sqlalchemy.init_app(app)
 try:
     with app.app_context():
         ac.sqlalchemy.create_all()
@@ -471,6 +473,7 @@ def create_secrets(discovered_secrets: dict):
 
     return secrets
 
+
 def retry_OP_discovery():
     """
     Try to get information about the provided OpenID Provider in loop.
@@ -489,6 +492,7 @@ def retry_OP_discovery():
             app.logger.warning('OpenID Provider information discovery failed')
             time.sleep(30)
     return True
+
 
 discovered = False
 discovered_secrets = None
@@ -513,17 +517,18 @@ ac.oidc.init_app(app)
 
 # Register blueprint(s)
 app.register_blueprint(admin_bp)
-app.register_blueprint(error_handling_bp, url_prefix="/api")
-app.register_blueprint(user_maintenance_bp, url_prefix="/api")
-app.register_blueprint(jobs_bp, url_prefix="/api")
-app.register_blueprint(search_bp, url_prefix="/api")
-app.register_blueprint(healthcheck_bp, url_prefix="/api/admin/healthcheck")
-app.register_blueprint(yang_search_bp, url_prefix="/api/yang-search/v2")
+app.register_blueprint(error_handling_bp, url_prefix='/api')
+app.register_blueprint(user_maintenance_bp, url_prefix='/api')
+app.register_blueprint(jobs_bp, url_prefix='/api')
+app.register_blueprint(search_bp, url_prefix='/api')
+app.register_blueprint(healthcheck_bp, url_prefix='/api/admin/healthcheck')
+app.register_blueprint(yang_search_bp, url_prefix='/api/yang-search/v2')
 
 CORS(app, supports_credentials=True)
 #csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_for_load = Lock()
+
 
 def make_cache(credentials, response, data=None):
     """After we delete or add modules we need to reload all the modules to the file
@@ -540,14 +545,14 @@ def make_cache(credentials, response, data=None):
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
-                app.logger.debug("Loading data from confd")
+                app.logger.debug('Loading data from confd')
                 path = '{}://{}:{}//restconf/data/yang-catalog:catalog'.format(ac.g_protocol_confd, ac.w_confd_ip,
                                                                                ac.w_confd_port)
                 try:
                     data = requests.get(path, auth=(credentials[0], credentials[1]),
                                         headers={'Accept': 'application/yang-data+json'}).json()
                     data = json.dumps(data)
-                    app.logger.debug("Data loaded and parsed to json from confd db successfully")
+                    app.logger.debug('Data loaded and parsed to json from confd db successfully')
                 except ValueError as e:
                     app.logger.warning('not valid json returned')
                     data = ''
@@ -628,7 +633,7 @@ def load():
             if special_id in app.release_locked:
                 code = app.response_waiting.status_code
                 body = app.response_waiting.json
-                body['extra-info'] = "this message was generated with previous reload-cache response"
+                body['extra-info'] = 'this message was generated with previous reload-cache response'
                 app.special_id_counter[special_id] -= 1
                 if app.special_id_counter[special_id] == 0:
                     app.special_id_counter.pop(special_id)
@@ -646,7 +651,7 @@ def load():
     with lock_for_load:
         app.logger.info('application not locked for reload')
         load_uwsgi_cache()
-        app.logger.info("Cache loaded successfully")
+        app.logger.info('Cache loaded successfully')
         app.loading = False
 
 
@@ -657,10 +662,10 @@ def load_uwsgi_cache():
     modules = cat['modules']
     vendors = cat.get('vendors', {})
 
-    ac.redis.set("modules-data", json.dumps(modules))
-    ac.redis.set("vendors-data", json.dumps(vendors))
+    ac.redis.set('modules-data', json.dumps(modules))
+    ac.redis.set('vendors-data', json.dumps(vendors))
     if len(modules) != 0:
-        existing_keys = ["modules-data", "vendors-data", "all-catalog-data"]
+        existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
         # recreate keys to redis if there are any
         for _, mod in enumerate(modules['module']):
             key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])

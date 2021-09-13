@@ -22,10 +22,11 @@ import os
 
 import requests
 from api.authentication.auth import auth, check_authorized
-
+from flask import Blueprint, abort
 from flask import current_app as app
-from flask import Blueprint, abort, request
+from flask import request
 from utility import messageFactory, repoutil
+from utility.staticVariables import github_api
 from utility.util import create_signature
 
 
@@ -96,15 +97,14 @@ def check_github():
         except:
             abort(404)
 
-    github_api_url = 'https://api.github.com'
-    github_repos_url = '{}/repos'.format(github_api_url)
+    github_repos_url = '{}/repos'.format(github_api)
     yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
 
     token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
     if verify_commit:
         app.logger.info('Commit {} verified'.format(body['check_run']['head_sha']))
         # Create PR to YangModels/yang if sent from yang-catalog/yang
-        if body['sender']['login'] == 'yang-catalog':
+        if body['repository']['full_name'] == 'yang-catalog/yang':
             json_body = json.loads(json.dumps({
                 'title': 'Cronjob - every day pull and update of ietf draft yang files.',
                 'body': 'ietf extracted yang modules',
@@ -122,21 +122,25 @@ def check_github():
                 app.logger.error(message)
                 return ({'info': message}, 200)
         # Automatically merge PR if sent from YangModels/yang
-        elif body['sender']['login'] == 'YangModels':
+        elif body['repository']['full_name'] == 'YangModels/yang':
             admin_token_header_value = 'token {}'.format(ac.s_admin_token)
             pull_requests = body['check_run']['pull_requests']
             if pull_requests != []:
                 pull_number = pull_requests[0]['number']
                 app.logger.info('Pull request {} was successful - sending review.'.format(pull_number))
-                url = 'https://api.github.com/repos/YangModels/yang/pulls/{}/reviews'.format(pull_number)
+                url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, pull_number)
                 data = json.dumps({
                     'body': 'AUTOMATED YANG CATALOG APPROVAL',
                     'event': 'APPROVE'
                 })
                 response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
-                message = 'Review response code {}. Merge response {}.'.format(response.status_code, response.text)
-                app.logger.info(message)
-                return ({'info': message}, 201)
+                app.logger.info('Review response code {}'.format(response.status_code,))
+                data = json.dumps({'commit-title': 'Github Actions job passed',
+                                    'sha': body['check_run']['head_sha']})
+                response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(pull_number),
+                                        data, headers={'Authorization': admin_token_header_value})
+                app.logger.info('Merge response code {}\nMerge response {}'.format(response.status_code, response.text))
+                return ({'info': 'Success'}, 201)
         else:
             message = 'Owner name verification failed. Owner -> {}'.format(body['sender']['login'])
             app.logger.warning(message)
@@ -168,8 +172,7 @@ def check_local():
         mf.send_travis_auth_failed()
         abort(401)
 
-    github_api_url = 'https://api.github.com'
-    github_repos_url = '{}/repos'.format(github_api_url)
+    github_repos_url = '{}/repos'.format(github_api)
     yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
 
     verify_commit = False
@@ -219,7 +222,7 @@ def check_local():
                     admin_token_header_value = 'token {}'.format(ac.s_admin_token)
                     pull_number = body['pull_request_number']
                     app.logger.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
-                    url = 'https://api.github.com/repos/YangModels/yang/pulls/{}/reviews'.format(repr(pull_number))
+                    url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, repr(pull_number))
                     data = json.dumps({
                         'body': 'AUTOMATED YANG CATALOG APPROVAL',
                         'event': 'APPROVE'
@@ -229,7 +232,7 @@ def check_local():
                         response.status_code, response.text))
                     data = json.dumps({'commit-title': 'Travis job passed',
                                        'sha': body['head_commit']})
-                    response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(repr(pull_number)),
+                    response = requests.put('{}/repos/YangModels/yang/pulls/{}/merge'.format(github_api, repr(pull_number)),
                                             data, headers={'Authorization': admin_token_header_value})
                     app.logger.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.text))
                     return ({'info': 'Success'}, 201)
@@ -242,7 +245,7 @@ def check_local():
                     'state': 'closed',
                     'base': 'master'
                 }))
-                requests.patch('https://api.github.com/repos/YangModels/yang/pulls/{}'.format(pull_number), json=json_body,
+                requests.patch('{}/repos/YangModels/yang/pulls/{}'.format(github_api, pull_number), json=json_body,
                                headers={'Authorization': token_header_value})
                 app.logger.warning('Travis job did not pass.')
                 return ({'info': 'Failed'}, 406)

@@ -18,6 +18,7 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
+import datetime
 import fnmatch
 import json
 import optparse
@@ -27,6 +28,7 @@ import stat
 import sys
 import time
 import warnings
+import typing as t
 
 import requests
 from Crypto.Hash import HMAC, SHA
@@ -221,7 +223,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
 
 
 def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list, LOGGER, save_file_dir: str, temp_dir: str, confd_url: str,
-                        sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = True):
+                        sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
@@ -320,7 +322,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         if len(post_body) > 0:
             post_body = {'modules-to-index': post_body}
         if len(post_body) > 0 and not force_indexing:
-            mf.send_added_new_yang_files(json.dumps(post_body))
+            mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
         if load_new_files_to_github:
             try:
                 LOGGER.info('Calling draftPull.py script')
@@ -488,3 +490,11 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
                 raise e
 
     return ctx, new_schema_ctx
+
+def get_list_of_backups(directory: str) -> t.List[datetime.datetime]:
+    dates = []
+    for name in os.listdir(directory):
+        if os.stat(os.path.join(directory, name)).st_size == 0:
+            continue
+        dates.append(os.path.splitext(name))
+    return sorted(dates)

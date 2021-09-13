@@ -28,8 +28,9 @@ from operator import contains, eq
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
+from flask import Blueprint, abort
 from flask import current_app as app
-from flask import Blueprint, Response, abort, escape, request
+from flask import escape, request
 from flask_deprecate import deprecate_route
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
@@ -230,8 +231,7 @@ def rpc_search(body: dict = None):
     if body is None:
         body = request.json
         from_api = True
-    app.logger.info('Searching and filtering modules based on RPC {}'
-                            .format(json.dumps(body)))
+    app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body)))
     data = modules_data().get('module', {})
     body = body.get('input')
     if body:
@@ -348,7 +348,7 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
     except FileNotFoundError:
         app.logger.warn('File {}@{}.yang was not found.'.format(name1, revision1))
 
-    with open('{}/{}'.format(ac.d_save_diff_dir, file_name1), 'w+') as f:
+    with open('{}/{}'.format(ac.w_save_diff_dir, file_name1), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_1_content))
 
     file_name2 = 'schema2-file-diff.txt'
@@ -358,15 +358,15 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
             yang_file_2_content = f.read()
     except FileNotFoundError:
         app.logger.warn('File {}@{}.yang was not found.'.format(name2, revision2))
-    with open('{}/{}'.format(ac.d_save_diff_dir, file_name2), 'w+') as f:
+    with open('{}/{}'.format(ac.w_save_diff_dir, file_name2), 'w+') as f:
         f.write('<pre>{}</pre>'.format(yang_file_2_content))
     tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
     diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
                 .format(tree1, tree2))
     response = requests.get(diff_url)
-    os.remove(ac.d_save_diff_dir + '/' + file_name1)
-    os.remove(ac.d_save_diff_dir + '/' + file_name2)
+    os.remove('{}/{}'.format(ac.w_save_diff_dir, file_name1))
+    os.remove('{}/{}'.format(ac.w_save_diff_dir, file_name2))
     return '<html><body>{}</body></html>'.format(response.text)
 
 
@@ -416,7 +416,7 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name1 = 'schema1-tree-diff.txt'
-    full_path_file1 = '{}/{}'.format(ac.d_save_diff_dir, file_name1)
+    full_path_file1 = '{}/{}'.format(ac.w_save_diff_dir, file_name1)
     with open(full_path_file1, 'w+') as ff:
         ff.write('<pre>{}</pre>'.format(stdout))
     with open(schema2, 'r') as ff:
@@ -426,7 +426,7 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name2 = 'schema2-tree-diff.txt'
-    full_path_file2 = '{}/{}'.format(ac.d_save_diff_dir, file_name2)
+    full_path_file2 = '{}/{}'.format(ac.w_save_diff_dir, file_name2)
     with open(full_path_file2, 'w+') as ff:
         ff.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)

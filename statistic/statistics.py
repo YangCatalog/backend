@@ -47,7 +47,7 @@ import requests
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import json_headers
+from utility.staticVariables import github_url, json_headers
 from utility.util import find_first_file, get_curr_dir, job_log
 
 NS_MAP = {
@@ -682,7 +682,7 @@ def main(scriptConf=None):
 
         # Openconfig is from different repo that s why we need models in github zero
         LOGGER.info('Cloning the repo')
-        repo = repoutil.RepoUtil('https://github.com/openconfig/public')
+        repo = repoutil.RepoUtil('{}/openconfig/public'.format(github_url))
         repo.clone(config_name, config_email)
 
         process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',

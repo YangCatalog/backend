@@ -29,7 +29,6 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import fileinput
-import fnmatch
 import json
 import os
 import re
@@ -39,6 +38,7 @@ import xml.etree.ElementTree as ET
 
 import utility.log as log
 from utility import repoutil
+from utility.staticVariables import github_raw, github_url
 from utility.util import find_first_file
 
 from parseAndPopulate.fileHasher import FileHasher
@@ -46,9 +46,6 @@ from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.parseException import ParseException
 from parseAndPopulate.prepare import Prepare
-
-github_raw = 'https://raw.githubusercontent.com/'
-github_url = 'https://github.com/'
 
 
 class Capability:
@@ -129,7 +126,7 @@ class Capability:
                 LOGGER.debug('Setting metadata concerning whole directory')
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
                 repo = repoutil.load(self.yang_models_dir, repo_url)
                 if repo is None:
                     repo = repoutil.RepoUtil(repo_url, self.logger)
@@ -172,7 +169,7 @@ class Capability:
             self.repo = impl.get('module-list-file', {}).get('repository').split('.')[0]
             self.path = impl.get('module-list-file', {}).get('path')
             self.branch = impl.get('module-list-file', {}).get('branch')
-            repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+            repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
             repo = None
             if self.owner == 'YangModels' and self.repo == 'yang':
                 repo = repoutil.load(self.yang_models_dir, repo_url)
@@ -213,7 +210,7 @@ class Capability:
                 repo_file_path = sdo.get('source-file', {}).get('path')
                 self.repo = sdo.get('source-file', {}).get('repository', '').split('.')[0]
                 if repo is None:
-                    repo = repoutil.RepoUtil('{}{}/{}'.format(github_url, self.owner, self.repo), self.logger)
+                    repo = repoutil.RepoUtil('{}/{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                     repo.clone()
                 self.branch = sdo.get('source-file', {}).get('branch')
                 if not self.branch:
@@ -238,7 +235,7 @@ class Capability:
                         LOGGER.exception('ParseException while parsing {}'.format(file_name))
                         continue
                     name = file_name.split('.')[0].split('@')[0]
-                    schema = '{}{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, repo_file_path)
+                    schema = '{}/{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, repo_file_path)
                     yang.parse_all(branch, name,
                                    self.prepare.name_revision_organization,
                                    schema, self.path, self.save_file_to_dir, sdo)
@@ -250,7 +247,7 @@ class Capability:
                 # Load/clone YangModels/yang repo
                 self.owner = 'YangModels'
                 self.repo = 'yang'
-                repo_url = '{}{}/{}'.format(github_url, self.owner, self.repo)
+                repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
                 repo = repoutil.load(self.yang_models_dir, repo_url)
                 if repo is None:
                     repo = repoutil.RepoUtil(repo_url, self.logger)
@@ -296,7 +293,7 @@ class Capability:
                                 path = re.split(r'tmp\/\w*\/', abs_path)[1]
                             if branch is None:
                                 branch = repo.get_commit_hash(path, self.branch)
-                            schema = '{}{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, path)
+                            schema = '{}/{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, branch, path)
                             yang.parse_all(branch, name,
                                            self.prepare.name_revision_organization,
                                            schema, self.path, self.save_file_to_dir)
@@ -353,7 +350,7 @@ class Capability:
         modules = self.root[0]
         set_of_names = set()
         keys = set()
-        schema_part = '{}{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
+        schema_part = '{}/{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
         for module in modules:
             if 'module-set-id' in module.tag:
                 continue
@@ -466,7 +463,7 @@ class Capability:
                     capabilities.append(cap_with_version.split('?')[0])
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
-        schema_part = '{}{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
+        schema_part = '{}/{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
         for module in modules:
@@ -511,6 +508,70 @@ class Capability:
             self.parse_imp_inc(self.prepare.yang_modules[key].imports,
                                set_of_names, False, schema_part, capabilities,
                                netconf_version)
+
+    def parse_and_dump_iana(self):
+        """ List of modules to parse is defined in 'yang-parameters.xml' file.
+        This method parse all available IANA-maintained .yang files in the directory.
+        """
+        tag = self.root.tag
+        namespace = tag.split('registry')[0]
+        modules = self.root.iter('{}record'.format(namespace))
+
+        git_commit_hash = None
+        for module in modules:
+            additional_info = {}
+            data = module.attrib
+            for attributes in module:
+                prop = attributes.tag.split(namespace)[-1]
+                data[prop] = attributes.text
+                if prop == 'xref':
+                    xref_info = attributes.attrib
+                    if xref_info.get('type') == 'draft':
+                        document_split = xref_info.get('data').replace('RFC', 'draft').split('-')
+                        version = document_split[-1]
+                        name = '-'.join(document_split[:-1])
+                        additional_info['document-name'] = '{}-{}.txt'.format(name, version)
+                        additional_info['reference'] = 'https://www.iana.org/go/{}-{}'.format(name, version)
+                    else:
+                        additional_info['document-name'] = xref_info.get('data')
+                        additional_info['reference'] = 'https://www.iana.org/go/{}'.format(xref_info.get('data'))
+                additional_info['organization'] = 'ietf'
+
+            if data.get('iana') == 'Y' and data.get('file'):
+                self.owner = 'YangModels'
+                self.repo = 'yang'
+                repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
+                repo = repoutil.load(self.yang_models_dir, repo_url)
+                if repo is None:
+                    repo = repoutil.RepoUtil(repo_url, self.logger)
+                    repo.clone()
+                path = '{}/{}'.format('/'.join(self.split[:-1]), data['file'])
+                should_parse = self.fileHasher.should_parse_sdo_module(path)
+                if not should_parse:
+                    continue
+                module_name = data['file'].split('.yang')[0]
+                LOGGER.info('Parsing module {}'.format(module_name))
+
+                try:
+                    yang = Modules(self.yang_models_dir, self.log_directory, path,
+                                   self.html_result_dir, self.parsed_jsons, self.json_dir)
+                except ParseException:
+                    LOGGER.exception('ParseException while parsing {}'.format(module_name))
+                    continue
+                self.branch = 'master'
+                abs_path = os.path.abspath(path)
+                if '/yangmodels/yang/' in abs_path:
+                    path = abs_path.split('/yangmodels/yang/')[1]
+                else:
+                    path = re.split(r'tmp\/\w*\/', abs_path)[1]
+                if git_commit_hash is None:
+                    git_commit_hash = repo.get_commit_hash(path, self.branch)
+
+                schema = '{}/{}/{}/{}/{}'.format(github_raw, self.owner, self.repo, git_commit_hash, path)
+                yang.parse_all(git_commit_hash, data['name'],
+                               self.prepare.name_revision_organization,
+                               schema, self.path, self.save_file_to_dir, additional_info)
+                self.prepare.add_key_sdo_module(yang)
 
     def parse_imp_inc(self, modules: list, set_of_names: dict, is_include: bool, schema_part: str,
                       capabilities: list, netconf_version: list):

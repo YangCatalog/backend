@@ -27,13 +27,13 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import os
 import shutil
-import sys
 import time
 
 import requests
 import utility.log as log
 from utility import repoutil
 from utility.create_config import create_config
+from utility.staticVariables import github_url
 from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
@@ -123,7 +123,7 @@ def main(scriptConf=None):
         clone_dir = '{}/draftpulllocal'.format(temp_dir)
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
-        repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
+        repo = repoutil.RepoUtil('{}/YangModels/yang.git'.format(github_url))
         repo.clone(config_name, config_email, clone_dir)
         LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.localdir))
 
@@ -173,6 +173,26 @@ def main(scriptConf=None):
         else:
             message = {'label': 'Experimental modules', 'message': 'populate script finished successfully'}
             messages.append(message)
+
+        # IANA modules
+        iana_path = '{}/standard/iana'.format(repo.localdir)
+
+        if os.path.exists(iana_path):
+            LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))
+            check_name_no_revision_exist(iana_path, LOGGER)
+
+            LOGGER.info('Checking for early revision in {}'.format(iana_path))
+            check_early_revisions(iana_path, LOGGER)
+
+            execution_result = run_populate_script(iana_path, notify, LOGGER)
+            if execution_result == False:
+                populate_error = True
+                message = {'label': 'IANA modules', 'message': 'Error while calling populate script'}
+                messages.append(message)
+            else:
+                message = {'label': 'IANA modules', 'message': 'populate script finished successfully'}
+                messages.append(message)
+
     except Exception as e:
         LOGGER.exception('Exception found while running draftPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
