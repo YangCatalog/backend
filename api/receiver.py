@@ -52,9 +52,9 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
-from utility.util import prepare_to_indexing, send_to_indexing2
 from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
+from utility.util import prepare_to_indexing, send_to_indexing2
 
 
 class Receiver:
@@ -354,8 +354,7 @@ class Receiver:
         given path. This will delete whole module in modules branch of the
         yang-catalog.yang module. It will also call indexing script to update searching.
 
-        Arguments:
-            :param multiple     (bool) removing multiple modules at once
+        Argument:
             :param arguments    (list) list of arguments sent from API sender
             :return (__response_type) one of the response types which
                 is either 'Finished successfully' or 'Partially done'
@@ -368,19 +367,9 @@ class Receiver:
         modules = json.loads(path_to_delete)['modules']
         all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
 
-        def fix_dependencies(module):
-            all_modules = {'module': [module]}
-            confd_prefix = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
-            direc = '/var/yang/tmp'
-            mca = ModulesComplicatedAlgorithms(self.__log_directory, self.__yangcatalog_api_prefix,
-                                               self.__confd_credentials, confd_prefix, self.__save_file_dir, direc,
-                                               all_modules, self.__yang_models, self.temp_dir)
-            mca.set_dependency_revisions()
-            mca.populate()
-
         def module_in(name: str, revision: str, modules: list):
             for module in modules:
-                if module['name'] == name and module['revision'] == revision:
+                if module['name'] == name and module.get('revision') == revision:
                     return True
             return False
 
@@ -388,12 +377,7 @@ class Receiver:
         def can_delete(name: str, revision: str):
             for existing_module in all_mods['module']:
                 for dep_type in ['dependencies', 'submodule']:
-                    try:
-                        is_dep = module_in(name, revision, existing_module.get(dep_type, []))
-                    except KeyError:
-                        # some of our modules don't have revisions specified in dependencies
-                        fix_dependencies(existing_module)
-                        is_dep = module_in(name, revision, existing_module.get(dep_type, []))
+                    is_dep = module_in(name, revision, existing_module.get(dep_type, []))
                     if is_dep:
                         if module_in(existing_module['name'], existing_module['revision'], modules):
                             if can_delete(existing_module['name'], existing_module['revision']):

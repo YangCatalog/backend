@@ -74,14 +74,14 @@ class ModulesComplicatedAlgorithms:
         existing_modules = response.json().get('module', [])
         self.__existing_modules_dict = defaultdict(dict)
         self.__latest_revisions = {}
-        for module in existing_modules + self.__all_modules.get('module', []):
+        for module in existing_modules:
             # Store latest revision of each module - used in resolving tree-type
             latest_revision = self.__latest_revisions.get(module['name'])
             if latest_revision is None:
                 self.__latest_revisions[module['name']] = module['revision']
             else:
                 self.__latest_revisions[module['name']] = max(module['revision'], latest_revision)
-        for module in existing_modules:
+
             self.__existing_modules_dict[module['name']][module['revision']] = module
 
     def parse_non_requests(self):
@@ -93,8 +93,6 @@ class ModulesComplicatedAlgorithms:
         self.parse_semver()
         LOGGER.info('parsing dependents')
         self.parse_dependents()
-        LOGGER.info('setting dependency revisions')
-        self.set_dependency_revisions()
 
     def populate(self):
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
@@ -740,18 +738,6 @@ class ModulesComplicatedAlgorithms:
         add_dependents(all_modules, both_dict)
         LOGGER.info('Adding existing modules as dependents')
         add_dependents(existing_modules, all_modules_dict)
-
-    def set_dependency_revisions(self):
-        for module in self.__all_modules.get('module', []):
-            updated = False
-            dependencies = deepcopy(module.get('dependencies', []))
-            for dependency in dependencies:
-                if 'revision' not in dependency:
-                    dependency['revision'] = self.__latest_revisions[dependency['name']]
-                    updated = True
-            if updated:
-                new_module = self.new_modules[module['name']]
-                new_module.setdefault(module['revision'], deepcopy(module))['dependencies'] = dependencies
 
     def __find_file(self, name: str, revision: str = '*'):
         yang_name = '{}.yang'.format(name)

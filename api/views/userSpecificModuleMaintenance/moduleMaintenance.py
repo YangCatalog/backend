@@ -138,7 +138,6 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         if read['yang-catalog:module'][0].get('implementations') is not None:
             unavailable_modules.append(mod)
 
-    all_mods = requests.get('{}search/modules'.format(ac.yangcatalog_api_prefix)).json()
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
     path_to_delete = json.dumps({'modules':input_modules})
