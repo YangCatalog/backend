@@ -48,7 +48,6 @@ import logging
 import os
 import pwd
 import shutil
-import stat
 import sys
 import threading
 import time
@@ -136,6 +135,8 @@ class MyFlask(Flask):
     def setup_logger(self):
         self.logger.removeHandler(default_handler)
         file_name_path = '{}/yang.log'.format(self.config.d_logs)
+        os.makedirs(os.path.dirname(file_name_path), exist_ok=True)
+        exists = False
         if os.path.isfile(file_name_path):
             exists = True
         FORMAT = '%(asctime)-15s %(levelname)-8s %(filename)s api => %(message)s - %(lineno)d'
@@ -145,7 +146,7 @@ class MyFlask(Flask):
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
         if not exists:
-            os.chmod(file_name_path, 0o664 | stat.S_ISGID)
+            os.chmod(file_name_path, 0o664)
 
     def post_config_load(self):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
@@ -155,7 +156,7 @@ class MyFlask(Flask):
             self.config['ES'] = Elasticsearch([self.config.db_es_host],
                                               http_auth=(self.config.s_elk_credentials[0],
                                                          self.config.s_elk_credentials[1]),
-                                              scheme="https", port=443)
+                                              scheme='https', port=443)
         else:
             self.config['ES'] = Elasticsearch([{'host': '{}'.format(self.config.db_es_host), 'port': self.config.db_es_port}])
 
@@ -181,6 +182,7 @@ class MyFlask(Flask):
         self.config['YANGCATALOG-API-PREFIX'] = '{}://{}{}{}/' \
             .format(self.config.g_protocol_api, self.config.w_ip, separator, suffix)
 
+        self.config.g_is_prod = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(
             host=self.config.db_redis_host,
             port=self.config.db_redis_port
@@ -216,7 +218,7 @@ class MyFlask(Flask):
             app.logger.info(request.path)
         if 'api/admin' in request.path and not 'api/admin/healthcheck' in request.path and not 'api/admin/ping' in request.path:
             app.logger.info('User logged in {}'.format(self.config.oidc.user_loggedin))
-            if not self.config.oidc.user_loggedin and 'login' not in request.path:
+            if self.config.g_is_prod and not self.config.oidc.user_loggedin and 'login' not in request.path:
                 return abort(401, description='not yet Authorized')
 
     def create_response_only_latest_revision(self, response):
@@ -409,8 +411,8 @@ class MyFlask(Flask):
 
                 with open(ys_dir + '/' + defmod.split('@')[0].lower(), 'w') as f:
                     f.write(json.dumps(json_set, indent=4))
-                uid = pwd.getpwnam("yang").pw_uid
-                gid = grp.getgrnam("yang-dev").gr_gid
+                uid = pwd.getpwnam('yang').pw_uid
+                gid = grp.getgrnam('yang-dev').gr_gid
                 path = self.config.d_ys_users + '/' + id
                 for root, dirs, files in os.walk(path):
                     for momo in dirs:
@@ -515,12 +517,12 @@ ac.oidc.init_app(app)
 
 # Register blueprint(s)
 app.register_blueprint(admin_bp)
-app.register_blueprint(error_handling_bp, url_prefix="/api")
-app.register_blueprint(user_maintenance_bp, url_prefix="/api")
-app.register_blueprint(jobs_bp, url_prefix="/api")
-app.register_blueprint(search_bp, url_prefix="/api")
-app.register_blueprint(healthcheck_bp, url_prefix="/api/admin/healthcheck")
-app.register_blueprint(yang_search_bp, url_prefix="/api/yang-search/v2")
+app.register_blueprint(error_handling_bp, url_prefix='/api')
+app.register_blueprint(user_maintenance_bp, url_prefix='/api')
+app.register_blueprint(jobs_bp, url_prefix='/api')
+app.register_blueprint(search_bp, url_prefix='/api')
+app.register_blueprint(healthcheck_bp, url_prefix='/api/admin/healthcheck')
+app.register_blueprint(yang_search_bp, url_prefix='/api/yang-search/v2')
 
 CORS(app, supports_credentials=True)
 #csrf = CSRFProtect(application)
@@ -543,14 +545,14 @@ def make_cache(credentials, response, data=None):
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
-                app.logger.debug("Loading data from confd")
+                app.logger.debug('Loading data from confd')
                 path = '{}://{}:{}//restconf/data/yang-catalog:catalog'.format(ac.g_protocol_confd, ac.w_confd_ip,
                                                                                ac.w_confd_port)
                 try:
                     data = requests.get(path, auth=(credentials[0], credentials[1]),
                                         headers={'Accept': 'application/yang-data+json'}).json()
                     data = json.dumps(data)
-                    app.logger.debug("Data loaded and parsed to json from confd db successfully")
+                    app.logger.debug('Data loaded and parsed to json from confd db successfully')
                 except ValueError as e:
                     app.logger.warning('not valid json returned')
                     data = ''
@@ -631,7 +633,7 @@ def load():
             if special_id in app.release_locked:
                 code = app.response_waiting.status_code
                 body = app.response_waiting.json
-                body['extra-info'] = "this message was generated with previous reload-cache response"
+                body['extra-info'] = 'this message was generated with previous reload-cache response'
                 app.special_id_counter[special_id] -= 1
                 if app.special_id_counter[special_id] == 0:
                     app.special_id_counter.pop(special_id)
@@ -649,7 +651,7 @@ def load():
     with lock_for_load:
         app.logger.info('application not locked for reload')
         load_uwsgi_cache()
-        app.logger.info("Cache loaded successfully")
+        app.logger.info('Cache loaded successfully')
         app.loading = False
 
 
@@ -660,10 +662,10 @@ def load_uwsgi_cache():
     modules = cat['modules']
     vendors = cat.get('vendors', {})
 
-    ac.redis.set("modules-data", json.dumps(modules))
-    ac.redis.set("vendors-data", json.dumps(vendors))
+    ac.redis.set('modules-data', json.dumps(modules))
+    ac.redis.set('vendors-data', json.dumps(vendors))
     if len(modules) != 0:
-        existing_keys = ["modules-data", "vendors-data", "all-catalog-data"]
+        existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
         # recreate keys to redis if there are any
         for _, mod in enumerate(modules['module']):
             key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])

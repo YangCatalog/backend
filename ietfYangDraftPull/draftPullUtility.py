@@ -30,8 +30,10 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
+import grp
 import logging
 import os
+import pwd
 import tarfile
 from datetime import datetime
 
@@ -160,7 +162,7 @@ def get_draft_module_content(ietf_draft_url: str, experimental_path: str, LOGGER
             try:
                 yang_raw = requests.get(yang_download_link).text
                 yang_file.write(yang_raw)
-            except:
+            except Exception:
                 LOGGER.warning('{} - {}'.format(key, yang_download_link))
                 yang_file.write('')
 
@@ -194,9 +196,11 @@ def set_permissions(directory: str):
     Argument:
         :param directory    (str) path to the directory where permissions should be set
     """
-    os.chown(directory, int(os.environ['YANG_ID']), int(os.environ['YANG_GID']))
+    uid = pwd.getpwnam('yang').pw_uid
+    gid = grp.getgrnam('yang').gr_gid
+    os.chown(directory, uid, gid)
     for root, dirs, files in os.walk(directory):
         for dir in dirs:
-            os.chown(os.path.join(root, dir), int(os.environ['YANG_ID']), int(os.environ['YANG_GID']))
+            os.chown(os.path.join(root, dir), uid, gid)
         for file in files:
-            os.chown(os.path.join(root, file), int(os.environ['YANG_ID']), int(os.environ['YANG_GID']))
+            os.chown(os.path.join(root, file), uid, gid)

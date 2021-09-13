@@ -121,7 +121,8 @@ def main(scriptConf=None):
         # call rsync to sync with rsync.iana.org::assignments/yang-parameters/
         subprocess.call(['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', iana_path])
         set_permissions(iana_path)
-        os.makedirs('{}/standard/iana'.format(repo.localdir))
+        if not os.path.exists('{}/standard/iana'.format(repo.localdir)):
+            os.makedirs('{}/standard/iana'.format(repo.localdir))
         xml_path = '{}/yang-parameters.xml'.format(iana_path)
         copy2(xml_path, '{}/standard/iana/yang-parameters.xml'.format(repo.localdir))
 

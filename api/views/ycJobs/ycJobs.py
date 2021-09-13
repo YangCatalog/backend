@@ -104,7 +104,7 @@ def check_github():
     if verify_commit:
         app.logger.info('Commit {} verified'.format(body['check_run']['head_sha']))
         # Create PR to YangModels/yang if sent from yang-catalog/yang
-        if body['sender']['login'] == 'yang-catalog':
+        if body['repository']['full_name'] == 'yang-catalog/yang':
             json_body = json.loads(json.dumps({
                 'title': 'Cronjob - every day pull and update of ietf draft yang files.',
                 'body': 'ietf extracted yang modules',
@@ -122,7 +122,7 @@ def check_github():
                 app.logger.error(message)
                 return ({'info': message}, 200)
         # Automatically merge PR if sent from YangModels/yang
-        elif body['sender']['login'] == 'YangModels':
+        elif body['repository']['full_name'] == 'YangModels/yang':
             admin_token_header_value = 'token {}'.format(ac.s_admin_token)
             pull_requests = body['check_run']['pull_requests']
             if pull_requests != []:
@@ -134,9 +134,13 @@ def check_github():
                     'event': 'APPROVE'
                 })
                 response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
-                message = 'Review response code {}. Merge response {}.'.format(response.status_code, response.text)
-                app.logger.info(message)
-                return ({'info': message}, 201)
+                app.logger.info('Review response code {}'.format(response.status_code,))
+                data = json.dumps({'commit-title': 'Github Actions job passed',
+                                    'sha': body['check_run']['head_sha']})
+                response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(pull_number),
+                                        data, headers={'Authorization': admin_token_header_value})
+                app.logger.info('Merge response code {}\nMerge response {}'.format(response.status_code, response.text))
+                return ({'info': 'Success'}, 201)
         else:
             message = 'Owner name verification failed. Owner -> {}'.format(body['sender']['login'])
             app.logger.warning(message)
