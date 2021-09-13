@@ -35,7 +35,7 @@ class TestPrepareClass(unittest.TestCase):
         super(TestPrepareClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema = '{}YangModels/yang/master/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang'.format(github_raw)
+        self.schema = '{}/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang'.format(github_raw)
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
         self.prepare_output_filename = 'prepare'

@@ -16,13 +16,13 @@ import requests
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import github, github_raw
+from utility.staticVariables import github_raw, github_url
 
 
 def get_repo_owner_name(schema: str):
     schema_part = schema.split(github_raw)[1]
-    repo_owner = schema_part.split('/')[0]
-    repo_name = schema_part.split('/')[1]
+    repo_owner = schema_part.split('/')[1]
+    repo_name = schema_part.split('/')[2]
 
     return repo_owner, repo_name
 
@@ -93,7 +93,7 @@ def get_commit_hash_history(module: dict):
 
     # Clone repo to get the commit hashes history for repository
     if commit_hash is None:
-        repo_url = '{}{}/{}'.format(github, repo_owner, repo_name)
+        repo_url = '{}/{}/{}'.format(github_url, repo_owner, repo_name)
         repo = repoutil.RepoUtil(repo_url)
         LOGGER.info('Cloning repo from {}'.format(repo_url))
         repo.clone()

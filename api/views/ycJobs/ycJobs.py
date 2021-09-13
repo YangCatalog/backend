@@ -22,9 +22,9 @@ import os
 
 import requests
 from api.authentication.auth import auth, check_authorized
-
+from flask import Blueprint, abort
 from flask import current_app as app
-from flask import Blueprint, abort, request
+from flask import request
 from utility import messageFactory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
@@ -97,7 +97,7 @@ def check_github():
         except:
             abort(404)
 
-    github_repos_url = '{}repos'.format(github_api)
+    github_repos_url = '{}/repos'.format(github_api)
     yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
 
     token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
@@ -128,7 +128,7 @@ def check_github():
             if pull_requests != []:
                 pull_number = pull_requests[0]['number']
                 app.logger.info('Pull request {} was successful - sending review.'.format(pull_number))
-                url = '{}repos/YangModels/yang/pulls/{}/reviews'.format(github_api, pull_number)
+                url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, pull_number)
                 data = json.dumps({
                     'body': 'AUTOMATED YANG CATALOG APPROVAL',
                     'event': 'APPROVE'
@@ -168,7 +168,7 @@ def check_local():
         mf.send_travis_auth_failed()
         abort(401)
 
-    github_repos_url = '{}repos'.format(github_api)
+    github_repos_url = '{}/repos'.format(github_api)
     yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
 
     verify_commit = False
@@ -218,7 +218,7 @@ def check_local():
                     admin_token_header_value = 'token {}'.format(ac.s_admin_token)
                     pull_number = body['pull_request_number']
                     app.logger.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
-                    url = '{}repos/YangModels/yang/pulls/{}/reviews'.format(github_api, repr(pull_number))
+                    url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, repr(pull_number))
                     data = json.dumps({
                         'body': 'AUTOMATED YANG CATALOG APPROVAL',
                         'event': 'APPROVE'
@@ -228,7 +228,7 @@ def check_local():
                         response.status_code, response.text))
                     data = json.dumps({'commit-title': 'Travis job passed',
                                        'sha': body['head_commit']})
-                    response = requests.put('{}repos/YangModels/yang/pulls/{}/merge'.format(github_api, repr(pull_number)),
+                    response = requests.put('{}/repos/YangModels/yang/pulls/{}/merge'.format(github_api, repr(pull_number)),
                                             data, headers={'Authorization': admin_token_header_value})
                     app.logger.info('Merge response code {}. Merge response {}.'.format(response.status_code, response.text))
                     return ({'info': 'Success'}, 201)
@@ -241,7 +241,7 @@ def check_local():
                     'state': 'closed',
                     'base': 'master'
                 }))
-                requests.patch('{}repos/YangModels/yang/pulls/{}'.format(github_api, pull_number), json=json_body,
+                requests.patch('{}/repos/YangModels/yang/pulls/{}'.format(github_api, pull_number), json=json_body,
                                headers={'Authorization': token_header_value})
                 app.logger.warning('Travis job did not pass.')
                 return ({'info': 'Failed'}, 406)

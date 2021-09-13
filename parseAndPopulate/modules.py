@@ -35,7 +35,8 @@ from datetime import datetime
 import statistic.statistics as stats
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import github, github_raw, IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP
+from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
+                                     github_raw, github_url)
 from utility.util import find_first_file
 
 from parseAndPopulate.loadJsonFiles import LoadFiles
@@ -267,7 +268,7 @@ class Modules:
                                 # First load/clone YangModels/yang repo
                                 owner_name = 'YangModels'
                                 repo_name = 'yang'
-                                repo_url = '{}{}/{}'.format(github, owner_name, repo_name)
+                                repo_url = '{}/{}/{}'.format(github_url, owner_name, repo_name)
                                 repo = repoutil.load(self.yang_models, repo_url)
                                 if repo is None:
                                     repo = repoutil.RepoUtil(repo_url)
@@ -283,7 +284,7 @@ class Modules:
                                         suffix = suffix.replace('{}/'.format(submodule.name), '')
 
                                 branch = repo.get_commit_hash(suffix)
-                                schema = '{}{}/{}/{}/{}'.format(github_raw, owner_name, repo_name, branch, suffix)
+                                schema = '{}/{}/{}/{}/{}'.format(github_raw, owner_name, repo_name, branch, suffix)
 
                                 dependency.schema = schema
                             elif git_commit_hash in yang_file:

@@ -25,18 +25,17 @@ import shutil
 import sys
 from datetime import datetime
 
-from sqlalchemy.exc import SQLAlchemyError
 import requests
-from flask import current_app as app
-from flask import Blueprint, request, abort, make_response, jsonify
-from git import GitCommandError
-
 from api.authentication.auth import auth, hash_pw
-
+from api.models import TempUser, User
+from flask import Blueprint, abort
+from flask import current_app as app
+from flask import jsonify, make_response, request
+from git import GitCommandError
+from sqlalchemy.exc import SQLAlchemyError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
-from utility.staticVariables import confd_headers, NS_MAP, github
-from api.models import User, TempUser
+from utility.staticVariables import NS_MAP, confd_headers, github_url
 
 
 class UserSpecificModuleMaintenance(Blueprint):
@@ -429,7 +428,7 @@ def add_modules():
             return abort(400, description='bad request - at least one of modules source file "owner" is missing and is mandatory')
         directory = '/'.join(sdo_path.split('/')[:-1])
 
-        repo_url = '{}{}/{}'.format(github, sdo_owner, sdo_repo)
+        repo_url = '{}/{}/{}'.format(github_url, sdo_owner, sdo_repo)
         if repo_url not in repo:
             app.logger.info('Downloading repo {}'.format(repo_url))
             try:
@@ -613,7 +612,7 @@ def add_vendors():
                 continue
 
         directory = '/'.join(capability_path.split('/')[:-1])
-        repo_url = '{}{}/{}'.format(github, owner, repository)
+        repo_url = '{}/{}/{}'.format(github_url, owner, repository)
 
         if repo_url not in repo:
             app.logger.info('Downloading repo {}'.format(repo_url))

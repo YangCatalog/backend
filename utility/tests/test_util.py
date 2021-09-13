@@ -201,7 +201,7 @@ class TestUtilClass(unittest.TestCase):
     def test_fetch_module_by_schema_successfully(self):
         """ Test if content of yang module was successfully fetched from Github and stored to the file.
         """
-        schema = '{}YangModels/yang/2608a6f38bd2bfe947b6e61f4e0c87cc80f831aa' \
+        schema = '{}/YangModels/yang/2608a6f38bd2bfe947b6e61f4e0c87cc80f831aa' \
             '/experimental/ietf-extracted-YANG-modules/ietf-yang-types@2020-07-06.yang' \
             .format(github_raw)
         yang_name_rev = 'successful@1970-01-01.yang'
@@ -215,7 +215,7 @@ class TestUtilClass(unittest.TestCase):
         """ Check if method returned False if wrong schema was passed as an argument.
         File should not be created.
         """
-        schema = '{}YangModels/yang/random-hash' \
+        schema = '{}/YangModels/yang/random-hash' \
             '/experimental/ietf-extracted-YANG-modules/ietf-yang-types@2020-07-06.yang' \
             .format(github_raw)
 
