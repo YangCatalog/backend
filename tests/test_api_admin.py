@@ -17,22 +17,22 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
-import unittest
-import os
 import json
+import os
+import unittest
 from pathlib import Path
 from unittest import mock
 
-import flask_oidc
-from sqlalchemy.exc import SQLAlchemyError
-from werkzeug.exceptions import HTTPException  
-
 import api.views.admin.admin as admin
-from api.yangCatalogApi import app
+import flask_oidc
 from api.models import User
+from api.yangCatalogApi import app
+from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.exceptions import HTTPException
 
 ac = app.config
 db = ac.sqlalchemy
+
 
 class TestApiAdminClass(unittest.TestCase):
 
@@ -407,7 +407,7 @@ class TestApiAdminClass(unittest.TestCase):
         mock.mock_open(mock_open, read_data='test')
         result = admin.determine_formatting('test', r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))',
                                             r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)')
-        
+
         self.assertEqual(result, False)
 
     @mock.patch('builtins.open')
@@ -416,7 +416,7 @@ class TestApiAdminClass(unittest.TestCase):
         mock.mock_open(mock_open, read_data=data)
         result = admin.determine_formatting('test', r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))',
                                             r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)')
-        
+
         self.assertEqual(result, True)
 
     def test_generate_output(self):
@@ -679,7 +679,7 @@ class TestApiAdminClass(unittest.TestCase):
         data = result.json
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
-    
+
     @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
     def test_update_sql_row_args_missing(self):
         result = self.client.put('api/admin/sql-tables/users/id/{}'.format(self.uid), json={'input': {}})
@@ -750,26 +750,6 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], '"invalid" is not valid script name')
 
-    @mock.patch('api.yangCatalogApi.ac.sender', mock.MagicMock())
-    def test_run_script_with_args_empty(self):
-        result = self.client.post('api/admin/scripts/validate', json={'input': {'row_id': '', 'user_email': ''}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Failed to validate - user-email and row-id cannot be empty strings')
-
-    @mock.patch('api.yangCatalogApi.ac.sender', mock.MagicMock())
-    def test_run_script_with_args_missing(self):
-        result = self.client.post('api/admin/scripts/validate', json={'input': {}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Failed to validate - user-email and row-id must exist')
-
     def test_get_script_names(self):
         result = self.client.get('api/admin/scripts')
 
@@ -793,6 +773,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('free', data['data'])
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
+
 
 if __name__ == "__main__":
     unittest.main()

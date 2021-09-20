@@ -592,12 +592,6 @@ def run_script_with_args(script):
         abort(400, description='"{}" is not valid script name'.format(script))
 
     body = get_input(request.json)
-    if script == 'validate':
-        try:
-            if not body['row_id'] or not body['user_email']:
-                abort(400, description='Failed to validate - user-email and row-id cannot be empty strings')
-        except KeyError:
-            abort(400, description='Failed to validate - user-email and row-id must exist')
 
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = ac.sender.send('#'.join(arguments))
@@ -635,8 +629,6 @@ def get_module_name(script_name):
         return 'statistic'
     elif script_name == 'resolveExpiration':
         return 'utility'
-    elif script_name == 'validate':
-        return 'validate'
     else:
         return None
 
