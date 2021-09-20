@@ -30,6 +30,7 @@ import json
 import os
 import re
 import sys
+import time
 from datetime import datetime
 
 import statistic.statistics as stats
@@ -622,13 +623,13 @@ class Modules:
 
     def __create_compilation_result_file(self):
         LOGGER.debug("Resolving compilation status")
-        if self.compilation_status['status'] == 'passed' \
-                and self.compilation_result['pyang_lint'] == '':
+        if self.compilation_status['status'] in ['unknown', 'pending']:
             return ''
         else:
             result = self.compilation_result
         result['name'] = self.name
         result['revision'] = self.revision
+        result['generated'] = time.strftime('%d/%m/%Y')
         context = {'result': result,
                    'ths': self.compilation_status['ths']}
         template = os.path.dirname(os.path.realpath(__file__)) + '/template/compilationStatusTemplate.html'
@@ -638,12 +639,13 @@ class Modules:
         # Don t override status if it was already written once
         file_path = '{}/{}'.format(self.html_result_dir, file_url)
         if os.path.exists(file_path):
-            if self.compilation_status['status'] in ['unknown', 'pending']:
-                self.compilation_status['status'] = None
-            else:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(rendered_html)
-                os.chmod(file_path, 0o664)
+            if self.compilation_status['status'] not in ['unknown', 'pending']:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    existing_output = f.read()
+                if existing_output != rendered_html:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(rendered_html)
+                    os.chmod(file_path, 0o664)
         else:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(rendered_html)
