@@ -243,27 +243,27 @@ class Capability:
 
         else:
             LOGGER.debug('Parsing sdo files from directory')
-            for root, _, sdos in os.walk('/'.join(self.split)):
-                # Load/clone YangModels/yang repo
-                self.owner = 'YangModels'
-                self.repo = 'yang'
-                repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
-                repo = repoutil.load(self.yang_models_dir, repo_url)
-                if repo is None:
-                    repo = repoutil.RepoUtil(repo_url, self.logger)
-                    repo.clone()
-                is_submodule = False
-                # Check if repository submodule
-                for submodule in repo.repo.submodules:
-                    if submodule.name in root:
-                        is_submodule = True
-                        submodule_name = submodule.name
-                        repo_url = submodule.url
-                        repo_dir = '{}/{}'.format(self.yang_models_dir, submodule_name)
-                        repo = repoutil.load(repo_dir, repo_url)
-                        self.owner = repo.get_repo_owner()
-                        self.repo = repo.get_repo_dir().split('.git')[0]
+            # Load/clone YangModels/yang repo
+            self.owner = 'YangModels'
+            self.repo = 'yang'
+            repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
+            repo = repoutil.load(self.yang_models_dir, repo_url)
+            if repo is None:
+                repo = repoutil.RepoUtil(repo_url, self.logger)
+                repo.clone()
+            is_submodule = False
+            # Check if repository submodule
+            for submodule in repo.repo.submodules:
+                if submodule.name in '/'.join(self.split):
+                    is_submodule = True
+                    submodule_name = submodule.name
+                    repo_url = submodule.url
+                    repo_dir = '{}/{}'.format(self.yang_models_dir, submodule_name)
+                    repo = repoutil.load(repo_dir, repo_url)
+                    self.owner = repo.get_repo_owner()
+                    self.repo = repo.get_repo_dir().split('.git')[0]
 
+            for root, _, sdos in os.walk('/'.join(self.split)):
                 for file_name in sdos:
                     # Process only SDO .yang files
                     if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):

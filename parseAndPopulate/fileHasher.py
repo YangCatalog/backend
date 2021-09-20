@@ -170,12 +170,9 @@ class FileHasher:
         old_file_hash = self.files_hashes.get(path, {})
         old_file_platform_hash = old_file_hash.get(platform, None)
 
-        if old_file_platform_hash is None:
+        if old_file_platform_hash is None or old_file_platform_hash != file_hash:
             if self.updated_hashes.get(path) is None:
                 self.updated_hashes[path] = {}
-            self.updated_hashes[path][platform] = file_hash
-            hash_changed = True
-        elif old_file_platform_hash != file_hash:
             self.updated_hashes[path][platform] = file_hash
             hash_changed = True
 
