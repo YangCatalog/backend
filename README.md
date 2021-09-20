@@ -5,7 +5,7 @@ You can find the official yangcatalog website [here](https://yangcatalog.org).
 
 The scripts in this repository serve as a backend to add, update, remove and manage
 yang module files in yangcatalog. It is composed of:
-* scripts that run every day as a cron job, 
+* scripts that run every day as a cron job,
 * an API which lets users add, remove or find the modules they expect
 * scripts that parse and populate the yangcatalog database.
 
@@ -46,9 +46,8 @@ of the endpoints serve to find modules in different ways. This is described
 deeper in the [API documentation](https://yangcatalog.org/doc). If the user is
 registered, she/he can add, modify or delete modules based on a pre-approved path.
 Once a user has filled in the registration form, one of yangcatalog's admin users
-needs to use the validate script, which will walk him through the validation
-process to give the user specific rights so he is able to add, remove or
-update only certain modules.
+needs to approve user using Admin UI and give the user specific rights so he is able to add,
+remove or update only certain modules.
 
 Some of the requests may take a longer period of time to process.
 Because of this, a sender and a receiver was made. These scripts use rabbitMQ
@@ -62,7 +61,7 @@ _Note about rabbitMQ: on some Linux distributions, you need to add `HOSTNAME=loc
 
 The Yangcatalog API is also used by some automated jobs. Every time new
 modules are merged into the yangModels/yang repository a job is triggered to
-populate all the new modules to the yangcatalog database. 
+populate all the new modules to the yangcatalog database.
 
 The backend API also receives
 IETF Yang models every day and if there are any new drafts it will
@@ -89,7 +88,7 @@ anymore.
 users we have in our database.
 * In the ietfYangDraftPull directory there are three jobs.
 1. DraftPull.py adds new modules
-to the yangModels/yang repository if there are any new modules. 
+to the YangModels/yang repository if there are any new modules.
 2. DraftPullLocall.py
 goes through all ietf drafts and rfcs and populates yangcatalog if there
 are any new modules.
@@ -124,7 +123,7 @@ See the README.md file in the `documentation/` directory.
 
 ### Fill the ConfD database
 
-Using `backend/recovery/recovery.py --type load /var/yang/cache/<latest>.json`.
+Using `backend/recovery/recovery.py --type load /var/yang/cache/confd/<latest>.json`.
 
 ### NGINX Configuration
 
@@ -132,7 +131,7 @@ To be localized to your configuration.
 
 ```
         location /doc {
-            alias /home/yang/slate/build;
+            alias /usr/share/nginx/html/slate/build;
         }
 
         location /api {
