@@ -38,7 +38,7 @@ from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import confd_headers, json_headers
+from utility.staticVariables import backup_date_format, confd_headers, json_headers
 from utility.yangParser import create_context
 
 
@@ -491,10 +491,15 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
 
     return ctx, new_schema_ctx
 
-def get_list_of_backups(directory: str) -> t.List[datetime.datetime]:
+def get_list_of_backups(directory: str) -> t.List[str]:
     dates = []
     for name in os.listdir(directory):
-        if os.stat(os.path.join(directory, name)).st_size == 0:
+        try:
+            split_name = os.path.splitext(name)
+            datetime.datetime.strptime(split_name[0], backup_date_format)
+            if os.stat(os.path.join(directory, name)).st_size == 0:
+                continue
+            dates.append(split_name)
+        except ValueError:
             continue
-        dates.append(os.path.splitext(name))
     return sorted(dates)
