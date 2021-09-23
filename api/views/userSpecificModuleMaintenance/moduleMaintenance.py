@@ -83,7 +83,7 @@ def register_user():
             abort(409, 'User with username {} is pending for permissions'.format(username))
         temp_user = TempUser(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
                              FirstName=name, LastName=last_name, Motivation=motivation,
-                             RegistrationDate=datetime.utcnow())
+                             RegistrationDatetime=datetime.utcnow())
         db.session.add(temp_user)
         db.session.commit()
     except SQLAlchemyError as err:

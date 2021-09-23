@@ -456,7 +456,6 @@ def move_user():
     name = body.get('first-name')
     last_name = body.get('last-name')
     email = body.get('email')
-    motivation = body.get('motivation')
     if unique_id is None:
         abort(400, description='Id of a user is missing')
     if username is None:
@@ -467,7 +466,7 @@ def move_user():
     registration_datetime = db.session.query(TempUser.RegistrationDatetime).filter_by(Id=unique_id).first()
     user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
                 FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
-                Motivation=motivation, RegistrationDatetime=registration_datetime)
+                RegistrationDatetime=registration_datetime)
     db.session.add(user)
     db.session.commit()
 
@@ -504,9 +503,20 @@ def create_sql_row(table):
     hashed_password = hash_pw(password)
     if model is User and sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    user = model(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
-                ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
-                Motivation=motivation, RegistrationDatetime=registration_datetime)
+    columns = {
+        'Username': username,
+        'FirstName': name,
+        'LastName': last_name,
+        'Email': email,
+        'Password': hashed_password,
+        'ModelsProvider': models_provider,
+        'AccessRightsSdo': sdo_access,
+        'AccessRightsVendor': vendor_access,
+        'RegistrationDatetime': registration_datetime
+    }
+    if model == TempUser:
+        columns['Motivation'] = motivation
+    user = model(**columns)
     db.session.add(user)
     db.session.commit()
     response = {'info': 'data successfully added to database',
@@ -545,7 +555,8 @@ def update_sql_row(table, unique_id):
         user.LastName = body.get('last-name')
         user.AccessRightsSdo = body.get('access-rights-sdo', '')
         user.AccessRightsVendor = body.get('access-rights-vendor', '')
-        user.Motivation = body.get('motivation')
+        if model == TempUser:
+            user.Motivation = body.get('motivation')
         if not user.Username or not user.Email:
             abort(400, description='username and email must be specified')
         db.session.commit()
@@ -571,8 +582,9 @@ def get_sql_rows(table):
                     'last-name': user.LastName,
                     'access-rights-sdo': user.AccessRightsSdo,
                     'access-rights-vendor': user.AccessRightsVendor,
-                    'motivation': user.Motivation,
-                    'registeration-datetime': user.RegisterationDatetime}
+                    'registeration-datetime': str(user.RegistrationDatetime)}
+        if model == TempUser:
+            data_set['motivation'] = user.Motivation
         ret.append(data_set)
     return jsonify(ret)
 
