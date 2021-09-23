@@ -35,7 +35,7 @@ class BaseUser(DeferredReflection, Base):
     LastName = Column(String(255))
     AccessRightsSdo = Column(String(255))
     AccessRightsVendor = Column(String(255))
-    Motivation = Column(String(255))
+    RegistrationDatetime = Column(DateTime)
 
 
 class User(BaseUser):
@@ -44,4 +44,4 @@ class User(BaseUser):
 
 class TempUser(BaseUser):
     __tablename__ = 'users_temp'
-    RegistrationDatetime = Column(DateTime)
+    Motivation = Column(String(255))
