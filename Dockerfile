@@ -14,7 +14,7 @@ ENV VIRTUAL_ENV=/backend
 
 #Install Cron
 RUN apt-get -y update
-RUN apt-get -y install nodejs libv8-dev ruby-full cron gunicorn logrotate curl mydumper rsync
+RUN apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
@@ -23,19 +23,11 @@ RUN apt-get -y autoremove
 
 COPY ./resources/main.cf /etc/postfix/main.cf
 
-RUN gem install bundler
-
 RUN groupadd -g ${YANG_GID} -r yang \
   && useradd --no-log-init -r -g yang -u ${YANG_ID} -d $VIRTUAL_ENV yang \
   && pip install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
-
-WORKDIR $VIRTUAL_ENV
-RUN git clone https://github.com/slatedocs/slate.git
-WORKDIR $VIRTUAL_ENV/slate
-RUN bundle install
-RUN bundle exec middleman build --clean
 
 ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
@@ -73,11 +65,6 @@ RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 
 USER ${YANG_ID}:${YANG_GID}
 
-WORKDIR $VIRTUAL_ENV/slate
-
-RUN rm -rf source
-RUN cp -R ../documentation/source .
-
 WORKDIR $VIRTUAL_ENV
 
 # Apply cron job
@@ -85,7 +72,6 @@ RUN crontab /etc/cron.d/yang-cron
 
 USER root:root
 RUN mkdir -p /usr/share/nginx/html/stats
-RUN cp -R $VIRTUAL_ENV/slate /usr/share/nginx/html
 RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
