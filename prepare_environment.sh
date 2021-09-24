@@ -29,6 +29,7 @@ cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $BACKEND/t
 # Prepare Huawei dir for ietf-yang-lib based tests
 rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/atn980b
 rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne40e-x8x16
+rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.10
 export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne5000e
 mkdir -p $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e
 cp $YANG_MODELS_HUAWEI_DIR/huawei-aaa* $BACKEND/tests/resources/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/
