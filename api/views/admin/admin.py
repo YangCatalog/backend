@@ -462,9 +462,13 @@ def move_user():
         abort(400, description='username must be specified')
     if sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first().Password or ''
-    registration_datetime = db.session.query(TempUser.RegistrationDatetime) \
-        .filter_by(Id=unique_id).first().RegistrationDatetime
+    user_password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first()
+    password = user_password.Password if user_password else ''
+    user_registration_datetime = db.session.query(TempUser.RegistrationDatetime).filter_by(Id=unique_id).first()
+    if user_registration_datetime:
+        registration_datetime = user_registration_datetime.RegistrationDatetime
+    else:
+        registration_datetime = datetime.now()
     user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
                 FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
                 RegistrationDatetime=registration_datetime)
