@@ -89,7 +89,7 @@ def register_user():
     except SQLAlchemyError as err:
         app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
     mf = MessageFactory()
-    mf.send_new_user(username, email)
+    mf.send_new_user(username, email, motivation)
     return ({'info': 'User created successfully'}, 201)
 
 @bp.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])

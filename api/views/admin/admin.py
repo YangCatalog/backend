@@ -587,7 +587,7 @@ def get_sql_rows(table):
                     'last-name': user.LastName,
                     'access-rights-sdo': user.AccessRightsSdo,
                     'access-rights-vendor': user.AccessRightsVendor,
-                    'registeration-datetime': str(user.RegistrationDatetime)}
+                    'registration-datetime': str(user.RegistrationDatetime)}
         if model == TempUser:
             data_set['motivation'] = user.Motivation
         ret.append(data_set)
