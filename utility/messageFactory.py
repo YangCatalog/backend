@@ -208,10 +208,10 @@ class MessageFactory:
                    'using the schema path:\n{}'.format('\n'.join(modules_list)))
         self.__post_to_email(message, self.__developers_email)
 
-    def send_new_user(self, username: str, email: str):
+    def send_new_user(self, username: str, email: str, motivation: str):
         self.LOGGER.info('Sending notification about new user')
 
         subject = 'Request for access confirmation'
-        msg = 'User {} with email {} is requesting access.\nPlease go to https://yangcatalog.org/admin/mysql-management ' \
-              'and approve or reject this request in Users tab.'.format(username, email)
+        msg = 'User {} with email {} is requesting access.\nMotivation: {}\nPlease go to https://yangcatalog.org/admin/mysql-management ' \
+              'and approve or reject this request in Users tab.'.format(username, email, motivation)
         self.__post_to_email(msg, subject=subject)

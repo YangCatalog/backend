@@ -17,7 +17,7 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, DateTime, text
 from sqlalchemy.ext.declarative import DeferredReflection
 from sqlalchemy.orm import declarative_base
 
@@ -35,6 +35,7 @@ class BaseUser(DeferredReflection, Base):
     LastName = Column(String(255))
     AccessRightsSdo = Column(String(255))
     AccessRightsVendor = Column(String(255))
+    RegistrationDatetime = Column(DateTime)
 
 
 class User(BaseUser):
@@ -43,3 +44,4 @@ class User(BaseUser):
 
 class TempUser(BaseUser):
     __tablename__ = 'users_temp'
+    Motivation = Column(String(255))

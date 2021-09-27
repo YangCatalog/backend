@@ -61,7 +61,8 @@ def register_user():
     if not request.json:
         abort(400, description='bad request - no data received')
     body = request.json
-    for data in ['username', 'password', 'password-confirm', 'email', 'company', 'first-name', 'last-name']:
+    for data in ['username', 'password', 'password-confirm', 'email',
+                 'company', 'first-name', 'last-name', 'motivation']:
         if data not in body:
             abort(400, description='bad request - missing {} data in input'.format(data))
     username = body['username']
@@ -72,6 +73,7 @@ def register_user():
     models_provider = body['company']
     name = body['first-name']
     last_name = body['last-name']
+    motivation = body['motivation']
     if password != confirm_password:
         abort(400, 'Passwords do not match')
     try:
@@ -80,13 +82,14 @@ def register_user():
         if db.session.query(TempUser).filter_by(Username=username).all():
             abort(409, 'User with username {} is pending for permissions'.format(username))
         temp_user = TempUser(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                             FirstName=name, LastName=last_name)
+                             FirstName=name, LastName=last_name, Motivation=motivation,
+                             RegistrationDatetime=datetime.utcnow())
         db.session.add(temp_user)
         db.session.commit()
     except SQLAlchemyError as err:
         app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
     mf = MessageFactory()
-    mf.send_new_user(username, email)
+    mf.send_new_user(username, email, motivation)
     return ({'info': 'User created successfully'}, 201)
 
 @bp.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
