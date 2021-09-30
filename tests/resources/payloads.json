@@ -353,7 +353,8 @@
             "first-name": "test",
             "last-name": "test",
             "email": "test",
-            "password": "test"
+            "password": "test",
+            "motivation": "test"
         }
     }
 }

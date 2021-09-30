@@ -18,7 +18,7 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import configparser as ConfigParser
+import datetime
 import fnmatch
 import json
 import optparse
@@ -28,6 +28,7 @@ import stat
 import sys
 import time
 import warnings
+import typing as t
 
 import requests
 from Crypto.Hash import HMAC, SHA
@@ -36,7 +37,8 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
-from utility.staticVariables import confd_headers, json_headers
+from utility.create_config import create_config
+from utility.staticVariables import backup_date_format, confd_headers, json_headers
 from utility.yangParser import create_context
 
 
@@ -221,7 +223,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
 
 
 def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list, LOGGER, save_file_dir: str, temp_dir: str, confd_url: str,
-                        sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = True):
+                        sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
@@ -244,9 +246,9 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
     LOGGER.info('Sending data for indexing')
     mf = messageFactory.MessageFactory()
     if delete:
-        post_body = json.dumps({'modules-to-delete': modules_to_index}, indent=4)
+        post_body = {'modules-to-delete': modules_to_index}
 
-        mf.send_removed_yang_files(post_body)
+        mf.send_removed_yang_files(json.dumps(post_body, indent=4))
         for mod in modules_to_index:
             name, revision_organization = mod.split('@')
             revision, organization = revision_organization.split('/')
@@ -320,7 +322,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         if len(post_body) > 0:
             post_body = {'modules-to-index': post_body}
         if len(post_body) > 0 and not force_indexing:
-            mf.send_added_new_yang_files(json.dumps(post_body))
+            mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
         if load_new_files_to_github:
             try:
                 LOGGER.info('Calling draftPull.py script')
@@ -408,10 +410,7 @@ def get_module_from_es(name: str, revision: str):
         :param name         (str) name of the module
         :param revision     (str) revision of the module in format YYYY-MM-DD
     """
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     es_aws = config.get('DB-Section', 'es-aws', fallback=False)
     es_host = config.get('DB-Section', 'es-host', fallback='localhost')
     es_port = config.get('DB-Section', 'es-port', fallback='9200')
@@ -491,3 +490,16 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
                 raise e
 
     return ctx, new_schema_ctx
+
+def get_list_of_backups(directory: str) -> t.List[str]:
+    dates = []
+    for name in os.listdir(directory):
+        try:
+            split_name = os.path.splitext(name)
+            datetime.datetime.strptime(split_name[0], backup_date_format)
+            if os.stat(os.path.join(directory, name)).st_size == 0:
+                continue
+            dates.append(split_name)
+        except ValueError:
+            continue
+    return sorted(dates)

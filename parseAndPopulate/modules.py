@@ -30,82 +30,18 @@ import json
 import os
 import re
 import sys
-import unicodedata
+import time
 from datetime import datetime
 
 import statistic.statistics as stats
 from utility import log, repoutil, yangParser
+from utility.create_config import create_config
+from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
+                                     github_raw, github_url)
 from utility.util import find_first_file
 
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.parseException import ParseException
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-
-IETF_RFC_MAP = {
-    "iana-crypt-hash@2014-08-06.yang": "NETMOD",
-    "iana-if-type@2014-05-08.yang": "NETMOD",
-    "ietf-complex-types@2011-03-15.yang": "N/A",
-    "ietf-inet-types@2010-09-24.yang": "NETMOD",
-    "ietf-inet-types@2013-07-15.yang": "NETMOD",
-    "ietf-interfaces@2014-05-08.yang": "NETMOD",
-    "ietf-ip@2014-06-16.yang": "NETMOD",
-    "ietf-ipfix-psamp@2012-09-05.yang": "IPFIX",
-    "ietf-ipv4-unicast-routing@2016-11-04.yang": "NETMOD",
-    "ietf-ipv6-router-advertisements@2016-11-04.yang": "NETMOD",
-    "ietf-ipv6-unicast-routing@2016-11-04.yang": "NETMOD",
-    "ietf-key-chain@2017-06-15.yang": "RTGWG",
-    "ietf-l3vpn-svc@2017-01-27.yang": "L3SM",
-    "ietf-lmap-common@2017-08-08.yang": "LMAP",
-    "ietf-lmap-control@2017-08-08.yang": "LMAP",
-    "ietf-lmap-report@2017-08-08.yang": "LMAP",
-    "ietf-netconf-acm@2012-02-22.yang": "NETCONF",
-    "ietf-netconf-monitoring@2010-10-04.yang": "NETCONF",
-    "ietf-netconf-notifications@2012-02-06.yang": "NETCONF",
-    "ietf-netconf-partial-lock@2009-10-19.yang": "NETCONF",
-    "ietf-netconf-time@2016-01-26.yang": "N/A",
-    "ietf-netconf-with-defaults@2011-06-01.yang": "NETCONF",
-    "ietf-netconf@2011-06-01.yang": "NETCONF",
-    "ietf-restconf-monitoring@2017-01-26.yang": "NETCONF",
-    "ietf-restconf@2017-01-26.yang": "NETCONF",
-    "ietf-routing@2016-11-04.yang": "NETMOD",
-    "ietf-snmp-common@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-community@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-engine@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-notification@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-proxy@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-ssh@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-target@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-tls@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-tsm@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-usm@2014-12-10.yang": "NETMOD",
-    "ietf-snmp-vacm@2014-12-10.yang": "NETMOD",
-    "ietf-snmp@2014-12-10.yang": "NETMOD",
-    "ietf-system@2014-08-06.yang": "NETMOD",
-    "ietf-template@2010-05-18.yang": "NETMOD",
-    "ietf-x509-cert-to-name@2014-12-10.yang": "NETMOD",
-    "ietf-yang-library@2016-06-21.yang": "NETCONF",
-    "ietf-yang-metadata@2016-08-05.yang": "NETMOD",
-    "ietf-yang-patch@2017-02-22.yang": "NETCONF",
-    "ietf-yang-smiv2@2012-06-22.yang": "NETMOD",
-    "ietf-yang-types@2010-09-24.yang": "NETMOD",
-    "ietf-yang-types@2013-07-15.yang": "NETMOD"
-}
-
-NS_MAP = {
-    "http://cisco.com/": "cisco",
-    "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang": "openconfig",
-    "http://tail-f.com/": "tail-f",
-    "http://yang.juniper.net/": "juniper"
-}
-
-github = 'https://github.com/'
-github_raw = 'https://raw.githubusercontent.com/'
-MISSING_ELEMENT = 'missing element'
 
 
 class Modules:
@@ -136,10 +72,7 @@ class Modules:
         """
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(log_directory))
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.__web_uri = config.get('Web-Section', 'my-uri', fallback='https://yangcatalog.org')
         self.run_integrity = run_integrity
         self.__temp_dir = temp_dir
@@ -228,7 +161,7 @@ class Modules:
             my_list = devs_or_features.split(',')
         return my_list
 
-    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, api_sdo_json: dict = None):
+    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, aditional_info: dict = None):
         """
         Parse all data that we can from the module.
         :param git_commit_hash: (str) name of the git commit hash where we can find the module
@@ -236,8 +169,7 @@ class Modules:
         :param keys:            (set) set of keys labeled as "<name>@<revision>/<organization>"
         :param schema:          (str) full url to raw github module
         :param to:              (str) directory, where all the modules are saved at
-        :param api_sdo_json:    (dict) some aditional information about module given from client
-                                using yangcatalog api
+        :param aditional_info   (dict) some aditional information about module given from client
         """
         def get_json(js):
             if js:
@@ -245,18 +177,14 @@ class Modules:
             else:
                 return u'missing element'
 
-        if api_sdo_json:
-            author_email = api_sdo_json.get('author-email')
-            maturity_level = api_sdo_json.get('maturity-level')
-            reference = api_sdo_json.get('reference')
-            document_name = api_sdo_json.get('document-name')
-            generated_from = api_sdo_json.get('generated-from')
-            if sys.version_info >= (3, 4):
-                organization = get_json(api_sdo_json.get('organization'))
-            else:
-                organization = unicodedata.normalize('NFKD', get_json(
-                    api_sdo_json.get('organization'))).encode('ascii', 'ignore')
-            module_classification = api_sdo_json.get('module-classification')
+        if aditional_info:
+            author_email = aditional_info.get('author-email')
+            maturity_level = aditional_info.get('maturity-level')
+            reference = aditional_info.get('reference')
+            document_name = aditional_info.get('document-name')
+            generated_from = aditional_info.get('generated-from')
+            organization = get_json(aditional_info.get('organization'))
+            module_classification = aditional_info.get('module-classification')
         else:
             author_email = None
             reference = None
@@ -341,7 +269,7 @@ class Modules:
                                 # First load/clone YangModels/yang repo
                                 owner_name = 'YangModels'
                                 repo_name = 'yang'
-                                repo_url = '{}{}/{}'.format(github, owner_name, repo_name)
+                                repo_url = '{}/{}/{}'.format(github_url, owner_name, repo_name)
                                 repo = repoutil.load(self.yang_models, repo_url)
                                 if repo is None:
                                     repo = repoutil.RepoUtil(repo_url)
@@ -357,7 +285,7 @@ class Modules:
                                         suffix = suffix.replace('{}/'.format(submodule.name), '')
 
                                 branch = repo.get_commit_hash(suffix)
-                                schema = '{}{}/{}/{}/{}'.format(github_raw, owner_name, repo_name, branch, suffix)
+                                schema = '{}/{}/{}/{}/{}'.format(github_raw, owner_name, repo_name, branch, suffix)
 
                                 dependency.schema = schema
                             elif git_commit_hash in yang_file:
@@ -630,8 +558,11 @@ class Modules:
             if yang_file is None:
                 LOGGER.error('Module can not be found')
                 continue
-            path = '/'.join(self.schema.split('/')[0:-1])
-            path += '/{}'.format(yang_file.split('/')[-1])
+            try:
+                path = '/'.join(self.schema.split('/')[0:-1])
+                path += '/{}'.format(yang_file.split('/')[-1])
+            except:
+                path = None
             if yang_file:
                 sub.schema = path
             dep.name = sub.name
@@ -692,13 +623,13 @@ class Modules:
 
     def __create_compilation_result_file(self):
         LOGGER.debug("Resolving compilation status")
-        if self.compilation_status['status'] == 'passed' \
-                and self.compilation_result['pyang_lint'] == '':
+        if self.compilation_status['status'] in ['unknown', 'pending']:
             return ''
         else:
             result = self.compilation_result
         result['name'] = self.name
         result['revision'] = self.revision
+        result['generated'] = time.strftime('%d/%m/%Y')
         context = {'result': result,
                    'ths': self.compilation_status['ths']}
         template = os.path.dirname(os.path.realpath(__file__)) + '/template/compilationStatusTemplate.html'
@@ -708,12 +639,13 @@ class Modules:
         # Don t override status if it was already written once
         file_path = '{}/{}'.format(self.html_result_dir, file_url)
         if os.path.exists(file_path):
-            if self.compilation_status['status'] in ['unknown', 'pending']:
-                self.compilation_status['status'] = None
-            else:
-                with open(file_path, 'w', encoding='utf-8') as f:
-                    f.write(rendered_html)
-                os.chmod(file_path, 0o664)
+            if self.compilation_status['status'] not in ['unknown', 'pending']:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    existing_output = f.read()
+                if existing_output != rendered_html:
+                    with open(file_path, 'w', encoding='utf-8') as f:
+                        f.write(rendered_html)
+                    os.chmod(file_path, 0o664)
         else:
             with open(file_path, 'w', encoding='utf-8') as f:
                 f.write(rendered_html)

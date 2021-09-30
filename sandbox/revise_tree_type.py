@@ -1,4 +1,3 @@
-import configparser as ConfigParser
 import sys
 import time
 
@@ -6,13 +5,11 @@ import requests
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
+from utility.create_config import create_config
 
 if __name__ == '__main__':
     start = time.time()
-    config_path = '/etc/yangcatalog/yangcatalog.conf'
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config()
     api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
@@ -25,6 +22,7 @@ if __name__ == '__main__':
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
     yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+    json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
@@ -57,7 +55,8 @@ if __name__ == '__main__':
             sys.setrecursionlimit(50000)
             complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                                  credentials, confd_prefix, save_file_dir,
-                                                                 direc, batch_modules, yang_models, temp_dir)
+                                                                 direc, batch_modules, yang_models, temp_dir,
+                                                                 json_ytree)
             complicatedAlgorithms.parse_non_requests()
             sys.setrecursionlimit(recursion_limit)
             complicatedAlgorithms.populate()

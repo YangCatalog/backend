@@ -17,22 +17,21 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
-import unittest
-import os
 import json
+import os
+import unittest
 from pathlib import Path
 from unittest import mock
 
-import flask_oidc
-from sqlalchemy.exc import SQLAlchemyError
-from werkzeug.exceptions import HTTPException  
-
 import api.views.admin.admin as admin
-from api.globalConfig import yc_gc
-from api.yangCatalogApi import application
+import flask_oidc
 from api.models import User
+from api.yangCatalogApi import app
+from sqlalchemy.exc import SQLAlchemyError
+from werkzeug.exceptions import HTTPException
 
-db = yc_gc.sqlalchemy
+ac = app.config
+db = ac.sqlalchemy
 
 
 class TestApiAdminClass(unittest.TestCase):
@@ -40,11 +39,11 @@ class TestApiAdminClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestApiAdminClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.client = application.test_client()
+        self.client = app.test_client()
 
     def setUp(self):
         user = User(Username='test', Password='test', Email='test')
-        with application.app_context():
+        with app.app_context():
             db.session.add(user)
             db.session.commit()
             self.uid = user.Id
@@ -54,12 +53,12 @@ class TestApiAdminClass(unittest.TestCase):
         self.mock_user_loggedin = True
 
     def tearDown(self):
-        with application.app_context():
+        with app.app_context():
             db.session.query(User).filter_by(Id=self.uid).delete()
             db.session.commit()
 
     def test_catch_db_error(self):
-        with application.app_context():
+        with app.app_context():
             def error():
                 raise SQLAlchemyError
             result = admin.catch_db_error(error)()
@@ -145,7 +144,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['info'], 'Success')
         self.assertIn('data', data)
         self.assertEqual(data['data'], 'directory of file {} removed succesfully'
-                                       .format('{}/{}'.format(yc_gc.var_yang, path)))
+                                       .format('{}/{}'.format(ac.d_var, path)))
 
     @mock.patch('shutil.rmtree')
     def test_delete_admin_file_directory(self, mock_rmtree: mock.MagicMock):
@@ -157,7 +156,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
         self.assertIn('data', data)
-        self.assertEqual(data['data'], 'directory of file {}/ removed succesfully'.format(yc_gc.var_yang))
+        self.assertEqual(data['data'], 'directory of file {}/ removed succesfully'.format(ac.d_var))
 
     def test_delete_admin_file_nonexistent(self):
         result = self.client.delete('api/admin/directory-structure/nonexistent')
@@ -310,7 +309,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], 'test')
 
-    @mock.patch.object(yc_gc.sender, 'send', mock.MagicMock)
+    @mock.patch.object(ac.sender, 'send', mock.MagicMock)
     @mock.patch('api.views.admin.admin.open')
     def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
         mock.mock_open(mock_open)
@@ -323,7 +322,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     @mock.patch('requests.post')
     @mock.patch('api.sender.Sender.send')
-    @mock.patch.object(yc_gc, 'load_config')
+    @mock.patch.object(app, 'load_config')
     @mock.patch('builtins.open')
     def test_update_yangcatalog_config_errors(self, mock_open: mock.MagicMock, mock_load_config: mock.MagicMock,
                                               mock_send: mock.MagicMock, mock_post: mock.MagicMock):
@@ -387,7 +386,7 @@ class TestApiAdminClass(unittest.TestCase):
     def test_filter_from_date_no_from_timestamp(self):
         result = admin.filter_from_date(['logfile'], None)
 
-        self.assertEqual(result, ['{}/{}.log'.format(yc_gc.logs_dir, 'logfile')])
+        self.assertEqual(result, ['{}/{}.log'.format(ac.d_logs, 'logfile')])
 
     @mock.patch('builtins.open')
     def test_find_timestamp(self, mock_open: mock.MagicMock):
@@ -408,7 +407,7 @@ class TestApiAdminClass(unittest.TestCase):
         mock.mock_open(mock_open, read_data='test')
         result = admin.determine_formatting('test', r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))',
                                             r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)')
-        
+
         self.assertEqual(result, False)
 
     @mock.patch('builtins.open')
@@ -417,7 +416,7 @@ class TestApiAdminClass(unittest.TestCase):
         mock.mock_open(mock_open, read_data=data)
         result = admin.determine_formatting('test', r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))',
                                             r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)')
-        
+
         self.assertEqual(result, True)
 
     def test_generate_output(self):
@@ -518,7 +517,7 @@ class TestApiAdminClass(unittest.TestCase):
             }
         ])
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add')
+    @mock.patch.object(ac.sqlalchemy.session, 'add')
     def test_move_user(self, mock_add: mock.MagicMock):
         body = {'id': 2903574, 'username': 'name', 'access-rights-sdo': 'test'}
         result = self.client.post('api/admin/move-user',
@@ -563,7 +562,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add')
+    @mock.patch.object(ac.sqlalchemy.session, 'add')
     def test_create_sql_row(self, mock_add: mock.MagicMock):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -579,7 +578,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], body['input'])
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', new=mock.MagicMock())
+    @mock.patch.object(ac.sqlalchemy.session, 'add', new=mock.MagicMock())
     def test_create_sql_row_invalid_table(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -593,7 +592,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', new=mock.MagicMock())
+    @mock.patch.object(ac.sqlalchemy.session, 'add', new=mock.MagicMock())
     def test_create_sql_row_args_missing(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -609,7 +608,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['description'], 'username - , firstname - test, last-name - test,'
                                               ' email - test and password - test must be specified')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add')
+    @mock.patch.object(ac.sqlalchemy.session, 'add')
     def test_create_sql_row_missing_access_rights(self, mock_add: mock.MagicMock):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -623,9 +622,9 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'delete')
+    @mock.patch.object(ac.sqlalchemy.session, 'delete')
     def test_delete_sql_row(self, mock_delete: mock.MagicMock):
-        mock_delete.side_effect = yc_gc.sqlalchemy.session.expunge
+        mock_delete.side_effect = ac.sqlalchemy.session.expunge
         result = self.client.delete('api/admin/sql-tables/users/id/{}'.format(self.uid))
 
         self.assertEqual(result.status_code, 200)
@@ -638,7 +637,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(isinstance(user, User))
         self.assertEqual(user.Id, self.uid)
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'delete')
+    @mock.patch.object(ac.sqlalchemy.session, 'delete')
     def test_delete_sql_row_invalid_table(self, mock_delete: mock.MagicMock):
         result = self.client.delete('api/admin/sql-tables/fake/id/{}'.format(self.uid))
 
@@ -648,7 +647,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'delete')
+    @mock.patch.object(ac.sqlalchemy.session, 'delete')
     def test_delete_sql_row_id_not_found(self, mock_delete: mock.MagicMock):
         result = self.client.delete('api/admin/sql-tables/users/id/24857629847625894258476')
 
@@ -658,7 +657,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'id 24857629847625894258476 not found in table users')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
     def test_update_sql_row(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -680,8 +679,8 @@ class TestApiAdminClass(unittest.TestCase):
         data = result.json
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
-    
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'commit', new=mock.MagicMock())
+
+    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
     def test_update_sql_row_args_missing(self):
         result = self.client.put('api/admin/sql-tables/users/id/{}'.format(self.uid), json={'input': {}})
 
@@ -691,7 +690,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'username and email must be specified')
 
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
     def test_update_sql_row_id_not_found(self):
         result = self.client.put('api/admin/sql-tables/users/id/24857629847625894258476')
 
@@ -726,7 +725,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], '"invalid" is not valid script name')
 
-    @mock.patch('api.globalConfig.yc_gc.sender.send')
+    @mock.patch('api.yangCatalogApi.ac.sender.send')
     def test_run_script_with_args(self, mock_send: mock.MagicMock):
         mock_send.return_value = 1
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
@@ -741,7 +740,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('arguments', data)
         self.assertEqual(data['arguments'], ['parseAndPopulate', 'populate', '"test"'])
 
-    @mock.patch('api.globalConfig.yc_gc.sender', mock.MagicMock())
+    @mock.patch('api.yangCatalogApi.ac.sender', mock.MagicMock())
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
 
@@ -750,26 +749,6 @@ class TestApiAdminClass(unittest.TestCase):
         data = result.json
         self.assertIn('description', data)
         self.assertEqual(data['description'], '"invalid" is not valid script name')
-
-    @mock.patch('api.globalConfig.yc_gc.sender', mock.MagicMock())
-    def test_run_script_with_args_empty(self):
-        result = self.client.post('api/admin/scripts/validate', json={'input': {'row_id': '', 'user_email': ''}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Failed to validate - user-email and row-id cannot be empty strings')
-
-    @mock.patch('api.globalConfig.yc_gc.sender', mock.MagicMock())
-    def test_run_script_with_args_missing(self):
-        result = self.client.post('api/admin/scripts/validate', json={'input': {}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Failed to validate - user-email and row-id must exist')
 
     def test_get_script_names(self):
         result = self.client.get('api/admin/scripts')
@@ -794,6 +773,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('free', data['data'])
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
+
 
 if __name__ == "__main__":
     unittest.main()

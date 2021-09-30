@@ -22,13 +22,11 @@ import json
 import logging
 import os
 import subprocess
-import traceback
 from datetime import datetime
 
 import dateutil.parser
 import requests
-from elasticsearch import (ConnectionError, ConnectionTimeout, Elasticsearch,
-                           NotFoundError)
+from elasticsearch import ConnectionError, ConnectionTimeout, NotFoundError
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
@@ -62,8 +60,12 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
     initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
         __file__)), 'r'))
 
-    es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
-    es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+    try:
+        LOGGER.info('Creating Elasticsearch indices')
+        es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
+        es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+    except:
+        raise Exception('Unable to create Elasticsearch indices')
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
     x = 0

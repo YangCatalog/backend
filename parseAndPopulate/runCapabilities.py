@@ -28,22 +28,15 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import fnmatch
-import json
 import os
-import sys
 import time
 
 import utility.log as log
+from utility.create_config import create_config
 
-from parseAndPopulate import integrity
 from parseAndPopulate.capability import Capability
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.prepare import Prepare
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
@@ -72,10 +65,10 @@ class ScriptConfig:
         parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
                             help='Set ip address where the api is started. Default -> yangcatalog.org')
         parser.add_argument('--config-path', type=str,
-                            default='/etc/yangcatalog/yangcatalog.conf',
+                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
 
-        self.args, extra_args = parser.parse_known_args()
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -113,7 +106,7 @@ class ScriptConfig:
 
 
 def find_files(directory: str, pattern: str):
-    for root, dirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         for basename in files:
             if fnmatch.fnmatch(basename, pattern):
                 filename = os.path.join(root, basename)
@@ -126,9 +119,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(log_directory))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
@@ -151,12 +142,24 @@ def main(scriptConf=None):
     if args.sdo:
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
 
-        capability = Capability(log_directory, args.dir, prepare,
-                                None, args.api, args.sdo,
-                                args.json_dir, args.result_html_dir,
-                                args.save_file_dir, private_dir, yang_models, fileHasher)
-        LOGGER.info('Starting to parse files in sdo directory')
-        capability.parse_and_dump_sdo()
+        # If yang-parameters.xml exists -> parsing IANA-maintained modules
+        if os.path.isfile('{}/yang-parameters.xml'.format(args.dir)):
+            LOGGER.info('yang-parameters.xml file found')
+
+            xml_path = '{}/yang-parameters.xml'.format(args.dir)
+            capability = Capability(log_directory, xml_path, prepare,
+                                    None, args.api, args.sdo,
+                                    args.json_dir, args.result_html_dir,
+                                    args.save_file_dir, private_dir, yang_models, fileHasher)
+            capability.parse_and_dump_iana()
+        else:
+            capability = Capability(log_directory, args.dir, prepare,
+                                    None, args.api, args.sdo,
+                                    args.json_dir, args.result_html_dir,
+                                    args.save_file_dir, private_dir, yang_models, fileHasher)
+            LOGGER.info('Starting to parse files in sdo directory')
+            capability.parse_and_dump_sdo()
+
         prepare.dump_modules(args.json_dir)
     else:
         patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']

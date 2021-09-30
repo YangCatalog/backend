@@ -27,18 +27,14 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import os
 import shutil
-import sys
 import time
 
 import requests
 import utility.log as log
 from utility import repoutil
+from utility.create_config import create_config
+from utility.staticVariables import github_url
 from utility.util import job_log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 check_name_no_revision_exist,
@@ -51,7 +47,7 @@ class ScriptConfig:
         self.help = 'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the' \
                     ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
         parser = argparse.ArgumentParser()
-        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
         self.args, extra_args = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -107,9 +103,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     notify = config.get('General-Section', 'notify-index')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
@@ -129,7 +123,7 @@ def main(scriptConf=None):
         clone_dir = '{}/draftpulllocal'.format(temp_dir)
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
-        repo = repoutil.RepoUtil('https://github.com/YangModels/yang.git')
+        repo = repoutil.RepoUtil('{}/YangModels/yang.git'.format(github_url))
         repo.clone(config_name, config_email, clone_dir)
         LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.localdir))
 
@@ -179,6 +173,26 @@ def main(scriptConf=None):
         else:
             message = {'label': 'Experimental modules', 'message': 'populate script finished successfully'}
             messages.append(message)
+
+        # IANA modules
+        iana_path = '{}/standard/iana'.format(repo.localdir)
+
+        if os.path.exists(iana_path):
+            LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))
+            check_name_no_revision_exist(iana_path, LOGGER)
+
+            LOGGER.info('Checking for early revision in {}'.format(iana_path))
+            check_early_revisions(iana_path, LOGGER)
+
+            execution_result = run_populate_script(iana_path, notify, LOGGER)
+            if execution_result == False:
+                populate_error = True
+                message = {'label': 'IANA modules', 'message': 'Error while calling populate script'}
+                messages.append(message)
+            else:
+                message = {'label': 'IANA modules', 'message': 'populate script finished successfully'}
+                messages.append(message)
+
     except Exception as e:
         LOGGER.exception('Exception found while running draftPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))

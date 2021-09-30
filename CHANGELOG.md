@@ -2,21 +2,50 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v4.2.0 - 2021-09-09
+
+  * Scripts to process IANA-maintained modules created [#342](https://github.com/YangCatalog/backend/issues/342)
+  * Bugfix: Incorrect path to some JSON files [#351](https://github.com/YangCatalog/backend/issues/351)
+  * Github Actions webhook consuming [#336](https://github.com/YangCatalog/backend/issues/336)
+  * Dockerfile reorganized - image build speed up [#350](https://github.com/YangCatalog/backend/issues/350)
+  * Config loading simplified [deployment #96](https://github.com/YangCatalog/deployment/issues/96)
+
+* ##### v4.1.0 - 2021-08-10
+
+  * Use cached ytrees in to speed-up parse_semver() method [#312](https://github.com/YangCatalog/backend/issues/312)
+  * Tests for admin.py script [#330](https://github.com/YangCatalog/backend/issues/330)
+  * Unification of find_first_file methods [#318](https://github.com/YangCatalog/backend/issues/318)
+  * More tests for modulesComplicatedAlgorithms.py script added [#235](https://github.com/YangCatalog/backend/issues/235)
+  * admin.py script refactored [#329](https://github.com/YangCatalog/backend/issues/329)
+  * Exceptions handling improved while indexing modules to ES [#265](https://github.com/YangCatalog/backend/issues/265)
+  * modulesComplicatedAlgorithms.py script refactored [#328](https://github.com/YangCatalog/backend/issues/328)
+  * ycSearch.py script refactored [#327](https://github.com/YangCatalog/backend/issues/327)
+  * User registration notification email body changed [#326](https://github.com/YangCatalog/backend/issues/326)
+  * Introduction of Github actions [#325](https://github.com/YangCatalog/backend/issues/325)
+  * reviseTreeType.py script added to check nmda-compatible trees [#324](https://github.com/YangCatalog/backend/issues/324)
+  * reviseSemver.py sandbox script coverted to cronjob [#323](https://github.com/YangCatalog/backend/issues/323)
+  * Tests for ycJobs.py script [#322](https://github.com/YangCatalog/backend/issues/322)
+  * Errors in READMEs and Documentation files fixed
+  * Removed redundant "\n" in tooltip text [#293](https://github.com/YangCatalog/backend/issues/293)
+  * Usage of Flask's built-in logger [#287](https://github.com/YangCatalog/backend/issues/287)
+  * MySQLdb replaced by SQLAlchemy [#285](https://github.com/YangCatalog/backend/issues/285)
+  * Recovery script for MariaDB added [#298](https://github.com/YangCatalog/backend/issues/298)
+
 * ##### v4.0.0 - 2021-07-09
 
   * MAJOR UPDATE: YANG search API moved under backend repository
-  * Bugfix: Text displaying for api/service/reference endpoint [#296](https://github.com/YangCatalog/backend/issues/296))
-  * stats.json file places to persistent folder [#294](https://github.com/YangCatalog/backend/issues/294))
+  * Bugfix: Text displaying for api/service/reference endpoint [#296](https://github.com/YangCatalog/backend/issues/296)
+  * stats.json file places to persistent folder [#294](https://github.com/YangCatalog/backend/issues/294)
   * Pyang update to version 2.5.0 [deployment #85](https://github.com/YangCatalog/deployment/issues/85)
-  * tree-type property generating changed for nmda-compatible tree types [#289](https://github.com/YangCatalog/backend/issues/289))
+  * tree-type property generating changed for nmda-compatible tree types [#289](https://github.com/YangCatalog/backend/issues/289)
   * Healthcheck endpoints adjustments after minor changes in API
-  * YangModels/yang repo forking changes in draftPull.py script [#283](https://github.com/YangCatalog/backend/issues/283))
-  * Sandbox: find_conflicting_files.py script created [#301](https://github.com/YangCatalog/backend/issues/301))
+  * YangModels/yang repo forking changes in draftPull.py script [#283](https://github.com/YangCatalog/backend/issues/283)
+  * Sandbox: find_conflicting_files.py script created [#301](https://github.com/YangCatalog/backend/issues/301)
   * Various existing tests updated
-  * Removed manipulation with Travis in draftPull.py after migration [#300](https://github.com/YangCatalog/backend/issues/300))
-  * TravisCI migrated from travis-ci.org to travis-ci.com [#250](https://github.com/YangCatalog/backend/issues/250))
+  * Removed manipulation with Travis in draftPull.py after migration [#300](https://github.com/YangCatalog/backend/issues/300)
+  * TravisCI migrated from travis-ci.org to travis-ci.com [#250](https://github.com/YangCatalog/backend/issues/250)
   * yang2.amsl.com mailname replaced by yangcatalog.org [deployment #73](https://github.com/YangCatalog/deployment/issues/73)
-  * Updated all the Flask dependecies [#299](https://github.com/YangCatalog/backend/issues/299))
+  * Updated all the Flask dependecies [#299](https://github.com/YangCatalog/backend/issues/299)
 
 * ##### v3.2.1 - 2021-05-04
 

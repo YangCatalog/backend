@@ -211,19 +211,19 @@ if __name__ == '__main__':
     #
     # This repo exists
     #
-    TEST_REPO = 'https://%s@github.com/einarnn/test.git'
+    TEST_REPO = 'https://{}@github.com/einarnn/test.git'
 
     #
     # This repo does not exist
     #
-    BOGUS_REPO = 'https://%s@github.com/einarnn/testtest.git'
+    BOGUS_REPO = 'https://{}@github.com/einarnn/testtest.git'
 
     #
     # Create, clone and remove repo that exists.
     #
     print('\nTest 1\n------')
     try:
-        r = RepoUtil(TEST_REPO % args.userpass[0])
+        r = RepoUtil(TEST_REPO.format(args.userpass[0]))
         r.clone()
         print('Temp directory: '+r.localdir)
         r.remove()
@@ -237,7 +237,7 @@ if __name__ == '__main__':
     #
     print('\nTest 2\n------')
     try:
-        r = RepoUtil(TEST_REPO % args.userpass[0])
+        r = RepoUtil(TEST_REPO.format(args.userpass[0]))
         r.clone()
         print('Temp directory: '+r.localdir)
         ok_path = r.localdir + '/ok.txt'
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     #
     print('\nTest 3\n------')
     try:
-        r = RepoUtil(TEST_REPO % (args.userpass[0]+'bogus'))
+        r = RepoUtil(TEST_REPO.format('{}bogus'.format(args.userpass[0])))
         r.clone()
         print('Temp directory: '+r.localdir)
         with open(r.localdir+'/bogus.txt', 'w') as f:
@@ -289,7 +289,7 @@ if __name__ == '__main__':
     #
     print('\nTest 4\n------')
     try:
-        r = RepoUtil(BOGUS_REPO % args.userpass[0])
+        r = RepoUtil(BOGUS_REPO.format(args.userpass[0]))
         r.clone()
         print('Temp directory: ' + r.localdir)
         r.remove()

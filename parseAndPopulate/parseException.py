@@ -18,22 +18,15 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
-import sys
 
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
+from utility.create_config import create_config
 
 
 class ParseException(Exception):
 
     def __init__(self, path):
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
-        var_path = config.get('Directory-Section', 'var', fallback='/var/yang')
+        config = create_config()
+        var_path = config.get('Directory-Section', 'var')
         self.msg = 'Failed to parse module on path {}'.format(path)
         try:
             with open('{}/unparsable-modules.json'.format(var_path), 'r') as f:

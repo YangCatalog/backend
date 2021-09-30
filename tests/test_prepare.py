@@ -26,6 +26,7 @@ from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import Modules
 from parseAndPopulate.prepare import Prepare
+from utility.staticVariables import github_raw
 
 
 class TestPrepareClass(unittest.TestCase):
@@ -34,7 +35,7 @@ class TestPrepareClass(unittest.TestCase):
         super(TestPrepareClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema = 'https://raw.githubusercontent.com/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang'
+        self.schema = '{}/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang'.format(github_raw)
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
         self.prepare_output_filename = 'prepare'

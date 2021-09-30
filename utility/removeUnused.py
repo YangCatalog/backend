@@ -25,7 +25,6 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
-import datetime
 import glob
 import hashlib
 import os
@@ -33,19 +32,15 @@ import shutil
 import sys
 import time
 import json
+from datetime import datetime as dt
 from operator import itemgetter
 from os import unlink
 
-import utility.log as lo
-from dateutil.parser import parse
-from utility.util import job_log
+import utility.log as log
+from utility.create_config import create_config
+from utility.staticVariables import backup_date_format
+from utility.util import job_log, get_list_of_backups
 from elasticsearch import Elasticsearch
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
-
 
 def represents_int(s):
     try:
@@ -68,15 +63,13 @@ if __name__ == '__main__':
     start_time = int(time.time())
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     parser.add_argument('--compress', action='store_true', default=True,
                         help='Set whether to compress snapshot files. Default is True')
     args, extra_args = parser.parse_known_args()
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     ys_users = config.get('Directory-Section', 'ys-users')
@@ -86,18 +79,18 @@ if __name__ == '__main__':
     es_port = config.get('DB-Section', 'es-port')
     es_aws = config.get('DB-Section', 'es-aws')
     #elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
-    LOGGER = lo.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
+    LOGGER = log.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
     LOGGER.info('Starting Cron job remove unused files')
 
     current_time = time.time()
     cutoff = current_time - 86400
-    LOGGER.info('Removing old tmp directory representing int folders')
     try:
+        LOGGER.info('Removing old tmp directory representing int folders')
         for dir in next(os.walk(temp_dir))[1]:
             if represents_int(dir):
-                creation_time = os.path.getctime('{}/{}'.format(temp_dir, dir))
+                creation_time = os.path.getctime(os.path.join(temp_dir, dir))
                 if creation_time < cutoff:
-                    shutil.rmtree('{}/{}'.format(temp_dir, dir))
+                    shutil.rmtree(os.path.join(temp_dir, dir))
 
         LOGGER.info('Removing old ys temporary users')
         dirs = os.listdir(ys_users)
@@ -113,19 +106,18 @@ if __name__ == '__main__':
         # removing correlation ids from file that are older than a day
         # Be lenient to missing files
         try:
-            f = open('{}/correlation_ids'.format(temp_dir), 'r')
-            lines = f.readlines()
-            f.close()
+            filename = open('{}/correlation_ids'.format(temp_dir), 'r')
+            lines = filename.readlines()
+            filename.close()
         except IOError:
             lines = []
-        with open('{}/correlation_ids'.format(temp_dir), 'w') as f:
+        with open('{}/correlation_ids'.format(temp_dir), 'w') as filename:
             for line in lines:
                 line_datetime = line.split(' -')[0]
-                t = datetime.datetime.strptime(line_datetime,
-                                            "%a %b %d %H:%M:%S %Y")
-                diff = datetime.datetime.now() - t
+                t = dt.strptime(line_datetime, "%a %b %d %H:%M:%S %Y")
+                diff = dt.now() - t
                 if diff.days == 0:
-                    f.write(line)
+                    filename.write(line)
         #LOGGER.info('Removing old elasticsearch snapshots')
         #if es_aws == 'True':
         #    es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
@@ -139,77 +131,87 @@ if __name__ == '__main__':
         #for snapshot in sorted_snapshots[:-5]:
         #    es.snapshot.delete(repository=repo_name, snapshot=snapshot['snapshot'])
 
-        # remove  all files that are same keep the latest one only. Last two months keep all different content json files
-        # other 4 months (6 in total) keep only latest, remove all other files
-        LOGGER.info('Removing old cache json files')
-        list_of_files = glob.glob(cache_directory + '/*')
-        list_of_files = [i.split('/')[-1][:-5].replace('_', ' ')[:-4] for i in list_of_files]
-        list_of_dates = []
-        for f in list_of_files:
-            try:
-                datetime_parsed = parse(f)
-                file_name = '{}/{}-UTC.json'.format(cache_directory, f.replace(' ', '_'))
-                if os.stat(file_name).st_size == 0:
-                    continue
-                list_of_dates.append(datetime_parsed)
-            except ValueError as e:
-                pass
-        list_of_dates = sorted(list_of_dates)
-        file_name_latest = '{}/{}-UTC.json'.format(cache_directory, str(list_of_dates[-1]).replace(' ', '_'))
-
-        def diff_month(later_datetime, earlier_datetime):
-            return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
-
-        def hash_file(date_time):
-            json_file = '{}/{}-UTC.json'.format(cache_directory, str(date_time).replace(' ', '_'))
-
-            buf_size = 65536  # lets read stuff in 64kb chunks!
+        def hash_file(path: str) -> bytes:
+            buf_size = 65536  # lets read stuff in 64kB chunks!
 
             sha1 = hashlib.sha1()
 
-            with open(json_file, 'rb') as f2:
+            with open(path, 'rb') as byte_file:
                 while True:
-                    data = f2.read(buf_size)
+                    data = byte_file.read(buf_size)
                     if not data:
                         break
                     sha1.update(data)
 
-            return sha1.hexdigest()
+            return sha1.digest()
 
+        def hash_node(path: str) -> bytes:
+            if os.path.isfile(path):
+                return hash_file(path)
+            elif os.path.isdir(path):
+                sha1 = hashlib.sha1()
+                for root, _, filenames in os.walk(path):
+                    for filename in filenames:
+                        file_path = os.path.join(root, filename)
+                        # we only want to compare the contents, not the top directory name
+                        relative_path = file_path[len(path):]
+                        file_signature = relative_path.encode() + hash_file(file_path)
+                        sha1.update(file_signature)
+                return sha1.digest()
 
-        to_remove = []
-        last_six_months = {}
-        last_two_months = {}
+        # remove  all files that are same keep the latest one only. Last two months keep all different content json files
+        # other 4 months (6 in total) keep only latest, remove all other files
+        def remove_old_backups(subdir: str):
+            backup_directory = os.path.join(cache_directory, subdir)
+            list_of_backups = get_list_of_backups(backup_directory)
+            backup_name_latest = os.path.join(backup_directory, ''.join(list_of_backups[-1]))
 
-        for date_file in list_of_dates:
-            today = datetime.datetime.now()
-            month_difference = diff_month(today, date_file)
-            if month_difference > 6:
-                to_remove.append(date_file)
-            elif month_difference > 2:
-                month = date_file.month
-                if last_six_months.get(month) is not None:
-                    if last_six_months.get(month) > date_file:
-                        to_remove.append(date_file)
+            def diff_month(later_datetime, earlier_datetime):
+                return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
+
+            to_remove = []
+            last_six_months = {}
+            last_two_months = {}
+
+            today = dt.now()
+            for backup in list_of_backups:
+                backup_dt = dt.strptime(backup[0], backup_date_format)
+                month_difference = diff_month(today, backup_dt)
+                if month_difference > 6:
+                    to_remove.append(backup)
+                elif month_difference > 2:
+                    month = backup_dt.month
+                    if last_six_months.get(month) is not None:
+                        if last_six_months.get(month) > backup:
+                            to_remove.append(backup)
+                        else:
+                            to_remove.append(last_six_months.get(month))
+                            last_six_months[month] = backup
                     else:
-                        to_remove.append(last_six_months.get(month))
-                        last_six_months[month] = date_file
+                        last_six_months[month] = backup
                 else:
-                    last_six_months[month] = date_file
-            else:
-                currently_processed_file_hash = hash_file(date_file)
-                if last_two_months.get(currently_processed_file_hash) is not None:
-                    if last_two_months.get(currently_processed_file_hash) > date_file:
-                        to_remove.append(date_file)
-                    else:
-                        to_remove.append(last_two_months.get(currently_processed_file_hash))
-                last_two_months[currently_processed_file_hash] = date_file
-        for remove in to_remove:
-            json_file_to_remove = '{}/{}-UTC.json'.format(cache_directory, str(remove).replace(' ', '_'))
-            if json_file_to_remove != file_name_latest:
-                unlink(json_file_to_remove)
+                    backup_path = os.path.join(backup_directory, ''.join(backup))
+                    currently_processed_backup_hash = hash_node(backup_path)
+                    if last_two_months.get(currently_processed_backup_hash) is not None:
+                        if last_two_months.get(currently_processed_backup_hash) > backup:
+                            to_remove.append(backup)
+                        else:
+                            to_remove.append(last_two_months.get(currently_processed_backup_hash))
+                    last_two_months[currently_processed_backup_hash] = backup
+            for backup in to_remove:
+                backup_path = os.path.join(backup_directory, ''.join(backup))
+                if backup_path != backup_name_latest:
+                    if os.path.isdir(backup_path):
+                        shutil.rmtree(backup_path)
+                    elif os.path.isfile(backup_path):
+                        os.unlink(backup_path)
+
+        LOGGER.info('Removing old cache json files')
+        remove_old_backups('confd')
+        LOGGER.info('Removing old MariaDB backups')
+        remove_old_backups('mariadb')
     except Exception as e:
-        LOGGER.error('Exception found while running resolveExpiration script')
+        LOGGER.exception('Exception found while running removeUnused script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         raise e
     job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))

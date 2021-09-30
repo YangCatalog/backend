@@ -31,11 +31,7 @@ from email.mime.text import MIMEText
 from ciscosparkapi import CiscoSparkAPI
 
 import utility.log as log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
+from utility.create_config import create_config
 
 GREETINGS = 'Hello from yang-catalog'
 
@@ -46,7 +42,7 @@ class MessageFactory:
        a message to a group of admin e-mails
     """
 
-    def __init__(self, config_path='/etc/yangcatalog/yangcatalog.conf'):
+    def __init__(self, config_path=os.environ['YANGCATALOG_CONFIG_PATH']):
         """Setup Webex teams rooms and smtp
 
             Arguments:
@@ -55,9 +51,7 @@ class MessageFactory:
         def list_matching_rooms(a, title_match):
             return [r for r in a.rooms.list() if title_match in r.title]
 
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config(config_path)
         log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
         self.LOGGER.info('Initialising Message')
@@ -214,10 +208,10 @@ class MessageFactory:
                    'using the schema path:\n{}'.format('\n'.join(modules_list)))
         self.__post_to_email(message, self.__developers_email)
 
-    def send_new_user(self, username: str, email: str):
+    def send_new_user(self, username: str, email: str, motivation: str):
         self.LOGGER.info('Sending notification about new user')
 
         subject = 'Request for access confirmation'
-        msg = 'User {} with email {} is requesting access.\nPlease go to https://yangcatalog.org/admin/mysql-management ' \
-              'and approve or reject this request in Users tab.'.format(username, email)
+        msg = 'User {} with email {} is requesting access.\nMotivation: {}\nPlease go to https://yangcatalog.org/admin/mysql-management ' \
+              'and approve or reject this request in Users tab.'.format(username, email, motivation)
         self.__post_to_email(msg, subject=subject)

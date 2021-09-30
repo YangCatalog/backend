@@ -26,14 +26,14 @@ __email__ = "richard.zilincik@pantheon.tech"
 
 import os
 import time
-import configparser as ConfigParser
 
 import requests
-
-import utility.log as log
-from utility.util import job_log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
+
+import utility.log as log
+from utility.create_config import create_config
+from utility.util import job_log
 
 
 class ScriptConfig:
@@ -41,10 +41,7 @@ class ScriptConfig:
     def __init__(self):
         self.help = 'Resolve the tree-type for modules that are no longer the latest revision. ' \
                     'Runs as a daily cronjob.'
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
@@ -58,6 +55,7 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir',
                                       fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
     def get_args_list(self):
         args_dict = {}
@@ -68,6 +66,7 @@ class ScriptConfig:
         ret['help'] = self.help
         ret['options'] = {}
         return ret
+
 
 def main(scriptConf=None):
     start_time = int(time.time())
@@ -95,9 +94,11 @@ def main(scriptConf=None):
     direc = '/var/yang/tmp'
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
+    json_ytree = scriptConf.json_ytree
     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                    credentials, confd_prefix, save_file_dir,
-                                                                    direc, {}, yang_models, temp_dir)
+                                                         credentials, confd_prefix, save_file_dir,
+                                                         direc, {}, yang_models, temp_dir,
+                                                         json_ytree)
     response = requests.get('{}search/modules'.format(yangcatalog_api_prefix))
     if response.status_code != 200:
         LOGGER.error('Failed to fetch list of modules')
@@ -114,6 +115,7 @@ def main(scriptConf=None):
     complicatedAlgorithms.populate()
     LOGGER.info('Job finished successfully')
     job_log(start_time, temp_dir, os.path.basename(__file__), status='Success')
+
 
 if __name__ == '__main__':
     main()

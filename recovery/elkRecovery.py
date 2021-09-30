@@ -26,14 +26,12 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import argparse
 import datetime
 import sys
+import os
 from operator import itemgetter
+from utility.create_config import create_config
 
 from elasticsearch import Elasticsearch
 
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 class ScriptConfig:
     def __init__(self):
@@ -53,7 +51,7 @@ class ScriptConfig:
                             help='Set whether to load the latest snapshot')
         parser.add_argument('--compress', action='store_true', default=True,
                             help='Set whether to compress snapshot files. Default is True')
-        parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
 
         self.args, extra_args = parser.parse_known_args()
@@ -99,9 +97,7 @@ def main(scriptConf=None):
     args = scriptConf.args
 
     config_path = args.config_path
-    config = ConfigParser.ConfigParser()
-    config._interpolation = ConfigParser.ExtendedInterpolation()
-    config.read(config_path)
+    config = create_config(config_path)
     repo_name = config.get('General-Section', 'elk-repo-name')
 
     es_host = config.get('DB-Section', 'es-host')

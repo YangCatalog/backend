@@ -30,15 +30,16 @@ import shutil
 import stat
 import sys
 from datetime import datetime
-from pathlib import Path
 from functools import wraps
+from pathlib import Path
 
-from sqlalchemy.exc import SQLAlchemyError
-import requests
-from api.globalConfig import yc_gc
-from flask import Blueprint, abort, jsonify, redirect, request, current_app
+from api.models import Base, TempUser, User
+from flask import Blueprint, abort
+from flask import current_app as app
+from flask import jsonify, redirect, request
 from flask_cors import CORS
-from api.models import Base, User, TempUser
+from flask_oidc import OpenIDConnect
+from sqlalchemy.exc import SQLAlchemyError
 
 
 class YangCatalogAdminBlueprint(Blueprint):
@@ -49,10 +50,15 @@ class YangCatalogAdminBlueprint(Blueprint):
                          url_defaults, root_path)
 
 
-app = YangCatalogAdminBlueprint('admin', __name__)
-CORS(app, supports_credentials=True)
-db = yc_gc.sqlalchemy
+bp = YangCatalogAdminBlueprint('admin', __name__)
+CORS(bp, supports_credentials=True)
+oidc = OpenIDConnect()
 
+@bp.before_request
+def set_config():
+    global ac, db
+    ac = app.config
+    db = ac.sqlalchemy
 
 def catch_db_error(f):
     @wraps(f)
@@ -60,48 +66,48 @@ def catch_db_error(f):
         try:
             return f(*args, **kwargs)
         except SQLAlchemyError as err:
-            current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+            app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
             return ({'error': 'Server problem connecting to database'}, 500)
-    
+
     return df
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 
 
-@app.route('/api/admin/login')
-@app.route('/admin')
-@app.route('/admin/login')
-@yc_gc.oidc.require_login
+@bp.route('/api/admin/login')
+@bp.route('/admin')
+@bp.route('/admin/login')
+@oidc.require_login
 def login():
-    if yc_gc.oidc.user_loggedin:
-        return redirect('{}/admin/healthcheck'.format(yc_gc.my_uri), code=302)
+    if oidc.user_loggedin:
+        return redirect('{}/admin/healthcheck'.format(ac.w_my_uri), code=302)
     else:
         abort(401, 'user not logged in')
 
 
-@app.route('/api/admin/logout', methods=['POST'])
+@bp.route('/api/admin/logout', methods=['POST'])
 def logout():
-    yc_gc.oidc.logout()
+    oidc.logout()
     return {'info': 'Success'}
 
 
-@app.route('/api/admin/ping')
+@bp.route('/api/admin/ping')
 def ping():
-    current_app.logger.info('ping {}'.format(yc_gc.oidc.user_loggedin))
+    app.logger.info('ping {}'.format(oidc.user_loggedin))
     return {'info': 'Success'}
 
 
-@app.route('/api/admin/check', methods=['GET'])
+@bp.route('/api/admin/check', methods=['GET'])
 def check():
     return {'info': 'Success'}
 
 
-@app.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
+@bp.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
-    current_app.logger.info('Reading admin file {}'.format(direc))
-    if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
-        with open('{}/{}'.format(yc_gc.var_yang, direc), 'r') as f:
+    app.logger.info('Reading admin file {}'.format(direc))
+    if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
+        with open('{}/{}'.format(ac.d_var, direc), 'r') as f:
             processed_file = f.read()
         response = {'info': 'Success',
                     'data': processed_file}
@@ -110,33 +116,33 @@ def read_admin_file(direc):
         abort(400, description='error - file does not exist')
 
 
-@app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
-@app.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
+@bp.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
+@bp.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
-    current_app.logger.info('Deleting admin file {}'.format(direc))
-    if os.path.exists('{}/{}'.format(yc_gc.var_yang, direc)):
-        if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
-            os.unlink('{}/{}'.format(yc_gc.var_yang, direc))
+    app.logger.info('Deleting admin file {}'.format(direc))
+    if os.path.exists('{}/{}'.format(ac.d_var, direc)):
+        if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
+            os.unlink('{}/{}'.format(ac.d_var, direc))
         else:
-            shutil.rmtree('{}/{}'.format(yc_gc.var_yang, direc))
+            shutil.rmtree('{}/{}'.format(ac.d_var, direc))
         response = {'info': 'Success',
-                    'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(yc_gc.var_yang, direc))}
+                    'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(ac.d_var, direc))}
         return response
     else:
         abort(400, description='error - file or folder does not exist')
 
 
-@app.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
+@bp.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    current_app.logger.info("Updating file on path {}".format(direc))
+    app.logger.info("Updating file on path {}".format(direc))
 
     body = get_input(request.json)
     if 'data' not in body:
         abort(400, description='"data" must be specified')
     data = body['data']
 
-    if os.path.isfile('{}/{}'.format(yc_gc.var_yang, direc)):
-        with open('{}/{}'.format(yc_gc.var_yang, direc), 'w') as f:
+    if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
+        with open('{}/{}'.format(ac.d_var, direc), 'w') as f:
             f.write(data)
         response = {'info': 'Success',
                     'data': data}
@@ -145,8 +151,8 @@ def write_to_directory_structure(direc):
         abort(400, description='error - file does not exist')
 
 
-@app.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['GET'])
-@app.route('/api/admin/directory-structure/<path:direc>', methods=['GET'])
+@bp.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['GET'])
+@bp.route('/api/admin/directory-structure/<path:direc>', methods=['GET'])
 def get_var_yang_directory_structure(direc):
 
     def walk_through_dir(path):
@@ -189,7 +195,7 @@ def get_var_yang_directory_structure(direc):
             structure['folders'].append(dir_structure)
         return structure
 
-    current_app.logger.info('Getting directory structure')
+    app.logger.info('Getting directory structure')
 
     ret = walk_through_dir('/var/yang/{}'.format(direc))
     response = {'info': 'Success',
@@ -197,57 +203,57 @@ def get_var_yang_directory_structure(direc):
     return response
 
 
-@app.route('/api/admin/yangcatalog-nginx', methods=['GET'])
+@bp.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
-    current_app.logger.info('Getting list of nginx files')
-    files = os.listdir('{}/sites-enabled'.format(yc_gc.nginx_dir))
+    app.logger.info('Getting list of nginx files')
+    files = os.listdir('{}/sites-enabled'.format(ac.d_nginx_conf))
     files_final = ['sites-enabled/' + sub for sub in files]
     files_final.append('nginx.conf')
-    files = os.listdir('{}/conf.d'.format(yc_gc.nginx_dir))
+    files = os.listdir('{}/conf.d'.format(ac.d_nginx_conf))
     files_final.extend(['conf.d/' + sub for sub in files])
     response = {'info': 'Success',
                 'data': files_final}
     return response
 
 
-@app.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
+@bp.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
-    current_app.logger.info('Reading nginx file {}'.format(nginx_file))
-    with open('{}/{}'.format(yc_gc.nginx_dir, nginx_file), 'r') as f:
+    app.logger.info('Reading nginx file {}'.format(nginx_file))
+    with open('{}/{}'.format(ac.d_nginx_conf, nginx_file), 'r') as f:
         nginx_config = f.read()
     response = {'info': 'Success',
                 'data': nginx_config}
     return response
 
 
-@app.route('/api/admin/yangcatalog-config', methods=['GET'])
+@bp.route('/api/admin/yangcatalog-config', methods=['GET'])
 def read_yangcatalog_config():
-    current_app.logger.info('Reading yangcatalog config file')
+    app.logger.info('Reading yangcatalog config file')
 
-    with open(yc_gc.config_path, 'r') as f:
+    with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'r') as f:
         yangcatalog_config = f.read()
     response = {'info': 'Success',
                 'data': yangcatalog_config}
     return response
 
 
-@app.route('/api/admin/yangcatalog-config', methods=['PUT'])
+@bp.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
-    current_app.logger.info('Updating yangcatalog config file')
+    app.logger.info('Updating yangcatalog config file')
     body = get_input(request.json)
     if 'data' not in body:
         abort(400, description='"data" must be specified')
 
-    with open(yc_gc.config_path, 'w') as f:
+    with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'w') as f:
         f.write(body['data'])
     resp = {}
     try:
-        yc_gc.load_config()
+        app.load_config()
         resp['api'] = 'data loaded successfully'
     except:
         resp['api'] = 'error loading data'
     try:
-        yc_gc.sender.send('reload_config')
+        ac.sender.send('reload_config')
         resp['receiver'] = 'data loaded successfully'
     except:
         resp['receiver'] ='error loading data'
@@ -256,7 +262,7 @@ def update_yangcatalog_config():
     return response
 
 
-@app.route('/api/admin/logs', methods=['GET'])
+@bp.route('/api/admin/logs', methods=['GET'])
 def get_log_files():
 
     def find_files(directory, pattern):
@@ -266,9 +272,9 @@ def get_log_files():
                     filename = os.path.join(root, basename)
                     yield filename
 
-    current_app.logger.info('Getting yangcatalog log files')
+    app.logger.info('Getting yangcatalog log files')
 
-    files = find_files(yc_gc.logs_dir, '*.log*')
+    files = find_files(ac.d_logs, '*.log*')
     resp = set()
     for f in files:
         resp.add(f.split('/logs/')[-1].split('.')[0])
@@ -287,11 +293,11 @@ def find_files(directory, pattern):
 
 def filter_from_date(file_names, from_timestamp):
     if from_timestamp is None:
-        return ['{}/{}.log'.format(yc_gc.logs_dir, file_name) for file_name in file_names]
+        return ['{}/{}.log'.format(ac.d_logs, file_name) for file_name in file_names]
     else:
         r = []
         for file_name in file_names:
-            files = find_files('{}/{}'.format(yc_gc.logs_dir, os.path.dirname(file_name)),
+            files = find_files('{}/{}'.format(ac.d_logs, os.path.dirname(file_name)),
                                 '{}.log*'.format(os.path.basename(file_name)))
             for f in files:
                 if os.path.getmtime(f) >= from_timestamp:
@@ -378,11 +384,11 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
     return send_out
 
 
-@app.route('/api/admin/logs', methods=['POST'])
+@bp.route('/api/admin/logs', methods=['POST'])
 def get_logs():
     date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
     time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-    current_app.logger.info('Reading yangcatalog log file')
+    app.logger.info('Reading yangcatalog log file')
     body = get_input(request.json)
 
     number_of_lines_per_page = body.get('lines-per-page', 1000)
@@ -397,7 +403,7 @@ def get_logs():
     if from_date_timestamp is None:
         from_date_timestamp = find_timestamp(log_files[0], date_regex, time_regex)
 
-    current_app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
+    app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
@@ -424,7 +430,7 @@ def get_logs():
     return response
 
 
-@app.route('/api/admin/sql-tables', methods=['GET'])
+@bp.route('/api/admin/sql-tables', methods=['GET'])
 def get_sql_tables():
     return jsonify([
         {
@@ -438,7 +444,7 @@ def get_sql_tables():
     ])
 
 
-@app.route('/api/admin/move-user', methods=['POST'])
+@bp.route('/api/admin/move-user', methods=['POST'])
 @catch_db_error
 def move_user():
     body = get_input(request.json)
@@ -456,9 +462,16 @@ def move_user():
         abort(400, description='username must be specified')
     if sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first() or ''
+    user_password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first()
+    password = user_password.Password if user_password else ''
+    user_registration_datetime = db.session.query(TempUser.RegistrationDatetime).filter_by(Id=unique_id).first()
+    if user_registration_datetime:
+        registration_datetime = user_registration_datetime.RegistrationDatetime
+    else:
+        registration_datetime = datetime.now()
     user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+                FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
+                RegistrationDatetime=registration_datetime)
     db.session.add(user)
     db.session.commit()
 
@@ -471,7 +484,7 @@ def move_user():
     return (response, 201)
 
 
-@app.route('/api/admin/sql-tables/<table>', methods=['POST'])
+@bp.route('/api/admin/sql-tables/<table>', methods=['POST'])
 @catch_db_error
 def create_sql_row(table):
     if table not in ['users', 'users_temp']:
@@ -483,6 +496,8 @@ def create_sql_row(table):
     last_name = body.get('last-name')
     email = body.get('email')
     password = body.get('password')
+    motivation = body.get('motivation', '')
+    registration_datetime = datetime.utcnow()
     if not all((body, username, name, last_name, email, password)):
         abort(400, description='username - {}, firstname - {}, last-name - {},'
                                ' email - {} and password - {} must be specified'
@@ -493,8 +508,20 @@ def create_sql_row(table):
     hashed_password = hash_pw(password)
     if model is User and sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    user = model(Username=username, FirstName=name, LastName=last_name, Email=email, Password=hashed_password,
-                ModelsProvider=models_provider, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access)
+    columns = {
+        'Username': username,
+        'FirstName': name,
+        'LastName': last_name,
+        'Email': email,
+        'Password': hashed_password,
+        'ModelsProvider': models_provider,
+        'AccessRightsSdo': sdo_access,
+        'AccessRightsVendor': vendor_access,
+        'RegistrationDatetime': registration_datetime
+    }
+    if model == TempUser:
+        columns['Motivation'] = motivation
+    user = model(**columns)
     db.session.add(user)
     db.session.commit()
     response = {'info': 'data successfully added to database',
@@ -502,7 +529,7 @@ def create_sql_row(table):
     return (response, 201)
 
 
-@app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
+@bp.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
 @catch_db_error
 def delete_sql_row(table, unique_id):
     if table not in ['users', 'users_temp']:
@@ -517,7 +544,7 @@ def delete_sql_row(table, unique_id):
         abort(404, description='id {} not found in table {}'.format(unique_id, table))
 
 
-@app.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
+@bp.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
 @catch_db_error
 def update_sql_row(table, unique_id):
     if table not in ['users', 'users_temp']:
@@ -533,17 +560,19 @@ def update_sql_row(table, unique_id):
         user.LastName = body.get('last-name')
         user.AccessRightsSdo = body.get('access-rights-sdo', '')
         user.AccessRightsVendor = body.get('access-rights-vendor', '')
+        if model == TempUser:
+            user.Motivation = body.get('motivation')
         if not user.Username or not user.Email:
             abort(400, description='username and email must be specified')
         db.session.commit()
     if user:
-        current_app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
+        app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
         return {'info': 'ID {} updated successfully'.format(unique_id)}
     else:
         abort(404, description='ID {} not found in table {}'.format(unique_id, table))
 
 
-@app.route('/api/admin/sql-tables/<table>', methods=['GET'])
+@bp.route('/api/admin/sql-tables/<table>', methods=['GET'])
 @catch_db_error
 def get_sql_rows(table):
     model = get_class_by_tablename(table)
@@ -557,12 +586,15 @@ def get_sql_rows(table):
                     'first-name': user.FirstName,
                     'last-name': user.LastName,
                     'access-rights-sdo': user.AccessRightsSdo,
-                    'access-rights-vendor': user.AccessRightsVendor}
+                    'access-rights-vendor': user.AccessRightsVendor,
+                    'registration-datetime': str(user.RegistrationDatetime)}
+        if model == TempUser:
+            data_set['motivation'] = user.Motivation
         ret.append(data_set)
     return jsonify(ret)
 
 
-@app.route('/api/admin/scripts/<script>', methods=['GET'])
+@bp.route('/api/admin/scripts/<script>', methods=['GET'])
 def get_script_details(script):
     module_name = get_module_name(script)
     if module_name is None:
@@ -579,35 +611,29 @@ def get_script_details(script):
     return response
 
 
-@app.route('/api/admin/scripts/<script>', methods=['POST'])
+@bp.route('/api/admin/scripts/<script>', methods=['POST'])
 def run_script_with_args(script):
     module_name = get_module_name(script)
     if module_name is None:
         abort(400, description='"{}" is not valid script name'.format(script))
 
     body = get_input(request.json)
-    if script == 'validate':
-        try:
-            if not body['row_id'] or not body['user_email']:
-                abort(400, description='Failed to validate - user-email and row-id cannot be empty strings')
-        except KeyError:
-            abort(400, description='Failed to validate - user-email and row-id must exist')
 
     arguments = ['run_script', module_name, script, json.dumps(body)]
-    job_id = yc_gc.sender.send('#'.join(arguments))
+    job_id = ac.sender.send('#'.join(arguments))
 
-    current_app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
-@app.route('/api/admin/scripts', methods=['GET'])
+@bp.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
-    scripts_names = ['populate', 'runCapabilities', 'draftPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
+    scripts_names = ['populate', 'runCapabilities', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
 
-@app.route('/api/admin/disk-usage', methods=['GET'])
+@bp.route('/api/admin/disk-usage', methods=['GET'])
 def get_disk_usage():
     total, used, free = shutil.disk_usage('/')
     usage = {}
@@ -621,7 +647,7 @@ def get_disk_usage():
 def get_module_name(script_name):
     if script_name in ['populate', 'runCapabilities', 'reviseSemver']:
         return 'parseAndPopulate'
-    elif script_name in ['draftPull', 'draftPullLocal', 'openconfigPullLocal']:
+    elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
     elif script_name in ['recovery', 'elkRecovery', 'elkFill', 'mariadbRecovery']:
         return 'recovery'
@@ -629,8 +655,6 @@ def get_module_name(script_name):
         return 'statistic'
     elif script_name == 'resolveExpiration':
         return 'utility'
-    elif script_name == 'validate':
-        return 'validate'
     else:
         return None
 

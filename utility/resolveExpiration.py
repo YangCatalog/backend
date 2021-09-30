@@ -37,22 +37,15 @@ from datetime import datetime
 import requests
 
 import utility.log as log
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers
 from utility.util import job_log
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
 
 
 class ScriptConfig:
 
     def __init__(self):
-        config_path = '/etc/yangcatalog/yangcatalog.conf'
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(config_path)
+        config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')

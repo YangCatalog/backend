@@ -34,6 +34,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import errno
+import functools
 import json
 import logging
 import multiprocessing
@@ -51,69 +52,17 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
-
-from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.create_config import create_config
 from utility.staticVariables import confd_headers, json_headers
-
-
-if sys.version_info >= (3, 4):
-    import configparser as ConfigParser
-else:
-    import ConfigParser
+from utility.util import prepare_to_indexing, send_to_indexing2
 
 
 class Receiver:
 
     def __init__(self, config_path):
         self.__config_path = config_path
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.__config_path)
-        self.__confd_ip = config.get('Web-Section', 'confd-ip')
-        self.__confd_port = int(config.get('Web-Section', 'confd-port'))
-        self.__protocol = config.get('General-Section', 'protocol-api')
-        self.__api_ip = config.get('Web-Section', 'ip')
-        self.__api_port = int(config.get('Web-Section', 'api-port'))
-        self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
-        self.__key = config.get('Secrets-Section', 'update-signature')
-        self.__notify_indexing = config.get('General-Section', 'notify-index')
-        self.__result_dir = config.get('Web-Section', 'result-html-dir')
-        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        self.__yang_models = config.get('Directory-Section', 'yang-models-dir')
-        self.__is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
-        self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
-
-        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
-        self.__lock_file = config.get('Directory-Section', 'lock')
-        rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
-        rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
-        self.__log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
-        logging.getLogger('pika').setLevel(logging.INFO)
-        self.temp_dir = config.get('Directory-Section', 'temp')
-        self.__confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-
+        self.load_config()
         self.LOGGER.info('Starting receiver')
-
-        if self.__notify_indexing == 'True':
-            self.__notify_indexing = True
-        else:
-            self.__notify_indexing = False
-        separator = ':'
-        suffix = self.__api_port
-        if self.__is_uwsgi == 'True':
-            separator = '/'
-            suffix = 'api'
-        self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
-                                                              separator, suffix)
-        self.__response_type = ['Failed', 'Finished successfully', 'Partially done']
-        self.__rabbitmq_credentials = pika.PlainCredentials(
-            username=rabbitmq_username,
-            password=rabbitmq_password)
         self.channel = None
         self.connection = None
 
@@ -405,8 +354,7 @@ class Receiver:
         given path. This will delete whole module in modules branch of the
         yang-catalog.yang module. It will also call indexing script to update searching.
 
-        Arguments:
-            :param multiple     (bool) removing multiple modules at once
+        Argument:
             :param arguments    (list) list of arguments sent from API sender
             :return (__response_type) one of the response types which
                 is either 'Finished successfully' or 'Partially done'
@@ -417,12 +365,40 @@ class Receiver:
         reason = ''
         paths = []
         modules = json.loads(path_to_delete)['modules']
-        for mod in modules:
-            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-                confd_url, mod['name'], mod['revision'], mod['organization']))
         all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
 
-        for mod in modules:
+        def module_in(name: str, revision: str, modules: list):
+            for module in modules:
+                if module['name'] == name and module.get('revision') == revision:
+                    return True
+            return False
+
+        @functools.lru_cache(maxsize=None)
+        def can_delete(name: str, revision: str):
+            for existing_module in all_mods['module']:
+                for dep_type in ['dependencies', 'submodule']:
+                    is_dep = module_in(name, revision, existing_module.get(dep_type, []))
+                    if is_dep:
+                        if module_in(existing_module['name'], existing_module['revision'], modules):
+                            if can_delete(existing_module['name'], existing_module['revision']):
+                                continue
+                        else:
+                            self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}@{}'
+                                                    .format(name, revision, dep_type,
+                                                            existing_module.get('name'), existing_module.get('revision')))
+                            return False
+            return True
+
+        modules_to_delete = []
+        for module in modules:
+            if can_delete(module.get('name'), module.get('revision')):
+                modules_to_delete.append(module)
+
+        for mod in modules_to_delete:
+            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
+                confd_url, mod['name'], mod['revision'], mod['organization']))
+
+        for mod in modules_to_delete:
             for existing_module in all_mods['module']:
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
@@ -495,10 +471,11 @@ class Receiver:
             return self.__response_type[0]
 
     def load_config(self):
+        config = create_config(self.__config_path)
+        self.__log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
         self.LOGGER.info('reloading config')
-        config = ConfigParser.ConfigParser()
-        config._interpolation = ConfigParser.ExtendedInterpolation()
-        config.read(self.__config_path)
+        logging.getLogger('pika').setLevel(logging.INFO)
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
         self.__confd_port = int(config.get('Web-Section', 'confd-port'))
         self.__protocol = config.get('General-Section', 'protocol-api')
@@ -515,12 +492,14 @@ class Receiver:
         self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
+        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.__lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
-        self.__log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
-        logging.getLogger('pika').setLevel(logging.INFO)
         self.temp_dir = config.get('Directory-Section', 'temp')
+        self.__confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+        self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
         if self.__notify_indexing == 'True':
             self.__notify_indexing = True
@@ -638,7 +617,7 @@ class Receiver:
                                                                               self.__confd_credentials, confd_prefix,
                                                                               self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
-                                                                              self.temp_dir)
+                                                                              self.temp_dir, self.json_ytree)
                         complicated_algorithms.parse_non_requests()
                         complicated_algorithms.parse_requests()
                         complicated_algorithms.populate()
@@ -721,7 +700,7 @@ class Receiver:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config-path', type=str, default='/etc/yangcatalog/yangcatalog.conf',
+    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args, extra_args = parser.parse_known_args()
     config_path = args.config_path
