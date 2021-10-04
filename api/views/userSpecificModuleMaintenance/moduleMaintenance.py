@@ -210,7 +210,7 @@ def organization_by_namespace(namespace):
                 return org
         else:
             if 'urn:' in namespace:
-                return namespace.split('urn:')[1].split(':')[0]    
+                return namespace.split('urn:')[1].split(':')[0]
             else:
                 return ''
 
@@ -407,10 +407,10 @@ def add_vendors():
                                ' platform-implementation-metadata.yang module. Received no json')
     body = request.json
 
-    platforms_cont = body.get('platforms')
-    if platforms_cont is None:
+    platforms_contents = body.get('platforms')
+    if platforms_contents is None:
         abort(400, description='bad request - "platforms" json object is missing and is mandatory')
-    platform_list = platforms_cont.get('platform')
+    platform_list = platforms_contents.get('platform')
     if platform_list is None:
         abort(400, description='bad request - "platform" json list is missing and is mandatory')
 

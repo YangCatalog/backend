@@ -27,7 +27,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 
 import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
-from api.yangCatalogApi import application
+from api.yangCatalogApi import app
 from api.globalConfig import yc_gc
 from api.models import User
 from api.views.admin.admin import hash_pw
@@ -55,7 +55,7 @@ class TestApiContributeClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestApiContributeClass, self).__init__(*args, **kwargs)
         self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.client = application.test_client()
+        self.client = app.test_client()
 
     def setUp(self):
         self.send_patcher = mock.patch('api.sender.Sender.send')
@@ -70,23 +70,23 @@ class TestApiContributeClass(unittest.TestCase):
         self.addCleanup(self.get_patcher.stop)
         self.mock_get.return_value.json.return_value = json.loads(yc_gc.redis.get('modules-data') or '{}')
         self.mock_confd_get.side_effect = mock_confd_get
-        with application.app_context():
+        with app.app_context():
             self.user = User(Username='test', Password=hash_pw('test'), Email='test@test.test',
                         AccessRightsSdo='/', AccessRightsVendor='/')
             db.session.add(self.user)
             db.session.commit()
 
     def tearDown(self):
-        with application.app_context():
+        with app.app_context():
             db.session.delete(self.user)
             db.session.commit()
 
     @mock.patch('sqlalchemy.orm.Query.all')
     @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
     def test_register_user(self, mock_all: mock.MagicMock):
-
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm',
-                                    'email', 'company', 'first-name', 'last-name']}
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
         mock_all.return_value = False
         result = self.client.post('api/register-user', json=body)
 
@@ -116,8 +116,8 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'bad request - missing last-name data in input')
 
     def test_register_user_mismatched_passwd(self):
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm',
-                                    'email', 'company', 'first-name', 'last-name']}
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
         body['password-confirm'] = 'different'
         result = self.client.post('api/register-user', json=body)
 
@@ -131,8 +131,8 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
     def test_register_user_user_exist(self, mock_all: mock.MagicMock):
 
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm',
-                                    'email', 'company', 'first-name', 'last-name']}
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
         mock_all.side_effect = [True]
         result = self.client.post('api/register-user', json=body)
 
@@ -146,8 +146,8 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
     def test_register_user_tempuser_exist(self, mock_all: mock.MagicMock):
 
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm',
-                                    'email', 'company', 'first-name', 'last-name']}
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
         mock_all.side_effect = [False, True]
         result = self.client.post('api/register-user', json=body)
 
@@ -161,8 +161,8 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
     def test_register_user_db_exception(self, mock_all: mock.MagicMock):
 
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm',
-                                    'email', 'company', 'first-name', 'last-name']}
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
         mock_all.side_effect = SQLAlchemyError
         result = self.client.post('api/register-user', json=body)
 
@@ -238,40 +238,6 @@ class TestApiContributeClass(unittest.TestCase):
         mod = {
             'name': 'ietf-yang-types',
             'revision': '2013-07-15',
-            'organization': 'ietf'
-        }
-        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-
-        self.assertEqual(result.status_code, 202)
-        self.assertEqual(result.content_type, 'application/json')
-        data = json.loads(result.data)
-        self.assertIn('skipped', data)
-        self.assertEqual(data['skipped'], [mod])
-
-    def test_delete_modules_dependency(self):
-        """Test skipped modules when the module has dependents.
-        """
-        mod = {
-            'name': 'ietf-snmp-community',
-            'revision': '2014-12-10',
-            'organization': 'ietf'
-        }
-        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
-        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
-
-        self.assertEqual(result.status_code, 202)
-        self.assertEqual(result.content_type, 'application/json')
-        data = json.loads(result.data)
-        self.assertIn('skipped', data)
-        self.assertEqual(data['skipped'], [mod])
-
-    def test_delete_modules_submodule(self):
-        """Test skipped modules when the module is a submodule.
-        """
-        mod = {
-            'name': 'ietf-ipv6-router-advertisements',
-            'revision': '2018-03-13',
             'organization': 'ietf'
         }
         path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
@@ -602,7 +568,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -624,7 +590,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -671,7 +637,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     def test_add_vendor_confd_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 400
         mock_put.return_value.text = 'test'
         mock_put.return_value.headers = {}
@@ -688,7 +654,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     def test_add_vendor_no_module_file_list(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         result = self.client.put('api/platforms',
                                  json={'platforms': {'platform': [{'test': 'test'}]}}, auth=('test', 'test'))
@@ -703,7 +669,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     def test_add_vendor_no_path(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -722,7 +688,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     def test_add_vendor_no_repository(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -737,11 +703,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'],
                          'bad request - at least on of platform module-list-file'
                          '  "repository" for module is missing and is mandatory')
-        
+
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     def test_add_vendor_no_owner(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        mock_authorize.return_value = 'passed'
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -763,11 +729,11 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor_git_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-        
+
         def mock_clone(self):
             raise GitCommandError('test')
-        
-        mock_authorize.return_value = 'passed'
+
+        mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -781,35 +747,6 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
                                                        ' Please check owner, repository and path of the request - '))
-
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
-    def test_authorize_for_vendors_root(self, mock_access_rights: mock.MagicMock):
-        mock_access_rights.return_value = '/'
-        request = mock.MagicMock()
-        request.authorization = {'username': 'test'}
-        with application.app_context():
-            result = mm.authorize_for_vendors(request, {})
-
-        self.assertEqual(result, 'passed')
-
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
-    def test_authorize_for_vendors_missing_rights(self, mock_access_rights: mock.MagicMock):
-        mock_access_rights.return_value = 'test'
-        request = mock.MagicMock()
-        request.authorization = {'username': 'test'}
-        body = {
-            'platforms': {
-                'platform': [{
-                    'name': 'other',
-                    'vendor': 'other',
-                    'software-version': 'other',
-                    'software-flavor': 'other'
-                }]
-            }
-        }
-        with self.assertRaises(HTTPException):
-            with application.app_context():
-                mm.authorize_for_vendors(request, body)
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     def test_authorize_for_vendors(self, mock_access_rights: mock.MagicMock):
@@ -826,17 +763,47 @@ class TestApiContributeClass(unittest.TestCase):
                 }]
             }
         }
-        with application.app_context():
+        with app.app_context():
             result = mm.authorize_for_vendors(request, body)
 
-        self.assertEqual(result, 'passed')
+        self.assertEqual(result, True)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_vendors_root(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = '/'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        with app.app_context():
+            result = mm.authorize_for_vendors(request, {})
+
+        self.assertEqual(result, True)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_vendors_missing_rights(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = 'test'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        body = {
+            'platforms': {
+                'platform': [{
+                    'name': 'other',
+                    'vendor': 'other',
+                    'software-version': 'other',
+                    'software-flavor': 'other'
+                }]
+            }
+        }
+        with app.app_context():
+            result = mm.authorize_for_vendors(request, body)
+
+        self.assertEqual(result, 'vendor')
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     def test_authorize_for_sdos_root(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = '/'
         request = mock.MagicMock()
         request.authorization = {'username': 'test'}
-        with application.app_context():
+        with app.app_context():
             result = mm.authorize_for_sdos(request, 'test', 'test')
 
         self.assertTrue(result)
@@ -846,7 +813,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_access_rights.return_value = 'test'
         request = mock.MagicMock()
         request.authorization = {'username': 'test'}
-        with application.app_context():
+        with app.app_context():
             result = mm.authorize_for_sdos(request, 'test', 'test')
 
         self.assertTrue(result)
@@ -856,7 +823,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_access_rights.return_value = '/'
         request = mock.MagicMock()
         request.authorization = {'username': 'test'}
-        with application.app_context():
+        with app.app_context():
             result = mm.authorize_for_sdos(request, 'test', 'other')
 
         self.assertEqual(result, 'module`s organization is not the same as organization provided')
@@ -866,7 +833,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_access_rights.return_value = 'test'
         request = mock.MagicMock()
         request.authorization = {'username': 'test'}
-        with application.app_context():
+        with app.app_context():
             result = mm.authorize_for_sdos(request, 'test', 'other')
 
         self.assertEqual(result, 'module`s organization is not in users rights')
