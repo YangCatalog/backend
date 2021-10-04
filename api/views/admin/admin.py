@@ -256,7 +256,7 @@ def update_yangcatalog_config():
         ac.sender.send('reload_config')
         resp['receiver'] = 'data loaded successfully'
     except:
-        resp['receiver'] ='error loading data'
+        resp['receiver'] = 'error loading data'
     response = {'info': resp,
                 'new-data': body['data']}
     return response
@@ -266,7 +266,7 @@ def update_yangcatalog_config():
 def get_log_files():
 
     def find_files(directory, pattern):
-        for root, dirs, files in os.walk(directory):
+        for root, _, files in os.walk(directory):
             for basename in files:
                 if fnmatch.fnmatch(basename, pattern):
                     filename = os.path.join(root, basename)
@@ -298,7 +298,7 @@ def filter_from_date(file_names, from_timestamp):
         r = []
         for file_name in file_names:
             files = find_files('{}/{}'.format(ac.d_logs, os.path.dirname(file_name)),
-                                '{}.log*'.format(os.path.basename(file_name)))
+                               '{}.log*'.format(os.path.basename(file_name)))
             for f in files:
                 if os.path.getmtime(f) >= from_timestamp:
                     r.append(f)
@@ -465,10 +465,10 @@ def move_user():
     user_password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first()
     password = user_password.Password if user_password else ''
     user_registration_datetime = db.session.query(TempUser.RegistrationDatetime).filter_by(Id=unique_id).first()
-    if user_registration_datetime:
-        registration_datetime = user_registration_datetime.RegistrationDatetime
-    else:
-        registration_datetime = datetime.now()
+    registration_datetime = datetime.utcnow()
+    if user_registration_datetime is not None:
+        if user_registration_datetime[0] is not None:
+            registration_datetime = user_registration_datetime.RegistrationDatetime
     user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
                 FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
                 RegistrationDatetime=registration_datetime)
@@ -587,7 +587,7 @@ def get_sql_rows(table):
                     'last-name': user.LastName,
                     'access-rights-sdo': user.AccessRightsSdo,
                     'access-rights-vendor': user.AccessRightsVendor,
-                    'registration-datetime': str(user.RegistrationDatetime)}
+                    'registration-datetime': user.RegistrationDatetime}
         if model == TempUser:
             data_set['motivation'] = user.Motivation
         ret.append(data_set)
