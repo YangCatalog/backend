@@ -37,9 +37,9 @@ from collections import OrderedDict
 from time import sleep
 
 import redis
-import requests
 import utility.log as log
 from requests import ConnectionError
+from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format, confd_headers
 from utility.util import get_list_of_backups, job_log
@@ -48,28 +48,20 @@ from utility.util import get_list_of_backups, job_log
 class ScriptConfig:
 
     def __init__(self):
-        self.help = 'This serves to save or load all information in yangcatalog.org to json in' \
+        self.help = 'This serves to save or load all the information in yangcatalog.org to JSON file in' \
                     ' case the server will go down and we would lose all the information we' \
-                    ' have got. We have two options in here. Saving makes a GET request to ' \
-                    'file with name that would be set as a argument or it will be set to ' \
-                    'a current time and date. Load will read the file and make a PUT request ' \
-                    'to write all data to yangcatalog.org. This runs as a daily cronjob to save latest state of confd'
+                    ' have got. We have two options in here. Saving makes a GET request to the ConfD' \
+                    ' and save modules to the file with name that would be passed as a argument or it will be set to' \
+                    ' the current datetime. Load will first load data to Redis either from saved JSON file or' \
+                    ' from snapshot of Redis. Then it will make PATCH request to write all the data to the ConfD.' \
+                    ' This runs as a daily cronjob to save latest state of ConfD and Redis.'
         config = create_config()
-        self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
-        self.__confd_port = config.get('Web-Section', 'confd-port')
-        self.__confd_host = config.get('Web-Section', 'confd-ip')
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')
         self.redis_host = config.get('DB-Section', 'redis-host')
         self.redis_port = config.get('DB-Section', 'redis-port')
-        parser = argparse.ArgumentParser(
-            description=self.help)
-        parser.add_argument('--port', default=self.__confd_port, type=int,
-                            help='Set port where the confd is started. Default -> {}'.format(self.__confd_port))
-        parser.add_argument('--ip', default=self.__confd_host, type=str,
-                            help='Set ip address where the confd is started. Default -> {}'.format(self.__confd_host))
+        parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--name_save',
                             default=datetime.datetime.utcnow().strftime(backup_date_format),
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
@@ -77,9 +69,6 @@ class ScriptConfig:
                             help='Set name of the file to load. Default will take a last saved file')
         parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
                             help='Set whether you want to save a file or load a file. Default is save')
-        parser.add_argument('--protocol', type=str, default=self.__confd_protocol,
-                            help='Whether confd runs on http or https.'
-                                 ' Default is set to {}'.format(self.__confd_protocol))
 
         self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
@@ -99,17 +88,13 @@ class ScriptConfig:
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['port'] = 'Set port where the confd is started. Default -> {}'.format(self.__confd_port)
         ret['options']['type'] = 'Set whether you want to save a file or load a file. Default is save'
         ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
-        ret['options']['protocol'] = 'Whether confd runs on http or https. Default is set to {}'.format(
-            self.__confd_protocol)
         ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
-        ret['options']['ip'] = 'Set ip address where the confd is started. Default -> {}'.format(self.__confd_host)
         return ret
 
 
-def feed_confd_modules(modules_data: list, prefix: str, credentials: list, LOGGER: logging.Logger):
+def feed_confd_modules(modules_data: list, confdService: ConfdService, LOGGER: logging.Logger):
     for x in range(0, len(modules_data), 1000):
         LOGGER.info('Processing chunk {} out of {}'.format((x // 1000) + 1, (len(modules_data) // 1000) + 1))
         json_modules_data = json.dumps({
@@ -119,15 +104,13 @@ def feed_confd_modules(modules_data: list, prefix: str, credentials: list, LOGGE
                 }
         })
 
-        url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(prefix)
-        response = requests.patch(url, json_modules_data,
-                                  auth=(credentials[0], credentials[1]),
-                                  headers=confd_headers)
+        response = confdService.patch_modules(json_modules_data)
+
         if response.status_code < 200 or response.status_code > 299:
-            LOGGER.info('Request with body on path {} failed with {}'.format(url, response.text))
+            LOGGER.info('Request failed with {}'.format(response.text))
 
 
-def feed_confd_vendors(vendors_data: list, prefix: str, credentials: list, LOGGER: logging.Logger):
+def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: logging.Logger):
     for vendor in vendors_data:
         vendor_name = vendor['name']
         for platform in vendor['platforms']['platform']:
@@ -154,14 +137,10 @@ def feed_confd_vendors(vendors_data: list, prefix: str, credentials: list, LOGGE
                     }
                 })
 
-                # Make a PATCH request to create a root for each file
-                url = '{}/restconf/data/yang-catalog:catalog/vendors/'.format(prefix)
-                response = requests.patch(url, json_implementations_data,
-                                          auth=(credentials[0], credentials[1]),
-                                          headers=confd_headers)
+                response = confdService.patch_vendors(json_implementations_data)
+
                 if response.status_code < 200 or response.status_code > 299:
-                    LOGGER.info('Request with body on path {} failed with {}'
-                                .format(url, response.text))
+                    LOGGER.info('Request failed with {}'.format(response.text))
 
 
 def feed_redis_from_confd(redis_cache: redis.Redis, catalog_data: collections.OrderedDict, LOGGER: logging.Logger):
@@ -203,7 +182,7 @@ def feed_redis_from_confd(redis_cache: redis.Redis, catalog_data: collections.Or
     LOGGER.info('All the modules data set to Redis successfully')
 
 
-def feed_confd_from_json(catalog_data: collections.OrderedDict, prefix, credentials, LOGGER: logging.Logger):
+def feed_confd_from_json(catalog_data: collections.OrderedDict, confdService: ConfdService, LOGGER: logging.Logger):
     counter = 5
     while True:
         if counter == 0:
@@ -213,10 +192,10 @@ def feed_confd_from_json(catalog_data: collections.OrderedDict, prefix, credenti
             catalog = catalog_data.get('yang-catalog:catalog')
 
             LOGGER.info('Starting to add modules')
-            feed_confd_modules(catalog['modules']['module'], prefix, credentials, LOGGER)
+            feed_confd_modules(catalog['modules']['module'], confdService, LOGGER)
 
             LOGGER.info('Starting to add vendors')
-            feed_confd_vendors(catalog['vendors']['vendor'], prefix, credentials, LOGGER)
+            feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
 
             break
         except Exception:
@@ -233,23 +212,21 @@ def main(scriptConf=None):
         scriptConf = ScriptConfig()
     args = scriptConf.args
     cache_directory = scriptConf.cache_directory
-    credentials = scriptConf.credentials
     log_directory = scriptConf.log_directory
     temp_dir = scriptConf.temp_dir
     redis_host = scriptConf.redis_host
     redis_port = scriptConf.redis_port
+    confdService = ConfdService()
 
     confd_backups = os.path.join(cache_directory, 'confd')
     redis_backups = os.path.join(cache_directory, 'redis')
 
-    LOGGER = log.get_logger('recovery', log_directory + '/yang.log')
-    prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
+    LOGGER = log.get_logger('recovery', '{}/yang.log'.format(log_directory))
     LOGGER.info('Starting {} process of ConfD database'.format(args.type))
 
     tries = 4
     try:
-        response = requests.head(prefix + '/restconf/data',
-                                 auth=(credentials[0], credentials[1]))
+        response = confdService.head_catalog()
         LOGGER.info('Status code for HEAD request {} '.format(response.status_code))
     except ConnectionError as e:
         if tries == 0:
@@ -264,9 +241,7 @@ def main(scriptConf=None):
     if 'save' == args.type:
         # ConfD backup
         file_save = open(os.path.join(confd_backups, '{}.json'.format(args.name_save)), 'w')
-        jsn = requests.get('{}/restconf/data/yang-catalog:catalog'.format(prefix),
-                           auth=(credentials[0], credentials[1]),
-                           headers=confd_headers).json()
+        jsn = confdService.get_catalog_data().json()
         file_save.write(json.dumps(jsn))
         file_save.close()
         num_of_modules = 0 if not jsn['yang-catalog:catalog'].get('modules', {}).get('module') \
@@ -308,7 +283,7 @@ def main(scriptConf=None):
             with open(file_name, 'r') as file_load:
                 LOGGER.info('Loading file {}'.format(file_load.name))
                 catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
-            feed_confd_from_json(catalog_data, prefix, credentials, LOGGER)
+            feed_confd_from_json(catalog_data, confdService, LOGGER)
             feed_redis_from_confd(redis_cache, catalog_data, LOGGER)
         else:
             LOGGER.info('Loading data from Redis into ConfD')
@@ -316,10 +291,10 @@ def main(scriptConf=None):
             clean_redis_vendors = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(redis_vendors)
 
             LOGGER.info('Starting to add modules')
-            feed_confd_modules(clean_redis_modules['module'], prefix, credentials, LOGGER)
+            feed_confd_modules(clean_redis_modules['module'], confdService, LOGGER)
 
             LOGGER.info('Starting to add vendors')
-            feed_confd_vendors(clean_redis_vendors['vendor'], prefix, credentials, LOGGER)
+            feed_confd_vendors(clean_redis_vendors['vendor'], confdService, LOGGER)
 
     LOGGER.info('Job finished successfully')
 
