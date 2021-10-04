@@ -25,13 +25,10 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
-import glob
 import hashlib
 import os
 import shutil
-import sys
 import time
-import json
 from datetime import datetime as dt
 from operator import itemgetter
 from os import unlink
@@ -118,6 +115,15 @@ if __name__ == '__main__':
                 diff = dt.now() - t
                 if diff.days == 0:
                     filename.write(line)
+        LOGGER.info('Removing old yangvalidator cache dirs')
+        yang_validator_cache = os.path.join(temp_dir, 'yangvalidator')
+        cutoff = current_time - 2*86400
+        dirs = os.listdir(yang_validator_cache)
+        for dir in dirs:
+            if dir.startswith('yangvalidator-v2-cache-'):
+                creation_time = os.path.getctime(os.path.join(yang_validator_cache, dir))
+                if creation_time < cutoff:
+                    shutil.rmtree(os.path.join(yang_validator_cache, dir))
         #LOGGER.info('Removing old elasticsearch snapshots')
         #if es_aws == 'True':
         #    es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
@@ -130,7 +136,6 @@ if __name__ == '__main__':
 
         #for snapshot in sorted_snapshots[:-5]:
         #    es.snapshot.delete(repository=repo_name, snapshot=snapshot['snapshot'])
-
         def hash_file(path: str) -> bytes:
             buf_size = 65536  # lets read stuff in 64kB chunks!
 
