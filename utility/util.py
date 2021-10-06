@@ -27,8 +27,8 @@ import socket
 import stat
 import sys
 import time
-import warnings
 import typing as t
+import warnings
 
 import requests
 from Crypto.Hash import HMAC, SHA
@@ -37,8 +37,9 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility import messageFactory, yangParser
+from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.staticVariables import backup_date_format, confd_headers, json_headers
+from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
 
 
@@ -147,7 +148,7 @@ def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete
         try:
             open(lock_file, 'w').close()
         except:
-            raise Exception('Failed to obtain lock ' + lock_file)
+            raise Exception('Failed to obtain lock {}'.format(lock_file))
 
         changes_cache = dict()
         delete_cache = []
@@ -183,7 +184,7 @@ def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete
         fd.close()
     except Exception as e:
         os.unlink(lock_file)
-        raise Exception("Caught exception {}".format(e))
+        raise Exception('Caught exception {}'.format(e))
     os.unlink(lock_file)
 
 
@@ -222,7 +223,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
         LOGGER.info('Data sent for indexing successfully')
 
 
-def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list, LOGGER, save_file_dir: str, temp_dir: str, confd_url: str,
+def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list, LOGGER, save_file_dir: str, temp_dir: str,
                         sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
@@ -237,7 +238,6 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         :param LOOGER:              (obj) LOGGER in case we can not use receiver's because other module is calling this method
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
         :param temp_dir             (str) path to temporary directory
-        :param confd_url            (str) URL to ConfD in format <protocol>://<ip>:<port>
         :param sdo_type             (bool) Whether or not it is sdo that needs to be sent
         :param delete               (bool) Whether or not we are deleting module
         :param from_api             (bool) Whether or not api sent the request to index.
@@ -251,8 +251,8 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         mf.send_removed_yang_files(json.dumps(post_body, indent=4))
         for mod in modules_to_index:
             name, revision_organization = mod.split('@')
-            revision, organization = revision_organization.split('/')
-            path_to_delete_local = "{}/{}@{}.yang".format(save_file_dir, name, revision)
+            revision = revision_organization.split('/')[0]
+            path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
             data = {'input': {'dependents': [{'name': name}]}}
 
             response = requests.post('{}search-filter'.format(yc_api_prefix),
@@ -261,14 +261,9 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
             if response.status_code == 201:
                 modules = response.json()
                 for mod in modules:
-                    m_name = mod['name']
-                    m_rev = mod['revision']
-                    m_org = mod['organization']
-                    url = ('{}/restconf/data/yang-catalog:catalog/modules/module='
-                           '{},{},{}/dependents={}'.format(confd_url,
-                                                           m_name, m_rev, m_org, name))
-                    requests.delete(url, auth=(credentials[0], credentials[1]),
-                                    headers=confd_headers)
+                    module_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+                    confdService = ConfdService()
+                    confdService.delete_dependent(module_key, name)
             if os.path.exists(path_to_delete_local):
                 os.remove(path_to_delete_local)
     else:
@@ -490,6 +485,7 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
                 raise e
 
     return ctx, new_schema_ctx
+
 
 def get_list_of_backups(directory: str) -> t.List[str]:
     dates = []

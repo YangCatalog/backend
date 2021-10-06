@@ -624,7 +624,7 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     return accessRigths
 
 def get_mod_confd(name: str, revision: str, organization: str):
-    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
-    url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-        confd_prefix, name, revision, organization)
-    return requests.get(url, auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)
+    mod_key = '{},{},{}'.format(name, revision, organization)
+    response = app.confdService.get_module(mod_key)
+
+    return response

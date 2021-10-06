@@ -15,6 +15,7 @@ import json
 import requests
 import utility.log as log
 from utility import repoutil, yangParser
+from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import github_raw, github_url
 
@@ -119,11 +120,9 @@ if __name__ == '__main__':
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
-    confd_ip = config.get('Web-Section', 'confd-ip', fallback='yc-confd')
-    confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
-    confd_protocol = config.get('General-Section', 'protocol-confd', fallback='http')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
+    confdService = ConfdService()
 
     separator = ':'
     suffix = api_port
@@ -131,7 +130,6 @@ if __name__ == '__main__':
         separator = '/'
         suffix = 'api'
 
-    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, confd_port)
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
 
     # GET all the existing modules of Yangcatalog
@@ -181,12 +179,10 @@ if __name__ == '__main__':
                 updated_schemas += 1
 
                 # Make patch request to ConfD to update schema
-                url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
-                    .format(confd_prefix, module['name'], module['revision'], module['organization'])
-                response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
-                                          auth=(credentials[0], credentials[1]),
-                                          headers={'Content-Type': 'application/yang-data+json',
-                                                   'Accept': 'application/yang-data+json'})
+                module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
+                json_module_data = json.dumps({'yang-catalog:module': module})
+                response = confdService.patch_module(module_key, json_module_data)
+
                 __print_patch_response(key, response)
         except:
             LOGGER.exception('Problem with module {}'.format(key))
@@ -292,12 +288,10 @@ if __name__ == '__main__':
         if updated == True:
             updated_modules[key] = module
 
-            url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
-                .format(confd_prefix, module['name'], module['revision'], module['organization'])
-            response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
-                                      auth=(credentials[0], credentials[1]),
-                                      headers={'Content-Type': 'application/yang-data+json',
-                                               'Accept': 'application/yang-data+json'})
+            module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
+            json_module_data = json.dumps({'yang-catalog:module': module})
+            response = confdService.patch_module(module_key, json_module_data)
+
             __print_patch_response(key, response)
 
     # Reload cache after checking schemas in dependents and submodules

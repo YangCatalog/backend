@@ -29,19 +29,14 @@ import random
 import string
 import time
 
-import requests
-
 import utility.log as log
+from utility import confdService
 from utility.create_config import create_config
-from utility.staticVariables import confd_headers
 from utility.util import job_log
 
 if __name__ == '__main__':
     start_time = int(time.time())
     config = create_config()
-    confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
-    confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
-    confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
     logs_dir = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
@@ -51,15 +46,16 @@ if __name__ == '__main__':
     letters = string.ascii_letters
     suffix = ''.join(random.choice(letters) for i in range(6))
     check_module_name = 'confd-full-check-{}'.format(suffix)
-    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
+    confdService = confdService.ConfdService()
 
     LOGGER.info('Running confdFullCheck')
     try:
         # GET
         result = {}
         result['label'] = 'GET yang-catalog@2018-04-03'
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module=yang-catalog,2018-04-03,ietf'.format(confd_prefix)
-        response = requests.get(url, auth=(credentials[0], credentials[1]), headers=confd_headers)
+        module_key = 'yang-catalog,2018-04-03,ietf'
+        response = confdService.get_module(module_key)
+
         if response.status_code == 200:
             module = json.loads(response.text)
             result['message'] = '{} OK'.format(response.status_code)
@@ -74,10 +70,9 @@ if __name__ == '__main__':
         # PATCH
         result = {}
         result['label'] = 'PATCH {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/'.format(confd_prefix)
         json_modules_data = json.dumps({'modules': {'module': module['yang-catalog:module'][0]}})
-        response = requests.patch(url, data=json_modules_data,
-                                  auth=(credentials[0], credentials[1]), headers=confd_headers)
+        response = confdService.patch_modules(json_modules_data)
+
         if response.status_code == 204:
             result['message'] = '{} OK'.format(response.status_code)
         else:
@@ -88,8 +83,9 @@ if __name__ == '__main__':
         # GET 2
         result = {}
         result['label'] = 'GET {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.get(url, auth=(credentials[0], credentials[1]), headers=confd_headers)
+        new_module_key = '{},2018-04-03,ietf'.format(check_module_name)
+        response = confdService.get_module(new_module_key)
+
         if response.status_code == 200:
             result['message'] = '{} OK'.format(response.status_code)
         else:
@@ -100,8 +96,8 @@ if __name__ == '__main__':
         # DELETE
         result = {}
         result['label'] = 'DELETE {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.delete(url, auth=(credentials[0], credentials[1]), headers=confd_headers)
+        response = confdService.delete_module(new_module_key)
+
         if response.status_code == 204:
             result['message'] = '{} OK'.format(response.status_code)
         else:
@@ -113,8 +109,8 @@ if __name__ == '__main__':
         # NOTE: Module should already be removed - 404 status code is expected
         result = {}
         result['label'] = 'GET 2 {}@2018-04-03'.format(check_module_name)
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},2018-04-03,ietf'.format(confd_prefix, check_module_name)
-        response = requests.get(url, auth=(credentials[0], credentials[1]), headers=confd_headers)
+        response = confdService.get_module(new_module_key)
+
         if response.status_code == 404:
             result['message'] = '{} OK'.format(response.status_code)
         else:
@@ -125,5 +121,5 @@ if __name__ == '__main__':
         job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
 
     except Exception as e:
-        LOGGER.error(e)
+        LOGGER.exception(e)
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))

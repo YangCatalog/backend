@@ -41,7 +41,7 @@ import utility.log as log
 from requests import ConnectionError
 from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.staticVariables import backup_date_format, confd_headers
+from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 
