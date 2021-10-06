@@ -2,6 +2,20 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v4.2.1 - 2021-10-06
+
+  * confdService for communication with ConfD added [#373](https://github.com/YangCatalog/backend/issues/373)
+  * Use dump.rdb file to load data into Redis cache [#372](https://github.com/YangCatalog/backend/issues/372)
+  * Remove old yangvalidator-v2-cache directories [#371](https://github.com/YangCatalog/backend/issues/371)
+  * Bugfix: api/services/diff-file endpoint fixed [#370](https://github.com/YangCatalog/backend/issues/370)
+  * Using static variables over backend application [#369](https://github.com/YangCatalog/backend/issues/369)
+  * Remove old Mariadb backups, move ConfD backups [#368](https://github.com/YangCatalog/backend/issues/368)
+  * MySQL updated to store motivation and registration date [#363](https://github.com/YangCatalog/backend/issues/363)
+  * Slate documentation moved into separate Docker image [#358](https://github.com/YangCatalog/backend/issues/358)
+  * validate.py script removed [#357](https://github.com/YangCatalog/backend/issues/357)
+  * Create directory for log files if not exists [#353](https://github.com/YangCatalog/backend/issues/353)
+  * Date of validation added to module compilation results html [sdo_analysis #98](https://github.com/YangCatalog/sdo_analysis/issues/98)
+
 * ##### v4.2.0 - 2021-09-09
 
   * Scripts to process IANA-maintained modules created [#342](https://github.com/YangCatalog/backend/issues/342)
