@@ -136,19 +136,18 @@ def health_check_elk():
 @bp.route('/confd', methods=['GET'])
 def health_check_confd():
     service_name = 'ConfD'
-    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
 
     try:
         # Check if ConfD is running
-        response = requests.get('{}/restconf'.format(confd_prefix),
-                                auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)
+        response = app.confdService.head_catalog()
+
         if response.status_code == 200:
             bp.LOGGER.info('ConfD is running')
             # Check if ConfD is filled with data
-            module_name = 'ietf-syslog,2018-03-15,ietf'
-            response = requests.get('{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(confd_prefix, module_name),
-                                    auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)
-            bp.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, module_name))
+            mod_key = 'yang-catalog,2018-04-03,ietf'
+            response = app.confdService.get_module(mod_key)
+
+            bp.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, mod_key))
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
                 response = {'info': 'Not OK - ConfD is not filled',
                             'status': 'problem',
@@ -157,18 +156,18 @@ def health_check_confd():
             else:
                 module_data = response.json()
                 num_of_modules = len(module_data['yang-catalog:module'])
-                bp.LOGGER.info('{} module successfully loaded from ConfD'.format(module_name))
+                bp.LOGGER.info('{} module successfully loaded from ConfD'.format(mod_key))
                 if num_of_modules > 0:
                     return make_response(jsonify({'info': 'ConfD is running',
                                                   'status': 'running',
-                                                  'message': '{} module successfully loaded from ConfD'.format(module_name)}), 200)
+                                                  'message': '{} successfully loaded from ConfD'.format(mod_key)}), 200)
                 else:
                     return make_response(jsonify({'info': 'ConfD is running',
                                                   'status': 'problem',
                                                   'message': 'ConfD is running but no modules loaded'}), 200)
         else:
-            bp.LOGGER.info('Cannot get data from /restconf/data')
-            err = 'Cannot get data from /restconf/data'
+            bp.LOGGER.info('Cannot get data from ConfD')
+            err = 'Cannot get data from ConfD'
             return make_response(jsonify(error_response(service_name, err)), 200)
     except Exception as err:
         bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))

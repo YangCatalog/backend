@@ -37,7 +37,6 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
             self.payloads = json.load(f)
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'
         self.save_file_dir = '{}/all_modules'.format(self.resources_path)
-        self.confd_prefix = '{}://{}:{}'.format(yc_gc.protocol, yc_gc.confd_ip, yc_gc.confdPort)
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -76,7 +75,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -110,7 +109,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -144,7 +143,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -179,7 +178,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -214,7 +213,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -249,7 +248,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -287,7 +286,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules['module'] = [module_to_parse]
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
 
@@ -308,7 +307,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = {'module': []}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
         complicatedAlgorithms.parse_non_requests()
@@ -323,7 +322,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = {'module': []}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
         complicatedAlgorithms.parse_non_requests()
@@ -338,7 +337,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = {'module': []}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
         complicatedAlgorithms.parse_non_requests()
@@ -357,7 +356,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = {'module': payload[0]['existing']}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.confd_prefix, self.save_file_dir,
+                                                             yc_gc.credentials, self.save_file_dir,
                                                              yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
                                                              yc_gc.json_ytree)
         complicatedAlgorithms.parse_requests()

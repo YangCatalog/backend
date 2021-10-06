@@ -35,8 +35,8 @@ import os
 import unittest
 from unittest import mock
 
-import requests
 import utility.log as log
+from utility.confdService import ConfdService
 from utility.resolveExpiration import resolve_expiration
 
 
@@ -48,6 +48,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
         self.datatracker_failures = []
         self.LOGGER = self.get_logger()
+        self.confdService = ConfdService()
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -58,14 +59,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         where expiration is not-applicable (= e.g. vendor module). Also check values of module properties,
         which are requested in the method.
         """
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('dhcp-client@2014-12-18-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -79,14 +74,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         which was ratified.
         Also check values of module properties, which are requested in the method.
         """
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('iana-if-type@2014-05-08-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -107,14 +96,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
 
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('iana-if-type@2011-03-30-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -135,14 +118,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_empty_response')
 
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('ietf-alarms@2015-05-04-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -163,14 +140,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
 
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -191,14 +162,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
 
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('iana-if-type@2014-01-15-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -229,14 +194,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_delete.return_value.status_code = 204
         mock_requests_delete.return_value.text = ''
 
-        # Load submodule and its config
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, True)
         # Check the relevant properties values
@@ -260,13 +219,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.side_effect = Exception()
         mock_time_sleep.return_value = None
 
-        module = __import__(self.module_name, fromlist=[self.script_name])
-        submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
-        args = script_conf.args
-
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        result = resolve_expiration(module, args, self.LOGGER, self.datatracker_failures)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
 
         self.assertEqual(result, None)
         self.assertNotEqual(len(self.datatracker_failures), 0)

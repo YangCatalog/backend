@@ -30,15 +30,14 @@ import datetime
 import json
 import logging
 import os
-import sys
 import time
 from datetime import datetime
 
 import requests
 
 import utility.log as log
+from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.staticVariables import confd_headers
 from utility.util import job_log
 
 
@@ -49,33 +48,24 @@ class ScriptConfig:
         self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
-        self.__confd_protocol = config.get('General-Section', 'protocol-confd', fallback='http')
-        self.__confd_port = config.get('Web-Section', 'confd-port', fallback=8008)
-        self.__confd_host = config.get('Web-Section', 'confd-ip', fallback='localhost')
         self.__api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.__api_port = config.get('Web-Section', 'api-port', fallback=5000)
         self.__api_host = config.get('Web-Section', 'ip', fallback='localhost')
         self.__credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
-        self.help = 'Resolve expiration metadata for each module and set it to confd if changed. This runs as a daily' \
+        self.help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
                     ' cronjob'
         parser = argparse.ArgumentParser()
         parser.add_argument('--credentials',
                             help='Set authorization parameters username password respectively.'
                                  ' Default parameters are {}'.format(str(self.__credentials)), nargs=2,
                             default=self.__credentials, type=str)
-        parser.add_argument('--ip', default=self.__confd_host, type=str,
-                            help='Set host address where the Confd is started. Default: {}'.format(self.__confd_host))
-        parser.add_argument('--port', default=self.__confd_port, type=int,
-                            help='Set port where the Confd is started. Default: {}'.format(self.__confd_port))
-        parser.add_argument('--protocol', type=str, default=self.__confd_protocol,
-                            help='Whether Confd runs on http or https. Default: {}'.format(self.__confd_protocol))
         parser.add_argument('--api-ip', default=self.__api_host, type=str,
                             help='Set host address where the API is started. Default: {}'.format(self.__api_host))
         parser.add_argument('--api-port', default=self.__api_port, type=int,
                             help='Set port where the API is started. Default: {}'.format(self.__api_port))
         parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
                             help='Whether API runs on http or https. Default: {}'.format(self.__api_protocol))
-        self.args, extra_args = parser.parse_known_args()
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -93,9 +83,6 @@ class ScriptConfig:
         ret = {}
         ret['help'] = self.help
         ret['options'] = {}
-        ret['options']['ip'] = 'Set host address where the Confd is started. Default: {}'.format(self.__confd_host)
-        ret['options']['port'] = 'Set port where the Confd is started. Default: {}'.format(self.__confd_port)
-        ret['options']['protocol'] = 'Whether Confd runs on http or https. Default: {}'.format(self.__confd_protocol)
         ret['options']['api_ip'] = 'Set host address where the API is started. Default: {}'.format(self.__api_host)
         ret['options']['api_port'] = 'Set port where the API is started. Default: {}'.format(self.__api_port)
         ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: {}'.format(self.__api_protocol)
@@ -120,14 +107,14 @@ def __expires_change(expires_from_module, expires_from_datatracker):
     return expires_changed
 
 
-def resolve_expiration(module, args, LOGGER: logging.Logger, datatracker_failures: list):
+def resolve_expiration(module, LOGGER: logging.Logger, datatracker_failures: list, confdService: ConfdService):
     """Walks through all the modules and updates them if necessary
 
         Arguments:
             :param module:              (json) all the module metadata
-            :param args:                (obj) arguments received at the start of this script
-            :param LOGGER               (obj) formated logger with the specified name
+            :param LOGGER               (logging.Logger) formated logger with the specified name
             :param datatracker_failures (list) list of url that failed to get data from Datatracker
+            :param confdService         (ConfdService) Service used to communicate with ConfD
     """
     reference = module.get('reference')
     expired = 'not-applicable'
@@ -183,17 +170,14 @@ def resolve_expiration(module, args, LOGGER: logging.Logger, datatracker_failure
         yang_name_rev = '{}@{}'.format(module['name'], module['revision'])
         LOGGER.info('Module {} changing expiration FROM expires: {} expired: {} TO expires: {} expired: {}'
                     .format(yang_name_rev, module.get('expires'), module.get('expired'), expires, expired))
-        confd_prefix = '{}://{}:{}'.format(args.protocol, args.ip, args.port)
 
         if expires is not None:
             module['expires'] = expires
         module['expired'] = expired
-        url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}' \
-            .format(confd_prefix, module['name'], module['revision'], module['organization'])
-        response = requests.patch(url, json.dumps({'yang-catalog:module': module}),
-                                  auth=(args.credentials[0],
-                                        args.credentials[1]),
-                                  headers=confd_headers)
+        module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
+        json_module_data = json.dumps({'yang-catalog:module': module})
+        response = confdService.patch_module(module_key, json_module_data)
+
         message = 'Module {} updated with code {}'.format(yang_name_rev, response.status_code)
         if response.text != '':
             message = '{} and text {}'.format(message, response.text)
@@ -201,11 +185,8 @@ def resolve_expiration(module, args, LOGGER: logging.Logger, datatracker_failure
         if expires == None and module.get('expires') is not None:
             # If the 'expires' property no longer contains a value,
             # delete request need to be done to the ConfD to the 'expires' property
-            url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/expires' \
-                .format(confd_prefix, module['name'], module['revision'], module['organization'])
-            response = requests.delete(url,
-                                       auth=(args.credentials[0], args.credentials[1]),
-                                       headers=confd_headers)
+            response = confdService.delete_expires(module_key)
+
             message = 'Module {} expiration date deleted with code {}'.format(yang_name_rev, response.status_code)
             if response.text != '':
                 message = '{} and text {}'.format(message, response.text)
@@ -226,16 +207,15 @@ def main(scriptConf=None):
     temp_dir = scriptConf.temp_dir
     is_uwsgi = scriptConf.is_uwsgi
     LOGGER = log.get_logger('resolveExpiration', '{}/jobs/resolveExpiration.log'.format(log_directory))
-    LOGGER.info('Starting Cron job resolve modules expiration')
 
     separator = ':'
     suffix = args.api_port
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
-                                                   args.api_ip, separator,
-                                                   suffix)
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
+    confdService = ConfdService()
+    LOGGER.info('Starting Cron job resolve modules expiration')
     try:
         LOGGER.info('Requesting all the modules from {}'.format(yangcatalog_api_prefix))
         updated = False
@@ -252,7 +232,7 @@ def main(scriptConf=None):
         for module in modules:
             LOGGER.info('{} out of {}'.format(i, len(modules)))
             i += 1
-            ret = resolve_expiration(module, args, LOGGER, datatracker_failures)
+            ret = resolve_expiration(module, LOGGER, datatracker_failures, confdService)
             if ret:
                 revision_updated_modules += 1
             if not updated:
@@ -263,7 +243,7 @@ def main(scriptConf=None):
                                                       args.credentials[1]))
             LOGGER.info('Cache loaded with status {}'.format(response.status_code))
     except Exception as e:
-        LOGGER.error('Exception found while running resolveExpiration script')
+        LOGGER.exception('Exception found while running resolveExpiration script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         raise e
     if len(datatracker_failures) > 0:
