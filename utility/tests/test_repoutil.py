@@ -177,11 +177,11 @@ class TestRepoutil(unittest.TestCase):
 	def test_updateSubmodule(self):
 		# repo without submodules
 		self.assertEqual(self.repo1.clone(self.myname, self.myemail), None)
-		self.assertEqual(self.repo1.updateSubmodule(), None)
-		self.assertEqual(self.repo1.updateSubmodule(True, True), None)
-		self.assertEqual(self.repo1.updateSubmodule(False, True), None)
-		self.assertEqual(self.repo1.updateSubmodule(True, False), None)
-		self.assertEqual(self.repo1.updateSubmodule(False, False), None)
+		self.assertEqual(self.repo1.update_submodule(), None)
+		self.assertEqual(self.repo1.update_submodule(True, True), None)
+		self.assertEqual(self.repo1.update_submodule(False, True), None)
+		self.assertEqual(self.repo1.update_submodule(True, False), None)
+		self.assertEqual(self.repo1.update_submodule(False, False), None)
 
 		# the repo repo5 is with submodules
 		self.assertEqual(self.repo5.clone(self.myname5, self.myemail5), None)
@@ -201,8 +201,8 @@ class TestRepoutil(unittest.TestCase):
 			self.assertTrue(os.path.exists(repodir25 + config[module]['path']), repodir25)
 
 		# Init = False; should not update submodules
-		self.assertEqual(self.repo5.updateSubmodule(True, False), None)
-		self.assertEqual(self.repo5.updateSubmodule(False, False), None)
+		self.assertEqual(self.repo5.update_submodule(True, False), None)
+		self.assertEqual(self.repo5.update_submodule(False, False), None)
 
 		# use rmdir to ascertain that submodules' folders are present and empty
 		for module in config.sections():
@@ -215,7 +215,7 @@ class TestRepoutil(unittest.TestCase):
 			self.assertTrue(os.path.exists(repodir25 + config[module]['path']), repodir25)
 
 		# the key test - how updateSubmodule works ...
-		self.assertEqual(self.repo5.updateSubmodule(), None)
+		self.assertEqual(self.repo5.update_submodule(), None)
 
 		# use rmdir to ascetain that after update the submodules' folders are present and contains git repos - it is expected that rmdir would fail if it is applied on non empty folder
 		for module in config.sections():
@@ -225,8 +225,8 @@ class TestRepoutil(unittest.TestCase):
 
 			self.assertTrue(repodir25 + config[module]['path'] + '/.git')
 
-		self.assertEqual(self.repo5.updateSubmodule(True, True), None)
-		self.assertEqual(self.repo5.updateSubmodule(False, True), None)
+		self.assertEqual(self.repo5.update_submodule(True, True), None)
+		self.assertEqual(self.repo5.update_submodule(False, True), None)
 
 		self.repo1.remove()
 		self.repo5.remove()

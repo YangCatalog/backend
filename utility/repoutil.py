@@ -98,7 +98,7 @@ class RepoUtil(object):
         return os.path.basename(self.repourl)
 
     def get_commit_hash(self, path=None, branch='master'):
-        self.updateSubmodule()
+        self.update_submodule()
         repo_temp = self
         remove_temp_repo = False
         if path is not None:
@@ -108,22 +108,13 @@ class RepoUtil(object):
                     repo_temp.clone()
                     remove_temp_repo = True
                     break
-        found_hash = None
-        if branch == 'master':
-            found_hash = repo_temp.repo.head.commit.hexsha
-        else:
-            refs = repo_temp.repo.refs
-            for ref in refs:
-                if ref.name == branch or ref.name == 'origin/{}'.format(branch):
-                    found_hash = ref.commit.hexsha
-                    break
-        if remove_temp_repo:
-            repo_temp.remove()
-        if found_hash is not None:
-            return found_hash
-        if self.logger is not None:
+        try:
+            return repo_temp.repo.commit('origin/{}'.format(branch)).hexsha
+        except:
             self.logger.error('Git branch - {} - could not be resolved'.format(branch))
-        return branch
+        finally:
+            if remove_temp_repo:
+                repo_temp.remove()
 
     def get_repo_owner(self):
         """Return the root directory name of the repo.  In GitHub
@@ -150,10 +141,9 @@ class RepoUtil(object):
                 config.set_value('user', 'email', config_user_email)
                 config.set_value('user', 'name', config_user_name)
 
-    def updateSubmodule(self, recursive=True, init=True):
+    def update_submodule(self, recursive=True, init=True):
         """Clone submodules of a git repository"""
-        for submodule in self.repo.submodules:
-            submodule.update(recursive, init)
+        self.repo.submodules_update(recursive=recursive, init=init)
 
     def add_all_untracked(self):
         """Commit all untracked and modified files. This method shouldn't
@@ -164,7 +154,7 @@ class RepoUtil(object):
         modified = []
         deleted = []
         for i in self.repo.index.diff(None):
-            if os.path.exists(self.localdir+'/'+i.a_path):
+            if os.path.exists(os.path.join(self.localdir, i.a_path)):
                 modified.append(i.a_path)
             else:
                 deleted.append(i.a_path)
@@ -201,11 +191,10 @@ if __name__ == '__main__':
     #
     parser = ArgumentParser(description='RepoUtil test params:')
     parser.add_argument('userpass', nargs=1, type=str,
-                        help='Provide username:password for github https access'
-                        )
+                        help='Provide username:password for github https access')
     args, extra_args = parser.parse_known_args()
     if not args.userpass:
-        print("username:password required")
+        print('username:password required')
         sys.exit(1)
 
     #
@@ -239,8 +228,8 @@ if __name__ == '__main__':
     try:
         r = RepoUtil(TEST_REPO.format(args.userpass[0]))
         r.clone()
-        print('Temp directory: '+r.localdir)
-        ok_path = r.localdir + '/ok.txt'
+        print('Temp directory: {}'.format(r.localdir))
+        ok_path = os.path.join(r.localdir, 'ok.txt')
         if os.path.exists(ok_path):
             print('Removing test file!')
             r.repo.git.rm(ok_path)
@@ -255,10 +244,10 @@ if __name__ == '__main__':
             r.commit_all(message='push should succeed')
             r.push()
         except GitCommandError as e:
-            print('Git Exception: ' + e.stderr)
+            print('Git Exception: {}'.format(e.stderr))
         r.remove()
     except GitCommandError as e:
-        print('Git Exception: ' + e.stderr)
+        print('Git Exception: {}'.format(e.stderr))
 
     #
     # Create, clone and modify a repo with bogus credentials. Will Then try
@@ -268,8 +257,8 @@ if __name__ == '__main__':
     try:
         r = RepoUtil(TEST_REPO.format('{}bogus'.format(args.userpass[0])))
         r.clone()
-        print('Temp directory: '+r.localdir)
-        with open(r.localdir+'/bogus.txt', 'w') as f:
+        print('Temp directory: {}'.format(r.localdir))
+        with open(os.path.join(r.localdir, 'bogus.txt'), 'w') as f:
             f.write('hello!\n')
             f.close()
         try:
@@ -277,10 +266,10 @@ if __name__ == '__main__':
             r.commit_all(message='push should fail')
             r.push()
         except GitCommandError as e:
-            print('Git Exception as expected: ' + e.stderr)
+            print('Git Exception as expected: {}'.format(e.stderr))
         r.remove()
     except GitCommandError as e:
-        print('Git Exception: ' + e.stderr)
+        print('Git Exception: {}'.format(e.stderr))
 
     #
     # Try to create, clone and remove repo that does not exist. If
@@ -291,7 +280,7 @@ if __name__ == '__main__':
     try:
         r = RepoUtil(BOGUS_REPO.format(args.userpass[0]))
         r.clone()
-        print('Temp directory: ' + r.localdir)
+        print('Temp directory: {}'.format(r.localdir))
         r.remove()
     except GitCommandError as e:
-        print('Git Exception as expected: ' + e.stderr)
+        print('Git Exception as expected: {}'.format(e.stderr))
