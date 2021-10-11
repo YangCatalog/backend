@@ -4,15 +4,14 @@ import sys
 
 import requests
 from flask import current_app
-from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import SQLAlchemyError
-
-from api.models import User
 from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
+from redis import RedisError
+
+from utility.redisUsersConnection import ResisUsersConnection
 
 auth = HTTPBasicAuth()
-db = SQLAlchemy(engine_options={'future': True})
+users = None
 
 
 @auth.hash_password
@@ -37,9 +36,9 @@ def get_password(username: str):
         :return hashed password from database
     """
     try:
-        return db.session.query(User).filter_by(Username=username).first().Password
-    except SQLAlchemyError as err:
-        current_app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        return users.get_field(username, 'password').encode()
+    except RedisError as err:
+        current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
         return None
 
 
