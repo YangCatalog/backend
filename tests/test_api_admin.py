@@ -31,7 +31,6 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 
 ac = app.config
-db = ac.sqlalchemy
 
 
 class TestApiAdminClass(unittest.TestCase):
@@ -43,20 +42,12 @@ class TestApiAdminClass(unittest.TestCase):
 
     def setUp(self):
         user = User(Username='test', Password='test', Email='test')
-        with app.app_context():
-            db.session.add(user)
-            db.session.commit()
-            self.uid = user.Id
         self.patcher = mock.patch.object(flask_oidc.OpenIDConnect, 'user_loggedin')
         self.mock_user_loggedin = self.patcher.start()
         self.addCleanup(self.patcher.stop)
         self.mock_user_loggedin = True
 
-    def tearDown(self):
-        with app.app_context():
-            db.session.query(User).filter_by(Id=self.uid).delete()
-            db.session.commit()
-
+    @unittest.skip('removed mariadb')
     def test_catch_db_error(self):
         with app.app_context():
             def error():
@@ -500,24 +491,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('output', data)
         self.assertEqual(data['output'], ['test'])
 
-    def test_get_sql_tables(self):
-        result = self.client.get('api/admin/sql-tables')
-
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertEqual(data, [
-            {
-                'name': 'users',
-                'label': 'approved users'
-            },
-            {
-                'name': 'users_temp',
-                'label': 'users waiting for approval'
-            }
-        ])
-
-    @mock.patch.object(ac.sqlalchemy.session, 'add')
+    @unittest.skip('removed mariadb')
     def test_move_user(self, mock_add: mock.MagicMock):
         body = {'id': 2903574, 'username': 'name', 'access-rights-sdo': 'test'}
         result = self.client.post('api/admin/move-user',
@@ -535,6 +509,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(user.Username, 'name')
         self.assertEqual(user.AccessRightsSdo, 'test')
 
+    @unittest.skip('removed mariadb')
     def test_move_user_no_id(self):
         result = self.client.post('api/admin/move-user', json={'input': {}})
 
@@ -544,6 +519,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Id of a user is missing')
 
+    @unittest.skip('removed mariadb')
     def test_move_user_no_username(self):
         result = self.client.post('api/admin/move-user', json={'input': {'id': 1}})
 
@@ -562,7 +538,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add')
+    @unittest.skip('removed mariadb')
     def test_create_sql_row(self, mock_add: mock.MagicMock):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -578,7 +554,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], body['input'])
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add', new=mock.MagicMock())
+    @unittest.skip('removed mariadb')
     def test_create_sql_row_invalid_table(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -592,7 +568,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add', new=mock.MagicMock())
+    @unittest.skip('removed mariadb')
     def test_create_sql_row_args_missing(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -608,7 +584,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['description'], 'username - , firstname - test, last-name - test,'
                                               ' email - test and password - test must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add')
+    @unittest.skip('removed mariadb')
     def test_create_sql_row_missing_access_rights(self, mock_add: mock.MagicMock):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -622,7 +598,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'delete')
+    @unittest.skip('removed mariadb')
     def test_delete_sql_row(self, mock_delete: mock.MagicMock):
         mock_delete.side_effect = ac.sqlalchemy.session.expunge
         result = self.client.delete('api/admin/sql-tables/users/id/{}'.format(self.uid))
@@ -637,7 +613,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(isinstance(user, User))
         self.assertEqual(user.Id, self.uid)
 
-    @mock.patch.object(ac.sqlalchemy.session, 'delete')
+    @unittest.skip('removed mariadb')
     def test_delete_sql_row_invalid_table(self, mock_delete: mock.MagicMock):
         result = self.client.delete('api/admin/sql-tables/fake/id/{}'.format(self.uid))
 
@@ -647,7 +623,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'delete')
+    @unittest.skip('removed mariadb')
     def test_delete_sql_row_id_not_found(self, mock_delete: mock.MagicMock):
         result = self.client.delete('api/admin/sql-tables/users/id/24857629847625894258476')
 
@@ -657,7 +633,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'id 24857629847625894258476 not found in table users')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    @unittest.skip('removed mariadb')
     def test_update_sql_row(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
@@ -671,6 +647,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'ID {} updated successfully'.format(self.uid))
 
+    @unittest.skip('removed mariadb')
     def test_update_sql_row_invalid_table(self):
         result = self.client.put('api/admin/sql-tables/fake/id/24857629847625894258476')
 
@@ -680,7 +657,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('error', data)
         self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    @unittest.skip('removed mariadb')
     def test_update_sql_row_args_missing(self):
         result = self.client.put('api/admin/sql-tables/users/id/{}'.format(self.uid), json={'input': {}})
 
@@ -690,7 +667,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'username and email must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
+    @unittest.skip('removed mariadb')
     def test_update_sql_row_id_not_found(self):
         result = self.client.put('api/admin/sql-tables/users/id/24857629847625894258476')
 
@@ -700,6 +677,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'ID 24857629847625894258476 not found in table users')
 
+    @unittest.skip('removed mariadb')
     def test_get_sql_row(self):
         result = self.client.get('api/admin/sql-tables/users')
 
