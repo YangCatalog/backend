@@ -8,7 +8,7 @@ from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 from redis import RedisError
 
-from utility.redisUsersConnection import ResisUsersConnection
+from utility.redisUsersConnection import RedisUsersConnection
 
 auth = HTTPBasicAuth()
 users = None

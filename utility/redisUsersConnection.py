@@ -21,14 +21,23 @@ import datetime
 
 from redis import Redis
 
+import utility.log as log
+from utility.create_config import create_config
+
 class RedisUsersConnection:
 
     _universal_fields = ['username', 'password', 'email', 'models-provider', 'first-name', 'last-name', 'registration-datetime']
     _temp_fields = ['motivation']
     _appr_fields = ['access-rights-sdo', 'access-rights-vendor']
 
-    def __init__(self, redis_client: Redis):
-        self.redis = redis_client
+    def __init__(self):
+        config = create_config()
+        self._redis_host = config.get('DB-Section', 'redis-host')
+        self._redis_port = config.get('DB-Section', 'redis-port')
+        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=1)
+
+        self.log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('redisUsersConnection', '{}/redisUsersConnection.log'.format(self.log_directory))
 
     def exists(self, id: str) -> bool:
         return self.redis.sismember('users', id)
@@ -37,13 +46,14 @@ class RedisUsersConnection:
         return self.redis.hexists('usernames', username)
 
     def get_field(self, id: str, field: str) -> str:
-        self.redis.get('{}:{}'.format(id, field)).encode()
+        r = self.redis.get('{}:{}'.format(id, field))
+        return (r or b'').decode()
 
     def set_field(self, id: str, field: str, value: str) -> bool:
-        self.redis.set('{}:{}'.format(id, field), value)
+        return self.redis.set('{}:{}'.format(id, field), value)
 
-    def delete_field(self, id: str, field: str):
-        self.redis.delete('{}:{}'.format(id, field))
+    def delete_field(self, id: str, field: str) -> bool:
+        return self.redis.delete('{}:{}'.format(id, field))
 
     def is_approved(self, id: str) -> bool:
         return self.redis.sismember('approved', id)
@@ -51,7 +61,7 @@ class RedisUsersConnection:
     def is_temp(self, id: str) -> bool:
         return self.redis.sismember('temp', id)
 
-    def create(self, temp: bool, **kwargs):
+    def create(self, temp: bool, **kwargs) -> int:
         id = self.redis.incr('new-id')
         self.redis.sadd('users', id)
         self.redis.hset('usernames', kwargs['username'], id)
@@ -65,6 +75,7 @@ class RedisUsersConnection:
         else:
             for field in self._appr_fields:
                 self.set_field(id, field, kwargs[field.replace('-', '_')])
+        return id
 
     def delete(self, id: str, temp: bool):
         self.redis.hdel('usernames', self.get_field(id, 'username'))
@@ -81,13 +92,13 @@ class RedisUsersConnection:
 
     def approve(self, id: str, access_rights_sdo: str, access_rights_vendor: str):
         self.redis.srem('temp', id)
-        self.set_field('access-rights-sdo', access_rights_sdo)
-        self.set_field('access-rights-vendor', access_rights_vendor)
+        self.set_field(id, 'access-rights-sdo', access_rights_sdo)
+        self.set_field(id, 'access-rights-vendor', access_rights_vendor)
         self.redis.delete('{}:{}'.format(id, 'motivation'))
         self.redis.sadd('approved', id)
 
-    def get_all(self, status) -> set:
-        return self.redis.smembers(status)
+    def get_all(self, status) -> list:
+        return [id.decode() for id in self.redis.smembers(status)]
 
     def get_all_fields(self, id: str) -> dict:
         r = {}
@@ -99,3 +110,4 @@ class RedisUsersConnection:
         elif self.is_approved(id):
             for field in self._appr_fields:
                 r[field] = self.get_field(id, field)
+        return r

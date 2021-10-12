@@ -428,35 +428,20 @@ def get_logs():
                 'output': output}
     return response
 
-
-@bp.route('/api/admin/sql-tables', methods=['GET'])
-def get_sql_tables():
-    return jsonify([
-        {
-            'name': 'users',
-            'label': 'approved users'
-        },
-        {
-            'name': 'users_temp',
-            'label': 'users waiting for approval'
-        }
-    ])
-
-
 @bp.route('/api/admin/move-user', methods=['POST'])
 @catch_db_error
 def move_user():
     body = get_input(request.json)
-    unique_id = body.get('id')
+    id = body.get('id')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
-    if unique_id is None:
+    if id is None:
         abort(400, description='id of a user is missing')
     if sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
 
     users.approve(id, sdo_access, vendor_access)
-    response = {'info': 'data successfully added to database users and removed from users_temp',
+    response = {'info': 'user successfully approved',
                 'data': body}
     return (response, 201)
 
@@ -481,24 +466,25 @@ def create_sql_row(status):
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
-    if status is 'approved' and not sdo_access or vendor_access:
+    if status is 'approved' and not (sdo_access or vendor_access):
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     fields = {
         'username': username,
         'password': hashed_password,
-        'first-name': first_name,
-        'last-name': last_name,
+        'first_name': first_name,
+        'last_name': last_name,
         'email': email,
-        'models-provider': models_provider
+        'models_provider': models_provider
     }
     if status == 'temp':
         fields['motivation'] = motivation
     elif status == 'approved':
-        fields['access-rights-sdo'] = sdo_access
-        fields['access-rights-vendor'] = vendor_access
-    users.create(temp=True if status == 'temp' else False, **fields)
+        fields['access_rights_sdo'] = sdo_access
+        fields['access_rights_vendor'] = vendor_access
+    id = users.create(temp=True if status == 'temp' else False, **fields)
     response = {'info': 'data successfully added to database',
-                'data': body}
+                'data': body,
+                'id': id}
     return (response, 201)
 
 
@@ -509,7 +495,7 @@ def delete_user(status, id):
         return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
     if not users.exists(id):
         abort(404, description='id {} not found with status {}'.format(id, status))
-    users.delete(id)
+    users.delete(id, temp=True if status == 'temp' else False)
     return {'info': 'id {} deleted successfully'.format(id)}
 
 

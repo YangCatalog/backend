@@ -187,7 +187,7 @@ class MyFlask(Flask):
             host=self.config.db_redis_host,
             port=self.config.db_redis_port
         )
-        self.config['REDIS-USERS'] = RedisUsersConnection(self.config.redis)
+        self.config['REDIS-USERS'] = RedisUsersConnection()
         auth.users = self.config.redis_users
         self.check_wait_redis_connected()
 
