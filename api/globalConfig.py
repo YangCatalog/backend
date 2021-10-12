@@ -23,7 +23,6 @@ from threading import Lock
 import redis
 from elasticsearch import Elasticsearch
 from flask_oidc import OpenIDConnect
-from flask_sqlalchemy import SQLAlchemy
 from utility import log
 from utility.create_config import create_config
 
@@ -36,7 +35,6 @@ class YangCatalogApiGlobalConfig():
     def __init__(self):
         config = create_config()
         self.oidc = OpenIDConnect()
-        self.sqlalchemy = SQLAlchemy(engine_options={'future': True})
         self.lock_uwsgi_cache1 = Lock()
         self.lock_uwsgi_cache2 = Lock()
         self.load_config()
@@ -48,11 +46,6 @@ class YangCatalogApiGlobalConfig():
         self.nginx_dir = config.get('Directory-Section', 'nginx-conf', fallback='')
         self.result_dir = config.get('Web-Section', 'result-html-dir', fallback='tests/resources/html/results')
         self.private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
-        self.dbHost = config.get('DB-Section', 'host', fallback='127.0.0.1')
-        self.dbName = config.get('DB-Section', 'name-users', fallback='yang_catalog')
-        self.dbNameSearch = config.get('DB-Section', 'name-search', fallback='yang')
-        self.dbUser = config.get('DB-Section', 'user', fallback='yang')
-        self.dbPass = config.get('Secrets-Section', 'mysql-password', fallback='pass')
         self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
         self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')

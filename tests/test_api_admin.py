@@ -27,7 +27,6 @@ import api.views.admin.admin as admin
 import flask_oidc
 from api.models import User
 from api.yangCatalogApi import app
-from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.exceptions import HTTPException
 
 ac = app.config

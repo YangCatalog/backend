@@ -10,7 +10,6 @@ jobs:
       matrix:
         python-version: [3.8, 3.9]
         redis-version: [6]
-        mariadb-version: [10.5.12-focal]
 
     steps:
       - uses: actions/checkout@v2
@@ -23,14 +22,6 @@ jobs:
         uses: supercharge/redis-github-action@1.2.0
         with:
           redis-version: ${{ matrix.redis-version }}
-
-      - name: Setup MariaDB ${{ matrix.mariadb-version }}
-        uses: getong/mariadb-action@v1.1
-        with:
-          mariadb version: ${{ matrix.mariadb-version }}
-          mysql database: yang_catalog
-          mysql user: yang
-          mysql password: pass
 
       - name: Prepare environment
         run: |

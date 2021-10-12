@@ -213,8 +213,6 @@ if __name__ == '__main__':
 
         LOGGER.info('Removing old cache json files')
         remove_old_backups('confd')
-        LOGGER.info('Removing old MariaDB backups')
-        remove_old_backups('mariadb')
     except Exception as e:
         LOGGER.exception('Exception found while running removeUnused script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
