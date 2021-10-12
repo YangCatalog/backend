@@ -25,7 +25,6 @@ from unittest import mock
 
 import api.views.admin.admin as admin
 import flask_oidc
-from api.models import User
 from api.yangCatalogApi import app
 from werkzeug.exceptions import HTTPException
 
@@ -40,7 +39,6 @@ class TestApiAdminClass(unittest.TestCase):
         self.client = app.test_client()
 
     def setUp(self):
-        user = User(Username='test', Password='test', Email='test')
         self.patcher = mock.patch.object(flask_oidc.OpenIDConnect, 'user_loggedin')
         self.mock_user_loggedin = self.patcher.start()
         self.addCleanup(self.patcher.stop)
