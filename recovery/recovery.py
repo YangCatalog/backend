@@ -143,7 +143,7 @@ def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: l
                     LOGGER.info('Request failed with {}'.format(response.text))
 
 
-def feed_redis_from_confd(redis_cache: redis.Redis, catalog_data: collections.OrderedDict, LOGGER: logging.Logger):
+def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: collections.OrderedDict, LOGGER: logging.Logger):
     redis_cache.set('modules-data', '{}')
     redis_cache.set('vendors-data', '{}')
     redis_cache.set('all-catalog-data', '{}')
@@ -226,7 +226,7 @@ def main(scriptConf=None):
 
     tries = 4
     try:
-        response = confdService.head_catalog()
+        response = confdService.head_confd()
         LOGGER.info('Status code for HEAD request {} '.format(response.status_code))
     except ConnectionError as e:
         if tries == 0:
@@ -240,10 +240,11 @@ def main(scriptConf=None):
 
     if 'save' == args.type:
         # ConfD backup
-        file_save = open(os.path.join(confd_backups, '{}.json'.format(args.name_save)), 'w')
         jsn = confdService.get_catalog_data().json()
-        file_save.write(json.dumps(jsn))
-        file_save.close()
+        confd_backup_file = os.path.join(confd_backups, '{}.json'.format(args.name_save))
+        with open(confd_backup_file, 'w') as file_save:
+            json.dump(jsn, file_save)
+        LOGGER.info('Data dumped into {}'.format(confd_backup_file))
         num_of_modules = 0 if not jsn['yang-catalog:catalog'].get('modules', {}).get('module') \
             else len(jsn['yang-catalog:catalog'].get('modules').get('module'))
         num_of_vendors = 0 if not jsn['yang-catalog:catalog'].get('vendors', {}).get('vendor') \
@@ -268,33 +269,37 @@ def main(scriptConf=None):
             list_of_backups = get_list_of_backups(confd_backups)
             file_name = os.path.join(confd_backups, ''.join(list_of_backups[-1]))
 
+        catalog_data = None
+        response = confdService.head_catalog()
+        if response.status_code == 204:
+            with open(file_name, 'r') as file_load:
+                LOGGER.info('Loading file {}'.format(file_load.name))
+                catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
+
+            LOGGER.info('Loading data into ConfD')
+            catalog = catalog_data.get('yang-catalog:catalog')
+
+            LOGGER.info('Starting to add modules')
+            feed_confd_modules(catalog['modules']['module'], confdService, LOGGER)
+
+            LOGGER.info('Starting to add vendors')
+            feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
+
         redis_cache = redis.Redis(host=redis_host, port=redis_port)
 
         data = redis_cache.get('modules-data')
         redis_modules = '{}' if data is None else data.decode('utf-8')
-        data = redis_cache.get('vendors-data')
-        redis_vendors = '{"vendor": []}' if data is None else data.decode('utf-8')
         data = redis_cache.get('yang-catalog@2018-04-03/ietf')
         yang_catalog_module = '{}' if data is None else data.decode('utf-8')
 
         if '{}' in (redis_modules, yang_catalog_module):
             # Feed Redis fron ConfD
-            LOGGER.info('Loading data from JSON file into ConfD and Redis')
-            with open(file_name, 'r') as file_load:
-                LOGGER.info('Loading file {}'.format(file_load.name))
-                catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
-            feed_confd_from_json(catalog_data, confdService, LOGGER)
-            feed_redis_from_confd(redis_cache, catalog_data, LOGGER)
-        else:
-            LOGGER.info('Loading data from Redis into ConfD')
-            clean_redis_modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(redis_modules)
-            clean_redis_vendors = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(redis_vendors)
-
-            LOGGER.info('Starting to add modules')
-            feed_confd_modules(clean_redis_modules['module'], confdService, LOGGER)
-
-            LOGGER.info('Starting to add vendors')
-            feed_confd_vendors(clean_redis_vendors['vendor'], confdService, LOGGER)
+            LOGGER.info('Loading data from JSON file into Redis')
+            if catalog_data is None:
+                with open(file_name, 'r') as file_load:
+                    LOGGER.info('Loading file {}'.format(file_load.name))
+                    catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
+            feed_redis_from_json(redis_cache, catalog_data, LOGGER)
 
     LOGGER.info('Job finished successfully')
 

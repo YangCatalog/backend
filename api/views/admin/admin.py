@@ -53,11 +53,13 @@ bp = YangCatalogAdminBlueprint('admin', __name__)
 CORS(bp, supports_credentials=True)
 oidc = OpenIDConnect()
 
+
 @bp.before_request
 def set_config():
     global ac, users
     ac = app.config
     users = ac.redis_users
+
 
 def catch_db_error(f):
     @wraps(f)
@@ -559,7 +561,6 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = ac.sender.send('#'.join(arguments))
 
-    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
