@@ -606,7 +606,7 @@ def get_job(job_id):
 
 def get_user_access_rights(username: str, is_vendor: bool = False):
     """
-    Create MySQL connection and execute query to get information about user by given username.
+    Query Redis for information about the user by given username.
 
     Arguments:
         :param username     (str) authorized user's username
