@@ -450,7 +450,7 @@ def move_user():
 
 @bp.route('/api/admin/users/<status>', methods=['POST'])
 @catch_db_error
-def create_sql_row(status):
+def create_user(status):
     if status not in ['temp', 'approved']:
         return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
     body = get_input(request.json)
@@ -503,7 +503,7 @@ def delete_user(status, id):
 
 @bp.route('/api/admin/users/<status>/id/<id>', methods=['PUT'])
 @catch_db_error
-def update_sql_row(status, id):
+def update_user(status, id):
     if status not in ['temp', 'approved']:
         return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
     if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):

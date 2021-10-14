@@ -58,9 +58,9 @@ def set_config():
 @bp.route('/services-list', methods=['GET'])
 def get_services_list():
     response_body = []
-    service_endpoints = ['my-sql', 'elk', 'confd', 'redis-admin', 'yang-search-admin', 'yang-validator-admin',
+    service_endpoints = ['elk', 'confd', 'redis-admin', 'yang-search-admin', 'yang-validator-admin',
                          'yangre-admin', 'nginx', 'rabbitmq', 'yangcatalog']
-    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'Redis', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog']
+    service_names = ['Elasticsearch', 'ConfD', 'Redis', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog']
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
         response_body.append(pair)
