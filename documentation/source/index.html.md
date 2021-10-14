@@ -52,8 +52,8 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "modules": {
-     "module": [
-     {
+    "module": [
+      {
         "name": "example-jukebox",
         "revision": "2014-01-20",
         "organization": "example",
@@ -136,21 +136,19 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "modules": {
-     "module": [
-     {
-        "name": "example-jukebox",
-        "revision": "2014-01-20",
-        "organization": "example",
-        "maturity-level": "ratified",
-        "author-email": "foo@bar.com",
-        "module-classification": "network-element",
-        "source-file": {
-          "repository": "foo",
-          "owner": "bar",
-          "path": "standard/ietf/DRAFT/example-jukebox.yang"
-        }
+    "module": [{
+      "name": "example-jukebox",
+      "revision": "2014-01-20",
+      "organization": "example",
+      "maturity-level": "ratified",
+      "author-email": "foo@bar.com",
+      "module-classification": "network-element",
+      "source-file": {
+        "repository": "foo",
+        "owner": "bar",
+        "path": "standard/ietf/DRAFT/example-jukebox.yang"
       }
-    ]
+    }]
   }
 }
 ```
@@ -227,13 +225,13 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
         "vendor": "example",
         "name": "baz",
         "module-list-file": {
-           "type": "capabilities",
-           "repository": "foo",
-           "owner": "bar",
-           "path": "vendor/example/baz/baz-netconf-capability.xml"
+          "type": "capabilities",
+          "repository": "foo",
+          "owner": "bar",
+          "path": "vendor/example/baz/baz-netconf-capability.xml"
         },
         "platform-ids": [
-           "BAZ4000", "BAZ4100"
+          "BAZ4000", "BAZ4100"
         ],
         "software-flavor": "ALL",
         "software-version": "1.2.3",
@@ -317,13 +315,13 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
         "vendor": "example",
         "name": "baz",
         "module-list-file": {
-           "type": "capabilities",
-           "repository": "foo",
-           "owner": "bar",
-           "path": "vendor/example/baz/baz-netconf-capability.xml"
+          "type": "capabilities",
+          "repository": "foo",
+          "owner": "bar",
+          "path": "vendor/example/baz/baz-netconf-capability.xml"
         },
         "platform-ids": [
-           "BAZ4000", "BAZ4100"
+          "BAZ4000", "BAZ4100"
         ],
         "software-flavor": "ALL",
         "software-version": "1.2.3",
@@ -403,13 +401,11 @@ curl -X DELETE -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "input": {
-    "modules": [
-      {
+    "modules": [{
         "name": "<name>",
         "revision": "<revision>",
         "organization": "<organization>"
-      }
-    ]
+    }]
   }
 }
 ```
@@ -556,13 +552,13 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 > The above command returns JSON structured like this:
 
 ```json
-  {
-    "info": {
-      "job-id": "88bd8c4c-8809-4de8-85c8-39d522d4bcdf",
-      "reason": null,
-      "result": "In progress"
-    }
+{
+  "info": {
+    "job-id": "88bd8c4c-8809-4de8-85c8-39d522d4bcdf",
+    "reason": null,
+    "result": "In progress"
   }
+}
 ```
 
 This endpoint serves to get the job status which can be either 'Failed', 'In progress', or 'Finished successfully'.
@@ -800,31 +796,31 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/ve
 
 ```json
 {
-    "IOS-XE": {
-        "16.10.1": [
-            "CAT9300",
-            "IR1101",
-            "ASR1000",
-            "ASR920",
-            "ISR4000",
-            "NCS520",
-            "ISR1000",
-            "CSR1000V",
-            "ASR900",
-            "CAT9500",
-            "CAT9400",
-            "NCS4200",
-            "CBR-8",
-            "CAT9800"
-        ],
-        "16.11.1": [
-            "CAT3650",
-            "IE3x00",
-            "CAT9300",
-            "CAT9200",
-        .
-        .
-        .
+  "IOS-XE": {
+    "16.10.1": [
+      "CAT9300",
+      "IR1101",
+      "ASR1000",
+      "ASR920",
+      "ISR4000",
+      "NCS520",
+      "ISR1000",
+      "CSR1000V",
+      "ASR900",
+      "CAT9500",
+      "CAT9400",
+      "NCS4200",
+      "CBR-8",
+      "CAT9800"
+    ],
+    "16.11.1": [
+      "CAT3650",
+      "IE3x00",
+      "CAT9300",
+      "CAT9200",
+    .
+    .
+    .
 ```
 
 This endpoint serves to get all the platforms where a specific organization has yang modules.
@@ -863,7 +859,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/<p
         "revision": "2017-06-27",
         "organization": "ietf",
         "ietf": {
-            "ietf-wg": "netmod"
+          "ietf-wg": "netmod"
         },
         "namespace": "urn:ietf:params:xml:ns:yang:example-iana-if-type",
         "schema": "https://raw.githubusercontent.com/YangModels/yang/master/experimental/ietf-extracted-YANG-modules/example-iana-if-type@2017-06-27.yang",
@@ -900,7 +896,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/search/<p
         "revision": "2017-06-27",
         "organization": "ietf",
         "ietf": {
-            "ietf-wg": "netmod"
+          "ietf-wg": "netmod"
         .
         .
         .
@@ -1207,61 +1203,61 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 {
   "output": [
     {
-            "compilation-result": "https://yangcatalog.org/results/Cisco-IOS-XE-umbrella@2017-08-30_cisco.html",
-            "compilation-status": "failed",
-            "contact": "Cisco Systems, Inc.\nCustomer Service\n\nPostal: 170 W Tasman Drive\nSan Jose, CA 95134\n\nTel: +1 1800 553-NETS\n\nE-mail: cs-yang@cisco.com",
-            "dependencies": [
-                {
-                    "name": "Cisco-IOS-XE-native",
-                    "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/cisco/xe/1662/Cisco-IOS-XE-native.yang"
-                },
-                {
-                    "name": "ietf-inet-types",
-                    "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/cisco/xe/1662/ietf-inet-types.yang"
-                }
-            ],
-            "derived-semantic-version": "1.0.0",
-            "description": "Cisco XE Native Umbrella Yang model.\nCopyright (c) 2017 by Cisco Systems, Inc.\nAll rights reserved.",
-            "expired": "not-applicable",
-            "generated-from": "native",
-            "implementations": {
-                "implementation": [
-                    {
-                        "conformance-type": "implement",
-                        "feature-set": "ALL",
-                        "os-type": "IOS-XE",
-                        "os-version": "16.6.2",
-                        "platform": "CSR1000V",
-                        "software-flavor": "ALL",
-                        "software-version": "16.6.2",
-                        "vendor": "cisco"
-                    },
-                    {
-                        "conformance-type": "implement",
-                        "feature-set": "ALL",
-                        "os-type": "IOS-XE",
-                        "os-version": "16.6.2",
-                        "platform": "ISR4000",
-                        "software-flavor": "ALL",
-                        "software-version": "16.6.2",
-                        "vendor": "cisco"
-                    }
-                ]
-            },
-            "maturity-level": "not-applicable",
-            "module-classification": "unknown",
-            "module-type": "module",
-            "name": "Cisco-IOS-XE-umbrella",
-            "namespace": "http://cisco.com/ns/yang/Cisco-IOS-XE-umbrella",
-            "organization": "cisco",
-            "prefix": "ios-umbrella",
-            "reason-to-show": "New module",
-            "revision": "2017-08-30",
-            "schema": "https://raw.githubusercontent.com/YangModels/yang/0aa291b720ee6f013966f9bcbea9375671457ee9/vendor/cisco/xe/1662/Cisco-IOS-XE-umbrella.yang",
-            "tree-type": "nmda-compatible",
-            "yang-tree": "https://yangcatalog.org/api/services/tree/Cisco-IOS-XE-umbrella@2017-08-30.yang",
-            "yang-version": "1.0"
+      "compilation-result": "https://yangcatalog.org/results/Cisco-IOS-XE-umbrella@2017-08-30_cisco.html",
+      "compilation-status": "failed",
+      "contact": "Cisco Systems, Inc.\nCustomer Service\n\nPostal: 170 W Tasman Drive\nSan Jose, CA 95134\n\nTel: +1 1800 553-NETS\n\nE-mail: cs-yang@cisco.com",
+      "dependencies": [
+        {
+          "name": "Cisco-IOS-XE-native",
+          "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/cisco/xe/1662/Cisco-IOS-XE-native.yang"
         },
+        {
+          "name": "ietf-inet-types",
+          "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/cisco/xe/1662/ietf-inet-types.yang"
+        }
+      ],
+      "derived-semantic-version": "1.0.0",
+      "description": "Cisco XE Native Umbrella Yang model.\nCopyright (c) 2017 by Cisco Systems, Inc.\nAll rights reserved.",
+      "expired": "not-applicable",
+      "generated-from": "native",
+      "implementations": {
+        "implementation": [
+          {
+            "conformance-type": "implement",
+            "feature-set": "ALL",
+            "os-type": "IOS-XE",
+            "os-version": "16.6.2",
+            "platform": "CSR1000V",
+            "software-flavor": "ALL",
+            "software-version": "16.6.2",
+            "vendor": "cisco"
+          },
+          {
+            "conformance-type": "implement",
+            "feature-set": "ALL",
+            "os-type": "IOS-XE",
+            "os-version": "16.6.2",
+            "platform": "ISR4000",
+            "software-flavor": "ALL",
+            "software-version": "16.6.2",
+            "vendor": "cisco"
+          }
+        ]
+      },
+      "maturity-level": "not-applicable",
+      "module-classification": "unknown",
+      "module-type": "module",
+      "name": "Cisco-IOS-XE-umbrella",
+      "namespace": "http://cisco.com/ns/yang/Cisco-IOS-XE-umbrella",
+      "organization": "cisco",
+      "prefix": "ios-umbrella",
+      "reason-to-show": "New module",
+      "revision": "2017-08-30",
+      "schema": "https://raw.githubusercontent.com/YangModels/yang/0aa291b720ee6f013966f9bcbea9375671457ee9/vendor/cisco/xe/1662/Cisco-IOS-XE-umbrella.yang",
+      "tree-type": "nmda-compatible",
+      "yang-tree": "https://yangcatalog.org/api/services/tree/Cisco-IOS-XE-umbrella@2017-08-30.yang",
+      "yang-version": "1.0"
+    },
     .
     .
     .
@@ -2176,7 +2172,7 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "input": {
-     "data": "Updated text for given file"
+    "data": "Updated text for given file"
   }
 }
 ```
@@ -2185,8 +2181,8 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "data":"output of the file that has been updated",
-    "info":"Success"
+  "data":"output of the file that has been updated",
+  "info":"Success"
 }
 ```
 
@@ -2303,11 +2299,11 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yan
 
 ```json
 {
-    "data": [
-         "list of",
-         "nginx files"
-     ],
-    "info":"Success"
+  "data": [
+    "list of",
+    "nginx files"
+  ],
+  "info":"Success"
 }
 ```
 
@@ -2339,8 +2335,8 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yan
 
 ```json
 {
-    "data": "nginx file output",
-    "info":"Success"
+  "data": "nginx file output",
+  "info":"Success"
 }
 ```
 
@@ -2378,8 +2374,8 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/yan
 
 ```json
 {
-    "data": "yangcatalog config file output",
-    "info":"Success"
+  "data": "yangcatalog config file output",
+  "info":"Success"
 }
 ```
 
@@ -2425,8 +2421,8 @@ curl -X PUT -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "new-data":"output of the yangcatalog config file that has been updated",
-    "info":"Success"
+  "new-data":"output of the yangcatalog config file that has been updated",
+  "info":"Success"
 }
 ```
 
@@ -2498,20 +2494,20 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "input": {
-	    "file-names": "yang",
-	    "lines-per-page": 1000,
-	    "page": 1,
-        "from-date": null,
-        "to-date": null,
-		"filter": {
-			"filter-out": "pika",
-            "match-cases": false,
-            "match-words": false,
-            "search-for": "",
-            "level": "INFO"
-		}
+  "input": {
+    "file-names": "yang",
+    "lines-per-page": 1000,
+    "page": 1,
+    "from-date": null,
+    "to-date": null,
+    "filter": {
+      "filter-out": "pika",
+      "match-cases": false,
+      "match-words": false,
+      "search-for": "",
+      "level": "INFO"
     }
+  }
 }
 ```
 
@@ -2519,17 +2515,17 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "meta": {
-        "file-names": ["list of", "log files"],
-        "from-date": "timestamp same as from request",
-        "to-data": "timestamp same as from request",
-        "lines--per-page": 1000,
-        "page": 1,
-        "pages": 72,
-        "filter": "same object as from request",
-        "format": true
-    },
-    "output": "Ouptut text from log files"
+  "meta": {
+    "file-names": ["list of", "log files"],
+    "from-date": "timestamp same as from request",
+    "to-data": "timestamp same as from request",
+    "lines--per-page": 1000,
+    "page": 1,
+    "pages": 72,
+    "filter": "same object as from request",
+    "format": true
+  },
+  "output": "Ouptut text from log files"
 }
 ```
 
@@ -2561,14 +2557,14 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
 
 ```json
 [
-    {
-        "label":"approved users",
-        "name":"users"
-    },
-    {
-        "label":"users waiting for approval",
-        "name":"users_temp"
-    }
+  {
+    "label":"approved users",
+    "name":"users"
+  },
+  {
+    "label":"users waiting for approval",
+    "name":"users_temp"
+  }
 ]
 ```
 
@@ -2604,15 +2600,15 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "input": {
-	    "models-provider": " Cisco Systems, Inc",
-	    "access-rights-sdo": "ietf",
-	    "access-rights-vendor": "cisco",
-        "username": "foo-bar",
-        "first-name": "bar",
-		"last-name":"foo",
-        "email": "foo-bar@bar.com"
-    }
+  "input": {
+    "models-provider": " Cisco Systems, Inc",
+    "access-rights-sdo": "ietf",
+    "access-rights-vendor": "cisco",
+    "username": "foo-bar",
+    "first-name": "bar",
+    "last-name":"foo",
+    "email": "foo-bar@bar.com"
+  }
 }
 ```
 
@@ -2620,16 +2616,16 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "info": "data successfully added to database users and removed from users_temp",
-    "data": {
-        "models-provider": " Cisco Systems, Inc",
-	    "access-rights-sdo": "ietf",
-	    "access-rights-vendor": "cisco",
-        "username": "foo-bar",
-        "first-name": "bar",
-		"last-name":"foo",
-        "email": "foo-bar@bar.com"
-    }
+  "info": "data successfully added to database users and removed from users_temp",
+  "data": {
+    "models-provider": " Cisco Systems, Inc",
+    "access-rights-sdo": "ietf",
+    "access-rights-vendor": "cisco",
+    "username": "foo-bar",
+    "first-name": "bar",
+    "last-name":"foo",
+    "email": "foo-bar@bar.com"
+  }
 }
 ```
 
@@ -2666,16 +2662,16 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "input": {
-	    "models-provider": " Cisco Systems, Inc",
-	    "access-rights-sdo": "ietf",
-	    "access-rights-vendor": "cisco",
-        "username": "foo-bar",
-        "first-name": "bar",
-		"last-name":"foo",
-        "email": "foo-bar@bar.com",
-        "password": "something secret"
-    }
+  "input": {
+    "models-provider": " Cisco Systems, Inc",
+    "access-rights-sdo": "ietf",
+    "access-rights-vendor": "cisco",
+    "username": "foo-bar",
+    "first-name": "bar",
+    "last-name":"foo",
+    "email": "foo-bar@bar.com",
+    "password": "something secret"
+  }
 }
 ```
 
@@ -2683,17 +2679,17 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "info": "data successfully added to database",
-    "data": {
-        "models-provider": " Cisco Systems, Inc",
-	    "access-rights-sdo": "ietf",
-	    "access-rights-vendor": "cisco",
-        "username": "foo-bar",
-        "first-name": "bar",
-		"last-name":"foo",
-        "email": "foo-bar@bar.com",
-        "password": "something secret"
-    }
+  "info": "data successfully added to database",
+  "data": {
+    "models-provider": " Cisco Systems, Inc",
+    "access-rights-sdo": "ietf",
+    "access-rights-vendor": "cisco",
+    "username": "foo-bar",
+    "first-name": "bar",
+    "last-name":"foo",
+    "email": "foo-bar@bar.com",
+    "password": "something secret"
+  }
 }
 ```
 
@@ -2702,7 +2698,7 @@ This is used with the admin UI.
 
 ### HTTP Request
 
-`POST https://yangcatalog.org/api/admin/sql-tables/<table>`
+`POST https://yangcatalog.org/api/admin/users/<status>`
 
 <aside class="warning">
 This URL works only after you are signed in using single sign on from ietf and after a token has been received and
@@ -2713,7 +2709,7 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 Parameter | Description
 --------- | -----------
-table | Name of the mysql table you want to use
+status | Name of the mysql table you want to use
 
 ## Delete user
 
@@ -2765,30 +2761,29 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
 
 ```json
 [
-    {
-        "access-rights-sdo":"bbf",
-        "access-rights-vendor":"",
-        "email":"fooo@broadband-forum.org",
-        "first-name":"fooo",
-        "id":4,
-        "last-name":"bar",
-        "models-provider":"Broadband Forum",
-        "username":"fooo-bar"
-    },
-    {
-        "access-rights-sdo":"huawei",
-        "access-rights-vendor":"huawei",
-        "email":"fooo2@huawei.com",
-        "first-name":"fooo2",
-        "id":5,
-        "last-name":"bar",
-        "models-provider":"Huawei Tech.",
-        "username":"fooo-bar2"
-    }
-.
-.
-.
-]
+  {
+    "access-rights-sdo":"bbf",
+    "access-rights-vendor":"",
+    "email":"fooo@broadband-forum.org",
+    "first-name":"fooo",
+    "id":4,
+    "last-name":"bar",
+    "models-provider":"Broadband Forum",
+    "username":"fooo-bar"
+  },
+  {
+    "access-rights-sdo":"huawei",
+    "access-rights-vendor":"huawei",
+    "email":"fooo2@huawei.com",
+    "first-name":"fooo2",
+    "id":5,
+    "last-name":"bar",
+    "models-provider":"Huawei Tech.",
+    "username":"fooo-bar2"
+  }
+  .
+  .
+  .
 ```
 
 This endpoint serves to list all the rows from the specified sql table that exists in yangcatalog.org.
@@ -2826,19 +2821,19 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
 
 ```json
 {
-    "data":[
-        "populate",
-        "runCapabilities",
-        "draftPull",
-        "draftPullLocal",
-        "openconfigPullLocal",
-        "statistics",
-        "recovery",
-        "elkRecovery",
-        "elkFill",
-        "resolveExpiration"
-    ],
-    "info":"Success"
+  "data":[
+    "populate",
+    "runCapabilities",
+    "draftPull",
+    "draftPullLocal",
+    "openconfigPullLocal",
+    "statistics",
+    "recovery",
+    "elkRecovery",
+    "elkFill",
+    "resolveExpiration"
+  ],
+  "info":"Success"
 }
 ```
 
@@ -2870,76 +2865,76 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
 
 ```json
 {
-    "data":{
-        "api":{
-            "default":false,
-            "type":"bool"
-        },
-        "api_ip":{
-            "default":"yangcatalog.org",
-            "type":"str"
-        },
-        "api_port":{
-            "default":"8443",
-            "type":"int"
-        },
-        "api_protocol":{
-            "default":"https",
-            "type":"str"
-        },
-        "dir":{
-            "default":"/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
-            "type":"str"
-        },
-        "force_indexing":{
-            "default":false,
-            "type":"bool"
-        },
-        "ip":{
-            "default":"yc_confd_1",
-            "type":"str"
-        },
-        "notify_indexing":{
-            "default":false,
-            "type":"bool"
-        },
-        "port":{
-            "default":"8008",
-            "type":"int"
-        },
-        "protocol":{
-            "default":"http",
-            "type":"str"
-        },
-        "result_html_dir":{
-            "default":"/usr/share/nginx/html/results",
-            "type":"str"
-        },
-        "save_file_dir":{
-            "default":"/var/yang/all_modules",
-            "type":"str"
-        },
-        "sdo":{
-            "default":false,
-            "type":"bool"
-        }
+  "data":{
+    "api":{
+      "default":false,
+      "type":"bool"
     },
-    "help":"Parse hello messages and YANG files to JSON dictionary. These dictionaries are used for populating a yangcatalog. This script runs first a runCapabilities.py script to create a JSON files which are used to populate database.",
-    "options":{
-        "api":"If request came from api",
-        "api_ip":"Set host address where the API is started. Default: yangcatalog.org",
-        "api_port":"Whether API runs on http or https (This will be ignored if we are using uwsgi). Default: https",
-        "api_protocol":"Whether API runs on http or https. Default: https",
-        "dir":"Set dir where to look for hello message xml files or yang files if using \"sdo\" option",
-        "force_indexing":"Force to index files. Works only in notify-indexing is True",
-        "ip":"Set host address where the Confd is started. Default: yc_confd_1",
-        "notify_indexing":"Whether to send files for indexing",
-        "port":"Set port where the Confd is started. Default: 8008",
-        "protocol":"Whether Confd runs on http or https. Default: http",
-        "result_html_dir":"Set dir where to write HTML compilation result files. Default: /usr/share/nginx/html/results",
-        "save_file_dir":"Directory where the yang file will be saved. Default: /var/yang/all_modules",
-        "sdo":"If we are processing sdo or vendor yang modules"
+    "api_ip":{
+      "default":"yangcatalog.org",
+      "type":"str"
+    },
+    "api_port":{
+      "default":"8443",
+      "type":"int"
+    },
+    "api_protocol":{
+      "default":"https",
+      "type":"str"
+    },
+    "dir":{
+      "default":"/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
+      "type":"str"
+    },
+    "force_indexing":{
+      "default":false,
+      "type":"bool"
+    },
+    "ip":{
+      "default":"yc_confd_1",
+      "type":"str"
+    },
+    "notify_indexing":{
+      "default":false,
+      "type":"bool"
+    },
+    "port":{
+      "default":"8008",
+      "type":"int"
+    },
+    "protocol":{
+      "default":"http",
+      "type":"str"
+    },
+    "result_html_dir":{
+      "default":"/usr/share/nginx/html/results",
+      "type":"str"
+    },
+    "save_file_dir":{
+      "default":"/var/yang/all_modules",
+      "type":"str"
+    },
+    "sdo":{
+      "default":false,
+      "type":"bool"
     }
+  },
+  "help":"Parse hello messages and YANG files to JSON dictionary. These dictionaries are used for populating a yangcatalog. This script runs first a runCapabilities.py script to create a JSON files which are used to populate database.",
+  "options":{
+    "api":"If request came from api",
+    "api_ip":"Set host address where the API is started. Default: yangcatalog.org",
+    "api_port":"Whether API runs on http or https (This will be ignored if we are using uwsgi). Default: https",
+    "api_protocol":"Whether API runs on http or https. Default: https",
+    "dir":"Set dir where to look for hello message xml files or yang files if using \"sdo\" option",
+    "force_indexing":"Force to index files. Works only in notify-indexing is True",
+    "ip":"Set host address where the Confd is started. Default: yc_confd_1",
+    "notify_indexing":"Whether to send files for indexing",
+    "port":"Set port where the Confd is started. Default: 8008",
+    "protocol":"Whether Confd runs on http or https. Default: http",
+    "result_html_dir":"Set dir where to write HTML compilation result files. Default: /usr/share/nginx/html/results",
+    "save_file_dir":"Directory where the yang file will be saved. Default: /var/yang/all_modules",
+    "sdo":"If we are processing sdo or vendor yang modules"
+  }
 }
 ```
 
@@ -3035,12 +3030,12 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/dis
 
 ```json
 {
-    "data":{
-        "free": 205436604416,
-        "total": 416291377152,
-        "used": 210837995520
-    },
-    "info":"Success"
+  "data":{
+    "free": 205436604416,
+    "total": 416291377152,
+    "used": 210837995520
+  },
+  "info":"Success"
 }
 ```
 
@@ -3089,38 +3084,38 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 [
-    {
-        "endpoint": "my-sql",
-        "name": "MySQL"
-    },
-    {
-        "endpoint": "elk",
-        "name": "Elasticsearch"
-    },
-    {
-        "endpoint": "confd",
-        "name": "ConfD"
-    },
-    {
-        "endpoint": "yang-search-admin",
-        "name": "YANG search"
-    },
-    {
-        "endpoint": "yang-validator-admin",
-        "name": "YANG validator"
-    },
-    {
-        "endpoint": "yangre-admin",
-        "name": "YANGre"
-    },
-    {
-        "endpoint": "nginx",
-        "name": "NGINX"
-    },
-    {
-        "endpoint": "rabbitmq",
-        "name": "RabbitMQ"
-    }
+  {
+    "endpoint": "my-sql",
+    "name": "MySQL"
+  },
+  {
+    "endpoint": "elk",
+    "name": "Elasticsearch"
+  },
+  {
+    "endpoint": "confd",
+    "name": "ConfD"
+  },
+  {
+    "endpoint": "yang-search-admin",
+    "name": "YANG search"
+  },
+  {
+    "endpoint": "yang-validator-admin",
+    "name": "YANG validator"
+  },
+  {
+    "endpoint": "yangre-admin",
+    "name": "YANGre"
+  },
+  {
+    "endpoint": "nginx",
+    "name": "NGINX"
+  },
+  {
+    "endpoint": "rabbitmq",
+    "name": "RabbitMQ"
+  }
 ]
 ```
 
@@ -3192,9 +3187,9 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "info": "yangre is available",
-    "message": "yangre successfully validated string",
-    "status": "running"
+  "info": "yangre is available",
+  "message": "yangre successfully validated string",
+  "status": "running"
 }
 ```
 
@@ -3238,56 +3233,56 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-    "data": {
-        "draftPull": {
-            "end": 1599603601,
-            "error": "",
-            "last_successfull": 1599603601,
-            "start": 1599603558,
-            "status": "Success"
-        },
-        "draftPullLocal": {
-            "end": 1599612283,
-            "error": "",
-            "last_successfull": 1599612283,
-            "start": 1599602701,
-            "status": "Success"
-        },
-        "openconfigPullLocal": {
-            "end": 1599613583,
-            "error": "",
-            "last_successfull": 1599613583,
-            "start": 1599613501,
-            "status": "Success"
-        },
-        "recovery": {
-            "end": 1599589314,
-            "error": "",
-            "last_successfull": 1599589314,
-            "start": 1599589021,
-            "status": "Success"
-        },
-        "removeUnused": {
-            "end": 1599579002,
-            "error": "AuthenticationException(401, '{\"Message\":\"settings.role_arn is needed for snapshot registration.\"}')",
-            "start": 1599579002,
-            "status": "Fail"
-        },
-        "resolveExpiration": {
-            "end": 1599625957,
-            "error": "",
-            "last_successfull": 1599625957,
-            "start": 1599624301,
-            "status": "Success"
-        },
-        "statistics": {
-            "end": 1599621220,
-            "error": "",
-            "last_successfull": 1599621220,
-            "start": 1599620702,
-            "status": "Success"
-        }
+  "data": {
+    "draftPull": {
+      "end": 1599603601,
+      "error": "",
+      "last_successfull": 1599603601,
+      "start": 1599603558,
+      "status": "Success"
+    },
+    "draftPullLocal": {
+      "end": 1599612283,
+      "error": "",
+      "last_successfull": 1599612283,
+      "start": 1599602701,
+      "status": "Success"
+    },
+    "openconfigPullLocal": {
+      "end": 1599613583,
+      "error": "",
+      "last_successfull": 1599613583,
+      "start": 1599613501,
+      "status": "Success"
+    },
+    "recovery": {
+      "end": 1599589314,
+      "error": "",
+      "last_successfull": 1599589314,
+      "start": 1599589021,
+      "status": "Success"
+    },
+    "removeUnused": {
+      "end": 1599579002,
+      "error": "AuthenticationException(401, '{\"Message\":\"settings.role_arn is needed for snapshot registration.\"}')",
+      "start": 1599579002,
+      "status": "Fail"
+    },
+    "resolveExpiration": {
+      "end": 1599625957,
+      "error": "",
+      "last_successfull": 1599625957,
+      "start": 1599624301,
+      "status": "Success"
+    },
+    "statistics": {
+      "end": 1599621220,
+      "error": "",
+      "last_successfull": 1599621220,
+      "start": 1599620702,
+      "status": "Success"
     }
+  }
 }
 ```
 
