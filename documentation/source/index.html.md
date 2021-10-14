@@ -2540,46 +2540,7 @@ This URL works only after you are signed in using single sign on from ietf and a
 a session created. Otherwise you ll get unauthorized 401 response.
 </aside>
 
-## List all sql tables
-
-```python
-import requests
-
-url = 'https://yangcatalog.org/api/admin/sql-tables'
-requests.get(url, headers={'Accept': 'application/json'})
-```
-
-```shell
-curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql-tables"
-```
-
-> The above command returns JSON-formatted output
-
-```json
-[
-  {
-    "label":"approved users",
-    "name":"users"
-  },
-  {
-    "label":"users waiting for approval",
-    "name":"users_temp"
-  }
-]
-```
-
-This endpoint serves to list all the sql tables that exists in yangcatalog.org. This is used with the admin UI.
-
-### HTTP Request
-
-`GET https://yangcatalog.org/api/admin/sql-tables`
-
-<aside class="warning">
-This URL works only after you are signed in using single sign on from ietf and after a token has been received and
-a session created. Otherwise you ll get unauthorized 401 response.
-</aside>
-
-## Accept user
+## Approve user
 
 ```python
 import requests
@@ -2601,13 +2562,9 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "input": {
-    "models-provider": " Cisco Systems, Inc",
+    "id": "1",
     "access-rights-sdo": "ietf",
-    "access-rights-vendor": "cisco",
-    "username": "foo-bar",
-    "first-name": "bar",
-    "last-name":"foo",
-    "email": "foo-bar@bar.com"
+    "access-rights-vendor": "cisco"
   }
 }
 ```
@@ -2616,15 +2573,11 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 
 ```json
 {
-  "info": "data successfully added to database users and removed from users_temp",
+  "info": "user successfully approved",
   "data": {
-    "models-provider": " Cisco Systems, Inc",
+    "id": "1",
     "access-rights-sdo": "ietf",
-    "access-rights-vendor": "cisco",
-    "username": "foo-bar",
-    "first-name": "bar",
-    "last-name":"foo",
-    "email": "foo-bar@bar.com"
+    "access-rights-vendor": "cisco"
   }
 }
 ```
@@ -2646,7 +2599,7 @@ a session created. Otherwise you ll get unauthorized 401 response.
 ```python
 import requests
 
-url = 'https://yangcatalog.org/api/admin/sql-tables/<table>'
+url = 'https://yangcatalog.org/api/admin/users/<status>'
 body = <data>
 requests.post(url, body,
     headers={'Accept': 'application/json', 'Content-type': 'application/json'})
@@ -2654,7 +2607,7 @@ requests.post(url, body,
 
 ```shell
 curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
- "https://yangcatalog.org/api/admin/sql-tables/<table>"
+ "https://yangcatalog.org/api/admin/users/<status>"
  --data '<data>'
 ```
 
@@ -2663,7 +2616,7 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "input": {
-    "models-provider": " Cisco Systems, Inc",
+    "models-provider": "Cisco Systems, Inc",
     "access-rights-sdo": "ietf",
     "access-rights-vendor": "cisco",
     "username": "foo-bar",
@@ -2681,7 +2634,7 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
 {
   "info": "data successfully added to database",
   "data": {
-    "models-provider": " Cisco Systems, Inc",
+    "models-provider": "Cisco Systems, Inc",
     "access-rights-sdo": "ietf",
     "access-rights-vendor": "cisco",
     "username": "foo-bar",
@@ -2689,11 +2642,12 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
     "last-name":"foo",
     "email": "foo-bar@bar.com",
     "password": "something secret"
-  }
+  },
+  "id": "1"
 }
 ```
 
-This endpoint serves to add a new user to any database that we have in yangcatalog.org (users or users_temp database).
+This endpoint serves to add a new user to the database.
 This is used with the admin UI.
 
 ### HTTP Request
@@ -2709,28 +2663,28 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 Parameter | Description
 --------- | -----------
-status | Name of the mysql table you want to use
+status | Status of the user to be added, either `temp` or `approved`
 
 ## Delete user
 
 ```python
 import requests
 
-url = 'https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>'
+url = 'https://yangcatalog.org/api/admin/users/<status>/id/<id>'
 requests.delete(url, headers={'Accept': 'application/json'})
 ```
 
 ```shell
 curl -X DELETE -H "Accept: application/json"
- "https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>"
+ "https://yangcatalog.org/api/admin/users/<status>/id/<id>"
 ```
 
-This endpoint serves to remove a user from any database that we have in yangcatalog.org (users or users_temp database).
+This endpoint serves to remove a user from the database.
 This is used with the admin UI.
 
 ### HTTP Request
 
-`DELETE https://yangcatalog.org/api/admin/sql-tables/<table>/id/<unique_id>`
+`DELETE https://yangcatalog.org/api/admin/users/<status>/id/<id>`
 
 <aside class="warning">
 This URL works only after you are signed in using single sign on from ietf and after a token has been received and
@@ -2741,20 +2695,20 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 Parameter | Description
 --------- | -----------
-table | Name of the mysql table you want to use
-unique_id | Id of the user you are deleting
+status | Status of the user to be added, either `temp` or `approved`
+id | Id of the user you are deleting
 
-## List all rows from sql table
+## List all users with the specified status
 
 ```python
 import requests
 
-url = 'https://yangcatalog.org/api/admin/sql-tables/<table>'
+url = 'https://yangcatalog.org/api/admin/users/<status>'
 requests.get(url, headers={'Accept': 'application/json'})
 ```
 
 ```shell
-curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql-tables/<table>"
+curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/users/<status>"
 ```
 
 > The above command returns JSON-formatted output
@@ -2766,7 +2720,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
     "access-rights-vendor":"",
     "email":"fooo@broadband-forum.org",
     "first-name":"fooo",
-    "id":4,
+    "id":"4",
     "last-name":"bar",
     "models-provider":"Broadband Forum",
     "username":"fooo-bar"
@@ -2776,7 +2730,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
     "access-rights-vendor":"huawei",
     "email":"fooo2@huawei.com",
     "first-name":"fooo2",
-    "id":5,
+    "id":"5",
     "last-name":"bar",
     "models-provider":"Huawei Tech.",
     "username":"fooo-bar2"
@@ -2786,12 +2740,12 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/sql
   .
 ```
 
-This endpoint serves to list all the rows from the specified sql table that exists in yangcatalog.org.
+This endpoint serves to list all the users with the specified status that exists in yangcatalog.org.
 This is used with the admin UI.
 
 ### HTTP Request
 
-`GET https://yangcatalog.org/api/admin/sql-tables/<table>`
+`GET https://yangcatalog.org/api/admin/users/<status>`
 
 <aside class="warning">
 This URL works only after you are signed in using single sign on from ietf and after a token has been received and
@@ -2802,7 +2756,7 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 Parameter | Description
 --------- | -----------
-table | Name of the mysql table you want to use
+status | Status of the user to be added, either `temp` or `approved`
 
 ## Get list of all scripts
 
@@ -3085,10 +3039,6 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 [
   {
-    "endpoint": "my-sql",
-    "name": "MySQL"
-  },
-  {
     "endpoint": "elk",
     "name": "Elasticsearch"
   },
@@ -3139,13 +3089,13 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
  "https://yangcatalog.org/api/admin/healthcheck/<service-name>"
 ```
 
-> The above command should return the service health status (example output with my-sql)
+> The above command should return the service health status (example output with ConfD)
 
 ```json
 {
-    "info": "MySQL is running",
-    "message": "3 tables available in the database: yang_catalog",
-    "status": "running"
+  "info": "ConfD is running",
+  "message": "yang-catalog,2018-04-03,ietf successfully loaded from ConfD",
+  "status": "running"
 }
 ```
 
