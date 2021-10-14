@@ -683,7 +683,7 @@ def load_uwsgi_cache():
 
 def load_app_first_time():
     while ac.redis.get('yang-catalog@2018-04-03/ietf') is None:
-        sec = 5
+        sec = 30
         app.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
         time.sleep(sec)
 

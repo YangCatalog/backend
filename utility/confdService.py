@@ -110,8 +110,13 @@ class ConfdService:
         return response
 
     def head_catalog(self):
-        self.LOGGER.debug('Sending HEAD request the ConfD')
-        path = '{}/restconf/data'.format(self.confd_prefix)
+        path = '{}/restconf/data/yang-catalog:catalog'.format(self.confd_prefix)
+        response = requests.head(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
+    def head_confd(self):
+        path = '{}/restconf/data/'.format(self.confd_prefix)
         response = requests.head(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
