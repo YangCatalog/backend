@@ -20,20 +20,18 @@ should be run every day so we always have backup of
 all the modules
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import argparse
-import collections
 import datetime
 import json
 import logging
 import os
 import shutil
 import time
-from collections import OrderedDict
 from time import sleep
 
 import redis
@@ -105,12 +103,12 @@ def feed_confd_modules(modules_data: list, confdService: ConfdService, LOGGER: l
         })
 
         response = confdService.patch_modules(json_modules_data)
-
-        if response.status_code < 200 or response.status_code > 299:
+        if not 200 <= response.status_code < 300:
             LOGGER.info('Request failed with {}'.format(response.text))
 
 
 def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: logging.Logger):
+    # is there a reason for patching each software version separately?
     for vendor in vendors_data:
         vendor_name = vendor['name']
         for platform in vendor['platforms']['platform']:
@@ -139,11 +137,11 @@ def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: l
 
                 response = confdService.patch_vendors(json_implementations_data)
 
-                if response.status_code < 200 or response.status_code > 299:
+                if not 200 <= response.status_code < 300:
                     LOGGER.info('Request failed with {}'.format(response.text))
 
 
-def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: collections.OrderedDict, LOGGER: logging.Logger):
+def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: dict, LOGGER: logging.Logger):
     redis_cache.set('modules-data', '{}')
     redis_cache.set('vendors-data', '{}')
     redis_cache.set('all-catalog-data', '{}')
@@ -154,12 +152,9 @@ def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: collections.Ord
             break
     LOGGER.debug('yang-catalog@2018-04-03/ietf module set')
 
-    catalog_data_json = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(json.dumps(catalog_data))['yang-catalog:catalog']
-    modules = catalog_data_json['modules']
-    if catalog_data_json.get('vendors'):
-        vendors = catalog_data_json['vendors']
-    else:
-        vendors = {}
+    catalog = catalog_data['yang-catalog:catalog']
+    modules = catalog['modules']
+    vendors = catalog.get('vendors', {})
     redis_cache.set('modules-data', json.dumps(modules))
     redis_cache.set('vendors-data', json.dumps(vendors))
     redis_cache.set('all-catalog-data', json.dumps(catalog_data))
@@ -167,7 +162,7 @@ def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: collections.Ord
     if len(modules) != 0:
         existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
         # recreate keys to redis if there are any
-        for _, mod in enumerate(modules['module']):
+        for mod in modules['module']:
             key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
             existing_keys.append(key)
             value = json.dumps(mod)
@@ -182,12 +177,8 @@ def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: collections.Ord
     LOGGER.info('All the modules data set to Redis successfully')
 
 
-def feed_confd_from_json(catalog_data: collections.OrderedDict, confdService: ConfdService, LOGGER: logging.Logger):
-    counter = 5
-    while True:
-        if counter == 0:
-            LOGGER.error('Failed to load vendor data')
-            break
+def feed_confd_from_json(catalog_data: dict, confdService: ConfdService, LOGGER: logging.Logger):
+    for counter in range(5, 0, -1):
         try:
             catalog = catalog_data.get('yang-catalog:catalog')
 
@@ -200,8 +191,9 @@ def feed_confd_from_json(catalog_data: collections.OrderedDict, confdService: Co
             break
         except Exception:
             LOGGER.exception('Failed to load data. Counter: {}'.format(counter))
-            counter -= 1
             time.sleep(10)
+    else:
+        LOGGER.error('Failed to load vendor data')
 
     LOGGER.info('Cache loaded to ConfD. Starting to load data into Redis.')
 
@@ -221,7 +213,7 @@ def main(scriptConf=None):
     confd_backups = os.path.join(cache_directory, 'confd')
     redis_backups = os.path.join(cache_directory, 'redis')
 
-    LOGGER = log.get_logger('recovery', '{}/yang.log'.format(log_directory))
+    LOGGER = log.get_logger('recovery', '{}'.format(os.path.join(log_directory, 'yang.log')))
     LOGGER.info('Starting {} process of ConfD database'.format(args.type))
 
     tries = 4
@@ -245,10 +237,8 @@ def main(scriptConf=None):
         with open(confd_backup_file, 'w') as file_save:
             json.dump(jsn, file_save)
         LOGGER.info('Data dumped into {}'.format(confd_backup_file))
-        num_of_modules = 0 if not jsn['yang-catalog:catalog'].get('modules', {}).get('module') \
-            else len(jsn['yang-catalog:catalog'].get('modules').get('module'))
-        num_of_vendors = 0 if not jsn['yang-catalog:catalog'].get('vendors', {}).get('vendor') \
-            else len(jsn['yang-catalog:catalog'].get('vendors').get('vendor'))
+        num_of_modules = len(jsn['yang-catalog:catalog'].get('modules', {}).get('module', []))
+        num_of_vendors = len(jsn['yang-catalog:catalog'].get('vendors', {}).get('vendor', []))
         messages = [
             {'label': 'Saved modules', 'message': num_of_modules},
             {'label': 'Saved vendors', 'message': num_of_vendors}
@@ -290,10 +280,11 @@ def main(scriptConf=None):
         data = redis_cache.get('modules-data')
         redis_modules = '{}' if data is None else data.decode('utf-8')
         data = redis_cache.get('yang-catalog@2018-04-03/ietf')
-        yang_catalog_module = '{}' if data is None else data.decode('utf-8')
+        yang_catalog_module = (data or b'{}').decode('utf-8')
 
         if '{}' in (redis_modules, yang_catalog_module):
             # Feed Redis fron ConfD
+
             LOGGER.info('Loading data from JSON file into Redis')
             if catalog_data is None:
                 with open(file_name, 'r') as file_load:
