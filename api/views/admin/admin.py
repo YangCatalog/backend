@@ -468,7 +468,7 @@ def create_user(status):
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
-    if status is 'approved' and not (sdo_access or vendor_access):
+    if status == 'approved' and not (sdo_access or vendor_access):
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     fields = {
         'username': username,
