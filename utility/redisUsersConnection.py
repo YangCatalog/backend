@@ -30,11 +30,11 @@ class RedisUsersConnection:
     _temp_fields = ['motivation']
     _appr_fields = ['access-rights-sdo', 'access-rights-vendor']
 
-    def __init__(self):
+    def __init__(self, db=1):
         config = create_config()
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = config.get('DB-Section', 'redis-port')
-        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=1)
+        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('redisUsersConnection', '{}/redisUsersConnection.log'.format(self.log_directory))

@@ -347,14 +347,16 @@
         "head_commit": "test",
         "pull_request_number": 1
     },
-    "sql_row": {
+    "user": {
         "input": {
-            "username": "test",
-            "first-name": "test",
-            "last-name": "test",
-            "email": "test",
-            "password": "test",
-            "motivation": "test"
+            "username": "jd",
+            "password": "secret",
+            "email": "j@d.com",
+            "models-provider": "jd inc.",
+            "first-name": "john",
+            "last-name": "doe",
+            "registration-datetime": "now",
+            "motivation": "i love yang"
         }
     }
 }
