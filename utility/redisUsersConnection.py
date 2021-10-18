@@ -65,7 +65,8 @@ class RedisUsersConnection:
         id = self.redis.incr('new-id')
         self.redis.sadd('users', id)
         self.redis.hset('usernames', kwargs['username'], id)
-        kwargs['registration_datetime'] = str(datetime.datetime.utcnow())
+        if 'registration_datetime' not in kwargs:
+            kwargs['registration_datetime'] = str(datetime.datetime.utcnow())
         for field in self._universal_fields:
             self.set_field(id, field, kwargs[field.replace('-', '_')])
         self.redis.sadd('temp' if temp else 'approved', id)
