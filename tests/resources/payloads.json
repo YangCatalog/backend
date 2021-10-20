@@ -311,9 +311,9 @@
         "modules": {
             "module": [
                 {
-                    "name": "example-jukebox",
-                    "revision": "2014-07-03",
-                    "organization": "example",
+                    "name": "yang-catalog",
+                    "revision": "2017-09-26",
+                    "organization": "ietf",
                     "maturity-level": "ratified",
                     "author-email": "foo@bar.com",
                     "module-classification": "network-element",
@@ -325,6 +325,17 @@
                     }
                 }
             ]
+        }
+    },
+    "add_vendor": {
+        "platforms": {
+            "platform":[{
+                "module-list-file": {
+                    "path": "test",
+                    "repository": "test",
+                    "owner": "test"
+                }
+            }]
         }
     },
     "check_local": {

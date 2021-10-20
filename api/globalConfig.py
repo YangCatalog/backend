@@ -54,7 +54,7 @@ class YangCatalogApiGlobalConfig():
         self.dbUser = config.get('DB-Section', 'user', fallback='yang')
         self.dbPass = config.get('Secrets-Section', 'mysql-password', fallback='pass')
         self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='').strip('"').split(' ')
+        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
         self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='yangcatalog.org')
         self.confdPort = int(config.get('Web-Section', 'confd-port', fallback=8008))
