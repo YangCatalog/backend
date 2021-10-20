@@ -39,7 +39,8 @@ from pyang import plugin
 from pyang.plugins.json_tree import emit_tree as emit_json_tree
 from pyang.plugins.tree import emit_tree
 from utility import log, messageFactory
-from utility.staticVariables import confd_headers, json_headers
+from utility.confdService import ConfdService
+from utility.staticVariables import json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,
                           find_first_file)
 from utility.yangParser import create_context
@@ -47,7 +48,7 @@ from utility.yangParser import create_context
 
 class ModulesComplicatedAlgorithms:
 
-    def __init__(self, log_directory, yangcatalog_api_prefix, credentials, confd_prefix,
+    def __init__(self, log_directory, yangcatalog_api_prefix, credentials,
                  save_file_dir, direc, all_modules, yang_models_dir, temp_dir, ytree_dir):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
@@ -61,7 +62,6 @@ class ModulesComplicatedAlgorithms:
         self.__credentials = credentials
         self.__save_file_dir = save_file_dir
         self.__path = None
-        self.__confd_prefix = confd_prefix
         self.__yang_models = yang_models_dir
         self.temp_dir = temp_dir
         self.ytree_dir = ytree_dir
@@ -101,22 +101,19 @@ class ModulesComplicatedAlgorithms:
         x = -1
         chunk_size = 250
         chunks = (len(new_modules) - 1) // chunk_size + 1
+        confdService = ConfdService()
         for x in range(chunks):
             payload = {'modules': {'module': new_modules[x * chunk_size: (x * chunk_size) + chunk_size]}}
             json_modules_data = json.dumps(payload)
             if '{"module": []}' not in json_modules_data:
-                url = self.__confd_prefix + '/restconf/data/yang-catalog:catalog/modules/'
-                response = requests.patch(url, data=json_modules_data,
-                                          auth=(self.__credentials[0],
-                                                self.__credentials[1]),
-                                          headers=confd_headers)
+                response = confdService.patch_modules(json_modules_data)
+
                 if response.status_code < 200 or response.status_code > 299:
                     path_to_file = '{}/modulesComplicatedAlgorithms-data-{}'.format(self.__direc, x)
                     with open(path_to_file, 'w') as f:
                         json.dump(json_modules_data, f)
-                    LOGGER.error('Request with body {} on path {} failed with {}'.
-                                 format(path_to_file, url,
-                                        response.text))
+                    LOGGER.error('Request with body {} failed to patch modules with {}'
+                                 .format(path_to_file, response.text))
 
         if len(new_modules) > 0:
             url = '{}load-cache'.format(self.__yangcatalog_api_prefix)
@@ -487,7 +484,6 @@ class ModulesComplicatedAlgorithms:
                 return len(new) == len(old) and all(any((trees_match(i, j) for j in old)) for i in new)
             elif type(new) in (str, set, bool):
                 return new == old
-
 
         def get_trees(new: dict, old: dict):
             new_name_revision = '{}@{}'.format(new['name'], new['revision'])

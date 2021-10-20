@@ -65,6 +65,7 @@ from flask_oidc import discovery
 from redis import Redis
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.declarative import DeferredReflection
+from utility.confdService import ConfdService
 
 from api.authentication.auth import auth, db, get_password, hash_pw
 from api.sender import Sender
@@ -106,6 +107,7 @@ class MyFlask(Flask):
         self.logger.debug('API initialized at {}'.format(self.config.yangcatalog_api_prefix))
         self.logger.debug('Starting api')
         self.secret_key = self.config.s_flask_secret_key
+        self.confdService = ConfdService()
 
     def load_config(self):
         self.init_config()
@@ -530,40 +532,35 @@ CORS(app, supports_credentials=True)
 lock_for_load = Lock()
 
 
-def make_cache(credentials, response, data=None):
+def make_cache(response, data=None):
     """After we delete or add modules we need to reload all the modules to the file
     for quicker search. This module is then loaded to the memory.
-            Arguments:
-                :param response: (str) Contains string 'work' which will be sent back if
-                    everything went through fine
-                :param credentials: (list) Basic authorization credentials - username, password
-                    respectively
-                :return 'work' if everything went through fine otherwise send back the reason
-                    why it failed.
+    Arguments:
+        :param response: (str) Contains string 'work' which will be sent back if
+            everything went through fine
+        :return 'work' if everything went through fine otherwise send back the reason
+            why it failed.
     """
     try:
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
                 app.logger.debug('Loading data from confd')
-                path = '{}://{}:{}//restconf/data/yang-catalog:catalog'.format(ac.g_protocol_confd, ac.w_confd_ip,
-                                                                               ac.w_confd_port)
                 try:
-                    data = requests.get(path, auth=(credentials[0], credentials[1]),
-                                        headers={'Accept': 'application/yang-data+json'}).json()
+                    response = app.confdService.get_catalog_data()
+                    data = response.json()
                     data = json.dumps(data)
-                    app.logger.debug('Data loaded and parsed to json from confd db successfully')
+                    app.logger.debug('Data loaded and parsed to json from ConfD successfully')
                 except ValueError as e:
                     app.logger.warning('not valid json returned')
                     data = ''
                 except Exception:
-                    app.logger.warning('exception during loading data from confd')
+                    app.logger.warning('exception during loading data from ConfD')
                     data = None
                 if data is None or len(data) == 0 or data == 'None' or data == '':
                     secs = 30
-                    app.logger.info('Confd not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
+                    app.logger.info('ConfD not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
-        #application.logger.info('is uwsgy {} type {}'.format(is_uwsgi, type(is_uwsgi)))
         ac.redis.set('all-catalog-data', data)
     except:
         e = sys.exc_info()[0]
@@ -657,7 +654,7 @@ def load():
 
 def load_uwsgi_cache():
     response = 'work'
-    response, data = make_cache(ac.s_confd_credentials, response)
+    response, data = make_cache(response)
     cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
     modules = cat['modules']
     vendors = cat.get('vendors', {})
@@ -686,7 +683,7 @@ def load_uwsgi_cache():
 
 def load_app_first_time():
     while ac.redis.get('yang-catalog@2018-04-03/ietf') is None:
-        sec = 5
+        sec = 30
         app.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
         time.sleep(sec)
 

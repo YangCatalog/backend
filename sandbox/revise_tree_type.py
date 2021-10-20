@@ -13,9 +13,6 @@ if __name__ == '__main__':
     api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-    confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
-    confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
-    confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
@@ -39,7 +36,6 @@ if __name__ == '__main__':
     all_existing_modules = response.json()
 
     # Initialize ModulesComplicatedAlgorithms
-    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
     direc = '/var/yang/tmp'
 
     num_of_modules = len(all_existing_modules['module'])
@@ -53,10 +49,9 @@ if __name__ == '__main__':
 
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
-            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                 credentials, confd_prefix, save_file_dir,
-                                                                 direc, batch_modules, yang_models, temp_dir,
-                                                                 json_ytree)
+            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
+                                                                 save_file_dir, direc, batch_modules, yang_models,
+                                                                 temp_dir, json_ytree)
             complicatedAlgorithms.parse_non_requests()
             sys.setrecursionlimit(recursion_limit)
             complicatedAlgorithms.populate()

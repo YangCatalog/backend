@@ -54,11 +54,13 @@ bp = YangCatalogAdminBlueprint('admin', __name__)
 CORS(bp, supports_credentials=True)
 oidc = OpenIDConnect()
 
+
 @bp.before_request
 def set_config():
     global ac, db
     ac = app.config
     db = ac.sqlalchemy
+
 
 def catch_db_error(f):
     @wraps(f)
@@ -256,7 +258,7 @@ def update_yangcatalog_config():
         ac.sender.send('reload_config')
         resp['receiver'] = 'data loaded successfully'
     except:
-        resp['receiver'] ='error loading data'
+        resp['receiver'] = 'error loading data'
     response = {'info': resp,
                 'new-data': body['data']}
     return response
@@ -266,7 +268,7 @@ def update_yangcatalog_config():
 def get_log_files():
 
     def find_files(directory, pattern):
-        for root, dirs, files in os.walk(directory):
+        for root, _, files in os.walk(directory):
             for basename in files:
                 if fnmatch.fnmatch(basename, pattern):
                     filename = os.path.join(root, basename)
@@ -298,7 +300,7 @@ def filter_from_date(file_names, from_timestamp):
         r = []
         for file_name in file_names:
             files = find_files('{}/{}'.format(ac.d_logs, os.path.dirname(file_name)),
-                                '{}.log*'.format(os.path.basename(file_name)))
+                               '{}.log*'.format(os.path.basename(file_name)))
             for f in files:
                 if os.path.getmtime(f) >= from_timestamp:
                     r.append(f)
@@ -465,10 +467,10 @@ def move_user():
     user_password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first()
     password = user_password.Password if user_password else ''
     user_registration_datetime = db.session.query(TempUser.RegistrationDatetime).filter_by(Id=unique_id).first()
-    if user_registration_datetime:
-        registration_datetime = user_registration_datetime.RegistrationDatetime
-    else:
-        registration_datetime = datetime.now()
+    registration_datetime = datetime.utcnow()
+    if user_registration_datetime is not None:
+        if user_registration_datetime[0] is not None:
+            registration_datetime = user_registration_datetime.RegistrationDatetime
     user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
                 FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
                 RegistrationDatetime=registration_datetime)
@@ -587,7 +589,7 @@ def get_sql_rows(table):
                     'last-name': user.LastName,
                     'access-rights-sdo': user.AccessRightsSdo,
                     'access-rights-vendor': user.AccessRightsVendor,
-                    'registration-datetime': str(user.RegistrationDatetime)}
+                    'registration-datetime': user.RegistrationDatetime}
         if model == TempUser:
             data_set['motivation'] = user.Motivation
         ret.append(data_set)
@@ -622,7 +624,6 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = ac.sender.send('#'.join(arguments))
 
-    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
@@ -669,6 +670,7 @@ def get_class_by_tablename(name):
     for mapper in Base.registry.mappers:
         if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
             return mapper.class_
+
 
 def get_input(body):
     if body is None:

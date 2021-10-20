@@ -52,8 +52,9 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility import messageFactory
+from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.staticVariables import confd_headers, json_headers
+from utility.staticVariables import json_headers
 from utility.util import prepare_to_indexing, send_to_indexing2
 
 
@@ -65,6 +66,7 @@ class Receiver:
         self.LOGGER.info('Starting receiver')
         self.channel = None
         self.connection = None
+        self.confdService = ConfdService()
 
     def copytree(self, src, dst):
         for item in os.listdir(src):
@@ -103,7 +105,7 @@ class Receiver:
         if self.__notify_indexing:
             arguments.append('--notify-indexing')
 
-        with open(self.temp_dir + "/process-sdo-api-stderr.txt", "w") as f:
+        with open('{}/process-sdo-api-stderr.txt'.format(self.temp_dir), 'w') as f:
             try:
                 self.LOGGER.info('processing arguments {}'.format(arguments))
                 subprocess.check_call(arguments, stderr=f)
@@ -197,6 +199,8 @@ class Receiver:
         credentials = arguments[7:9]
         path_to_delete = arguments[9]
 
+        # vendors_data = requests.get('{}search/vendors'.format(self.__yangcatalog_api_prefix)).json()
+
         try:
             with open('./cache/catalog.json', 'r') as catalog:
                 vendors_data = json.load(catalog)['yang-catalog:catalog']['vendors']
@@ -225,12 +229,10 @@ class Receiver:
 
         for mod in modules:
             try:
-                path = self.__confd_protocol + '://' + self.__confd_ip + ':' + repr(
-                    self.__confd_port) + '/restconf/data/yang-catalog:catalog/modules/module=' \
-                    + mod
-                modules_data = requests.get(path, auth=(credentials[0], credentials[1]),
-                                            headers=confd_headers).json()
-                implementations = modules_data['yang-catalog:module']['implementations']['implementation']
+                response = self.confdService.get_module(mod)
+                modules_data = response.json()
+
+                implementations = modules_data['yang-catalog:module'][0].get('implementations', {}).get('implementation', [])
                 count_of_implementations = len(implementations)
                 count_deleted = 0
                 for imp in implementations:
@@ -252,12 +254,11 @@ class Receiver:
                     else:
                         imp_key += ',' + imp['software-flavor']
 
-                    url = path + '/implementations/implementation=' + imp_key
-                    response = requests.delete(url, auth=(credentials[0], credentials[1]))
+                    response = self.confdService.delete_implementation(mod, imp_key)
 
                     if response.status_code != 204:
-                        self.LOGGER.error('Couldn\'t delete implementation of module on path {} because of error: {}'
-                                          .format(path + '/implementations/implementation=' + imp_key, response.text))
+                        self.LOGGER.error("Couldn't delete implementation {} of module {} because of error: {}"
+                                          .format(imp_key, mod, response.text))
                         continue
                     count_deleted += 1
 
@@ -265,12 +266,12 @@ class Receiver:
                         count_of_implementations != 0):
                     name, revision, organization = mod.split(',')
                     if organization == vendor:
-                        response = requests.delete(path, auth=(credentials[0], credentials[1]))
+                        response = self.confdService.delete_module(mod)
                         to_add = '{}@{}/{}'.format(name, revision, organization)
                         modules_that_succeeded.append(to_add)
                         if response.status_code != 204:
                             self.LOGGER.error(
-                                'Could not delete module on path {} because of error: {}'.format(path, response.text))
+                                'Could not delete module {} because of error: {}'.format(mod, response.text))
                             continue
             except:
                 self.LOGGER.error('Yang file {} doesn\'t exist although it should exist'.format(mod))
@@ -278,28 +279,26 @@ class Receiver:
 
         for mod in modules:
             name_rev_org_with_commas = mod.split('/')[-1]
-            name, rev, org = name_rev_org_with_commas.split(',')
+            name, rev, _ = name_rev_org_with_commas.split(',')
             for existing_module in all_mods['module']:
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
                     for dep in dependents:
                         if dep['name'] == name and dep['revision'] == rev:
-                            path = '{}://{}:{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'
-                            response = requests.delete(path.format(self.__confd_protocol, self.__confd_ip, self.__confd_port,
-                                                                   existing_module['name'], existing_module['revision'],
-                                                                   existing_module['organization'], dep['name']))
+                            mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
+                                                        existing_module['organization'])
+                            response = self.confdService.delete_dependent(mod_key, dep['name'])
+
                             if response.status_code != 204:
-                                self.LOGGER.error('Couldn\'t delete module on path {}. Error : {}'
-                                                  .format(path, response.text))
+                                self.LOGGER.error('Couldn\'t delete module {}. Error : {}'
+                                                  .format(mod_key, response.text))
                                 return self.__response_type[0] + '#split#' + response.text
         if self.__notify_indexing:
-            confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
-            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_that_succeeded,
-                                               credentials, self.LOGGER, self.__save_file_dir, self.temp_dir,
-                                               confd_url, delete=True)
+            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_that_succeeded, credentials,
+                                               self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
             if len(body_to_send) > 0:
                 send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
-                                 self.__lock_file)
+                                  self.__lock_file)
         return self.__response_type[1]
 
     def iterate_in_depth(self, value, modules):
@@ -325,7 +324,8 @@ class Receiver:
                         name = mod['name']
                         revision = mod['revision']
                         organization = mod['organization']
-                        modules.add(name + ',' + revision + ',' + organization)
+                        mod_key = '{},{},{}'.format(name, revision, organization)
+                        modules.add(mod_key)
                 else:
                     self.iterate_in_depth(val, modules)
 
@@ -361,9 +361,8 @@ class Receiver:
         """
         credentials = arguments[3:5]
         path_to_delete = arguments[5]
-        confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
         reason = ''
-        paths = []
+        mod_keys = []
         modules = json.loads(path_to_delete)['modules']
         all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
 
@@ -384,8 +383,8 @@ class Receiver:
                                 continue
                         else:
                             self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}@{}'
-                                                    .format(name, revision, dep_type,
-                                                            existing_module.get('name'), existing_module.get('revision')))
+                                              .format(name, revision, dep_type,
+                                                      existing_module.get('name'), existing_module.get('revision')))
                             return False
             return True
 
@@ -395,8 +394,8 @@ class Receiver:
                 modules_to_delete.append(module)
 
         for mod in modules_to_delete:
-            paths.append('{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-                confd_url, mod['name'], mod['revision'], mod['organization']))
+            mod_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+            mod_keys.append(mod_key)
 
         for mod in modules_to_delete:
             for existing_module in all_mods['module']:
@@ -404,49 +403,43 @@ class Receiver:
                     dependents = existing_module['dependents']
                     for dependent in dependents:
                         if dependent['name'] == mod['name'] and dependent['revision'] == mod['revision']:
-                            path = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}/dependents={}'.format(
-                                confd_url,
-                                existing_module['name'], existing_module['revision'],
-                                existing_module['organization'], dependent['name'])
-                            response = requests.delete(path,
-                                                       auth=(credentials[0], credentials[1]), headers=confd_headers)
+                            mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
+                                                        existing_module['organization'])
+                            response = self.confdService.delete_dependent(mod_key, dependent['name'])
+
                             if response.status_code == 204:
-                                self.LOGGER.info('Dependent on path {} deleted successfully'.format(path))
+                                self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(dependent['name'], mod_key))
                             elif response.status_code == 404:
-                                self.LOGGER.debug('Dependent on path {} already deleted'.format(path))
+                                self.LOGGER.debug('Dependent {} of module {} already deleted'.format(dependent['name'], mod_key))
                             else:
-                                self.LOGGER.error("Couldn't delete module dependents on path {}. Error: {}"
-                                                  .format(path, response.text))
+                                self.LOGGER.error("Couldn't delete dependents {} of module {}. Error: {}"
+                                                  .format(dependent['name'], mod_key, response.text))
         modules_to_index = []
-        for path in paths:
-            response = requests.delete(path, auth=(credentials[0], credentials[1]), headers=confd_headers)
+        for mod_key in mod_keys:
+            response = self.confdService.delete_module(mod_key)
             if response.status_code == 204:
-                self.LOGGER.info('Module on path {} deleted successfully'.format(path))
+                self.LOGGER.info('Module {} deleted successfully'.format(mod_key))
             elif response.status_code == 404:
-                self.LOGGER.debug('Module on path {} already deleted'.format(path))
+                self.LOGGER.debug('Module {} already deleted'.format(mod_key))
             else:
-                self.LOGGER.error("Couldn't delete module on path {}. Error: {}".format(path, response.text))
+                self.LOGGER.error("Couldn't delete module {}. Error: {}".format(mod_key, response.text))
                 if reason == '':
                     reason = 'modules-not-deleted:'
-                module = path.split('module=')[-1]
-                reason += ':{}'.format(module)
+                reason += ':{}'.format(mod_key)
 
-            name, revision, organization = path.split('module=')[-1].split(',')
+            name, revision, organization = mod_key.split(',')
             modules_to_index.append('{}@{}/{}'.format(name, revision, organization))
         if self.__notify_indexing:
-            confd_url = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index, credentials,
-                                               self.LOGGER, self.__save_file_dir, self.temp_dir,
-                                               confd_url, delete=True)
+                                               self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
 
             if len(body_to_send) > 0:
                 send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
-                                 self.__lock_file)
+                                  self.__lock_file)
         if reason == '':
             return self.__response_type[1]
         else:
             return self.__response_type[2] + '#split#' + reason
-
 
     def run_ietf(self):
         """
@@ -476,13 +469,9 @@ class Receiver:
         self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
         self.LOGGER.info('reloading config')
         logging.getLogger('pika').setLevel(logging.INFO)
-        self.__confd_ip = config.get('Web-Section', 'confd-ip')
-        self.__confd_port = int(config.get('Web-Section', 'confd-port'))
-        self.__protocol = config.get('General-Section', 'protocol-api')
         self.__api_ip = config.get('Web-Section', 'ip')
         self.__api_port = int(config.get('Web-Section', 'api-port'))
         self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
         self.__key = config.get('Secrets-Section', 'update-signature')
         self.__notify_indexing = config.get('General-Section', 'notify-index')
         self.__result_dir = config.get('Web-Section', 'result-html-dir')
@@ -524,7 +513,7 @@ class Receiver:
             self.connection.close()
         except Exception:
             pass
-        self.LOGGER.info('config reloaded succesfully')
+        self.LOGGER.info('Config reloaded succesfully')
 
     def on_request(self, ch, method, props, body):
         process_reload_cache = multiprocessing.Process(target=self.on_request_thread_safe, args=(ch, method, props, body,))
@@ -586,11 +575,12 @@ class Receiver:
             else:
                 all_modules = {}
                 if arguments[-3] == 'DELETE':
-                    self.LOGGER.info('Deleting single module')
                     if 'http' in arguments[0]:
+                        self.LOGGER.info('Deleting modules data')
                         final_response = self.process_module_deletion(arguments)
                         credentials = arguments[3:5]
                     else:
+                        self.LOGGER.info('Deleting vendors data')
                         final_response = self.process_vendor_deletion(arguments)
                         credentials = arguments[7:9]
                 elif '--sdo' in arguments[2]:
@@ -611,10 +601,9 @@ class Receiver:
 
                     if all_modules:
                         self.LOGGER.info('Running ModulesComplicatedAlgorithms from receiver.py script')
-                        confd_prefix = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
-                                                                              self.__confd_credentials, confd_prefix,
+                                                                              self.__confd_credentials,
                                                                               self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
                                                                               self.temp_dir, self.json_ytree)
@@ -659,7 +648,7 @@ class Receiver:
 
                 self.channel.start_consuming()
             except Exception as e:
-                self.LOGGER.error('Exception: {}'.format(str(e)))
+                self.LOGGER.exception('Exception: {}'.format(str(e)))
                 time.sleep(10)
                 try:
                     self.channel.close()
@@ -670,7 +659,7 @@ class Receiver:
                 except Exception:
                     pass
 
-    def run_script(self, arguments):
+    def run_script(self, arguments: list):
         module_name = arguments[0]
         script_name = arguments[1]
         body_input = json.loads(arguments[2])

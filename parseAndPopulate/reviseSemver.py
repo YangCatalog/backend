@@ -32,9 +32,6 @@ class ScriptConfig:
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-        self.confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
-        self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
-        self.confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
         self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
@@ -123,9 +120,6 @@ def main(scriptConf=None):
     api_protocol = scriptConf.api_protocol
     ip = scriptConf.ip
     api_port = scriptConf.api_port
-    confd_protocol = scriptConf.confd_protocol
-    confd_ip = scriptConf.confd_ip
-    confd_port = scriptConf.confd_port
     is_uwsgi = scriptConf.is_uwsgi
     temp_dir = scriptConf.temp_dir
     log_directory = scriptConf.log_directory
@@ -160,7 +154,6 @@ def main(scriptConf=None):
     # all_modules = load_from_json(path)
 
     # Initialize ModulesComplicatedAlgorithms
-    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
     direc = '/var/yang/tmp'
 
     num_of_modules = len(all_modules['module'])
@@ -173,10 +166,9 @@ def main(scriptConf=None):
             batch_modules = {'module': batch}
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
-            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                 credentials, confd_prefix, save_file_dir,
-                                                                 direc, batch_modules, yang_models, temp_dir,
-                                                                 json_ytree)
+            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
+                                                                 save_file_dir, direc, batch_modules, yang_models,
+                                                                 temp_dir, json_ytree)
             complicatedAlgorithms.parse_semver()
             sys.setrecursionlimit(recursion_limit)
             complicatedAlgorithms.populate()

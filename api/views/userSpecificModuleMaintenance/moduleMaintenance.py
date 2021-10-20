@@ -48,6 +48,7 @@ class UserSpecificModuleMaintenance(Blueprint):
 
 bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
 
+
 @bp.before_request
 def set_config():
     global ac, db
@@ -93,6 +94,7 @@ def register_user():
     mf.send_new_user(username, email, motivation)
     return ({'info': 'User created successfully'}, 201)
 
+
 @bp.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
 @bp.route('/modules', methods=['DELETE'])
 @auth.login_required
@@ -137,14 +139,14 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 
         if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
             abort(401, description='You do not have rights to delete modules with organization {}'
-                       .format(read['yang-catalog:module'][0].get('organization')))
+                  .format(read['yang-catalog:module'][0].get('organization')))
 
         if read['yang-catalog:module'][0].get('implementations') is not None:
             unavailable_modules.append(mod)
 
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
-    path_to_delete = json.dumps({'modules':input_modules})
+    path_to_delete = json.dumps({'modules': input_modules})
 
     arguments = [ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port, ac.s_confd_credentials[0],
                  ac.s_confd_credentials[1], path_to_delete, 'DELETE',
@@ -204,15 +206,16 @@ def delete_vendor(value):
     app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
+
 def organization_by_namespace(namespace):
     for ns, org in NS_MAP.items():
         if ns in namespace:
-                return org
+            return org
         else:
             if 'urn:' in namespace:
                 return namespace.split('urn:')[1].split(':')[0]
-            else:
-                return ''
+    return ''
+
 
 @bp.route('/modules', methods=['PUT', 'POST'])
 @auth.login_required
@@ -314,7 +317,7 @@ def add_modules():
                 repo[repo_url].clone()
             except GitCommandError as e:
                 abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                        ' repository and path of the request - {}'.format(e.stderr))
+                      ' repository and path of the request - {}'.format(e.stderr))
 
         try:
             if 'branch' in sdo:
@@ -357,7 +360,7 @@ def add_modules():
                         os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
                                                                '/'.join(sdo_path.split('/')[:-1]),
                                                                belongs_to))
-                        ).search('namespace')[0].arg
+                    ).search('namespace')[0].arg
                     organization = organization_by_namespace(namespace)
                     break
                 except:
@@ -485,7 +488,7 @@ def add_vendors():
                 repo[repo_url].clone()
             except GitCommandError as e:
                 abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                              ' repository and path of the request - {}'.format(e.stderr))
+                      ' repository and path of the request - {}'.format(e.stderr))
         try:
             if 'branch' in capability:
                 branch = capability.get('branch')
@@ -599,7 +602,7 @@ def get_job(job_id):
     return {'info': {'job-id': job_id,
                      'result': result,
                      'reason': reason}
-                    }
+            }
 
 ### HELPER DEFINITIONS ###
 
@@ -622,8 +625,9 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
 
     return accessRigths
 
+
 def get_mod_confd(name: str, revision: str, organization: str):
-    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
-    url = '{}/restconf/data/yang-catalog:catalog/modules/module={},{},{}'.format(
-        confd_prefix, name, revision, organization)
-    return requests.get(url, auth=(ac.s_confd_credentials[0], ac.s_confd_credentials[1]), headers=confd_headers)
+    mod_key = '{},{},{}'.format(name, revision, organization)
+    response = app.confdService.get_module(mod_key)
+
+    return response
