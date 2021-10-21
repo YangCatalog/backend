@@ -86,6 +86,7 @@ def register_user():
                           first_name=first_name, last_name=last_name, motivation=motivation)
     except RedisError as err:
         app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     mf = MessageFactory()
     mf.send_new_user(username, email, motivation)
     return ({'info': 'User created successfully'}, 201)
@@ -201,6 +202,16 @@ def delete_vendor(value):
 
     app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
+
+
+def organization_by_namespace(namespace):
+    for ns, org in NS_MAP.items():
+        if ns in namespace:
+            return org
+        else:
+            if 'urn:' in namespace:
+                return namespace.split('urn:')[1].split(':')[0]
+    return ''
 
 
 @bp.route('/modules', methods=['PUT', 'POST'])
@@ -333,13 +344,7 @@ def add_modules():
         try:
             namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, sdo_path.split('/')[-1]))) \
                 .search('namespace')[0].arg
-
-            for ns, org in NS_MAP.items():
-                if ns in namespace:
-                    organization = org
-            if organization == '':
-                if 'urn:' in namespace:
-                    organization = namespace.split('urn:')[1].split(':')[0]
+            organization = organization_by_namespace(namespace)
         except:
             while True:
                 try:
@@ -353,12 +358,7 @@ def add_modules():
                                                                '/'.join(sdo_path.split('/')[:-1]),
                                                                belongs_to))
                     ).search('namespace')[0].arg
-                    for ns, org in NS_MAP.items():
-                        if ns in namespace:
-                            organization = org
-                    if organization == '':
-                        if 'urn:' in namespace:
-                            organization = namespace.split('urn:')[1].split(':')[0]
+                    organization = organization_by_namespace(namespace)
                     break
                 except:
                     pass
@@ -407,10 +407,10 @@ def add_vendors():
                                ' platform-implementation-metadata.yang module. Received no json')
     body = request.json
 
-    platforms_cont = body.get('platforms')
-    if platforms_cont is None:
+    platforms_contents = body.get('platforms')
+    if platforms_contents is None:
         abort(400, description='bad request - "platforms" json object is missing and is mandatory')
-    platform_list = platforms_cont.get('platform')
+    platform_list = platforms_contents.get('platform')
     if platform_list is None:
         abort(400, description='bad request - "platform" json list is missing and is mandatory')
 

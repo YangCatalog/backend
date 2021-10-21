@@ -47,7 +47,7 @@ class YangCatalogApiGlobalConfig():
         self.result_dir = config.get('Web-Section', 'result-html-dir', fallback='tests/resources/html/results')
         self.private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
         self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='').strip('"').split(' ')
+        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
         self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='yangcatalog.org')
         self.confdPort = int(config.get('Web-Section', 'confd-port', fallback=8008))

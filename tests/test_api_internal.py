@@ -270,5 +270,5 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Statistics file has not been generated yet')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
