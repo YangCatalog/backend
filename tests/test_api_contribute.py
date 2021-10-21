@@ -23,16 +23,12 @@ from unittest import mock
 import json
 
 from git import GitCommandError
-from sqlalchemy.exc import SQLAlchemyError
-from werkzeug.exceptions import HTTPException
 
 import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
 from api.yangCatalogApi import app
 from api.globalConfig import yc_gc
-from api.models import User
 from api.views.admin.admin import hash_pw
-
-db = yc_gc.sqlalchemy
+from utility.redisUsersConnection import RedisUsersConnection
 
 
 class MockRepoUtil:
@@ -70,19 +66,15 @@ class TestApiContributeClass(unittest.TestCase):
         self.addCleanup(self.get_patcher.stop)
         self.mock_get.return_value.json.return_value = json.loads(yc_gc.redis.get('modules-data') or '{}')
         self.mock_confd_get.side_effect = mock_confd_get
-        with app.app_context():
-            self.user = User(Username='test', Password=hash_pw('test'), Email='test@test.test',
-                        AccessRightsSdo='/', AccessRightsVendor='/')
-            db.session.add(self.user)
-            db.session.commit()
+        self.users = RedisUsersConnection()
+        self.uid = self.users.create(temp=False, username='test', password=hash_pw('test'), email='test@test.test',
+                                     models_provider='test', first_name='test', last_name='test',
+                                     access_rights_sdo='/', access_rights_vendor='/')
 
     def tearDown(self):
-        with app.app_context():
-            db.session.delete(self.user)
-            db.session.commit()
+        self.users.delete(self.uid, temp=False)
 
-    @mock.patch('sqlalchemy.orm.Query.all')
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
+    @unittest.skip('removed mariadb')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
     def test_register_user(self, mock_all: mock.MagicMock):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
@@ -127,8 +119,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Passwords do not match')
 
-    @mock.patch('sqlalchemy.orm.Query.all')
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
+    @unittest.skip('removed mariadb')
     def test_register_user_user_exist(self, mock_all: mock.MagicMock):
 
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
@@ -142,8 +133,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test already exists')
 
-    @mock.patch('sqlalchemy.orm.Query.all')
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
+    @unittest.skip('removed mariadb')
     def test_register_user_tempuser_exist(self, mock_all: mock.MagicMock):
 
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
@@ -157,8 +147,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test is pending for permissions')
 
-    @mock.patch('sqlalchemy.orm.Query.all')
-    @mock.patch.object(yc_gc.sqlalchemy.session, 'add', mock.MagicMock)
+    @unittest.skip('removed mariadb')
     def test_register_user_db_exception(self, mock_all: mock.MagicMock):
 
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
