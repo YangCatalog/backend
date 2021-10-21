@@ -495,7 +495,7 @@ def create_user(status):
 def delete_user(status, id):
     if status not in ['temp', 'approved']:
         return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
-    if not users.exists(id):
+    if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
         abort(404, description='id {} not found with status {}'.format(id, status))
     users.delete(id, temp=True if status == 'temp' else False)
     return {'info': 'id {} deleted successfully'.format(id)}
