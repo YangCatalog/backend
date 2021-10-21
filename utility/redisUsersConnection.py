@@ -39,8 +39,6 @@ class RedisUsersConnection:
         self.log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('redisUsersConnection', '{}/redisUsersConnection.log'.format(self.log_directory))
 
-    def exists(self, id: str) -> bool:
-        return self.redis.sismember('users', id)
 
     def username_exists(self, username: str) -> bool:
         return self.redis.hexists('usernames', username)
@@ -61,9 +59,12 @@ class RedisUsersConnection:
     def is_temp(self, id: str) -> bool:
         return self.redis.sismember('temp', id)
 
+    def id_by_username(self, username: str) -> str:
+        r = self.redis.hget('usernames', username)
+        return (r or b'').decode()
+
     def create(self, temp: bool, **kwargs) -> int:
         id = self.redis.incr('new-id')
-        self.redis.sadd('users', id)
         self.redis.hset('usernames', kwargs['username'], id)
         if 'registration_datetime' not in kwargs:
             kwargs['registration_datetime'] = str(datetime.datetime.utcnow())
@@ -89,7 +90,6 @@ class RedisUsersConnection:
         else:
             for field in self._appr_fields:
                 self.delete_field(id, field)
-        self.redis.srem('users', id)
 
     def approve(self, id: str, access_rights_sdo: str, access_rights_vendor: str):
         self.redis.srem('temp', id)

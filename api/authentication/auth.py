@@ -15,7 +15,7 @@ users = None
 
 
 @auth.hash_password
-def hash_pw(password: str):
+def hash_pw(password: str) -> bytes:
     """Hash the password
 
     Arguments:
@@ -23,12 +23,12 @@ def hash_pw(password: str):
         :return hashed password
     """
     if sys.version_info >= (3, 4):
-        password = password.encode(encoding='utf-8', errors='strict')
-    return hashlib.sha256(password).hexdigest()
+        password = password.encode()
+    return hashlib.sha256(password).hexdigest().encode()
 
 
 @auth.get_password
-def get_password(username: str):
+def get_password(username: str) -> bytes:
     """Get password out of database
 
     Arguments:
@@ -36,7 +36,8 @@ def get_password(username: str):
         :return hashed password from database
     """
     try:
-        return users.get_field(username, 'password').encode()
+        id = users.id_by_username(username)
+        return users.get_field(id, 'password').encode()
     except RedisError as err:
         current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
         return None
