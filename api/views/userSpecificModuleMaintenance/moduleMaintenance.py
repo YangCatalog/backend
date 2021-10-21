@@ -614,8 +614,9 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     """
     accessRigths = None
     try:
-        if users.exists(username):
-            return users.get_field(username, 'access-rights-vendor' if is_vendor else 'access-rights-sdo').encode()
+        if users.username_exists(username):
+            id = users.id_by_username(username)
+            return users.get_field(id, 'access-rights-vendor' if is_vendor else 'access-rights-sdo')
     except RedisError as err:
         app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
     return accessRigths
