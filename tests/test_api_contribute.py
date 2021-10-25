@@ -23,6 +23,7 @@ from unittest import mock
 import json
 
 from git import GitCommandError
+from redis import RedisError
 
 import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
 from api.yangCatalogApi import app
@@ -74,12 +75,12 @@ class TestApiContributeClass(unittest.TestCase):
     def tearDown(self):
         self.users.delete(self.uid, temp=False)
 
-    @unittest.skip('removed mariadb')
+    @mock.patch.object(app.config.redis_users, 'create', mock.MagicMock())
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
-    def test_register_user(self, mock_all: mock.MagicMock):
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+    def test_register_user(self):
+        # we use a username different from "test" because such a user already exists
+        body = {k: 'tset' for k in ['username', 'password', 'password-confirm', 'email',
                                     'company', 'first-name', 'last-name', 'motivation']}
-        mock_all.return_value = False
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 201)
@@ -119,12 +120,9 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Passwords do not match')
 
-    @unittest.skip('removed mariadb')
-    def test_register_user_user_exist(self, mock_all: mock.MagicMock):
-
+    def test_register_user_user_exist(self):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
                                     'company', 'first-name', 'last-name', 'motivation']}
-        mock_all.side_effect = [True]
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 409)
@@ -133,12 +131,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test already exists')
 
-    @unittest.skip('removed mariadb')
-    def test_register_user_tempuser_exist(self, mock_all: mock.MagicMock):
-
+    @mock.patch.object(app.config.redis_users, 'is_approved', mock.MagicMock(return_value=False))
+    @mock.patch.object(app.config.redis_users, 'is_temp', mock.MagicMock(return_value=True))
+    def test_register_user_tempuser_exist(self):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
                                     'company', 'first-name', 'last-name', 'motivation']}
-        mock_all.side_effect = [False, True]
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 409)
@@ -147,12 +144,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test is pending for permissions')
 
-    @unittest.skip('removed mariadb')
-    def test_register_user_db_exception(self, mock_all: mock.MagicMock):
-
+    @mock.patch.object(app.config.redis_users, 'username_exists')
+    def test_register_user_db_exception(self, mock_exists: mock.MagicMock):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
                                     'company', 'first-name', 'last-name', 'motivation']}
-        mock_all.side_effect = SQLAlchemyError
+        mock_exists.side_effect = RedisError
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 500)

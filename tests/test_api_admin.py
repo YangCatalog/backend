@@ -597,7 +597,7 @@ class TestApiAdminClass(unittest.TestCase):
         data = result.json
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'id {} deleted successfully'.format(self.uid))
-        self.assertFalse(self.users.exists(self.uid))
+        self.assertFalse(self.users.is_temp(self.uid))
 
     def test_delete_user_invalid_status(self):
         result = self.client.delete('api/admin/users/fake/id/{}'.format(self.uid))
