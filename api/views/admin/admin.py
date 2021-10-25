@@ -529,6 +529,7 @@ def update_user(status, id):
 @catch_db_error
 def get_users(status):
     ids = users.get_all(status)
+    app.logger.info('Fetching {} users from redis'.format(len(ids)))
     ret = [users.get_all_fields(id) for id in ids]
     return jsonify(ret)
 

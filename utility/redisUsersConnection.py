@@ -64,6 +64,7 @@ class RedisUsersConnection:
         return (r or b'').decode()
 
     def create(self, temp: bool, **kwargs) -> int:
+        self.LOGGER.info('Creating new user')
         id = self.redis.incr('new-id')
         self.redis.hset('usernames', kwargs['username'], id)
         if 'registration_datetime' not in kwargs:
@@ -80,6 +81,7 @@ class RedisUsersConnection:
         return id
 
     def delete(self, id: str, temp: bool):
+        self.LOGGER.info('Deleting user with id {}'.format(id))
         self.redis.hdel('usernames', self.get_field(id, 'username'))
         for field in self._universal_fields:
             self.delete_field(id, field)
@@ -92,6 +94,7 @@ class RedisUsersConnection:
                 self.delete_field(id, field)
 
     def approve(self, id: str, access_rights_sdo: str, access_rights_vendor: str):
+        self.LOGGER.info('Approving user with id {}'.format(id))
         self.redis.srem('temp', id)
         self.set_field(id, 'access-rights-sdo', access_rights_sdo)
         self.set_field(id, 'access-rights-vendor', access_rights_vendor)
