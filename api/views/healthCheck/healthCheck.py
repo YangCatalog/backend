@@ -19,6 +19,7 @@ __email__ = "slavomir.mazur@pantheon.tech"
 
 import json
 import time
+from redis import RedisError
 
 import requests
 import utility.log as log
@@ -26,7 +27,7 @@ from elasticsearch import Elasticsearch
 from flask import Blueprint
 from flask import current_app as app
 from flask import jsonify, make_response
-from sqlalchemy.exc import SQLAlchemyError
+
 from utility.staticVariables import json_headers
 
 
@@ -48,50 +49,22 @@ def init_logger(state):
 
 @bp.before_request
 def set_config():
-    global ac, db
+    global ac, users
     ac = app.config
-    db = ac.sqlalchemy
+    users = ac.redis_users
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @bp.route('/services-list', methods=['GET'])
 def get_services_list():
     response_body = []
-    service_endpoints = ['my-sql', 'elk', 'confd', 'redis-admin', 'yang-search-admin', 'yang-validator-admin',
+    service_endpoints = ['elk', 'confd', 'redis-admin', 'yang-search-admin', 'yang-validator-admin',
                          'yangre-admin', 'nginx', 'rabbitmq', 'yangcatalog']
-    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'Redis', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog']
+    service_names = ['Elasticsearch', 'ConfD', 'Redis', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog']
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
         response_body.append(pair)
     return make_response(jsonify(response_body), 200)
-
-
-@bp.route('/my-sql', methods=['GET'])
-def health_check_mysql():
-    try:
-        if db is not None:
-            bp.LOGGER.info('Successfully connected to database: {}'.format(ac.db_name_users))
-            tables = db.inspect(db.engine).get_table_names()
-            if len(tables):
-                response = {'info': 'MySQL is running',
-                            'status': 'running',
-                            'message': '{} tables available in the database: {}'.format(len(tables), ac.db_name_users)}
-            else:
-                response = {'info': 'MySQL is running',
-                            'status': 'problem',
-                            'message': 'No tables found in the database: {}'.format(ac.db_name_users)}
-            bp.LOGGER.info('{} tables available in the database: {}'.format(len(tables), ac.db_name_users))
-            return make_response(jsonify(response), 200)
-    except SQLAlchemyError as err:
-        bp.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        if err.args[0] in [1044, 1045]:
-            return make_response(jsonify({'info': 'Not OK - Access denied',
-                                          'status': 'down',
-                                          'error': 'MySQL error: {}'.format(err)}), 200)
-        else:
-            return make_response(jsonify({'info': 'Not OK - MySQL is not running',
-                                          'status': 'down',
-                                          'error': 'MySQL error: {}'.format(err)}), 200)
 
 
 @bp.route('/elk', methods=['GET'])
@@ -192,9 +165,9 @@ def health_check_redis():
 
     except Exception as err:
         bp.LOGGER.error('Cannot ping Redis. Error: {}'.format(err))
-        return make_response(jsonify(error_response(service_name, err)), 200)
+        return error_response(service_name, err)
 
-    return make_response(jsonify(response), 200)
+    return response
 
 
 @bp.route('/nginx', methods=['GET'])

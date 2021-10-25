@@ -52,10 +52,6 @@ RUN sed -i "s|<YANGCATALOG_CONFIG_PATH>|${YANGCATALOG_CONFIG_PATH}|g" /etc/cron.
 RUN chown -R yang:yang $VIRTUAL_ENV
 RUN chown -R yang:yang /var/run/yang
 
-RUN mkdir /var/run/mysqld
-RUN chown -R yang:yang /var/run/mysqld
-RUN chmod 777 /var/run/mysqld
-
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
 COPY ./backend/elasticsearchIndexing/pyang_plugin/json_tree.py /backend/lib/python3.9/site-packages/pyang/plugins/.

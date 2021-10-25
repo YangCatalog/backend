@@ -23,15 +23,15 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import api.views.admin.admin as admin
 import flask_oidc
-from api.models import User
-from api.yangCatalogApi import app
-from sqlalchemy.exc import SQLAlchemyError
+from redis import RedisError
 from werkzeug.exceptions import HTTPException
 
+import api.views.admin.admin as admin
+from api.yangCatalogApi import app
+from utility.redisUsersConnection import RedisUsersConnection
+
 ac = app.config
-db = ac.sqlalchemy
 
 
 class TestApiAdminClass(unittest.TestCase):
@@ -42,25 +42,23 @@ class TestApiAdminClass(unittest.TestCase):
         self.client = app.test_client()
 
     def setUp(self):
-        user = User(Username='test', Password='test', Email='test')
-        with app.app_context():
-            db.session.add(user)
-            db.session.commit()
-            self.uid = user.Id
-        self.patcher = mock.patch.object(flask_oidc.OpenIDConnect, 'user_loggedin')
-        self.mock_user_loggedin = self.patcher.start()
-        self.addCleanup(self.patcher.stop)
-        self.mock_user_loggedin = True
+        self.users = RedisUsersConnection(db=3)
+        self.users_patcher = mock.patch.object(app.config, 'redis_users', self.users)
+        self.users_patcher.start()
+        self.addCleanup(self.users_patcher.stop)
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        fields = content['user']['input']
+        fields = {key.replace('-', '_'): value for key, value in fields.items()}
+        self.uid = self.users.create(temp=True, **fields)
 
     def tearDown(self):
-        with app.app_context():
-            db.session.query(User).filter_by(Id=self.uid).delete()
-            db.session.commit()
+        self.users.redis.flushdb()
 
     def test_catch_db_error(self):
         with app.app_context():
             def error():
-                raise SQLAlchemyError
+                raise RedisError
             result = admin.catch_db_error(error)()
 
         self.assertEqual(result, ({'error': 'Server problem connecting to database'}, 500))
@@ -408,7 +406,7 @@ class TestApiAdminClass(unittest.TestCase):
         result = admin.determine_formatting('test', r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))',
                                             r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)')
 
-        self.assertEqual(result, False)
+        self.assertFalse(result)
 
     @mock.patch('builtins.open')
     def test_determine_formatting_true(self, mock_open: mock.MagicMock):
@@ -417,7 +415,7 @@ class TestApiAdminClass(unittest.TestCase):
         result = admin.determine_formatting('test', r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))',
                                             r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)')
 
-        self.assertEqual(result, True)
+        self.assertTrue(result)
 
     def test_generate_output(self):
         with open('{}/testlog.log'.format(self.resources_path), 'r') as f:
@@ -500,26 +498,8 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('output', data)
         self.assertEqual(data['output'], ['test'])
 
-    def test_get_sql_tables(self):
-        result = self.client.get('api/admin/sql-tables')
-
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertEqual(data, [
-            {
-                'name': 'users',
-                'label': 'approved users'
-            },
-            {
-                'name': 'users_temp',
-                'label': 'users waiting for approval'
-            }
-        ])
-
-    @mock.patch.object(ac.sqlalchemy.session, 'add')
-    def test_move_user(self, mock_add: mock.MagicMock):
-        body = {'id': 2903574, 'username': 'name', 'access-rights-sdo': 'test'}
+    def test_move_user(self):
+        body = {'id': self.uid, 'access-rights-sdo': 'test'}
         result = self.client.post('api/admin/move-user',
                                   json={'input': body})
 
@@ -527,13 +507,10 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
-        self.assertEqual(data['info'], 'data successfully added to database users and removed from users_temp')
+        self.assertEqual(data['info'], 'user successfully approved')
         self.assertIn('data', data)
         self.assertEqual(data['data'], body)
-        mock_add.assert_called()
-        user = mock_add.call_args.args[0]
-        self.assertEqual(user.Username, 'name')
-        self.assertEqual(user.AccessRightsSdo, 'test')
+        self.assertTrue(self.users.is_approved(self.uid))
 
     def test_move_user_no_id(self):
         result = self.client.post('api/admin/move-user', json={'input': {}})
@@ -542,19 +519,10 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Id of a user is missing')
-
-    def test_move_user_no_username(self):
-        result = self.client.post('api/admin/move-user', json={'input': {'id': 1}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'username must be specified')
+        self.assertEqual(data['description'], 'id of a user is missing')
 
     def test_move_user_no_access(self):
-        result = self.client.post('api/admin/move-user', json={'input': {'id': 1, 'username': 'name'}})
+        result = self.client.post('api/admin/move-user', json={'input': {'id': self.uid}})
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -562,13 +530,12 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add')
-    def test_create_sql_row(self, mock_add: mock.MagicMock):
+    def test_create_user(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('sql_row')
+        body = content['user']
 
-        result = self.client.post('api/admin/sql-tables/users_temp', json=body)
+        result = self.client.post('api/admin/users/temp', json=body)
 
         self.assertEqual(result.status_code, 201)
         self.assertTrue(result.is_json)
@@ -577,44 +544,44 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['info'], 'data successfully added to database')
         self.assertIn('data', data)
         self.assertEqual(data['data'], body['input'])
+        self.assertIn('id', data)
+        self.assertTrue(self.users.is_temp(data['id']))
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add', new=mock.MagicMock())
-    def test_create_sql_row_invalid_table(self):
+
+    def test_create_user_invalid_status(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('sql_row')
+        body = content['user']
 
-        result = self.client.post('api/admin/sql-tables/fake', json=body)
+        result = self.client.post('api/admin/users/fake', json=body)
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('error', data)
-        self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
+        self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add', new=mock.MagicMock())
-    def test_create_sql_row_args_missing(self):
+    def test_create_user_args_missing(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('sql_row')
+        body = content['user']
         body['input']['username'] = ''
 
-        result = self.client.post('api/admin/sql-tables/users_temp', json=body)
+        result = self.client.post('api/admin/users/temp', json=body)
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'username - , firstname - test, last-name - test,'
-                                              ' email - test and password - test must be specified')
+        self.assertEqual(data['description'], 'username - , firstname - john, last-name - doe,'
+                                              ' email - j@d.com and password - secret must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'add')
-    def test_create_sql_row_missing_access_rights(self, mock_add: mock.MagicMock):
+    def test_create_user_missing_access_rights(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('sql_row')
+        body = content['user']
 
-        result = self.client.post('api/admin/sql-tables/users', json=body)
+        result = self.client.post('api/admin/users/approved', json=body)
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -622,67 +589,60 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'delete')
-    def test_delete_sql_row(self, mock_delete: mock.MagicMock):
-        mock_delete.side_effect = ac.sqlalchemy.session.expunge
-        result = self.client.delete('api/admin/sql-tables/users/id/{}'.format(self.uid))
+    def test_delete_user(self,):
+        result = self.client.delete('api/admin/users/temp/id/{}'.format(self.uid))
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'id {} deleted successfully'.format(self.uid))
-        self.assertTrue(len(mock_delete.call_args.args))
-        user = mock_delete.call_args.args[0]
-        self.assertTrue(isinstance(user, User))
-        self.assertEqual(user.Id, self.uid)
+        self.assertFalse(self.users.is_temp(self.uid))
 
-    @mock.patch.object(ac.sqlalchemy.session, 'delete')
-    def test_delete_sql_row_invalid_table(self, mock_delete: mock.MagicMock):
-        result = self.client.delete('api/admin/sql-tables/fake/id/{}'.format(self.uid))
+    def test_delete_user_invalid_status(self):
+        result = self.client.delete('api/admin/users/fake/id/{}'.format(self.uid))
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('error', data)
-        self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
+        self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'delete')
-    def test_delete_sql_row_id_not_found(self, mock_delete: mock.MagicMock):
-        result = self.client.delete('api/admin/sql-tables/users/id/24857629847625894258476')
+    def test_delete_user_id_not_found(self):
+        result = self.client.delete('api/admin/users/approved/id/24857629847625894258476')
 
         self.assertEqual(result.status_code, 404)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'id 24857629847625894258476 not found in table users')
+        self.assertEqual(data['description'], 'id 24857629847625894258476 not found with status approved')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
-    def test_update_sql_row(self):
+    def test_update_user(self):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
-        body = content.get('sql_row')
+        body = content['user']
+        body['input']['username'] = 'jdoe'
 
-        result = self.client.put('api/admin/sql-tables/users/id/{}'.format(self.uid), json=body)
+        result = self.client.put('api/admin/users/temp/id/{}'.format(self.uid), json=body)
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'ID {} updated successfully'.format(self.uid))
+        self.assertEqual(self.users.get_field(self.uid, 'username'), 'jdoe')
 
-    def test_update_sql_row_invalid_table(self):
-        result = self.client.put('api/admin/sql-tables/fake/id/24857629847625894258476')
+    def test_update_user_invalid_status(self):
+        result = self.client.put('api/admin/users/fake/id/{}'.format(self.uid))
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('error', data)
-        self.assertEqual(data['error'], 'no such table fake, use only users or users_temp')
+        self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
-    def test_update_sql_row_args_missing(self):
-        result = self.client.put('api/admin/sql-tables/users/id/{}'.format(self.uid), json={'input': {}})
+    def test_update_user_args_missing(self):
+        result = self.client.put('api/admin/users/temp/id/{}'.format(self.uid), json={'input': {}})
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -690,18 +650,17 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'username and email must be specified')
 
-    @mock.patch.object(ac.sqlalchemy.session, 'commit', new=mock.MagicMock())
-    def test_update_sql_row_id_not_found(self):
-        result = self.client.put('api/admin/sql-tables/users/id/24857629847625894258476')
+    def test_update_user_id_not_found(self):
+        result = self.client.put('api/admin/users/approved/id/24857629847625894258476')
 
         self.assertEqual(result.status_code, 404)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'ID 24857629847625894258476 not found in table users')
+        self.assertEqual(data['description'], 'id 24857629847625894258476 not found with status approved')
 
-    def test_get_sql_row(self):
-        result = self.client.get('api/admin/sql-tables/users')
+    def test_get_users(self):
+        result = self.client.get('api/admin/users/temp')
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)

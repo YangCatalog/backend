@@ -27,12 +27,11 @@ from datetime import datetime
 
 import requests
 from api.authentication.auth import auth, hash_pw
-from api.models import TempUser, User
 from flask import Blueprint, abort
 from flask import current_app as app
-from flask import jsonify, make_response, request
+from flask import request
 from git import GitCommandError
-from sqlalchemy.exc import SQLAlchemyError
+from redis import RedisError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import NS_MAP, confd_headers, github_url
@@ -51,9 +50,9 @@ bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
 
 @bp.before_request
 def set_config():
-    global ac, db
+    global ac, users
     ac = app.config
-    db = ac.sqlalchemy
+    users = ac.redis_users
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
@@ -72,23 +71,22 @@ def register_user():
     email = body['email']
     confirm_password = hash_pw(body['password-confirm'])
     models_provider = body['company']
-    name = body['first-name']
+    first_name = body['first-name']
     last_name = body['last-name']
     motivation = body['motivation']
     if password != confirm_password:
         abort(400, 'Passwords do not match')
     try:
-        if db.session.query(User).filter_by(Username=username).all():
-            abort(409, 'User with username {} already exists'.format(username))
-        if db.session.query(TempUser).filter_by(Username=username).all():
-            abort(409, 'User with username {} is pending for permissions'.format(username))
-        temp_user = TempUser(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                             FirstName=name, LastName=last_name, Motivation=motivation,
-                             RegistrationDatetime=datetime.utcnow())
-        db.session.add(temp_user)
-        db.session.commit()
-    except SQLAlchemyError as err:
-        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        if users.username_exists(username):
+            id = users.id_by_username(username)
+            if users.is_approved(id):
+                abort(409, 'User with username {} already exists'.format(username))
+            elif users.is_temp(id):
+                abort(409, 'User with username {} is pending for permissions'.format(username))
+        users.create(temp=True, username=username, password=password, email=email, models_provider=models_provider,
+                     first_name=first_name, last_name=last_name, motivation=motivation)
+    except RedisError as err:
+        app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
         return ({'error': 'Server problem connecting to database'}, 500)
     mf = MessageFactory()
     mf.send_new_user(username, email, motivation)
@@ -609,7 +607,7 @@ def get_job(job_id):
 
 def get_user_access_rights(username: str, is_vendor: bool = False):
     """
-    Create MySQL connection and execute query to get information about user by given username.
+    Query Redis for information about the user by given username.
 
     Arguments:
         :param username     (str) authorized user's username
@@ -617,17 +615,15 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     """
     accessRigths = None
     try:
-        result = db.session.query(User).filter_by(Username=username).first()
-        if result:
-            return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
-    except SQLAlchemyError as err:
-        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
-
+        if users.username_exists(username):
+            id = users.id_by_username(username)
+            return users.get_field(id, 'access-rights-vendor' if is_vendor else 'access-rights-sdo')
+    except RedisError as err:
+        app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
     return accessRigths
 
 
 def get_mod_confd(name: str, revision: str, organization: str):
     mod_key = '{},{},{}'.format(name, revision, organization)
     response = app.confdService.get_module(mod_key)
-
     return response
