@@ -32,6 +32,7 @@ import logging
 import os
 import shutil
 import time
+from collections import OrderedDict
 from time import sleep
 
 import redis
@@ -59,6 +60,7 @@ class ScriptConfig:
         self.cache_directory = config.get('Directory-Section', 'cache')
         self.redis_host = config.get('DB-Section', 'redis-host')
         self.redis_port = config.get('DB-Section', 'redis-port')
+        self.var_yang = config.get('Directory-Section', 'var')
         parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--name_save',
                             default=datetime.datetime.utcnow().strftime(backup_date_format),
@@ -93,12 +95,13 @@ class ScriptConfig:
 
 
 def feed_confd_modules(modules_data: list, confdService: ConfdService, LOGGER: logging.Logger):
-    for x in range(0, len(modules_data), 1000):
-        LOGGER.info('Processing chunk {} out of {}'.format((x // 1000) + 1, (len(modules_data) // 1000) + 1))
+    chunk_size = 500
+    for x in range(0, len(modules_data), chunk_size):
+        LOGGER.info('Processing chunk {} out of {}'.format((x // chunk_size) + 1, (len(modules_data) // chunk_size) + 1))
         json_modules_data = json.dumps({
             'modules':
                 {
-                    'module': modules_data[x: x + 1000]
+                    'module': modules_data[x: x + chunk_size]
                 }
         })
 
@@ -208,12 +211,13 @@ def main(scriptConf=None):
     temp_dir = scriptConf.temp_dir
     redis_host = scriptConf.redis_host
     redis_port = scriptConf.redis_port
+    var_yang = scriptConf.var_yang
     confdService = ConfdService()
 
     confd_backups = os.path.join(cache_directory, 'confd')
     redis_backups = os.path.join(cache_directory, 'redis')
 
-    LOGGER = log.get_logger('recovery', '{}'.format(os.path.join(log_directory, 'yang.log')))
+    LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
     LOGGER.info('Starting {} process of ConfD database'.format(args.type))
 
     tries = 4
@@ -245,10 +249,13 @@ def main(scriptConf=None):
         ]
 
         # Redis backup
-        redis_backup_file = os.path.join(redis_backups, 'dump.rdb')
+        redis_backup_file = '{}/redis/dump.rdb'.format(var_yang)
         if os.path.exists(redis_backup_file):
             redis_copy_file = os.path.join(redis_backups, args.name_save)
             shutil.copy2(redis_backup_file, redis_copy_file)
+            LOGGER.info('Backup of Redis dump.rdb file created')
+        else:
+            LOGGER.warning('Redis dump.rdb file does not exists')
         LOGGER.info('Save completed successfully')
         filename = '{} - save'.format(os.path.basename(__file__).split('.py')[0])
         job_log(start_time, temp_dir, messages=messages, status='Success', filename=filename)
@@ -261,7 +268,7 @@ def main(scriptConf=None):
 
         catalog_data = None
         response = confdService.head_catalog()
-        if response.status_code == 204:
+        if response.status_code != 200:
             with open(file_name, 'r') as file_load:
                 LOGGER.info('Loading file {}'.format(file_load.name))
                 catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
@@ -274,11 +281,13 @@ def main(scriptConf=None):
 
             LOGGER.info('Starting to add vendors')
             feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
+        else:
+            LOGGER.info('ConfD loaded from backup files')
 
         redis_cache = redis.Redis(host=redis_host, port=redis_port)
 
         data = redis_cache.get('modules-data')
-        redis_modules = '{}' if data is None else data.decode('utf-8')
+        redis_modules = (data or b'{}').decode('utf-8')
         data = redis_cache.get('yang-catalog@2018-04-03/ietf')
         yang_catalog_module = (data or b'{}').decode('utf-8')
 
@@ -291,6 +300,8 @@ def main(scriptConf=None):
                     LOGGER.info('Loading file {}'.format(file_load.name))
                     catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
             feed_redis_from_json(redis_cache, catalog_data, LOGGER)
+        else:
+            LOGGER.info('Redis loaded from backup file')
 
     LOGGER.info('Job finished successfully')
 

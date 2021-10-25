@@ -26,6 +26,7 @@ import redis
 
 
 def load_catalog_data():
+    redis_cache = redis.Redis(host='localhost', port=6379)
     resources_path = '{}/tests/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
     try:
         print('Loading cache file from path {}'.format(resources_path))
@@ -54,8 +55,11 @@ def load_catalog_data():
     print('{} modules set in Redis.'.format(len(modules.get('module', {}))))
     redis_cache.set('vendors-data', json.dumps(vendors))
     print('{} vendors set in Redis.'.format(len(vendors.get('vendor', {}))))
-    redis_cache.set('all-catalog-data', json.dumps(catalog_data))
 
 
-redis_cache = redis.Redis(host='localhost', port=6379)
-load_catalog_data()
+def main():
+    load_catalog_data()
+
+
+if __name__ == '__main__':
+    main()
