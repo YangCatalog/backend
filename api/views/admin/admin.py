@@ -531,6 +531,8 @@ def get_users(status):
     ids = users.get_all(status)
     app.logger.info('Fetching {} users from redis'.format(len(ids)))
     ret = [users.get_all_fields(id) for id in ids]
+    for user, id in zip(ret, ids):
+        user.update(id=id)
     return jsonify(ret)
 
 
