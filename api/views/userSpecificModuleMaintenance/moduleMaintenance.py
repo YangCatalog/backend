@@ -78,12 +78,13 @@ def register_user():
         abort(400, 'Passwords do not match')
     try:
         if users.username_exists(username):
-            if users.is_approved(username):
+            id = users.id_by_username(username)
+            if users.is_approved(id):
                 abort(409, 'User with username {} already exists'.format(username))
-            elif users.is_temp(username):
+            elif users.is_temp(id):
                 abort(409, 'User with username {} is pending for permissions'.format(username))
-        users.create_user(temp=True, username=username, password=password, email=email, models_provider=models_provider,
-                          first_name=first_name, last_name=last_name, motivation=motivation)
+        users.create(temp=True, username=username, password=password, email=email, models_provider=models_provider,
+                     first_name=first_name, last_name=last_name, motivation=motivation)
     except RedisError as err:
         app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
         return ({'error': 'Server problem connecting to database'}, 500)
