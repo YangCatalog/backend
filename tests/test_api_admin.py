@@ -42,7 +42,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.client = app.test_client()
 
     def setUp(self):
-        self.users = RedisUsersConnection(db=2)
+        self.users = RedisUsersConnection(db=3)
         self.users_patcher = mock.patch.object(app.config, 'redis_users', self.users)
         self.users_patcher.start()
         self.addCleanup(self.users_patcher.stop)
