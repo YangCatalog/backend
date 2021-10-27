@@ -55,7 +55,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.client = app.test_client()
 
     def setUp(self):
-        self.send_patcher = mock.patch('api.sender.Sender.send')
+        self.send_patcher = mock.patch('api.yangCatalogApi.app.config.sender.send')
         self.mock_send = self.send_patcher.start()
         self.addCleanup(self.send_patcher.stop)
         self.mock_send.return_value = 1
@@ -75,7 +75,7 @@ class TestApiContributeClass(unittest.TestCase):
     def tearDown(self):
         self.users.delete(self.uid, temp=False)
 
-    @mock.patch.object(app.config.redis_users, 'create', mock.MagicMock())
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.create', mock.MagicMock())
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
     def test_register_user(self):
         # we use a username different from "test" because such a user already exists
@@ -131,8 +131,8 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test already exists')
 
-    @mock.patch.object(app.config.redis_users, 'is_approved', mock.MagicMock(return_value=False))
-    @mock.patch.object(app.config.redis_users, 'is_temp', mock.MagicMock(return_value=True))
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
     def test_register_user_tempuser_exist(self):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
                                     'company', 'first-name', 'last-name', 'motivation']}
@@ -144,11 +144,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test is pending for permissions')
 
-    @mock.patch.object(app.config.redis_users, 'username_exists')
-    def test_register_user_db_exception(self, mock_exists: mock.MagicMock):
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
+    def test_register_user_db_exception(self):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
                                     'company', 'first-name', 'last-name', 'motivation']}
-        mock_exists.side_effect = RedisError
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 500)

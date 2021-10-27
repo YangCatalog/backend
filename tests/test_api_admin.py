@@ -27,6 +27,7 @@ import flask_oidc
 from redis import RedisError
 from werkzeug.exceptions import HTTPException
 
+import api.authentication.auth as auth
 import api.views.admin.admin as admin
 from api.yangCatalogApi import app
 from utility.redisUsersConnection import RedisUsersConnection
@@ -42,10 +43,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.client = app.test_client()
 
     def setUp(self):
-        self.users = RedisUsersConnection(db=3)
-        self.users_patcher = mock.patch.object(app.config, 'redis_users', self.users)
-        self.users_patcher.start()
-        self.addCleanup(self.users_patcher.stop)
+        self.users = RedisUsersConnection()
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         fields = content['user']['input']
@@ -53,7 +51,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.uid = self.users.create(temp=True, **fields)
 
     def tearDown(self):
-        self.users.redis.flushdb()
+        self.users.delete(self.uid, temp=True)
 
     def test_catch_db_error(self):
         with app.app_context():
@@ -307,7 +305,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(data['data'], 'test')
 
-    @mock.patch.object(ac.sender, 'send', mock.MagicMock)
+    @mock.patch('api.yangCatalogApi.app.config.sender.send', mock.MagicMock)
     @mock.patch('api.views.admin.admin.open')
     def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
         mock.mock_open(mock_open)
@@ -320,7 +318,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     @mock.patch('requests.post')
     @mock.patch('api.sender.Sender.send')
-    @mock.patch.object(app, 'load_config')
+    @mock.patch('api.yangCatalogApi.app.load_config')
     @mock.patch('builtins.open')
     def test_update_yangcatalog_config_errors(self, mock_open: mock.MagicMock, mock_load_config: mock.MagicMock,
                                               mock_send: mock.MagicMock, mock_post: mock.MagicMock):
@@ -499,6 +497,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['output'], ['test'])
 
     def test_move_user(self):
+        self.addCleanup(self.users.delete, self.uid, temp=False)
         body = {'id': self.uid, 'access-rights-sdo': 'test'}
         result = self.client.post('api/admin/move-user',
                                   json={'input': body})
@@ -546,6 +545,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['data'], body['input'])
         self.assertIn('id', data)
         self.assertTrue(self.users.is_temp(data['id']))
+        self.users.delete(data['id'], temp=True)
 
 
     def test_create_user_invalid_status(self):
