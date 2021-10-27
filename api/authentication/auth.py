@@ -37,7 +37,8 @@ def get_password(username: str) -> bytes:
     """
     try:
         id = users.id_by_username(username)
-        return users.get_field(id, 'password').encode()
+        if users.is_approved(id):
+            return users.get_field(id, 'password').encode()
     except RedisError as err:
         current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
         return None
