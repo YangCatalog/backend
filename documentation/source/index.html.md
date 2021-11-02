@@ -6,7 +6,7 @@ language_tabs: # must be one of https://git.io/vQNgJ
   - python
 
 toc_footers:
-  - <a href='https://yangcatalog.org/create.php'>Sign Up to contribute for yangcatalog</a>
+  - <a href='https://yangcatalog.org/create.html'>Sign Up to contribute for yangcatalog</a>
   - <a href='https://github.com/lord/slate'>Documentation Powered by Slate</a>
 
 search: true
@@ -533,7 +533,7 @@ You must replace <code>admin admin</code> with your personal name password.
 
 Parameter | Description
 --------- | -----------
-path:value | Path to a specific vendor modules you want to remove (example: cisco/xe/1632 would delete all 1632 xe cisco modules)
+path:value | Path to a specific vendor modules you want to remove (example: vendors/vendor/cisco/platforms/platform/xe would delete all xe cisco modules)
 
 ## Get job status
 
