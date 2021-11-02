@@ -110,7 +110,7 @@ def health_check_confd():
 
     try:
         # Check if ConfD is running
-        response = app.confdService.head_catalog()
+        response = app.confdService.get_restconf()
 
         if response.status_code == 200:
             bp.LOGGER.info('yang-catalog:catalog is running on ConfD')
@@ -118,35 +118,30 @@ def health_check_confd():
         else:
             bp.LOGGER.error('yang-catalog:catalog is NOT running on ConfD')
             response = {'error': 'Unable to ping yang-catalog:catalog'}
-        return make_response(jsonify(response), 200)
+        return (response, 200)
 
     except Exception as err:
         bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
-@bp.route('/redis-admin', methods=['GET'])
+@bp.route('/redis', methods=['GET'])
 def health_check_redis():
-    service_name = 'Redis'
 
     try:
-        redis_key = 'yang-catalog@2018-04-03/ietf'
-        result = ac.redis.get(redis_key)
-        if result is None:
-            response = {'info': 'Not OK - Redis is not filled',
-                        'status': 'problem',
-                        'message': 'Cannot get yang-catalog@2018-04-03/ietf'}
+        result = ac.redis.ping()
+        if result:
+            bp.LOGGER.info('Redis ping responsed successfully')
+            response = {'info': 'Success'}
         else:
-            bp.LOGGER.info('{} module successfully loaded from Redis'.format(redis_key))
-            response = {'info': 'Redis is running',
-                        'status': 'running',
-                        'message': '{} successfully loaded from Redis'.format(redis_key)}
+            bp.LOGGER.error('Redis ping failed to respond')
+            response = {'error': 'Unable to ping Redis'}
+        return (response, 200)
 
-    except Exception as err:
-        bp.LOGGER.error('Cannot ping Redis. Error: {}'.format(err))
-        return error_response(service_name, err)
-
-    return response
+    except Exception:
+        bp.LOGGER.exception('Cannot ping Redis')
+        error_message = {'error': 'Unable to ping Redis'}
+        return (error_message, 200)
 
 
 @bp.route('/nginx', methods=['GET'])
@@ -302,7 +297,7 @@ def health_check_confd_admin():
 
     try:
         # Check if ConfD is running
-        response = app.confdService.head_catalog()
+        response = app.confdService.get_restconf()
 
         if response.status_code == 200:
             bp.LOGGER.info('ConfD is running')
@@ -337,6 +332,30 @@ def health_check_confd_admin():
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
+@bp.route('/redis-admin', methods=['GET'])
+def health_check_redis_admin():
+    service_name = 'Redis'
+
+    try:
+        redis_key = 'yang-catalog@2018-04-03/ietf'
+        result = ac.redis.get(redis_key)
+        if result is None:
+            response = {'info': 'Not OK - Redis is not filled',
+                        'status': 'problem',
+                        'message': 'Cannot get yang-catalog@2018-04-03/ietf'}
+        else:
+            bp.LOGGER.info('{} module successfully loaded from Redis'.format(redis_key))
+            response = {'info': 'Redis is running',
+                        'status': 'running',
+                        'message': '{} successfully loaded from Redis'.format(redis_key)}
+
+    except Exception as err:
+        bp.LOGGER.error('Cannot ping Redis. Error: {}'.format(err))
+        return error_response(service_name, err)
+
+    return response
+
+
 @bp.route('/yangcatalog', methods=['GET'])
 def health_check_yangcatalog():
     service_name = 'yangcatalog'
@@ -367,7 +386,7 @@ def health_check_yangcatalog():
             status_code = response.status_code
             bp.LOGGER.info('URl: {} Status code: {}'.format(url, status_code))
             result['message'] = '{} OK'.format(status_code)
-        except:
+        except Exception:
             result['message'] = '500 NOT OK'
             status = 'problem'
             message = 'Problem occured, see additional info'
@@ -384,7 +403,7 @@ def check_cronjobs():
     try:
         with open('{}/cronjob.json'.format(ac.d_temp), 'r') as f:
             file_content = json.load(f)
-    except:
+    except Exception:
         return make_response(jsonify({'error': 'Data about cronjobs are not available.'}), 400)
     return make_response(jsonify({'data': file_content}), 200)
 

@@ -23,8 +23,9 @@ import re
 
 import utility.log as log
 from api.views.yangSearch.elkSearch import ElkSearch
+from flask import Blueprint, abort
 from flask import current_app as app
-from flask import Blueprint, abort, jsonify, make_response, request
+from flask import jsonify, make_response, request
 from pyang import plugin
 from utility.util import get_curr_dir
 from utility.yangParser import create_context
@@ -89,12 +90,15 @@ bp = YangSearch('yangSearch', __name__)
 def init_logger(state):
     bp.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(state.app.config.d_logs))
 
+
 @bp.before_request
 def set_config():
     global ac
     ac = app.config
 
 # ROUTE ENDPOINT DEFINITIONS
+
+
 @bp.route('/tree/<module_name>', methods=['GET'])
 def tree_module(module_name):
     """
@@ -331,7 +335,7 @@ def get_services_list(type: str, pattern: str):
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
             completion['aggs']['groupby_module']['terms']['field'] = '{}.keyword'.format(type.lower())
             rows = ac.es.search(index='modules', doc_type='modules', body=completion,
-                                   size=0)['aggregations']['groupby_module']['buckets']
+                                size=0)['aggregations']['groupby_module']['buckets']
 
             for row in rows:
                 res.append(row['key'])
@@ -399,7 +403,7 @@ def show_node_with_revision(name, path, revision):
 @bp.route('/module-details/<module>', methods=['GET'])
 def module_details_no_revision(module: str):
     """
-    Search for data saved in our datastore (confd/redis) based on specific module with no revision.
+    Search for data saved in our datastore (ConfD/Redis) based on specific module with no revision.
     Revision will be the latest one that we have.
     :return: returns json with yang-catalog saved metdata of a specific module
     """
@@ -409,7 +413,7 @@ def module_details_no_revision(module: str):
 @bp.route('/module-details/<module>@<revision>', methods=['GET'])
 def module_details(module: str, revision: str, json_data=False, warnings=False):
     """
-    Search for data saved in our datastore (confd/redis) based on specific module with some revision.
+    Search for data saved in our datastore (ConfD/Redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
     :return: returns json with yang-catalog saved metdata of a specific module
     """
@@ -562,12 +566,12 @@ def get_modules_revision_organization(module_name, revision=None, warnings=False
             hit = hit['_source']
             revisions.append(hit['revision'])
         return revisions, organization
-    except Exception as e:
+    except Exception:
         bp.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
         if warnings:
             return {'warning': 'Failed to find module {}@{} in elasticsearch'.format(module_name, revision)}
         else:
-            abort(400, 'Failed to get revisions and organization for {}@{} - please use module that exists'
+            abort(404, 'Failed to get revisions and organization for {}@{} - please use module that exists'
                   .format(module_name, revision))
 
 
@@ -797,7 +801,7 @@ def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_or
     module_type = module_detail.get('module-type', '')
     if module_type == '':
         bp.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
-                                                                                module_detail.get('revision')))
+                                                                               module_detail.get('revision')))
     if module_type == 'submodule' and not submodules_allowed:
         return None
     child = {}

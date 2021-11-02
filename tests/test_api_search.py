@@ -111,7 +111,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'No module found in confd database')
+        self.assertEqual(data['description'], 'No module found in ConfD database')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_rpc_search_get_one(self):
@@ -220,7 +220,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'No module found in confd database')
+        self.assertEqual(data['description'], 'No module found in ConfD database')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_rpc_search_dependecies(self):

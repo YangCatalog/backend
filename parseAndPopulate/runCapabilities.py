@@ -42,7 +42,7 @@ from parseAndPopulate.prepare import Prepare
 class ScriptConfig:
     def __init__(self):
         self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
-                    ' to confd directory'
+                    ' to ConfD/Redis database.'
         parser = argparse.ArgumentParser()
         parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
                             help='Set dir where to look for hello message xml files or yang files if using "sdo" option')
@@ -53,7 +53,7 @@ class ScriptConfig:
         parser.add_argument('--sdo', action='store_true', default=False,
                             help='If we are processing sdo or vendor yang modules')
         parser.add_argument('--json-dir', default='/var/yang/tmp/', type=str,
-                            help='Directory where json files to populate confd will be stored')
+                            help='Directory where json files to populate ConfD/Redis will be stored')
         parser.add_argument('--result-html-dir', default='/usr/share/nginx/html/results', type=str,
                             help='Set dir where to write html compilation result files')
         parser.add_argument('--save-file-dir', default='/var/yang/all_modules',
@@ -95,7 +95,7 @@ class ScriptConfig:
             ' (based on hash values) and it will skip parsing if nothing changed.'
         ret['options']['api'] = 'If request came from api'
         ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
-        ret['options']['json_dir'] = 'Directory where json files to populate confd will be stored'
+        ret['options']['json_dir'] = 'Directory where json files to populate ConfD/Redis will be stored'
         ret['options']['result_html_dir'] = 'Set dir where to write html compilation result files'
         ret['options']['save_file_dir'] = 'Directory where the yang file will be saved'
         ret['options']['api_protocol'] = 'Whether api runs on http or https. Default is set to https'

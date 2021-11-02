@@ -473,7 +473,9 @@ class Capability:
                 module_name = module_and_more.split('&')[0]
 
                 path = '{}/{}.yang'.format('/'.join(self.split[:-1]), module_name)
-                should_parse = self.fileHasher.should_parse_vendor_module(path, platform_name)
+                should_parse = False
+                if os.path.exists(path):
+                    should_parse = self.fileHasher.should_parse_vendor_module(path, platform_name)
                 if not should_parse:
                     continue
                 LOGGER.info('Parsing module {}'.format(module_name))
@@ -531,10 +533,10 @@ class Capability:
                         version = document_split[-1]
                         name = '-'.join(document_split[:-1])
                         additional_info['document-name'] = '{}-{}.txt'.format(name, version)
-                        additional_info['reference'] = 'https://www.iana.org/go/{}-{}'.format(name, version)
+                        additional_info['reference'] = 'https://datatracker.ietf.org/doc/{}/{}'.format(name, version)
                     else:
                         additional_info['document-name'] = xref_info.get('data')
-                        additional_info['reference'] = 'https://www.iana.org/go/{}'.format(xref_info.get('data'))
+                        additional_info['reference'] = 'https://datatracker.ietf.org/doc/{}'.format(xref_info.get('data'))
                 additional_info['organization'] = 'ietf'
 
             if data.get('iana') == 'Y' and data.get('file'):
