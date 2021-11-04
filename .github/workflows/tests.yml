@@ -3,6 +3,7 @@ name: Python tests
 on: [push]
 
 jobs:
+
   build:
 
     runs-on: ubuntu-18.04
@@ -11,6 +12,7 @@ jobs:
         python-version: [3.8, 3.9]
         redis-version: [6]
         mariadb-version: [10.5.12-focal]
+    environment: tests
 
     steps:
       - uses: actions/checkout@v2
@@ -54,5 +56,8 @@ jobs:
           cp elasticsearchIndexing/pyang_plugin/json_tree.py $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins/.
 
       - name: Test with pytest
+        env:
+          TOKEN: ${{ secrets.TOKEN }}
         run: |
+          export TOKEN
           YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf pytest

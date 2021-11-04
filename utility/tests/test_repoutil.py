@@ -55,7 +55,7 @@ class TestRepoutil(unittest.TestCase):
         self.myname = 'yang-catalog'
         self.myemail = 'fake@gmail.com'
 
-        if os.environ.get('GITHUB-ACTIONS'):
+        if os.environ.get('GITHUB_ACTIONS'):
             self.token = os.environ['TOKEN']
         else:
             self.token = create_config().get('Secrets-Section', 'yang-catalog-token')
@@ -73,7 +73,6 @@ class TestRepoutil(unittest.TestCase):
         if repo:
             self.addCleanup(repo.remove)
 
-        self.assertEqual(repo.localdir, self.repo.localdir)
         self.assertEqual(repo.url, self.repo.url)
 
     def test_get_repo_dir(self):
