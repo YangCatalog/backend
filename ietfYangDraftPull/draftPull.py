@@ -212,7 +212,7 @@ def main(scriptConf=None):
             # Add commit and push to the forked repository
             LOGGER.info('Adding all untracked files locally')
             untracked_files = repo.repo.untracked_files
-            repo.add_all_untracked()
+            repo.add_untracked_remove_deleted()
             LOGGER.info('Committing all files locally')
             repo.commit_all('Cronjob - every day pull of ietf draft yang files.')
             LOGGER.info('Pushing files to forked repository')
