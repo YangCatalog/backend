@@ -26,9 +26,7 @@ from elasticsearch import Elasticsearch
 from flask import Blueprint
 from flask import current_app as app
 from flask import jsonify, make_response
-from sqlalchemy.exc import SQLAlchemyError
-from utility.staticVariables import confd_headers, json_headers
-from utility.util import create_signature
+from utility.staticVariables import json_headers
 
 
 class HealthcheckBlueprint(Blueprint):
@@ -49,50 +47,23 @@ def init_logger(state):
 
 @bp.before_request
 def set_config():
-    global ac, db
+    global ac, users
     ac = app.config
-    db = ac.sqlalchemy
+    users = ac.redis_users
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
 @bp.route('/services-list', methods=['GET'])
 def get_services_list():
     response_body = []
-    service_endpoints = ['my-sql', 'elk', 'confd', 'yang-search-admin', 'yang-validator-admin',
+    service_endpoints = ['elk', 'confd-admin', 'redis-admin', 'yang-search-admin', 'yang-validator-admin',
                          'yangre-admin', 'nginx', 'rabbitmq', 'yangcatalog']
-    service_names = ['MySQL', 'Elasticsearch', 'ConfD', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ', 'YangCatalog']
+    service_names = ['Elasticsearch', 'ConfD', 'Redis', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ',
+                     'YangCatalog']
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
         response_body.append(pair)
     return make_response(jsonify(response_body), 200)
-
-
-@bp.route('/my-sql', methods=['GET'])
-def health_check_mysql():
-    try:
-        if db is not None:
-            bp.LOGGER.info('Successfully connected to database: {}'.format(ac.db_name_users))
-            tables = db.inspect(db.engine).get_table_names()
-            if len(tables):
-                response = {'info': 'MySQL is running',
-                            'status': 'running',
-                            'message': '{} tables available in the database: {}'.format(len(tables), ac.db_name_users)}
-            else:
-                response = {'info': 'MySQL is running',
-                            'status': 'problem',
-                            'message': 'No tables found in the database: {}'.format(ac.db_name_users)}
-            bp.LOGGER.info('{} tables available in the database: {}'.format(len(tables), ac.db_name_users))
-            return make_response(jsonify(response), 200)
-    except SQLAlchemyError as err:
-        bp.LOGGER.error('Cannot connect to database. MySQL error: {}'.format(err))
-        if err.args[0] in [1044, 1045]:
-            return make_response(jsonify({'info': 'Not OK - Access denied',
-                                          'status': 'down',
-                                          'error': 'MySQL error: {}'.format(err)}), 200)
-        else:
-            return make_response(jsonify({'info': 'Not OK - MySQL is not running',
-                                          'status': 'down',
-                                          'error': 'MySQL error: {}'.format(err)}), 200)
 
 
 @bp.route('/elk', methods=['GET'])
@@ -101,7 +72,7 @@ def health_check_elk():
     try:
         if ac.db_es_aws:
             es = Elasticsearch([ac.db_es_host], http_auth=(ac.s_elk_credentials[0], ac.s_elk_credentials[1]),
-                               scheme="https", port=443)
+                               scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(ac.db_es_host), 'port': ac.db_es_port}])
 
@@ -139,115 +110,38 @@ def health_check_confd():
 
     try:
         # Check if ConfD is running
-        response = app.confdService.head_catalog()
+        response = app.confdService.get_restconf()
 
         if response.status_code == 200:
-            bp.LOGGER.info('ConfD is running')
-            # Check if ConfD is filled with data
-            mod_key = 'yang-catalog,2018-04-03,ietf'
-            response = app.confdService.get_module(mod_key)
-
-            bp.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, mod_key))
-            if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-                response = {'info': 'Not OK - ConfD is not filled',
-                            'status': 'problem',
-                            'message': 'Cannot get data of yang-catalog:modules'}
-                return make_response(jsonify(response), 200)
-            else:
-                module_data = response.json()
-                num_of_modules = len(module_data['yang-catalog:module'])
-                bp.LOGGER.info('{} module successfully loaded from ConfD'.format(mod_key))
-                if num_of_modules > 0:
-                    return make_response(jsonify({'info': 'ConfD is running',
-                                                  'status': 'running',
-                                                  'message': '{} successfully loaded from ConfD'.format(mod_key)}), 200)
-                else:
-                    return make_response(jsonify({'info': 'ConfD is running',
-                                                  'status': 'problem',
-                                                  'message': 'ConfD is running but no modules loaded'}), 200)
+            bp.LOGGER.info('yang-catalog:catalog is running on ConfD')
+            response = {'info': 'Success'}
         else:
-            bp.LOGGER.info('Cannot get data from ConfD')
-            err = 'Cannot get data from ConfD'
-            return make_response(jsonify(error_response(service_name, err)), 200)
+            bp.LOGGER.error('yang-catalog:catalog is NOT running on ConfD')
+            response = {'error': 'Unable to ping yang-catalog:catalog'}
+        return (response, 200)
+
     except Exception as err:
         bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
-@bp.route('/yang-search', methods=['GET'])
-def health_check_yang_search():
-    service_name = 'yang-search'
-    yang_search_preffix = '{}://{}/yang-search'.format(ac.g_protocol_api, ac.w_ip)
-    body = json.dumps({'input': {'data': 'ping'}})
-    signature = create_signature(ac.s_flask_secret_key, body)
-    headers = {**json_headers,
-               'X-YC-Signature': 'sha1={}'.format(signature)}
+@bp.route('/redis', methods=['GET'])
+def health_check_redis():
+
     try:
-        response = requests.post('{}/ping'.format(yang_search_preffix), data=body, headers=headers)
-        bp.LOGGER.info('yang-search responded with a code {}'.format(response.status_code))
-        if response.status_code == 200:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'running',
-                                          'message': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
-        elif response.status_code == 400 or response.status_code == 404:
-            err = json.loads(response.text).get('error')
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'problem',
-                                          'message': '{} responded with a message: {}'.format(service_name, err)}), 200)
+        result = ac.redis.ping()
+        if result:
+            bp.LOGGER.info('Redis ping responsed successfully')
+            response = {'info': 'Success'}
         else:
-            err = '{} responded with a code {}'.format(service_name, response.status_code)
-            return make_response(jsonify(error_response(service_name, err)), 200)
-    except Exception as err:
-        bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
-        return make_response(jsonify(error_response(service_name, err)), 200)
+            bp.LOGGER.error('Redis ping failed to respond')
+            response = {'error': 'Unable to ping Redis'}
+        return (response, 200)
 
-
-@bp.route('/yang-validator', methods=['GET'])
-def health_check_yang_validator():
-    service_name = 'yang-validator'
-    yang_validator_preffix = '{}://{}/yangvalidator'.format(ac.g_protocol_api, ac.w_ip)
-    body = json.dumps({'input': {'data': 'ping'}})
-    try:
-        response = requests.post('{}/ping'.format(yang_validator_preffix), data=body, headers=json_headers)
-        bp.LOGGER.info('yang-validator responded with a code {}'.format(response.status_code))
-        if response.status_code == 200:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'running',
-                                          'message': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
-        elif response.status_code == 400 or response.status_code == 404:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'problem',
-                                          'message': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
-        else:
-            err = '{} responded with a code {}'.format(service_name, response.status_code)
-            return make_response(jsonify(error_response(service_name, err)), 200)
-    except Exception as err:
-        bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
-        return make_response(jsonify(error_response(service_name, err)), 200)
-
-
-@bp.route('/yangre', methods=['GET'])
-def health_check_yangre():
-    service_name = 'yangre'
-    yangre_preffix = '{}://{}/yangre'.format(ac.g_protocol_api, ac.w_ip)
-    body = json.dumps({'input': {'data': 'ping'}})
-    try:
-        response = requests.post('{}/ping'.format(yangre_preffix), data=body, headers=json_headers)
-        bp.LOGGER.info('yangre responded with a code {}'.format(response.status_code))
-        if response.status_code == 200:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'running',
-                                          'message': 'yangre responded with a code {}'.format(response.status_code)}), 200)
-        elif response.status_code == 400 or response.status_code == 404:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'problem',
-                                          'message': 'yangre responded with a code {}'.format(response.status_code)}), 200)
-        else:
-            err = 'yangre responded with a code {}'.format(response.status_code)
-            return make_response(jsonify(error_response(service_name, err)), 200)
-    except Exception as err:
-        bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
-        return make_response(jsonify(error_response(service_name, err)), 200)
+    except Exception:
+        bp.LOGGER.exception('Cannot ping Redis')
+        error_message = {'error': 'Unable to ping Redis'}
+        return (error_message, 200)
 
 
 @bp.route('/nginx', methods=['GET'])
@@ -257,7 +151,8 @@ def health_check_nginx():
     try:
         response = requests.get('{}/nginx-health'.format(preffix), headers=json_headers)
         bp.LOGGER.info('NGINX responded with a code {}'.format(response.status_code))
-        if response.status_code == 200 and response.text == 'healthy':
+        response_message = response.json()['info']
+        if response.status_code == 200 and response_message == 'Success':
             return make_response(jsonify({'info': 'NGINX is available',
                                           'status': 'running',
                                           'message': 'NGINX responded with a code {}'.format(response.status_code)}), 200)
@@ -293,9 +188,9 @@ def health_check_rabbitmq():
                                       'status': 'running',
                                       'message': 'Ping job responded with a message: {}'.format(response_type)}), 200)
     except Exception as err:
-        if len(err) == 0:
+        if err:
             err = 'Check yang.log file for more details!'
-        bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
+        bp.LOGGER.exception('Cannot ping {}'.format(service_name))
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
@@ -396,6 +291,71 @@ def health_check_yang_search_admin():
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
+@bp.route('/confd-admin', methods=['GET'])
+def health_check_confd_admin():
+    service_name = 'ConfD'
+
+    try:
+        # Check if ConfD is running
+        response = app.confdService.get_restconf()
+
+        if response.status_code == 200:
+            bp.LOGGER.info('ConfD is running')
+            # Check if ConfD is filled with data
+            mod_key = 'yang-catalog,2018-04-03,ietf'
+            response = app.confdService.get_module(mod_key)
+
+            bp.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, mod_key))
+            if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
+                response = {'info': 'Not OK - ConfD is not filled',
+                            'status': 'problem',
+                            'message': 'Cannot get data of yang-catalog:modules'}
+                return make_response(jsonify(response), 200)
+            else:
+                module_data = response.json()
+                num_of_modules = len(module_data['yang-catalog:module'])
+                bp.LOGGER.info('{} module successfully loaded from ConfD'.format(mod_key))
+                if num_of_modules > 0:
+                    return make_response(jsonify({'info': 'ConfD is running',
+                                                  'status': 'running',
+                                                  'message': '{} successfully loaded from ConfD'.format(mod_key)}), 200)
+                else:
+                    return make_response(jsonify({'info': 'ConfD is running',
+                                                  'status': 'problem',
+                                                  'message': 'ConfD is running but no modules loaded'}), 200)
+        else:
+            bp.LOGGER.info('Cannot get data from ConfD')
+            err = 'Cannot get data from ConfD'
+            return make_response(jsonify(error_response(service_name, err)), 200)
+    except Exception as err:
+        bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
+        return make_response(jsonify(error_response(service_name, err)), 200)
+
+
+@bp.route('/redis-admin', methods=['GET'])
+def health_check_redis_admin():
+    service_name = 'Redis'
+
+    try:
+        redis_key = 'yang-catalog@2018-04-03/ietf'
+        result = ac.redis.get(redis_key)
+        if result is None:
+            response = {'info': 'Not OK - Redis is not filled',
+                        'status': 'problem',
+                        'message': 'Cannot get yang-catalog@2018-04-03/ietf'}
+        else:
+            bp.LOGGER.info('{} module successfully loaded from Redis'.format(redis_key))
+            response = {'info': 'Redis is running',
+                        'status': 'running',
+                        'message': '{} successfully loaded from Redis'.format(redis_key)}
+
+    except Exception as err:
+        bp.LOGGER.error('Cannot ping Redis. Error: {}'.format(err))
+        return error_response(service_name, err)
+
+    return response
+
+
 @bp.route('/yangcatalog', methods=['GET'])
 def health_check_yangcatalog():
     service_name = 'yangcatalog'
@@ -426,7 +386,7 @@ def health_check_yangcatalog():
             status_code = response.status_code
             bp.LOGGER.info('URl: {} Status code: {}'.format(url, status_code))
             result['message'] = '{} OK'.format(status_code)
-        except:
+        except Exception:
             result['message'] = '500 NOT OK'
             status = 'problem'
             message = 'Problem occured, see additional info'
@@ -443,7 +403,7 @@ def check_cronjobs():
     try:
         with open('{}/cronjob.json'.format(ac.d_temp), 'r') as f:
             file_content = json.load(f)
-    except:
+    except Exception:
         return make_response(jsonify({'error': 'Data about cronjobs are not available.'}), 400)
     return make_response(jsonify({'data': file_content}), 200)
 

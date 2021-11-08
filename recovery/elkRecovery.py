@@ -15,7 +15,7 @@
 
 """
 This script will save or load all the records saved in
-Elasticsearch database
+Elasticsearch database.
 """
 
 __author__ = "Miroslav Kovac"
@@ -25,19 +25,18 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import datetime
-import sys
 import os
 from operator import itemgetter
-from utility.create_config import create_config
 
 from elasticsearch import Elasticsearch
+from utility.create_config import create_config
 
 
 class ScriptConfig:
     def __init__(self):
         self.help = 'This serves to save or load all information in yangcatalog.org in elk.' \
-        'in case the server will go down and we would lose all the information we' \
-        ' have got. We have two options in here. This runs as a cronjob to create snapshot'
+            'in case the server will go down and we would lose all the information we' \
+            ' have got. We have two options in here. This runs as a cronjob to create snapshot'
         parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_').replace(':', '-') + '-utc',
                             type=str, help='Set name of the file to save. Default name is date and time in UTC')
@@ -54,7 +53,7 @@ class ScriptConfig:
         parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                             help='Set path to config file')
 
-        self.args, extra_args = parser.parse_known_args()
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -105,7 +104,7 @@ def main(scriptConf=None):
     es_aws = config.get('DB-Section', 'es-aws')
     elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
     if es_aws == 'True':
-        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
     else:
         es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
 
@@ -131,5 +130,6 @@ def main(scriptConf=None):
         else:
             es.snapshot.restore(repository=repo_name, snapshot=args.name_load, body=index_body)
 
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     main()

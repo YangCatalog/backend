@@ -21,9 +21,7 @@ This module contains parsing scripts to parse all the modules of a given
 directory. This gives us all the metadata of the modules
 according to [draft-clacla-netmod-model-catalog-03](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03).
 Parsed metedata is subsequently populated to a confd datastore using
-a confd REST request. All new modules that were not yet in the datastore
-are sent to the metadata-update script of yangcatalog using a REST request
-which populates a MySQL database with all the new modules. This database
+a confd REST request. This database
 is used for the yang-search part of yangcatalog.org.
 
 We can parse modules either with the __sdo__ option, which will go through

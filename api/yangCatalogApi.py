@@ -63,11 +63,9 @@ from flask.logging import default_handler
 from flask_cors import CORS
 from flask_oidc import discovery
 from redis import Redis
-from sqlalchemy.engine import URL
-from sqlalchemy.ext.declarative import DeferredReflection
 from utility.confdService import ConfdService
 
-from api.authentication.auth import auth, db, get_password, hash_pw
+import api.authentication.auth as auth
 from api.sender import Sender
 from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import oidc
@@ -78,6 +76,7 @@ from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
 from api.views.yangSearch.yangSearch import bp as yang_search_bp
 from api.views.ycJobs.ycJobs import bp as jobs_bp
 from api.views.ycSearch.ycSearch import bp as search_bp
+from utility.redisUsersConnection import RedisUsersConnection
 
 
 class MyConfig(Config):
@@ -130,7 +129,6 @@ class MyFlask(Flask):
 
     def init_config(self):
         self.config['OIDC'] = oidc
-        self.config['SQLALCHEMY'] = db
         self.config['LOCK-UWSGI-CACHE1'] = threading.Lock()
         self.config['LOCK-UWSGI-CACHE2'] = threading.Lock()
 
@@ -189,6 +187,8 @@ class MyFlask(Flask):
             host=self.config.db_redis_host,
             port=self.config.db_redis_port
         )
+        self.config['REDIS-USERS'] = RedisUsersConnection()
+        auth.users = self.config.redis_users
         self.check_wait_redis_connected()
 
     def check_wait_redis_connected(self):
@@ -439,16 +439,6 @@ ac['OIDC_COOKIE_SECURE'] = False
 ac['OIDC_CALLBACK_ROUTE'] = '/api/admin/ping'
 ac['OIDC_SCOPES'] = ['openid', 'email', 'profile']
 ac['OIDC_ID_TOKEN_COOKIE_NAME'] = 'oidc_token'
-ac['SQLALCHEMY_DATABASE_URI'] = URL.create('mysql', username=ac.db_user, password=ac.s_mysql_password,
-                                           host=ac.db_host, database=ac.db_name_users)
-ac['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-ac.sqlalchemy.init_app(app)
-try:
-    with app.app_context():
-        ac.sqlalchemy.create_all()
-        DeferredReflection.prepare(ac.sqlalchemy.engine)
-except Exception as e:
-    app.logger.error(e)
 
 
 def create_secrets(discovered_secrets: dict):
@@ -605,7 +595,7 @@ def yangsuite_redirect(id):
 
 
 @app.route('/api/load-cache', methods=['POST'])
-@auth.login_required
+@auth.auth.login_required
 def load_to_memory():
     """Load all the data populated to yang-catalog to memory.
             :return response to the request.
@@ -613,10 +603,8 @@ def load_to_memory():
     username = request.authorization['username']
     if username != 'admin':
         return abort(401, description='User must be admin')
-    if get_password(username) != hash_pw(request.authorization['password']):
-        return abort(401)
     load()
-    return make_response(jsonify({'info': 'Success'}), 201)
+    return ({'info': 'Success'}, 201)
 
 
 def load():
@@ -683,7 +671,7 @@ def load_uwsgi_cache():
 
 def load_app_first_time():
     while ac.redis.get('yang-catalog@2018-04-03/ietf') is None:
-        sec = 5
+        sec = 30
         app.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
         time.sleep(sec)
 

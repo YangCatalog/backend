@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-This script will create json file to populate elasticsearch
-from all the modules saved in confd database
+This script will create json file to populate Elasticsearch
+from all the modules saved in Redis database.
 """
 
 __author__ = "Miroslav Kovac"
@@ -24,10 +24,8 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import argparse
 import json
-import sys
 
 import requests
-
 from utility.create_config import create_config
 
 
@@ -42,8 +40,8 @@ class ScriptConfig:
         self.__temp = config.get('Directory-Section', 'temp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.help = 'This serves to save or load all information in yangcatalog.org in elk.' \
-        'in case the server will go down and we would lose all the information we' \
-        ' have got. We have two options in here.'
+            'in case the server will go down and we would lose all the information we' \
+            ' have got. We have two options in here.'
 
         parser = argparse.ArgumentParser(
             description=self.help)
@@ -52,12 +50,12 @@ class ScriptConfig:
         parser.add_argument('--api-port', default=self.__api_port, type=int,
                             help='Set port where the API is started. Default: ' + self.__api_port)
         parser.add_argument('--api-protocol', type=str, default=self.__api_protocol, help='Whether API runs on http or https.'
-                                                                                ' Default: ' + self.__api_protocol)
+                            ' Default: ' + self.__api_protocol)
         parser.add_argument('--save-file-dir', default=self.__save_file_dir, type=str,
                             help='Directory for all yang modules lookup. Default: ' + self.__save_file_dir)
         parser.add_argument('--temp', default=self.__temp, type=str,
                             help='Path to yangcatalog temporary directory. Default: ' + self.__temp)
-        self.args, extra_args = parser.parse_known_args()
+        self.args, _ = parser.parse_known_args()
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
     def get_args_list(self):
@@ -94,10 +92,8 @@ def main(scriptConf=None):
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol,
-                                                   args.api_ip, separator,
-                                                   suffix)
-    all_modules = requests.get("{}search/modules".format(yangcatalog_api_prefix)).json()['module']
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
+    all_modules = requests.get('{}search/modules'.format(yangcatalog_api_prefix)).json()['module']
     create_dict = dict()
     for module in all_modules:
         name = module['name']
@@ -111,6 +107,7 @@ def main(scriptConf=None):
         create_dict[key] = value
     with open('{}/elasticsearch_data.json'.format(args.temp), 'w') as f:
         json.dump(create_dict, f)
+
 
 if __name__ == "__main__":
     main()

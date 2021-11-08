@@ -33,13 +33,12 @@ from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
-from api.models import Base, TempUser, User
 from flask import Blueprint, abort
 from flask import current_app as app
 from flask import jsonify, redirect, request
 from flask_cors import CORS
 from flask_oidc import OpenIDConnect
-from sqlalchemy.exc import SQLAlchemyError
+from redis import RedisError
 
 
 class YangCatalogAdminBlueprint(Blueprint):
@@ -54,19 +53,21 @@ bp = YangCatalogAdminBlueprint('admin', __name__)
 CORS(bp, supports_credentials=True)
 oidc = OpenIDConnect()
 
+
 @bp.before_request
 def set_config():
-    global ac, db
+    global ac, users
     ac = app.config
-    db = ac.sqlalchemy
+    users = ac.redis_users
+
 
 def catch_db_error(f):
     @wraps(f)
     def df(*args, **kwargs):
         try:
             return f(*args, **kwargs)
-        except SQLAlchemyError as err:
-            app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        except RedisError as err:
+            app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
             return ({'error': 'Server problem connecting to database'}, 500)
 
     return df
@@ -429,168 +430,109 @@ def get_logs():
                 'output': output}
     return response
 
-
-@bp.route('/api/admin/sql-tables', methods=['GET'])
-def get_sql_tables():
-    return jsonify([
-        {
-            'name': 'users',
-            'label': 'approved users'
-        },
-        {
-            'name': 'users_temp',
-            'label': 'users waiting for approval'
-        }
-    ])
-
-
 @bp.route('/api/admin/move-user', methods=['POST'])
 @catch_db_error
 def move_user():
     body = get_input(request.json)
-    unique_id = body.get('id')
-    username = body.get('username')
-    models_provider = body.get('models-provider', '')
+    id = body.get('id')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
-    name = body.get('first-name')
-    last_name = body.get('last-name')
-    email = body.get('email')
-    if unique_id is None:
-        abort(400, description='Id of a user is missing')
-    if username is None:
-        abort(400, description='username must be specified')
+    if id is None:
+        abort(400, description='id of a user is missing')
     if sdo_access == '' and vendor_access == '':
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    user_password = db.session.query(TempUser.Password).filter_by(Id=unique_id).first()
-    password = user_password.Password if user_password else ''
-    user_registration_datetime = db.session.query(TempUser.RegistrationDatetime).filter_by(Id=unique_id).first()
-    registration_datetime = datetime.utcnow()
-    if user_registration_datetime is not None:
-        if user_registration_datetime[0] is not None:
-            registration_datetime = user_registration_datetime.RegistrationDatetime
-    user = User(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                FirstName=name, LastName=last_name, AccessRightsSdo=sdo_access, AccessRightsVendor=vendor_access,
-                RegistrationDatetime=registration_datetime)
-    db.session.add(user)
-    db.session.commit()
 
-    user = db.session.query(TempUser).filter_by(Id=unique_id).first()
-    if user:
-        db.session.delete(user)
-        db.session.commit()
-    response = {'info': 'data successfully added to database users and removed from users_temp',
+    users.approve(id, sdo_access, vendor_access)
+    response = {'info': 'user successfully approved',
                 'data': body}
     return (response, 201)
 
 
-@bp.route('/api/admin/sql-tables/<table>', methods=['POST'])
+@bp.route('/api/admin/users/<status>', methods=['POST'])
 @catch_db_error
-def create_sql_row(table):
-    if table not in ['users', 'users_temp']:
-        return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
-    model = get_class_by_tablename(table)
+def create_user(status):
+    if status not in ['temp', 'approved']:
+        return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
     body = get_input(request.json)
     username = body.get('username')
-    name = body.get('first-name')
+    password = body.get('password')
+    first_name = body.get('first-name')
     last_name = body.get('last-name')
     email = body.get('email')
-    password = body.get('password')
     motivation = body.get('motivation', '')
-    registration_datetime = datetime.utcnow()
-    if not all((body, username, name, last_name, email, password)):
+    if not all((body, username, first_name, last_name, email, password)):
         abort(400, description='username - {}, firstname - {}, last-name - {},'
                                ' email - {} and password - {} must be specified'
-                               .format(username, name, last_name, email, password))
+                               .format(username, first_name, last_name, email, password))
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
-    if model is User and sdo_access == '' and vendor_access == '':
+    if status == 'approved' and not (sdo_access or vendor_access):
         abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-    columns = {
-        'Username': username,
-        'FirstName': name,
-        'LastName': last_name,
-        'Email': email,
-        'Password': hashed_password,
-        'ModelsProvider': models_provider,
-        'AccessRightsSdo': sdo_access,
-        'AccessRightsVendor': vendor_access,
-        'RegistrationDatetime': registration_datetime
+    fields = {
+        'username': username,
+        'password': hashed_password,
+        'first_name': first_name,
+        'last_name': last_name,
+        'email': email,
+        'models_provider': models_provider
     }
-    if model == TempUser:
-        columns['Motivation'] = motivation
-    user = model(**columns)
-    db.session.add(user)
-    db.session.commit()
+    if status == 'temp':
+        fields['motivation'] = motivation
+    elif status == 'approved':
+        fields['access_rights_sdo'] = sdo_access
+        fields['access_rights_vendor'] = vendor_access
+    id = users.create(temp=True if status == 'temp' else False, **fields)
     response = {'info': 'data successfully added to database',
-                'data': body}
+                'data': body,
+                'id': id}
     return (response, 201)
 
 
-@bp.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['DELETE'])
+@bp.route('/api/admin/users/<status>/id/<id>', methods=['DELETE'])
 @catch_db_error
-def delete_sql_row(table, unique_id):
-    if table not in ['users', 'users_temp']:
-        return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
-    model = get_class_by_tablename(table)
-    user = db.session.query(model).filter_by(Id=unique_id).first()
-    db.session.delete(user)
-    db.session.commit()
-    if user:
-        return {'info': 'id {} deleted successfully'.format(unique_id)}
-    else:
-        abort(404, description='id {} not found in table {}'.format(unique_id, table))
+def delete_user(status, id):
+    if status not in ['temp', 'approved']:
+        return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
+    if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
+        abort(404, description='id {} not found with status {}'.format(id, status))
+    users.delete(id, temp=True if status == 'temp' else False)
+    return {'info': 'id {} deleted successfully'.format(id)}
 
 
-@bp.route('/api/admin/sql-tables/<table>/id/<unique_id>', methods=['PUT'])
+@bp.route('/api/admin/users/<status>/id/<id>', methods=['PUT'])
 @catch_db_error
-def update_sql_row(table, unique_id):
-    if table not in ['users', 'users_temp']:
-        return ({'error': 'no such table {}, use only users or users_temp'.format(table)}, 400)
-    model = get_class_by_tablename(table)
-    user = db.session.query(model).filter_by(Id=unique_id).first()
-    if user:
-        body = get_input(request.json)
-        user.Username = body.get('username')
-        user.Email = body.get('email')
-        user.ModelsProvider = body.get('models-provider')
-        user.FirstName = body.get('first-name')
-        user.LastName = body.get('last-name')
-        user.AccessRightsSdo = body.get('access-rights-sdo', '')
-        user.AccessRightsVendor = body.get('access-rights-vendor', '')
-        if model == TempUser:
-            user.Motivation = body.get('motivation')
-        if not user.Username or not user.Email:
-            abort(400, description='username and email must be specified')
-        db.session.commit()
-    if user:
-        app.logger.info('Record with ID {} in table {} updated successfully'.format(unique_id, table))
-        return {'info': 'ID {} updated successfully'.format(unique_id)}
-    else:
-        abort(404, description='ID {} not found in table {}'.format(unique_id, table))
+def update_user(status, id):
+    if status not in ['temp', 'approved']:
+        return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
+    if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
+        abort(404, description='id {} not found with status {}'.format(id, status))
+    body = get_input(request.json)
+    if not 'username' in body or not 'email' in body:
+        abort(400, description='username and email must be specified')
 
+    def get_set(field):
+        users.set_field(id, field, body.get(field, ''))
 
-@bp.route('/api/admin/sql-tables/<table>', methods=['GET'])
+    for field in ['username', 'email', 'models-provider', 'first-name', 'last-name']:
+        get_set(field)
+    if status == 'temp':
+        get_set('motivation')
+    if status == 'approved':
+        get_set('access-rights-sdo')
+        get_set('access-rights-vendor')
+    app.logger.info('Record with ID {} with status {} updated successfully'.format(id, status))
+    return {'info': 'ID {} updated successfully'.format(id)}
+
+@bp.route('/api/admin/users/<status>', methods=['GET'])
 @catch_db_error
-def get_sql_rows(table):
-    model = get_class_by_tablename(table)
-    users = db.session.query(model).all()
-    ret = []
-    for user in users:
-        data_set = {'id': user.Id,
-                    'username': user.Username,
-                    'email': user.Email,
-                    'models-provider': user.ModelsProvider,
-                    'first-name': user.FirstName,
-                    'last-name': user.LastName,
-                    'access-rights-sdo': user.AccessRightsSdo,
-                    'access-rights-vendor': user.AccessRightsVendor,
-                    'registration-datetime': user.RegistrationDatetime}
-        if model == TempUser:
-            data_set['motivation'] = user.Motivation
-        ret.append(data_set)
+def get_users(status):
+    ids = users.get_all(status)
+    app.logger.info('Fetching {} users from redis'.format(len(ids)))
+    ret = [users.get_all_fields(id) for id in ids]
+    for user, id in zip(ret, ids):
+        user.update(id=id)
     return jsonify(ret)
 
 
@@ -622,14 +564,13 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = ac.sender.send('#'.join(arguments))
 
-    app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
 
 
 @bp.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'mariadbRecovery', 'reviseSemver']
+                     'recovery', 'elkRecovery', 'elkFill', 'resolveExpiration', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
 
@@ -649,7 +590,7 @@ def get_module_name(script_name):
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
-    elif script_name in ['recovery', 'elkRecovery', 'elkFill', 'mariadbRecovery']:
+    elif script_name in ['recovery', 'elkRecovery', 'elkFill']:
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'
@@ -663,12 +604,6 @@ def hash_pw(password):
     if sys.version_info >= (3, 4):
         password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(password).hexdigest()
-
-
-def get_class_by_tablename(name):
-    for mapper in Base.registry.mappers:
-        if mapper.class_.__tablename__ == name and hasattr(mapper.class_, '__tablename__'):
-            return mapper.class_
 
 def get_input(body):
     if body is None:

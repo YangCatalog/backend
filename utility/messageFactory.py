@@ -212,6 +212,6 @@ class MessageFactory:
         self.LOGGER.info('Sending notification about new user')
 
         subject = 'Request for access confirmation'
-        msg = 'User {} with email {} is requesting access.\nMotivation: {}\nPlease go to https://yangcatalog.org/admin/mysql-management ' \
+        msg = 'User {} with email {} is requesting access.\nMotivation: {}\nPlease go to https://yangcatalog.org/admin/users-management ' \
               'and approve or reject this request in Users tab.'.format(username, email, motivation)
         self.__post_to_email(msg, subject=subject)

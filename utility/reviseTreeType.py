@@ -45,9 +45,6 @@ class ScriptConfig:
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-        self.confd_protocol = config.get('Web-Section', 'protocol', fallback='http')
-        self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='localhost')
-        self.confd_port = int(config.get('Web-Section', 'confd-port', fallback=8008))
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
         self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
@@ -86,17 +83,13 @@ def main(scriptConf=None):
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
     credentials = scriptConf.credentials
-    confd_protocol = scriptConf.confd_protocol
-    confd_ip = scriptConf.confd_ip
-    confd_port = scriptConf.confd_port
-    confd_prefix = '{}://{}:{}'.format(confd_protocol, confd_ip, repr(confd_port))
     save_file_dir = scriptConf.save_file_dir
     direc = '/var/yang/tmp'
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
     json_ytree = scriptConf.json_ytree
     complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                         credentials, confd_prefix, save_file_dir,
+                                                         credentials, save_file_dir,
                                                          direc, {}, yang_models, temp_dir,
                                                          json_ytree)
     response = requests.get('{}search/modules'.format(yangcatalog_api_prefix))

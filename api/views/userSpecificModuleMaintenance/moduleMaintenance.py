@@ -27,12 +27,11 @@ from datetime import datetime
 
 import requests
 from api.authentication.auth import auth, hash_pw
-from api.models import TempUser, User
 from flask import Blueprint, abort
 from flask import current_app as app
-from flask import jsonify, make_response, request
+from flask import request
 from git import GitCommandError
-from sqlalchemy.exc import SQLAlchemyError
+from redis import RedisError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import NS_MAP, confd_headers, github_url
@@ -48,11 +47,12 @@ class UserSpecificModuleMaintenance(Blueprint):
 
 bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
 
+
 @bp.before_request
 def set_config():
-    global ac, db
+    global ac, users
     ac = app.config
-    db = ac.sqlalchemy
+    users = ac.redis_users
 
 
 ### ROUTE ENDPOINT DEFINITIONS ###
@@ -71,26 +71,27 @@ def register_user():
     email = body['email']
     confirm_password = hash_pw(body['password-confirm'])
     models_provider = body['company']
-    name = body['first-name']
+    first_name = body['first-name']
     last_name = body['last-name']
     motivation = body['motivation']
     if password != confirm_password:
         abort(400, 'Passwords do not match')
     try:
-        if db.session.query(User).filter_by(Username=username).all():
-            abort(409, 'User with username {} already exists'.format(username))
-        if db.session.query(TempUser).filter_by(Username=username).all():
-            abort(409, 'User with username {} is pending for permissions'.format(username))
-        temp_user = TempUser(Username=username, Password=password, Email=email, ModelsProvider=models_provider,
-                             FirstName=name, LastName=last_name, Motivation=motivation,
-                             RegistrationDatetime=datetime.utcnow())
-        db.session.add(temp_user)
-        db.session.commit()
-    except SQLAlchemyError as err:
-        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
+        if users.username_exists(username):
+            id = users.id_by_username(username)
+            if users.is_approved(id):
+                abort(409, 'User with username {} already exists'.format(username))
+            elif users.is_temp(id):
+                abort(409, 'User with username {} is pending for permissions'.format(username))
+        users.create(temp=True, username=username, password=password, email=email, models_provider=models_provider,
+                     first_name=first_name, last_name=last_name, motivation=motivation)
+    except RedisError as err:
+        app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
+        return ({'error': 'Server problem connecting to database'}, 500)
     mf = MessageFactory()
     mf.send_new_user(username, email, motivation)
     return ({'info': 'User created successfully'}, 201)
+
 
 @bp.route('/modules/module/<name>,<revision>,<organization>', methods=['DELETE'])
 @bp.route('/modules', methods=['DELETE'])
@@ -136,14 +137,14 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 
         if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
             abort(401, description='You do not have rights to delete modules with organization {}'
-                       .format(read['yang-catalog:module'][0].get('organization')))
+                  .format(read['yang-catalog:module'][0].get('organization')))
 
         if read['yang-catalog:module'][0].get('implementations') is not None:
             unavailable_modules.append(mod)
 
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
-    path_to_delete = json.dumps({'modules':input_modules})
+    path_to_delete = json.dumps({'modules': input_modules})
 
     arguments = [ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port, ac.s_confd_credentials[0],
                  ac.s_confd_credentials[1], path_to_delete, 'DELETE',
@@ -202,6 +203,16 @@ def delete_vendor(value):
 
     app.logger.info('job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
+
+
+def organization_by_namespace(namespace):
+    for ns, org in NS_MAP.items():
+        if ns in namespace:
+            return org
+        else:
+            if 'urn:' in namespace:
+                return namespace.split('urn:')[1].split(':')[0]
+    return ''
 
 
 @bp.route('/modules', methods=['PUT', 'POST'])
@@ -304,7 +315,7 @@ def add_modules():
                 repo[repo_url].clone()
             except GitCommandError as e:
                 abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                        ' repository and path of the request - {}'.format(e.stderr))
+                      ' repository and path of the request - {}'.format(e.stderr))
 
         try:
             if 'branch' in sdo:
@@ -334,13 +345,7 @@ def add_modules():
         try:
             namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, sdo_path.split('/')[-1]))) \
                 .search('namespace')[0].arg
-
-            for ns, org in NS_MAP.items():
-                if ns in namespace:
-                    organization = org
-            if organization == '':
-                if 'urn:' in namespace:
-                    organization = namespace.split('urn:')[1].split(':')[0]
+            organization = organization_by_namespace(namespace)
         except:
             while True:
                 try:
@@ -353,13 +358,8 @@ def add_modules():
                         os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
                                                                '/'.join(sdo_path.split('/')[:-1]),
                                                                belongs_to))
-                        ).search('namespace')[0].arg
-                    for ns, org in NS_MAP.items():
-                        if ns in namespace:
-                            organization = org
-                    if organization == '':
-                        if 'urn:' in namespace:
-                            organization = namespace.split('urn:')[1].split(':')[0]
+                    ).search('namespace')[0].arg
+                    organization = organization_by_namespace(namespace)
                     break
                 except:
                     pass
@@ -408,10 +408,10 @@ def add_vendors():
                                ' platform-implementation-metadata.yang module. Received no json')
     body = request.json
 
-    platforms_cont = body.get('platforms')
-    if platforms_cont is None:
+    platforms_contents = body.get('platforms')
+    if platforms_contents is None:
         abort(400, description='bad request - "platforms" json object is missing and is mandatory')
-    platform_list = platforms_cont.get('platform')
+    platform_list = platforms_contents.get('platform')
     if platform_list is None:
         abort(400, description='bad request - "platform" json list is missing and is mandatory')
 
@@ -486,7 +486,7 @@ def add_vendors():
                 repo[repo_url].clone()
             except GitCommandError as e:
                 abort(400, description='bad request - cound not clone the github repository. Please check owner,'
-                                              ' repository and path of the request - {}'.format(e.stderr))
+                      ' repository and path of the request - {}'.format(e.stderr))
         try:
             if 'branch' in capability:
                 branch = capability.get('branch')
@@ -600,14 +600,14 @@ def get_job(job_id):
     return {'info': {'job-id': job_id,
                      'result': result,
                      'reason': reason}
-                    }
+            }
 
 ### HELPER DEFINITIONS ###
 
 
 def get_user_access_rights(username: str, is_vendor: bool = False):
     """
-    Create MySQL connection and execute query to get information about user by given username.
+    Query Redis for information about the user by given username.
 
     Arguments:
         :param username     (str) authorized user's username
@@ -615,16 +615,15 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     """
     accessRigths = None
     try:
-        result = db.session.query(User).filter_by(Username=username).first()
-        if result:
-            return result.AccessRightsVendor if is_vendor else result.AccessRightsSdo
-    except SQLAlchemyError as err:
-        app.logger.error('Cannot connect to database. MySQL error: {}'.format(err))
-
+        if users.username_exists(username):
+            id = users.id_by_username(username)
+            return users.get_field(id, 'access-rights-vendor' if is_vendor else 'access-rights-sdo')
+    except RedisError as err:
+        app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
     return accessRigths
+
 
 def get_mod_confd(name: str, revision: str, organization: str):
     mod_key = '{},{},{}'.format(name, revision, organization)
     response = app.confdService.get_module(mod_key)
-
     return response

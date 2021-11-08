@@ -11,7 +11,6 @@ jobs:
       matrix:
         python-version: [3.8, 3.9]
         redis-version: [6]
-        mariadb-version: [10.5.12-focal]
     environment: tests
 
     steps:
@@ -26,14 +25,6 @@ jobs:
         with:
           redis-version: ${{ matrix.redis-version }}
 
-      - name: Setup MariaDB ${{ matrix.mariadb-version }}
-        uses: getong/mariadb-action@v1.1
-        with:
-          mariadb version: ${{ matrix.mariadb-version }}
-          mysql database: yang_catalog
-          mysql user: yang
-          mysql password: pass
-
       - name: Prepare environment
         run: |
           ./prepare_environment.sh
@@ -42,9 +33,6 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt && ./setup.py install
-
-      - name: Create DB tables
-        run: python create_tables.py
 
       - name: Feed Redis
         run: |

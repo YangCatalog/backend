@@ -1,0 +1,853 @@
+# Copyright The IETF Trust 2021, All Rights Reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = "Richard Zilincik"
+__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
+__license__ = "Apache License, Version 2.0"
+__email__ = "richard.zilincik@pantheon.tech"
+
+import os
+import unittest
+from unittest import mock
+import json
+
+from git import GitCommandError
+from redis import RedisError
+
+import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
+from api.yangCatalogApi import app
+from api.globalConfig import yc_gc
+from api.views.admin.admin import hash_pw
+from utility.redisUsersConnection import RedisUsersConnection
+
+
+class MockRepoUtil:
+    localdir = 'test'
+
+    def __init__(self, repourl, logger=None):
+        pass
+
+    def clone(self):
+        pass
+
+    def get_commit_hash(self, path=None, branch='master'):
+        return branch
+
+    def remove(self):
+        pass
+
+class TestApiContributeClass(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestApiContributeClass, self).__init__(*args, **kwargs)
+        self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.client = app.test_client()
+
+    def setUp(self):
+        self.send_patcher = mock.patch('api.yangCatalogApi.app.config.sender.send')
+        self.mock_send = self.send_patcher.start()
+        self.addCleanup(self.send_patcher.stop)
+        self.mock_send.return_value = 1
+        self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_mod_confd')
+        self.mock_confd_get = self.confd_patcher.start()
+        self.addCleanup(self.confd_patcher.stop)
+        self.get_patcher = mock.patch('requests.get')
+        self.mock_get = self.get_patcher.start()
+        self.addCleanup(self.get_patcher.stop)
+        self.mock_get.return_value.json.return_value = json.loads(yc_gc.redis.get('modules-data') or '{}')
+        self.mock_confd_get.side_effect = mock_confd_get
+        self.users = RedisUsersConnection()
+        self.uid = self.users.create(temp=False, username='test', password=hash_pw('test'), email='test@test.test',
+                                     models_provider='test', first_name='test', last_name='test',
+                                     access_rights_sdo='/', access_rights_vendor='/')
+
+    def tearDown(self):
+        self.users.delete(self.uid, temp=False)
+
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.create', mock.MagicMock())
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
+    def test_register_user(self):
+        # we use a username different from "test" because such a user already exists
+        body = {k: 'tset' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
+        result = self.client.post('api/register-user', json=body)
+
+        self.assertEqual(result.status_code, 201)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'User created successfully')
+
+    def test_register_user_no_data(self):
+        result = self.client.post('api/register-user')
+
+        self.assertEqual(result.status_code, 400)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - no data received')
+
+    def test_register_user_missing_field(self):
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email', 'company', 'first-name']}
+        result = self.client.post('api/register-user', json=body)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - missing last-name data in input')
+
+    def test_register_user_mismatched_passwd(self):
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
+        body['password-confirm'] = 'different'
+        result = self.client.post('api/register-user', json=body)
+
+        self.assertEqual(result.status_code, 400)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'Passwords do not match')
+
+    def test_register_user_user_exist(self):
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
+        result = self.client.post('api/register-user', json=body)
+
+        self.assertEqual(result.status_code, 409)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'User with username test already exists')
+
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
+    def test_register_user_tempuser_exist(self):
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
+        result = self.client.post('api/register-user', json=body)
+
+        self.assertEqual(result.status_code, 409)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'User with username test is pending for permissions')
+
+    @mock.patch('api.yangCatalogApi.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
+    def test_register_user_db_exception(self):
+        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
+                                    'company', 'first-name', 'last-name', 'motivation']}
+        result = self.client.post('api/register-user', json=body)
+
+        self.assertEqual(result.status_code, 500)
+        self.assertTrue(result.is_json)
+        data = result.json
+        self.assertIn('error', data)
+        self.assertEqual(data['error'], 'Server problem connecting to database')
+
+    def test_delete_modules_one_module(self):
+        """Test correct action is taken for a valid deletion attempt.
+        """
+        name = 'yang-catalog'
+        revision = '2018-04-03'
+        organization = 'ietf'
+        path = '{},{},{}'.format(name, revision, organization)
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_delete_modules_unavailable(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = ''
+        r = mock.MagicMock()
+        r.status_code = 400
+        self.mock_confd_get.side_effect = [r]
+        mod = {
+            'name': 'yang-catalog',
+            'revision': '2017-09-26',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_delete_modules_insufficient_rights(self, mock_access_rights: mock.MagicMock):
+        """get_user_access_rights patched to give no rights.
+        Test error response when the user has insufficient rights.
+        """
+        mock_access_rights.return_value = ''
+        mod = {
+            'name': 'yang-catalog',
+            'revision': '2017-09-26',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 401)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'],
+                         'You do not have rights to delete modules with organization {}'.format(mod['organization']))
+
+    def test_delete_modules_has_implementation(self):
+        """Test skipped modules when the module has implementations.
+        """
+        mod = {
+            'name': 'ietf-yang-types',
+            'revision': '2013-07-15',
+            'organization': 'ietf'
+        }
+        path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+        result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('skipped', data)
+        self.assertEqual(data['skipped'], [mod])
+
+    def test_delete_modules(self):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('delete_modules')
+
+        result = self.client.delete('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    def test_delete_modules_missing_data(self):
+        result = self.client.delete('api/modules', auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'Missing input data to know which modules we want to delete')
+
+    def test_delete_modules_missing_input(self):
+        result = self.client.delete('api/modules', json={'input': {}}, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 404)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], "Data must start with 'input' root element in json")
+
+    def test_delete_vendor(self):
+        """Test correct action is taken for a valid deletion attempt.
+        """
+        path = 'nonexistent'
+        result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_delete_vendor_insufficient_rights(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = '/cisco'
+        vendor_name = 'fujitsu'
+        path = 'vendor/{}'.format(vendor_name)
+        result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 401)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'User not authorized to supply data for this vendor')
+
+    def test_organization_by_namespace(self):
+        self.assertEqual(mm.organization_by_namespace('http://cisco.com/test'), 'cisco')
+        self.assertEqual(mm.organization_by_namespace('urn:test:test'), 'test')
+        self.assertEqual(mm.organization_by_namespace('test'), '')
+
+    @mock.patch('shutil.move')
+    @mock.patch('shutil.copy')
+    @mock.patch('shutil.rmtree')
+    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch('requests.put')
+    def test_add_modules(self, mock_put: mock.MagicMock, *args):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertIn(result.status_code, (200, 202))
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    @mock.patch('shutil.move')
+    @mock.patch('shutil.copy')
+    @mock.patch('shutil.rmtree')
+    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch('requests.put')
+    def test_add_modules_post(self, mock_put: mock.MagicMock, *args):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_put.return_value = mock_response
+
+        result =  self.client.post('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertIn(result.status_code, (200, 202))
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    def test_add_modules_no_json(self):
+        result =  self.client.put('api/modules', auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - you need to input json body that conforms with'
+                                              ' module-metadata.yang module. Received no json')
+
+    def test_add_modules_missing_modules(self):
+        result =  self.client.put('api/modules', json={'invalid': True}, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - "modules" json object is missing and is mandatory')
+
+    def test_add_modules_missing_module(self):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules'] = {}
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - "module" json list is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_unparsable(self, mock_put: mock.MagicMock):
+        mock_put.return_value.status_code = 400
+        mock_put.return_value.text = 'test'
+        mock_put.return_value.headers = {}
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'] = False
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertTrue(data['description'].startswith('The body you have provided could not be parsed. Confd error text: '))
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_source_file(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('source-file')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "source-file" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_organization(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('organization')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "organization" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_name(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('name')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "name" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_revision(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0].pop('revision')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules "revision" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_path(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file'].pop('path')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules source file "path" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_repository(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file'].pop('repository')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules source file "repository" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_no_owner(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file'].pop('owner')
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - at least one of modules source file "owner" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    def test_add_modules_invalid_repo(self, mock_put: mock.MagicMock):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        body['modules']['module'][0]['source-file']['owner'] = 'foobar'
+        mock_put.return_value.status_code = 200
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
+                                                       ' Please check owner, repository and path of the request - '))
+
+
+    @mock.patch('shutil.move')
+    @mock.patch('shutil.copy')
+    @mock.patch('shutil.rmtree')
+    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('requests.put')
+    def test_add_modules_unauthorized(self, mock_put: mock.MagicMock, mock_access_rights: mock.MagicMock, *args):
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_modules')
+        mock_put.return_value.status_code = 200
+        mock_access_rights.return_value = ''
+
+        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 401)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'Unauthorized for server unknown reason')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('shutil.copy', mock.MagicMock)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
+    def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_vendor')
+        result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.pull')
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('shutil.copy', mock.MagicMock)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
+    def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_vendor')
+        result = self.client.post('api/platforms', json=body, auth=('test', 'test'))
+
+        mock_pull.assert_called()
+        self.assertEqual(result.status_code, 202)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertEqual(data['info'], 'Verification successful')
+        self.assertIn('job-id', data)
+        self.assertEqual(data['job-id'], 1)
+
+    def test_add_vendor_no_body(self):
+        result = self.client.put('api/platforms', auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - you need to input json body that conforms with'
+                                              ' platform-implementation-metadata.yang module. Received no json')
+
+    def test_add_vendor_no_platforms(self):
+        result = self.client.put('api/platforms', json={'test': 'test'}, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - "platforms" json object is missing and is mandatory')
+
+    def test_add_vendor_no_platform(self):
+        result = self.client.put('api/platforms', json={'platforms': {'test': 'test'}}, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'], 'bad request - "platform" json list is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    def test_add_vendor_confd_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 400
+        mock_put.return_value.text = 'test'
+        mock_put.return_value.headers = {}
+        result = self.client.put('api/platforms', json={'platforms': {'platform': 'test'}}, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'],
+                         'The body you have provided could not be parsed. Confd error text: test \n'
+                         ' error code: 400 \n error header items: dict_items([])')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    def test_add_vendor_no_module_file_list(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        result = self.client.put('api/platforms',
+                                 json={'platforms': {'platform': [{'test': 'test'}]}}, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'],
+                         'bad request - at least on of platform "module-list-file" is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    def test_add_vendor_no_path(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_vendor')
+        body['platforms']['platform'][0]['module-list-file'].pop('path')
+        result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'],
+                         'bad request - at least on of platform module-list-file'
+                         ' "path" for module is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    def test_add_vendor_no_repository(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_vendor')
+        body['platforms']['platform'][0]['module-list-file'].pop('repository')
+        result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'],
+                         'bad request - at least on of platform module-list-file'
+                         '  "repository" for module is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    def test_add_vendor_no_owner(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_vendor')
+        body['platforms']['platform'][0]['module-list-file'].pop('owner')
+        result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertEqual(data['description'],
+                         'bad request - at least on of platform module-list-file'
+                         '  "owner" for module is missing and is mandatory')
+
+    @mock.patch('requests.put')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('shutil.copy', mock.MagicMock)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
+    def test_add_vendor_git_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
+
+        def mock_clone(self):
+            raise GitCommandError('test')
+
+        mock_authorize.return_value = True
+        mock_put.return_value.status_code = 200
+        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+            content = json.load(f)
+        body = content.get('add_vendor')
+        with mock.patch.object(MockRepoUtil, 'clone', mock_clone):
+            result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
+
+        self.assertEqual(result.status_code, 400)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('description', data)
+        self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
+                                                       ' Please check owner, repository and path of the request - '))
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_vendors(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = '/test/test/test/test'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        body = {
+            'platforms': {
+                'platform': [{
+                    'name': 'test',
+                    'vendor': 'test',
+                    'software-version': 'test',
+                    'software-flavor': 'test'
+                }]
+            }
+        }
+        with app.app_context():
+            result = mm.authorize_for_vendors(request, body)
+
+        self.assertEqual(result, True)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_vendors_root(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = '/'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        with app.app_context():
+            result = mm.authorize_for_vendors(request, {})
+
+        self.assertEqual(result, True)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_vendors_missing_rights(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = 'test'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        body = {
+            'platforms': {
+                'platform': [{
+                    'name': 'other',
+                    'vendor': 'other',
+                    'software-version': 'other',
+                    'software-flavor': 'other'
+                }]
+            }
+        }
+        with app.app_context():
+            result = mm.authorize_for_vendors(request, body)
+
+        self.assertEqual(result, 'vendor')
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_sdos_root(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = '/'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        with app.app_context():
+            result = mm.authorize_for_sdos(request, 'test', 'test')
+
+        self.assertTrue(result)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_sdos(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = 'test'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        with app.app_context():
+            result = mm.authorize_for_sdos(request, 'test', 'test')
+
+        self.assertTrue(result)
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_sdos_not_same(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = '/'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        with app.app_context():
+            result = mm.authorize_for_sdos(request, 'test', 'other')
+
+        self.assertEqual(result, 'module`s organization is not the same as organization provided')
+
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    def test_authorize_for_sdos_not_in_rights(self, mock_access_rights: mock.MagicMock):
+        mock_access_rights.return_value = 'test'
+        request = mock.MagicMock()
+        request.authorization = {'username': 'test'}
+        with app.app_context():
+            result = mm.authorize_for_sdos(request, 'test', 'other')
+
+        self.assertEqual(result, 'module`s organization is not in users rights')
+
+    @mock.patch('api.sender.Sender.get_response', mock.MagicMock(return_value='Failed#split#reason'))
+    def test_get_job(self):
+        job_id = 'invalid-id'
+        result = self.client.get('api/job/{}'.format(job_id))
+
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.content_type, 'application/json')
+        data = json.loads(result.data)
+        self.assertIn('info', data)
+        self.assertIn('job-id', data['info'])
+        self.assertEqual(data['info']['job-id'], 'invalid-id')
+        self.assertIn('result', data['info'])
+        self.assertEqual(data['info']['result'], 'Failed')
+        self.assertIn('reason', data['info'])
+        self.assertEqual(data['info']['reason'], 'reason')
+
+def mock_confd_get(name, revision, organization):
+    file = 'tests/resources/confd_responses/{}@{}.json'.format(name, revision)
+    r = mock.MagicMock()
+    if not os.path.isfile(file):
+        r.status_code = 404
+    else:
+        with open(file) as f:
+            r.json.return_value = json.load(f)
+            r.status_code = 200
+    return r
+
+if __name__ == '__main__':
+    unittest.main()

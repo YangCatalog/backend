@@ -49,12 +49,15 @@ class YcSearch(Blueprint):
 bp = YcSearch('ycSearch', __name__)
 ac = None
 
+
 @bp.before_request
 def set_config():
     global ac
     ac = app.config
 
 ### ROUTE ENDPOINT DEFINITIONS ###
+
+
 @bp.route('/fast', methods=['POST'])
 @deprecate_route("Use foo instead")
 def fast_search():
@@ -171,7 +174,7 @@ def search(value: str):
         if key == module_key:
             data = modules_data().get('module')
             if data is None:
-                abort(404, description='No module found in confd database')
+                abort(404, description='No module found in ConfD database')
             passed_data = []
             for module in data:
                 count = -1
@@ -208,7 +211,7 @@ def rpc_search_get_one(leaf: str):
     modules = data['yang-catalog:modules']['module']
 
     if len(modules) == 0:
-        abort(404, description='No module found in confd database')
+        abort(404, description='No module found in ConfD database')
     output = set()
     resolved = set()
     for module in modules:
@@ -680,7 +683,7 @@ def search_vendors(value: str):
                 vendors_data = platform
                 found = True
         if found == False:
-            abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No platform found on path {}'.format(value))
     else:
         vendors_data = {'yang-catalog:vendor': [vendors_data]}
         return vendors_data
@@ -693,7 +696,7 @@ def search_vendors(value: str):
                 vendors_data = software_version
                 found = True
         if found == False:
-            abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No software-version found on path {}'.format(value))
     else:
         vendors_data = {'yang-catalog:platform': [vendors_data]}
         return vendors_data
@@ -706,7 +709,7 @@ def search_vendors(value: str):
                 vendors_data = software_flavor
                 found = True
         if found == False:
-            abort(404, description='No vendors found on path {}'.format(value))
+            abort(404, description='No software-flavor found on path {}'.format(value))
         else:
             vendors_data = {'yang-catalog:software-flavor': [vendors_data]}
             return vendors_data
@@ -737,32 +740,32 @@ def search_module(name: str, revision: str, organization: str):
 
 @bp.route('/search/modules', methods=['GET'])
 def get_modules():
-    """Search for all the modules populated in confd
+    """Search for all the modules populated in ConfD
         :return response to the request with all the modules
     """
     app.logger.info('Searching for modules')
     data = modules_data()
     if data is None or data == {}:
-        abort(404, description="No module is loaded")
+        abort(404, description='No module is loaded')
     return data
 
 
 @bp.route('/search/vendors', methods=['GET'])
 def get_vendors():
-    """Search for all the vendors populated in confd
+    """Search for all the vendors populated in ConfD
         :return response to the request with all the vendors
     """
     app.logger.info('Searching for vendors')
     data = vendors_data()
     if data is None or data == {}:
-        abort(404, description="No vendor is loaded")
+        abort(404, description='No vendor is loaded')
     return data
 
 
 @bp.route('/search/catalog', methods=['GET'])
 def get_catalog():
-    """Search for a all the data populated in confd
-        :return response to the request with all the data
+    """Search for a all the data populated in Redis/ConfD
+        :return response to the request with all the data (modules and vendors)
     """
     app.logger.info('Searching for catalog data')
     data = catalog_data()
@@ -1013,10 +1016,8 @@ def modules_data():
     Empty dictionary is returned if no data is stored under specified key.
     """
     data = ac.redis.get('modules-data')
-    if data is None:
-        data = '{}'
-    else:
-        data = data.decode('utf-8')
+    data = (data or b'{}').decode('utf-8')
+
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
@@ -1025,10 +1026,8 @@ def vendors_data(clean_data=True):
     Empty dictionary is returned if no data is stored under specified key.
     """
     data = ac.redis.get('vendors-data')
-    if data is None:
-        data = '{}'
-    else:
-        data = data.decode('utf-8')
+    data = (data or b'{}').decode('utf-8')
+
     if clean_data:
         json_data = \
             json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
@@ -1042,10 +1041,8 @@ def catalog_data():
     Empty dictionary is returned if no data is stored under specified key.
     """
     data = ac.redis.get('all-catalog-data')
-    if data is None:
-        data = '{}'
-    else:
-        data = data.decode('utf-8')
+    data = (data or b'{}').decode('utf-8')
+    
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 

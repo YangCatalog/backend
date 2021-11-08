@@ -18,23 +18,15 @@ from datetime import datetime
 
 import json
 import optparse
-import re
 import dateutil.parser
 import hashlib
 from pyang.util import get_latest_revision
 
-_yang_catalog_index_fd = None
+from utility.staticVariables import NS_MAP
+
 _yang_catalog_index_values = []
 _values = {'yindex': []}
 _ctx = None
-
-NS_MAP = {
-    "http://cisco.com/": "cisco",
-    "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang": "openconfig",
-    "http://tail-f.com/": "tail-f",
-    "http://yang.juniper.net/": "juniper"
-}
 
 def pyang_plugin_init():
     plugin.register_plugin(IndexerPlugin())

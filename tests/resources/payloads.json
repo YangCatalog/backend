@@ -311,9 +311,9 @@
         "modules": {
             "module": [
                 {
-                    "name": "example-jukebox",
-                    "revision": "2014-07-03",
-                    "organization": "example",
+                    "name": "yang-catalog",
+                    "revision": "2017-09-26",
+                    "organization": "ietf",
                     "maturity-level": "ratified",
                     "author-email": "foo@bar.com",
                     "module-classification": "network-element",
@@ -327,6 +327,17 @@
             ]
         }
     },
+    "add_vendor": {
+        "platforms": {
+            "platform":[{
+                "module-list-file": {
+                    "path": "test",
+                    "repository": "test",
+                    "owner": "test"
+                }
+            }]
+        }
+    },
     "check_local": {
         "type": "test",
         "repository": {
@@ -336,14 +347,16 @@
         "head_commit": "test",
         "pull_request_number": 1
     },
-    "sql_row": {
+    "user": {
         "input": {
-            "username": "test",
-            "first-name": "test",
-            "last-name": "test",
-            "email": "test",
-            "password": "test",
-            "motivation": "test"
+            "username": "jd",
+            "password": "secret",
+            "email": "j@d.com",
+            "models-provider": "jd inc.",
+            "first-name": "john",
+            "last-name": "doe",
+            "registration-datetime": "now",
+            "motivation": "i love yang"
         }
     }
 }

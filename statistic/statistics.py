@@ -163,9 +163,7 @@ def get_specifics(path_dir):
         if ',' in organization:
             organization = organization.replace(' ', '%20')
             path = '{}search/name/{}'.format(yangcatalog_api_prefix, name)
-            module_exist = requests.get(path, auth=(auth[0], auth[1]),
-                                        headers={'Accept': 'application/json',
-                                                 'Content-Type': 'application/json'})
+            module_exist = requests.get(path, headers=json_headers)
             if repr(module_exist.status_code).startswith('20'):
                 data = module_exist.json()
                 org = data['yang-catalog:modules']['module'][0]['organization']
@@ -338,9 +336,6 @@ def main(scriptConf=None):
     protocol = config.get('General-Section', 'protocol-api')
     api_ip = config.get('Web-Section', 'ip')
     api_port = config.get('Web-Section', 'api-port')
-    credentials = config.get('Secrets-Section', 'confd-credentials').strip('"')
-    global auth
-    auth = credentials.split(' ')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     move_to = '{}/.'.format(config.get('Web-Section', 'public-directory'))
@@ -365,7 +360,7 @@ def main(scriptConf=None):
     # Fetch the list of all modules known by YangCatalog
     url = '{}search/modules'.format(yangcatalog_api_prefix)
     try:
-        response = requests.get(url, auth=(auth[0], auth[1]), headers=json_headers)
+        response = requests.get(url, headers=json_headers)
         if response.status_code != 200:
             LOGGER.error('Cannot access {}, response code: {}'.format(url, response.status_code))
             sys.exit(1)
@@ -375,7 +370,7 @@ def main(scriptConf=None):
         LOGGER.error('Cannot access {}, response code: {}'.format(url, e.response))
         # Let's try again, who knows?
         time.sleep(120)
-        response = requests.get(url, auth=(auth[0], auth[1]), headers=json_headers)
+        response = requests.get(url, headers=json_headers)
         all_modules_data = response.json()
         LOGGER.error('After a while, OK to access {}'.format(url))
 

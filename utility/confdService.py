@@ -43,6 +43,12 @@ class ConfdService:
         self.LOGGER = log.get_logger('confdService', '{}/confdService.log'.format(self.log_directory))
         self.confd_prefix = '{}://{}:{}'.format(self.__confd_protocol, self.__confd_ip, self.__confd_port)
 
+    def get_restconf(self):
+        path = '{}/restconf'.format(self.confd_prefix)
+        response = requests.get(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
     def get_module(self, module_key: str):
         self.LOGGER.debug('Sending GET request to the module {}'.format(module_key))
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(self.confd_prefix, module_key)
@@ -110,8 +116,25 @@ class ConfdService:
         return response
 
     def head_catalog(self):
-        self.LOGGER.debug('Sending HEAD request the ConfD')
-        path = '{}/restconf/data'.format(self.confd_prefix)
+        path = '{}/restconf/data/yang-catalog:catalog'.format(self.confd_prefix)
         response = requests.head(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
+    def head_confd(self):
+        path = '{}/restconf/data/'.format(self.confd_prefix)
+        response = requests.head(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
+    def put_module_metadata(self, new_data: str):
+        path = '{}/restconf/data/module-metadata:modules'.format(self.confd_prefix)
+        response = requests.put(path, new_data, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
+    def put_platform_metadata(self, new_data: str):
+        path = '{}/restconf/data/platform-implementation-metadata:platforms'.format(self.confd_prefix)
+        response = requests.put(path, new_data, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response

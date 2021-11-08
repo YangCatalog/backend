@@ -40,12 +40,15 @@ class YcJobs(Blueprint):
 
 bp = YcJobs('ycJobs', __name__)
 
+
 @bp.before_request
 def set_config():
     global ac
     ac = app.config
 
 ### ROUTE ENDPOINT DEFINITIONS ###
+
+
 @bp.route('/ietf', methods=['GET'])
 @auth.login_required
 def trigger_ietf_pull():
@@ -136,18 +139,21 @@ def check_github():
                 response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
                 app.logger.info('Review response code {}'.format(response.status_code,))
                 data = json.dumps({'commit-title': 'Github Actions job passed',
-                                    'sha': body['check_run']['head_sha']})
+                                   'sha': body['check_run']['head_sha']})
                 response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(pull_number),
                                         data, headers={'Authorization': admin_token_header_value})
                 app.logger.info('Merge response code {}\nMerge response {}'.format(response.status_code, response.text))
                 return ({'info': 'Success'}, 201)
+            else:
+                app.logger.warning('Github Actions did not pass')
+                return ({'info': 'Failed'}, 406)
         else:
             message = 'Owner name verification failed. Owner -> {}'.format(body['sender']['login'])
             app.logger.warning(message)
             return ({'Error': message}, 401)
     else:
         app.logger.info('Commit verification failed.'
-                                ' Commit sent by someone else - not doing anything.')
+                        ' Commit sent by someone else - not doing anything.')
         return ({'info': 'Commit verification failed - sent by someone else'}, 200)
 
 
@@ -288,9 +294,8 @@ def trigger_populate():
             try:
                 populate_path = os.path.abspath(
                     os.path.dirname(os.path.realpath(__file__)) + '/../../../parseAndPopulate/populate.py')
-                arguments = ['python', populate_path, '--port', ac.w_confd_port, '--ip',
-                             ac.w_confd_ip, '--api-protocol', ac.g_protocol_api, '--api-port',
-                             ac.w_api_port, '--api-ip', ac.w_ip,
+                arguments = ['python', populate_path, '--api-protocol', ac.g_protocol_api,
+                             '--api-port', ac.w_api_port, '--api-ip', ac.w_ip,
                              '--result-html-dir', ac.w_result_html_dir,
                              '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
                              '--save-file-dir', ac.d_save_file_dir, 'repoLocalDir']
