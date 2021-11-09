@@ -75,13 +75,11 @@ class ScriptConfig:
 
     def get_args_list(self):
         args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
+        keys = list(self.args.__dict__.keys())
         types = [type(value).__name__ for value in self.args.__dict__.values()]
 
-        i = 0
-        for key in keys:
+        for i, key in enumerate(keys):
             args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
         return args_dict
 
     def get_help(self):
