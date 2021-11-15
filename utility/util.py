@@ -487,7 +487,7 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     return ctx, new_schema_ctx
 
 
-def get_list_of_backups(directory: str) -> t.List[str]:
+def get_list_of_backups(directory: str) -> t.List[t.List[str]]:
     dates = []
     for name in os.listdir(directory):
         try:
