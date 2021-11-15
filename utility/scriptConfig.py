@@ -38,22 +38,22 @@ class BaseScriptConfig:
     def __init__(self, help, args: t.List[t.Dict[str, t.Any]], arglist: t.List[str]):
         parser = argparse.ArgumentParser()
         self.help: Help = {'help': help, 'options': {}}
+        self.args_dict = {}
         for arg in args:
             flag = arg.pop('flag')
             parser.add_argument(flag, **arg)
+            arg_name = flag.lstrip('-').replace('-', '_')
+            # some args with the 'store_true' action do not specify a type
+            # NOTE: maybe we should just specify it everywhere?
+            self.arg_dict[arg_name] = {'type': type(arg['default']).__name__, 'default': arg['default']}
             if 'help' in arg:
-                self.help['options'][flag.lstrip('-').replace('-', '_')] = arg['help']
+                self.help['options'][arg_name] = arg['help']
         self.args = parser.parse_args(arglist)
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
-    def get_args_list(self) -> t.Dict:
-        args_dict = {}
-        keys = list(self.args.__dict__.keys())
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
 
-        for i, key in enumerate(keys):
-            args_dict[key] = {'type': types[i], 'default': self.defaults[i]}
-        return args_dict
+    def get_args_list(self) -> t.Dict:
+        return self.args_dict
 
     def get_help(self) -> Help:
         return self.help
