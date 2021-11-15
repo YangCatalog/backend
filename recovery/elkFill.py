@@ -17,68 +17,66 @@ This script will create json file to populate Elasticsearch
 from all the modules saved in Redis database.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
+
 import json
 
 import requests
 from utility.create_config import create_config
+from utility.scriptConfig import BaseScriptConfig
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         config = create_config()
-        self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__api_port = config.get('Web-Section', 'api-port')
-        self.__api_host = config.get('Web-Section', 'ip')
-        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        self.__temp = config.get('Directory-Section', 'temp')
+        api_protocol = config.get('General-Section', 'protocol-api')
+        api_port = config.get('Web-Section', 'api-port')
+        api_host = config.get('Web-Section', 'ip')
+        save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        temp = config.get('Directory-Section', 'temp')
+        help = 'This serves to save or load all information in yangcatalog.org in elk.' \
+               'in case the server will go down and we would lose all the information we' \
+               ' have got. We have two options in here.'
+        args = [
+            {
+                'flag': '--api-ip',
+                'help':'Set host where the API is started. Default: {}'.format(api_host),
+                'type': str,
+                'default': api_host
+            },
+            {
+                'flag': '--api-port',
+                'help': 'Set port where the API is started. Default: {}'.format(api_port),
+                'type': int,
+                'default': api_port
+            },
+            {
+                'flag': '--api-protocol',
+                'help': 'Whether API runs on http or https. Default: {}'.format(api_protocol),
+                'type': str,
+                'default': api_protocol
+            },
+            {
+                'flag': '--save-file-dir',
+                'help': 'Directory for all yang modules lookup. Default: {}'.format(save_file_dir),
+                'type': str,
+                'default': save_file_dir
+            },
+            {
+                'flag': '--temp',
+                'help': 'Path to yangcatalog temporary directory. Default: {}'.format(temp),
+                'type': str,
+                'default': temp
+            }
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
+
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.help = 'This serves to save or load all information in yangcatalog.org in elk.' \
-            'in case the server will go down and we would lose all the information we' \
-            ' have got. We have two options in here.'
-
-        parser = argparse.ArgumentParser(
-            description=self.help)
-        parser.add_argument('--api-ip', default=self.__api_host, type=str,
-                            help='Set host where the API is started. Default: ' + self.__api_host)
-        parser.add_argument('--api-port', default=self.__api_port, type=int,
-                            help='Set port where the API is started. Default: ' + self.__api_port)
-        parser.add_argument('--api-protocol', type=str, default=self.__api_protocol, help='Whether API runs on http or https.'
-                            ' Default: ' + self.__api_protocol)
-        parser.add_argument('--save-file-dir', default=self.__save_file_dir, type=str,
-                            help='Directory for all yang modules lookup. Default: ' + self.__save_file_dir)
-        parser.add_argument('--temp', default=self.__temp, type=str,
-                            help='Path to yangcatalog temporary directory. Default: ' + self.__temp)
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['api_ip'] = 'Set host where the API is started. Default: ' + self.__api_host
-        ret['options']['api_port'] = 'Set port where the API is started. Default: ' + self.__api_port
-        ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: ' + self.__api_protocol
-        ret['options']['save_file_dir'] = 'Directory for all yang modules lookup. Default: ' + self.__save_file_dir
-        ret['options']['temp'] = 'Path to yangcatalog temporary directory. Default: ' + self.__temp
-        return ret
 
 
 def main(scriptConf=None):

@@ -24,12 +24,11 @@ parse metadata that needs to use complicated algorthms.
 For this we use class ModulesComplicatedAlgorithms.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
 import errno
 import json
 import multiprocessing
@@ -42,6 +41,7 @@ import requests
 import utility.log as log
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_to_indexing, send_to_indexing2
 
@@ -50,9 +50,92 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
+
     def __init__(self):
         config = create_config()
+        credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+        api_protocol = config.get('General-Section', 'protocol-api')
+        api_port = config.get('Web-Section', 'api-port')
+        api_host = config.get('Web-Section', 'ip')
+        save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        result_dir = config.get('Web-Section', 'result-html-dir')
+        help = 'Parse hello messages and YANG files to JSON dictionary. These ' \
+               'dictionaries are used for populating a yangcatalog. This script runs ' \
+               'first a runCapabilities.py script to create a JSON files which are ' \
+               'used to populate database.'
+        args = [
+            {
+                'flag': '--api-ip',
+                'help': 'Set host address where the API is started. Default: {}'.format(api_host),
+                'type': str,
+                'default': api_host
+            },
+            {
+                'flag': '--api-port',
+                'help': 'Set port where the API is started. Default: {}'.format(api_port),
+                'type': int,
+                'default': api_port
+            },
+            {
+                'flag': '--api-protocol',
+                'help': 'Whether API runs on http or https (This will be ignored if we are using uwsgi). '
+                        'Default: {}'.format(api_protocol),
+                'type': str,
+                'default': api_protocol
+            },
+            {
+                'flag': '--credentials',
+                'help': 'Set authorization parameters username and password respectively.',
+                'type': str,
+                'nargs': 2,
+                'default': credentials
+            },
+            {
+                'flag': '--dir',
+                'help': 'Set directory where to look for hello message xml files',
+                'type': str,
+                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+            },
+            {
+                'flag': '--api',
+                'help': 'If request came from api',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--sdo',
+                'help': 'If we are processing sdo or vendor yang modules',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--notify-indexing',
+                'help': 'Whether to send files for indexing',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--result-html-dir',
+                'help': 'Set dir where to write HTML compilation result files. Default: {}'.format(result_dir),
+                'type': str,
+                'default': result_dir
+            },
+            {
+                'flag': '--save-file-dir',
+                'help': 'Directory where the yang file will be saved. Default: {}'.format(save_file_dir),
+                'type': str,
+                'default': save_file_dir
+            },
+            {
+                'flag': '--force-parsing',
+                'help': 'Force parse files (do not skip parsing for unchanged files).',
+                'action': 'store_true',
+                'default': False
+            }
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
+
         self.log_directory = config.get('Directory-Section', 'logs')
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
@@ -62,70 +145,6 @@ class ScriptConfig:
         self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
         self.lock_file = config.get('Directory-Section', 'lock')
         self.ytree_dir = config.get('Directory-Section', 'json-ytree')
-        credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__api_port = config.get('Web-Section', 'api-port')
-        self.__api_host = config.get('Web-Section', 'ip')
-        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        self.__result_dir = config.get('Web-Section', 'result-html-dir')
-        self.help = 'Parse hello messages and YANG files to JSON dictionary. These' \
-            ' dictionaries are used for populating a yangcatalog. This script runs' \
-            ' first a runCapabilities.py script to create a JSON files which are' \
-            ' used to populate database.'
-
-        parser = argparse.ArgumentParser(description=self.help)
-        parser.add_argument('--api-ip', default=self.__api_host, type=str,
-                            help='Set host address where the API is started. Default: {}'.format(self.__api_host))
-        parser.add_argument('--api-port', default=self.__api_port, type=int,
-                            help='Set port where the API is started. Default: {}'.format(self.__api_port))
-        parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
-                            help='Whether API runs on http or https (This will be ignored if we are using uwsgi).'
-                                 ' Default: {}'.format(self.__api_protocol))
-        parser.add_argument('--credentials', help='Set authorization parameters username password respectively.',
-                            nargs=2, default=credentials, type=str)
-        parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
-                            help='Set dir where to look for hello message xml files')
-        parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
-        parser.add_argument('--sdo', action='store_true', default=False,
-                            help='If we are processing sdo or vendor yang modules')
-        parser.add_argument('--notify-indexing', action='store_true', default=False, help='Whether to send files for'
-                                                                                          ' indexing')
-        parser.add_argument('--result-html-dir', default=self.__result_dir, type=str,
-                            help='Set dir where to write HTML compilation result files. Default: {}'.format(self.__result_dir))
-        parser.add_argument('--save-file-dir', default=self.__save_file_dir,
-                            type=str, help='Directory where the yang file will be saved. Default: {}'.format(self.__save_file_dir))
-        parser.add_argument('--force-parsing', action='store_true', default=False,
-                            help='Force to parse files (do not skip parsing for unchanged files).')
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['dir'] = 'Set dir where to look for hello message xml files or yang files if using "sdo" option'
-        ret['options']['api'] = 'If request came from api'
-        ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
-        ret['options']['notify_indexing'] = 'Whether to send files for indexing'
-        ret['options']['result_html_dir'] = 'Set dir where to write HTML compilation result files. Default: {}'.format(self.__result_dir)
-        ret['options']['save_file_dir'] = 'Directory where the yang file will be saved. Default: {}'.format(self.__save_file_dir)
-        ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: {}'.format(self.__api_protocol)
-        ret['options']['api_port'] = 'Whether API runs on http or https (This will be ignored if we are using uwsgi).' \
-                                     ' Default: {}'.format(self.__api_protocol)
-        ret['options']['api_ip'] = 'Set host address where the API is started. Default: {}'.format(self.__api_host)
-        ret['options']['force_parsing'] = 'Force to parse files (do not skip parsing for unchanged files).'
-        return ret
 
 
 def reload_cache_in_parallel(credentials: list, yangcatalog_api_prefix: str):

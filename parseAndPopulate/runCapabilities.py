@@ -21,12 +21,11 @@ for xml files or it will start to parse all the yang
 files in the directory ignoring all the vendor metadata
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
 import fnmatch
 import os
 import time
@@ -37,72 +36,84 @@ from utility.create_config import create_config
 from parseAndPopulate.capability import Capability
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.prepare import Prepare
+from utility.scriptConfig import BaseScriptConfig
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
+
     def __init__(self):
-        self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
-                    ' to ConfD/Redis database.'
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--dir', default='/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC', type=str,
-                            help='Set dir where to look for hello message xml files or yang files if using "sdo" option')
-        parser.add_argument('--save-file-hash', action='store_true', default=False,
-                            help='if True then it will check if content of the file changed '
-                            '(based on hash values) and it will skip parsing if nothing changed.')
-        parser.add_argument('--api', action='store_true', default=False, help='If request came from api')
-        parser.add_argument('--sdo', action='store_true', default=False,
-                            help='If we are processing sdo or vendor yang modules')
-        parser.add_argument('--json-dir', default='/var/yang/tmp/', type=str,
-                            help='Directory where json files to populate ConfD/Redis will be stored')
-        parser.add_argument('--result-html-dir', default='/usr/share/nginx/html/results', type=str,
-                            help='Set dir where to write html compilation result files')
-        parser.add_argument('--save-file-dir', default='/var/yang/all_modules',
-                            type=str, help='Directory where the yang file will be saved')
-        parser.add_argument('--api-protocol', type=str, default='https',
-                            help='Whether api runs on http or https. Default is set to https')
-        parser.add_argument('--api-port', default=8443, type=int,
-                            help='Set port where the api is started (This will be ignored if we are using uwsgi)')
-        parser.add_argument('--api-ip', default='yangcatalog.org', type=str,
-                            help='Set ip address where the api is started. Default -> yangcatalog.org')
-        parser.add_argument('--config-path', type=str,
-                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        """ Return a list of the arguments of the script, along with the default values.
-        """
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        """ Return script help along with help for each argument.
-        """
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['dir'] = 'Set dir where to look for hello message xml files or yang files if using "sdo" option'
-        ret['options']['save_file_hash'] = 'if True then it will check if content of the file changed' \
-            ' (based on hash values) and it will skip parsing if nothing changed.'
-        ret['options']['api'] = 'If request came from api'
-        ret['options']['sdo'] = 'If we are processing sdo or vendor yang modules'
-        ret['options']['json_dir'] = 'Directory where json files to populate ConfD/Redis will be stored'
-        ret['options']['result_html_dir'] = 'Set dir where to write html compilation result files'
-        ret['options']['save_file_dir'] = 'Directory where the yang file will be saved'
-        ret['options']['api_protocol'] = 'Whether api runs on http or https. Default is set to https'
-        ret['options']['api_port'] = 'Set port where the api is started (This will be ignored if we are using uwsgi)'
-        ret['options']['api_ip'] = 'Set ip address where the api is started. Default -> yangcatalog.org'
-        ret['options']['config_path'] = 'Set path to config file'
-        return ret
+        help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
+               ' to ConfD/Redis database.'
+        args = [
+            {
+                'flag': '--dir',
+                'help': 'Set dir where to look for hello message xml files or yang files if using "sdo" option',
+                'type': str,
+                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+            },
+            {
+                'flag': '--save-file-hash',
+                'help': 'if True then it will check if content of the file changed '
+                        '(based on hash values) and it will skip parsing if nothing changed.',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--api',
+                'help': 'If request came from api',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--sdo',
+                'help': 'If we are processing sdo or vendor yang modules',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--json-dir',
+                'help': 'Directory where json files to populate ConfD/Redis will be stored',
+                'type': str,
+                'default': '/var/yang/tmp/'
+            },
+            {
+                'flag': '--result-html-dir',
+                'help': 'Set dir where to write html compilation result files',
+                'type': str,
+                'default': '/usr/share/nginx/html/results'
+            },
+            {
+                'flag': '--save-file-dir',
+                'help': 'Directory where the yang file will be saved',
+                'type': str,
+                'default': '/var/yang/all_modules'
+            },
+            {
+                'flag': '--api-protocol',
+                'help': 'Whether api runs on http or https. Default is set to https',
+                'type': str,
+                'default': 'https'
+            },
+            {
+                'flag': '--api-port',
+                'help': 'Set port where the api is started (This will be ignored if we are using uwsgi)',
+                'type': int,
+                'default': 8443
+            },
+            {
+                'flag': '--api-ip',
+                'help': 'Set ip address where the api is started. Default: yangcatalog.org',
+                'type': str,
+                'default': 'yangcatalog.org'
+            },
+            {
+                'flag': '--config-path',
+                'help': 'Set path to config file',
+                'type': str,
+                'default': os.environ['YANGCATALOG_CONFIG_PATH']
+            },
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def find_files(directory: str, pattern: str):

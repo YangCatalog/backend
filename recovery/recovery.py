@@ -25,7 +25,7 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
+
 import datetime
 import json
 import logging
@@ -40,58 +40,51 @@ import utility.log as log
 from requests import ConnectionError
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        self.help = 'This serves to save or load all the information in yangcatalog.org to JSON file in' \
-                    ' case the server will go down and we would lose all the information we' \
-                    ' have got. We have two options in here. Saving makes a GET request to the ConfD' \
-                    ' and save modules to the file with name that would be passed as a argument or it will be set to' \
-                    ' the current datetime. Load will first load data to Redis either from saved JSON file or' \
-                    ' from snapshot of Redis. Then it will make PATCH request to write all the data to the ConfD.' \
-                    ' This runs as a daily cronjob to save latest state of ConfD and Redis.'
+        help = 'This serves to save or load all the information in yangcatalog.org to JSON file in' \
+               ' case the server will go down and we would lose all the information we' \
+               ' have got. We have two options in here. Saving makes a GET request to the ConfD' \
+               ' and save modules to the file with name that would be passed as a argument or it will be set to' \
+               ' the current datetime. Load will first load data to Redis either from saved JSON file or' \
+               ' from snapshot of Redis. Then it will make PATCH request to write all the data to the ConfD.' \
+               ' This runs as a daily cronjob to save latest state of ConfD and Redis.'
         config = create_config()
+        args = [
+            {
+                'flag': '--name_save',
+                'help': 'Set name of the file to save. Default name is date and time in UTC',
+                'type': str,
+                'default': datetime.datetime.utcnow().strftime(backup_date_format)
+            },
+            {
+                'flag': '--name_load',
+                'help': 'Set name of the file to load. Default will take a last saved file',
+                'type': str,
+                'default': ''
+            },
+            {
+                'flag': '--type',
+                'help': 'Set whether you want to save a file or load a file. Default is save',
+                'type': str,
+                'choices': ['save', 'load'],
+                'default': 'save'
+            }
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
+
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')
         self.redis_host = config.get('DB-Section', 'redis-host')
         self.redis_port = config.get('DB-Section', 'redis-port')
         self.var_yang = config.get('Directory-Section', 'var')
-        parser = argparse.ArgumentParser(description=self.help)
-        parser.add_argument('--name_save',
-                            default=datetime.datetime.utcnow().strftime(backup_date_format),
-                            type=str, help='Set name of the file to save. Default name is date and time in UTC')
-        parser.add_argument('--name_load', type=str, default='',
-                            help='Set name of the file to load. Default will take a last saved file')
-        parser.add_argument('--type', default='save', type=str, choices=['save', 'load'],
-                            help='Set whether you want to save a file or load a file. Default is save')
-
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['type'] = 'Set whether you want to save a file or load a file. Default is save'
-        ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
-        ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
-        return ret
 
 
 def feed_confd_modules(modules_data: list, confdService: ConfdService, LOGGER: logging.Logger):
