@@ -110,6 +110,7 @@ def main(scriptConf=None):
                 data[key.decode()] = value
             if cursor == 0:
                 break
+        args.name_save += '.json'
         with open(os.path.join(backups, args.name_save), 'w') as f:
             json.dump(data, f)
         LOGGER.info('Data saved to {} successfully'.format(args.name_save))
@@ -118,7 +119,7 @@ def main(scriptConf=None):
 
     elif args.type == 'load':
         if args.name_load:
-            file_name = os.path.join(backups, args.name_load)
+            file_name = '{}.json'.format(os.path.join(backups, args.name_load))
         else:
             list_of_backups = get_list_of_backups(backups)
             file_name = os.path.join(backups, ''.join(list_of_backups[-1]))
