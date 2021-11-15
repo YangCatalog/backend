@@ -29,14 +29,14 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fnmatch
 import os
 import time
+import typing as t
 
 import utility.log as log
-from utility.create_config import create_config
-
 from parseAndPopulate.capability import Capability
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.prepare import Prepare
-from utility.scriptConfig import BaseScriptConfig
+from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -44,7 +44,7 @@ class ScriptConfig(BaseScriptConfig):
     def __init__(self):
         help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
                ' to ConfD/Redis database.'
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--dir',
                 'help': 'Set dir where to look for hello message xml files or yang files if using "sdo" option',

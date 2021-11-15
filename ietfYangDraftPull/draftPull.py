@@ -34,13 +34,14 @@ import os
 import shutil
 import sys
 import time
+import typing as t
 
 import requests
 import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory, repoutil
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import github_url
 from utility.util import job_log
 
@@ -57,7 +58,7 @@ class ScriptConfig(BaseScriptConfig):
                'If there are new RFC files, produce an automated message that will be sent to the ' \
                'Cisco Webex Teams and admin emails notifying that these need to be added to ' \
                'the YangModels/yang Github repository manualy. This script runs as a daily cronjob.'
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--config-path',
                 'help': 'Set path to config file',

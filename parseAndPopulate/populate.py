@@ -36,12 +36,14 @@ import os
 import shutil
 import sys
 import time
+import typing as t
 
 import requests
+
 import utility.log as log
 from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_to_indexing, send_to_indexing2
 
@@ -64,7 +66,7 @@ class ScriptConfig(BaseScriptConfig):
                'dictionaries are used for populating a yangcatalog. This script runs ' \
                'first a runCapabilities.py script to create a JSON files which are ' \
                'used to populate database.'
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--api-ip',
                 'help': 'Set host address where the API is started. Default: {}'.format(api_host),

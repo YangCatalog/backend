@@ -24,10 +24,12 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 
 import json
+import typing as t
 
 import requests
+
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -42,7 +44,7 @@ class ScriptConfig(BaseScriptConfig):
         help = 'This serves to save or load all information in yangcatalog.org in elk.' \
                'in case the server will go down and we would lose all the information we' \
                ' have got. We have two options in here.'
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--api-ip',
                 'help':'Set host where the API is started. Default: {}'.format(api_host),

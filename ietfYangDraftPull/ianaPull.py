@@ -29,6 +29,7 @@ import shutil
 import subprocess
 import sys
 import time
+import typing as t
 import xml.etree.ElementTree as ET
 from shutil import copy2
 
@@ -36,7 +37,7 @@ import utility.log as log
 from git.exc import GitCommandError
 from utility import repoutil
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
@@ -48,7 +49,7 @@ class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         help = 'Pull the latest IANA-maintained files and add them to the Github if there are any new.'
-        args = [{
+        args: t.List[Arg] = [{
             'flag': '--config-path',
             'help': 'Set path to config file',
             'type': str,

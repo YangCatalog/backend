@@ -25,11 +25,12 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 
 import os
+import typing as t
 from operator import itemgetter
 
 from elasticsearch import Elasticsearch
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -38,7 +39,7 @@ class ScriptConfig(BaseScriptConfig):
         help = 'This serves to save or load all information in yangcatalog.org in elk.' \
                'in case the server will go down and we would lose all the information we' \
                ' have got. We have two options in here. This runs as a cronjob to create snapshot'
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--name_save',
                 'help': 'Set name of the file to save. Default name is date and time in UTC',

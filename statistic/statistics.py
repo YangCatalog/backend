@@ -41,13 +41,15 @@ import shutil
 import subprocess
 import sys
 import time
+import typing as t
 
 import jinja2
 import requests
+
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import github_url, json_headers, NS_MAP, MISSING_ELEMENT
 from utility.util import find_first_file, get_curr_dir, job_log
 
@@ -58,7 +60,7 @@ class ScriptConfig(BaseScriptConfig):
         help = 'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang ' \
                'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily ' \
                'cronjob'
-        args = [{
+        args: t.List[Arg] = [{
             'flag': '--config-path',
             'help': 'Set path to config file',
             'type': str,

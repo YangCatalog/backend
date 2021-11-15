@@ -27,12 +27,13 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import os
 import shutil
 import time
+import typing as t
 
 import requests
 import utility.log as log
 from utility import repoutil
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import github_url
 from utility.util import job_log
 
@@ -47,7 +48,7 @@ class ScriptConfig(BaseScriptConfig):
     def __init__(self):
         help = 'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the ' \
                'metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        args = [{
+        args: t.List[Arg] = [{
             'flag': '--config-path',
             'help': 'Set path to config file',
             'type': str,

@@ -31,6 +31,7 @@ import json
 import logging
 import os
 import time
+import typing as t
 from datetime import datetime
 
 import requests
@@ -38,7 +39,7 @@ import requests
 import utility.log as log
 from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
 
 
@@ -52,7 +53,7 @@ class ScriptConfig(BaseScriptConfig):
         credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
         help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
                     ' cronjob'
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--credentials',
                 'help': 'Set authorization parameters username password respectively. Default parameters are {}'

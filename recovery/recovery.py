@@ -34,13 +34,15 @@ import shutil
 import time
 from collections import OrderedDict
 from time import sleep
+import typing as t
 
 import redis
-import utility.log as log
 from requests import ConnectionError
+
+import utility.log as log
 from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
@@ -56,7 +58,7 @@ class ScriptConfig(BaseScriptConfig):
                ' from snapshot of Redis. Then it will make PATCH request to write all the data to the ConfD.' \
                ' This runs as a daily cronjob to save latest state of ConfD and Redis.'
         config = create_config()
-        args = [
+        args: t.List[Arg] = [
             {
                 'flag': '--name_save',
                 'help': 'Set name of the file to save. Default name is date and time in UTC',

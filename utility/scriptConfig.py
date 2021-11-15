@@ -32,10 +32,18 @@ class Help(t.TypedDict):
     help: str
     options: t.Dict[str, str]
 
+class BaseArg(t.TypedDict):
+    flag: str
+    help: str
+    default: t.Any
+
+class Arg(BaseArg, total=False):
+    type: type
+    action: str
 
 class BaseScriptConfig:
 
-    def __init__(self, help, args: t.List[t.Dict[str, t.Any]], arglist: t.List[str]):
+    def __init__(self, help, args: t.List[Arg], arglist: t.List[str]):
         parser = argparse.ArgumentParser()
         self.help: Help = {'help': help, 'options': {}}
         self.args_dict = {}
