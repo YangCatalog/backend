@@ -110,6 +110,8 @@ def main(scriptConf=None):
                 data[key.decode()] = value
             if cursor == 0:
                 break
+        if not os.path.isdir(backups):
+            os.mkdir(backups)
         args.name_save += '.json'
         with open(os.path.join(backups, args.name_save), 'w') as f:
             json.dump(data, f)
