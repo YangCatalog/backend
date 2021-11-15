@@ -63,7 +63,9 @@ from flask.logging import default_handler
 from flask_cors import CORS
 from flask_oidc import discovery
 from redis import Redis
+from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
+from utility.redisUsersConnection import RedisUsersConnection
 
 import api.authentication.auth as auth
 from api.sender import Sender
@@ -76,7 +78,6 @@ from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
 from api.views.yangSearch.yangSearch import bp as yang_search_bp
 from api.views.ycJobs.ycJobs import bp as jobs_bp
 from api.views.ycSearch.ycSearch import bp as search_bp
-from utility.redisUsersConnection import RedisUsersConnection
 
 
 class MyConfig(Config):
@@ -107,6 +108,7 @@ class MyFlask(Flask):
         self.logger.debug('Starting api')
         self.secret_key = self.config.s_flask_secret_key
         self.confdService = ConfdService()
+        self.redisConnection = RedisConnection()
 
     def load_config(self):
         self.init_config()
@@ -202,8 +204,6 @@ class MyFlask(Flask):
         # self.create_response_with_yangsuite_link(response)
 
         try:
-            if not 'admin' in request.path:
-                app.logger.debug('after request response processing have {}'.format(request.special_id))
             if request.special_id != 0:
                 if request.special_id not in self.release_locked:
                     self.release_locked.append(request.special_id)
@@ -480,7 +480,7 @@ def retry_OP_discovery():
             ac.redis.set('secrets-oidc', json.dumps(discovered_secrets))
             app.logger.info('OpenID Provider information discovered successfully')
             break
-        except:
+        except Exception:
             app.logger.warning('OpenID Provider information discovery failed')
             time.sleep(30)
     return True
@@ -494,7 +494,7 @@ try:
     ac.redis.set('secrets-oidc', json.dumps(discovered_secrets))
     discovered = True
     app.logger.debug('Newly OpenID Provider discovered information saved to cache')
-except:
+except Exception:
     data = ac.redis.get('secrets-oidc')
 
     if data is not None:
@@ -517,7 +517,7 @@ app.register_blueprint(healthcheck_bp, url_prefix='/api/admin/healthcheck')
 app.register_blueprint(yang_search_bp, url_prefix='/api/yang-search/v2')
 
 CORS(app, supports_credentials=True)
-#csrf = CSRFProtect(application)
+# csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_for_load = Lock()
 
@@ -537,8 +537,7 @@ def make_cache(response, data=None):
             while data is None or len(data) == 0 or data == 'None':
                 app.logger.debug('Loading data from confd')
                 try:
-                    response = app.confdService.get_catalog_data()
-                    data = response.json()
+                    data = app.confdService.get_catalog_data().json()
                     data = json.dumps(data)
                     app.logger.debug('Data loaded and parsed to json from ConfD successfully')
                 except ValueError as e:
@@ -552,9 +551,9 @@ def make_cache(response, data=None):
                     app.logger.info('ConfD not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
         ac.redis.set('all-catalog-data', data)
-    except:
+    except Exception:
         e = sys.exc_info()[0]
-        app.logger.error('Could not load json to cache. Error: {}'.format(e))
+        app.logger.exception('Could not load json to cache. Error: {}'.format(e))
         return 'Server error - downloading cache', None
     return response, data
 
@@ -608,7 +607,7 @@ def load_to_memory():
 
 
 def load():
-    """Load to cache from confd all the data populated to yang-catalog."""
+    """Load modules data from Redis individual keys to modules-data"""
     if app.waiting_for_reload:
         special_id = app.special_id
         app.special_id_counter[special_id] += 1
@@ -626,7 +625,7 @@ def load():
                 return make_response(jsonify(body), code)
     else:
         if lock_for_load.locked():
-            app.logger.info('application locked for reload')
+            app.logger.info('Application locked for reload')
             app.waiting_for_reload = True
             special_id = str(uuid.uuid4())
             request.special_id = special_id
@@ -634,7 +633,8 @@ def load():
             app.special_id_counter[special_id] = 0
             app.logger.info('Special ids {}'.format(app.special_id_counter))
     with lock_for_load:
-        app.logger.info('application not locked for reload')
+        app.logger.info('Application not locked for reload')
+        app.redisConnection.reload_modules_cache()
         load_uwsgi_cache()
         app.logger.info('Cache loaded successfully')
         app.loading = False

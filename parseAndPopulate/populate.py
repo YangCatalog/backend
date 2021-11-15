@@ -40,6 +40,7 @@ import time
 
 import requests
 import utility.log as log
+from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
@@ -183,6 +184,7 @@ def main(scriptConf=None):
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
     confdService = ConfdService()
+    redisConnection = RedisConnection()
     LOGGER.info('Starting the populate script')
     start = time.time()
     if args.api:
@@ -212,20 +214,22 @@ def main(scriptConf=None):
     body_to_send = {}
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc), args.credentials,
+        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc),
                                            LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
+    chunk_size = 250
     confd_patched = True
-    x = -1
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
         modules_json = json.loads(read).get('module', [])
-        for x in range(0, int(len(modules_json) / 1000)):
+        LOGGER.info('Starting to add modules')
+        for x in range(0, len(modules_json), chunk_size):
+            LOGGER.info('Processing chunk {} out of {}'.format((x // chunk_size) + 1, (len(modules_json) // chunk_size) + 1))
             json_modules_data = json.dumps({
                 'modules':
                     {
-                        'module': modules_json[x * 1000: (x * 1000) + 1000]
+                        'module': modules_json[x: x + chunk_size]
                     }
             })
 
@@ -239,34 +243,21 @@ def main(scriptConf=None):
                         json.dump(json_modules_data, f)
                     LOGGER.error('Request with body {} failed to patch modules with {}'
                                  .format(path_to_file, response.text))
-    json_modules_data = json.dumps({
-        'modules':
-            {
-                'module': modules_json[(x * 1000) + 1000:]
-            }
-    })
-    if '{"module": []}' not in json_modules_data:
-        response = confdService.patch_modules(json_modules_data)
 
-        if response.status_code < 200 or response.status_code > 299:
-            confd_patched = False
-            path_to_file = '{}/modules-confd-data-rest'.format(direc)
-            with open(path_to_file, 'w') as f:
-                json.dump(json_modules_data, f)
-            LOGGER.error('Request with body {} failed to patch modules with {}'
-                         .format(path_to_file, response.text))
+        redisConnection.populate_modules(modules_json)
 
     # In each json
     if os.path.exists('{}/normal.json'.format(direc)):
-        LOGGER.info('Starting to add vendors')
-        x = -1
-        with open('{}/normal.json'.format(direc)) as data:
-            vendors = json.loads(data.read())['vendors']['vendor']
-            for x in range(0, int(len(vendors) / 1000)):
+        with open('{}/normal.json'.format(direc)) as data_file:
+            read = data_file.read()
+            vendors_json = json.loads(read)['vendors'].get('vendor', [])
+            LOGGER.info('Starting to add vendors')
+            for x in range(0, len(vendors_json), chunk_size):
+                LOGGER.info('Processing chunk {} out of {}'.format((x // chunk_size) + 1, (len(vendors_json) // chunk_size) + 1))
                 json_implementations_data = json.dumps({
                     'vendors':
                         {
-                            'vendor': vendors[x * 1000: (x * 1000) + 1000]
+                            'vendor': vendors_json[x: x + chunk_size]
                         }
                 })
 
@@ -280,21 +271,7 @@ def main(scriptConf=None):
                         json.dump(json_modules_data, f)
                     LOGGER.error('Request with body {} failed to patch vendors with {}'
                                  .format(path_to_file, response.text))
-            json_implementations_data = json.dumps({
-                'vendors':
-                    {
-                        'vendor': vendors[(x * 1000) + 1000:]
-                    }
-            })
-            response = confdService.patch_vendors(json_implementations_data)
 
-            if response.status_code < 200 or response.status_code > 299:
-                confd_patched = False
-                path_to_file = '{}/vendors-confd-data-rest'.format(direc)
-                with open(path_to_file, 'w') as f:
-                    json.dump(json_modules_data, f)
-                LOGGER.error('Request with body {} failed to patch vendors with {}'
-                             .format(json_implementations_data, response.text))
     if len(body_to_send) > 0:
         LOGGER.info('Sending files for indexing')
         send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
