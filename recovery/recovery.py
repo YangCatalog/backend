@@ -222,7 +222,7 @@ def main(scriptConf=None):
     except ConnectionError as e:
         if tries == 0:
             LOGGER.exception('Unable to connect to ConfD for over 5 minutes')
-            e = 'Unable to connect to ConfD'
+            e = Exception('Unable to connect to ConfD')
             filename = '{} - save'.format(os.path.basename(__file__).split('.py')[0])
             job_log(start_time, temp_dir, error=str(e), status='Fail', filename=filename)
             raise e
