@@ -102,7 +102,7 @@ def main(scriptConf=None):
 
         modules = []
 
-        for root, dirs, files in os.walk(repo.localdir + '/release/models/'):
+        for root, _, files in os.walk(repo.localdir + '/release/models/'):
             for basename in files:
                 if '.yang' in basename:
                     mod = {}

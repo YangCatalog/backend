@@ -31,7 +31,7 @@ class ScriptConfig(BaseScriptConfig):
         help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
                ' to confd directory'
         config = create_config()
-        super().__init__(help, {}, [])
+        super().__init__(help, None, [])
 
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')

@@ -40,22 +40,25 @@ class BaseArg(t.TypedDict):
 class Arg(BaseArg, total=False):
     type: type
     action: str
+    nargs: int
+    choices: t.List[str]
 
 class BaseScriptConfig:
 
-    def __init__(self, help, args: t.List[Arg], arglist: t.List[str]):
+    def __init__(self, help: str, args: t.Optional[t.List[Arg]], arglist: t.Optional[t.List[str]]):
         parser = argparse.ArgumentParser()
         self.help: Help = {'help': help, 'options': {}}
         self.args_dict = {}
-        for arg in args:
-            flag = arg.pop('flag')
-            parser.add_argument(flag, **arg)
-            arg_name = flag.lstrip('-').replace('-', '_')
-            # some args with the 'store_true' action do not specify a type
-            # NOTE: maybe we should just specify it everywhere?
-            self.arg_dict[arg_name] = {'type': type(arg['default']).__name__, 'default': arg['default']}
-            if 'help' in arg:
-                self.help['options'][arg_name] = arg['help']
+        if args:
+            for arg in args:
+                flag = arg.pop('flag')
+                parser.add_argument(flag, **arg)
+                arg_name = flag.lstrip('-').replace('-', '_')
+                # some args with the 'store_true' action do not specify a type
+                # NOTE: maybe we should just specify it everywhere?
+                self.args_dict[arg_name] = {'type': type(arg['default']).__name__, 'default': arg['default']}
+                if 'help' in arg:
+                    self.help['options'][arg_name] = arg['help']
         self.args = parser.parse_args(arglist)
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
 
