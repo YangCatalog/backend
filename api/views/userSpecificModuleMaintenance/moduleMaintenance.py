@@ -206,7 +206,7 @@ def delete_vendor(value):
 
 
 def organization_by_namespace(namespace):
-    for ns, org in NS_MAP.items():
+    for ns, org in NS_MAP:
         if ns in namespace:
             return org
         else:

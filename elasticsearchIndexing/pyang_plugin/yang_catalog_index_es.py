@@ -224,7 +224,7 @@ def resolve_organization(module):
     if namespace is None:
         return 'independent'
     namespace = namespace.arg.lower()
-    for ns, org in NS_MAP.items():
+    for ns, org in NS_MAP:
         if ns in namespace:
             return org
     if 'cisco' in namespace:
