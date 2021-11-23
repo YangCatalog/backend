@@ -449,7 +449,7 @@ def main(scriptConf: ScriptConfig = None):
         for direc in next(os.walk(os.path.join(yang_models, 'vendor')))[1]:
             vendor_direc = os.path.join(yang_models, 'vendor', direc)
             if os.path.isdir(vendor_direc):
-                LOGGER.info(os.path.join(get_curr_dir(__file__), 'runYANGallstats.py'))
+                LOGGER.info('Running runYANGallstats.py for directory {}'.format(vendor_direc))
                 out = get_output(rootdir=vendor_direc)
                 process_data(out, vendor_list, vendor_direc, direc)
 
