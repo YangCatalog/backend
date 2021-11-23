@@ -126,8 +126,10 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
         checked[filename]['passed'] = False
         checked[filename]['in-catalog'] = False
         revision = None
-        if parsed_yang := yangParser.parse(os.path.abspath(module_path)):
-            if results := parsed_yang.search('revision'):
+        parsed_yang = yangParser.parse(os.path.abspath(module_path))
+        if parsed_yang:
+            results = parsed_yang.search('revision')
+            if results:
                 revision = results[0].arg
         organization = resolve_organization(module_path, parsed_yang)
         name = filename.split('.')[0].split('@')[0]
@@ -190,17 +192,20 @@ def resolve_organization(path: str, parsed_yang) -> str:
                 :return: (str) organization the yang file belongs to
     """
     organization = None
-    if results := parsed_yang.search('organization'):
+    results = parsed_yang.search('organization')
+    if results:
         result = results[0].arg.lower()
         if 'cisco' in result:
             organization = 'cisco'
         elif 'ietf' in result:
             organization = 'ietf'
     namespace = None
-    if results := parsed_yang.search('namespace'):
+    results = parsed_yang.search('namespace')
+    if results:
         namespace = results[0].arg.lower()
     else:
-        if results := parsed_yang.search('belongs-to'):
+        results = parsed_yang.search('belongs-to')
+        if results:
             belongs_to = results[0].arg
             pattern = '{}.yang'.format(belongs_to)
             pattern_with_revision = '{}@*.yang'.format(belongs_to)
@@ -209,8 +214,10 @@ def resolve_organization(path: str, parsed_yang) -> str:
             if yang_file is None:
                 yang_file = find_first_file('/'.join(path.split('/')[:-2]), pattern, pattern_with_revision)
             if yang_file is not None:
-                if parsed := yangParser.parse(os.path.abspath(yang_file)):
-                    if results := parsed.search('namespace'):
+                parsed = yangParser.parse(os.path.abspath(yang_file))
+                if parsed:
+                    results = parsed.search('namespace')
+                    if results:
                         namespace = results[0].arg.lower()
     if namespace is None:
         return MISSING_ELEMENT

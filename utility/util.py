@@ -91,15 +91,17 @@ def find_first_file(directory: str, pattern: str,
             filename = match_file(path, pattern)
             if filename:
                 parsed = yangParser.parse(filename)
-                if parsed and (results := parsed.search('revision')):
-                    revision = results[0].arg
-                else:
-                    revision = '1970-01-01'
-                if '*' not in pattern_with_revision:
-                    if revision in pattern_with_revision:
+                if parsed:
+                    results = parsed.search('revision')
+                    if results:
+                        revision = results[0].arg
+                    else:
+                        revision = '1970-01-01'
+                    if '*' not in pattern_with_revision:
+                        if revision in pattern_with_revision:
+                            return filename
+                    else:
                         return filename
-                else:
-                    return filename
 
 
 def change_permissions_recursive(path: str):
