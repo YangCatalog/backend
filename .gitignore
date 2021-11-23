@@ -17,7 +17,7 @@ yang.egg-info
 /parseAndPopulate/**/*.xml
 !/parseAndPopulate/template/compilationStatusTemplate.html
 !/parseAndPopulateTest/testJson/prepare.json
-!/tests/resources/**/*.json
+!**/tests/resources/**/*.json
 !/tests/resources/**/*.html
 !/utility/tests/resources/**/*.json
 !secrets_oidc.json
