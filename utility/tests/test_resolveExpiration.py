@@ -37,6 +37,7 @@ from unittest import mock
 
 import utility.log as log
 from utility.confdService import ConfdService
+from redisConnections.redisConnection import RedisConnection
 from utility.resolveExpiration import resolve_expiration
 
 
@@ -49,6 +50,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.datatracker_failures = []
         self.LOGGER = self.get_logger()
         self.confdService = ConfdService()
+        self.redisConnection = RedisConnection()
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -60,7 +62,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         which are requested in the method.
         """
         module = self.load_from_json('dhcp-client@2014-12-18-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -75,7 +77,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
         """
         module = self.load_from_json('iana-if-type@2014-05-08-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -97,7 +99,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
 
         module = self.load_from_json('iana-if-type@2011-03-30-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -119,7 +121,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_empty_response')
 
         module = self.load_from_json('ietf-alarms@2015-05-04-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -141,7 +143,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
 
         module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -163,7 +165,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
 
         module = self.load_from_json('iana-if-type@2014-01-15-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -181,8 +183,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
 
         Arguments:
-        :param mock_requests_delete     (mock.MagicMock) requests.delete() method is patched - no real request to ConfD
-        :param mock_requests_patch      (mock.MagicMock) requests.patch() method is patched - no real request to ConfD
+        :param mock_requests_delete     (mock.MagicMock) requests.delete() method is patched - no real request to Redis
+        :param mock_requests_patch      (mock.MagicMock) requests.patch() method is patched - no real request to Redis
         :param mock_requests_get        (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
@@ -195,7 +197,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_delete.return_value.text = ''
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, True)
         # Check the relevant properties values
@@ -220,7 +222,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_time_sleep.return_value = None
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService)
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.confdService, self.redisConnection)
 
         self.assertEqual(result, None)
         self.assertNotEqual(len(self.datatracker_failures), 0)

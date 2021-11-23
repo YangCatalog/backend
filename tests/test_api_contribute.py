@@ -17,18 +17,17 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "richard.zilincik@pantheon.tech"
 
+import json
 import os
 import unittest
 from unittest import mock
-import json
-
-from git import GitCommandError
-from redis import RedisError
 
 import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
-from api.yangCatalogApi import app
 from api.globalConfig import yc_gc
 from api.views.admin.admin import hash_pw
+from api.yangCatalogApi import app
+from git import GitCommandError
+from redis import RedisError
 from utility.redisUsersConnection import RedisUsersConnection
 
 
@@ -47,6 +46,7 @@ class MockRepoUtil:
     def remove(self):
         pass
 
+
 class TestApiContributeClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
@@ -59,14 +59,18 @@ class TestApiContributeClass(unittest.TestCase):
         self.mock_send = self.send_patcher.start()
         self.addCleanup(self.send_patcher.stop)
         self.mock_send.return_value = 1
-        self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_mod_confd')
-        self.mock_confd_get = self.confd_patcher.start()
+
+        self.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_mod_redis')
+        self.mock_redis_get = self.confd_patcher.start()
         self.addCleanup(self.confd_patcher.stop)
+        self.mock_redis_get.side_effect = mock_redis_get
+
         self.get_patcher = mock.patch('requests.get')
         self.mock_get = self.get_patcher.start()
         self.addCleanup(self.get_patcher.stop)
         self.mock_get.return_value.json.return_value = json.loads(yc_gc.redis.get('modules-data') or '{}')
-        self.mock_confd_get.side_effect = mock_confd_get
+
+        # TODO: Mock RedisUsersConnection to run on db=12 when running tests
         self.users = RedisUsersConnection()
         self.uid = self.users.create(temp=False, username='test', password=hash_pw('test'), email='test@test.test',
                                      models_provider='test', first_name='test', last_name='test',
@@ -174,14 +178,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['job-id'], 1)
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
-    def test_delete_modules_unavailable(self, mock_access_rights: mock.MagicMock):
+    def test_delete_modules_unavailable_module(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = ''
-        r = mock.MagicMock()
-        r.status_code = 400
-        self.mock_confd_get.side_effect = [r]
         mod = {
-            'name': 'yang-catalog',
-            'revision': '2017-09-26',
+            'name': 'test',
+            'revision': '2017-01-01',
             'organization': 'ietf'
         }
         path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
@@ -311,7 +312,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_response.status_code = 200
         mock_put.return_value = mock_response
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertIn(result.status_code, (200, 202))
         self.assertEqual(result.content_type, 'application/json')
@@ -334,7 +335,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_response.status_code = 200
         mock_put.return_value = mock_response
 
-        result =  self.client.post('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.post('api/modules', json=body, auth=('test', 'test'))
 
         self.assertIn(result.status_code, (200, 202))
         self.assertEqual(result.content_type, 'application/json')
@@ -345,7 +346,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['job-id'], 1)
 
     def test_add_modules_no_json(self):
-        result =  self.client.put('api/modules', auth=('test', 'test'))
+        result = self.client.put('api/modules', auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -355,7 +356,7 @@ class TestApiContributeClass(unittest.TestCase):
                                               ' module-metadata.yang module. Received no json')
 
     def test_add_modules_missing_modules(self):
-        result =  self.client.put('api/modules', json={'invalid': True}, auth=('test', 'test'))
+        result = self.client.put('api/modules', json={'invalid': True}, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -369,7 +370,7 @@ class TestApiContributeClass(unittest.TestCase):
         body = content.get('add_modules')
         body['modules'] = {}
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -381,19 +382,18 @@ class TestApiContributeClass(unittest.TestCase):
     def test_add_modules_unparsable(self, mock_put: mock.MagicMock):
         mock_put.return_value.status_code = 400
         mock_put.return_value.text = 'test'
-        mock_put.return_value.headers = {}
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         body = content.get('add_modules')
         body['modules']['module'] = False
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertTrue(data['description'].startswith('The body you have provided could not be parsed. Confd error text: '))
+        self.assertTrue(data['description'].startswith('The body you have provided could not be parsed. ConfD error text:'))
 
     @mock.patch('requests.put')
     def test_add_modules_no_source_file(self, mock_put: mock.MagicMock):
@@ -403,7 +403,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0].pop('source-file')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -419,7 +419,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0].pop('organization')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -435,7 +435,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0].pop('name')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -451,7 +451,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0].pop('revision')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -467,7 +467,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0]['source-file'].pop('path')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -483,7 +483,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0]['source-file'].pop('repository')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -499,7 +499,7 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0]['source-file'].pop('owner')
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -515,15 +515,14 @@ class TestApiContributeClass(unittest.TestCase):
         body['modules']['module'][0]['source-file']['owner'] = 'foobar'
         mock_put.return_value.status_code = 200
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
+        self.assertTrue(data['description'].startswith('bad request - could not clone the Github repository.'
                                                        ' Please check owner, repository and path of the request - '))
-
 
     @mock.patch('shutil.move')
     @mock.patch('shutil.copy')
@@ -538,7 +537,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_put.return_value.status_code = 200
         mock_access_rights.return_value = ''
 
-        result =  self.client.put('api/modules', json=body, auth=('test', 'test'))
+        result = self.client.put('api/modules', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 401)
         self.assertEqual(result.content_type, 'application/json')
@@ -624,7 +623,6 @@ class TestApiContributeClass(unittest.TestCase):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 400
         mock_put.return_value.text = 'test'
-        mock_put.return_value.headers = {}
         result = self.client.put('api/platforms', json={'platforms': {'platform': 'test'}}, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
@@ -632,8 +630,7 @@ class TestApiContributeClass(unittest.TestCase):
         data = json.loads(result.data)
         self.assertIn('description', data)
         self.assertEqual(data['description'],
-                         'The body you have provided could not be parsed. Confd error text: test \n'
-                         ' error code: 400 \n error header items: dict_items([])')
+                         'The body you have provided could not be parsed. ConfD error text:\ntest\nError code: 400')
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -686,7 +683,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'],
                          'bad request - at least on of platform module-list-file'
-                         '  "repository" for module is missing and is mandatory')
+                         ' "repository" for module is missing and is mandatory')
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -705,7 +702,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'],
                          'bad request - at least on of platform module-list-file'
-                         '  "owner" for module is missing and is mandatory')
+                         ' "owner" for module is missing and is mandatory')
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -729,7 +726,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertTrue(data['description'].startswith('bad request - cound not clone the github repository.'
+        self.assertTrue(data['description'].startswith('bad request - could not clone the Github repository.'
                                                        ' Please check owner, repository and path of the request - '))
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
@@ -838,16 +835,16 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('reason', data['info'])
         self.assertEqual(data['info']['reason'], 'reason')
 
-def mock_confd_get(name, revision, organization):
-    file = 'tests/resources/confd_responses/{}@{}.json'.format(name, revision)
-    r = mock.MagicMock()
+
+def mock_redis_get(module: dict):
+    file = 'tests/resources/confd_responses/{}@{}.json'.format(module.get('name'), module.get('revision'))
     if not os.path.isfile(file):
-        r.status_code = 404
+        return json.loads('{}')
     else:
         with open(file) as f:
-            r.json.return_value = json.load(f)
-            r.status_code = 200
-    return r
+            data = json.load(f)
+            return data.get('yang-catalog:module')[0]
+
 
 if __name__ == '__main__':
     unittest.main()

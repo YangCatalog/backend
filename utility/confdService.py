@@ -115,6 +115,12 @@ class ConfdService:
 
         return response
 
+    def delete_vendor_data(self, confd_suffix: str):
+        path = '{}{}'.format(self.confd_prefix, confd_suffix)
+        response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
     def head_catalog(self):
         path = '{}/restconf/data/yang-catalog:catalog'.format(self.confd_prefix)
         response = requests.head(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
