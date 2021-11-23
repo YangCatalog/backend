@@ -1,0 +1,88 @@
+{
+    "prepare-sdo-content": {
+        "modules": {
+            "module": [
+                {
+                    "generated-from": "not-applicable",
+                    "module-classification": "unknown",
+                    "name": "ietf-yang-types",
+                    "revision": "2010-09-24",
+                    "organization": "ietf",
+                    "source-file": {
+                        "owner": "YangModels",
+                        "path": "standard/ietf/RFC/ietf-yang-types@2010-09-24.yang",
+                        "repository": "yang"
+                    }
+                }
+            ]
+        }
+    },
+    "capabilities-json-content": {
+        "vendor": "huawei",
+        "name": "ne5000e",
+        "software-version": "V800R011C10SPC810",
+        "software-flavor": "ALL",
+        "module-list-file": {
+            "type": "capabilities",
+            "owner": "huawei",
+            "repository": "yang.git",
+            "path": "network-router/8.20.0/ne5000e/capabilities.xml"
+        },
+        "os-type": "VRP"
+    },
+    "deletion-tests": [
+        {
+            "name": "yang-module",
+            "revision": "2020-01-01",
+            "organization": "ietf",
+            "description": "This module has one dependency (=submodule) and on module is dependent on this module.",
+            "submodule": [
+                {
+                    "name": "yang-submodule",
+                    "revision": "2020-02-01",
+                    "schema": "https://github.com/"
+                }
+            ],
+            "dependencies": [
+                {
+                    "name": "yang-submodule",
+                    "revision": "2020-02-01",
+                    "schema": "https://github.com/"
+                }
+            ],
+            "dependents": [
+                {
+                    "name": "another-yang-module",
+                    "revision": "2020-03-01",
+                    "schema": "https://github.com/"
+                }
+            ]
+        },
+        {
+            "name": "yang-submodule",
+            "revision": "2020-02-01",
+            "organization": "ietf",
+            "description": "This module is submodule of one module so it is dependent on this module.",
+            "dependents": [
+                {
+                    "name": "yang-module",
+                    "revision": "2020-01-01",
+                    "schema": "https://github.com/"
+                }
+            ]
+        },
+        {
+            "name": "another-yang-module",
+            "revision": "2020-03-01",
+            "organization": "ietf",
+            "description": "This module has one dependency.",
+            "dependencies": [
+                {
+                    "name": "yang-module",
+                    "revision": "2020-01-01",
+                    "schema": "https://github.com/"
+                }
+            ]
+        }
+    ]
+}

@@ -14,17 +14,17 @@
 # limitations under the License.
 
 """
-Rabbitmq is needed to be installed for this script to work.
-This script is part of messaging algorithm works together
-with sender.py. Api endpoints that take too long time to
-process will send a request to process data to this Receiver
-with some message id. Once receiver is done processing data
-it will send back the response using the message id.
+RabbitMQ is needed to be installed for this script to work.
+This script is part of messaging algorithm which works together
+with sender.py. Some API endpoints that take too long to process
+request so sender.py will send a request to process data to this Receiver.
+Once receiver is done with processing data it will send back the
+response using the message id.
 
-Receiver is used to add, update or remove yang modules.
+Receiver is used to add, update or remove yang modules and vendors.
 This process take a long time depending on the number
 of the yang modules. This script is also used to automatically
-add or update new IETF and Openconfig modules.
+add or update new IETF and Openconfig modules or run other scripts as subprocesses.
 """
 
 __author__ = "Miroslav Kovac"
@@ -51,6 +51,7 @@ import requests
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
+from redisConnections.redisConnection import RedisConnection
 from utility import messageFactory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
@@ -60,15 +61,16 @@ from utility.util import prepare_to_indexing, send_to_indexing2
 
 class Receiver:
 
-    def __init__(self, config_path):
+    def __init__(self, config_path: str):
         self.__config_path = config_path
         self.load_config()
-        self.LOGGER.info('Starting receiver')
         self.channel = None
         self.connection = None
         self.confdService = ConfdService()
+        self.redisConnection = RedisConnection()
+        self.LOGGER.info('Receiver started')
 
-    def copytree(self, src, dst):
+    def copytree(self, src: str, dst: str):
         for item in os.listdir(src):
             s = os.path.join(src, item)
             d = os.path.join(dst, item)
@@ -77,162 +79,158 @@ class Receiver:
             else:
                 shutil.copy2(s, d)
 
-    def process_sdo(self, arguments, all_modules):
-        """Processes SDOs. Calls populate script which calls script to parse all the modules
-        on the given path which is one of the params. Populate script will also send the
-        request to populate confd on given ip and port. It will also copy all the modules to
-        parent directory of this project /api/sdo. It will also call indexing script to
-        update searching.
-                Arguments:
-                    :param arguments: (list) list of arguments sent from api sender
-                    :return (__response_type) one of the response types which is either
-                        'Failed' or 'Finished successfully'
-        """
-        self.LOGGER.info('Processing sdo')
-        tree_created = True if arguments[-4] == 'True' else False
-        arguments = arguments[:-4]
-        direc = arguments[6]
-        arguments.append('--api-ip')
-        arguments.append(self.__api_ip)
-        arguments.append("--result-html-dir")
-        arguments.append(self.__result_dir)
-        arguments.append('--api-port')
-        arguments.append(repr(self.__api_port))
-        arguments.append('--api-protocol')
-        arguments.append(self.__api_protocol)
-        arguments.append('--save-file-dir')
-        arguments.append(self.__save_file_dir)
-        if self.__notify_indexing:
-            arguments.append('--notify-indexing')
+    def process_sdo(self, arguments: list, all_modules: dict):
+        """Process SDO modules. Calls populate.py script which will parse all the modules
+        on the given path given by "dir" param. Populate script will also send the
+        request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
+        parent directory of this project /api/sdo and finally also call indexing script to update searching.
 
-        with open('{}/process-sdo-api-stderr.txt'.format(self.temp_dir), 'w') as f:
-            try:
-                self.LOGGER.info('processing arguments {}'.format(arguments))
-                subprocess.check_call(arguments, stderr=f)
-            except subprocess.CalledProcessError as e:
-                shutil.rmtree(direc)
-                self.LOGGER.error('Server error: {}'.format(e))
-                return self.__response_type[0] + '#split#Server error while parsing or populating data'
+        Arguments:
+            :param arguments    (list) list of arguments sent from API sender
+            :return (__response_type) one of the response types which is either
+                'Failed' or 'Finished successfully'
+        """
+        direc = arguments[3]
+        tree_created = arguments[-1] == 'True'
+        sdo = '--sdo' in arguments
+        api = '--api' in arguments
+
+        script_name = 'populate'
+        module = __import__('parseAndPopulate', fromlist=[script_name])
+        submodule = getattr(module, script_name)
+        script_conf = submodule.ScriptConfig()
+        # Set populate script arguments
+        script_conf.args.__setattr__('sdo', sdo)
+        script_conf.args.__setattr__('api', api)
+        script_conf.args.__setattr__('dir', direc)
+        script_conf.args.__setattr__('force-parsing', True)
+        if self.__notify_indexing:
+            script_conf.args.__setattr__('notify-indexing', True)
+
+        self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
+            script_conf.args.__dict__))
+        try:
+            submodule.main(scriptConf=script_conf)
+        except Exception:
+            self.LOGGER.exception('Problem while running populate script')
+            return '{}#split#Server error while running populate script'.format(self.__response_type[0])
 
         try:
-            os.makedirs(self.temp_dir + '/sdo/')
+            os.makedirs('{}/sdo'.format(self.temp_dir))
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
-                return self.__response_type[0] + '#split#Server error - could not create directory'
+                return '{}#split#Server error - could not create sdo directory'.format(self.__response_type[0])
 
         if tree_created:
-            self.copytree(direc + "/temp/", self.temp_dir + "/sdo")
-            with open(direc + '/prepare.json', 'r') as f:
+            self.copytree('{}/temp'.format(direc), '{}/sdo'.format(self.temp_dir))
+            with open('{}/prepare.json'.format(direc), 'r') as f:
                 all_modules.update(json.load(f))
 
         return self.__response_type[1]
 
-    def process_vendor(self, arguments, all_modules):
-        """Processes vendors. Calls populate script which calls script to parse all
+    def process_vendor(self, arguments: list, all_modules: dict):
+        """Process vendor metadata. Calls populate.py script which will parse all
         the modules that are contained in the given hello message xml file or in
-        ietf-yang-module xml file which is one of the params. Populate script will
-        also send the request to populate confd on given ip and port. It will also
-        copy all the modules to parent directory of this project /api/sdo.
-        It will also call indexing script to update searching.
-                Arguments:
-                    :param arguments: (list) list of arguments sent from api sender
-                    :return (__response_type) one of the response types which is
-                     either 'Failed' or 'Finished successfully'
+        ietf-yang-module xml which are stored on path given by "dir" param. Populate script will also send the
+        request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
+        parent directory of this project /api/sdo and finally also call indexing script to update searching.
+
+        Arguments:
+            :param arguments    (list) list of arguments sent from API sender
+            :return (__response_type) one of the response types which is either
+                'Failed' or 'Finished successfully'
         """
-        self.LOGGER.debug('Processing vendor')
-        tree_created = True if arguments[-5] == 'True' else False
-        integrity_file_location = arguments[-4]
+        direc = arguments[2]
+        tree_created = True if arguments[-1] == 'True' else False
+        sdo = '--sdo' in arguments
+        api = '--api' in arguments
 
-        arguments = arguments[:-5]
-        direc = arguments[5]
-        arguments.append('--api-ip')
-        arguments.append(self.__api_ip)
-        arguments.append("--result-html-dir")
-        arguments.append(self.__result_dir)
-        arguments.append('--save-file-dir')
-        arguments.append(self.__save_file_dir)
+        script_name = 'populate'
+        module = __import__('parseAndPopulate', fromlist=[script_name])
+        submodule = getattr(module, script_name)
+        script_conf = submodule.ScriptConfig()
+        # Set populate script arguments
+        script_conf.args.__setattr__('sdo', sdo)
+        script_conf.args.__setattr__('api', api)
+        script_conf.args.__setattr__('dir', direc)
+        script_conf.args.__setattr__('force-parsing', True)
         if self.__notify_indexing:
-            arguments.append('--notify-indexing')
+            script_conf.args.__setattr__('notify-indexing', True)
 
-        with open(self.temp_dir + "/process-vendor-api-stderr.txt", "w") as f:
-            try:
-                subprocess.check_call(arguments, stderr=f)
-            except subprocess.CalledProcessError as e:
-                shutil.rmtree(direc)
-                self.LOGGER.error('Server error: {}'.format(e))
-                return self.__response_type[0] + '#split#Server error while parsing or populating data'
+        self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
+            script_conf.args.__dict__))
         try:
-            os.makedirs(self.temp_dir + '/vendor/')
+            submodule.main(scriptConf=script_conf)
+        except Exception:
+            self.LOGGER.exception('Problem while running populate script')
+            return '{}#split#Server error while running populate script'.format(self.__response_type[0])
+
+        try:
+            os.makedirs('{}/vendor'.format(self.temp_dir))
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
-                self.LOGGER.error('Server error: {}'.format(e))
-                return self.__response_type[0] + '#split#Server error - could not create directory'
-
-        self.copytree(direc + "/temp/", self.temp_dir + "/vendor")
-        #    subprocess.call(["cp", "-r", direc + "/temp/.", temp_dir + "/vendor/"])
+                return '{}#split#Server error - could not create vendor directory'.format(self.__response_type[0])
 
         if tree_created:
-            with open(direc + '/prepare.json',
-                      'r') as f:
+            self.copytree('{}/temp'.format(direc), '{}/vendor'.format(self.temp_dir))
+            with open('{}/prepare.json'.format(direc), 'r') as f:
                 all_modules.update(json.load(f))
 
-        integrity_file_name = datetime.utcnow().strftime("%Y-%m-%dT%H:%m:%S.%f")[:-3] + 'Z'
-
-        if integrity_file_location != './':
-            shutil.move('./integrity.html', integrity_file_location + 'integrity' + integrity_file_name + '.html')
         return self.__response_type[1]
 
-    def process_vendor_deletion(self, arguments):
-        """Deletes vendors. It calls the delete request to confd to delete all the module
+    def process_vendor_deletion(self, arguments: list):
+        """Deleting vendors metadata. It calls the delete request to ConfD to delete all the module
         in vendor branch of the yang-catalog.yang module on given path. If the module was
         added by vendor and it doesn't contain any other implementations it will delete the
         whole module in modules branch of the yang-catalog.yang module. It will also call
         indexing script to update searching.
-                Arguments:
-                    :param arguments: (list) list of arguments sent from api sender
-                    :return (__response_type) one of the response types which is either
-                        'Failed' or 'Finished successfully'
+
+        Argument:
+            :param arguments    (list) list of arguments sent from API sender
+            :return (__response_type) one of the response types which
+                is either 'Finished successfully' or 'Partially done'
         """
-        vendor, platform, software_version, software_flavor = arguments[0:4]
-        credentials = arguments[7:9]
-        path_to_delete = arguments[9]
+        credentials = arguments[1:3]
+        vendor, platform, software_version, software_flavor = arguments[3:7]
+        confd_suffix = arguments[-1]
 
-        # vendors_data = requests.get('{}search/vendors'.format(self.__yangcatalog_api_prefix)).json()
+        path = '{}search'.format(self.__yangcatalog_api_prefix)
+        if vendor != 'None':
+            path += '/vendors/vendor/{}'.format(vendor)
+        if platform != 'None':
+            path += '/platforms/platform/{}'.format(platform)
+        if software_version != 'None':
+            path += '/software-versions/software-version/{}'.format(software_version)
+        if software_flavor != 'None':
+            path += '/software-flavors/software-flavor/{}'.format(software_flavor)
 
-        try:
-            with open('./cache/catalog.json', 'r') as catalog:
-                vendors_data = json.load(catalog)['yang-catalog:catalog']['vendors']
-        except IOError:
-            self.LOGGER.warning('Cache file does not exist')
-            # Try to create a cache if not created yet and load data again
-            response = self.make_cache(credentials)
-            if response.status_code != 201:
-                return self.__response_type[0] + '#split#Server error-> could not reload cache'
-            else:
-                try:
-                    with open('./cache/catalog.json', 'r') as catalog:
-                        vendors_data = json.load(catalog)['yang-catalog:catalog']['vendors']
-                except:
-                    self.LOGGER.error('Unexpected error: {}'.format(sys.exc_info()[0]))
-                    return self.__response_type[0] + '#split#' + sys.exc_info()[0]
+        vendor_data = requests.get(path, headers=json_headers).json()
 
-        modules = set()
-        modules_that_succeeded = []
-        self.iterate_in_depth(vendors_data, modules)
+        # NOTE: Returning all the vendors data (from db=1)
+        # import redis
+        # redis = redis.Redis(host='yc-redis', port=6379)
+        # data = redis.get('vendors-data')
+        # redis_vendors_raw = (data or b'{}').decode('utf-8')
+        # redis_vendors = json.loads(redis_vendors_raw)
 
-        response = requests.delete(path_to_delete, auth=(credentials[0], credentials[1]))
-        if response.status_code == 404:
-            pass
-            # return __response_type[0] + '#split#not found'
+        # TODO: Fetch all the vendors data (from db=4)
+        # redis_vendors_raw = self.redisConnection.get_all_vendors()
+        # redis_vendors = json.loads(redis_vendors_raw)
 
-        for mod in modules:
+        confd_keys = set()
+        redis_keys = set()
+        deleted_modules = []
+        self.iterate_in_depth(vendor_data, confd_keys, redis_keys)
+
+        # Delete implementation
+        for confd_key, redis_key in zip(confd_keys, redis_keys):
             try:
-                response = self.confdService.get_module(mod)
-                modules_data = response.json()
+                raw_data = self.redisConnection.get_module(redis_key)
+                modules_data = json.loads(raw_data)
+                implementations = modules_data.get('implementations', {}).get('implementation', [])
 
-                implementations = modules_data['yang-catalog:module'][0].get('implementations', {}).get('implementation', [])
                 count_of_implementations = len(implementations)
                 count_deleted = 0
                 for imp in implementations:
@@ -253,96 +251,121 @@ class Receiver:
                         continue
                     else:
                         imp_key += ',' + imp['software-flavor']
-
-                    response = self.confdService.delete_implementation(mod, imp_key)
-
+                    # Delete module implementation from ConfD
+                    response = self.confdService.delete_implementation(confd_key, imp_key)
                     if response.status_code != 204:
-                        self.LOGGER.error("Couldn't delete implementation {} of module {} because of error: {}"
-                                          .format(imp_key, mod, response.text))
-                        continue
+                        self.LOGGER.error('Could not delete implementation {} of module {} because of error: {}'
+                                          .format(imp_key, confd_key, response.text))
+
+                    # Delete module implementation from Redis
+                    response = self.redisConnection.delete_implementation(redis_key, imp_key)
+                    if response:
+                        self.LOGGER.info('Implementation {} deleted successfully'.format(imp_key))
+                    elif response == 0:
+                        self.LOGGER.debug('Implementation {} already deleted'.format(imp_key))
                     count_deleted += 1
 
-                if (count_deleted == count_of_implementations and
-                        count_of_implementations != 0):
-                    name, revision, organization = mod.split(',')
+                if (count_deleted == count_of_implementations and count_of_implementations != 0):
+                    organization = confd_key.split(',')[-1]
                     if organization == vendor:
-                        response = self.confdService.delete_module(mod)
-                        to_add = '{}@{}/{}'.format(name, revision, organization)
-                        modules_that_succeeded.append(to_add)
-                        if response.status_code != 204:
-                            self.LOGGER.error(
-                                'Could not delete module {} because of error: {}'.format(mod, response.text))
-                            continue
-            except:
-                self.LOGGER.error('Yang file {} doesn\'t exist although it should exist'.format(mod))
-        all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
+                        deletion_problem = False
+                        # Delete module from ConfD
+                        response = self.confdService.delete_module(confd_key)
+                        if response.status_code == 204:
+                            self.LOGGER.info('Module {} deleted successfully'.format(confd_key))
+                        elif response.status_code == 404:
+                            self.LOGGER.debug('Module {} already deleted'.format(confd_key))
+                        else:
+                            self.LOGGER.error('Couldn\'t delete module {}. Error: {}'.format(confd_key, response.text))
+                            deletion_problem = True
 
-        for mod in modules:
-            name_rev_org_with_commas = mod.split('/')[-1]
-            name, rev, _ = name_rev_org_with_commas.split(',')
-            for existing_module in all_mods['module']:
+                        # Delete module from Redis
+                        response = self.redisConnection.delete_modules([redis_key])
+                        if response == 1:
+                            self.LOGGER.info('Module {} deleted successfully'.format(redis_key))
+                        elif response == 0:
+                            self.LOGGER.debug('Module {} already deleted'.format(redis_key))
+
+                        if not deletion_problem:
+                            deleted_modules.append(redis_key)
+            except Exception:
+                self.LOGGER.exception('YANG file {} doesn\'t exist although it should exist'.format(confd_key))
+        all_modules = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
+
+        # Delete dependets
+        for confd_key, redis_key in zip(confd_keys, redis_keys):
+            name, revision, _ = confd_key.split(',')
+            for existing_module in all_modules['module']:
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
                     for dep in dependents:
-                        if dep['name'] == name and dep['revision'] == rev:
+                        if dep['name'] == name and dep['revision'] == revision:
                             mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
                                                         existing_module['organization'])
+                            # Delete module's dependent from ConfD
                             response = self.confdService.delete_dependent(mod_key, dep['name'])
+                            if response.status_code == 204:
+                                self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(dep['name'], mod_key))
+                            elif response.status_code == 404:
+                                self.LOGGER.debug('Dependent {} of module {} already deleted'.format(dep['name'], mod_key))
+                            else:
+                                self.LOGGER.error('Couldn\'t delete dependents {} of module {}. Error: {}'
+                                                  .format(dep['name'], mod_key, response.text))
 
-                            if response.status_code != 204:
-                                self.LOGGER.error('Couldn\'t delete module {}. Error : {}'
-                                                  .format(mod_key, response.text))
-                                return self.__response_type[0] + '#split#' + response.text
+                            # Delete module's dependent from Redis
+                            self.redisConnection.delete_dependent(redis_key, dep['name'])
+
+        # Delete vendor branch from ConfD
+        response = self.confdService.delete_vendor_data(confd_suffix)
+        if response.status_code == 404:
+            self.LOGGER.info('Path {} already deleted'.format(confd_suffix))
+
+        # Delete vendor branch from Redis
+        # TODO: Remove from Redis here
+
         if self.__notify_indexing:
-            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_that_succeeded, credentials,
+            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, deleted_modules,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
             if len(body_to_send) > 0:
                 send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
                                   self.__lock_file)
         return self.__response_type[1]
 
-    def iterate_in_depth(self, value, modules):
-        """Iterates through the branch to get to the level with modules
-                Arguments:
-                    :param value: (dict) data through which we will need to iterate
-                    :param modules: (set) set that will contain all the modules that
-                     need to be deleted
+    def iterate_in_depth(self, value: dict, confd_keys: set, redis_keys: set):
+        """Iterates through the branch to get to the level with modules.
+
+        Arguments:
+            :param value        (dict) data through which we will need to iterate
+            :param confd_keys   (set) set that will contain all the modules that need to be deleted
+            :param redis_keys   (set) set that will contain all the modules that need to be deleted
         """
-        if sys.version_info >= (3, 4):
-            items = value.items()
-        else:
-            items = value.iteritems()
-        for key, val in items:
+        for key, val in value.items():
             if key == 'protocols':
                 continue
             if isinstance(val, list):
                 for v in val:
-                    self.iterate_in_depth(v, modules)
+                    self.iterate_in_depth(v, confd_keys, redis_keys)
             if isinstance(val, dict):
                 if key == 'modules':
                     for mod in val['module']:
-                        name = mod['name']
-                        revision = mod['revision']
-                        organization = mod['organization']
-                        mod_key = '{},{},{}'.format(name, revision, organization)
-                        modules.add(mod_key)
+                        confd_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+                        redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
+                        confd_keys.add(confd_key)
+                        redis_keys.add(redis_key)
                 else:
-                    self.iterate_in_depth(val, modules)
+                    self.iterate_in_depth(val, confd_keys, redis_keys)
 
-    def make_cache(self, credentials):
+    def make_cache(self, credentials: list):
         """After we delete or add modules we need to reload all the modules to the file
-        for qucker search. This module is then loaded to the memory.
-                Arguments:
-                    :param response: (str) Contains string 'work' which will be sent back if
-                        everything went through fine
-                    :param credentials: (list) Basic authorization credentials - username, password
-                        respectively
-                    :return 'work' if everything went through fine otherwise send back the reason why
-                        it failed.
+        for quicker search. This module is then loaded to the memory.
+
+        Argument:
+            :param credentials      (list) Basic authorization credentials - username and password
+            :return 'work' string if everything went through fine otherwise send back the reason why
+                it failed.
         """
         path = self.__yangcatalog_api_prefix + 'load-cache'
-        response = requests.post(path, auth=(credentials[0], credentials[1]),
-                                 headers=json_headers)
+        response = requests.post(path, auth=(credentials[0], credentials[1]), headers=json_headers)
         code = response.status_code
 
         if code != 200 and code != 201 and code != 204:
@@ -350,21 +373,24 @@ class Receiver:
         return response
 
     def process_module_deletion(self, arguments: list):
-        """ Deleteing one or more modules. It calls the delete request to ConfD to delete module on
+        """Deleting one or more modules. It sends the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
-        yang-catalog.yang module. It will also call indexing script to update searching.
+        yang-catalog:yang module. It will also call indexing script to update searching.
 
         Argument:
             :param arguments    (list) list of arguments sent from API sender
             :return (__response_type) one of the response types which
                 is either 'Finished successfully' or 'Partially done'
         """
-        credentials = arguments[3:5]
-        path_to_delete = arguments[5]
-        reason = ''
-        mod_keys = []
-        modules = json.loads(path_to_delete)['modules']
-        all_mods = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
+        try:
+            credentials = arguments[1:3]
+            path_to_delete = arguments[3]
+            modules = json.loads(path_to_delete)['modules']
+            all_modules_raw = self.redisConnection.get_all_modules()
+            all_modules = json.loads(all_modules_raw)
+        except Exception:
+            self.LOGGER.exception('Problem while processing arguments')
+            return '{}#split#Server error -> Unable to parse arguments'.format(self.__response_type[0])
 
         def module_in(name: str, revision: str, modules: list):
             for module in modules:
@@ -374,7 +400,12 @@ class Receiver:
 
         @functools.lru_cache(maxsize=None)
         def can_delete(name: str, revision: str):
-            for existing_module in all_mods['module']:
+            """ Check whether module with given 'name' and 'revison' which should be removed
+            is or is not depedency/submodule of some other existing module.
+            If module-to-be-deleted has reference in another existing module, it cannot be deleted.
+            However, it can be deleted if also referenced existing module will be deleted too.
+            """
+            for redis_key, existing_module in all_modules.items():
                 for dep_type in ['dependencies', 'submodule']:
                     is_dep = module_in(name, revision, existing_module.get(dep_type, []))
                     if is_dep:
@@ -382,64 +413,74 @@ class Receiver:
                             if can_delete(existing_module['name'], existing_module['revision']):
                                 continue
                         else:
-                            self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}@{}'
-                                              .format(name, revision, dep_type,
-                                                      existing_module.get('name'), existing_module.get('revision')))
+                            self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}'
+                                              .format(name, revision, dep_type, redis_key))
                             return False
             return True
 
+        modules_not_deleted = []
         modules_to_delete = []
+        mod_keys_to_delete = []
+        redis_keys_to_delete = []
         for module in modules:
+            mod_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
+            redis_key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
             if can_delete(module.get('name'), module.get('revision')):
+                mod_keys_to_delete.append(mod_key)
+                redis_keys_to_delete.append(redis_key)
                 modules_to_delete.append(module)
+            else:
+                modules_not_deleted.append(mod_key)
 
         for mod in modules_to_delete:
-            mod_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
-            mod_keys.append(mod_key)
-
-        for mod in modules_to_delete:
-            for existing_module in all_mods['module']:
+            for redis_key, existing_module in all_modules.items():
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
-                    for dependent in dependents:
-                        if dependent['name'] == mod['name'] and dependent['revision'] == mod['revision']:
-                            mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
-                                                        existing_module['organization'])
-                            response = self.confdService.delete_dependent(mod_key, dependent['name'])
+                    dependents_dict = ['{}@{}'.format(m['name'], m.get('revision', '')) for m in dependents]
+                    searched_dependent = '{}@{}'.format(mod['name'], mod.get('revision', ''))
+                    if searched_dependent in dependents_dict:
+                        mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
+                                                    existing_module['organization'])
+                        response = self.confdService.delete_dependent(mod_key, mod['name'])
 
-                            if response.status_code == 204:
-                                self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(dependent['name'], mod_key))
-                            elif response.status_code == 404:
-                                self.LOGGER.debug('Dependent {} of module {} already deleted'.format(dependent['name'], mod_key))
-                            else:
-                                self.LOGGER.error("Couldn't delete dependents {} of module {}. Error: {}"
-                                                  .format(dependent['name'], mod_key, response.text))
+                        if response.status_code == 204:
+                            self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(mod['name'], mod_key))
+                        elif response.status_code == 404:
+                            self.LOGGER.debug('Dependent {} of module {} already deleted'.format(mod['name'], mod_key))
+                        else:
+                            self.LOGGER.error('Couldn\'t delete dependents {} of module {}. Error: {}'
+                                              .format(mod['name'], mod_key, response.text))
+                        self.redisConnection.delete_dependent(redis_key, mod['name'])
         modules_to_index = []
-        for mod_key in mod_keys:
+        for mod_key, redis_key in zip(mod_keys_to_delete, redis_keys_to_delete):
             response = self.confdService.delete_module(mod_key)
             if response.status_code == 204:
                 self.LOGGER.info('Module {} deleted successfully'.format(mod_key))
             elif response.status_code == 404:
                 self.LOGGER.debug('Module {} already deleted'.format(mod_key))
             else:
-                self.LOGGER.error("Couldn't delete module {}. Error: {}".format(mod_key, response.text))
-                if reason == '':
-                    reason = 'modules-not-deleted:'
-                reason += ':{}'.format(mod_key)
+                self.LOGGER.error('Couldn\'t delete module {}. Error: {}'.format(mod_key, response.text))
+                modules_not_deleted.append(mod_key)
 
-            name, revision, organization = mod_key.split(',')
-            modules_to_index.append('{}@{}/{}'.format(name, revision, organization))
+            response = self.redisConnection.delete_modules([redis_key])
+            if response == 1:
+                self.LOGGER.info('Module {} deleted successfully'.format(redis_key))
+            elif response == 0:
+                self.LOGGER.debug('Module {} already deleted'.format(redis_key))
+            modules_to_index.append(redis_key)
+
         if self.__notify_indexing:
-            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index, credentials,
+            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
 
             if len(body_to_send) > 0:
                 send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
                                   self.__lock_file)
-        if reason == '':
+        if len(modules_not_deleted) == 0:
             return self.__response_type[1]
         else:
-            return self.__response_type[2] + '#split#' + reason
+            reason = 'modules-not-deleted:{}'.format(':'.join(modules_not_deleted))
+            return '{}#split#{}'.format(self.__response_type[2], reason)
 
     def run_ietf(self):
         """
@@ -448,12 +489,12 @@ class Receiver:
         :return: response success or failed
         """
         try:
-            with open(self.temp_dir + "/run-ietf-api-stderr.txt", "w") as f:
+            with open(self.temp_dir + '/run-ietf-api-stderr.txt', 'w') as f:
                 draft_pull_local = os.path.dirname(
                     os.path.realpath(__file__)) + '/../ietfYangDraftPull/draftPullLocal.py'
                 arguments = ['python', draft_pull_local]
                 subprocess.check_call(arguments, stderr=f)
-            with open(self.temp_dir + "/run-openconfig-api-stderr.txt", "w") as f:
+            with open(self.temp_dir + '/run-openconfig-api-stderr.txt', 'w') as f:
                 openconfig_pull_local = os.path.dirname(
                     os.path.realpath(__file__)) + '/../ietfYangDraftPull/openconfigPullLocal.py'
                 arguments = ['python', openconfig_pull_local]
@@ -466,28 +507,24 @@ class Receiver:
     def load_config(self):
         config = create_config(self.__config_path)
         self.__log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('receiver', self.__log_directory + '/yang.log')
-        self.LOGGER.info('reloading config')
+        self.LOGGER = log.get_logger('receiver', os.path.join(self.__log_directory, 'receiver.log'))
+        self.LOGGER.info('Loading config')
         logging.getLogger('pika').setLevel(logging.INFO)
         self.__api_ip = config.get('Web-Section', 'ip')
         self.__api_port = int(config.get('Web-Section', 'api-port'))
         self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__key = config.get('Secrets-Section', 'update-signature')
         self.__notify_indexing = config.get('General-Section', 'notify-index')
-        self.__result_dir = config.get('Web-Section', 'result-html-dir')
         self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self.__yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.__is_uwsgi = config.get('General-Section', 'uwsgi')
         self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
         self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
         self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
         self.__lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
         self.temp_dir = config.get('Directory-Section', 'temp')
-        self.__confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
         if self.__notify_indexing == 'True':
@@ -499,8 +536,7 @@ class Receiver:
         if self.__is_uwsgi == 'True':
             separator = '/'
             suffix = 'api'
-        self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip,
-                                                              separator, suffix)
+        self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip, separator, suffix)
         self.__response_type = ['Failed', 'Finished successfully', 'Partially done']
         self.__rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
@@ -513,18 +549,19 @@ class Receiver:
             self.connection.close()
         except Exception:
             pass
-        self.LOGGER.info('Config reloaded succesfully')
+        self.LOGGER.info('Config loaded succesfully')
 
-    def on_request(self, ch, method, props, body):
-        process_reload_cache = multiprocessing.Process(target=self.on_request_thread_safe, args=(ch, method, props, body,))
+    def on_request(self, ch, method, properties, body):
+        process_reload_cache = multiprocessing.Process(
+            target=self.on_request_thread_safe, args=(ch, method, properties, body,))
         process_reload_cache.start()
 
-    def on_request_thread_safe(self, ch, method, props, body):
+    def on_request_thread_safe(self, channel, method, properties, body):
         """Function called when something was sent from API sender. This function
         will process all the requests that would take too long to process for API.
         When the processing is done we will sent back the result of the request
         which can be either 'Failed' or 'Finished successfully' with corespondent
-        correlation id. If the request 'Failed' it will sent back also a reason why
+        correlation ID. If the request 'Failed' it will sent back also a reason why
         it failed.
                 Arguments:
                     :param body: (str) String of arguments that need to be processed
@@ -554,9 +591,9 @@ class Receiver:
                 self.LOGGER.info('paths {}'.format(paths))
                 try:
                     for path in paths:
-                        with open(self.temp_dir + "/log_trigger.txt", "w") as f:
+                        with open(self.temp_dir + '/log_trigger.txt', 'w') as f:
                             local_dir = paths_plus[-2]
-                            arguments = arguments + ["--dir", local_dir + "/" + path]
+                            arguments = arguments + ['--dir', local_dir + '/' + path]
                             if self.__notify_indexing:
                                 arguments.append('--notify-indexing')
                             subprocess.check_call(arguments, stderr=f)
@@ -564,46 +601,45 @@ class Receiver:
                 except subprocess.CalledProcessError as e:
                     final_response = self.__response_type[0]
                     mf = messageFactory.MessageFactory()
-                    mf.send_automated_procedure_failed(arguments, self.temp_dir + "/log_no_sdo_api.txt")
+                    mf.send_automated_procedure_failed(arguments, self.temp_dir + '/log_no_sdo_api.txt')
                     self.LOGGER.error(
                         'check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(
                             e.output, e.stderr))
                 except:
                     final_response = self.__response_type[0]
-                    self.LOGGER.error("check log_trigger.txt failed to process github message with error {}".format(
+                    self.LOGGER.error('check log_trigger.txt failed to process github message with error {}'.format(
                         sys.exc_info()[0]))
             else:
                 all_modules = {}
-                if arguments[-3] == 'DELETE':
-                    if 'http' in arguments[0]:
-                        self.LOGGER.info('Deleting modules data')
-                        final_response = self.process_module_deletion(arguments)
-                        credentials = arguments[3:5]
-                    else:
-                        self.LOGGER.info('Deleting vendors data')
-                        final_response = self.process_vendor_deletion(arguments)
-                        credentials = arguments[7:9]
-                elif '--sdo' in arguments[2]:
+                if arguments[0] == 'DELETE-VENDORS':
+                    final_response = self.process_vendor_deletion(arguments)
+                    credentials = arguments[1:3]
+                if arguments[0] == 'DELETE-MODULES':
+                    final_response = self.process_module_deletion(arguments)
+                    credentials = arguments[1:3]
+                if arguments[0] == 'POPULATE-MODULES':
                     final_response = self.process_sdo(arguments, all_modules)
-                    credentials = arguments[11:13]
-                    direc = arguments[6]
+                    credentials = arguments[6:8]
+                    direc = arguments[3]
                     shutil.rmtree(direc)
-                else:
+                if arguments[0] == 'POPULATE-VENDORS':
                     final_response = self.process_vendor(arguments, all_modules)
-                    credentials = arguments[10:12]
-                    direc = arguments[5]
+                    credentials = arguments[5:7]
+                    direc = arguments[2]
                     shutil.rmtree(direc)
+
                 if final_response.split('#split#')[0] == self.__response_type[1]:
                     res = self.make_cache(credentials)
                     code = res.status_code
                     if code != 200 and code != 201 and code != 204:
-                        final_response = self.__response_type[0] + '#split#Server error-> could not reload cache'
+                        final_response = '{}#split#Server error-> could not reload cache'.format(self.__response_type[0])
 
+                    # TODO: This probably can be already done in populate.py
                     if all_modules:
                         self.LOGGER.info('Running ModulesComplicatedAlgorithms from receiver.py script')
                         complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
                                                                               self.__yangcatalog_api_prefix,
-                                                                              self.__confd_credentials,
+                                                                              credentials,
                                                                               self.__save_file_dir, direc,
                                                                               all_modules, self.__yang_models,
                                                                               self.temp_dir, self.json_ytree)
@@ -614,17 +650,17 @@ class Receiver:
             final_response = self.__response_type[0]
             self.LOGGER.exception('receiver.py failed')
         self.LOGGER.info('Receiver is done with id - {} and message = {}'
-                         .format(props.correlation_id, str(final_response)))
+                         .format(properties.correlation_id, str(final_response)))
 
         f = open('{}/correlation_ids'.format(self.temp_dir), 'r')
         lines = f.readlines()
         f.close()
         with open('{}/correlation_ids'.format(self.temp_dir), 'w') as f:
             for line in lines:
-                if props.correlation_id in line:
+                if properties.correlation_id in line:
                     new_line = '{} -- {} - {}\n'.format(datetime.now()
                                                         .ctime(),
-                                                        props.correlation_id,
+                                                        properties.correlation_id,
                                                         str(final_response))
                     f.write(new_line)
                 else:
@@ -680,7 +716,7 @@ class Receiver:
             self.LOGGER.error('Server error: {}'.format(e))
             return self.__response_type[0]
 
-    def run_ping(self, message):
+    def run_ping(self, message: str):
         if message == 'ping':
             return self.__response_type[1]
         else:

@@ -17,15 +17,12 @@ __copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import base64
 import errno
 import json
 import os
 import shutil
-import sys
 from datetime import datetime
 
-import requests
 from api.authentication.auth import auth, hash_pw
 from flask import Blueprint, abort
 from flask import current_app as app
@@ -34,7 +31,7 @@ from git import GitCommandError
 from redis import RedisError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
-from utility.staticVariables import NS_MAP, confd_headers, github_url
+from utility.staticVariables import NS_MAP, backup_date_format, github_url
 
 
 class UserSpecificModuleMaintenance(Blueprint):
@@ -98,13 +95,12 @@ def register_user():
 @auth.login_required
 def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     """Delete a specific modules defined with name, revision and organization. This is
-    not done right away but it will send a request to receiver which will work on deleting
-    while this request will send a job_id of the request which user can use to see the job
-    process.
+    not done right away but it will send another request to receiver which will work on deleting
+    while this request will send a "job_id" in the response back to the user.
+    User is able to check success of the job using this "job_id".
 
-    Arguments:
-        :return response to the request with job_id that user can use to
-            see if the job is still on or Failed or Finished successfully
+    :return response with "job_id" that user can use to check whether
+            the job is still running or Failed or Finished successfully.
     """
     if all((name, revision, organization)):
         input_modules = [{
@@ -127,31 +123,28 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 
     unavailable_modules = []
     for mod in input_modules:
-        response = get_mod_confd(mod['name'], mod['revision'], mod['organization'])
-        if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-            # If admin, then possible to delete this module from other's modules dependents
+        # Check if the module is already in Redis
+        read = get_mod_redis(mod)
+        if read == {}:
             if accessRigths != '/':
                 unavailable_modules.append(mod)
             continue
-        read = response.json()
 
-        if read['yang-catalog:module'][0].get('organization') != accessRigths and accessRigths != '/':
+        if read.get('organization') != accessRigths and accessRigths != '/':
             abort(401, description='You do not have rights to delete modules with organization {}'
-                  .format(read['yang-catalog:module'][0].get('organization')))
+                  .format(read.get('organization')))
 
-        if read['yang-catalog:module'][0].get('implementations') is not None:
+        if read.get('implementations') is not None:
             unavailable_modules.append(mod)
 
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
-    path_to_delete = json.dumps({'modules': input_modules})
+    modules_dict = json.dumps({'modules': input_modules})
 
-    arguments = [ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port, ac.s_confd_credentials[0],
-                 ac.s_confd_credentials[1], path_to_delete, 'DELETE',
-                 ac.g_protocol_api, ac.w_api_port]
+    arguments = ['DELETE-MODULES', ac.s_confd_credentials[0], ac.s_confd_credentials[1], modules_dict]
     job_id = ac.sender.send('#'.join(arguments))
 
-    app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('Running deletion of modules with job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
     if unavailable_modules:
         payload['skipped'] = unavailable_modules
@@ -160,17 +153,18 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 
 @bp.route('/vendors/<path:value>', methods=['DELETE'])
 @auth.login_required
-def delete_vendor(value):
-    """Delete a specific vendor defined with path. This is not done right away but it
-    will send a request to receiver which will work on deleting while this request
-    will send a job_id of the request which user can use to see the job
-        process.
-            Arguments:
-                :param value: (str) path to the branch that needs to be deleted
-                :return response to the request with job_id that user can use to
-                    see if the job is still on or Failed or Finished successfully
+def delete_vendor(value: str):
+    """Delete a specific vendor defined with path. This is
+    not done right away but it will send another request to receiver which will work on deleting
+    while this request will send a "job_id" in the response back to the user.
+    User is able to check success of the job using this "job_id".
+
+    Argument:
+        :param value    (str) path to the branch that needs to be deleted
+
+    :return response with "job_id" that user can use to check whether
+            the job is still running or Failed or Finished successfully.
     """
-    app.logger.info('Deleting vendor on path {}'.format(value))
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
@@ -180,53 +174,43 @@ def delete_vendor(value):
     rights = accessRigths.split('/')
     rights += [None] * (4 - len(rights))
 
-    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
-    path_to_delete = '{}/restconf/data/yang-catalog:catalog/vendors/{}'.format(confd_prefix, value)
+    confd_suffix = '/restconf/data/yang-catalog:catalog/vendors/{}'.format(value)
 
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     params = []
     for param_name in param_names:
-        if '/{}/'.format(param_name) in path_to_delete:
-            params.append(path_to_delete.split('/{}/'.format(param_name))[1].split('/')[0])
+        if '/{}/'.format(param_name) in confd_suffix:
+            params.append(confd_suffix.split('/{}/'.format(param_name))[1].split('/')[0])
         else:
             params.append('None')
-        path_to_delete = path_to_delete.replace('/{}/'.format(param_name), '/{}='.format(param_name))
+        confd_suffix = confd_suffix.replace('/{}/'.format(param_name), '/{}='.format(param_name))
 
     for param_name, param, right in zip(param_names, params, rights):
         if right and param != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    arguments = [*params, ac.g_protocol_confd, ac.w_confd_ip,
-                 ac.w_confd_port, ac.s_confd_credentials[0],
-                 ac.s_confd_credentials[1], path_to_delete, 'DELETE', ac.g_protocol_api, ac.w_api_port]
+    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params, confd_suffix]
     job_id = ac.sender.send('#'.join(arguments))
 
-    app.logger.info('job_id {}'.format(job_id))
-    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
-
-
-def organization_by_namespace(namespace):
-    for ns, org in NS_MAP:
-        if ns in namespace:
-            return org
-        else:
-            if 'urn:' in namespace:
-                return namespace.split('urn:')[1].split(':')[0]
-    return ''
+    app.logger.info('Running deletion of vendors metadata with job_id {}'.format(job_id))
+    payload = {'info': 'Verification successful', 'job-id': job_id}
+    return (payload, 202)
 
 
 @bp.route('/modules', methods=['PUT', 'POST'])
 @auth.login_required
 def add_modules():
-    """Add a new module. Use PUT request when we want to update every module there is
-    in the request, use POST request if you want to create just modules that are not
-    in confd yet. This is not done right away. First it checks if the request sent is
-    ok and if it is, it will send a request to receiver which will work on deleting
-    while this request will send a job_id of the request which user can use to see
+    """Endpoint is used to add new modules using the API.
+    PUT request is used for updating each module in request body.
+    POST request is used for creating new modules that are not in ConfD/Redis yet.
+    First it checks if the sent request is ok and if so, it will send a another request
+    to the receiver which will work on adding/updating modules while this request
+    will send a "job_id" in the response back to the user.
+    User is able to check success of the job using this "job_id"
     the job process.
-            Arguments:
-                :return response to the request with job_id that user can use to
-                    see if the job is still on or Failed or Finished successfully
+
+    :return response with "job_id" that user can use to check whether
+            the job is still running or Failed or Finished successfully.
     """
     if not request.json:
         abort(400, description='bad request - you need to input json body that conforms with'
@@ -239,34 +223,20 @@ def add_modules():
     if module_list is None:
         abort(400, description='bad request - "module" json list is missing and is mandatory')
 
-    app.logger.info('Adding modules with body {}'.format(body))
+    app.logger.info('Adding modules with body\n{}'.format(json.dumps(body, indent=2)))
     tree_created = False
 
-    with open('./prepare-sdo.json', 'w') as plat:
-        json.dump(body, plat)
-    shutil.copy('./prepare-sdo.json', ac.d_save_requests + '/sdo-'
-                + str(datetime.utcnow()).split('.')[0].replace(' ', '_') + '-UTC.json')
+    with open('./prepare-sdo.json', 'w') as f:
+        json.dump(body, f)
+    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    shutil.copy('./prepare-sdo.json', dst_path)
 
-    confd_prefix = '{}://{}:{}'.format(ac.g_protocol_confd, ac.w_confd_ip, ac.w_confd_port)
-    path = '{}/restconf/data/module-metadata:modules'.format(confd_prefix)
-
-    str_to_encode = '%s:%s' % (ac.s_confd_credentials[0], ac.s_confd_credentials[1])
-    if sys.version_info >= (3, 4):
-        str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
-    base64string = base64.b64encode(str_to_encode)
-    if sys.version_info >= (3, 4):
-        base64string = base64string.decode(encoding='utf-8', errors='strict')
-    response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic {}'.format(base64string),
-                                                             **confd_headers})
+    response = app.confdService.put_module_metadata(json.dumps(body))
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         abort(400,
-              description='The body you have provided could not be parsed. Confd error text: {} \n'
-                          ' error code: {} \n error header items: {}'
-                          .format(response.text, response.status_code, response.headers.items()))
-    repo = {}
-    warning = []
-
+              description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
+                          'Error code: {}'.format(response.text, response.status_code))
     direc = 0
     while os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
         direc += 1
@@ -278,13 +248,15 @@ def add_modules():
         if e.errno != errno.EEXIST:
             raise
     repo_url_dir_branch = {}
+    repo = {}
+    warning = []
     for mod in module_list:
-        app.logger.info('{}'.format(mod))
+        app.logger.debug(mod)
         sdo = mod.get('source-file')
         if sdo is None:
             abort(400, description='bad request - at least one of modules "source-file" is missing and is mandatory')
-        orgz = mod.get('organization')
-        if orgz is None:
+        mod_org = mod.get('organization')
+        if mod_org is None:
             abort(400, description='bad request - at least one of modules "organization" is missing and is mandatory')
         mod_name = mod.get('name')
         if mod_name is None:
@@ -293,8 +265,9 @@ def add_modules():
         if mod_revision is None:
             abort(400, description='bad request - at least one of modules "revision" is missing and is mandatory')
         if request.method == 'POST':
-            response = get_mod_confd(mod_name, mod_revision, orgz)
-            if response.status_code != 404:
+            # Check if the module is already in Redis
+            redis_module = get_mod_redis(mod)
+            if redis_module != {}:
                 continue
         sdo_path = sdo.get('path')
         if sdo_path is None:
@@ -314,14 +287,11 @@ def add_modules():
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
             except GitCommandError as e:
-                abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+                abort(400, description='bad request - could not clone the Github repository. Please check owner,'
                       ' repository and path of the request - {}'.format(e.stderr))
 
         try:
-            if 'branch' in sdo:
-                branch = sdo.get('branch')
-            else:
-                branch = 'master'
+            branch = sdo.get('branch', 'master')
             repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, branch, directory)
             if repo_url_dir_branch_temp not in repo_url_dir_branch:
                 branch = repo[repo_url].get_commit_hash(directory, branch)
@@ -329,7 +299,7 @@ def add_modules():
             else:
                 branch = repo_url_dir_branch[repo_url_dir_branch_temp]
         except GitCommandError as e:
-            abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+            abort(400, description='bad request - could not clone the Github repository. Please check owner,'
                                    ' repository and path of the request - {}'.format(e.stderr))
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, sdo_owner, sdo_repo.split('.')[0], branch, directory)
         try:
@@ -356,14 +326,13 @@ def add_modules():
                 try:
                     namespace = yangParser.parse(
                         os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
-                                                               '/'.join(sdo_path.split('/')[:-1]),
-                                                               belongs_to))
+                                                               '/'.join(sdo_path.split('/')[:-1]), belongs_to))
                     ).search('namespace')[0].arg
                     organization = organization_by_namespace(namespace)
                     break
                 except:
                     pass
-        resolved_authorization = authorize_for_sdos(request, orgz, organization)
+        resolved_authorization = authorize_for_sdos(request, mod_org, organization)
         if not resolved_authorization:
             shutil.rmtree(direc)
             for key in repo:
@@ -377,13 +346,10 @@ def add_modules():
     for key in repo:
         repo[key].remove()
 
-    app.logger.debug('Sending a new job')
-    populate_path = os.path.abspath(os.path.dirname(os.path.realpath(__file__)) + '/../../../parseAndPopulate/populate.py')
-    arguments = ['python', populate_path, '--sdo', '--port', ac.w_confd_port, '--dir', direc, '--api',
-                 '--ip', ac.w_confd_ip, '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
-                 repr(tree_created), ac.g_protocol_confd, ac.g_protocol_api, ac.w_api_port]
+    arguments = ['POPULATE-MODULES', '--sdo', '--dir', direc, '--api',
+                 '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
     job_id = ac.sender.send('#'.join(arguments))
-    app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('Running populate.py with job_id {}'.format(job_id))
     if len(warning) > 0:
         return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
     else:
@@ -393,15 +359,17 @@ def add_modules():
 @bp.route('/platforms', methods=['PUT', 'POST'])
 @auth.login_required
 def add_vendors():
-    """Add a new vendors. Use PUT request when we want to update every module there is
-    in the request, use POST request if you want to create just modules that are not
-    in confd yet. This is not done right away. First it checks if the request sent is
-    ok and if it is, it will send a request to receiver which will work on deleting
-    while this request will send a job_id of the request which user can use to see
+    """Endpoint is used to add new vendors using the API.
+    PUT request is used for updating each vendor in request body.
+    POST request is used for creating new vendors that are not in ConfD/Redis yet.
+    First it checks if the sent request is ok and if so, it will send a another request
+    to the receiver which will work on adding/updating vendors while this request
+    will send a "job_id" in the response back to the user.
+    User is able to check success of the job using this "job_id"
     the job process.
-            Arguments:
-                :return response to the request with job_id that user can use to
-                    see if the job is still on or Failed or Finished successfully
+
+    :return response with "job_id" that user can use to check whether
+            the job is still running or Failed or Finished successfully.
     """
     if not request.json:
         abort(400, description='bad request - you need to input json body that conforms with'
@@ -415,34 +383,22 @@ def add_vendors():
     if platform_list is None:
         abort(400, description='bad request - "platform" json list is missing and is mandatory')
 
-    app.logger.info('Adding vendor with body {}'.format(body))
+    app.logger.info('Adding vendor with body\n{}'.format(json.dumps(body, indent=2)))
     tree_created = False
     authorization = authorize_for_vendors(request, body)
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
-    path = '{}/vendor-{}-UTC.json'.format(ac.d_save_requests, str(datetime.utcnow()).split('.')[0].replace(' ', '_'))
-    with open(path, 'w') as plat:
-        json.dump(body, plat)
 
-    path = '{}://{}:{}/restconf/data/platform-implementation-metadata:platforms'.format(ac.g_protocol_confd, ac.w_confd_ip,
-                                                                                        ac.w_confd_port)
+    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    with open(dst_path, 'w') as f:
+        json.dump(body, f)
 
-    str_to_encode = '{}:{}'.format(ac.s_confd_credentials[0], ac.s_confd_credentials[1])
-    if sys.version_info >= (3, 4):
-        str_to_encode = str_to_encode.encode(encoding='utf-8', errors='strict')
-    base64string = base64.b64encode(str_to_encode)
-    if sys.version_info >= (3, 4):
-        base64string = base64string.decode(encoding='utf-8', errors='strict')
-    response = requests.put(path, json.dumps(body), headers={'Authorization': 'Basic {}'.format(base64string),
-                                                             **confd_headers})
+    response = app.confdService.put_platform_metadata(json.dumps(body))
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
         abort(400,
-              description='The body you have provided could not be parsed. Confd error text: {} \n'
-                          ' error code: {} \n error header items: {}'
-                          .format(response.text, response.status_code, response.headers.items()))
-
-    repo = {}
+              description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
+                          'Error code: {}'.format(response.text, response.status_code))
 
     direc = 0
     while os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
@@ -456,6 +412,7 @@ def add_vendors():
             raise
 
     repo_url_dir_branch = {}
+    repo = {}
     for platform in platform_list:
         capability = platform.get('module-list-file')
         if capability is None:
@@ -466,14 +423,13 @@ def add_vendors():
         file_name = capability_path.split('/')[-1]
         repository = capability.get('repository')
         if repository is None:
-            abort(400, description='bad request - at least on of platform module-list-file  "repository" for module is missing and is mandatory')
+            abort(400, description='bad request - at least on of platform module-list-file "repository" for module is missing and is mandatory')
         owner = capability.get('owner')
         if owner is None:
-            abort(400, description='bad request - at least on of platform module-list-file  "owner" for module is missing and is mandatory')
+            abort(400, description='bad request - at least on of platform module-list-file "owner" for module is missing and is mandatory')
         if request.method == 'POST':
-            repo_split = repository.split('.')[0]
             repoutil.pull(ac.d_yang_models_dir)
-            if os.path.isfile('{}/vendor/{}/{}/{}'.format(ac.d_yang_models_dir, owner, repo_split, capability_path)):
+            if os.path.isfile('{}/vendor/{}/{}'.format(ac.d_yang_models_dir, owner, capability_path)):
                 continue
 
         directory = '/'.join(capability_path.split('/')[:-1])
@@ -485,13 +441,10 @@ def add_vendors():
                 repo[repo_url] = repoutil.RepoUtil(repo_url)
                 repo[repo_url].clone()
             except GitCommandError as e:
-                abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+                abort(400, description='bad request - could not clone the Github repository. Please check owner,'
                       ' repository and path of the request - {}'.format(e.stderr))
         try:
-            if 'branch' in capability:
-                branch = capability.get('branch')
-            else:
-                branch = 'master'
+            branch = capability.get('branch', 'master')
             repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, directory, branch)
             if repo_url_dir_branch_temp not in repo_url_dir_branch:
                 branch = repo[repo_url].get_commit_hash(directory, branch)
@@ -499,7 +452,7 @@ def add_vendors():
             else:
                 branch = repo_url_dir_branch[repo_url_dir_branch_temp]
         except GitCommandError as e:
-            abort(400, description='bad request - cound not clone the github repository. Please check owner,'
+            abort(400, description='bad request - could not clone the Github repository. Please check owner,'
                                    ' repository and path of the request - {}'.format(e.stderr))
         save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
 
@@ -515,24 +468,47 @@ def add_vendors():
 
     for key in repo:
         repo[key].remove()
-    populate_path = os.path.abspath(
-        os.path.dirname('{}/../../../parseAndPopulate/populate.py'.format(os.path.realpath(__file__))))
-    arguments = ['python', populate_path, '--port', ac.w_confd_port, '--dir', direc, '--api', '--ip',
-                 ac.w_confd_ip, '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
-                 repr(tree_created), ac.w_public_directory, ac.g_protocol_confd,
-                 ac.g_protocol_api, ac.w_api_port]
+    arguments = ['POPULATE-VENDORS', '--dir', direc, '--api',
+                 '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
     job_id = ac.sender.send('#'.join(arguments))
-    app.logger.info('job_id {}'.format(job_id))
+    app.logger.info('Running populate.py with job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
 
 
-def authorize_for_vendors(request, body):
-    """Authorize sender whether he has rights to send data via API to confd.
-       Checks if sender has access on a given branch
-                Arguments:
-                    :param body: (str) json body of the request.
-                    :param request: (request) Request sent to api.
-                    :return whether authorization passed.
+@bp.route('/job/<job_id>', methods=['GET'])
+def get_job(job_id: str):
+    """ Search for a "job_id" to see the process of the job.
+
+    :return response to the request with the job
+    """
+    app.logger.info('Searching for job_id {}'.format(job_id))
+    # EVY result = application.sender.get_response(job_id)
+    result = ac.sender.get_response(job_id)
+    split = result.split('#split#')
+
+    reason = None
+    if split[0] == 'Failed' or split[0] == 'Partially done':
+        result = split[0]
+        if len(split) == 2:
+            reason = split[1]
+        else:
+            reason = ''
+
+    return {'info': {'job-id': job_id,
+                     'result': result,
+                     'reason': reason}}
+
+### HELPER DEFINITIONS ###
+
+
+def authorize_for_vendors(request, body: dict):
+    """Authorize the sender whether he has the rights to send data via API to ConfD.
+
+    Arguments:
+        :param body     (dict) body of the send request
+        :param request  (request) Request sent to api.
+
+        :return     whether authorization passed or not
     """
     username = request.authorization['username']
     app.logger.info('Checking vendor authorization for user {}'.format(username))
@@ -555,13 +531,15 @@ def authorize_for_vendors(request, body):
     return True
 
 
-def authorize_for_sdos(request, organizations_sent, organization_parsed):
-    """Authorize sender whether he has rights to send data via API to confd.
-            Arguments:
-                :param organization_parsed: (str) organization of a module sent by sender.
-                :param organizations_sent: (str) organization of a module parsed from module.
-                :param request: (request) Request sent to api.
-                :return whether authorization passed.
+def authorize_for_sdos(request, organizations_sent: str, organization_parsed: str):
+    """Authorize the sender whether he has the rights to send data via API to ConfD.
+
+    Arguments:
+        :param request              (request) Request sent to API
+        :param organizations_sent   (str) organization of a module parsed from module
+        :param organization_parsed  (str) organization of a module sent by sender
+
+        :return     whether authorization passed or not
     """
     username = request.authorization['username']
     app.logger.info('Checking sdo authorization for user {}'.format(username))
@@ -577,32 +555,6 @@ def authorize_for_sdos(request, organizations_sent, organization_parsed):
             return 'module`s organization is not in users rights'
         passed = True
     return passed
-
-
-@bp.route('/job/<job_id>', methods=['GET'])
-def get_job(job_id):
-    """Search for a job_id to see the process of the job
-                :return response to the request with the job
-    """
-    app.logger.info('Searching for job_id {}'.format(job_id))
-    # EVY result = application.sender.get_response(job_id)
-    result = ac.sender.get_response(job_id)
-    split = result.split('#split#')
-
-    reason = None
-    if split[0] == 'Failed' or split[0] == 'Partially done':
-        result = split[0]
-        if len(split) == 2:
-            reason = split[1]
-        else:
-            reason = ''
-
-    return {'info': {'job-id': job_id,
-                     'result': result,
-                     'reason': reason}
-            }
-
-### HELPER DEFINITIONS ###
 
 
 def get_user_access_rights(username: str, is_vendor: bool = False):
@@ -623,7 +575,17 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
     return accessRigths
 
 
-def get_mod_confd(name: str, revision: str, organization: str):
-    mod_key = '{},{},{}'.format(name, revision, organization)
-    response = app.confdService.get_module(mod_key)
-    return response
+def get_mod_redis(module: dict):
+    redis_key = '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
+    redis_module = app.redisConnection.get_module(redis_key)
+    return json.loads(redis_module)
+
+
+def organization_by_namespace(namespace: str):
+    for ns, org in NS_MAP.items():
+        if ns in namespace:
+            return org
+        else:
+            if 'urn:' in namespace:
+                return namespace.split('urn:')[1].split(':')[0]
+    return ''

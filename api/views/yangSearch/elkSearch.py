@@ -17,14 +17,13 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-import json
-import multiprocessing
-
 import hashlib
-from elasticsearch import Elasticsearch, ConnectionTimeout
-from redis import Redis
-from utility import log
+import json
+
 import gevent.queue
+from elasticsearch import ConnectionTimeout, Elasticsearch
+from redisConnections.redisConnection import RedisConnection
+from utility import log
 
 
 class ElkSearch:
@@ -45,7 +44,7 @@ class ElkSearch:
 
     def __init__(self, searched_term: str, case_sensitive: bool, searched_fields: list, type: str,
                  schema_types: list, logs_dir: str, es: Elasticsearch, latest_revision: bool,
-                 redis: Redis, include_mibs: bool, yang_versions: list, needed_output_colums: list,
+                 redisConnection: RedisConnection, include_mibs: bool, yang_versions: list, needed_output_colums: list,
                  all_output_columns: list, sub_search: list) -> None:
         """
         Initialization of search under elasticsearch engine. We need to prepare a query
@@ -59,7 +58,7 @@ class ElkSearch:
         :param logs_dir         (str) Directory to log files
         :param es               (ElasticSearch) Elasticsearch engine
         :param latest_revision  (boolean) Whether we want to search only for latest revision of found modules.
-        :param redis            (Redis) Redis client
+        :param redisConnection  (RedisConnection) Redis connection to modules db (db=1)
         :param include_mibs     (boolean) Whether we want to search for MIBs as well from the searched modules
         :param yang_versions    (list) List of yang version that we search for
         :param needed_output_colums (list) output columns that are going to be used within response json
@@ -107,7 +106,7 @@ class ElkSearch:
         self.__searched_term = searched_term
         self.__type = type
         self.__es = es
-        self.__redis = redis
+        self.__redisConnection = redisConnection
         self.__latest_revision = latest_revision
         self.__include_mibs = include_mibs
         self.__yang_versions = yang_versions
@@ -286,9 +285,8 @@ class ElkSearch:
                 description = source['description']
                 statement = source['statement']
                 path = source['path']
-                module_data = self.__redis.get(module_index)
-                if module_data is not None:
-                    module_data = module_data.decode('utf-8')
+                module_data = self.__redisConnection.get_module(module_index)
+                if module_data != '{}':
                     module_data = json.loads(module_data)
                 else:
                     self.LOGGER.error('Failed to get module from redis but found in elasticsearch {}'
@@ -320,7 +318,7 @@ class ElkSearch:
                 self.__trim_and_hash_row_by_columns(row, response_rows)
                 if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
                     self.LOGGER.debug('elk search finished with len {} and scroll id {}'
-                                     .format(len(response_rows), self.__current_scroll_id))
+                                      .format(len(response_rows), self.__current_scroll_id))
                     process_scroll_search.kill()
                     return response_rows
             else:

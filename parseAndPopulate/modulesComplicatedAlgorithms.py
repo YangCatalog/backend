@@ -38,6 +38,7 @@ import requests
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree as emit_json_tree
 from pyang.plugins.tree import emit_tree
+from redisConnections.redisConnection import RedisConnection
 from utility import log, messageFactory
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
@@ -48,8 +49,8 @@ from utility.yangParser import create_context
 
 class ModulesComplicatedAlgorithms:
 
-    def __init__(self, log_directory, yangcatalog_api_prefix, credentials,
-                 save_file_dir, direc, all_modules, yang_models_dir, temp_dir, ytree_dir):
+    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
+                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, ytree_dir: str):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:
@@ -96,17 +97,21 @@ class ModulesComplicatedAlgorithms:
 
     def populate(self):
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
-        LOGGER.info('populate with module complicated data. amount of new data is {}'
-                    .format(len(new_modules)))
-        x = -1
+        LOGGER.info('Populating ConfD with modules. Amount of new data is {}'.format(len(new_modules)))
         chunk_size = 250
-        chunks = (len(new_modules) - 1) // chunk_size + 1
         confdService = ConfdService()
-        for x in range(chunks):
-            payload = {'modules': {'module': new_modules[x * chunk_size: (x * chunk_size) + chunk_size]}}
-            json_modules_data = json.dumps(payload)
+        redisConnection = RedisConnection()
+        for x in range(0, len(new_modules), chunk_size):
+            LOGGER.info('Processing chunk {} out of {}'.format((x // chunk_size) + 1, (len(new_modules) // chunk_size) + 1))
+            json_modules_data = json.dumps({
+                'modules':
+                    {
+                        'module': new_modules[x: x + chunk_size]
+                    }
+            })
             if '{"module": []}' not in json_modules_data:
                 response = confdService.patch_modules(json_modules_data)
+                redisConnection.populate_modules(new_modules)
 
                 if response.status_code < 200 or response.status_code > 299:
                     path_to_file = '{}/modulesComplicatedAlgorithms-data-{}'.format(self.__direc, x)
