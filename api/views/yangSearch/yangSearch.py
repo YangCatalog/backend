@@ -447,7 +447,14 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
 
     # get module from Redis
     module_key = '{}@{}/{}'.format(module, revision, organization)
-    module_data = get_module_data(module_key, warnings)
+    module_data = app.redisConnection.get_module(module_key)
+    if module_data == '{}':
+        if warnings:
+            return {'warning': 'module {} does not exists in API'.format(module_key)}
+        else:
+            abort(404, description='Provided module does not exist')
+    else:
+        module_data = json.loads(module_data)
     resp['metadata'] = module_data
     if json_data:
         return resp
@@ -673,14 +680,11 @@ def eachKeyIsOneOf(payload, payload_key, keys):
     return rows
 
 
-def get_module_data(module_key: str, warnings: bool = False):
+def get_module_data(module_key: str):
     bp.LOGGER.info('searching for module {}'.format(module_key))
     module_data = app.redisConnection.get_module(module_key)
     if module_data == '{}':
-        if warnings:
-            return {'warning': 'module {} does not exists in API'.format(module_key)}
-        else:
-            abort(404, description='Provided module does not exist')
+        abort(404, description='Provided module does not exist')
     else:
         module_data = json.loads(module_data)
     return module_data
