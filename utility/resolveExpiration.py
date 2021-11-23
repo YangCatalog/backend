@@ -20,17 +20,17 @@ metadata and updates them based on a date to
 expired if it is necessary
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
-import datetime
+
 import json
 import logging
 import os
 import time
+import typing as t
 from datetime import datetime
 
 import requests
@@ -38,55 +38,53 @@ import requests
 import utility.log as log
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         config = create_config()
+        api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
+        api_port = config.get('Web-Section', 'api-port', fallback=5000)
+        api_host = config.get('Web-Section', 'ip', fallback='localhost')
+        credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
+        help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
+                    ' cronjob'
+        args: t.List[Arg] = [
+            {
+                'flag': '--credentials',
+                'help': 'Set authorization parameters username password respectively. Default parameters are {}'
+                        .format(str(credentials)),
+                'nargs': 2,
+                'default': credentials,
+                'type': str
+            },
+            {
+                'flag': '--api-ip',
+                'help': 'Set host address where the API is started. Default: {}'.format(api_host),
+                'default': api_host,
+                'type': str
+            },
+            {
+                'flag': '--api-port',
+                'help': 'Set port where the API is started. Default: {}'.format(api_port),
+                'type': int,
+                'default': api_port
+            },
+            {
+                'flag': '--api-protocol',
+                'help': 'Whether API runs on http or https. Default: {}'.format(api_protocol),
+                'type': str,
+                'default': api_protocol
+            }
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
+
         self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
         self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
-        self.__api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
-        self.__api_port = config.get('Web-Section', 'api-port', fallback=5000)
-        self.__api_host = config.get('Web-Section', 'ip', fallback='localhost')
-        self.__credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
-        self.help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
-                    ' cronjob'
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--credentials',
-                            help='Set authorization parameters username password respectively.'
-                                 ' Default parameters are {}'.format(str(self.__credentials)), nargs=2,
-                            default=self.__credentials, type=str)
-        parser.add_argument('--api-ip', default=self.__api_host, type=str,
-                            help='Set host address where the API is started. Default: {}'.format(self.__api_host))
-        parser.add_argument('--api-port', default=self.__api_port, type=int,
-                            help='Set port where the API is started. Default: {}'.format(self.__api_port))
-        parser.add_argument('--api-protocol', type=str, default=self.__api_protocol,
-                            help='Whether API runs on http or https. Default: {}'.format(self.__api_protocol))
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['api_ip'] = 'Set host address where the API is started. Default: {}'.format(self.__api_host)
-        ret['options']['api_port'] = 'Set port where the API is started. Default: {}'.format(self.__api_port)
-        ret['options']['api_protocol'] = 'Whether API runs on http or https. Default: {}'.format(self.__api_protocol)
-        return ret
 
 
 def __expired_change(expired_from_module, expired_from_datatracker):
@@ -256,5 +254,5 @@ def main(scriptConf=None):
     LOGGER.info('Job finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

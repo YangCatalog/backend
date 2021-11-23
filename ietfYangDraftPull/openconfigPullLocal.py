@@ -18,52 +18,36 @@ This python script is a tool to parse and populate
 all new openconfig modules.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
 import json
 import os
-import sys
+import time
+import typing as t
 
 import requests
-import time
 
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
+
     def __init__(self):
-        self.help = 'Run populate script on all openconfig files to parse all modules and populate the' \
-                    ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--config-path', type=str,
-                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-        self.args, extra_args = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['config_path'] = 'Set path to config file'
-        return ret
+        help = 'Run populate script on all openconfig files to parse all modules and populate the' \
+               ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
+        args: t.List[Arg] = [{
+            'flag': '--config-path',
+            'help': 'Set path to config file',
+            'type': str,
+            'default': os.environ['YANGCATALOG_CONFIG_PATH']
+        }]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def resolve_revision(yang_file):
@@ -118,7 +102,7 @@ def main(scriptConf=None):
 
         modules = []
 
-        for root, dirs, files in os.walk(repo.localdir + '/release/models/'):
+        for root, _, files in os.walk(repo.localdir + '/release/models/'):
             for basename in files:
                 if '.yang' in basename:
                     mod = {}

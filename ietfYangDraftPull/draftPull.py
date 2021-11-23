@@ -23,24 +23,25 @@ Message about new RFC or DRAFT yang modules is also sent
 to the Cisco Webex Teams, room: YANG Catalog Admin.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
 import errno
 import filecmp
 import os
 import shutil
 import sys
 import time
+import typing as t
 
 import requests
 import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory, repoutil
 from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import github_url
 from utility.util import job_log
 
@@ -50,40 +51,28 @@ from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 get_draft_module_content)
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        parser = argparse.ArgumentParser()
-        self.help = 'Pull the latest IETF files and add them to the Github if there are any new IETF draft files.' \
-                    'If there are new RFC files it will produce automated message that will be sent to the ' \
-                    'Cisco Webex Teams and admin emails notifying you that these need to be added to YangModels/yang ' \
-                    'Github repository manualy. This script runs as a daily cronjob.'
-        parser.add_argument('--config-path', type=str,
-                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-        parser.add_argument('--send-message', action='store_true', default=False, help='Whether to send notification'
-                            ' to Cisco Webex Teams and to emails')
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['config_path'] = 'Set path to config file'
-        ret['options']['send_message'] = 'Whether to send notification to cisco webex teams and to emails'
-        return ret
+        help = 'Pull the latest IETF files and add any new IETF draft files to Github.' \
+               'If there are new RFC files, produce an automated message that will be sent to the ' \
+               'Cisco Webex Teams and admin emails notifying that these need to be added to ' \
+               'the YangModels/yang Github repository manualy. This script runs as a daily cronjob.'
+        args: t.List[Arg] = [
+            {
+                'flag': '--config-path',
+                'help': 'Set path to config file',
+                'type': str,
+                'default': os.environ['YANGCATALOG_CONFIG_PATH']
+            },
+            {
+                'flag': '--send-message',
+                'help': 'Whether to send a notification',
+                'action': 'store_true',
+                'default': False
+            }
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def main(scriptConf=None):
@@ -257,5 +246,5 @@ def main(scriptConf=None):
     LOGGER.info('Job finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

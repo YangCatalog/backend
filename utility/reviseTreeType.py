@@ -19,10 +19,11 @@ are no longer the latest revision and have tree-type nmda-compatible.
 The tree-type for these modules is reevaluated.
 """
 
-__author__ = "Richard Zilincik"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "richard.zilincik@pantheon.tech"
+__author__ = 'Richard Zilincik'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'richard.zilincik@pantheon.tech'
+
 
 import os
 import time
@@ -33,15 +34,17 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
 
 import utility.log as log
 from utility.create_config import create_config
+from utility.scriptConfig import BaseScriptConfig
 from utility.util import job_log
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        self.help = 'Resolve the tree-type for modules that are no longer the latest revision. ' \
-                    'Runs as a daily cronjob.'
+        help = 'Resolve the tree-type for modules that are no longer the latest revision. ' \
+               'Runs as a daily cronjob.'
         config = create_config()
+        super().__init__(help, None, [])
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
@@ -53,16 +56,6 @@ class ScriptConfig:
                                       fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
-
-    def get_args_list(self):
-        args_dict = {}
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        return ret
 
 
 def main(scriptConf=None):

@@ -18,17 +18,21 @@ from datetime import datetime
 import requests
 import utility.log as log
 from utility.create_config import create_config
+from utility.scriptConfig import BaseScriptConfig
 from utility.util import job_log
 
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
+
     def __init__(self):
-        self.help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
-                    ' to confd directory'
+        help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
+               ' to confd directory'
         config = create_config()
+        super().__init__(help, None, [])
+
         self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
@@ -39,20 +43,6 @@ class ScriptConfig:
         self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
         self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
-
-    def get_args_list(self):
-        """ Return a list of the arguments of the script, along with the default values.
-        """
-        args_dict = {}
-        return args_dict
-
-    def get_help(self):
-        """ Return script help along with help for each argument.
-        """
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        return ret
 
 
 def get_date(revision: str):
