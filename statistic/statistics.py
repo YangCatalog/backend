@@ -131,12 +131,12 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
             results = parsed_yang.search('revision')
             if results:
                 revision = results[0].arg
+        else:
+            continue
         organization = resolve_organization(module_path, parsed_yang)
         name = filename.split('.')[0].split('@')[0]
         if revision is None:
             revision = '1970-01-01'
-        if name is None or organization is None:
-            continue
         organization = organization.replace(' ', '%20')
         if ',' in organization:
             path = os.path.join(yangcatalog_api_prefix, 'search/name', name)
@@ -412,7 +412,9 @@ def main(scriptConf: ScriptConfig = None):
 
         versions = {}
         for os_type, _ in os_types:
-            versions[os_type] = sorted(next(os.walk('{}/vendor/cisco/{}'.format(yang_models, os_type)))[1])
+            os_type_dir = os.path.join(yang_models, 'vendor/cisco', os_type)
+            dirs = (dir for dir in os.listdir(os_type_dir) if os.path.isdir(os.path.join(os_type_dir, dir)))
+            versions[os_type] = sorted(dirs)
 
         values = {}
         json_output = {}
@@ -438,8 +440,8 @@ def main(scriptConf: ScriptConfig = None):
             """
             kwargs.setdefault('removedup', True)
             script_conf = all_stats.ScriptConfig()
-            for key, value in kwargs:
-                setattr(script_conf, key, value)
+            for key, value in kwargs.items():
+                setattr(script_conf.args, key, value)
             with redirect_stdout(io.StringIO()) as f:
                     all_stats.main(script_conf=script_conf)
             return f.getvalue()
