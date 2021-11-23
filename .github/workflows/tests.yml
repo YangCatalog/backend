@@ -36,7 +36,7 @@ jobs:
 
       - name: Feed Redis
         run: |
-          python feed_redis.py
+          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf python feed_redis.py
 
       - name: Copy json_tree pyang plugin
         run: |
