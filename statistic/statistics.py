@@ -28,12 +28,12 @@ number of vendor yang files, number of unique yang files,
 number of yang files in yang-catalog...
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
+
 import fnmatch
 import json
 import os
@@ -41,54 +41,32 @@ import shutil
 import subprocess
 import sys
 import time
+import typing as t
 
 import jinja2
 import requests
+
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import github_url, json_headers
+from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import github_url, json_headers, NS_MAP, MISSING_ELEMENT
 from utility.util import find_first_file, get_curr_dir, job_log
 
-NS_MAP = {
-    "http://cisco.com/": "cisco",
-    "http://www.huawei.com/netconf": "huawei",
-    "http://openconfig.net/yang": "openconfig",
-    "http://tail-f.com/": "tail-f",
-    "http://yang.juniper.net/": "juniper"
-}
-MISSING_ELEMENT = 'independent'
 
-
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        self.help = 'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang ' \
-                    'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily' \
-                    ' cronjob'
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['config_path'] = 'Set path to config file'
-        return ret
+        help = 'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang ' \
+               'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily ' \
+               'cronjob'
+        args: t.List[Arg] = [{
+            'flag': '--config-path',
+            'help': 'Set path to config file',
+            'type': str,
+            'default': os.environ['YANGCATALOG_CONFIG_PATH']
+        }]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def render(tpl_path, context):

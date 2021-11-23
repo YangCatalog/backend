@@ -18,18 +18,18 @@ yang modules to the Github YangModels/yang repository.
 Old ones are removed and naming is corrected to <name>@<revision>.yang.
 """
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 
-import argparse
 import os
 import shutil
 import subprocess
 import sys
 import time
+import typing as t
 import xml.etree.ElementTree as ET
 from shutil import copy2
 
@@ -37,6 +37,7 @@ import utility.log as log
 from git.exc import GitCommandError
 from utility import repoutil
 from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
 
 from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
@@ -44,34 +45,17 @@ from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 set_permissions)
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        parser = argparse.ArgumentParser()
-        self.help = 'Pull the latest IANA-maintained files and add them to the Github if there are any new.'
-        parser.add_argument('--config-path', type=str,
-                            default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['config_path'] = 'Set path to config file'
-        return ret
+        help = 'Pull the latest IANA-maintained files and add them to the Github if there are any new.'
+        args: t.List[Arg] = [{
+            'flag': '--config-path',
+            'help': 'Set path to config file',
+            'type': str,
+            'default': os.environ['YANGCATALOG_CONFIG_PATH']
+        }]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def main(scriptConf=None):

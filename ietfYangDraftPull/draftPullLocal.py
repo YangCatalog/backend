@@ -19,20 +19,21 @@ tool to parse and populate all new ietf DRAFT
 and RFC modules.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
 import os
 import shutil
 import time
+import typing as t
 
 import requests
 import utility.log as log
 from utility import repoutil
 from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import github_url
 from utility.util import job_log
 
@@ -42,33 +43,18 @@ from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
                                                 get_draft_module_content)
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
+
     def __init__(self):
-        self.help = 'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the' \
-                    ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-        self.args, extra_args = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['config_path'] = 'Set path to config file'
-        return ret
+        help = 'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the ' \
+               'metadata to yangcatalog if there are any new. This runs as a daily cronjob'
+        args: t.List[Arg] = [{
+            'flag': '--config-path',
+            'help': 'Set path to config file',
+            'type': str,
+            'default': os.environ['YANGCATALOG_CONFIG_PATH']
+        }]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def run_populate_script(directory: str, notify: bool, LOGGER):

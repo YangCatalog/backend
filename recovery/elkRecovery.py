@@ -18,67 +18,72 @@ This script will save or load all the records saved in
 Elasticsearch database.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import argparse
-import datetime
+
 import os
+import typing as t
 from operator import itemgetter
 
 from elasticsearch import Elasticsearch
 from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
 
 
-class ScriptConfig:
+class ScriptConfig(BaseScriptConfig):
+
     def __init__(self):
-        self.help = 'This serves to save or load all information in yangcatalog.org in elk.' \
-            'in case the server will go down and we would lose all the information we' \
-            ' have got. We have two options in here. This runs as a cronjob to create snapshot'
-        parser = argparse.ArgumentParser(description=self.help)
-        parser.add_argument('--name_save', default=str(datetime.datetime.utcnow()).split('.')[0].replace(' ', '_').replace(':', '-') + '-utc',
-                            type=str, help='Set name of the file to save. Default name is date and time in UTC')
-        parser.add_argument('--name_load', type=str, default='',
-                            help='Set name of the file to load. Default will take a last saved file')
-        parser.add_argument('--save', action='store_true', default=True,
-                            help='Set whether you want to create snapshot. Default is True')
-        parser.add_argument('--load', action='store_true', default=False,
-                            help='Set whether you want to load from snapshot. Default is False')
-        parser.add_argument('--latest', action='store_true', default=True,
-                            help='Set whether to load the latest snapshot')
-        parser.add_argument('--compress', action='store_true', default=True,
-                            help='Set whether to compress snapshot files. Default is True')
-        parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                            help='Set path to config file')
-
-        self.args, _ = parser.parse_known_args()
-        self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
-    def get_args_list(self):
-        args_dict = {}
-        keys = [key for key in self.args.__dict__.keys()]
-        types = [type(value).__name__ for value in self.args.__dict__.values()]
-
-        i = 0
-        for key in keys:
-            args_dict[key] = dict(type=types[i], default=self.defaults[i])
-            i += 1
-        return args_dict
-
-    def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['save'] = 'Set whether you want to create snapshot. Default is True'
-        ret['options']['load'] = 'Set whether you want to load from snapshot. Default is False'
-        ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
-        ret['options']['compress'] = 'Set whether to compress snapshot files. Default is True'
-        ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
-        ret['options']['latest'] = 'Set whether to load the latest snapshot'
-        ret['options']['config_path'] = 'Set path to config file'
-        return ret
+        help = 'This serves to save or load all information in yangcatalog.org in elk.' \
+               'in case the server will go down and we would lose all the information we' \
+               ' have got. We have two options in here. This runs as a cronjob to create snapshot'
+        args: t.List[Arg] = [
+            {
+                'flag': '--name_save',
+                'help': 'Set name of the file to save. Default name is date and time in UTC',
+                'type': str,
+                'default': ''
+            },
+            {
+                'flag': '--name_load',
+                'help': 'Set name of the file to load. Default will take a last saved file',
+                'type': str,
+                'default': ''
+            },
+            {
+                'flag': '--save',
+                'help': 'Set whether you want to create snapshot. Default is True',
+                'action': 'store_true',
+                'default': True
+            },
+            {
+                'flag': '--load',
+                'help': 'Set whether you want to load from snapshot. Default is False',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--latest',
+                'help': 'Set whether to load the latest snapshot',
+                'action': 'store_true',
+                'default': True
+            },
+            {
+                'flag': '--compress',
+                'help': 'Set whether to compress snapshot files. Default is True',
+                'action': 'store_true',
+                'default': True
+            },
+            {
+                'flag': '--config-path',
+                'help': 'Set path to config file',
+                'type': str,
+                'default': os.environ['YANGCATALOG_CONFIG_PATH']
+            }
+        ]
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def create_register_elk_repo(name, is_compress, elk):
