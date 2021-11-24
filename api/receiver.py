@@ -208,17 +208,6 @@ class Receiver:
 
         vendor_data = requests.get(path, headers=json_headers).json()
 
-        # NOTE: Returning all the vendors data (from db=1)
-        # import redis
-        # redis = redis.Redis(host='yc-redis', port=6379)
-        # data = redis.get('vendors-data')
-        # redis_vendors_raw = (data or b'{}').decode('utf-8')
-        # redis_vendors = json.loads(redis_vendors_raw)
-
-        # TODO: Fetch all the vendors data (from db=4)
-        # redis_vendors_raw = self.redisConnection.get_all_vendors()
-        # redis_vendors = json.loads(redis_vendors_raw)
-
         confd_keys = set()
         redis_keys = set()
         deleted_modules = []

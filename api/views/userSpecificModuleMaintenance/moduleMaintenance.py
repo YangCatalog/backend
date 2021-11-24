@@ -582,7 +582,7 @@ def get_mod_redis(module: dict):
 
 
 def organization_by_namespace(namespace: str):
-    for ns, org in NS_MAP.items():
+    for ns, org in NS_MAP:
         if ns in namespace:
             return org
         else:

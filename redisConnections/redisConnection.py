@@ -43,30 +43,34 @@ class RedisConnection:
 
     ### MODULES DATABASE COMMUNICATION ###
     def update_module_properties(self, new_module: dict, existing_module: dict):
-        updated_module = {**existing_module, **new_module}
-        for prop in ['submodule', 'dependents', 'dependencies', 'implementations']:
-            new_prop_list = new_module.get(prop, [])
-            if new_prop_list:
-                if prop == 'implementations':
-                    existing_prop_list = existing_module.get('implementations', {}).get('implementation', [])
-                    existing_impl_names = [self.create_implementation_key(impl) for impl in existing_prop_list]
-                    for new_implementation in new_prop_list.get('implementation', []):
-                        if self.create_implementation_key(new_implementation) not in existing_impl_names:
-                            existing_prop_list.append(new_implementation)
-                    updated_module['implementations']['implementation'] = existing_prop_list
-                else:
-                    existing_prop_list = existing_module.get(prop, [])
-                    existing_prop_names = [existing_prop.get('name') for existing_prop in existing_prop_list]
-                    for new_prop_value in new_prop_list:
-                        if new_prop_value.get('name') not in existing_prop_names:
-                            existing_prop_list.append(new_prop_value)
-                            existing_prop_names.append(new_prop_value.get('name'))
-                        else:
-                            index = existing_prop_names.index(new_prop_value.get('name'))
-                            existing_prop_list[index] = new_prop_value
-                    updated_module[prop] = existing_prop_list
+        for key, value in existing_module.items():
+            if key == 'implementations':
+                new_impls = new_module.get('implementations', {}).get('implementation', [])
+                existing_impls = existing_module.get('implementations', {}).get('implementation', [])
+                existing_impls_names = [self.create_implementation_key(impl) for impl in existing_impls]
+                for new_impl in new_impls:
+                    new_impl_name = self.create_implementation_key(new_impl)
+                    if new_impl_name not in existing_impls_names:
+                        existing_impls.append(new_impl)
+                        existing_impls_names.append(new_impl_name)
+            elif key in ['submodule', 'dependents', 'dependencies']:
+                new_prop_list = new_module.get(key, [])
+                existing_prop_list = existing_module.get(key, [])
+                existing_prop_names = [existing_prop.get('name') for existing_prop in existing_prop_list]
+                for new_prop in new_prop_list:
+                    new_prop_name = new_prop.get('name')
+                    if new_prop_name not in existing_prop_names:
+                        existing_prop_list.append(new_prop)
+                        existing_prop_names.append(new_prop_name)
+                    else:
+                        index = existing_prop_names.index(new_prop_name)
+                        existing_prop_list[index] = new_prop
+            else:
+                new_value = new_module.get(key)
+                if value != new_value and new_value is not None:
+                    existing_module[key] = new_value
 
-        return updated_module
+        return existing_module
 
     def populate_modules(self, new_modules: list):
         """ Merge new data of each module in "new_modules" list with existing data already stored in Redis.

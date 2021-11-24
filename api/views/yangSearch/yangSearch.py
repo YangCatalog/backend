@@ -451,7 +451,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
     if module_data == '{}':
         if warnings:
             return {'warning': 'module {} does not exists in API'.format(module_key)}
-        else:        
+        else:
             abort(404, description='Provided module does not exist')
     else:
         module_data = json.loads(module_data)
