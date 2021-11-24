@@ -46,7 +46,7 @@ class Arg(BaseArg, total=False):
 class BaseScriptConfig:
 
     def __init__(self, help: str, args: t.Optional[t.List[Arg]], arglist: t.Optional[t.List[str]]):
-        parser = argparse.ArgumentParser()
+        parser = argparse.ArgumentParser(description=help)
         self.help: Help = {'help': help, 'options': {}}
         self.args_dict = {}
         if args:

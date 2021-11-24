@@ -735,7 +735,7 @@ class Modules:
                     return
             except:
                 pass
-            for ns, org in NS_MAP.items():
+            for ns, org in NS_MAP:
                 if ns in self.namespace:
                     self.organization = org
                     return
@@ -974,7 +974,7 @@ class Modules:
         integrity_checker.add_revision(key2, self.__missing_revision)
 
         if self.__missing_namespace is None:
-            for ns, _ in NS_MAP.items():
+            for ns, _ in NS_MAP:
                 if (ns not in self.namespace and 'urn:' not in self.namespace)\
                         or 'urn:cisco' in self.namespace:
                     self.__missing_namespace = '{} : {}'.format(self.name, self.namespace)

@@ -60,13 +60,13 @@ IETF_RFC_MAP = {
     'ietf-yang-types@2013-07-15.yang': 'NETMOD'
 }
 
-NS_MAP = {
-    'http://cisco.com/': 'cisco',
-    'http://www.huawei.com/netconf': 'huawei',
-    'http://openconfig.net/yang': 'openconfig',
-    'http://tail-f.com/': 'tail-f',
-    'http://yang.juniper.net/': 'juniper'
-}
+NS_MAP = (
+    ('http://cisco.com/', 'cisco'),
+    ('http://www.huawei.com/netconf', 'huawei'),
+    ('http://openconfig.net/yang', 'openconfig'),
+    ('http://tail-f.com/', 'tail-f'),
+    ('http://yang.juniper.net/', 'juniper')
+)
 
 github_url = 'https://github.com'
 github_raw = 'https://raw.githubusercontent.com'

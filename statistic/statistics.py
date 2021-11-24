@@ -17,15 +17,15 @@
 This script will find all the sdos and vendors and creates a
 html file with statistics for specific organizations.
 
-The statistics include number of modules in github,
-number of modules in catalog, percentage that passes
-compilation and for vendor Cisco we have information
-about what platforms are supported for specific version
-of specific OS-type
+The statistics include the number of modules on github,
+number of modules in the catalog, percentage that passes
+compilation, and for Cisco we have information about
+what platforms are supported for specific versions
+of specific OS-types.
 
 The html file also contains general statistics like
-number of vendor yang files, number of unique yang files,
-number of yang files in yang-catalog...
+the number of vendor yang files, the number of unique yang files,
+the number of yang files in yang-catalog...
 """
 
 __author__ = 'Miroslav Kovac'
@@ -36,17 +36,19 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import fnmatch
 import json
+import io
 import os
 import shutil
-import subprocess
 import sys
 import time
 import typing as t
+from contextlib import redirect_stdout
 
 import jinja2
 import requests
 
 import utility.log as log
+from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -69,7 +71,7 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def render(tpl_path, context):
+def render(tpl_path: str, context: dict) -> str:
     """Render jinja html template
         Arguments:
             :param tpl_path: (str) path to a file
@@ -84,9 +86,9 @@ def render(tpl_path, context):
     ).get_template(filename).render(context)
 
 
-def list_of_yang_modules_in_subdir(srcdir):
+def list_yang_modules_recursive(srcdir: str) -> t.List[str]:
     """
-    Returns the list of YANG Modules (.yang) in all sub-directories
+    Returns the list of paths of YANG Modules (.yang) in all sub-directories
         Arguments
             :param srcdir: (str) root directory to search for yang files
             :return: list of YANG files
@@ -94,56 +96,53 @@ def list_of_yang_modules_in_subdir(srcdir):
     ll = []
     for root, _, files in os.walk(srcdir):
         for f in files:
-            if f.endswith(".yang"):
+            if f.endswith('.yang'):
                 ll.append(os.path.join(root, f))
     return ll
 
 
-def get_specifics(path_dir):
-    """Get amount of yang files in specified directory and the amount that
-    passed compilation
+def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
+    """Get the number of yang files in a specified directory and the
+    number that passed compilation.
         Arguments:
-            :param path_dir: (str) path to directory where we are searching for
+            :param path_dir: (str) path to the directory where to search for
                 yang files
-            :return: list containing amount of yang files and amount that pass
-                compilation respectively
+            :return: tuple containing the number of yang files and the number
+                that passed compilation respectively
     """
     passed = 0
     num_in_catalog = 0
-    yang_modules = list_of_yang_modules_in_subdir(path_dir)
-    yang_modules_length = len(yang_modules)
-    x = 0
+    yang_modules = list_yang_modules_recursive(dir)
+    num_of_modules = len(yang_modules)
     checked = {}
-    for mod_git in yang_modules:
-        x += 1
-        LOGGER.info("{} out of {} getting specifics from {}".format(x, yang_modules_length, path_dir))
-        m_name_revision = mod_git.split('/')[-1]
-        if m_name_revision in checked.keys():
-            if checked[m_name_revision]['passed']:
-                passed += 1
-            if checked[m_name_revision]['in-catalog']:
-                num_in_catalog += 1
+    for i, module_path in enumerate(yang_modules, start=1):
+        LOGGER.info('{} out of {} getting specifics from {}'.format(i, num_of_modules, dir))
+        filename = os.path.basename(module_path)
+        if filename in checked.keys():
+            passed += checked[filename]['passed']
+            num_in_catalog += checked[filename]['in-catalog']
             continue
-        checked[m_name_revision] = {}
-        checked[m_name_revision]['passed'] = False
-        checked[m_name_revision]['in-catalog'] = False
-        try:
-            parsed_yang = yangParser.parse(os.path.abspath(mod_git))
-            revision = parsed_yang.search('revision')[0].arg
-        except:
+        checked[filename] = {}
+        checked[filename]['passed'] = False
+        checked[filename]['in-catalog'] = False
+        revision = None
+        parsed_yang = yangParser.parse(os.path.abspath(module_path))
+        if parsed_yang:
+            results = parsed_yang.search('revision')
+            if results:
+                revision = results[0].arg
+        else:
             continue
-        organization = resolve_organization(mod_git, parsed_yang)
-        name = m_name_revision.split('.')[0].split('@')[0]
+        organization = resolve_organization(module_path, parsed_yang)
+        name = filename.split('.')[0].split('@')[0]
         if revision is None:
             revision = '1970-01-01'
-        if name is None or organization is None:
-            continue
+        organization = organization.replace(' ', '%20')
         if ',' in organization:
-            organization = organization.replace(' ', '%20')
-            path = '{}search/name/{}'.format(yangcatalog_api_prefix, name)
-            module_exist = requests.get(path, headers=json_headers)
-            if repr(module_exist.status_code).startswith('20'):
-                data = module_exist.json()
+            path = os.path.join(yangcatalog_api_prefix, 'search/name', name)
+            module_exists = requests.get(path, headers=json_headers)
+            if module_exists.status_code % 100 == 2:
+                data = module_exists.json()
                 org = data['yang-catalog:modules']['module'][0]['organization']
                 rev = data['yang-catalog:modules']['module'][0]['revision']
                 status = data['yang-catalog:modules']['module'][0].get('compilation-status')
@@ -152,130 +151,118 @@ def get_specifics(path_dir):
                         passed += 1
                     num_in_catalog += 1
             else:
-                LOGGER.error('Could not send request with path {}'.format(path))
+                LOGGER.error('Could not make request on path {}'.format(path))
         else:
-            organization = organization.replace(' ', '%20')
             mod = '{}@{}_{}'.format(name, revision, organization)
             data = all_modules_data_unique.get(mod)
             if data is not None:
                 if 'passed' == data.get('compilation-status'):
                     passed += 1
-                    checked[m_name_revision]['passed'] = True
-                checked[m_name_revision]['in-catalog'] = True
+                    checked[filename]['passed'] = True
+                checked[filename]['in-catalog'] = True
                 num_in_catalog += 1
             else:
                 LOGGER.error('module {} does not exist'.format(mod))
-    return [num_in_catalog, passed]
+    return num_in_catalog, passed
 
 
-def resolve_organization(path, parsed_yang):
+def match_organization(namespace: str, found: t.Optional[str]) -> str:
+    for ns, org in NS_MAP:
+        if ns in namespace:
+            return org
+    if found is None:
+        if 'cisco' in namespace:
+            return 'cisco'
+        elif 'ietf' in namespace:
+            return 'ietf'
+        elif 'urn:' in namespace:
+            return namespace.split('urn:')[1].split(':')[0]
+        else:
+            return MISSING_ELEMENT
+    else:
+        return found
+
+
+def resolve_organization(path: str, parsed_yang) -> str:
     """Parse yang file and resolve organization out of the module. If the module
     is a submodule find it's parent and resolve its organization
             Arguments:
                 :param path: (str) path to a file to parse and resolve a organization
                 :param parsed_yang (object) pyang parsed yang file object
-                :return: list containing amount of yang files and amount that pass
-                    compilation respectively
+                :return: (str) organization the yang file belongs to
     """
-    organization = ''
-    try:
-        temp_organization = parsed_yang.search('organization')[0].arg.lower()
-        if 'cisco' in temp_organization or 'CISCO' in temp_organization:
+    organization = None
+    results = parsed_yang.search('organization')
+    if results:
+        result = results[0].arg.lower()
+        if 'cisco' in result:
             organization = 'cisco'
-        elif 'ietf' in temp_organization or 'IETF' in temp_organization:
+        elif 'ietf' in result:
             organization = 'ietf'
-    except:
-        pass
-    try:
-        namespace = parsed_yang.search('namespace')[0].arg
-        for ns, org in NS_MAP.items():
-            if ns in namespace:
-                organization = org
-        if organization == '':
-            if 'cisco' in namespace or 'CISCO' in namespace:
-                organization = 'cisco'
-            elif 'ietf' in namespace or 'IETF' in namespace:
-                organization = 'ietf'
-            elif 'urn:' in namespace:
-                organization = namespace.split('urn:')[1].split(':')[0]
-        if organization == '':
-            organization = MISSING_ELEMENT
-    except:
-        try:
-            belongs_to = parsed_yang.search('belongs-to')[0].arg
-        except:
-            organization = MISSING_ELEMENT
-            return organization
-        try:
+    namespace = None
+    results = parsed_yang.search('namespace')
+    if results:
+        namespace = results[0].arg.lower()
+    else:
+        results = parsed_yang.search('belongs-to')
+        if results:
+            belongs_to = results[0].arg
             pattern = '{}.yang'.format(belongs_to)
             pattern_with_revision = '{}@*.yang'.format(belongs_to)
-            yang_file = find_first_file('/'.join(path.split('/')[:-1]), pattern, pattern_with_revision)
-            namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
-            for ns, org in NS_MAP.items():
-                if ns in namespace:
-                    organization = org
-            if organization == '':
-                if 'cisco' in namespace or 'CISCO' in namespace:
-                    organization = 'cisco'
-                elif 'ietf' in namespace or 'IETF' in namespace:
-                    organization = 'ietf'
-                elif 'urn:' in namespace:
-                    organization = namespace.split('urn:')[1].split(':')[0]
-            if organization == '':
-                organization = MISSING_ELEMENT
-            return organization
-        except:
-            try:
-                pattern = '{}.yang'.format(belongs_to)
-                pattern_with_revision = '{}@*.yang'.format(belongs_to)
+            results = None
+            yang_file = find_first_file(os.path.dirname(path), pattern, pattern_with_revision)
+            if yang_file is None:
                 yang_file = find_first_file('/'.join(path.split('/')[:-2]), pattern, pattern_with_revision)
-                namespace = yangParser.parse(os.path.abspath(yang_file)).search('namespace')[0].arg
-                for ns, org in NS_MAP.items():
-                    if ns in namespace:
-                        organization = org
-                if organization == '':
-                    if 'cisco' in namespace or 'CISCO' in namespace:
-                        organization = 'cisco'
-                    elif 'ietf' in namespace or 'IETF' in namespace:
-                        organization = 'ietf'
-                    elif 'urn:' in namespace:
-                        organization = namespace.split('urn:')[1].split(':')[0]
-                if organization == '':
-                    organization = MISSING_ELEMENT
-            except:
-                organization = MISSING_ELEMENT
-    return organization
+            if yang_file is not None:
+                parsed = yangParser.parse(os.path.abspath(yang_file))
+                if parsed:
+                    results = parsed.search('namespace')
+                    if results:
+                        namespace = results[0].arg.lower()
+    if namespace is None:
+        return MISSING_ELEMENT
+    else:
+        return match_organization(namespace, organization)
 
 
-def process_data(out, save_list, path, name):
+class InfoTable(t.TypedDict):
+    name: str
+    num_github: int
+    num_catalog: int
+    percentage_compile: str
+    percentage_extra: t.Literal['unknown']
+
+
+def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
     """Process all the data out of output from runYANGallstats and Yang files themself
         Arguments:
-            :param out: (str) output from runYANGallstats
+            :param out: (bytes) output from runYANGallstats
             :param save_list: (list) list to which we are saving all the informations
             :param path: (str) path to a directory to which we are creating statistics
             :param name: (str) name of the vendor or organization that we are creating
                 statistics for
     """
     LOGGER.info('Getting info from {}'.format(name))
-    out = out.decode('utf-8')
-    table_sdo = {}
     if name == 'openconfig':
         modules = 0
     else:
-        modules = out.split(path + ' : ')[1].split('\n')[0]
-    num_in_catalog, passed = get_specifics(path)
-    table_sdo['name'] = name
-    table_sdo['num_github'] = modules
-    table_sdo['num_catalog'] = num_in_catalog
-    try:
-        table_sdo['percentage_compile'] = repr(round((float(passed) / num_in_catalog) * 100, 2)) + ' %'
-    except ZeroDivisionError:
-        table_sdo['percentage_compile'] = '0.0 %'
-    table_sdo['percentage_extra'] = 'unknown'
-    save_list.append(table_sdo)
+        modules = int(out.split('{} : '.format(path))[1].splitlines()[0])
+    num_in_catalog, passed = get_total_and_passed(path)
+    if num_in_catalog != 0:
+        compiled = '{} %'.format(repr(round((float(passed) / num_in_catalog) * 100, 2)))
+    else:
+        compiled = '0.0 %'
+    info_table: InfoTable = {
+        'name': name,
+        'num_github': modules,
+        'num_catalog': num_in_catalog,
+        'percentage_compile': compiled,
+        'percentage_extra': 'unknown'
+    }
+    save_list.append(info_table)
 
 
-def solve_platforms(path, platform, LOGGER):
+def solve_platforms(path: str) -> set:
     """
     Resolve all the platforms on specified path and fills the platform
     set variable with the found data
@@ -285,6 +272,7 @@ def solve_platforms(path, platform, LOGGER):
         :param platform     (set) empty set of platforms - will be filled with platforms data on specified path
         :param LOGGER       (obj) formated logger with the specified name
     """
+    platforms = set()
     matches = []
     for root, _, filenames in os.walk(path):
         for filename in fnmatch.filter(filenames, 'platform-metadata.json'):
@@ -293,17 +281,14 @@ def solve_platforms(path, platform, LOGGER):
         with open(match, encoding='utf-8') as f:
             try:
                 js_objs = json.load(f)['platforms']['platform']
-            except ValueError as e:  # Legacy Python
-                LOGGER.error("JSON file {} cannot be parsed, skipping it ({})".format(match, e))
-                continue
-            except json.decoder.JSONDecodeError as e:  # Better messages with Python 3.5 and above
-                LOGGER.error("File {} has an invalid JSON layout, skipping it ({})".format(match, e))
-                continue
-            for js_obj in js_objs:
-                platform.add(js_obj['name'])
+                for js_obj in js_objs:
+                    platforms.add(js_obj['name'])
+            except json.decoder.JSONDecodeError as e:
+                LOGGER.error('File {} has an invalid JSON layout, skipping it ({})'.format(match, e))
+    return platforms
 
 
-def main(scriptConf=None):
+def main(scriptConf: ScriptConfig = None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
@@ -325,18 +310,19 @@ def main(scriptConf=None):
 
     global LOGGER
     LOGGER = log.get_logger('statistics', '{}/statistics/yang.log'.format(log_directory))
-    separator = ':'
-    suffix = api_port
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
+    else:
+        separator = ':'
+        suffix = api_port
     global yangcatalog_api_prefix
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip, separator, suffix)
     LOGGER.info('Starting statistics')
     repo = None
 
     # Fetch the list of all modules known by YangCatalog
-    url = '{}search/modules'.format(yangcatalog_api_prefix)
+    url = os.path.join(yangcatalog_api_prefix, 'search/modules')
     try:
         response = requests.get(url, headers=json_headers)
         if response.status_code != 200:
@@ -345,195 +331,96 @@ def main(scriptConf=None):
         else:
             all_modules_data = response.json()
     except requests.exceptions.RequestException as e:
-        LOGGER.error('Cannot access {}, response code: {}'.format(url, e.response))
-        # Let's try again, who knows?
+        LOGGER.error('Cannot access {}, response code: {}\nRetrying in 120s'.format(url, e.response))
         time.sleep(120)
         response = requests.get(url, headers=json_headers)
-        all_modules_data = response.json()
-        LOGGER.error('After a while, OK to access {}'.format(url))
+        if response.status_code != 200:
+            LOGGER.error('Cannot access {}, response code: {}'.format(url, response.status_code))
+            sys.exit(1)
+        else:
+            all_modules_data = response.json()
+            LOGGER.error('Success after retry on {}'.format(url))
 
     vendor_data = {}
     for module in all_modules_data['module']:
-        if module.get('implementations') is not None:
-            for impl in module.get('implementations', {}).get('implementation', []):
-                if impl['vendor'] == 'cisco':
-                    if vendor_data.get(impl['os-type']) is None:
-                        vendor_data[impl['os-type']] = {}
-                    if impl['os-type'] == 'IOS-XE':
-                        vers = impl['software-version'].replace('.', '')
-                    else:
-                        vers = impl['software-version']
-                    if vendor_data[impl['os-type']].get(vers) is None:
-                        vendor_data[impl['os-type']][vers] = set()
-                    vendor_data[impl['os-type']][vers].add(impl['platform'])
+        for implementation in module.get('implementations', {}).get('implementation', []):
+            if implementation['vendor'] == 'cisco':
+                if implementation['os-type'] not in vendor_data:
+                    vendor_data[implementation['os-type']] = {}
+                version = implementation['software-version']
+                if implementation['os-type'] in ('IOS-XE', 'IOS-XR'):
+                    version = version.replace('.', '')
+                elif implementation['os-type'] == 'NX-OS':
+                    version = version.replace('(', '-').replace(')', '-').rstrip('-')
+                if version not in vendor_data[implementation['os-type']]:
+                    vendor_data[implementation['os-type']][version] = set()
+                vendor_data[implementation['os-type']][version].add(implementation['platform'])
 
     try:
         # pull(yang_models) no need to pull https://github.com/YangModels/yang as it is daily done via SDO_analysis module
 
-        xr = set()
-        nx = set()
-        xe = set()
-
-        xr_json_output = {}
-        nx_json_output = {}
-        xe_json_output = {}
-
-        solve_platforms('{}/vendor/cisco/xr'.format(yang_models), xr, LOGGER)
-        solve_platforms('{}/vendor/cisco/xe'.format(yang_models), xe, LOGGER)
-        solve_platforms('{}/vendor/cisco/nx'.format(yang_models), nx, LOGGER)
-
-        xr_versions = sorted(next(os.walk('{}/vendor/cisco/xr'.format(yang_models)))[1])
-        nx_versions = sorted(next(os.walk('{}/vendor/cisco/nx'.format(yang_models)))[1])
-        xe_versions = sorted(next(os.walk('{}/vendor/cisco/xe'.format(yang_models)))[1])
-        xr_values = []
-        nx_values = []
-        xe_values = []
-
-        for version in xr_versions:
-            platforms = None
-            try:
-                path = '{}/vendor/cisco/xr/{}/platform-metadata.json'.format(yang_models, version)
-                with open(path, 'r') as f:
-                    data = json.load(f)
-                    platforms = data['platforms']['platform']
-            except:
-                platforms = []
-
-            values = [version]
-            xr_json_output[version] = {}
-            for value in xr:
-                if version == '':
-                    ver = ''
-                else:
-                    ver = '.'.join(version)
-                found = False
-                if vendor_data.get('IOS-XR') is None:
-                    exist = '<i class="fa fa-times"></i>'
-                    exist_json = False
-                else:
-                    if vendor_data['IOS-XR'].get(ver) is None:
-                        exist = '<i class="fa fa-times"></i>'
-                        exist_json = False
-                    else:
-                        if value in vendor_data['IOS-XR'][ver]:
-                            exist = '<i class="fa fa-check"></i>'
-                            exist_json = True
-                        else:
-                            exist = '<i class="fa fa-times"></i>'
-                            exist_json = False
-                for platform in platforms:
-                    if (platform['name'] == value and
-                            platform['software-version'] == ver):
-                        values.append('<i class="fa fa-check"></i>/{}'.format(exist))
-                        xr_json_output[version][value] = {
-                            "yangcatalog": True,
-                            "github": exist_json
-                        }
-                        found = True
-                        break
-                if not found:
-                    values.append('<i class="fa fa-times"></i>/{}'.format(exist))
-                    xr_json_output[version][value] = {
-                        "yangcatalog": False,
-                        "github": exist_json
-                    }
-            xr_values.append(values)
-
-        for version in xe_versions:
-            platforms = None
-            try:
-                path = '{}/vendor/cisco/xe/{}/platform-metadata.json'.format(yang_models, version)
-                with open(path, 'r') as f:
-                    data = json.load(f)
-                    platforms = data['platforms']['platform']
-            except:
-                platforms = []
-            values = [version]
-            xe_json_output[version] = {}
-            for value in xe:
-                found = False
-                if vendor_data.get('IOS-XE') is None:
-                    exist = '<i class="fa fa-times"></i>'
-                    exist_json = False
-                else:
-                    if vendor_data['IOS-XE'].get(version) is None:
-                        exist = '<i class="fa fa-times"></i>'
-                        exist_json = False
-                    else:
-                        if value in vendor_data['IOS-XE'][version]:
-                            exist = '<i class="fa fa-check"></i>'
-                            exist_json = True
-                        else:
-                            exist = '<i class="fa fa-times"></i>'
-                            exist_json = False
-                for platform in platforms:
-                    if (platform['name'] == value and
-                            ''.join(platform['software-version'].split('.')) == version):
-                        values.append('<i class="fa fa-check"></i>/{}'.format(exist))
-                        xe_json_output[version][value] = {
-                            "yangcatalog": True,
-                            "github": exist_json
-                        }
-                        found = True
-                        break
-                if not found:
-                    values.append('<i class="fa fa-times"></i>/{}'.format(exist))
-                    xe_json_output[version][value] = {
-                        "yangcatalog": False,
-                        "github": exist_json
-                    }
-            xe_values.append(values)
-
-        for version in nx_versions:
-            platforms = None
-            try:
-                path = '{}/vendor/cisco/nx/{}/platform-metadata.json'.format(yang_models, version)
-                with open(path, 'r') as f:
-                    data = json.load(f)
-                    platforms = data['platforms']['platform']
-            except:
-                platforms = []
-            values = [version]
-            nx_json_output[version] = {}
-            for value in nx:
-                ver = version.split('-')
+        # function needs to be renamed to something more descriptive (I don't quite understand it's purpose)
+        def process_platforms(versions: t.List[str], module_platforms,
+                              os_type: str, os_type_name: str) -> t.Tuple[list, dict]:
+            platform_values = []
+            json_output = {}
+            for version in versions:
                 try:
-                    ver = '{}({}){}({})'.format(ver[0], ver[1], ver[2], ver[3])
-                except IndexError:
-                    LOGGER.warning("cisco-nx software version different then others. Trying another format")
-                    ver = '{}({})'.format(ver[0], ver[1])
-                found = False
-                if vendor_data.get('NX-OS') is None:
+                    path = '{}/vendor/cisco/{}/{}/platform-metadata.json'.format(yang_models, os_type, version)
+                    with open(path, 'r') as f:
+                        data = json.load(f)
+                        metadata_platforms = data['platforms']['platform']
+                except:
+                    metadata_platforms = []
+                values = [version]
+                json_output[version] = {}
+                for module_platform in module_platforms:
                     exist = '<i class="fa fa-times"></i>'
                     exist_json = False
-                else:
-                    if vendor_data['NX-OS'].get(ver) is None:
-                        exist = '<i class="fa fa-times"></i>'
-                        exist_json = False
+                    if os_type_name in vendor_data:
+                        if version in vendor_data[os_type_name]:
+                            if module_platform in vendor_data[os_type_name][version]:
+                                exist = '<i class="fa fa-check"></i>'
+                                exist_json = True
+                    for metadata_platform in metadata_platforms:
+                        if (metadata_platform['name'] == module_platform and
+                                metadata_platform['software-version'] == version):
+                            values.append('<i class="fa fa-check"></i>/{}'.format(exist))
+                            json_output[version][module_platform] = {
+                                'yangcatalog': True,
+                                'github': exist_json
+                            }
+                            break
                     else:
-                        if value in vendor_data['NX-OS'][ver]:
-                            exist = '<i class="fa fa-check"></i>'
-                            exist_json = True
-                        else:
-                            exist = '<i class="fa fa-times"></i>'
-                            exist_json = False
-                for platform in platforms:
-                    if (platform['name'] == value and
-                            platform['software-version'] == ver):
-                        values.append('<i class="fa fa-check"></i>/{}'.format(exist))
-                        nx_json_output[version][value] = {
-                            "yangcatalog": True,
-                            "github": exist_json
+                        values.append('<i class="fa fa-times"></i>/{}'.format(exist))
+                        json_output[version][module_platform] = {
+                            'yangcatalog': False,
+                            'github': exist_json
                         }
-                        found = True
-                        break
-                if not found:
-                    values.append('<i class="fa fa-times"></i>/{}'.format(exist))
-                    nx_json_output[version][value] = {
-                        "yangcatalog": False,
-                        "github": exist_json
-                    }
-            nx_values.append(values)
+                platform_values.append(values)
+            return platform_values, json_output
+
+        os_types = (
+            ('xr', 'IOS-XR'),
+            ('xe', 'IOS-XE'),
+            ('nx', 'NX-OS')
+        )
+
+        platforms = {}
+        for os_type, _ in os_types:
+            platforms[os_type] = solve_platforms('{}/vendor/cisco/{}'.format(yang_models, os_type))
+
+        versions = {}
+        for os_type, _ in os_types:
+            os_type_dir = os.path.join(yang_models, 'vendor/cisco', os_type)
+            dirs = (dir for dir in os.listdir(os_type_dir) if os.path.isdir(os.path.join(os_type_dir, dir)))
+            versions[os_type] = sorted(dirs)
+
+        values = {}
+        json_output = {}
+        for os_type, name in os_types:
+            values[os_type], json_output[os_type] = process_platforms(versions[os_type], platforms[os_type],
+                                                                      os_type, name)
 
         global all_modules_data_unique
         all_modules_data_unique = {}
@@ -547,121 +434,75 @@ def main(scriptConf=None):
         # Vendors separately
         vendor_list = []
 
-        for direc in next(os.walk(yang_models + '/vendor'))[1]:
-            vendor_direc = yang_models + '/vendor/' + direc
+        def get_output(**kwargs) -> str:
+            """run runYANGallstats with the provided kwargs as command line arguments.
+            removedup is set to True by default.
+            """
+            kwargs.setdefault('removedup', True)
+            script_conf = all_stats.ScriptConfig()
+            for key, value in kwargs.items():
+                setattr(script_conf.args, key, value)
+            with redirect_stdout(io.StringIO()) as f:
+                    all_stats.main(script_conf=script_conf)
+            return f.getvalue()
+
+        for direc in next(os.walk(os.path.join(yang_models, 'vendor')))[1]:
+            vendor_direc = os.path.join(yang_models, 'vendor', direc)
             if os.path.isdir(vendor_direc):
-                LOGGER.info('{}'.format(get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py'))
-                process = subprocess.Popen(
-                    ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', vendor_direc,
-                     '--removedup', 'True'], stdout=subprocess.PIPE)
-                out, err = process.communicate()
+                LOGGER.info('Running runYANGallstats.py for directory {}'.format(vendor_direc))
+                out = get_output(rootdir=vendor_direc)
                 process_data(out, vendor_list, vendor_direc, direc)
 
         # Vendors all together
-        process = subprocess.Popen(
-            ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/vendor',
-             '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        out = out.decode('utf-8')
-        vendor_modules = out.split(yang_models + '/vendor : ')[1].split('\n')[0]
-        vendor_modules_ndp = out.split(yang_models + '/vendor (duplicates removed): ')[1].split('\n')[0]
+        out = get_output(rootdir=os.path.join(yang_models, 'vendor'))
+        vendor_modules = out.split('{}/vendor : '.format(yang_models))[1].splitlines()[0]
+        vendor_modules_ndp = out.split('{}/vendor (duplicates removed): '.format(yang_models))[1].splitlines()[0]
 
         # Standard all together
-        process = subprocess.Popen(
-            ['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir', yang_models + '/standard',
-             '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        out = out.decode('utf-8')
-        standard_modules = out.split(yang_models + '/standard : ')[1].split('\n')[0]
-        standard_modules_ndp = out.split(yang_models + '/standard (duplicates removed): ')[1].split('\n')[0]
+        out = get_output(rootdir=os.path.join(yang_models, 'standard'))
+        standard_modules = out.split('{}/standard : '.format(yang_models))[1].splitlines()[0]
+        standard_modules_ndp = out.split('{}/standard (duplicates removed): '.format(yang_models))[1].splitlines()[0]
 
         # Standard separately
         sdo_list = []
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/ietf/RFC', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/ietf/RFC', 'IETF RFCs')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/ietf/DRAFT', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/ietf/DRAFT', 'IETF drafts')
+        def process_sdo_dir(dir: str, name: str):
+            out = get_output(rootdir=os.path.join(yang_models, dir))
+            process_data(out, sdo_list, os.path.join(yang_models, dir), name)
+        
+        process_sdo_dir('standard/ietf/RFC', 'IETF RFCs')
+        process_sdo_dir('standard/ietf/DRAFT', 'IETF drafts')
+        process_sdo_dir('experimental/ietf-extracted-YANG-modules', 'IETF experimental drafts')
+        process_sdo_dir('standard/bbf/standard', 'BBF standard')
+        process_sdo_dir('standard/etsi/SOL006', 'ETSI standard')
+        process_sdo_dir('standard/bbf/draft', 'BBF draft')
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/experimental/ietf-extracted-YANG-modules', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/experimental/ietf-extracted-YANG-modules',
-                     'IETF experimental drafts')
-
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/bbf/standard', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/bbf/standard', 'BBF standard')
-
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/etsi/SOL006', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/etsi/SOL006', 'ETSI standard')
-
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/bbf/draft', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/bbf/draft', 'BBF draft')
-
-        for direc in next(os.walk(yang_models + '/standard/ieee/published'))[1]:
-            ieee_direc = yang_models + '/standard/ieee/published/' + direc
+        for direc in next(os.walk(os.path.join(yang_models, 'standard/ieee/published')))[1]:
+            ieee_direc = os.path.join(yang_models, 'standard/ieee/published', direc)
             if os.path.isdir(ieee_direc):
-                process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                            ieee_direc, '--removedup', 'True'],
-                                           stdout=subprocess.PIPE)
-                out, err = process.communicate()
-                process_data(out, sdo_list, ieee_direc, 'IEEE {} with par'.format(direc))
+                process_sdo_dir(os.path.join('standard/ieee/published', direc), 'IEEE {} with par'.format(direc))
 
-        for direc in next(os.walk(yang_models + '/standard/ieee/draft'))[1]:
-            ieee_direc = yang_models + '/standard/ieee/draft/' + direc
+        for direc in next(os.walk(os.path.join(yang_models, 'standard/ieee/draft')))[1]:
+            ieee_direc = os.path.join(yang_models, 'standard/ieee/draft', direc)
             if os.path.isdir(ieee_direc):
-                process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                            ieee_direc, '--removedup', 'True'],
-                                           stdout=subprocess.PIPE)
-                out, err = process.communicate()
-                process_data(out, sdo_list, ieee_direc, 'IEEE draft {} with par'.format(direc))
+                process_sdo_dir(os.path.join('standard/ieee/draft', direc), 'IEEE draft {} with par'.format(direc))
 
-        for direc in next(os.walk(yang_models + '/experimental/ieee'))[1]:
-            ieee_direc = yang_models + '/experimental/ieee/' + direc
+        for direc in next(os.walk(os.path.join(yang_models, 'experimental/ieee')))[1]:
+            ieee_direc = os.path.join(yang_models, 'experimental/ieee', direc)
             if os.path.isdir(ieee_direc):
-                process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                            ieee_direc, '--removedup', 'True'],
-                                           stdout=subprocess.PIPE)
-                out, err = process.communicate()
-                process_data(out, sdo_list, ieee_direc, 'IEEE {} no par'.format(direc))
+                process_sdo_dir(os.path.join('experimental/ieee', direc), 'IEEE {} no par'.format(direc))
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/mef/src/model/standard', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/mef/src/model/standard', 'MEF standard')
-
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    yang_models + '/standard/mef/src/model/draft', '--removedup', 'True'],
-                                   stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, yang_models + '/standard/mef/src/model/draft', 'MEF draft')
+        process_sdo_dir('standard/mef/src/model/standard', 'MEF standard')
+        process_sdo_dir('standard/mef/src/model/draft', 'MEF draft')
 
         # Openconfig is from different repo that s why we need models in github zero
         LOGGER.info('Cloning the repo')
         repo = repoutil.RepoUtil('{}/openconfig/public'.format(github_url))
         repo.clone(config_name, config_email)
 
-        process = subprocess.Popen(['python', get_curr_dir(__file__) + '/../runYANGallstats/runYANGallstats.py', '--rootdir',
-                                    repo.localdir + '/release/models', '--removedup', 'True'], stdout=subprocess.PIPE)
-        out, err = process.communicate()
-        process_data(out, sdo_list, repo.localdir + '/release/models', 'openconfig')
+        assert repo.localdir is not None
+        out = get_output(rootdir=os.path.join(repo.localdir, 'release/models'))
+        process_data(out, sdo_list, os.path.join(repo.localdir, 'release/models'), 'openconfig')
         repo.remove()
 
         context = {'table_sdo': sdo_list,
@@ -672,13 +513,13 @@ def main(scriptConf=None):
                    'num_yang_files_standard_ndp': standard_modules_ndp,
                    'num_parsed_files': all_modules_data,
                    'num_unique_parsed_files': len(all_modules_data_unique),
-                   'nx': nx,
-                   'xr': xr,
-                   'xe': xe,
-                   'nx_values': nx_values,
-                   'xe_values': xe_values,
-                   'xr_values': xr_values,
-                   'current_date': time.strftime("%d/%m/%y")}
+                   'xr': platforms['xr'],
+                   'xe': platforms['xe'],
+                   'nx': platforms['nx'],
+                   'xr_values': values['xr'],
+                   'xe_values': values['xe'],
+                   'nx_values': values['nx'],
+                   'current_date': time.strftime('%d/%m/%y')}
         LOGGER.info('Rendering data')
         with open('{}/stats/stats.json'.format(private_dir), 'w') as f:
             for sdo in sdo_list:
@@ -695,17 +536,17 @@ def main(scriptConf=None):
                       'num_yang_files_standard_ndp': int(standard_modules_ndp),
                       'num_parsed_files': all_modules_data,
                       'num_unique_parsed_files': len(all_modules_data_unique),
-                      'nx': nx_json_output,
-                      'xr': xr_json_output,
-                      'xe': xe_json_output,
-                      'current_date': time.strftime("%d/%m/%y")}
+                      'xr': json_output['xr'],
+                      'xe': json_output['xe'],
+                      'nx': json_output['nx'],
+                      'current_date': time.strftime('%d/%m/%y')}
             json.dump(output, f)
-        result = render(get_curr_dir(__file__) + '/./template/stats.html', context)
-        with open(get_curr_dir(__file__) + '/./statistics.html', 'w+') as f:
+        result = render(os.path.join(get_curr_dir(__file__), './template/stats.html'), context)
+        with open(os.path.join(get_curr_dir(__file__), './statistics.html'), 'w+') as f:
             f.write(result)
 
-        file_from = os.path.abspath(get_curr_dir(__file__) + '/./statistics.html')
-        file_to = os.path.abspath(move_to) + '/statistics.html'
+        file_from = os.path.abspath(os.path.join(get_curr_dir(__file__), './statistics.html'))
+        file_to = os.path.join(os.path.abspath(move_to), 'statistics.html')
         resolved_path_file_to = os.path.realpath(file_to)
         if move_to != './':
             if os.path.exists(resolved_path_file_to):
@@ -724,5 +565,5 @@ def main(scriptConf=None):
     LOGGER.info('Job finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

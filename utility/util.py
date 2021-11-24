@@ -57,7 +57,8 @@ def get_curr_dir(path: str):
         return cur_dir
 
 
-def find_first_file(directory: str, pattern: str, pattern_with_revision: str, yang_models_dir: str = ''):
+def find_first_file(directory: str, pattern: str,
+                    pattern_with_revision: str, yang_models_dir: str = '') -> t.Optional[str]:
     """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
 
     Arguments:
@@ -67,7 +68,7 @@ def find_first_file(directory: str, pattern: str, pattern_with_revision: str, ya
         :param yang_models_dir          (str) path to the directory where YangModels/yang repo is cloned
         :return path to current directory
     """
-    def __match_file(directory, pattern):
+    def match_file(directory, pattern) -> t.Optional[str]:
         for root, _, files in os.walk(directory):
             for basename in files:
                 if fnmatch.fnmatch(basename, pattern):
@@ -87,17 +88,20 @@ def find_first_file(directory: str, pattern: str, pattern_with_revision: str, ya
 
     for path in paths_to_check:
         for pattern in patterns_order:
-            filename = __match_file(path, pattern)
+            filename = match_file(path, pattern)
             if filename:
-                try:
-                    revision = yangParser.parse(filename).search('revision')[0].arg
-                except:
-                    revision = '1970-01-01'
-                if '*' not in pattern_with_revision:
-                    if revision in pattern_with_revision:
+                parsed = yangParser.parse(filename)
+                if parsed:
+                    results = parsed.search('revision')
+                    if results:
+                        revision = results[0].arg
+                    else:
+                        revision = '1970-01-01'
+                    if '*' not in pattern_with_revision:
+                        if revision in pattern_with_revision:
+                            return filename
+                    else:
                         return filename
-                else:
-                    return filename
 
 
 def change_permissions_recursive(path: str):

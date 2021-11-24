@@ -95,11 +95,11 @@ class TestUtilClass(unittest.TestCase):
         self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types.yang')
 
     @mock.patch('utility.yangParser.parse')
-    def test_find_first_file_without_revision_parse_exception(self, mock_yang_parse: mock.MagicMock):
+    def test_find_first_file_without_revision_empty_search(self, mock_yang_parse: mock.MagicMock):
         """ Try to find the first file that matches the pattern without specified revision.
         It will try to parse the yang module to get its revision, but exception occur during parsing.
         """
-        mock_yang_parse.side_effect = Exception()
+        mock_yang_parse.return_value.search.return_value = []
         directory = 'utility/tests/resources/modules'
         pattern = 'ietf-yang-types.yang'
         pattern_with_revision = 'ietf-yang-types@2013-07-15.yang'
