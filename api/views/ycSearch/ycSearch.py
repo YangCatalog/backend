@@ -729,18 +729,15 @@ def search_module(name: str, revision: str, organization: str):
                     see if the job is still on or Failed or Finished successfully
     """
     app.logger.info('Searching for module {}, {}, {}'.format(name, revision, organization))
-    module_data = ac.redis.get("{}@{}/{}".format(name, revision, organization))
-    if module_data is not None:
-        module_data = module_data.decode('utf-8')
-        return {'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict)
-                           .decode(module_data)]
-                }
+    module_data_redis = app.redisConnection.get_module('{}@{}/{}'.format(name, revision, organization))
+    if module_data_redis != '{}':
+        return {'module': [json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(module_data_redis)]}
     abort(404, description='Module {}@{}/{} not found'.format(name, revision, organization))
 
 
 @bp.route('/search/modules', methods=['GET'])
 def get_modules():
-    """Search for all the modules populated in ConfD
+    """Search for all the modules populated in Redis
         :return response to the request with all the modules
     """
     app.logger.info('Searching for modules')
@@ -1015,8 +1012,11 @@ def modules_data():
     """Get all the modules data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = ac.redis.get('modules-data')
-    data = (data or b'{}').decode('utf-8')
+    data = app.redisConnection.get_all_modules()
+    if data != '{}':
+        modules = json.loads(data)
+        modules_list = [module for module in modules.values()]
+        data = json.dumps({'module': modules_list})
 
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
@@ -1040,10 +1040,20 @@ def catalog_data():
     """Get all the catalog data (modules and vendors) from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = ac.redis.get('all-catalog-data')
-    data = (data or b'{}').decode('utf-8')
-    
-    return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
+    modules_list = modules_data().get('module')
+    vendors_list = vendors_data().get('vendor')
+    catalog_data = {}
+
+    if modules_list is not None:
+        catalog_data['modules'] = {'module': modules_list}
+
+    if vendors_list is not None:
+        catalog_data['vendors'] = {'vendor': vendors_list}
+
+    if catalog_data != {}:
+        catalog_data = {'yang-catalog:catalog': catalog_data}
+
+    return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(json.dumps(catalog_data))
 
 
 def create_bootstrap_info():

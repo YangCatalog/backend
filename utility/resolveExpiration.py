@@ -34,6 +34,7 @@ import typing as t
 from datetime import datetime
 
 import requests
+from redisConnections.redisConnection import RedisConnection
 
 import utility.log as log
 from utility.confdService import ConfdService
@@ -51,7 +52,7 @@ class ScriptConfig(BaseScriptConfig):
         api_host = config.get('Web-Section', 'ip', fallback='localhost')
         credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
         help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
-                    ' cronjob'
+            ' cronjob'
         args: t.List[Arg] = [
             {
                 'flag': '--credentials',
@@ -105,14 +106,16 @@ def __expires_change(expires_from_module, expires_from_datatracker):
     return expires_changed
 
 
-def resolve_expiration(module, LOGGER: logging.Logger, datatracker_failures: list, confdService: ConfdService):
+def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failures: list,
+                       confdService: ConfdService, redisConnection: RedisConnection):
     """Walks through all the modules and updates them if necessary
 
         Arguments:
-            :param module:              (json) all the module metadata
+            :param module               (dict) Module with all the metadata
             :param LOGGER               (logging.Logger) formated logger with the specified name
             :param datatracker_failures (list) list of url that failed to get data from Datatracker
             :param confdService         (ConfdService) Service used to communicate with ConfD
+            :param redisConnection      (RedisConnection) Connection used to communication with Redis
     """
     reference = module.get('reference')
     expired = 'not-applicable'
@@ -166,7 +169,7 @@ def resolve_expiration(module, LOGGER: logging.Logger, datatracker_failures: lis
 
     if expires_changed or expired_changed:
         yang_name_rev = '{}@{}'.format(module['name'], module['revision'])
-        LOGGER.info('Module {} changing expiration FROM expires: {} expired: {} TO expires: {} expired: {}'
+        LOGGER.info('Module {} changing expiration\nFROM: expires: {} expired: {}\nTO: expires: {} expired: {}'
                     .format(yang_name_rev, module.get('expires'), module.get('expired'), expires, expired))
 
         if expires is not None:
@@ -184,6 +187,7 @@ def resolve_expiration(module, LOGGER: logging.Logger, datatracker_failures: lis
             # If the 'expires' property no longer contains a value,
             # delete request need to be done to the ConfD to the 'expires' property
             response = confdService.delete_expires(module_key)
+            redisConnection.delete_expires(module)
 
             message = 'Module {} expiration date deleted with code {}'.format(yang_name_rev, response.status_code)
             if response.text != '':
@@ -213,6 +217,7 @@ def main(scriptConf=None):
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
     confdService = ConfdService()
+    redisConnection = RedisConnection()
     LOGGER.info('Starting Cron job resolve modules expiration')
     try:
         LOGGER.info('Requesting all the modules from {}'.format(yangcatalog_api_prefix))
@@ -230,15 +235,15 @@ def main(scriptConf=None):
         for module in modules:
             LOGGER.info('{} out of {}'.format(i, len(modules)))
             i += 1
-            ret = resolve_expiration(module, LOGGER, datatracker_failures, confdService)
+            ret = resolve_expiration(module, LOGGER, datatracker_failures, confdService, redisConnection)
             if ret:
                 revision_updated_modules += 1
             if not updated:
                 updated = ret
         if updated:
+            redisConnection.populate_modules(modules)
             url = ('{}load-cache'.format(yangcatalog_api_prefix))
-            response = requests.post(url, None, auth=(args.credentials[0],
-                                                      args.credentials[1]))
+            response = requests.post(url, None, auth=(args.credentials[0], args.credentials[1]))
             LOGGER.info('Cache loaded with status {}'.format(response.status_code))
     except Exception as e:
         LOGGER.exception('Exception found while running resolveExpiration script')
