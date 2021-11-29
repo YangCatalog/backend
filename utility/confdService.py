@@ -77,33 +77,37 @@ class ConfdService:
 
         return response
 
-    def patch_modules(self, modules: list):
+    def _patch(self, data: list, type: str, log_file: str):
+        errors = False
         chunk_size = 500
-        chunks = [modules[i:i + chunk_size] for i in range(int(len(modules)/chunk_size) + 1)]
-        path = '{}/restconf/data/yang-catalog:catalog/modules/'.format(self.confd_prefix)
+        chunks = [data[i:i + chunk_size] for i in range(int(len(data)/chunk_size) + 1)]
+        path = '{}/restconf/data/yang-catalog:catalog/{}/'.format(self.confd_prefix, type)
         for chunk in chunks:
             self.LOGGER.debug('Sending PATCH request to patch multiple modules')
-            patch_data = {'modules': {'module': chunk}}
+            patch_data = {type: {type.rstrip('s'): chunk}}
             patch_json = json.dumps(patch_data)
             response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
             if response.status_code == 400:
-                self.LOGGER.warning('Failed to batch patch modules, falling back to patching individually')
-                for module in chunk:
-                    patch_data = {'modules': {'module', [module]}}
+                self.LOGGER.warning('Failed to batch patch {}, falling back to patching individually'.format(type))
+                for datum in chunk:
+                    patch_data = {type: {type.rstrip('s'), [datum]}}
                     patch_json = json.dumps(patch_data)
                     response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
                     if response == 400:
-                        self.LOGGER.error('Failed to patch module {}@{}'.format(module['name'], module['revision']))
-                        with open(os.path.join(self.log_directory, 'confd-failed-patches.log'), 'a') as f:
-                            f.write('{}@{} error: {}'.format(module['name'], module['revision'], response.text))
+                        errors = True
+                        self.LOGGER.error('Failed to patch {} {}@{}'.format(type.rstrip('s'), datum['name'], datum['revision']))
+                        with open(os.path.join(self.log_directory, log_file), 'a') as f:
+                            if type == 'modules':
+                                f.write('{}@{} error: {}\n'.format(datum['name'], datum['revision'], response.text))
+                            elif type == 'vendors':
+                                f.write('{} error: {}\n'.format(datum['name'], response.text))
+        return errors
 
+    def patch_modules(self, modules: list) -> bool:
+        return self._patch(modules, 'modules', 'confd-failed-patch-modules.log')
 
-    def patch_vendors(self, new_data: str) -> requests.Response:
-        self.LOGGER.debug('Sending PATCH request to patch multiple vendors')
-        path = '{}/restconf/data/yang-catalog:catalog/vendors/'.format(self.confd_prefix)
-        response = requests.patch(path, new_data, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
-
-        return response
+    def patch_vendors(self, vendors: list) -> bool:
+        return self._patch(vendors, 'vendors', 'confd-failed-patch-vendors.log')
 
     def delete_module(self, module_key: str) -> requests.Response:
         self.LOGGER.debug('Sending DELETE request to the module {}'.format(module_key))

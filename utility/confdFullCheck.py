@@ -70,13 +70,13 @@ if __name__ == '__main__':
         # PATCH
         result = {}
         result['label'] = 'PATCH {}@2018-04-03'.format(check_module_name)
-        response = confdService.patch_modules([module['yang-catalog:module'][0]])
+        errors = confdService.patch_modules([module['yang-catalog:module'][0]])
 
-        if response.status_code == 204:
-            result['message'] = '{} OK'.format(response.status_code)
+        if not errors:
+            result['message'] = 'OK'
         else:
             LOGGER.info('Cannot add {}@2018-04-03 module to ConfD'.format(check_module_name))
-            result['message'] = '{} NOT OK'.format(response.status_code)
+            result['message'] = 'NOT OK'
         messages.append(result)
 
         # GET 2

@@ -105,26 +105,19 @@ def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: l
                     'Processing {} {} {} out of {}'.format(vendor_name, platform_name, x,
                                                            len(platform['software-versions']['software-version'])))
                 x += 1
-                json_implementations_data = json.dumps({
-                    'vendors': {
-                        'vendor': [{
-                            'name': vendor_name,
-                            'platforms': {
-                                'platform': [{
-                                    'name': platform_name,
-                                    'software-versions': {
-                                        'software-version': [software_version]
-                                    }
-                                }]
+                vendors = [{
+                    'name': vendor_name,
+                    'platforms': {
+                        'platform': [{
+                            'name': platform_name,
+                            'software-versions': {
+                                'software-version': [software_version]
                             }
                         }]
                     }
-                })
+                }]
 
-                response = confdService.patch_vendors(json_implementations_data)
-
-                if not 200 <= response.status_code < 300:
-                    LOGGER.info('Request failed with {}'.format(response.text))
+                confdService.patch_vendors(vendors)
 
 
 def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: dict, LOGGER: logging.Logger):

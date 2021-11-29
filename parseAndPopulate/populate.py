@@ -237,7 +237,7 @@ def main(scriptConf=None):
                                            LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
-    confd_patched = True
+    errors = False
     x = -1
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
@@ -247,43 +247,10 @@ def main(scriptConf=None):
     # In each json
     if os.path.exists('{}/normal.json'.format(direc)):
         LOGGER.info('Starting to add vendors')
-        x = -1
         with open('{}/normal.json'.format(direc)) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
-            for x in range(0, int(len(vendors) / 1000)):
-                json_implementations_data = json.dumps({
-                    'vendors':
-                        {
-                            'vendor': vendors[x * 1000: (x * 1000) + 1000]
-                        }
-                })
-
-                # Make a PATCH request to create a root for each file
-                response = confdService.patch_vendors(json_implementations_data)
-
-                if response.status_code < 200 or response.status_code > 299:
-                    confd_patched = False
-                    path_to_file = '{}/vendors-confd-data-{}'.format(direc, x)
-                    with open(path_to_file, 'w') as f:
-                        json.dump(json_modules_data, f)
-                    LOGGER.error('Request with body {} failed to patch vendors with {}'
-                                 .format(path_to_file, response.text))
-            json_implementations_data = json.dumps({
-                'vendors':
-                    {
-                        'vendor': vendors[(x * 1000) + 1000:]
-                    }
-            })
-            response = confdService.patch_vendors(json_implementations_data)
-
-            if response.status_code < 200 or response.status_code > 299:
-                confd_patched = False
-                path_to_file = '{}/vendors-confd-data-rest'.format(direc)
-                with open(path_to_file, 'w') as f:
-                    json.dump(json_modules_data, f)
-                LOGGER.error('Request with body {} failed to patch vendors with {}'
-                             .format(json_implementations_data, response.text))
-    if len(body_to_send) > 0:
+        errors = confdService.patch_vendors(vendors)
+    if body_to_send:
         LOGGER.info('Sending files for indexing')
         send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
                           scriptConf.lock_file)
@@ -308,11 +275,11 @@ def main(scriptConf=None):
         LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
 
         # Keep new hashes only if the ConfD was patched successfully
-        if confd_patched:
-            path = '{}/temp_hashes.json'.format(direc)
+        if not errors:
+            path = os.path.join(direc, 'temp_hashes.json')
             fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, not args.force_parsing, log_directory)
             updated_hashes = fileHasher.load_hashed_files_list(path)
-            if len(updated_hashes) > 0:
+            if updated_hashes:
                 fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
 
         try:
