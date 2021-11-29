@@ -179,9 +179,7 @@ if __name__ == '__main__':
                 updated_schemas += 1
 
                 # Make patch request to ConfD to update schema
-                module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
-                json_module_data = json.dumps({'yang-catalog:module': module})
-                response = confdService.patch_module(module_key, json_module_data)
+                response = confdService.patch_module(module)
 
                 __print_patch_response(key, response)
         except:
@@ -288,9 +286,7 @@ if __name__ == '__main__':
         if updated == True:
             updated_modules[key] = module
 
-            module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
-            json_module_data = json.dumps({'yang-catalog:module': module})
-            response = confdService.patch_module(module_key, json_module_data)
+            response = confdService.patch_module(module)
 
             __print_patch_response(key, response)
 

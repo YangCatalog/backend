@@ -24,6 +24,9 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
 
+import json
+import os
+
 import requests
 
 import utility.log as log
@@ -63,19 +66,36 @@ class ConfdService:
 
         return catalog_data
 
-    def patch_module(self, module_key: str, new_data: str):
+    def patch_module(self, module: dict):
+        module_key = self.create_module_key(module)
         self.LOGGER.debug('Sending PATCH request to the module {}'.format(module_key))
+        patch_data = {'yang-catalog:module': module}
+        patch_json = json.dumps(patch_data)
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(self.confd_prefix, module_key)
-        response = requests.patch(path, new_data, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+        response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)            
 
         return response
 
-    def patch_modules(self, new_data: str):
-        self.LOGGER.debug('Sending PATCH request to patch multiple modules')
+    def patch_modules(self, modules: list):
+        chunk_size = 500
+        chunks = [modules[i:i + chunk_size] for i in range(int(len(modules)/chunk_size) + 1)]
         path = '{}/restconf/data/yang-catalog:catalog/modules/'.format(self.confd_prefix)
-        response = requests.patch(path, new_data, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+        for chunk in chunks:
+            self.LOGGER.debug('Sending PATCH request to patch multiple modules')
+            patch_data = {'modules': {'module': chunk}}
+            patch_json = json.dumps(patch_data)
+            response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+            if response.status_code == 400:
+                self.LOGGER.warning('Failed to batch patch modules, falling back to patching individually')
+                for module in chunk:
+                    patch_data = {'modules': {'module', [module]}}
+                    patch_json = json.dumps(patch_data)
+                    response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+                    if response == 400:
+                        self.LOGGER.error('Failed to patch module {}@{}'.format(module['name'], module['revision']))
+                        with open(os.path.join(self.log_directory, 'confd-failed-patches.log'), 'a') as f:
+                            f.write('{}@{} error: {}'.format(module['name'], module['revision'], response.text))
 
-        return response
 
     def patch_vendors(self, new_data: str):
         self.LOGGER.debug('Sending PATCH request to patch multiple vendors')
@@ -138,3 +158,6 @@ class ConfdService:
         response = requests.put(path, new_data, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
+
+    def create_module_key(self, module: dict) -> str:
+        return '{},{},{}'.format(module['name'], module['revision'], module['organization'])

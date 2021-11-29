@@ -70,8 +70,7 @@ if __name__ == '__main__':
         # PATCH
         result = {}
         result['label'] = 'PATCH {}@2018-04-03'.format(check_module_name)
-        json_modules_data = json.dumps({'modules': {'module': module['yang-catalog:module'][0]}})
-        response = confdService.patch_modules(json_modules_data)
+        response = confdService.patch_modules([module['yang-catalog:module'][0]])
 
         if response.status_code == 204:
             result['message'] = '{} OK'.format(response.status_code)

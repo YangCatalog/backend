@@ -89,20 +89,8 @@ class ScriptConfig(BaseScriptConfig):
         self.var_yang = config.get('Directory-Section', 'var')
 
 
-def feed_confd_modules(modules_data: list, confdService: ConfdService, LOGGER: logging.Logger):
-    chunk_size = 500
-    for x in range(0, len(modules_data), chunk_size):
-        LOGGER.info('Processing chunk {} out of {}'.format((x // chunk_size) + 1, (len(modules_data) // chunk_size) + 1))
-        json_modules_data = json.dumps({
-            'modules':
-                {
-                    'module': modules_data[x: x + chunk_size]
-                }
-        })
-
-        response = confdService.patch_modules(json_modules_data)
-        if not 200 <= response.status_code < 300:
-            LOGGER.info('Request failed with {}'.format(response.text))
+def feed_confd_modules(modules: list, confdService: ConfdService):
+    confdService.patch_modules(modules)
 
 
 def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: logging.Logger):
@@ -181,7 +169,7 @@ def feed_confd_from_json(catalog_data: dict, confdService: ConfdService, LOGGER:
             catalog = catalog_data.get('yang-catalog:catalog')
 
             LOGGER.info('Starting to add modules')
-            feed_confd_modules(catalog['modules']['module'], confdService, LOGGER)
+            feed_confd_modules(catalog['modules']['module'], confdService)
 
             LOGGER.info('Starting to add vendors')
             feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
@@ -272,7 +260,7 @@ def main(scriptConf=None):
             catalog = catalog_data.get('yang-catalog:catalog')
 
             LOGGER.info('Starting to add modules')
-            feed_confd_modules(catalog['modules']['module'], confdService, LOGGER)
+            feed_confd_modules(catalog['modules']['module'], confdService)
 
             LOGGER.info('Starting to add vendors')
             feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)

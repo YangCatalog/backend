@@ -241,41 +241,8 @@ def main(scriptConf=None):
     x = -1
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
-        modules_json = json.loads(read).get('module', [])
-        for x in range(0, int(len(modules_json) / 1000)):
-            json_modules_data = json.dumps({
-                'modules':
-                    {
-                        'module': modules_json[x * 1000: (x * 1000) + 1000]
-                    }
-            })
-
-            if '{"module": []}' not in read:
-                response = confdService.patch_modules(json_modules_data)
-
-                if response.status_code < 200 or response.status_code > 299:
-                    confd_patched = False
-                    path_to_file = '{}/modules-confd-data-{}'.format(direc, x)
-                    with open(path_to_file, 'w') as f:
-                        json.dump(json_modules_data, f)
-                    LOGGER.error('Request with body {} failed to patch modules with {}'
-                                 .format(path_to_file, response.text))
-    json_modules_data = json.dumps({
-        'modules':
-            {
-                'module': modules_json[(x * 1000) + 1000:]
-            }
-    })
-    if '{"module": []}' not in json_modules_data:
-        response = confdService.patch_modules(json_modules_data)
-
-        if response.status_code < 200 or response.status_code > 299:
-            confd_patched = False
-            path_to_file = '{}/modules-confd-data-rest'.format(direc)
-            with open(path_to_file, 'w') as f:
-                json.dump(json_modules_data, f)
-            LOGGER.error('Request with body {} failed to patch modules with {}'
-                         .format(path_to_file, response.text))
+    modules = json.loads(read).get('module', [])
+    confdService.patch_modules(modules)
 
     # In each json
     if os.path.exists('{}/normal.json'.format(direc)):
