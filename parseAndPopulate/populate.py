@@ -238,11 +238,10 @@ def main(scriptConf=None):
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     errors = False
-    x = -1
     with open('{}/prepare.json'.format(direc)) as data_file:
         read = data_file.read()
     modules = json.loads(read).get('module', [])
-    confdService.patch_modules(modules)
+    errors = confdService.patch_modules(modules)
 
     # In each json
     if os.path.exists('{}/normal.json'.format(direc)):
