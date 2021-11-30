@@ -82,8 +82,9 @@ class ConfdService:
         chunk_size = 500
         chunks = [data[i:i + chunk_size] for i in range(int(len(data)/chunk_size) + 1)]
         path = '{}/restconf/data/yang-catalog:catalog/{}/'.format(self.confd_prefix, type)
-        for chunk in chunks:
-            self.LOGGER.debug('Sending PATCH request to patch multiple modules')
+        self.LOGGER.debug('Sending PATCH request to patch multiple modules')
+        for i, chunk in enumerate(chunks, start=1):
+            self.LOGGER.debug('Processing chunk {} out of {}'.format(i, len(chunks)))
             patch_data = {type: {type.rstrip('s'): chunk}}
             patch_json = json.dumps(patch_data)
             response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
