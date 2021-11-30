@@ -32,14 +32,14 @@ import logging
 import os
 import shutil
 import time
+import typing as t
 from collections import OrderedDict
 from time import sleep
-import typing as t
 
 import redis
-from requests import ConnectionError
-
 import utility.log as log
+from redisConnections.redisConnection import RedisConnection
+from requests import ConnectionError
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -227,7 +227,7 @@ def main(scriptConf=None):
         # Redis backup
         redis_backup_file = '{}/redis/dump.rdb'.format(var_yang)
         if os.path.exists(redis_backup_file):
-            redis_copy_file = os.path.join(redis_backups, args.name_save)
+            redis_copy_file = os.path.join(redis_backups, '{}.rdb'.format(args.name_save))
             shutil.copy2(redis_backup_file, redis_copy_file)
             LOGGER.info('Backup of Redis dump.rdb file created')
         else:
@@ -245,6 +245,7 @@ def main(scriptConf=None):
         catalog_data = None
         response = confdService.head_catalog()
         if response.status_code != 200:
+            # Fill ConfD from JSON file if empty
             with open(file_name, 'r') as file_load:
                 LOGGER.info('Loading file {}'.format(file_load.name))
                 catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
@@ -270,12 +271,21 @@ def main(scriptConf=None):
         if '{}' in (redis_modules, yang_catalog_module):
             # Feed Redis fron ConfD
 
-            LOGGER.info('Loading data from JSON file into Redis')
-            if catalog_data is None:
-                with open(file_name, 'r') as file_load:
-                    LOGGER.info('Loading file {}'.format(file_load.name))
-                    catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
+            LOGGER.info('Loading data from ConfD into Redis')
+            # if catalog_data is None:
+            #     with open(file_name, 'r') as file_load:
+            #         LOGGER.info('Loading file {}'.format(file_load.name))
+            #         catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
+            response = confdService.get_catalog_data()
+            catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
             feed_redis_from_json(redis_cache, catalog_data, LOGGER)
+
+            # Feed Redis db=1
+            redisConnection = RedisConnection()
+            modules = catalog_data['yang-catalog:catalog']['modules']['module']
+
+            redisConnection.populate_modules(modules)
+            redisConnection.reload_modules_cache()
         else:
             LOGGER.info('Redis loaded from backup file')
 

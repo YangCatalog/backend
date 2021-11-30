@@ -338,8 +338,8 @@ def health_check_redis_admin():
 
     try:
         redis_key = 'yang-catalog@2018-04-03/ietf'
-        result = ac.redis.get(redis_key)
-        if result is None:
+        result = app.redisConnection.get_module(redis_key)
+        if result == '{}':
             response = {'info': 'Not OK - Redis is not filled',
                         'status': 'problem',
                         'message': 'Cannot get yang-catalog@2018-04-03/ietf'}

@@ -73,7 +73,7 @@ class ConfdService:
         patch_data = {'yang-catalog:module': module}
         patch_json = json.dumps(patch_data)
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(self.confd_prefix, module_key)
-        response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)            
+        response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
 
@@ -121,6 +121,14 @@ class ConfdService:
         self.LOGGER.debug('Sending DELETE request to dependent {} of the module {}'.format(dependent, module_key))
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/dependents={}'.format(
             self.confd_prefix, module_key, dependent)
+        response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
+    def delete_submodule(self, module_key: str, submodule: str) -> requests.Response:
+        self.LOGGER.debug('Sending DELETE request to submodule {} of the module {}'.format(submodule, module_key))
+        path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/submodule={}'.format(
+            self.confd_prefix, module_key, submodule)
         response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
