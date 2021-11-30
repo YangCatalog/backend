@@ -98,22 +98,8 @@ class ModulesComplicatedAlgorithms:
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
         LOGGER.info('populate with module complicated data. amount of new data is {}'
                     .format(len(new_modules)))
-        x = -1
-        chunk_size = 250
-        chunks = (len(new_modules) - 1) // chunk_size + 1
         confdService = ConfdService()
-        for x in range(chunks):
-            payload = {'modules': {'module': new_modules[x * chunk_size: (x * chunk_size) + chunk_size]}}
-            json_modules_data = json.dumps(payload)
-            if '{"module": []}' not in json_modules_data:
-                response = confdService.patch_modules(json_modules_data)
-
-                if response.status_code < 200 or response.status_code > 299:
-                    path_to_file = '{}/modulesComplicatedAlgorithms-data-{}'.format(self.__direc, x)
-                    with open(path_to_file, 'w') as f:
-                        json.dump(json_modules_data, f)
-                    LOGGER.error('Request with body {} failed to patch modules with {}'
-                                 .format(path_to_file, response.text))
+        confdService.patch_modules(new_modules)
 
         if len(new_modules) > 0:
             url = '{}load-cache'.format(self.__yangcatalog_api_prefix)
