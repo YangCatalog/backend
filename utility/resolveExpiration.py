@@ -176,8 +176,7 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
             module['expires'] = expires
         module['expired'] = expired
         module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
-        json_module_data = json.dumps({'yang-catalog:module': module})
-        response = confdService.patch_module(module_key, json_module_data)
+        response = confdService.patch_module(module)
 
         message = 'Module {} updated with code {}'.format(yang_name_rev, response.status_code)
         if response.text != '':
