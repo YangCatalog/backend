@@ -257,29 +257,6 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         self.assertIn(new_implementation, data[redis_key]['implementations']['implementation'])
         self.assertEqual(original_length + 1, len(data[redis_key]['implementations']['implementation']))
 
-    def test_reload_modules_cache_duplicite_dependencies_property(self):
-        redis_key = 'ietf-bgp@2021-10-25/ietf'
-        module = deepcopy(self.original_data)
-        original_length = len(module['dependencies'])
-
-        new_dependency = {
-            "name": "ietf-bfd-types",
-            "schema": "https://raw.githubusercontent.com/YangModels/yang/4c8ac7ee57c4faa2e0edf65b1819700b1659c370/experimental/ietf-extracted-YANG-modules/ietf-bfd-types@2018-08-01.yang"
-        }
-
-        module['dependencies'].append(new_dependency)
-
-        self.redisConnection.populate_modules([module])
-        result = self.redisConnection.reload_modules_cache()
-        raw_data = self.redisConnection.get_all_modules()
-        data = json.loads(raw_data)
-
-        self.assertTrue(result)
-        self.assertNotEqual(raw_data, '{}')
-        self.assertIn(redis_key, data)
-        self.assertIn(new_dependency, data[redis_key]['dependencies'])
-        self.assertEqual(original_length, len(data[redis_key]['dependencies']))
-
     def test_reload_modules_cache_duplicite_implementations_property(self):
         redis_key = 'ietf-bgp@2021-10-25/ietf'
         module = deepcopy(self.original_data)

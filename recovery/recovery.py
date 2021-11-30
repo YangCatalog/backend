@@ -38,6 +38,7 @@ from time import sleep
 
 import redis
 import utility.log as log
+from redisConnections.redisConnection import RedisConnection
 from requests import ConnectionError
 from utility.confdService import ConfdService
 from utility.create_config import create_config
@@ -278,6 +279,13 @@ def main(scriptConf=None):
             response = confdService.get_catalog_data()
             catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
             feed_redis_from_json(redis_cache, catalog_data, LOGGER)
+
+            # Feed Redis db=1
+            redisConnection = RedisConnection()
+            modules = catalog_data['yang-catalog:catalog']['modules']['module']
+
+            redisConnection.populate_modules(modules)
+            redisConnection.reload_modules_cache()
         else:
             LOGGER.info('Redis loaded from backup file')
 

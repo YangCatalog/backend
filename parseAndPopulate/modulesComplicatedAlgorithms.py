@@ -14,282 +14,751 @@
 # limitations under the License.
 
 """
-This script calls runCapabilities.py script with
-option based on whether we are populating SDOs or vendors
-and also whether this script was called via API or directly by
-yangcatalog admin user. Once the metatadata are parsed
-and json files are created it will populate the ConfD
-with all the parsed metadata, reloads API and starts to
-parse metadata that needs to use complicated algorthms.
-For this we use class ModulesComplicatedAlgorithms.
+This is a class of a single module to parse all the more complicated
+metadata that we can get out of the module. From this class parse
+method is called which will call all the other methods that
+will get the rest of the metadata. This is parsed separately to
+make sure that metadata that are quickly parsed are already pushed
+into the database and these metadata will get there later.
 """
 
-__author__ = 'Miroslav Kovac'
-__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
-__license__ = 'Apache License, Version 2.0'
-__email__ = 'miroslav.kovac@pantheon.tech'
+__author__ = "Miroslav Kovac"
+__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
+__license__ = "Apache License, Version 2.0"
+__email__ = "miroslav.kovac@pantheon.tech"
 
-import errno
+import io
 import json
-import multiprocessing
 import os
-import shutil
-import sys
-import time
-import typing as t
+from collections import defaultdict
+from copy import deepcopy
+from datetime import datetime
 
 import requests
-import utility.log as log
+from pyang import plugin
+from pyang.plugins.json_tree import emit_tree as emit_json_tree
+from pyang.plugins.tree import emit_tree
 from redisConnections.redisConnection import RedisConnection
+from utility import log, messageFactory
 from utility.confdService import ConfdService
-from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
-from utility.util import prepare_to_indexing, send_to_indexing2
-
-from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
+from utility.util import (context_check_update_from, fetch_module_by_schema,
+                          find_first_file)
+from utility.yangParser import create_context
 
 
-class ScriptConfig(BaseScriptConfig):
+class ModulesComplicatedAlgorithms:
 
-    def __init__(self):
-        config = create_config()
-        credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        api_protocol = config.get('General-Section', 'protocol-api')
-        api_port = config.get('Web-Section', 'api-port')
-        api_host = config.get('Web-Section', 'ip')
-        save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        result_dir = config.get('Web-Section', 'result-html-dir')
-        help = 'Parse hello messages and YANG files to JSON dictionary. These ' \
-               'dictionaries are used for populating a yangcatalog. This script runs ' \
-               'first a runCapabilities.py script to create a JSON files which are ' \
-               'used to populate database.'
-        args: t.List[Arg] = [
-            {
-                'flag': '--api-ip',
-                'help': 'Set host address where the API is started. Default: {}'.format(api_host),
-                'type': str,
-                'default': api_host
-            },
-            {
-                'flag': '--api-port',
-                'help': 'Set port where the API is started. Default: {}'.format(api_port),
-                'type': int,
-                'default': api_port
-            },
-            {
-                'flag': '--api-protocol',
-                'help': 'Whether API runs on http or https (This will be ignored if we are using uwsgi). '
-                        'Default: {}'.format(api_protocol),
-                'type': str,
-                'default': api_protocol
-            },
-            {
-                'flag': '--credentials',
-                'help': 'Set authorization parameters username and password respectively.',
-                'type': str,
-                'nargs': 2,
-                'default': credentials
-            },
-            {
-                'flag': '--dir',
-                'help': 'Set directory where to look for hello message xml files',
-                'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
-            },
-            {
-                'flag': '--api',
-                'help': 'If request came from api',
-                'action': 'store_true',
-                'default': False
-            },
-            {
-                'flag': '--sdo',
-                'help': 'If we are processing sdo or vendor yang modules',
-                'action': 'store_true',
-                'default': False
-            },
-            {
-                'flag': '--notify-indexing',
-                'help': 'Whether to send files for indexing',
-                'action': 'store_true',
-                'default': False
-            },
-            {
-                'flag': '--result-html-dir',
-                'help': 'Set dir where to write HTML compilation result files. Default: {}'.format(result_dir),
-                'type': str,
-                'default': result_dir
-            },
-            {
-                'flag': '--save-file-dir',
-                'help': 'Directory where the yang file will be saved. Default: {}'.format(save_file_dir),
-                'type': str,
-                'default': save_file_dir
-            },
-            {
-                'flag': '--force-parsing',
-                'help': 'Force parse files (do not skip parsing for unchanged files).',
-                'action': 'store_true',
-                'default': False
-            }
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
+                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, ytree_dir: str):
+        global LOGGER
+        LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
+        if all_modules is None:
+            with open('{}/prepare.json'.format(direc), 'r') as f:
+                self.__all_modules = json.load(f)
+        else:
+            self.__all_modules = all_modules
+        self.__yangcatalog_api_prefix = yangcatalog_api_prefix
+        self.new_modules = defaultdict(dict)
+        self.__credentials = credentials
+        self.__save_file_dir = save_file_dir
+        self.__path = None
+        self.__yang_models = yang_models_dir
+        self.temp_dir = temp_dir
+        self.ytree_dir = ytree_dir
+        self.__direc = direc
+        self.__trees = defaultdict(dict)
+        self.__unavailable_modules = []
+        LOGGER.info('get all existing modules')
+        response = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix),
+                                headers=json_headers)
+        existing_modules = response.json().get('module', [])
+        self.__existing_modules_dict = defaultdict(dict)
+        self.__latest_revisions = {}
+        for module in existing_modules:
+            # Store latest revision of each module - used in resolving tree-type
+            latest_revision = self.__latest_revisions.get(module['name'])
+            if latest_revision is None:
+                self.__latest_revisions[module['name']] = module['revision']
+            else:
+                self.__latest_revisions[module['name']] = max(module['revision'], latest_revision)
 
-        self.log_directory = config.get('Directory-Section', 'logs')
-        self.is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir')
-        self.temp_dir = config.get('Directory-Section', 'temp')
-        self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-        self.cache_dir = config.get('Directory-Section', 'cache')
-        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
-        self.lock_file = config.get('Directory-Section', 'lock')
-        self.ytree_dir = config.get('Directory-Section', 'json-ytree')
+            self.__existing_modules_dict[module['name']][module['revision']] = module
 
+    def parse_non_requests(self):
+        LOGGER.info('parsing tree types')
+        self.resolve_tree_type(self.__all_modules)
 
-def reload_cache_in_parallel(credentials: list, yangcatalog_api_prefix: str):
-    LOGGER.info('Sending request to reload cache in different thread')
-    url = '{}load-cache'.format(yangcatalog_api_prefix)
-    response = requests.post(url, None,
-                             auth=(credentials[0], credentials[1]),
-                             headers=json_headers)
-    if response.status_code != 201:
-        LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
-                       .format(response.status_code, response.text))
-    LOGGER.info('Cache reloaded successfully')
+    def parse_requests(self):
+        LOGGER.info('parsing semantic version')
+        self.parse_semver()
+        LOGGER.info('parsing dependents')
+        self.parse_dependents()
 
+    def populate(self):
+        new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
+        LOGGER.info('populate with module complicated data. amount of new data is {}'
+                    .format(len(new_modules)))
+        confdService = ConfdService()
+        confdService.patch_modules(new_modules)
 
-def __set_runcapabilities_script_conf(submodule, args, direc: str):
-    """ Set values to ScriptConfig arguments to be able to run runCapabilities script.
+        redisConnection = RedisConnection()
+        redisConnection.populate_modules(new_modules)
 
-    Arguments:
-        :param submodule    (obj) submodule object
-        :param args         (obj) populate script arguments
-        :param direc        (str) Directory where json files to populate ConfD will be stored
-    """
-    script_conf = submodule.ScriptConfig()
-    script_conf.args.__setattr__('json_dir', direc)
-    script_conf.args.__setattr__('result_html_dir', args.result_html_dir)
-    script_conf.args.__setattr__('dir', args.dir)
-    script_conf.args.__setattr__('save_file_dir', args.save_file_dir)
-    script_conf.args.__setattr__('api_ip', args.api_ip)
-    script_conf.args.__setattr__('api_port', repr(args.api_port))
-    script_conf.args.__setattr__('api_protocol', args.api_protocol)
-    script_conf.args.__setattr__('api', args.api)
-    script_conf.args.__setattr__('sdo', args.sdo)
-    script_conf.args.__setattr__('save_file_hash', not args.force_parsing)
+        if len(new_modules) > 0:
+            url = '{}load-cache'.format(self.__yangcatalog_api_prefix)
+            response = requests.post(url, None,
+                                     auth=(self.__credentials[0], self.__credentials[1]))
+            if response.status_code != 201:
+                LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
+                               .format(response.status_code, response.text))
+            else:
+                LOGGER.info('load-cache responded with status code {}'.format(response.status_code))
 
-    return script_conf
+    def resolve_tree_type(self, all_modules):
+        def is_openconfig(rows, output):
+            count_config = output.count('+-- config')
+            count_state = output.count('+-- state')
+            if count_config != count_state:
+                return False
+            row_number = 0
+            skip = []
+            for row in rows:
+                if 'x--' in row or 'o--' in row:
+                    continue
+                if '' == row.strip(' '):
+                    break
+                if '+--rw' in row and row_number != 0 \
+                        and row_number not in skip and '[' not in row and \
+                        (len(row.replace('|', '').strip(' ').split(
+                            ' ')) != 2 or '(' in row):
+                    if '->' in row and 'config' in row.split('->')[
+                            1] and '+--rw config' not in rows[row_number - 1]:
+                        row_number += 1
+                        continue
+                    if '+--rw config' not in rows[row_number - 1]:
+                        if 'augment' in rows[row_number - 1]:
+                            if not rows[row_number - 1].endswith(':config:'):
+                                return False
+                        else:
+                            return False
+                    length_before = set([len(row.split('+--')[0])])
+                    skip = []
+                    for x in range(row_number, len(rows)):
+                        if 'x--' in rows[x] or 'o--' in rows[x]:
+                            continue
+                        if len(rows[x].split('+--')[0]) not in length_before:
+                            if (len(rows[x].replace('|', '').strip(' ').split(
+                                    ' ')) != 2 and '[' not in rows[x]) \
+                                    or '+--:' in rows[x] or '(' in rows[x]:
+                                length_before.add(len(rows[x].split('+--')[0]))
+                            else:
+                                break
+                        if '+--ro' in rows[x]:
+                            return False
+                        duplicate = \
+                            rows[x].replace('+--rw', '+--ro').split('+--')[1]
+                        if duplicate.replace(' ', '') not in output.replace(' ',
+                                                                            ''):
+                            return False
+                        skip.append(x)
+                if '+--ro' in row and row_number != 0 and row_number not in skip and '[' not in row and \
+                        (len(row.replace('|', '').strip(' ').split(
+                            ' ')) != 2 or '(' in row):
+                    if '->' in row and 'state' in row.split('->')[
+                            1] and '+--ro state' not in rows[row_number - 1]:
+                        row_number += 1
+                        continue
+                    if '+--ro state' not in rows[row_number - 1]:
+                        if 'augment' in rows[row_number - 1]:
+                            if not rows[row_number - 1].endswith(':state:'):
+                                return False
+                        else:
+                            return False
+                    length_before = len(row.split('+--')[0])
+                    skip = []
+                    for x in range(row_number, len(rows)):
+                        if 'x--' in rows[x] or 'o--' in rows[x]:
+                            continue
+                        if len(rows[x].split('+--')[0]) < length_before:
+                            break
+                        if '+--rw' in rows[x]:
+                            return False
+                        skip.append(x)
+                row_number += 1
+            return True
 
+        def is_combined(rows, output):
+            for row in rows:
+                if row.endswith('-state') and not ('x--' in row or 'o--' in row):
+                    return False
+            next_obsolete_or_deprecated = False
+            for row in rows:
+                if next_obsolete_or_deprecated:
+                    if 'x--' in row or 'o--' in row:
+                        next_obsolete_or_deprecated = False
+                    else:
+                        return False
+                if 'x--' in row or 'o--' in row:
+                    continue
+                if '+--rw config' == row.replace('|', '').strip(
+                    ' ') or '+--ro state' == row.replace('|', '').strip(
+                        ' '):
+                    return False
+                if len(row.split('+--')[0]) == 4:
+                    if '-state' in row and '+--ro' in row:
+                        return False
+                if 'augment' in row and len(row.split('augment')[0]) == 2:
+                    part = row.strip(' ').split('/')[1]
+                    if '-state' in part:
+                        next_obsolete_or_deprecated = True
+                    part = row.strip(' ').split('/')[-1]
+                    if ':state:' in part or '/state:' in part \
+                            or ':config:' in part or '/config:' in part:
+                        next_obsolete_or_deprecated = True
+            return True
 
-def main(scriptConf=None):
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
-    log_directory = scriptConf.log_directory
-    is_uwsgi = scriptConf.is_uwsgi
-    yang_models = scriptConf.yang_models
-    temp_dir = scriptConf.temp_dir
-    cache_dir = scriptConf.cache_dir
-    ytree_dir = scriptConf.ytree_dir
-    global LOGGER
-    LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
+        def is_transitional(rows, output):
+            if output.split('\n')[1].endswith('-state') and output.split('\n')[0].endswith('-state'):
+                if '+--rw' in output:
+                    return False
+                if output.startswith('\n'):
+                    name_of_module = output.split('\n')[1].split(': ')[1]
+                else:
+                    name_of_module = output.split('\n')[0].split(': ')[1]
+                name_of_module = name_of_module.split('-state')[0]
+                coresponding_nmda_file = self.__find_file(name_of_module)
+                if coresponding_nmda_file:
+                    name = coresponding_nmda_file.split('/')[-1].split('.')[0]
+                    revision = name.split('@')[-1]
+                    name = name.split('@')[0]
+                    if '{}@{}'.format(name, revision) in self.__trees:
+                        stdout = self.__trees['{}@{}'.format(name, revision)]
+                        pyang_list_of_rows = stdout.split('\n')[2:]
+                    else:
+                        plugin.plugins = []
+                        plugin.init([])
 
-    separator = ':'
-    suffix = args.api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
-    confdService = ConfdService()
-    redisConnection = RedisConnection()
-    LOGGER.info('Starting the populate script')
-    start = time.time()
-    if args.api:
-        direc = args.dir
-        args.dir += '/temp'
-    else:
-        direc = 0
-        while True:
+                        ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
+
+                        ctx.opts.lint_namespace_prefixes = []
+                        ctx.opts.lint_modulename_prefixes = []
+                        for p in plugin.plugins:
+                            p.setup_ctx(ctx)
+                        with open(coresponding_nmda_file, 'r') as f:
+                            a = ctx.add_module(coresponding_nmda_file, f.read())
+                        if ctx.opts.tree_path is not None:
+                            path = ctx.opts.tree_path.split('/')
+                            if path[0] == '':
+                                path = path[1:]
+                        else:
+                            path = None
+                        ctx.validate()
+                        try:
+                            f = io.StringIO()
+                            emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                                      ctx.opts.tree_line_length, path)
+                            stdout = f.getvalue()
+                        except:
+                            stdout = ''
+
+                        pyang_list_of_rows = stdout.split('\n')[2:]
+                        if len(ctx.errors) != 0 and len(stdout) == 0:
+                            return False
+                    if stdout == '':
+                        return False
+                    for x in range(0, len(rows)):
+                        if 'x--' in rows[x] or 'o--' in rows[x]:
+                            continue
+                        if rows[x].strip(' ') == '':
+                            break
+                        if len(rows[x].split('+--')[0]) == 4:
+                            if '-state' in rows[x]:
+                                return False
+                        if len(rows[x].split('augment')[0]) == 2:
+                            part = rows[x].strip(' ').split('/')[1]
+                            if '-state' in part:
+                                return False
+                        if '+--ro ' in rows[x]:
+                            leaf = \
+                                rows[x].split('+--ro ')[1].split(' ')[0].split(
+                                    '?')[0]
+
+                            for y in range(0, len(pyang_list_of_rows)):
+                                if leaf in pyang_list_of_rows[y]:
+                                    break
+                            else:
+                                return False
+                    return True
+                else:
+                    return False
+            else:
+                return False
+
+        def is_split(rows, output):
+            failed = False
+            row_num = 0
+            if output.split('\n')[1].endswith('-state'):
+                return False
+            for row in rows:
+                if 'x--' in row or 'o--' in row:
+                    continue
+                if '+--rw config' == row.replace('|', '').strip(
+                        ' ') or '+--ro state' == row.replace('|', '') \
+                        .strip(' '):
+                    return False
+                if 'augment' in row:
+                    part = row.strip(' ').split('/')[-1]
+                    if ':state:' in part or '/state:' in part or ':config:' in part or '/config:' in part:
+                        return False
+            for row in rows:
+                if 'x--' in row or 'o--' in row:
+                    continue
+                if row == '':
+                    break
+                if (len(row.split('+--')[0]) == 4 and 'augment' not in rows[
+                        row_num - 1]) or len(row.split('augment')[0]) == 2:
+                    if '-state' in row:
+                        if 'augment' in row:
+                            part = row.strip(' ').split('/')[1]
+                            if '-state' not in part:
+                                row_num += 1
+                                continue
+                        for x in range(row_num + 1, len(rows)):
+                            if 'x--' in rows[x] or 'o--' in rows[x]:
+                                continue
+                            if rows[x].strip(' ') == '' \
+                                    or (len(rows[x].split('+--')[
+                                        0]) == 4 and 'augment' not in
+                                        rows[row_num - 1]) \
+                                    or len(row.split('augment')[0]) == 2:
+                                break
+                            if '+--rw' in rows[x]:
+                                failed = True
+                                break
+                row_num += 1
+            if failed:
+                return False
+            else:
+                return True
+
+        x = 0
+        for module in all_modules.get('module', []):
+            x += 1
+            name = module['name']
+            revision = module['revision']
+            name_revision = '{}@{}'.format(name, revision)
+            self.__path = '{}/{}.yang'.format(self.__save_file_dir, name_revision)
+            yang_file_exists = self.__check_schema_file(module)
+            is_latest_revision = self.check_if_latest_revision(module)
+            if not yang_file_exists:
+                LOGGER.error('Skipping module: {}'.format(name_revision))
+                continue
+            LOGGER.info(
+                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules['module'])))
+            if revision in self.__trees[name]:
+                stdout = self.__trees[name][revision]
+            else:
+                plugin.plugins = []
+                plugin.init([])
+                ctx = create_context('{}:{}'.format(os.path.abspath(self.__yang_models), self.__save_file_dir))
+                ctx.opts.lint_namespace_prefixes = []
+                ctx.opts.lint_modulename_prefixes = []
+                for p in plugin.plugins:
+                    p.setup_ctx(ctx)
+                with open(self.__path, 'r', errors='ignore') as f:
+                    a = ctx.add_module(self.__path, f.read())
+                if a is None:
+                    LOGGER.debug(
+                        'Could not use pyang to generate tree because of errors on module {}'.
+                        format(self.__path))
+                    module['tree-type'] = 'unclassified'
+                    if revision not in self.new_modules[name]:
+                        self.new_modules[name][revision] = module
+                    else:
+                        self.new_modules[name][revision]['tree-type'] = 'unclassified'
+                    continue
+                if ctx.opts.tree_path is not None:
+                    path = ctx.opts.tree_path.split('/')
+                    if path[0] == '':
+                        path = path[1:]
+                else:
+                    path = None
+                retry = 5
+                while retry:
+                    try:
+                        ctx.validate()
+                        break
+                    except Exception as e:
+                        retry -= 1
+                        if retry == 0:
+                            raise e
+                try:
+                    f = io.StringIO()
+                    emit_tree(ctx, [a], f, ctx.opts.tree_depth,
+                              ctx.opts.tree_line_length, path)
+                    stdout = f.getvalue()
+                    self.__trees[name][revision] = stdout
+                except:
+                    module['tree-type'] = 'not-applicable'
+                    LOGGER.exception('not-applicable tree created')
+                    continue
+
+            if stdout == '':
+                module['tree-type'] = 'not-applicable'
+            else:
+                if stdout.startswith('\n'):
+                    pyang_list_of_rows = stdout.split('\n')[2:]
+                else:
+                    pyang_list_of_rows = stdout.split('\n')[1:]
+                if 'submodule' == module['module-type']:
+                    LOGGER.debug('Module {} is a submodule'.format(self.__path))
+                    module['tree-type'] = 'not-applicable'
+                elif is_latest_revision and is_combined(pyang_list_of_rows, stdout):
+                    module['tree-type'] = 'nmda-compatible'
+                elif is_split(pyang_list_of_rows, stdout):
+                    module['tree-type'] = 'split'
+                elif is_openconfig(pyang_list_of_rows, stdout):
+                    module['tree-type'] = 'openconfig'
+                elif is_transitional(pyang_list_of_rows, stdout):
+                    module['tree-type'] = 'transitional-extra'
+                else:
+                    module['tree-type'] = 'unclassified'
+            LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
+            if (revision not in self.__existing_modules_dict[name] or
+                    self.__existing_modules_dict.get(name).get(revision).get('tree-type') != module['tree-type']):
+                LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
+                    self.__existing_modules_dict.get(name).get(revision, {}).get('tree-type'), module['tree-type'],
+                    module['name'], module['revision']))
+                if revision not in self.new_modules[name]:
+                    self.new_modules[name][revision] = module
+                else:
+                    self.new_modules[name][revision]['tree-type'] = module['tree-type']
+
+    def parse_semver(self):
+        def get_revision_datetime(module: dict):
+            rev = module['revision'].split('-')
             try:
-                os.makedirs('{}/{}'.format(temp_dir, repr(direc)))
-                break
-            except OSError as e:
-                direc += 1
-                if e.errno != errno.EEXIST:
-                    raise
-        direc = '{}/{}'.format(temp_dir, repr(direc))
-    LOGGER.info('Calling runcapabilities script')
-    try:
-        module = __import__('parseAndPopulate', fromlist=['runCapabilities'])
-        submodule = getattr(module, 'runCapabilities')
-        script_conf = __set_runcapabilities_script_conf(submodule, args, direc)
-        submodule.main(scriptConf=script_conf)
-    except Exception as e:
-        LOGGER.exception('runCapabilities error:\n{}'.format(e))
-        raise e
+                date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
+            except Exception:
+                LOGGER.error('Failed to process revision for {}: (rev: {})'.format(module['name'], rev))
+                try:
+                    if int(rev[1]) == 2 and int(rev[2]) == 29:
+                        date = datetime(int(rev[0]), int(rev[1]), 28)
+                    else:
+                        date = datetime(1970, 1, 1)
+                except Exception:
+                    date = datetime(1970, 1, 1)
+            return date
 
-    body_to_send = {}
-    if args.notify_indexing:
-        LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc),
-                                           LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
+        def increment_semver(old: str, significance: int):
+            versions = old.split('.')
+            versions = list(map(int, versions))
+            versions[significance] += 1
+            versions[significance + 1:] = [0] * len(versions[significance + 1:])
+            return '{}.{}.{}'.format(*versions)
 
-    LOGGER.info('Populating yang catalog with data. Starting to add modules')
-    errors = False
-    with open('{}/prepare.json'.format(direc)) as data_file:
-        read = data_file.read()
-    modules = json.loads(read).get('module', [])
-    errors = confdService.patch_modules(modules)
-    redisConnection.populate_modules(modules)
+        def update_semver(old_details: dict, new_module: dict, significance: int):
+            upgraded_version = increment_semver(old_details['semver'], significance)
+            new_module['derived-semantic-version'] = upgraded_version
+            add_to_new_modules(new_module)
 
-    # In each json
-    if os.path.exists('{}/normal.json'.format(direc)):
-        LOGGER.info('Starting to add vendors')
-        with open('{}/normal.json'.format(direc)) as data:
-            vendors = json.loads(data.read())['vendors']['vendor']
-        errors = confdService.patch_vendors(vendors)
-    if body_to_send:
-        LOGGER.info('Sending files for indexing')
-        send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
-                          scriptConf.lock_file)
-    if not args.api:
-        process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
-                                                       args=(args.credentials, yangcatalog_api_prefix,))
-        process_reload_cache.start()
-        LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
-        recursion_limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(50000)
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                             args.credentials, args.save_file_dir, direc, None,
-                                                             yang_models, temp_dir, ytree_dir)
-        complicatedAlgorithms.parse_non_requests()
-        LOGGER.info('Waiting for cache reload to finish')
-        process_reload_cache.join()
-        complicatedAlgorithms.parse_requests()
-        sys.setrecursionlimit(recursion_limit)
-        LOGGER.info('Populating with new data of complicated algorithms')
-        complicatedAlgorithms.populate()
-        end = time.time()
-        LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
+        def trees_match(new, old) -> bool:
+            if type(new) != type(old):
+                return False
+            elif isinstance(new, dict):
+                new.pop('description', None)
+                old.pop('description', None)
+                return new.keys() == old.keys() and all((trees_match(new[i], old[i]) for i in new))
+            elif isinstance(new, list):
+                return len(new) == len(old) and all(any((trees_match(i, j) for j in old)) for i in new)
+            elif type(new) in (str, set, bool):
+                return new == old
 
-        # Keep new hashes only if the ConfD was patched successfully
-        if not errors:
-            path = os.path.join(direc, 'temp_hashes.json')
-            fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, not args.force_parsing, log_directory)
-            updated_hashes = fileHasher.load_hashed_files_list(path)
-            if updated_hashes:
-                fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
+        def get_trees(new: dict, old: dict):
+            new_name_revision = '{}@{}'.format(new['name'], new['revision'])
+            old_name_revision = '{}@{}'.format(old['name'], old['revision'])
+            new_schema = '{}/{}.yang'.format(self.__save_file_dir, new_name_revision)
+            old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
+            new_schema_exist = self.__check_schema_file(new)
+            old_schema_exist = self.__check_schema_file(old)
+            new_tree_path = '{}/{}.json'.format(self.ytree_dir, new_name_revision)
+            old_tree_path = '{}/{}.json'.format(self.ytree_dir, old_name_revision)
 
-        try:
-            shutil.rmtree('{}'.format(direc))
-        except OSError:
-            # Be happy if deleted
-            pass
-    LOGGER.info('Populate script finished successfully')
+            if old_schema_exist and new_schema_exist:
+                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
+                                                                self.__yang_models,
+                                                                self.__save_file_dir)
+                if len(ctx.errors) == 0:
+                    if os.path.exists(new_tree_path) and os.path.exists(old_tree_path):
+                        with open(new_tree_path) as nf, open(old_tree_path) as of:
+                            new_yang_tree = json.load(nf)
+                            old_yang_tree = json.load(of)
+                    else:
+                        with open(old_schema, 'r', errors='ignore') as f:
+                            old_schema_ctx = ctx.add_module(old_schema, f.read())
+                        if ctx.opts.tree_path is not None:
+                            path = ctx.opts.tree_path.split('/')
+                            if path[0] == '':
+                                path = path[1:]
+                        else:
+                            path = None
+                        retry = 5
+                        while retry:
+                            try:
+                                ctx.validate()
+                                break
+                            except Exception as e:
+                                retry -= 1
+                                if retry == 0:
+                                    raise e
+                        try:
+                            f = io.StringIO()
+                            emit_json_tree([new_schema_ctx], f, ctx)
+                            new_yang_tree = f.getvalue()
+                            with open(new_tree_path, 'w') as f:
+                                f.write(new_yang_tree)
+                        except:
+                            new_yang_tree = ''
+                        try:
+                            f = io.StringIO()
+                            emit_json_tree([old_schema_ctx], f, ctx)
+                            old_yang_tree = f.getvalue()
+                            with open(old_tree_path, 'w') as f:
+                                f.write(old_yang_tree)
+                        except:
+                            old_yang_tree = '2'
+                    return (new_yang_tree, old_yang_tree)
+                else:
+                    raise Exception
 
+        def add_to_new_modules(new_module: dict):
+            name = new_module['name']
+            revision = new_module['revision']
+            if (revision not in self.__existing_modules_dict[name] or
+                    self.__existing_modules_dict.get(name).get(revision).get('derived-semantic-version') != new_module['derived-semantic-version']):
+                LOGGER.info('semver {} vs {} for module {}@{}'.format(
+                    self.__existing_modules_dict.get(name).get(revision, {}).get('derived-semantic-version'),
+                    new_module['derived-semantic-version'], name, revision))
+                if revision not in self.new_modules[name]:
+                    self.new_modules[name][revision] = new_module
+                else:
+                    self.new_modules[name][revision]['derived-semantic-version'] = new_module['derived-semantic-version']
 
-if __name__ == "__main__":
-    main()
+        z = 0
+        for new_module in self.__all_modules.get('module', []):
+            z += 1
+            name = new_module['name']
+            new_revision = new_module['revision']
+            name_revision = '{}@{}'.format(name, new_revision)
+            data = defaultdict(dict)
+            # Get all other available revisions of the module
+            for m in self.__existing_modules_dict[new_module['name']].values():
+                if m['revision'] != new_module['revision']:
+                    data[m['name']][m['revision']] = deepcopy(m)
+
+            LOGGER.info(
+                'Searching semver for {}. {} out of {}'.format(name_revision, z, len(self.__all_modules['module'])))
+            if len(data) == 0:
+                # If there is no other revision for this module
+                new_module['derived-semantic-version'] = '1.0.0'
+                add_to_new_modules(new_module)
+            else:
+                # If there is at least one revision for this module
+                date = get_revision_datetime(new_module)
+                module_temp = {}
+                module_temp['name'] = name
+                module_temp['revision'] = new_revision
+                module_temp['organization'] = new_module['organization']
+                module_temp['compilation'] = new_module.get('compilation-status', 'PENDING')
+                module_temp['date'] = date
+                module_temp['schema'] = new_module['schema']
+                mod_details = [module_temp]
+
+                # Loop through all other available revisions of the module
+                for mod in [revision for name in data.values() for revision in name.values()]:
+                    module_temp = {}
+                    revision = mod['revision']
+                    if revision == new_module['revision']:
+                        continue
+                    module_temp['revision'] = revision
+                    module_temp['date'] = get_revision_datetime(mod)
+                    module_temp['name'] = name
+                    module_temp['organization'] = mod.get('organization')
+                    module_temp['schema'] = mod.get('schema')
+                    module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
+                    module_temp['semver'] = mod.get('derived-semantic-version')
+                    mod_details.append(module_temp)
+                data[name][new_revision] = new_module
+                mod_details = sorted(mod_details, key=lambda k: k['date'])
+                # If we are adding a new module to the end (latest revision) of existing modules with this name
+                # and all modules with this name have semver already assigned except for the last one
+                if mod_details[-1]['date'] == date:
+                    if mod_details[-1]['compilation'] != 'passed':
+                        versions = mod_details[-2]['semver'].split('.')
+                        major_ver = int(versions[0])
+                        major_ver += 1
+                        upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
+                        new_module['derived-semantic-version'] = upgraded_version
+                        add_to_new_modules(new_module)
+                    else:
+                        if mod_details[-2]['compilation'] != 'passed':
+                            update_semver(mod_details[-2], new_module, 0)
+                        else:
+                            try:
+                                trees = get_trees(mod_details[-1], mod_details[-2])
+                                # if schemas do not exist, trees will be None
+                                if trees:
+                                    new_yang_tree, old_yang_tree = trees
+                                    if trees_match(new_yang_tree, old_yang_tree):
+                                        # yang trees are the same - update only the patch version
+                                        update_semver(mod_details[-2], new_module, 2)
+                                    else:
+                                        # yang trees have changed - update minor version
+                                        update_semver(mod_details[-2], new_module, 1)
+                            except:
+                                # pyang found an error - update major version
+                                update_semver(mod_details[-2], new_module, 0)
+                # If we are adding new module in the middle (between two revisions) of existing modules with this name
+                else:
+                    name = mod_details[0]['name']
+                    revision = mod_details[0]['revision']
+                    mod_details[0]['semver'] = '1.0.0'
+                    response = data[name][revision]
+                    response['derived-semantic-version'] = '1.0.0'
+                    add_to_new_modules(response)
+
+                    for x in range(1, len(mod_details)):
+                        name = mod_details[x]['name']
+                        revision = mod_details[x]['revision']
+                        module = data[name][revision]
+                        if mod_details[x]['compilation'] != 'passed':
+                            update_semver(mod_details[x - 1], module, 0)
+                            mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
+                        else:
+                            # If the previous revision has the compilation status 'passed'
+                            if mod_details[x - 1]['compilation'] != 'passed':
+                                update_semver(mod_details[x - 1], module, 0)
+                                mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
+                            else:
+                                # Both actual and previous revisions have the compilation status 'passed'
+                                try:
+                                    trees = get_trees(mod_details[x], mod_details[x - 1])
+                                    # if schemas do not exist, trees will be None
+                                    if trees:
+                                        new_yang_tree, old_yang_tree = trees
+                                        if trees_match(new_yang_tree, old_yang_tree):
+                                            # yang trees are the same - update only the patch version
+                                            update_semver(mod_details[x - 1], module, 2)
+                                            mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
+                                                                                        2)
+                                        else:
+                                            # yang trees have changed - update minor version
+                                            update_semver(mod_details[x - 1], module, 1)
+                                            mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'],
+                                                                                        1)
+                                except:
+                                    # pyang found an error - update major version
+                                    update_semver(mod_details[x - 1], module, 0)
+                                    mod_details[x]['semver'] = increment_semver(mod_details[x - 1]['semver'], 0)
+
+        if len(self.__unavailable_modules) != 0:
+            mf = messageFactory.MessageFactory()
+            mf.send_unavailable_modules(self.__unavailable_modules)
+
+    def parse_dependents(self):
+
+        def check_latest_revision_and_remove(dependent, dependency):
+            for i in range(len(dependency.get('dependents', []))):
+                existing_dependent = dependency['dependents'][i]
+                if existing_dependent['name'] == dependent['name']:
+                    if existing_dependent['revision'] >= dependent['revision']:
+                        return True
+                    else:
+                        dependency['dependents'].pop(i)
+                        break
+            return False
+
+        def add_dependents(dependents: list, dependencies):
+            for dependent in dependents:
+                for dep_filter in dependent.get('dependencies', []):
+                    name = dep_filter['name']
+                    revision = dep_filter.get('revision')
+                    if name in dependencies:
+                        if revision is None:
+                            it = dependencies[name].values()
+                        else:
+                            if revision in dependencies[name]:
+                                it = [dependencies[name][revision]]
+                            else:
+                                it = []
+                        for dependency in it:
+                            revision = dependency['revision']
+                            if revision in self.new_modules[name]:
+                                dependency_copy = self.new_modules[name][revision]
+                            elif revision in self.__existing_modules_dict[name]:
+                                dependency_copy = deepcopy(self.__existing_modules_dict.get(name).get(revision))
+                            else:
+                                dependency_copy = dependency
+                            if not check_latest_revision_and_remove(dependent, dependency_copy):
+                                details = {
+                                    'name': dependent['name'],
+                                    'revision': dependent['revision'],
+                                }
+                                if 'schema' in dependent:
+                                    details['schema'] = dependent['schema']
+                                LOGGER.info('Adding {}@{} as dependent of {}@{}'.format(
+                                    dependent['name'], dependent['revision'], name, revision))
+                                dependency_copy.setdefault('dependents', []).append(details)
+                                self.new_modules[name][revision] = dependency_copy
+
+        all_modules = self.__all_modules.get('module', [])
+        all_modules_dict = defaultdict(dict)
+        for i in all_modules:
+            all_modules_dict[i['name']][i['revision']] = deepcopy(i)
+        both_dict = deepcopy(self.__existing_modules_dict)
+        for name, revisions in all_modules_dict.items():
+            both_dict[name].update(deepcopy(revisions))
+        existing_modules = [revision for name in self.__existing_modules_dict.values() for revision in name.values()]
+        LOGGER.info('Adding new modules as dependents')
+        add_dependents(all_modules, both_dict)
+        LOGGER.info('Adding existing modules as dependents')
+        add_dependents(existing_modules, all_modules_dict)
+
+    def __find_file(self, name: str, revision: str = '*'):
+        yang_name = '{}.yang'.format(name)
+        yang_name_rev = '{}@{}.yang'.format(name, revision)
+        directory = '/'.join(self.__path.split('/')[0:-1])
+        yang_file = find_first_file(directory, yang_name, yang_name_rev, self.__yang_models)
+
+        return yang_file
+
+    def __check_schema_file(self, module: dict):
+        """ Check if the file exists and if not try to get it from Github.
+
+        :param module   (dict) Details of currently parsed module
+        :return         Whether the content of the module was obtained or not.
+        :rtype  bool
+        """
+        schema = '{}/{}@{}.yang'.format(self.__save_file_dir, module['name'], module['revision'])
+        result = True
+
+        if not os.path.isfile(schema):
+            LOGGER.warning('File on path {} not found'.format(schema))
+            result = fetch_module_by_schema(module['schema'], schema)
+            if result:
+                LOGGER.info('File content successfully retrieved from GitHub using module schema')
+            else:
+                module_name = '{}@{}.yang'.format(module['name'], module['revision'])
+                self.__unavailable_modules.append(module_name)
+                LOGGER.error('Unable to retrieve file content from GitHub using module schema')
+
+        return result
+
+    def check_if_latest_revision(self, module: dict):
+        """ Check if the parsed module is the latest revision.
+
+        Argument:
+            :param module   (dict) Details of currently parsed module
+        """
+        return module.get('revision', '') >= self.__latest_revisions.get(module['name'], '')
