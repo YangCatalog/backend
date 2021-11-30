@@ -77,7 +77,7 @@ class ConfdService:
 
         return response
 
-    def _patch(self, data: list, type: str, log_file: str):
+    def _patch(self, data: list, type: str, log_file: str) -> bool:
         errors = False
         chunk_size = 500
         chunks = [data[i:i + chunk_size] for i in range(int(len(data)/chunk_size) + 1)]
