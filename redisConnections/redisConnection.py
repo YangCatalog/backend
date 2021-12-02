@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 
 import json
@@ -51,7 +51,7 @@ class RedisConnection:
                     if new_impl_name not in existing_impls_names:
                         existing_impls.append(new_impl)
                         existing_impls_names.append(new_impl_name)
-            elif key == 'dependents':
+            elif key in ['dependents', 'dependencies']:
                 new_prop_list = new_module.get(key, [])
                 existing_prop_list = existing_module.get(key, [])
                 existing_prop_names = [existing_prop.get('name') for existing_prop in existing_prop_list]
@@ -72,7 +72,7 @@ class RedisConnection:
         return existing_module
 
     def populate_modules(self, new_modules: list):
-        """ Merge new data of each module in "new_modules" list with existing data already stored in Redis.
+        """ Merge new data of each module in 'new_modules' list with existing data already stored in Redis.
         Set updated data to Redis under created key in format: <name>@<revision>/<organization>
 
         Argument:
@@ -81,7 +81,7 @@ class RedisConnection:
         new_merged_modules = {}
 
         for new_module in new_modules:
-            redis_key = self.__create_module_key(new_module)
+            redis_key = self._create_module_key(new_module)
             redis_module = self.get_module(redis_key)
             if redis_module == '{}':
                 updated_module = new_module
@@ -156,7 +156,7 @@ class RedisConnection:
 
     def delete_expires(self, module: dict):
         result = False
-        redis_key = self.__create_module_key(module)
+        redis_key = self._create_module_key(module)
         redis_module_raw = self.get_module(redis_key)
         redis_module = json.loads(redis_module_raw)
         redis_module.pop('expires', None)
@@ -164,7 +164,7 @@ class RedisConnection:
 
         return result
 
-    def __create_module_key(self, module: dict):
+    def _create_module_key(self, module: dict):
         return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
 
     def create_implementation_key(self, impl: dict):
@@ -181,7 +181,7 @@ class RedisConnection:
         return (data or b'{}').decode('utf-8')
 
     def populate_implementation(self, new_implemenetation: list):
-        """ Merge new data of each implementaion in "new_implementaions" list with existing data already stored in Redis.
+        """ Merge new data of each implementaion in 'new_implementaions' list with existing data already stored in Redis.
         Set updated data to Redis under created key in format:
         <vendors>/<platform>/<software-version>/<software-flavor>
 
@@ -212,10 +212,10 @@ class RedisConnection:
             else:
                 existing_implementation = json.loads(existing_data)
                 existing_modules = existing_implementation.get('modules').get('module')
-                existing_modules_keys = [self.__create_module_key(module) for module in existing_modules]
+                existing_modules_keys = [self._create_module_key(module) for module in existing_modules]
                 new_modules_list = value.get('modules', {}).get('module', [])
                 for module in new_modules_list:
-                    mod_key = self.__create_module_key(module)
+                    mod_key = self._create_module_key(module)
                     if mod_key not in existing_modules_keys:
                         existing_modules.append(module)
                         existing_modules_keys.append(mod_key)
