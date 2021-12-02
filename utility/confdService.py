@@ -80,9 +80,9 @@ class ConfdService:
     def _patch(self, data: list, type: str, log_file: str) -> bool:
         errors = False
         chunk_size = 500
-        chunks = [data[i:i + chunk_size] for i in range(int(len(data)/chunk_size) + 1)]
+        chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
         path = '{}/restconf/data/yang-catalog:catalog/{}/'.format(self.confd_prefix, type)
-        self.LOGGER.debug('Sending PATCH request to patch multiple modules')
+        self.LOGGER.debug('Sending PATCH request to patch multiple {}'.format(type))
         for i, chunk in enumerate(chunks, start=1):
             self.LOGGER.debug('Processing chunk {} out of {}'.format(i, len(chunks)))
             patch_data = {type: {type.rstrip('s'): chunk}}
@@ -91,17 +91,19 @@ class ConfdService:
             if response.status_code == 400:
                 self.LOGGER.warning('Failed to batch patch {}, falling back to patching individually'.format(type))
                 for datum in chunk:
-                    patch_data = {type: {type.rstrip('s'), [datum]}}
+                    patch_data = {type: {type.rstrip('s'): [datum]}}
                     patch_json = json.dumps(patch_data)
                     response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
-                    if response == 400:
+                    if response.status_code == 400:
                         errors = True
-                        self.LOGGER.error('Failed to patch {} {}@{}'.format(type.rstrip('s'), datum['name'], datum['revision']))
                         with open(os.path.join(self.log_directory, log_file), 'a') as f:
                             if type == 'modules':
+                                self.LOGGER.error('Failed to patch {} {}@{}'.format(type.rstrip('s'), datum['name'], datum['revision']))
                                 f.write('{}@{} error: {}\n'.format(datum['name'], datum['revision'], response.text))
                             elif type == 'vendors':
-                                f.write('{} error: {}\n'.format(datum['name'], response.text))
+                                platform_name = datum['platforms']['platform'][0]['name']
+                                self.LOGGER.error('Failed to patch {} {} {}'.format(type.rstrip('s'), datum['name'], platform_name))
+                                f.write('{} {} error: {}\n'.format(datum['name'], platform_name, response.text))
         return errors
 
     def patch_modules(self, modules: list) -> bool:
