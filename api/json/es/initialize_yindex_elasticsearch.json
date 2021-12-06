@@ -93,6 +93,9 @@
               "ignore_above": 256
             }
           }
+        },
+        "sdo": {
+          "type": "boolean"
         }
       }
     }

@@ -122,6 +122,15 @@ def index_get_other(stmt):
     return child
 
 
+SDOS = [
+    'ietf',
+    'ieee',
+    'bbf',
+    'odp',
+    'mef'
+]
+
+
 def index_printer(stmt):
     global _yang_catalog_index_values
     global _values
@@ -180,6 +189,7 @@ def index_printer(stmt):
     vals['statement'] = skey
     vals['argument'] = stmt.arg
     vals['description'] = dstr
+    vals['sdo'] = True if vals['organization'] in SDOS else False
     vals['properties'] = json.dumps(subs)
 
     text = '{} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],

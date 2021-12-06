@@ -304,7 +304,7 @@ class ElkSearch:
                 row['path'] = path
                 row['module-name'] = name
 
-                if organization in self.SDOS:
+                if source['sdo']:
                     row['origin'] = 'Industry Standard'
                 elif organization == 'N/A':
                     row['origin'] = organization
