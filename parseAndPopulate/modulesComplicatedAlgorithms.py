@@ -664,7 +664,7 @@ class ModulesComplicatedAlgorithms:
 
         if len(self.__unavailable_modules) != 0:
             mf = messageFactory.MessageFactory()
-            mf.send_unavailable_modules(self.__unavailable_modules)
+            mf.send_github_unavailable_schemas(self.__unavailable_modules)
 
     def parse_dependents(self):
 

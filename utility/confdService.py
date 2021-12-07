@@ -18,19 +18,19 @@ In each script where GET, PATCH, DELETE or HEAD request to the ConfD need to be 
 This eliminates need for setting URL, auth and headers each time.
 """
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 
 import json
 import os
 
 import requests
-from requests.models import Response
 
 import utility.log as log
+from utility import messageFactory
 from utility.create_config import create_config
 from utility.staticVariables import confd_headers
 
@@ -80,6 +80,7 @@ class ConfdService:
     def _patch(self, data: list, type: str, log_file: str) -> bool:
         errors = False
         chunk_size = 500
+        failed_data = {}
         chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
         path = '{}/restconf/data/yang-catalog:catalog/{}/'.format(self.confd_prefix, type)
         self.LOGGER.debug('Sending PATCH request to patch multiple {}'.format(type))
@@ -98,12 +99,25 @@ class ConfdService:
                         errors = True
                         with open(os.path.join(self.log_directory, log_file), 'a') as f:
                             if type == 'modules':
-                                self.LOGGER.error('Failed to patch {} {}@{}'.format(type.rstrip('s'), datum['name'], datum['revision']))
+                                name_revision = '{}@{}'.format(datum['name'], datum['revision'])
+                                self.LOGGER.error('Failed to patch {} {}'.format(type.rstrip('s'), name_revision))
+                                try:
+                                    failed_data[name_revision] = json.loads(response.text)
+                                except json.decoder.JSONDecodeError:
+                                    self.LOGGER.exception('No test in response')
                                 f.write('{}@{} error: {}\n'.format(datum['name'], datum['revision'], response.text))
                             elif type == 'vendors':
                                 platform_name = datum['platforms']['platform'][0]['name']
-                                self.LOGGER.error('Failed to patch {} {} {}'.format(type.rstrip('s'), datum['name'], platform_name))
+                                vendor_platform = '{} {}'.format(datum['name'], platform_name)
+                                self.LOGGER.error('Failed to patch {} {}'.format(type.rstrip('s'), vendor_platform))
+                                try:
+                                    failed_data[vendor_platform] = json.loads(response.text)
+                                except json.decoder.JSONDecodeError:
+                                    self.LOGGER.exception('No test in response')
                                 f.write('{} {} error: {}\n'.format(datum['name'], platform_name, response.text))
+        if failed_data:
+            mf = messageFactory.MessageFactory()
+            mf.send_confd_writing_failures(type, failed_data)
         return errors
 
     def patch_modules(self, modules: list) -> bool:
