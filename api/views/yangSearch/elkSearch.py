@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import hashlib
 import json
@@ -279,7 +279,7 @@ class ElkSearch:
             module_index = '{}@{}/{}'.format(name, revision, organization)
             if module_index in reject:
                 continue
-            if not self.__latest_revision or revision == self.__latest_revisions[name].replace('02-28', '02-29'):
+            if not self.__latest_revision or revision == self.__latest_revisions.get(name, '').replace('02-28', '02-29'):
                 # we need argument, description, path and statement out of the elk response
                 argument = source['argument']
                 description = source['description']
