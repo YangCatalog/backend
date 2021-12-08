@@ -26,7 +26,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 
-import json
 import logging
 import os
 import time
@@ -187,6 +186,7 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
             # delete request need to be done to the ConfD to the 'expires' property
             response = confdService.delete_expires(module_key)
             redisConnection.delete_expires(module)
+            module.pop('expires', None)
 
             message = 'Module {} expiration date deleted with code {}'.format(yang_name_rev, response.status_code)
             if response.text != '':

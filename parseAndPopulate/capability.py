@@ -202,10 +202,11 @@ class Capability:
             with open('{}/prepare-sdo.json'.format(self.json_dir), 'r') as f:
                 sdos_json = json.load(f)
             sdos_list = sdos_json.get('modules', {}).get('module', [])
-            for sdo in sdos_list:
+            sdos_count = len(sdos_list)
+            for i, sdo in enumerate(sdos_list, start=1):
                 file_name = unicodedata.normalize('NFKD', sdo.get('source-file', {}).get('path').split('/')[-1]) \
                     .encode('ascii', 'ignore')
-                LOGGER.info('Parsing sdo file sent via API {}'.format(file_name.decode('utf-8', 'strict')))
+                LOGGER.info('Parsing {} {} out of {}'.format(file_name.decode('utf-8', 'strict'), i, sdos_count))
                 self.owner = sdo.get('source-file', {}).get('owner')
                 repo_file_path = sdo.get('source-file', {}).get('path')
                 self.repo = sdo.get('source-file', {}).get('repository', '').split('.')[0]
@@ -264,7 +265,9 @@ class Capability:
                     self.repo = repo.get_repo_dir().split('.git')[0]
 
             for root, _, sdos in os.walk('/'.join(self.split)):
-                for file_name in sdos:
+                sdos_count = len(sdos)
+                LOGGER.info('Searching {} files from directory {}'.format(sdos_count, root))
+                for i, file_name in enumerate(sdos, start=1):
                     # Process only SDO .yang files
                     if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
                         path = '{}/{}'.format(root, file_name)
@@ -274,7 +277,7 @@ class Capability:
                         if '[1]' in file_name:
                             LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                         else:
-                            LOGGER.info('Parsing sdo file {} from directory {}'.format(file_name, root))
+                            LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
                             try:
                                 yang = Modules(self.yang_models_dir, self.log_directory, path,
                                                self.html_result_dir, self.parsed_jsons, self.json_dir)

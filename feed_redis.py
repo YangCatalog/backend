@@ -51,7 +51,7 @@ def load_catalog_data():
     for module in modules:
         if module['name'] == 'yang-catalog' and module['revision'] == '2018-04-03':
             redis_cache.set('yang-catalog@2018-04-03/ietf', json.dumps(module))
-            redisConnection.set_redis_module(module, 'yang-catalog@2018-04-03/ietf')
+            redisConnection.populate_modules([module])
             print('yang-catalog@2018-04-03 module set in Redis')
             break
 
