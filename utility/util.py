@@ -35,6 +35,7 @@ from Crypto.Hash import HMAC, SHA
 from elasticsearch import Elasticsearch
 from pyang import plugin
 from pyang.plugins.check_update import check_update
+from redisConnections.redisConnection import RedisConnection
 
 from utility import messageFactory, yangParser
 from utility.confdService import ConfdService
@@ -151,7 +152,7 @@ def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_path: str, delet
     try:
         try:
             open(lock_file, 'w').close()
-        except:
+        except Exception:
             raise Exception('Failed to obtain lock {}'.format(lock_file))
 
         changes_cache = dict()
@@ -227,7 +228,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
         LOGGER.info('Data sent for indexing successfully')
 
 
-def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list, LOGGER, save_file_dir: str, temp_dir: str,
+def prepare_to_indexing(yc_api_prefix: str, modules_to_index, LOGGER, save_file_dir: str, temp_dir: str,
                         sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
@@ -238,7 +239,6 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
     Arguments:
         :param yc_api_prefix        (str) prefix for sending request to api
         :param modules_to_index     (json file) prepare.json file generated while parsing
-        :param credentials          (list) basic authorization credentials - username, password respectively
         :param LOOGER:              (obj) LOGGER in case we can not use receiver's because other module is calling this method
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
         :param temp_dir             (str) path to temporary directory
@@ -259,15 +259,17 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
             path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
             data = {'input': {'dependents': [{'name': name}]}}
 
-            response = requests.post('{}search-filter'.format(yc_api_prefix),
-                                     auth=(credentials[0], credentials[1]),
-                                     json={'input': data})
-            if response.status_code == 201:
-                modules = response.json()
+            response = requests.post('{}search-filter'.format(yc_api_prefix), json=data)
+            if response.status_code == 200:
+                data = response.json()
+                modules = data['yang-catalog:modules']['module']
                 for mod in modules:
                     module_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
                     confdService = ConfdService()
                     confdService.delete_dependent(module_key, name)
+                    redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
+                    redisConnection = RedisConnection()
+                    redisConnection.delete_dependent(redis_key, name)
             if os.path.exists(path_to_delete_local):
                 os.remove(path_to_delete_local)
     else:
@@ -284,9 +286,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
 
             for module in sdos_json.get('module', []):
                 url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
-                                                         module['name'],
-                                                         module['revision'],
-                                                         module['organization'])
+                                                         module['name'], module['revision'], module['organization'])
                 response = requests.get(url, headers=json_headers)
                 code = response.status_code
                 if force_indexing or (code != 200 and code != 201 and code != 204):
@@ -300,9 +300,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index, credentials: list,
         else:
             for module in sdos_json.get('module', []):
                 url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
-                                                         module['name'],
-                                                         module['revision'],
-                                                         module['organization'])
+                                                         module['name'], module['revision'], module['organization'])
                 response = requests.get(url, headers=json_headers)
                 code = response.status_code
 
@@ -355,7 +353,7 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
     try:
         with open('{}/cronjob.json'.format(temp_dir), 'r') as f:
             file_content = json.load(f)
-    except:
+    except Exception:
         file_content = {}
 
     filename = filename.split('.py')[0]
@@ -367,7 +365,7 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         try:
             previous_state = file_content.get(filename)
             last_successfull = previous_state.get('last_successfull')
-        except:
+        except Exception:
             last_successfull = None
 
     result['last_successfull'] = last_successfull
@@ -396,7 +394,7 @@ def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
                 f.write(yang_file_content)
             os.chmod(dst_path, 0o644)
             file_exist = os.path.isfile(dst_path)
-    except:
+    except Exception:
         file_exist = os.path.isfile(dst_path)
 
     return file_exist
@@ -443,7 +441,7 @@ def get_module_from_es(name: str, revision: str):
 
     try:
         es_result = es.search(index='modules', doc_type='modules', body=query)
-    except:
+    except Exception:
         return {}
 
     return es_result

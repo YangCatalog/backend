@@ -1,0 +1,80 @@
+{
+    "name": "ietf-bgp",
+    "namespace": "urn:ietf:params:xml:ns:yang:ietf-bgp",
+    "organization": "ietf",
+    "prefix": "bgp",
+    "reference": "https://datatracker.ietf.org/doc/draft-ietf-idr-bgp-model/12",
+    "revision": "2021-10-25",
+    "author-email": "draft-ietf-idr-bgp-model@ietf.org",
+    "compilation-result": "https://yangcatalog.org/results/ietf-bgp@2021-10-25_ietf.html",
+    "compilation-status": "passed-with-warnings",
+    "contact": "WG Web:   <http://tools.ietf.org/wg/idr>\nWG List:  <idr@ietf.org>\n\nAuthors: Mahesh Jethanandani (mjethanandani at gmail.com),\n         Keyur Patel (keyur at arrcus.com),\n         Susan Hares (shares at ndzh.com),\n         Jeffrey Haas (jhaas at juniper.net).",
+    "dependencies": [
+        {
+            "name": "ietf-bfd-types",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/4c8ac7ee57c4faa2e0edf65b1819700b1659c370/experimental/ietf-extracted-YANG-modules/ietf-bfd-types@2018-08-01.yang"
+        },
+        {
+            "name": "ietf-bgp-common",
+            "revision": "2021-10-25",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/4c8ac7ee57c4faa2e0edf65b1819700b1659c370/experimental/ietf-extracted-YANG-modules/ietf-bgp-common@2021-10-25.yang"
+        }
+    ],
+    "dependents": [
+        {
+            "name": "ietf-bgp-l3vpn",
+            "revision": "2018-04-17",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/3af23949e11a2acd2f36df1dc0afca73ffe118ac/experimental/ietf-extracted-YANG-modules/ietf-bgp-l3vpn@2018-04-17.yang"
+        },
+        {
+            "name": "ietf-bgp-sr",
+            "revision": "2018-06-26",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/3af23949e11a2acd2f36df1dc0afca73ffe118ac/experimental/ietf-extracted-YANG-modules/ietf-bgp-sr@2018-06-26.yang"
+        }
+    ],
+    "derived-semantic-version": "12.0.0",
+    "description": "This module describes a YANG model for BGP protocol\nconfiguration. It is a limited subset of all of the\nconfiguration parameters available in the variety of vendor\nimplementations, hence it is expected that it would be augmented\nwith vendor-specific configuration data as needed. Additional\nmodules or submodules to handle other aspects of BGP\nconfiguration, including policy, VRFs, VPNs, and additional\naddress families are also expected.\n\nThis model supports the following BGP configuration level\nhierarchy:\n\n BGP\n   |\n   +-> [ global BGP configuration ]\n     +-> AFI / SAFI global\n   +-> peer group\n     +-> [ peer group config ]\n     +-> AFI / SAFI [ per-AFI overrides ]\n   +-> neighbor\n     +-> [ neighbor config ]\n     +-> [ optional pointer to peer-group ]\n     +-> AFI / SAFI [ per-AFI overrides ]\n\nCopyright (c) 2021 IETF Trust and the persons identified as\nauthors of the code. All rights reserved.\n\nRedistribution and use in source and binary forms, with or\nwithout modification, is permitted pursuant to, and subject to\nthe license terms contained in, the Simplified BSD License set\nforth in Section 4.c of the IETF Trust's Legal Provisions\nRelating to IETF Documents\n(https://trustee.ietf.org/license-info).\n\nThis version of this YANG module is part of RFC XXXX\n(https://www.rfc-editor.org/info/rfcXXXX); see the RFC itself\nfor full legal notices.\n\nThe key words 'MUST', 'MUST NOT', 'REQUIRED', 'SHALL', 'SHALL\nNOT', 'SHOULD', 'SHOULD NOT', 'RECOMMENDED', 'NOT RECOMMENDED',\n'MAY', and 'OPTIONAL' in this document are to be interpreted as\ndescribed in BCP 14 (RFC 2119) (RFC 8174) when, and only when,\nthey appear in all capitals, as shown here.",
+    "document-name": "draft-ietf-idr-bgp-model-12.txt",
+    "expired": false,
+    "expires": "2022-04-28T15:45:59-00:00",
+    "generated-from": "not-applicable",
+    "ietf": {
+        "ietf-wg": "idr"
+    },
+    "maturity-level": "adopted",
+    "module-classification": "unknown",
+    "module-type": "module",
+    "schema": "https://raw.githubusercontent.com/YangModels/yang/4c8ac7ee57c4faa2e0edf65b1819700b1659c370/experimental/ietf-extracted-YANG-modules/ietf-bgp@2021-10-25.yang",
+    "submodule": [
+        {
+            "name": "ietf-bgp-common",
+            "revision": "2021-10-25",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/4c8ac7ee57c4faa2e0edf65b1819700b1659c370/experimental/ietf-extracted-YANG-modules/ietf-bgp-common@2021-10-25.yang"
+        },
+        {
+            "name": "ietf-bgp-common-multiprotocol",
+            "revision": "2021-10-25",
+            "schema": "https://raw.githubusercontent.com/YangModels/yang/4c8ac7ee57c4faa2e0edf65b1819700b1659c370/experimental/ietf-extracted-YANG-modules/ietf-bgp-common-multiprotocol@2021-10-25.yang"
+        }
+    ],
+    "tree-type": "split",
+    "yang-tree": "https://yangcatalog.org/api/services/tree/ietf-bgp@2021-10-25.yang",
+    "yang-version": "1.1",
+    "implementations": {
+        "implementation": [
+            {
+                "conformance-type": "implement",
+                "feature": [
+                    "candidate"
+                ],
+                "feature-set": "ALL",
+                "os-type": "VRP",
+                "os-version": "V800R013C00",
+                "platform": "ne9000",
+                "software-flavor": "ALL",
+                "software-version": "V800R013C00",
+                "vendor": "huawei"
+            }
+        ]
+    }
+}

@@ -18,19 +18,19 @@ In each script where GET, PATCH, DELETE or HEAD request to the ConfD need to be 
 This eliminates need for setting URL, auth and headers each time.
 """
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 
 import json
 import os
 
 import requests
-from requests.models import Response
 
 import utility.log as log
+from utility import messageFactory
 from utility.create_config import create_config
 from utility.staticVariables import confd_headers
 
@@ -73,16 +73,17 @@ class ConfdService:
         patch_data = {'yang-catalog:module': module}
         patch_json = json.dumps(patch_data)
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(self.confd_prefix, module_key)
-        response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)            
+        response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
 
     def _patch(self, data: list, type: str, log_file: str) -> bool:
         errors = False
         chunk_size = 500
-        chunks = [data[i:i + chunk_size] for i in range(int(len(data)/chunk_size) + 1)]
+        failed_data = {}
+        chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
         path = '{}/restconf/data/yang-catalog:catalog/{}/'.format(self.confd_prefix, type)
-        self.LOGGER.debug('Sending PATCH request to patch multiple modules')
+        self.LOGGER.debug('Sending PATCH request to patch multiple {}'.format(type))
         for i, chunk in enumerate(chunks, start=1):
             self.LOGGER.debug('Processing chunk {} out of {}'.format(i, len(chunks)))
             patch_data = {type: {type.rstrip('s'): chunk}}
@@ -91,17 +92,32 @@ class ConfdService:
             if response.status_code == 400:
                 self.LOGGER.warning('Failed to batch patch {}, falling back to patching individually'.format(type))
                 for datum in chunk:
-                    patch_data = {type: {type.rstrip('s'), [datum]}}
+                    patch_data = {type: {type.rstrip('s'): [datum]}}
                     patch_json = json.dumps(patch_data)
                     response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
-                    if response == 400:
+                    if response.status_code == 400:
                         errors = True
-                        self.LOGGER.error('Failed to patch {} {}@{}'.format(type.rstrip('s'), datum['name'], datum['revision']))
                         with open(os.path.join(self.log_directory, log_file), 'a') as f:
                             if type == 'modules':
+                                name_revision = '{}@{}'.format(datum['name'], datum['revision'])
+                                self.LOGGER.error('Failed to patch {} {}'.format(type.rstrip('s'), name_revision))
+                                try:
+                                    failed_data[name_revision] = json.loads(response.text)
+                                except json.decoder.JSONDecodeError:
+                                    self.LOGGER.exception('No test in response')
                                 f.write('{}@{} error: {}\n'.format(datum['name'], datum['revision'], response.text))
                             elif type == 'vendors':
-                                f.write('{} error: {}\n'.format(datum['name'], response.text))
+                                platform_name = datum['platforms']['platform'][0]['name']
+                                vendor_platform = '{} {}'.format(datum['name'], platform_name)
+                                self.LOGGER.error('Failed to patch {} {}'.format(type.rstrip('s'), vendor_platform))
+                                try:
+                                    failed_data[vendor_platform] = json.loads(response.text)
+                                except json.decoder.JSONDecodeError:
+                                    self.LOGGER.exception('No test in response')
+                                f.write('{} {} error: {}\n'.format(datum['name'], platform_name, response.text))
+        if failed_data:
+            mf = messageFactory.MessageFactory()
+            mf.send_confd_writing_failures(type, failed_data)
         return errors
 
     def patch_modules(self, modules: list) -> bool:
@@ -121,6 +137,14 @@ class ConfdService:
         self.LOGGER.debug('Sending DELETE request to dependent {} of the module {}'.format(dependent, module_key))
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/dependents={}'.format(
             self.confd_prefix, module_key, dependent)
+        response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
+    def delete_submodule(self, module_key: str, submodule: str) -> requests.Response:
+        self.LOGGER.debug('Sending DELETE request to submodule {} of the module {}'.format(submodule, module_key))
+        path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/submodule={}'.format(
+            self.confd_prefix, module_key, submodule)
         response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response

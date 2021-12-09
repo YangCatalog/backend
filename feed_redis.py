@@ -24,9 +24,16 @@ from collections import OrderedDict
 
 import redis
 
+from redisConnections.redisConnection import RedisConnection
+
+
+def create_module_key(module: dict):
+    return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
+
 
 def load_catalog_data():
     redis_cache = redis.Redis(host='localhost', port=6379)
+    redisConnection = RedisConnection()
     resources_path = '{}/tests/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
     try:
         print('Loading cache file from path {}'.format(resources_path))
@@ -44,6 +51,7 @@ def load_catalog_data():
     for module in modules:
         if module['name'] == 'yang-catalog' and module['revision'] == '2018-04-03':
             redis_cache.set('yang-catalog@2018-04-03/ietf', json.dumps(module))
+            redisConnection.populate_modules([module])
             print('yang-catalog@2018-04-03 module set in Redis')
             break
 
@@ -51,10 +59,12 @@ def load_catalog_data():
     modules = catalog_data_json['modules']
     vendors = catalog_data_json.get('vendors', {})
 
-    redis_cache.set('modules-data', json.dumps(modules))
-    print('{} modules set in Redis.'.format(len(modules.get('module', {}))))
+    # Fill Redis db=1 with modules data
+    modules_data = {create_module_key(module): module for module in modules.get('module', [])}
+    redisConnection.set_redis_module(modules_data, 'modules-data')
+    print('{} modules set in Redis.'.format(len(modules.get('module', []))))
     redis_cache.set('vendors-data', json.dumps(vendors))
-    print('{} vendors set in Redis.'.format(len(vendors.get('vendor', {}))))
+    print('{} vendors set in Redis.'.format(len(vendors.get('vendor', []))))
     redis_cache.set('all-catalog-data', json.dumps(catalog_data))
 
 

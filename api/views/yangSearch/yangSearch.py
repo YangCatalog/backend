@@ -150,8 +150,10 @@ def tree_module_revision(module_name: str, revision: t.Optional[str]) -> t.Dict[
         try:
             with open(path_to_yang, 'r') as f:
                 module_context = ctx.add_module(path_to_yang, f.read())
-        except:
-            abort(400, description='File {} was not found'.format(path_to_yang))
+        except Exception:
+            msg = 'File {} was not found'.format(path_to_yang)
+            bp.LOGGER.exception(msg)
+            abort(400, description=msg)
         imports_includes = []
         assert module_context is not None
         imports_includes.extend(module_context.search('import'))
@@ -309,7 +311,7 @@ def search():
     output_columns = is_list_in(payload, 'output-columns', __output_columns)
     sub_search = each_key_in(payload, 'sub-search', __output_columns)
     elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, ac.d_logs,
-                           ac.es, latest_revision, ac.redis, include_mibs, yang_versions, output_columns,
+                           ac.es, latest_revision, app.redisConnection, include_mibs, yang_versions, output_columns,
                            __output_columns, sub_search)
     elk_search.construct_query()
     response['rows'], response['max-hits'] = elk_search.search()
@@ -347,7 +349,7 @@ def get_services_list(type: str, pattern: str):
                 res.append(row['key'])
 
     except:
-        bp.LOGGER.exception("Failed to get completions result")
+        bp.LOGGER.exception('Failed to get completions result')
         return (jsonify(res), 400)
     return jsonify(res)
 
@@ -450,17 +452,15 @@ def module_details(module: str, revision: t.Optional[str], json_data: bool = Fal
             'revisions': revisions
         }
 
-    # get module from redis
-    module_index = "{}@{}/{}".format(module, revision, organization)
-    bp.LOGGER.info('searching for module {}'.format(module_index))
-    module_data = ac.redis.get(module_index)
-    if module_data is None:
+    # get module from Redis
+    module_key = '{}@{}/{}'.format(module, revision, organization)
+    module_data = app.redisConnection.get_module(module_key)
+    if module_data == '{}':
         if warnings:
-            return {'warning': 'module {} does not exists in API'.format(module_index)}
+            return {'warning': 'module {} does not exists in API'.format(module_key)}
         else:
             abort(404, description='Provided module does not exist')
     else:
-        module_data = module_data.decode('utf-8')
         module_data = json.loads(module_data)
     resp['metadata'] = module_data
     if json_data:
@@ -689,13 +689,12 @@ def each_key_in(payload, payload_key, keys):
     abort(400, 'Value of key {} must be string from following list {}'.format(payload_key, keys))
 
 
-def get_module_data(module_index):
-    bp.LOGGER.info('searching for module {}'.format(module_index))
-    module_data = ac.redis.get(module_index)
-    if module_data is None:
+def get_module_data(module_key: str):
+    bp.LOGGER.info('searching for module {}'.format(module_key))
+    module_data = app.redisConnection.get_module(module_key)
+    if module_data == '{}':
         abort(404, description='Provided module does not exist')
     else:
-        module_data = module_data.decode('utf-8')
         module_data = json.loads(module_data)
     return module_data
 

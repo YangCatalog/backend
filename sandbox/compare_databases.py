@@ -12,10 +12,10 @@ Finally, all the information are dumped into json file, so they can be reviewed 
 import json
 import os
 
-import redis
 import utility.log as log
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
+from redis import Redis
 from utility.create_config import create_config
 from utility.util import fetch_module_by_schema
 
@@ -53,7 +53,7 @@ def check_module_in_redis(hits: list):
         modules = hit['_source']
         key = '{}@{}/{}'.format(modules['module'], modules['revision'], modules['organization'])
         data = redis.get(key)
-        if data is None:
+        if data == '{}':
             redis_missing.append(key)
             redis_missing_count += 1
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
     # Create Redis and Elasticsearch connections
-    redis = redis.Redis(host=redis_host, port=redis_port)
+    redis = Redis(host=redis_host, port=redis_port, db=1)
 
     if es_aws == 'True':
         es_aws = True
@@ -113,7 +113,7 @@ if __name__ == '__main__':
 
             if es_result['hits']['total'] == 0:
                 es_missing_modules.append(key)
-                module = json.loads(redis.get(key).decode('utf-8'))
+                module = json.loads(redis.get(key))
                 # Check if this file is in /var/yang/all_modules folder
                 all_modules_path = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
                 if not os.path.isfile(all_modules_path):
@@ -130,7 +130,7 @@ if __name__ == '__main__':
             incorrect_format_modules.append(key)
             LOGGER.exception('Problem with module {}@{}. SKIPPING'.format(name, revision))
             continue
-        except:
+        except Exception:
             continue
 
     # PHASE II: Check modules from Elasticsearch in Redis

@@ -14,9 +14,12 @@
 # limitations under the License.
 
 """
-This python script is set as automatic cronjob
-tool to parse and populate all new ietf DRAFT
-and RFC modules.
+This script runs populate.py over 3 different directories:
+I. RFC .yang modules -> standard/ietf/RFC path
+II. Draft .yang modules -> experimental/ietf-extracted-YANG-modules path
+III. IANA maintained modules -> standard/iana path
+
+This script runs as automatic cronjob on daily basis.
 """
 
 __author__ = 'Miroslav Kovac'

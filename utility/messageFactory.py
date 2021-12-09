@@ -18,11 +18,12 @@ MessageFactory class that send a automated messages to
 specified rooms or people.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
+import json
 import os
 import smtplib
 import sys
@@ -53,19 +54,21 @@ class MessageFactory:
 
         config = create_config(config_path)
         log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger(__name__, log_directory + '/yang.log')
-        self.LOGGER.info('Initialising Message')
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
         self.__is_production = config.get('General-Section', 'is-prod')
         self.__is_production = True if self.__is_production == 'True' else False
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__developers_email = config.get('Message-Section', 'developers-email').split()
-        self.__api = CiscoSparkAPI(access_token=token)
-        rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self._temp_dir = config.get('Directory-Section', 'temp')
         self.__me = config.get('Web-Section', 'my-uri')
+
+        self.__api = CiscoSparkAPI(access_token=token)
+        rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self.__me = self.__me.split('/')[-1]
+        self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
+        self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
+        self.LOGGER.info('Initialising Message Factory')
 
         if len(rooms) == 0:
             self.LOGGER.error('Need at least one room')
@@ -90,7 +93,7 @@ class MessageFactory:
         """
         msg += '\n\nMessage sent from {}'.format(self.__me)
         if not self.__is_production:
-            self.LOGGER.info('You are in local env. Skip sending message to cisco webex teams. The message was {}'
+            self.LOGGER.info('You are in local env. Skip sending message to cisco webex teams. The message was\n{}'
                              .format(msg))
             if files:
                 for f in files:
@@ -167,43 +170,40 @@ class MessageFactory:
 
     def send_removed_yang_files(self, removed_yang_files):
         self.LOGGER.info('Sending notification about removed YANG modules')
-        message = ("Files have been removed from yangcatalog.org. See attached"
-                   " document")
-        text = ("The following files has been removed from https://yangcatalog.org"
-                " using the API: \n{}\n".format(removed_yang_files))
-        with open(self._temp_dir + '/message-log.txt', 'w') as f:
+        message = 'Files have been removed from yangcatalog.org. See attached document'
+        text = ('The following files has been removed from https://yangcatalog.org'
+                ' using the API: \n{}\n'.format(removed_yang_files))
+        with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])
+        self.__post_to_spark(message, True, files=[self._message_log_file])
 
     def send_added_new_yang_files(self, added_yang_files):
         self.LOGGER.info('Sending notification about added yang modules')
-        message = ("Files have been added to yangcatalog.org. See attached"
-                   " document")
-        text = ("The following files have been added to https://yangcatalog.org"
-                " using the API as new modules or old modules with new "
-                "revision: \n{}\n".format(added_yang_files))
-        with open(self._temp_dir + '/message-log.txt', 'w') as f:
+        message = 'Files have been added to yangcatalog.org. See attached document'
+        text = ('The following files have been added to https://yangcatalog.org'
+                ' using the API as new modules or old modules with new '
+                'revision: \n{}\n'.format(added_yang_files))
+        with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])
+        self.__post_to_spark(message, True, files=[self._message_log_file])
 
     def send_new_modified_platform_metadata(self, new_files, modified_files):
         self.LOGGER.info(
             'Sending notification about new or modified platform metadata')
         new_files = '\n'.join(new_files)
         modified_files = '\n'.join(modified_files)
-        message = ("Files have been modified in yangcatalog. See attached"
-                   " document")
-        text = ("There were new or modified platform metadata json files "
-                "added to yangModels/yang repository, that are currently"
-                "being processed in following paths:\n\n"
-                "\n New json files: \n {} \n\n Modified json files:\n{}\n"
+        message = 'Files have been modified in yangcatalog.org. See attached document'
+        text = ('There were new or modified platform metadata json files '
+                'added to yangModels/yang repository, that are currently'
+                'being processed in following paths:\n\n'
+                '\n New json files: \n {} \n\n Modified json files:\n{}\n'
                 .format(new_files, modified_files))
-        with open(self._temp_dir + '/message-log.txt', 'w') as f:
+        with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=[self._temp_dir + '/message-log.txt'])
+        self.__post_to_spark(message, True, files=[self._message_log_file])
 
-    def send_unavailable_modules(self, modules_list: list):
-        self.LOGGER.info('Sending notification about unavailable modules')
+    def send_github_unavailable_schemas(self, modules_list: list):
+        self.LOGGER.info('Sending notification about unavailable schemas')
         message = ('Following modules could not be retreived from GitHub '
                    'using the schema path:\n{}'.format('\n'.join(modules_list)))
         self.__post_to_email(message, self.__developers_email)
@@ -215,3 +215,14 @@ class MessageFactory:
         msg = 'User {} with email {} is requesting access.\nMotivation: {}\nPlease go to https://yangcatalog.org/admin/users-management ' \
               'and approve or reject this request in Users tab.'.format(username, email, motivation)
         self.__post_to_email(msg, subject=subject)
+
+    def send_confd_writing_failures(self, type: str, data: dict):
+        subject = 'Following {} failed to write to ConfD'.format(type)
+        self.LOGGER.info(subject)
+
+        message = '{}\n\n'.format(subject)
+        for key, error in data.items():
+            message += '\n{}:\n'.format(key)
+            message += json.dumps(error, indent=2)
+
+        self.__post_to_email(message, email_to=self.__developers_email, subject=subject)

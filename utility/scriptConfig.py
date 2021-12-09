@@ -12,13 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This script is run by a cronjob and it
-finds all the modules that have expiration
-metadata and updates them based on a date to
-expired if it is necessary
-"""
-
 __author__ = 'Richard Zilincik'
 __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
@@ -32,16 +25,19 @@ class Help(t.TypedDict):
     help: str
     options: t.Dict[str, str]
 
+
 class BaseArg(t.TypedDict):
     flag: str
     help: str
     default: t.Any
+
 
 class Arg(BaseArg, total=False):
     type: type
     action: str
     nargs: int
     choices: t.List[str]
+
 
 class BaseScriptConfig:
 
@@ -61,7 +57,6 @@ class BaseScriptConfig:
                     self.help['options'][arg_name] = arg['help']
         self.args = parser.parse_args(arglist)
         self.defaults = [parser.get_default(key) for key in self.args.__dict__.keys()]
-
 
     def get_args_list(self) -> t.Dict:
         return self.args_dict

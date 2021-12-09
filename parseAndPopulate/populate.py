@@ -39,8 +39,8 @@ import time
 import typing as t
 
 import requests
-
 import utility.log as log
+from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -204,6 +204,7 @@ def main(scriptConf=None):
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
     confdService = ConfdService()
+    redisConnection = RedisConnection()
     LOGGER.info('Starting the populate script')
     start = time.time()
     if args.api:
@@ -233,7 +234,7 @@ def main(scriptConf=None):
     body_to_send = {}
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc), args.credentials,
+        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc),
                                            LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
@@ -242,6 +243,7 @@ def main(scriptConf=None):
         read = data_file.read()
     modules = json.loads(read).get('module', [])
     errors = confdService.patch_modules(modules)
+    redisConnection.populate_modules(modules)
 
     # In each json
     if os.path.exists('{}/normal.json'.format(direc)):

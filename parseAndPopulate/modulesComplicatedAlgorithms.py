@@ -38,6 +38,7 @@ import requests
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree as emit_json_tree
 from pyang.plugins.tree import emit_tree
+from redisConnections.redisConnection import RedisConnection
 from utility import log, messageFactory
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
@@ -48,8 +49,8 @@ from utility.yangParser import create_context
 
 class ModulesComplicatedAlgorithms:
 
-    def __init__(self, log_directory, yangcatalog_api_prefix, credentials,
-                 save_file_dir, direc, all_modules, yang_models_dir, temp_dir, ytree_dir):
+    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
+                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, ytree_dir: str):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:
@@ -100,6 +101,9 @@ class ModulesComplicatedAlgorithms:
                     .format(len(new_modules)))
         confdService = ConfdService()
         confdService.patch_modules(new_modules)
+
+        redisConnection = RedisConnection()
+        redisConnection.populate_modules(new_modules)
 
         if len(new_modules) > 0:
             url = '{}load-cache'.format(self.__yangcatalog_api_prefix)
@@ -660,7 +664,7 @@ class ModulesComplicatedAlgorithms:
 
         if len(self.__unavailable_modules) != 0:
             mf = messageFactory.MessageFactory()
-            mf.send_unavailable_modules(self.__unavailable_modules)
+            mf.send_github_unavailable_schemas(self.__unavailable_modules)
 
     def parse_dependents(self):
 

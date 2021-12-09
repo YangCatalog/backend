@@ -2,6 +2,19 @@
 
 * ##### vm.m.p - 2021-MM-DD
 
+* ##### v4.3.0 - 2021-12-03
+
+  * Allow to store modules into both ConfD and Redis in parallel [#405](https://github.com/YangCatalog/backend/issues/405)
+  * Tests for receiver.py script [#404](https://github.com/YangCatalog/backend/issues/404)
+  * Logging modules and vendors that failed to patch to the ConfD [#403](https://github.com/YangCatalog/backend/issues/403)
+  * BaseScriptConfig created - rework of ScriptConfig functionality [#402](https://github.com/YangCatalog/backend/issues/402)
+  * recovery script for the Redis user database added [#401](https://github.com/YangCatalog/backend/issues/401)
+  * Repoutil tests reworked [#189](https://github.com/YangCatalog/backend/issues/189)
+  * Various adjustments to healthcheck endpoints [#400](https://github.com/YangCatalog/backend/issues/400)
+  * statistics.py script refactored [#387](https://github.com/YangCatalog/backend/issues/387)
+  * MariaDB replaces with Redis as database for storing users [#377](https://github.com/YangCatalog/backend/issues/377)
+  * Bugfix: Unnecessary arguments removed from script calls [#374](https://github.com/YangCatalog/backend/issues/374)
+
 * ##### v4.2.1 - 2021-10-06
 
   * confdService for communication with ConfD added [#373](https://github.com/YangCatalog/backend/issues/373)

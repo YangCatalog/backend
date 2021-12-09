@@ -144,11 +144,11 @@ def check_early_revisions(directory: str, LOGGER_temp: logging.Logger = None):
 
 
 def get_draft_module_content(ietf_draft_url: str, experimental_path: str, LOGGER: logging.Logger):
-    """ Update download links for each module found in IETFDraft.json and try to get their content.
+    """ Loop through download links for each module found in IETFDraft.json and try to get their content.
 
     Aruments:
         :param ietf_draft_url       (str) URL to private IETFDraft.json file
-        :param experimental_path    (str) full path to the cloned experimental modules
+        :param experimental_path    (str) full path to the directory with cloned experimental modules
         :param LOGGER               (logging.Logger) formated logger with the specified name
     """
     ietf_draft_json = {}
