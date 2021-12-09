@@ -306,7 +306,7 @@ def search():
                            ac.es, latest_revision, ac.redis, include_mibs, yang_versions, output_columns,
                            __output_columns, sub_search)
     elk_search.construct_query()
-    response['rows'] = elk_search.search()
+    response['rows'], response['max-hits'] = elk_search.search()
     response['warning'] = elk_search.alerts()
     return make_response(jsonify(response), 200)
 

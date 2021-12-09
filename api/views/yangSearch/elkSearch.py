@@ -265,10 +265,11 @@ class ElkSearch:
             self.__resolve_aggregations()
             self.LOGGER.debug('Aggregations processed joining the search')
         process_first_search.join()
-        processed_rows = self.__process_hits(hits.get(), [])
+        hits = hits.get()
+        processed_rows = self.__process_hits(hits, [])
         if self.__current_scroll_id is not None:
             self.__es.clear_scroll(body={'scroll_id': [self.__current_scroll_id]}, ignore=(404,))
-        return processed_rows
+        return processed_rows, len(hits) == 2000
 
     def __process_hits(self, hits: list, response_rows: list, reject=None):
         if reject is None:
