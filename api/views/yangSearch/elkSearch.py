@@ -69,21 +69,27 @@ class ElkSearch:
         self.__response_size = 2000
         self.query = \
             {
+                'sort': [
+                    {'sdo': {'order': 'desc', 'unmapped_type': 'boolean'}},
+                    '_score'
+                ],
                 'query': {
                     'bool': {
-                        'must': [{
-                            'bool': {
-                                'must': {
-                                    'terms': {
-                                        'statement': schema_types
+                        'must': [
+                            {
+                                'bool': {
+                                    'must': {
+                                        'terms': {
+                                            'statement': schema_types
+                                        }
                                     }
                                 }
+                            }, {
+                                'bool': {
+                                    'should': []
+                                }
                             }
-                        }, {
-                            'bool': {
-                                'should': []
-                            }
-                        }]
+                        ]
                     }
                 },
                 'aggs': {
