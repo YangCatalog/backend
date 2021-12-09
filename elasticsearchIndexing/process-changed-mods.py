@@ -16,6 +16,7 @@ import argparse
 import json
 import logging
 import os
+import shutil
 import sys
 
 import dateutil.parser
@@ -52,15 +53,14 @@ if __name__ == '__main__':
     else:
         es_aws = False
     yang_models = config.get('Directory-Section', 'yang-models-dir')
-    changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-    failed_changes_cache_dir = config.get('Directory-Section', 'changes-cache-failed')
-    delete_cache_dir = config.get('Directory-Section', 'delete-cache')
-    temp_dir = config.get('Directory-Section', 'temp')
+    changes_cache_path = config.get('Directory-Section', 'changes-cache')
+    failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
+    delete_cache_path = config.get('Directory-Section', 'delete-cache')
     lock_file = config.get('Directory-Section', 'lock')
     lock_file_cron = config.get('Directory-Section', 'lock-cron')
     ytree_dir = config.get('Directory-Section', 'json-ytree')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
-    threads = config.get('General-Section', 'threads')
+    threads = int(config.get('General-Section', 'threads'))
     processes = int(config.get('General-Section', 'yProcesses'))
     elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
     recursion_limit = sys.getrecursionlimit()
@@ -79,33 +79,29 @@ if __name__ == '__main__':
 
     changes_cache = {}
     delete_cache = []
-    if ((not os.path.exists(changes_cache_dir) or os.path.getsize(changes_cache_dir) <= 0)
-            and (not os.path.exists(delete_cache_dir) or os.path.getsize(delete_cache_dir) <= 0)):
+    if ((not os.path.exists(changes_cache_path) or os.path.getsize(changes_cache_path) <= 0)
+            and (not os.path.exists(delete_cache_path) or os.path.getsize(delete_cache_path) <= 0)):
         LOGGER.info('No new modules are added or removed. Exiting script!!!')
         os.unlink(lock_file)
         os.unlink(lock_file_cron)
         sys.exit()
     else:
-        if os.path.exists(changes_cache_dir) and os.path.getsize(changes_cache_dir) > 0:
+        if os.path.exists(changes_cache_path) and os.path.getsize(changes_cache_path) > 0:
             LOGGER.info('Loading changes cache')
-            f = open(changes_cache_dir, 'r+')
-            changes_cache = json.load(f)
-
             # Backup the contents just in case
-            with open('{}.bak'.format(changes_cache_dir), 'w') as bfd:
-                json.dump(changes_cache, bfd)
+            shutil.copyfile(changes_cache_path, '{}.bak'.format(changes_cache_path))
+            f = open(changes_cache_path, 'r+')
+            changes_cache = json.load(f)
 
             f.truncate(0)
             f.close()
 
-        if os.path.exists(delete_cache_dir) and os.path.getsize(delete_cache_dir) > 0:
+        if os.path.exists(delete_cache_path) and os.path.getsize(delete_cache_path) > 0:
             LOGGER.info('Loading delete cache')
-            f = open(delete_cache_dir, 'r+')
-            delete_cache = json.load(f)
-
             # Backup the contents just in case
-            with open('{}.bak'.format(delete_cache_dir), 'w') as bfd:
-                json.dump(delete_cache, bfd)
+            shutil.copyfile(delete_cache_path, '{}.bak'.format(delete_cache_path))
+            f = open(delete_cache_path, 'r+')
+            delete_cache = json.load(f)
 
             f.truncate(0)
             f.close()
@@ -183,20 +179,12 @@ if __name__ == '__main__':
     LOGGER.info('Pulling latest YangModels/yang repository')
     pull(yang_models)
 
-    mod_args = []
-    if type(changes_cache) is list:
-        for module_path in changes_cache:
-            if not module_path.startswith('/'):
-                module_path = '{}/{}'.format(yang_models, module_path)
-            mod_args.append(module_path)
-    else:
-        for key, module_path in changes_cache.items():
-            mparts = key.split('/')
-            if len(mparts) == 2:
-                module_path += ':' + mparts[1]
-            if not module_path.startswith('/'):
-                module_path = '{}/{}'.format(yang_models, module_path)
-            mod_args.append(module_path)
+    paths_with_orgs = []
+    for key, module_path in changes_cache.items():
+        _, organization = key.split('/')
+        if not module_path.startswith('/'):
+            module_path = os.path.join(yang_models, module_path)
+        paths_with_orgs.append((module_path, organization))
     sys.setrecursionlimit(50000)
     try:
         LOGGER.info('Trying to initialize Elasticsearch')
@@ -205,8 +193,8 @@ if __name__ == '__main__':
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
 
-        build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
-                                  log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
+        build_yindex.build_yindex(ytree_dir, paths_with_orgs, LOGGER, save_file_dir, es, threads,
+                                  failed_changes_cache_path)
     except:
         sys.setrecursionlimit(recursion_limit)
         os.unlink(lock_file_cron)

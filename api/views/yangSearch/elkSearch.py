@@ -12,19 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
-
-import json
-import multiprocessing
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import hashlib
+import json
+
+import gevent
+import gevent.queue
 from elasticsearch import Elasticsearch, ConnectionTimeout
 from redis import Redis
+
 from utility import log
-import gevent.queue
 
 
 class ElkSearch:

@@ -21,10 +21,11 @@ import io
 import json
 import logging
 import os
-import subprocess
+import typing as t
 from datetime import datetime
 
 import dateutil.parser
+import elasticsearch
 import requests
 from elasticsearch import ConnectionError, ConnectionTimeout, NotFoundError
 from elasticsearch.helpers import parallel_bulk
@@ -38,23 +39,8 @@ from utility.util import fetch_module_by_schema, get_curr_dir
 from utility.yangParser import create_context
 
 
-def __run_pyang_commands(commands, output_only=True, decode=True):
-    pyang_args = ['pyang']
-    pyang_args.extend(commands)
-    pyang = subprocess.Popen(pyang_args,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
-    if decode:
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
-        stderr = stderr.decode(encoding='utf-8', errors='strict')
-    if output_only:
-        return stdout
-    else:
-        return stdout, stderr
-
-
-def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_file, failed_changes_dir, temp_dir):
+def build_yindex(ytree_dir: str, paths_with_orgs: t.List[t.Tuple[str, str]], LOGGER: logging.Logger,
+                 save_file_dir: str, es: elasticsearch.Elasticsearch, threads: int, failed_changes_dir: str):
     initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
         __file__)), 'r'))
     initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
@@ -68,15 +54,11 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
         raise Exception('Unable to create Elasticsearch indices')
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
-    x = 0
-    modules_copy = modules.copy()
-    for module in modules:
+    for x, path_with_org in enumerate(paths_with_orgs, start=1):
         try:
-            modules_copy.remove(module)
-            x += 1
-            LOGGER.info('yindex on module {}. module {} out of {}'.format(module.split('/')[-1], x, len(modules)))
-            # split to module with path and organization
-            module_path, organization = module.split(':')
+            module_path, organization = path_with_org
+            LOGGER.info('yindex on module {}. module {} out of {}'
+                        .format('{}:{}'.format(os.path.basename(module_path), organization), x, len(paths_with_orgs)))
             plugin.init([])
             ctx = create_context('{}'.format(save_file_dir))
             ctx.opts.lint_namespace_prefixes = []
@@ -86,20 +68,19 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
 
             if not os.path.isfile(module_path):
                 result = False
+                name_revision = os.path.basename(module_path).removesuffix('.yang')
+                name, revision = name_revision.split('@')
                 try:
-                    module_name = module_path.split('/')[-1].split('.yang')[0]
-                    name, revision = module_name.split('@')
                     module_detail = requests.get('https://yangcatalog.org/api/search/modules/{},{},{}'
-                                                 .format(name, revision, organization)).json().get('module', [])
-                    schema = module_detail[0].get('schema')
+                                                 .format(name, revision, organization)).json()['module'].pop()
+                    schema = module_detail['schema']
                     result = fetch_module_by_schema(schema, module_path)
+                    if result:
+                        LOGGER.info('File content successfully retrieved from GitHub using module schema')
+                    else:
+                        raise Exception
                 except Exception:
-                    msg = 'Unable to retrieve content of {}'.format(module_name)
-                    raise Exception(msg)
-                if result:
-                    LOGGER.info('File content successfully retrieved from GitHub using module schema')
-                else:
-                    msg = 'Unable to retrieve content of {}'.format(module_name)
+                    msg = 'Unable to retrieve content of {}'.format(name_revision)
                     raise Exception(msg)
 
             with open(module_path, 'r') as f:
@@ -113,9 +94,9 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
             emit_name(ctx, [parsed_module], f)
             name_revision = f.getvalue().strip()
 
-            mods = [parsed_module]
+            modules = [parsed_module]
 
-            find_submodules(ctx, mods, parsed_module)
+            find_submodules(ctx, modules, parsed_module)
 
             f = io.StringIO()
             ctx.opts.yang_index_make_module_table = True
@@ -127,12 +108,12 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
             name_revision = name_revision.split('@')
             if len(name_revision) > 1:
                 name = name_revision[0]
-                revision = name_revision[1].split(' ')[0]
+                revision = name_revision[1].split()[0]
             else:
                 name = name_revision[0]
                 revision = '1970-01-01'
             if 'belongs-to' in name:
-                name = name.split(' ')[0]
+                name = name.split()[0]
             try:
                 dateutil.parser.parse(revision)
             except Exception:
@@ -140,79 +121,79 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
                     revision = revision.replace('02-29', '02-28')
                 else:
                     revision = '1970-01-01'
-            rev_parts = revision.split('-')
+            year, month, day = map(int, revision.split('-'))
             try:
-                revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
+                revision = datetime(year, month, day).date().isoformat()
             except Exception:
                 revision = '1970-01-01'
 
             retry = 3
-            while retry > 0:
-                try:
-                    for m in mods:
-                        n = m.arg
-                        rev = get_latest_revision(m)
-                        if rev == 'unknown':
-                            r = '1970-01-01'
-                        else:
-                            r = rev
 
-                        try:
-                            dateutil.parser.parse(r)
-                        except Exception:
-                            if r[-2:] == '29' and r[-5:-3] == '02':
-                                r = r.replace('02-29', '02-28')
-                            else:
-                                r = '1970-01-01'
-                        rev_parts = r.split('-')
-                        r = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
-                        try:
-                            query = \
+            def create_query(name: str, revision: str) -> dict:
+                return {
+                    'query': {
+                        'bool': {
+                            'must': [
                                 {
-                                    "query": {
-                                        "bool": {
-                                            "must": [{
-                                                "match_phrase": {
-                                                    "module.keyword": {
-                                                        "query": n
-                                                    }
-                                                }
-                                            }, {
-                                                "match_phrase": {
-                                                    "revision": {
-                                                        "query": r
-                                                    }
-                                                }
-                                            }]
+                                    'match_phrase': {
+                                        'module.keyword': {
+                                            'query': name
+                                        }
+                                    }
+                                }, {
+                                    'match_phrase': {
+                                        'revision': {
+                                            'query': revision
                                         }
                                     }
                                 }
+                            ]
+                        }
+                    }
+                }
+
+            while retry > 0:
+                try:
+                    for module in modules:
+                        name_ = module.arg
+                        revision_ = get_latest_revision(module)
+                        if revision_ == 'unknown':
+                            revision_ = '1970-01-01'
+
+                        try:
+                            dateutil.parser.parse(revision_)
+                        except Exception:
+                            if revision_[-2:] == '29' and revision_[-5:-3] == '02':
+                                revision_ = revision_.replace('02-29', '02-28')
+                            else:
+                                revision_ = '1970-01-01'
+                        year, month, day = map(int, revision_.split('-'))
+                        revision_ = datetime(year, month, day).date().isoformat()
+                        try:
+                            query = create_query(name_, revision_)
                             LOGGER.debug('deleting data from yindex')
                             es.delete_by_query(index='yindex', body=query, doc_type='modules', conflicts='proceed',
                                                request_timeout=40)
                         except NotFoundError:
                             pass
                     for key in yindexes:
-                        j = -1
                         for j in range(0, int(len(yindexes[key]) / 30)):
                             LOGGER.debug('pushing new data to yindex {} out of {}'.format(j + 1, int(len(yindexes[key]) / 30)))
                             for success, info in parallel_bulk(es, yindexes[key][j * 30: (j * 30) + 30],
-                                                               thread_count=int(threads), index='yindex',
+                                                               thread_count=threads, index='yindex',
                                                                doc_type='modules', request_timeout=40):
                                 if not success:
                                     LOGGER.error('A elasticsearch document failed with info: {}'.format(info))
                         LOGGER.debug('pushing rest of data to yindex')
                         for success, info in parallel_bulk(es, yindexes[key][(j * 30) + 30:],
-                                                           thread_count=int(threads), index='yindex',
+                                                           thread_count=threads, index='yindex',
                                                            doc_type='modules', request_timeout=40):
                             if not success:
                                 LOGGER.error('A elasticsearch document failed with info: {}'.format(info))
 
-                    rev = get_latest_revision(parsed_module)
-                    if rev == 'unknown':
+                    revision = get_latest_revision(parsed_module)
+                    if revision == 'unknown':
                         revision = '1970-01-01'
-                    else:
-                        revision = rev
                     try:
                         dateutil.parser.parse(revision)
                     except Exception:
@@ -221,28 +202,9 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
                         else:
                             revision = '1970-01-01'
 
-                    rev_parts = revision.split('-')
-                    revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
-                    query = \
-                        {
-                            "query": {
-                                "bool": {
-                                    "must": [{
-                                        "match_phrase": {
-                                            "module.keyword": {
-                                                "query": name
-                                            }
-                                        }
-                                    }, {
-                                        "match_phrase": {
-                                            "revision": {
-                                                "query": revision
-                                            }
-                                        }
-                                    }]
-                                }
-                            }
-                        }
+                    year, month, day = map(int, revision.split('-'))
+                    revision = datetime(year, month, day).date().isoformat()
+                    query = create_query(name, revision)
                     LOGGER.debug('deleting data from modules index')
                     total = es.delete_by_query(index='modules', body=query, doc_type='modules', conflicts='proceed',
                                                request_timeout=40)['deleted']
@@ -258,7 +220,7 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
                     es.index(index='modules', doc_type='modules', body=query, request_timeout=40)
                     break
                 except (ConnectionTimeout, ConnectionError) as e:
-                    retry = retry - 1
+                    retry -= 1
                     if retry > 0:
                         LOGGER.warning('module {}@{} timed out'.format(name, revision))
                     else:
@@ -270,16 +232,14 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
                     emit_tree([parsed_module], f, ctx)
                 except Exception as e:
                     # create empty file so we still have access to that
-                    LOGGER.warning('unable to create ytree for module {}@{} creating empty file')
+                    LOGGER.warning('unable to create ytree for module {}@{} creating empty file'
+                                   .format(name, revision))
                     f.write('')
-            with open('{}/rest-of-elk-data.json'.format(temp_dir), 'w') as f:
-                json.dump(modules_copy, f)
 
         except Exception:
             LOGGER.exception('Problem while processing module')
-            m_parts = module.split(':')
-            key = '{}/{}'.format(m_parts[0].split('/')[-1][:-5], m_parts[1])
-            module_path = m_parts[0]
+            module_path, organization = path_with_org
+            key = '{}/{}'.format(os.path.basename(module_path).removesuffix('.yang'), organization)
             try:
                 with open(failed_changes_dir, 'r') as f:
                     failed_modules = json.load(f)

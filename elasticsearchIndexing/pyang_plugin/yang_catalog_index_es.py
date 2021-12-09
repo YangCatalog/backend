@@ -75,11 +75,11 @@ def emit_index(ctx, modules, fd):
     _ctx = ctx
     if not ctx.opts.yang_index_schema_only_es:
         _yang_catalog_index_values = []
-        mods = []
+        mods = set()
         for module in modules:
             if module in mods:
                 continue
-            mods.append(module)
+            mods.add(module)
         for module in mods:
             non_chs = list(module.i_typedefs.values()) + list(module.i_features.values()) + list(module.i_identities.values()) + \
                 list(module.i_groupings.values()) + list(module.i_extensions.values())

@@ -297,7 +297,7 @@ class Receiver:
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_that_succeeded, credentials,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
             if len(body_to_send) > 0:
-                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
+                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_path, self.__delete_cache_path,
                                   self.__lock_file)
         return self.__response_type[1]
 
@@ -434,7 +434,7 @@ class Receiver:
                                                self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
 
             if len(body_to_send) > 0:
-                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
+                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_path, self.__delete_cache_path,
                                   self.__lock_file)
         if reason == '':
             return self.__response_type[1]
@@ -481,8 +481,8 @@ class Receiver:
         self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         self.__rabbitmq_virtual_host = config.get('RabbitMQ-Section', 'virtual-host', fallback='/')
-        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.__changes_cache_path = config.get('Directory-Section', 'changes-cache')
+        self.__delete_cache_path = config.get('Directory-Section', 'delete-cache')
         self.__lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
@@ -530,6 +530,7 @@ class Receiver:
                     :param body: (str) String of arguments that need to be processed
                     separated by '#'.
         """
+        final_response = None
         try:
             if sys.version_info >= (3, 4):
                 body = body.decode(encoding='utf-8', errors='strict')

@@ -142,9 +142,9 @@ class ScriptConfig(BaseScriptConfig):
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
-        self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self.changes_cache_path = config.get('Directory-Section', 'changes-cache')
         self.cache_dir = config.get('Directory-Section', 'cache')
-        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.delete_cache_path = config.get('Directory-Section', 'delete-cache')
         self.lock_file = config.get('Directory-Section', 'lock')
         self.ytree_dir = config.get('Directory-Section', 'json-ytree')
 
@@ -251,7 +251,7 @@ def main(scriptConf=None):
         errors = confdService.patch_vendors(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
-        send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
+        send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_path, scriptConf.delete_cache_path,
                           scriptConf.lock_file)
     if not args.api:
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,

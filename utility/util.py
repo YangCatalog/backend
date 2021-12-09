@@ -136,7 +136,7 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete_cache_dir: str, lock_file: str):
+def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_path: str, delete_cache_path: str, lock_file: str):
     """
     Creates a json file that will be used for elasticsearch indexing.
     :param body_to_send:        (dict) body that needs to be indexed
@@ -145,7 +145,7 @@ def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete
     :param delete_cache_dir:    (str) path to file containing module to be removed from indexing (can be empty)
     :param lock_file:           (str) path to file working as a lock file. If exists script has to wait until removed
     """
-    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(changes_cache_dir, delete_cache_dir))
+    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(changes_cache_path, delete_cache_path))
     while os.path.exists(lock_file):
         time.sleep(10)
     try:
@@ -156,12 +156,12 @@ def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete
 
         changes_cache = dict()
         delete_cache = []
-        if os.path.exists(changes_cache_dir) and os.path.getsize(changes_cache_dir) > 0:
-            f = open(changes_cache_dir)
+        if os.path.exists(changes_cache_path) and os.path.getsize(changes_cache_path) > 0:
+            f = open(changes_cache_path)
             changes_cache = json.load(f)
             f.close()
-        if os.path.exists(delete_cache_dir) and os.path.getsize(delete_cache_dir) > 0:
-            f = open(delete_cache_dir)
+        if os.path.exists(delete_cache_path) and os.path.getsize(delete_cache_path) > 0:
+            f = open(delete_cache_path)
             delete_cache = json.load(f)
             f.close()
 
@@ -180,10 +180,10 @@ def send_to_indexing2(body_to_send: dict, LOGGER, changes_cache_dir: str, delete
                     exists = True
             if not exists:
                 delete_cache.append(mname)
-        fd = open(changes_cache_dir, 'w')
+        fd = open(changes_cache_path, 'w')
         fd.write(json.dumps(changes_cache))
         fd.close()
-        fd = open(delete_cache_dir, 'w')
+        fd = open(delete_cache_path, 'w')
         fd.write(json.dumps(delete_cache))
         fd.close()
     except Exception as e:
@@ -377,7 +377,7 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         f.write(json.dumps(file_content, indent=4))
 
 
-def fetch_module_by_schema(schema: str, dst_path: str):
+def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
     """ Fetch content of yang module from Github and store it to the file.
 
     Arguments:
