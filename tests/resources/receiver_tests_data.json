@@ -30,7 +30,7 @@
         },
         "os-type": "VRP"
     },
-    "deletion-tests": [
+    "module-deletion-tests": [
         {
             "name": "yang-module",
             "revision": "2020-01-01",
