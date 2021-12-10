@@ -123,7 +123,6 @@ def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: l
 def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: dict, LOGGER: logging.Logger):
     redis_cache.set('modules-data', '{}')
     redis_cache.set('vendors-data', '{}')
-    redis_cache.set('all-catalog-data', '{}')
 
     for module in catalog_data['yang-catalog:catalog']['modules']['module']:
         if module['name'] == 'yang-catalog' and module['revision'] == '2018-04-03':
@@ -136,7 +135,6 @@ def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: dict, LOGGER: l
     vendors = catalog.get('vendors', {})
     redis_cache.set('modules-data', json.dumps(modules))
     redis_cache.set('vendors-data', json.dumps(vendors))
-    redis_cache.set('all-catalog-data', json.dumps(catalog_data))
 
     if len(modules) != 0:
         existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
@@ -258,30 +256,24 @@ def main(scriptConf=None):
 
             LOGGER.info('Starting to add vendors')
             feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
+
+            LOGGER.info('Adding data to Redis db=0')
+            redis_cache = redis.Redis(host=redis_host, port=redis_port)
+            feed_redis_from_json(redis_cache, catalog_data, LOGGER)
         else:
             LOGGER.info('ConfD loaded from backup files')
 
-        redis_cache = redis.Redis(host=redis_host, port=redis_port)
-
-        data = redis_cache.get('modules-data')
-        redis_modules = (data or b'{}').decode('utf-8')
-        data = redis_cache.get('yang-catalog@2018-04-03/ietf')
-        yang_catalog_module = (data or b'{}').decode('utf-8')
+        redisConnection = RedisConnection()
+        redis_modules = redisConnection.get_all_modules()
+        yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
 
         if '{}' in (redis_modules, yang_catalog_module):
-            # Feed Redis fron ConfD
-
+            # Feed Redis db=1 fron ConfD
             LOGGER.info('Loading data from ConfD into Redis')
-            # if catalog_data is None:
-            #     with open(file_name, 'r') as file_load:
-            #         LOGGER.info('Loading file {}'.format(file_load.name))
-            #         catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
-            response = confdService.get_catalog_data()
-            catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
-            feed_redis_from_json(redis_cache, catalog_data, LOGGER)
 
-            # Feed Redis db=1
-            redisConnection = RedisConnection()
+            if not catalog_data:
+                response = confdService.get_catalog_data()
+                catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
             modules = catalog_data['yang-catalog:catalog']['modules']['module']
 
             redisConnection.populate_modules(modules)
