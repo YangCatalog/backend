@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
@@ -47,6 +47,11 @@ class MockConfdService:
         return r
 
     def delete_module(self, module_key: str):
+        r = mock.MagicMock()
+        r.status_code = 204
+        return r
+
+    def delete_vendor(self, confd_suffix: str):
         r = mock.MagicMock()
         r.status_code = 204
         return r
@@ -97,7 +102,7 @@ class TestReceiverClass(unittest.TestCase):
         self.redis_modules_patcher = mock.patch('redisConnections.redisConnection.RedisConnection')
         self.mock_redis_modules = self.redis_modules_patcher.start()
         self.addCleanup(self.redis_modules_patcher.stop)
-        self.mock_redis_modules.return_value = RedisConnection(modules_db=11)
+        self.mock_redis_modules.return_value = RedisConnection(modules_db=11, vendors_db=14)
 
         self.confd_patcher = mock.patch('utility.confdService.ConfdService')
         self.mock_confd_service = self.confd_patcher.start()
@@ -140,7 +145,7 @@ class TestReceiverClass(unittest.TestCase):
             json.dump(data, f)
 
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api',
-                     '--credentials', self.credentials[0], self.credentials[1], 'True']
+                     '--credentials', *self.credentials, 'True']
         all_modules = {}
 
         response = self.receiver.process_sdo(arguments, all_modules)
@@ -160,7 +165,7 @@ class TestReceiverClass(unittest.TestCase):
     def test_process_sdo_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
-                     '--api', '--credentials', self.credentials[0], self.credentials[1], 'True']
+                     '--api', '--credentials', *self.credentials, 'True']
         all_modules = {}
 
         response = self.receiver.process_sdo(arguments, all_modules)
@@ -189,7 +194,7 @@ class TestReceiverClass(unittest.TestCase):
             json.dump(platform, f)
 
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
-                     '--credentials', self.credentials[0], self.credentials[1], 'True']
+                     '--credentials', *self.credentials, 'True']
         all_modules = {}
 
         response = self.receiver.process_vendor(arguments, all_modules)
@@ -218,7 +223,7 @@ class TestReceiverClass(unittest.TestCase):
     def test_process_vendor_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
-                     '--credentials', self.credentials[0], self.credentials[1], 'True']
+                     '--credentials', *self.credentials, 'True']
         all_modules = {}
 
         response = self.receiver.process_vendor(arguments, all_modules)
@@ -228,7 +233,7 @@ class TestReceiverClass(unittest.TestCase):
 
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion(self):
-        module_to_populate = self.test_data.get('deletion-tests')
+        module_to_populate = self.test_data.get('module-deletion-tests')
         redisConnection = RedisConnection(modules_db=11)
         redisConnection.populate_modules(module_to_populate)
         redisConnection.reload_modules_cache()
@@ -242,7 +247,7 @@ class TestReceiverClass(unittest.TestCase):
                 }
             ]}
         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
-        arguments = ['DELETE-MODULES', self.credentials[0], self.credentials[1], json.dumps(modules_to_delete)]
+        arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         response = self.receiver.process_module_deletion(arguments)
         redisConnection.reload_modules_cache()
         raw_all_modules = redisConnection.get_all_modules()
@@ -256,7 +261,7 @@ class TestReceiverClass(unittest.TestCase):
 
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_cannot_delete(self):
-        module_to_populate = self.test_data.get('deletion-tests')
+        module_to_populate = self.test_data.get('module-deletion-tests')
         redisConnection = RedisConnection(modules_db=11)
         redisConnection.populate_modules(module_to_populate)
         redisConnection.reload_modules_cache()
@@ -270,7 +275,7 @@ class TestReceiverClass(unittest.TestCase):
                 }
             ]}
         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
-        arguments = ['DELETE-MODULES', self.credentials[0], self.credentials[1], json.dumps(modules_to_delete)]
+        arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         response = self.receiver.process_module_deletion(arguments)
         redisConnection.reload_modules_cache()
         raw_all_modules = redisConnection.get_all_modules()
@@ -281,7 +286,7 @@ class TestReceiverClass(unittest.TestCase):
 
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_module_and_its_dependent(self):
-        module_to_populate = self.test_data.get('deletion-tests')
+        module_to_populate = self.test_data.get('module-deletion-tests')
         redisConnection = RedisConnection(modules_db=11)
         redisConnection.populate_modules(module_to_populate)
         redisConnection.reload_modules_cache()
@@ -300,7 +305,7 @@ class TestReceiverClass(unittest.TestCase):
                 }
             ]}
 
-        arguments = ['DELETE-MODULES', self.credentials[0], self.credentials[1], json.dumps(modules_to_delete)]
+        arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         response = self.receiver.process_module_deletion(arguments)
         redisConnection.reload_modules_cache()
         raw_all_modules = redisConnection.get_all_modules()
@@ -317,24 +322,24 @@ class TestReceiverClass(unittest.TestCase):
 
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_empty_list_input(self):
-        module_to_populate = self.test_data.get('deletion-tests')
+        module_to_populate = self.test_data.get('module-deletion-tests')
         redisConnection = RedisConnection(modules_db=11)
         redisConnection.populate_modules(module_to_populate)
         redisConnection.reload_modules_cache()
 
-        arguments = ['DELETE-MODULES', self.credentials[0], self.credentials[1], json.dumps({'modules': []})]
+        arguments = ['DELETE-MODULES', *self.credentials, json.dumps({'modules': []})]
         response = self.receiver.process_module_deletion(arguments)
 
         self.assertEqual(response, 'Finished successfully')
 
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_incorrect_arguments_input(self):
-        module_to_populate = self.test_data.get('deletion-tests')
+        module_to_populate = self.test_data.get('module-deletion-tests')
         redisConnection = RedisConnection(modules_db=11)
         redisConnection.populate_modules(module_to_populate)
         redisConnection.reload_modules_cache()
 
-        arguments = ['DELETE-MODULES', self.credentials[0], self.credentials[1], json.dumps([])]
+        arguments = ['DELETE-MODULES', *self.credentials, json.dumps([])]
         response = self.receiver.process_module_deletion(arguments)
 
         self.assertEqual(response, 'Failed#split#Server error -> Unable to parse arguments')

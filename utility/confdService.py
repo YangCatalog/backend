@@ -133,6 +133,13 @@ class ConfdService:
 
         return response
 
+    def delete_vendor(self, confd_suffix: str) -> requests.Response:
+        self.LOGGER.debug('Sending DELETE request to vendors branch {}'.format(confd_suffix))
+        path = '{}{}'.format(self.confd_prefix, confd_suffix)
+        response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+
+        return response
+
     def delete_dependent(self, module_key: str, dependent: str) -> requests.Response:
         self.LOGGER.debug('Sending DELETE request to dependent {} of the module {}'.format(dependent, module_key))
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/dependents={}'.format(
