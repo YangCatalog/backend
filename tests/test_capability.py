@@ -94,8 +94,8 @@ class TestCapabilityClass(unittest.TestCase):
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
 
-        path = '{}/tmp/capability-tests/temp'.format(self.resources_path)
-        json_dir = '{}/tmp/capability-tests'.format(self.resources_path)
+        path = '{}/capability-tests/temp'.format(yc_gc.temp_dir)
+        json_dir = '{}/capability-tests'.format(yc_gc.temp_dir)
         api = True
         sdo = True
 
@@ -129,7 +129,7 @@ class TestCapabilityClass(unittest.TestCase):
         """
         mock_requests_get.return_value.json = {}
         mock_hash.return_value = 'master'
-        path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path)
+        path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
         repo = self.get_yangmodels_repository()
         api = False
         sdo = True
@@ -175,8 +175,8 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
-        platform_json_path = '{}/tmp/master/vendor/cisco/xr/701/platform-metadata.json'.format(self.resources_path)
+        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
+        platform_json_path = '{}/master/vendor/cisco/xr/701/platform-metadata.json'.format(yc_gc.temp_dir)
         api = False
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -211,7 +211,7 @@ class TestCapabilityClass(unittest.TestCase):
         """ Test if ampersand character will be replaced in .xml file if occurs.
         If ampersand character occurs, exception is raised, and character is replaced.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
         api = False
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -231,7 +231,7 @@ class TestCapabilityClass(unittest.TestCase):
     def test_capability_solve_xr_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/xr/702/capabilities-ncs5k.xml'.format(self.resources_path)
+        xml_path = '{}/master/vendor/cisco/xr/702/capabilities-ncs5k.xml'.format(yc_gc.temp_dir)
         api = False
         sdo = False
 
@@ -254,7 +254,7 @@ class TestCapabilityClass(unittest.TestCase):
     def test_capability_solve_nx_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/nx/9.2-1/netconf-capabilities.xml'.format(self.resources_path)
+        xml_path = '{}/master/vendor/cisco/nx/9.2-1/netconf-capabilities.xml'.format(yc_gc.temp_dir)
         api = False
         sdo = False
 
@@ -277,7 +277,7 @@ class TestCapabilityClass(unittest.TestCase):
     def test_capability_solve_xe_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/xe/16101/capability-asr1k.xml'.format(self.resources_path)
+        xml_path = '{}/master/vendor/cisco/xe/16101/capability-asr1k.xml'.format(yc_gc.temp_dir)
         api = False
         sdo = False
 
@@ -307,8 +307,8 @@ class TestCapabilityClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(self.resources_path)
-        platform_json_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json'.format(self.resources_path)
+        xml_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(yc_gc.temp_dir)
+        platform_json_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json'.format(yc_gc.temp_dir)
         platform_name = 'ne5000e'
         api = False
         sdo = False

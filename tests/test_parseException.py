@@ -12,12 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
+import os
 import unittest
 
 from api.globalConfig import yc_gc
@@ -41,12 +42,12 @@ class TestParseExceptionClass(unittest.TestCase):
         with self.assertRaises(ParseException):
             Modules(yc_gc.yang_models, yc_gc.logs_dir, path, yc_gc.result_dir, jsons, yc_gc.temp_dir)
 
-        with open('tests/resources/unparsable-modules.json', 'r') as f:
+        with open(os.path.join(yc_gc.var_yang, 'unparsable-modules.json'), 'r') as f:
             modules = json.load(f)
 
         self.assertNotEqual(modules, [])
         self.assertIn('module.yang', modules)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
