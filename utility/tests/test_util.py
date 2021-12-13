@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
@@ -35,7 +35,7 @@ class TestUtilClass(unittest.TestCase):
         self.filename = os.path.basename(__file__).split('.py')[0]
         self.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.test_yangmodels = ''
+        self.util_tests_dir = '{}/util-tests'.format(yc_gc.temp_dir)
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -60,39 +60,36 @@ class TestUtilClass(unittest.TestCase):
         """ Try to find the first file that matches the pattern with specific revision.
         Test if a module with the same name and revision was found.
         """
-        directory = 'utility/tests/resources/modules'
         pattern = 'ietf-yang-types.yang'
         pattern_with_revision = 'ietf-yang-types@2010-09-24.yang'
 
-        result = util.find_first_file(directory, pattern, pattern_with_revision)
+        result = util.find_first_file(self.util_tests_dir, pattern, pattern_with_revision)
 
-        self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types@2010-09-24.yang')
+        self.assertEqual(result, '{}/ietf-yang-types@2010-09-24.yang'.format(self.util_tests_dir))
 
     def test_find_first_file_with_wildcard_revision(self):
         """ Try to find the first file that matches the pattern with
         an unspecified revision (specified by an asterisk).
         Test if a module with the same name and without revision in name is returned.
         """
-        directory = 'utility/tests/resources/modules'
         pattern = 'ietf-yang-types.yang'
         pattern_with_revision = 'ietf-yang-types@*.yang'
 
-        result = util.find_first_file(directory, pattern, pattern_with_revision)
+        result = util.find_first_file(self.util_tests_dir, pattern, pattern_with_revision)
 
-        self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types.yang')
+        self.assertEqual(result, '{}/ietf-yang-types.yang'.format(self.util_tests_dir))
 
     def test_find_first_file_without_revision(self):
         """ Try to find the first file that matches the pattern without specified revision.
         It will try to parse the yang module to get its revision
         and check if that revision is also in 'pattern_with_revision' variable.
         """
-        directory = 'utility/tests/resources/modules'
         pattern = 'ietf-yang-types.yang'
         pattern_with_revision = 'ietf-yang-types@2013-07-15.yang'
 
-        result = util.find_first_file(directory, pattern, pattern_with_revision)
+        result = util.find_first_file(self.util_tests_dir, pattern, pattern_with_revision)
 
-        self.assertEqual(result, 'utility/tests/resources/modules/ietf-yang-types.yang')
+        self.assertEqual(result, '{}/ietf-yang-types.yang'.format(self.util_tests_dir))
 
     @mock.patch('utility.yangParser.parse')
     def test_find_first_file_without_revision_empty_search(self, mock_yang_parse: mock.MagicMock):
@@ -100,11 +97,10 @@ class TestUtilClass(unittest.TestCase):
         It will try to parse the yang module to get its revision, but exception occur during parsing.
         """
         mock_yang_parse.return_value.search.return_value = []
-        directory = 'utility/tests/resources/modules'
         pattern = 'ietf-yang-types.yang'
         pattern_with_revision = 'ietf-yang-types@2013-07-15.yang'
 
-        result = util.find_first_file(directory, pattern, pattern_with_revision)
+        result = util.find_first_file(self.util_tests_dir, pattern, pattern_with_revision)
 
         self.assertEqual(result, None)
 
@@ -369,5 +365,5 @@ class TestUtilClass(unittest.TestCase):
         return file_content
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

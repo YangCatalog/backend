@@ -19,6 +19,7 @@ __email__ = "richard.zilincik@pantheon.tech"
 
 import json
 import os
+import shutil
 import unittest
 from unittest import mock
 
@@ -76,8 +77,11 @@ class TestApiContributeClass(unittest.TestCase):
                                      models_provider='test', first_name='test', last_name='test',
                                      access_rights_sdo='/', access_rights_vendor='/')
 
+        os.makedirs(yc_gc.save_requests, exist_ok=True)
+
     def tearDown(self):
         self.users.delete(self.uid, temp=False)
+        shutil.rmtree(yc_gc.save_requests)
 
     @mock.patch('api.yangCatalogApi.app.config.redis_users.create', mock.MagicMock())
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)

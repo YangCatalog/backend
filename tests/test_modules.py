@@ -101,7 +101,7 @@ class TestModulesClass(unittest.TestCase):
         Create modules object from vendor YANG file,
         and compare object properties values after calling parse_all() method.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
         yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = yang_lib_data.split('&revision')[0]
         deviation = yang_lib_data.split('&deviations=')[1]
@@ -129,7 +129,7 @@ class TestModulesClass(unittest.TestCase):
         Vendor information are then added using add_vendor_information() method and object values are compared
         with data from platform-metadata.json.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
         yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = yang_lib_data.split('&revision')[0]
         platform_name = 'ncs5k'
@@ -166,14 +166,14 @@ class TestModulesClass(unittest.TestCase):
         with data from platform-metadata.json.
         """
         yang_lib_info = {
-            'path': '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path),
+            'path': '{}/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir),
             'name': 'huawei-aaa',
             'features': [],
             'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
             'revision': '2020-07-01'
         }
         schema_part = '{}/YangModels/yang/master/'.format(github_raw)
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(self.resources_path)
+        xml_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(yc_gc.temp_dir)
         module_name = 'huawei-aaa'
         platform_name = 'ne5000e'
 
