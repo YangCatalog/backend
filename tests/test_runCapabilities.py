@@ -52,7 +52,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path = '{}/tmp/temp/standard/ietf/RFC'.format(self.resources_path)
+        path = '{}/temp/standard/ietf/RFC'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -100,7 +100,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path = '{}/tmp/temp/standard/ietf/RFC/empty'.format(self.resources_path)
+        path = '{}/temp/standard/ietf/RFC/empty'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -130,7 +130,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_commit_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701'.format(self.resources_path)
+        xml_path = '{}/master/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -222,7 +222,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
-        xml_path = '{}/tmp/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.resources_path)
+        xml_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)

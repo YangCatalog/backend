@@ -21,6 +21,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 
+import redis
 import utility.log as log
 from redis import Redis
 from utility.create_config import create_config
@@ -281,3 +282,15 @@ class RedisConnection:
                     vendors_data[vendor_name] = vendor
 
         return vendors_data
+
+    def delete_vendor(self, vendor_key: str):
+        result = 0
+        keys_to_delete = []
+        for key in self.vendorsDB.scan_iter():
+            redis_key = key.decode('utf-8')
+            if vendor_key in redis_key:
+                keys_to_delete.append(redis_key)
+
+        if keys_to_delete:
+            result = self.vendorsDB.delete(*keys_to_delete)
+        return result

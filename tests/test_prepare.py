@@ -171,7 +171,7 @@ class TestPrepareClass(unittest.TestCase):
         Content of dumped normal.json file is then compared with desired content loaded from parseAndPopulate_tests_data.json file.
         """
         # Modules object
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data,
@@ -225,7 +225,7 @@ class TestPrepareClass(unittest.TestCase):
         correctly set value.
         If value is set to None, it should not be dumped into .json file.
         """
-        xml_path = '{}/tmp/master/vendor/cisco/xr/701/{}'.format(self.resources_path, self.hello_message_filename)
+        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data,
@@ -263,7 +263,7 @@ class TestPrepareClass(unittest.TestCase):
         :rtype: Modules
         """
         parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path_to_yang = '{}/tmp/temp/standard/ietf/RFC/{}'.format(self.resources_path, self.sdo_module_filename)
+        path_to_yang = '{}/temp/standard/ietf/RFC/{}'.format(yc_gc.temp_dir, self.sdo_module_filename)
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
                        yc_gc.result_dir, parsed_jsons, self.tmp_dir)
