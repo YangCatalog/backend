@@ -230,7 +230,7 @@ class InfoTable(t.TypedDict):
     num_github: int
     num_catalog: int
     percentage_compile: str
-    percentage_extra: t.Literal['unknown']
+    percentage_extra: str
 
 
 def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
@@ -248,8 +248,9 @@ def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
     else:
         modules = int(out.split('{} : '.format(path))[1].splitlines()[0])
     num_in_catalog, passed = get_total_and_passed(path)
+    extra = '{} %'.format(repr(round((num_in_catalog / modules) * 100, 2)))
     if num_in_catalog != 0:
-        compiled = '{} %'.format(repr(round((float(passed) / num_in_catalog) * 100, 2)))
+        compiled = '{} %'.format(repr(round((passed / num_in_catalog) * 100, 2)))
     else:
         compiled = '0.0 %'
     info_table: InfoTable = {
@@ -257,7 +258,7 @@ def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
         'num_github': modules,
         'num_catalog': num_in_catalog,
         'percentage_compile': compiled,
-        'percentage_extra': 'unknown'
+        'percentage_extra': extra
     }
     save_list.append(info_table)
 
@@ -523,11 +524,11 @@ def main(scriptConf: ScriptConfig = None):
         LOGGER.info('Rendering data')
         with open('{}/stats/stats.json'.format(private_dir), 'w') as f:
             for sdo in sdo_list:
-                sdo['num_github'] = int(sdo['num_github'])
                 sdo['percentage_compile'] = float(sdo['percentage_compile'].split(' ')[0])
+                sdo['percentage_extra'] = float(sdo['percentage_extra'].split(' ')[0])
             for vendor in vendor_list:
-                vendor['num_github'] = int(vendor['num_github'])
                 vendor['percentage_compile'] = float(vendor['percentage_compile'].split(' ')[0])
+                vendor['percentage_extra'] = float(vendor['percentage_extra'].split(' ')[0])
             output = {'table_sdo': sdo_list,
                       'table_vendor': vendor_list,
                       'num_yang_files_vendor': int(vendor_modules),
