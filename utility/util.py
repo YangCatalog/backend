@@ -489,15 +489,16 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     return ctx, new_schema_ctx
 
 
-def get_list_of_backups(directory: str) -> t.List[t.List[str]]:
-    dates = []
+def get_list_of_backups(directory: str) -> t.List[str]:
+    dates: t.List[str] = []
     for name in os.listdir(directory):
         try:
-            split_name = os.path.splitext(name)
-            datetime.datetime.strptime(split_name[0], backup_date_format)
+            i = name.index('.')
+            root = name[:i]
+            datetime.datetime.strptime(root, backup_date_format)
             if os.stat(os.path.join(directory, name)).st_size == 0:
                 continue
-            dates.append(split_name)
+            dates.append(name)
         except ValueError:
             continue
     return sorted(dates)

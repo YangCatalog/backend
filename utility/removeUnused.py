@@ -30,8 +30,6 @@ import os
 import shutil
 import time
 from datetime import datetime as dt
-from operator import itemgetter
-from os import unlink
 
 import utility.log as log
 from utility.create_config import create_config
@@ -163,13 +161,15 @@ if __name__ == '__main__':
                         file_signature = relative_path.encode() + hash_file(file_path)
                         sha1.update(file_signature)
                 return sha1.digest()
+            else:
+                assert False
 
         # remove  all files that are same keep the latest one only. Last two months keep all different content json files
         # other 4 months (6 in total) keep only latest, remove all other files
         def remove_old_backups(subdir: str):
             backup_directory = os.path.join(cache_directory, subdir)
             list_of_backups = get_list_of_backups(backup_directory)
-            backup_name_latest = os.path.join(backup_directory, ''.join(list_of_backups[-1]))
+            backup_name_latest = os.path.join(backup_directory, list_of_backups[-1])
 
             def diff_month(later_datetime, earlier_datetime):
                 return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
@@ -180,31 +180,31 @@ if __name__ == '__main__':
 
             today = dt.now()
             for backup in list_of_backups:
-                backup_dt = dt.strptime(backup[0], backup_date_format)
+                backup_dt = dt.strptime(backup[:backup.index('.')], backup_date_format)
                 month_difference = diff_month(today, backup_dt)
                 if month_difference > 6:
                     to_remove.append(backup)
                 elif month_difference > 2:
                     month = backup_dt.month
-                    if last_six_months.get(month) is not None:
-                        if last_six_months.get(month) > backup:
+                    if month in last_six_months:
+                        if last_six_months[month] > backup:
                             to_remove.append(backup)
                         else:
-                            to_remove.append(last_six_months.get(month))
+                            to_remove.append(last_six_months[month])
                             last_six_months[month] = backup
                     else:
                         last_six_months[month] = backup
                 else:
-                    backup_path = os.path.join(backup_directory, ''.join(backup))
+                    backup_path = os.path.join(backup_directory, backup)
                     currently_processed_backup_hash = hash_node(backup_path)
-                    if last_two_months.get(currently_processed_backup_hash) is not None:
-                        if last_two_months.get(currently_processed_backup_hash) > backup:
+                    if currently_processed_backup_hash in last_two_months:
+                        if last_two_months[currently_processed_backup_hash] > backup:
                             to_remove.append(backup)
                         else:
-                            to_remove.append(last_two_months.get(currently_processed_backup_hash))
+                            to_remove.append(last_two_months[currently_processed_backup_hash])
                     last_two_months[currently_processed_backup_hash] = backup
             for backup in to_remove:
-                backup_path = os.path.join(backup_directory, ''.join(backup))
+                backup_path = os.path.join(backup_directory, backup)
                 if backup_path != backup_name_latest:
                     if os.path.isdir(backup_path):
                         shutil.rmtree(backup_path)

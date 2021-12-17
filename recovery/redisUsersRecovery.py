@@ -124,7 +124,7 @@ def main(scriptConf=None):
             file_name = '{}.json'.format(os.path.join(backups, args.name_load))
         else:
             list_of_backups = get_list_of_backups(backups)
-            file_name = os.path.join(backups, ''.join(list_of_backups[-1]))
+            file_name = os.path.join(backups, list_of_backups[-1])
 
         with open(file_name) as f:
             data = json.load(f)

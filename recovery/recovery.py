@@ -27,6 +27,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 
 import datetime
+import gzip
 import json
 import logging
 import os
@@ -211,9 +212,9 @@ def main(scriptConf=None):
     if 'save' == args.type:
         # ConfD backup
         jsn = confdService.get_catalog_data().json()
-        confd_backup_file = os.path.join(confd_backups, '{}.json'.format(args.name_save))
-        with open(confd_backup_file, 'w') as file_save:
-            json.dump(jsn, file_save)
+        confd_backup_file = os.path.join(confd_backups, '{}.json.gz'.format(args.name_save))
+        with gzip.open(confd_backup_file, 'w') as save_file:
+            save_file.write(json.dumps(jsn).encode())
         LOGGER.info('Data dumped into {}'.format(confd_backup_file))
         num_of_modules = len(jsn['yang-catalog:catalog'].get('modules', {}).get('module', []))
         num_of_vendors = len(jsn['yang-catalog:catalog'].get('vendors', {}).get('vendor', []))
@@ -225,8 +226,10 @@ def main(scriptConf=None):
         # Redis backup
         redis_backup_file = '{}/redis/dump.rdb'.format(var_yang)
         if os.path.exists(redis_backup_file):
-            redis_copy_file = os.path.join(redis_backups, '{}.rdb'.format(args.name_save))
-            shutil.copy2(redis_backup_file, redis_copy_file)
+            redis_copy_file = os.path.join(redis_backups, '{}.rdb.gz'.format(args.name_save))
+            with gzip.open(redis_copy_file, 'w') as save_file:
+                with open(redis_backup_file, 'rb') as original:
+                    save_file.write(original.read())
             LOGGER.info('Backup of Redis dump.rdb file created')
         else:
             LOGGER.warning('Redis dump.rdb file does not exists')
@@ -238,15 +241,15 @@ def main(scriptConf=None):
             file_name = os.path.join(confd_backups, args.name_load)
         else:
             list_of_backups = get_list_of_backups(confd_backups)
-            file_name = os.path.join(confd_backups, ''.join(list_of_backups[-1]))
+            file_name = os.path.join(confd_backups, list_of_backups[-1])
 
         catalog_data = None
         response = confdService.head_catalog()
         if response.status_code != 200:
             # Fill ConfD from JSON file if empty
-            with open(file_name, 'r') as file_load:
+            with gzip.open(file_name, 'r') as file_load:
                 LOGGER.info('Loading file {}'.format(file_load.name))
-                catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
+                catalog_data = json.loads(file_load.read().decode())
 
             LOGGER.info('Loading data into ConfD')
             catalog = catalog_data.get('yang-catalog:catalog')
