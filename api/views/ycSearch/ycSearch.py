@@ -1025,12 +1025,10 @@ def vendors_data(clean_data=True):
     """Get all the vendors data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
-    data = ac.redis.get('vendors-data')
-    data = (data or b'{}').decode('utf-8')
+    data = app.redisConnection.get_all_vendors()
 
     if clean_data:
-        json_data = \
-            json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
+        json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
     else:
         json_data = json.loads(data)
     return json_data

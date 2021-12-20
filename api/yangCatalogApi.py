@@ -635,7 +635,7 @@ def load():
     with lock_for_load:
         app.logger.info('Application not locked for reload')
         app.redisConnection.reload_modules_cache()
-        # app.redisConnection.reload_vendors_cache()
+        app.redisConnection.reload_vendors_cache()
         load_uwsgi_cache()
         app.logger.info('Cache loaded successfully')
         app.loading = False
