@@ -24,6 +24,7 @@ import unittest
 from unittest import mock
 
 from api.receiver import Receiver
+from ddt import data, ddt
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from redis import Redis
 from redisConnections.redisConnection import RedisConnection
@@ -56,6 +57,11 @@ class MockConfdService:
         r.status_code = 204
         return r
 
+    def delete_implementation(self, module_key: str, implementation_key: str):
+        r = mock.MagicMock()
+        r.status_code = 204
+        return r
+
 
 class MockRepoUtil:
     localdir = 'test'
@@ -73,9 +79,9 @@ class MockRepoUtil:
         pass
 
 
-class TestReceiverClass(unittest.TestCase):
+class TestReceiverBaseClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
-        super(TestReceiverClass, self).__init__(*args, **kwargs)
+        super(TestReceiverBaseClass, self).__init__(*args, **kwargs)
         config = create_config()
 
         self.log_directory = config.get('Directory-Section', 'logs')
@@ -88,9 +94,11 @@ class TestReceiverClass(unittest.TestCase):
         self.__redis_port = config.get('DB-Section', 'redis-port')
 
         self.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
-        self.receiver.redisConnection = RedisConnection(modules_db=11)
+        self.receiver.redisConnection = RedisConnection(modules_db=11, vendors_db=14)
+        self.redisConnection = RedisConnection(modules_db=11, vendors_db=14)
         self.receiver.confdService = MockConfdService()
-        self.redisDB = Redis(host=self.__redis_host, port=self.__redis_port, db=11)
+        self.modulesDB = Redis(host=self.__redis_host, port=self.__redis_port, db=11)
+        self.vendorsDB = Redis(host=self.__redis_host, port=self.__redis_port, db=14)
         self.huawei_dir = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.yang_models)
         self.direc = '{}/receiver_test'.format(self.temp_dir)
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
@@ -109,13 +117,18 @@ class TestReceiverClass(unittest.TestCase):
         self.addCleanup(self.confd_patcher.stop)
         self.mock_confd_service.side_effect = MockConfdService
 
-        try:
-            os.makedirs(self.direc, exist_ok=True)
-        except OSError as e:
-            raise e
+    def tearDown(self):
+        self.modulesDB.flushdb()
+        self.vendorsDB.flushdb()
+
+
+class TestReceiverClass(TestReceiverBaseClass):
+    def setUp(self):
+        super(TestReceiverClass, self).setUp()
+        os.makedirs(self.direc, exist_ok=True)
 
     def tearDown(self):
-        self.redisDB.flushdb()
+        super(TestReceiverClass, self).tearDown()
         shutil.rmtree(self.direc)
 
     def test_run_ping_successful(self):
@@ -134,10 +147,8 @@ class TestReceiverClass(unittest.TestCase):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
         data = self.test_data.get('prepare-sdo-content')
         dst = '{}/temp/YangModels/yang/master/standard/ietf/RFC'.format(self.direc)
-        try:
-            os.makedirs(dst, exist_ok=True)
-        except OSError as e:
-            raise e
+        os.makedirs(dst, exist_ok=True)
+
         RFC_dir = '{}/yangmodels/yang/standard/ietf/RFC'.format(self.nonietf_dir)
         shutil.copy('{}/ietf-yang-types@2010-09-24.yang'.format(RFC_dir),
                     '{}/ietf-yang-types@2010-09-24.yang'.format(dst))
@@ -151,7 +162,7 @@ class TestReceiverClass(unittest.TestCase):
         response = self.receiver.process_sdo(arguments, all_modules)
         module = all_modules.get('module')[0]
         original_module_data = data['modules']['module'][0]
-        redis_module = self.redisDB.get('ietf-yang-types@2010-09-24/ietf')
+        redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
         self.assertEqual(response, 'Finished successfully')
@@ -169,7 +180,7 @@ class TestReceiverClass(unittest.TestCase):
         all_modules = {}
 
         response = self.receiver.process_sdo(arguments, all_modules)
-        redis_module = self.redisDB.get('openconfig-extensions@2020-06-16/openconfig')
+        redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
         self.assertEqual(response, 'Failed#split#Server error while running populate script')
@@ -183,10 +194,7 @@ class TestReceiverClass(unittest.TestCase):
         platform = self.test_data.get('capabilities-json-content')
 
         dst = '{}/temp/huawei/yang/master/network-router/8.20.0/ne5000e'.format(self.direc)
-        try:
-            os.makedirs(dst, exist_ok=True)
-        except OSError as e:
-            raise e
+        os.makedirs(dst, exist_ok=True)
 
         shutil.copy('{}/huawei-dsa.yang'.format(self.huawei_dir), '{}/huawei-dsa.yang'.format(dst))
         shutil.copy('{}/capabilities.xml'.format(self.huawei_dir), '{}/capabilities.xml'.format(dst))
@@ -215,7 +223,7 @@ class TestReceiverClass(unittest.TestCase):
 
             # Test whether modules are stored in Redis database after running populate script
             redis_key = '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
-            redis_module = self.redisDB.get(redis_key)
+            redis_module = self.modulesDB.get(redis_key)
             redis_data = (redis_module or b'{}').decode('utf-8')
             self.assertNotEqual(redis_data, '{}')
 
@@ -343,6 +351,65 @@ class TestReceiverClass(unittest.TestCase):
         response = self.receiver.process_module_deletion(arguments)
 
         self.assertEqual(response, 'Failed#split#Server error -> Unable to parse arguments')
+
+
+@ddt
+class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
+    def setUp(self):
+        super(TestReceiverVendorsDeletionClass, self).setUp()
+        vendors_to_populate = self.test_data.get('vendor-deletion-tests').get('vendors')
+        modules_to_populate = self.test_data.get('vendor-deletion-tests').get('modules')
+        self.redisConnection.populate_implementation([vendors_to_populate])
+        self.redisConnection.populate_modules(modules_to_populate)
+        self.redisConnection.reload_vendors_cache()
+        self.redisConnection.reload_modules_cache()
+
+    @data(
+        ('fujitsu', 'T100', '2.4', 'Linux'),
+        ('fujitsu', 'T100', '2.4', 'None'),
+        ('fujitsu', 'T100', 'None', 'None'),
+        ('fujitsu', 'None', 'None', 'None'),
+        ('huawei', 'ne5000e', 'None', 'None')
+    )
+    @ mock.patch('api.receiver.prepare_to_indexing')
+    def test_process_vendor_deletion(self, params, indexing_mock: mock.MagicMock):
+        indexing_mock.return_value = {}
+        vendor, platform, software_version, software_flavor = params
+
+        confd_suffix = ''
+        deleted_vendor_branch = ''
+        if vendor != 'None':
+            confd_suffix += 'vendors/vendor/{}'.format(vendor)
+            deleted_vendor_branch += '{}/'.format(vendor)
+        if platform != 'None':
+            confd_suffix += '/platforms/platform/{}'.format(platform)
+            deleted_vendor_branch += '{}/'.format(platform)
+        if software_version != 'None':
+            confd_suffix += '/software-versions/software-version/{}'.format(software_version)
+            deleted_vendor_branch += '{}/'.format(software_version)
+        if software_flavor != 'None':
+            confd_suffix += '/software-flavors/software-flavor/{}'.format(software_flavor)
+            deleted_vendor_branch += software_flavor
+
+        arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor, confd_suffix]
+        response = self.receiver.process_vendor_deletion(arguments)
+        self.redisConnection.reload_vendors_cache()
+        self.redisConnection.reload_modules_cache()
+
+        created_vendors_dict = self.redisConnection.create_vendors_data_dict(deleted_vendor_branch)
+        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(created_vendors_dict, [])
+        for key in self.vendorsDB.scan_iter():
+            redis_key = key.decode('utf-8')
+            self.assertNotIn(deleted_vendor_branch, redis_key)
+
+        raw_all_modules = self.redisConnection.get_all_modules()
+        all_modules = json.loads(raw_all_modules)
+        for module in all_modules.values():
+            implementations = module.get('implementations', {}).get('implementation', [])
+            for implementation in implementations:
+                implementation_key = self.redisConnection.create_implementation_key(implementation)
+                self.assertNotIn(deleted_vendor_branch, implementation_key)
 
 
 if __name__ == '__main__':
