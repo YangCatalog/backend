@@ -248,11 +248,8 @@ def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
     else:
         modules = int(out.split('{} : '.format(path))[1].splitlines()[0])
     num_in_catalog, passed = get_total_and_passed(path)
-    extra = '{} %'.format(repr(round((num_in_catalog / modules) * 100, 2)))
-    if num_in_catalog != 0:
-        compiled = '{} %'.format(repr(round((passed / num_in_catalog) * 100, 2)))
-    else:
-        compiled = '0.0 %'
+    extra = '0.0 %' if modules == 0 else  '{} %'.format(repr(round((num_in_catalog / modules) * 100, 2)))
+    compiled = '0.0 %' if num_in_catalog == 0 else '{} %'.format(repr(round((passed / num_in_catalog) * 100, 2)))
     info_table: InfoTable = {
         'name': name,
         'num_github': modules,
