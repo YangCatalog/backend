@@ -201,50 +201,30 @@ class RedisConnection:
                         key = '{}/{}/{}/{}'.format(vendor_name, platform_name, software_version_name, software_flavor_name)
                         if not data.get(key):
                             data[key] = {'protocols': software_flavor.get('protocols', {})}
-                        if not data.get(key).get('modules'):
+                        if not 'modules' in data[key]:
                             data[key]['modules'] = {'module': []}
-                        for module in software_flavor.get('modules', {}).get('module', []):
-                            data[key]['modules']['module'].append(module)
+                        data[key]['modules']['module'] += software_flavor.get('modules', {}).get('module', [])
 
-        for key, value in data.items():
-            existing_data = self.get_implementation(key)
-            if existing_data == '{}':
-                new_data = value
+        for key, new_data in data.items():
+            existing_json = self.get_implementation(key)
+            if existing_json == '{}':
+                merged_data = new_data
             else:
-                existing_implementation = json.loads(existing_data)
-                existing_modules = existing_implementation.get('modules').get('module')
-                existing_modules_keys = [self._create_module_key(module) for module in existing_modules]
-                new_modules_list = value.get('modules', {}).get('module', [])
-                for module in new_modules_list:
-                    mod_key = self._create_module_key(module)
-                    if mod_key not in existing_modules_keys:
-                        existing_modules.append(module)
-                        existing_modules_keys.append(mod_key)
-                    else:
-                        index = existing_modules_keys.index(mod_key)
-                        existing_modules[index] = module
-                new_data = {
-                    'protocols': value.get('protocols'),
-                    'modules': {
-                        'module': existing_modules
-                    }
-                }
-
-            self.vendorsDB.set(key, json.dumps(new_data))
+                existing_data = json.loads(existing_json)
+                self.merge_data(existing_data.get('modules'), new_data.get('modules'))
+                merged_data = existing_data
+            self.vendorsDB.set(key, json.dumps(merged_data))
 
     def reload_vendors_cache(self):
         vendors_data = self.create_vendors_data_dict()
 
-        vendors_list = []
-        for val in vendors_data.values():
-            vendors_list.append(val)
-        self.vendorsDB.set('vendors-data', json.dumps({'vendor': vendors_list}))
+        self.vendorsDB.set('vendors-data', json.dumps({'vendor': vendors_data}))
 
-    def create_vendors_data_dict(self):
-        vendors_data = {}
+    def create_vendors_data_dict(self, searched_key: str = ''):
+        vendors_data = {'yang-catalog:vendor': []}
         for vendor_key in self.vendorsDB.scan_iter():
             key = vendor_key.decode('utf-8')
-            if key != 'vendors-data':
+            if key != 'vendors-data' and searched_key in key:
                 data = self.vendorsDB.get(key)
                 redis_vendors_raw = (data or b'{}').decode('utf-8')
                 redis_vendor_data = json.loads(redis_vendors_raw)
@@ -254,34 +234,9 @@ class RedisConnection:
                 software_version = {'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}}
                 platform = {'name': platform_name, 'software-versions': {'software-version': [software_version]}}
                 vendor = {'name': vendor_name, 'platforms': {'platform': [platform]}}
-
-                if vendors_data.get(vendor_name):
-                    existing_vendor = vendors_data.get(vendor_name)
-                    existing_platforms = existing_vendor.get('platforms').get('platform')
-
-                    for existing_platform in existing_platforms:
-                        if existing_platform.get('name') == platform_name:
-                            existing_versions = existing_platform.get('software-versions').get('software-version')
-
-                            for existing_version in existing_versions:
-                                if existing_version.get('name') == software_version_name:
-                                    existing_flavors = existing_platform.get('software-flavors').get('software-flavor')
-
-                                    for existing_flavor in existing_flavors:
-                                        if existing_flavor.get('name') == software_flavor_name:
-                                            pass
-                                    else:
-                                        existing_flavors.append(software_flavor)
-                                        break
-                            else:
-                                existing_versions.append(software_version)
-                                break
-                    else:
-                        existing_platforms.append(platform)
-                else:
-                    vendors_data[vendor_name] = vendor
-
-        return vendors_data
+                new_data = {'yang-catalog:vendor': [vendor]}
+                self.merge_data(vendors_data, new_data)
+        return vendors_data['yang-catalog:vendor']
 
     def delete_vendor(self, vendor_key: str):
         result = 0
@@ -294,3 +249,28 @@ class RedisConnection:
         if keys_to_delete:
             result = self.vendorsDB.delete(*keys_to_delete)
         return result
+
+    def merge_data(self, old: dict, new: dict):
+        # we're expecting a dict in this shape: {<some string>: [...]}
+        data_type, old_data_list = next(iter(old.items()))
+        data_type, new_data_list = next(iter(new.items()))
+        if data_type == 'module':
+            old_modules = {self._create_module_key(module): module for module in old_data_list}
+            new_modules = {self._create_module_key(module): module for module in new_data_list}
+            old_modules.update(new_modules)
+            old['module'] = list(old_modules.values())
+        else:
+            old_data = {value['name']: value for value in old_data_list}
+            new_data = {value['name']: value for value in new_data_list}
+            for name in new_data.keys():
+                if name in old_data:
+                    # We already have object on the same level -> we need to go one level deeper
+                    for key, value in old_data[name].items():
+                        if key in new_data[name]:
+                            if isinstance(value, dict):
+                                self.merge_data(old_data[name][key], new_data[name][key])
+                            else:
+                                old_data[name][key] = new_data[name][key]
+                else:
+                    old_data[name] = new_data[name]
+            old[data_type] = list(old_data.values())
