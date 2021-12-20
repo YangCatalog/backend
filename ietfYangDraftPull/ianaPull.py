@@ -74,7 +74,7 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     is_production = config.get('General-Section', 'is-prod')
-    is_production = True if is_production == 'True' else False
+    is_production = is_production == 'True'
     LOGGER = log.get_logger('ianaPull', '{}/jobs/iana-pull.log'.format(log_directory))
     LOGGER.info('Starting job to pull IANA-maintained modules')
 
@@ -184,5 +184,5 @@ def main(scriptConf=None):
     LOGGER.info('Job finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

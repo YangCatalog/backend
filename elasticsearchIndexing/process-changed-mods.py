@@ -47,10 +47,6 @@ if __name__ == '__main__':
     es_host = config.get('DB-Section', 'es-host')
     es_port = config.get('DB-Section', 'es-port')
     es_aws = config.get('DB-Section', 'es-aws')
-    if es_aws == 'True':
-        es_aws = True
-    else:
-        es_aws = False
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     changes_cache_dir = config.get('Directory-Section', 'changes-cache')
     failed_changes_cache_dir = config.get('Directory-Section', 'changes-cache-failed')
@@ -112,7 +108,7 @@ if __name__ == '__main__':
         os.unlink(lock_file)
 
     if len(delete_cache) > 0:
-        if es_aws:
+        if es_aws == 'True':
             es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
@@ -200,7 +196,7 @@ if __name__ == '__main__':
     sys.setrecursionlimit(50000)
     try:
         LOGGER.info('Trying to initialize Elasticsearch')
-        if es_aws:
+        if es_aws == 'True':
             es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
