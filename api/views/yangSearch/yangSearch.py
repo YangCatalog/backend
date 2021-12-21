@@ -235,7 +235,6 @@ def impact_analysis():
     response = {}
 
     searched_module = module_details(name, revision, True)['metadata']
-    bp.LOGGER.info('{}'.format(searched_module))
     response['name'] = searched_module['name']
     response['revision'] = searched_module['revision']
     response['organization'] = searched_module['organization']

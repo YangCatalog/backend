@@ -55,6 +55,9 @@ class RedisConnection:
             elif key in ['dependents', 'dependencies']:
                 new_prop_list = new_module.get(key, [])
                 existing_prop_list = existing_module.get(key, [])
+                if not existing_prop_list:
+                    existing_module[key] = new_prop_list
+                    continue
                 existing_prop_names = [existing_prop.get('name') for existing_prop in existing_prop_list]
                 for new_prop in new_prop_list:
                     new_prop_name = new_prop.get('name')
