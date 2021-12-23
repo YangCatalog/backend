@@ -228,7 +228,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
         LOGGER.info('Data sent for indexing successfully')
 
 
-def prepare_to_indexing(yc_api_prefix: str, modules_to_index, LOGGER, save_file_dir: str, temp_dir: str,
+def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list], LOGGER, save_file_dir: str, temp_dir: str,
                         sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
