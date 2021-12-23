@@ -43,6 +43,7 @@ import shutil
 import subprocess
 import sys
 import time
+import typing as t
 from datetime import datetime
 from distutils.dir_util import copy_tree
 
@@ -79,7 +80,7 @@ class Receiver:
             else:
                 shutil.copy2(s, d)
 
-    def process(self, arguments: list, all_modules: dict):
+    def process(self, arguments: t.List[str]) -> t.Tuple[str, dict]:
         """Process SDO modules. Calls populate.py script which will parse all the modules
         on the given path given by "dir" param. Populate script will also send the
         request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
@@ -90,6 +91,7 @@ class Receiver:
             :return (__response_type) one of the response types which is either
                 'Failed' or 'Finished successfully'
         """
+        all_modules = {}
         direc = arguments[3]
         tree_created = arguments[-1] == 'True'
         sdo = '--sdo' in arguments
@@ -114,24 +116,26 @@ class Receiver:
             submodule.main(scriptConf=script_conf)
         except Exception:
             self.LOGGER.exception('Problem while running populate script')
-            return '{}#split#Server error while running populate script'.format(self.__response_type[0])
+            return '{}#split#Server error while running populate script'.format(self.__response_type[0]), all_modules
 
         try:
             os.makedirs(os.path.join(self.temp_dir, data_type))
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
-                return '{}#split#Server error - could not create {} directory'.format(self.__response_type[0], data_type)
+                return ('{}#split#Server error - could not create {} directory'
+                        .format(self.__response_type[0], data_type),
+                        all_modules)
 
         if tree_created:
             self.copytree(os.path.join(direc, 'temp'), os.path.join(self.temp_dir, data_type))
             with open(os.path.join(direc, 'prepare.json'), 'r') as f:
                 all_modules.update(json.load(f))
 
-        return self.__response_type[1]
+        return self.__response_type[1], all_modules
 
 
-    def process_vendor_deletion(self, arguments: list):
+    def process_vendor_deletion(self, arguments: t.List[str]) -> str:
         """Deleting vendors metadata. It calls the delete request to ConfD to delete all the module
         in vendor branch of the yang-catalog.yang module on given path. If the module was
         added by vendor and it doesn't contain any other implementations it will delete the
@@ -286,7 +290,7 @@ class Receiver:
                                   self.__lock_file)
         return self.__response_type[1]
 
-    def iterate_in_depth(self, value: dict, confd_keys: set):
+    def iterate_in_depth(self, value: dict, confd_keys: t.Set[str]):
         """Iterates through the branch to get to the level with modules.
 
         Arguments:
@@ -307,7 +311,7 @@ class Receiver:
                 else:
                     self.iterate_in_depth(val, confd_keys)
 
-    def make_cache(self, credentials: list):
+    def make_cache(self, credentials: t.List[str]) -> requests.Response:
         """After we delete or add modules we need to reload all the modules to the file
         for quicker search. This module is then loaded to the memory.
 
@@ -324,7 +328,7 @@ class Receiver:
             self.LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
         return response
 
-    def process_module_deletion(self, arguments: list):
+    def process_module_deletion(self, arguments: t.List[str]) -> str:
         """Deleting one or more modules. It sends the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
         yang-catalog:yang module. It will also call indexing script to update searching.
@@ -343,14 +347,14 @@ class Receiver:
             self.LOGGER.exception('Problem while processing arguments')
             return '{}#split#Server error -> Unable to parse arguments'.format(self.__response_type[0])
 
-        def module_in(name: str, revision: str, modules: list):
+        def module_in(name: str, revision: str, modules: list) -> bool:
             for module in modules:
                 if module['name'] == name and module.get('revision') == revision:
                     return True
             return False
 
         @functools.lru_cache(maxsize=None)
-        def can_delete(name: str, revision: str):
+        def can_delete(name: str, revision: str) -> bool:
             """ Check whether module with given 'name' and 'revison' which should be removed
             is or is not depedency/submodule of some other existing module.
             If module-to-be-deleted has reference in another existing module, it cannot be deleted.
@@ -433,7 +437,7 @@ class Receiver:
             reason = 'modules-not-deleted:{}'.format(':'.join(modules_not_deleted))
             return '{}#split#{}'.format(self.__response_type[2], reason)
 
-    def run_ietf(self):
+    def run_ietf(self) -> str:
         """
         Runs ietf and openconfig scripts that should update all the new ietf
         and openconfig modules
@@ -505,21 +509,23 @@ class Receiver:
             username=rabbitmq_username,
             password=rabbitmq_password)
         try:
-            self.channel.close()
+            if self.channel:
+                self.channel.close()
         except Exception:
             pass
         try:
-            self.connection.close()
+            if self.connection:
+                self.connection.close()
         except Exception:
             pass
         self.LOGGER.info('Config loaded succesfully')
 
     def on_request(self, ch, method, properties, body):
         process_reload_cache = multiprocessing.Process(
-            target=self.on_request_thread_safe, args=(ch, method, properties, body,))
+            target=self.on_request_thread_safe, args=(ch, method, properties, body))
         process_reload_cache.start()
 
-    def on_request_thread_safe(self, channel, method, properties, body):
+    def on_request_thread_safe(self, properties, body_raw: bytes):
         """Function called when something was sent from API sender. This function
         will process all the requests that would take too long to process for API.
         When the processing is done we will sent back the result of the request
@@ -530,9 +536,9 @@ class Receiver:
                     :param body: (str) String of arguments that need to be processed
                     separated by '#'.
         """
+        final_response = ''
         try:
-            if sys.version_info >= (3, 4):
-                body = body.decode(encoding='utf-8', errors='strict')
+            body = body_raw.decode()
             self.LOGGER.info('Received request with body {}'.format(body))
             arguments = body.split('#')
             if body == 'run_ietf':
@@ -574,22 +580,25 @@ class Receiver:
                         sys.exc_info()[0]))
             else:
                 all_modules = {}
+                direc = ''
                 if arguments[0] == 'DELETE-VENDORS':
                     final_response = self.process_vendor_deletion(arguments)
                     credentials = arguments[1:3]
-                if arguments[0] == 'DELETE-MODULES':
+                elif arguments[0] == 'DELETE-MODULES':
                     final_response = self.process_module_deletion(arguments)
                     credentials = arguments[1:3]
-                if arguments[0] == 'POPULATE-MODULES':
-                    final_response = self.process(arguments, all_modules)
+                elif arguments[0] == 'POPULATE-MODULES':
+                    final_response, all_modules = self.process(arguments)
                     credentials = arguments[6:8]
                     direc = arguments[3]
                     shutil.rmtree(direc)
-                if arguments[0] == 'POPULATE-VENDORS':
-                    final_response = self.process(arguments, all_modules)
+                elif arguments[0] == 'POPULATE-VENDORS':
+                    final_response, all_modules = self.process(arguments)
                     credentials = arguments[5:7]
                     direc = arguments[2]
                     shutil.rmtree(direc)
+                else:
+                    assert False
 
                 if final_response.split('#split#')[0] == self.__response_type[1]:
                     response = self.make_cache(credentials)
@@ -650,15 +659,17 @@ class Receiver:
                 self.LOGGER.exception('Exception: {}'.format(str(e)))
                 time.sleep(10)
                 try:
-                    self.channel.close()
+                    if self.channel:
+                        self.channel.close()
                 except Exception:
                     pass
                 try:
-                    self.connection.close()
+                    if self.connection:
+                        self.connection.close()
                 except Exception:
                     pass
 
-    def run_script(self, arguments: list):
+    def run_script(self, arguments: t.List[str]) -> str:
         module_name = arguments[0]
         script_name = arguments[1]
         body_input = json.loads(arguments[2])
@@ -681,7 +692,7 @@ class Receiver:
             self.LOGGER.exception('Server error while running {} script'.format(script_name))
             return self.__response_type[0]
 
-    def run_ping(self, message: str):
+    def run_ping(self, message: str) -> str:
         if message == 'ping':
             return self.__response_type[1]
         else:
