@@ -258,6 +258,7 @@ def main(scriptConf=None):
         with open(os.path.join(json_dir, 'normal.json')) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
         errors = errors or confdService.patch_vendors(vendors)
+        redisConnection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
         send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,

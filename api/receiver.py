@@ -143,26 +143,31 @@ class Receiver:
             :return (__response_type) one of the response types which
                 is either 'Finished successfully' or 'Partially done'
         """
-        credentials = arguments[1:3]
         vendor, platform, software_version, software_flavor = arguments[3:7]
         confd_suffix = arguments[-1]
 
         path = '{}search'.format(self.__yangcatalog_api_prefix)
         redis_vendor_key = ''
+        data_key = 'vendor'
         if vendor != 'None':
             path += '/vendors/vendor/{}'.format(vendor)
             redis_vendor_key += vendor
+            data_key = 'yang-catalog:vendor'
         if platform != 'None':
             path += '/platforms/platform/{}'.format(platform)
             redis_vendor_key += '/{}'.format(platform)
+            data_key = 'yang-catalog:platform'
         if software_version != 'None':
             path += '/software-versions/software-version/{}'.format(software_version)
             redis_vendor_key += '/{}'.format(software_version)
+            data_key = 'yang-catalog:software-version'
         if software_flavor != 'None':
             path += '/software-flavors/software-flavor/{}'.format(software_flavor)
             redis_vendor_key += '/{}'.format(software_flavor)
+            data_key = 'yang-catalog:software-flavor'
 
-        vendor_data = requests.get(path, headers=json_headers).json()
+        redis_vendor_data = self.redisConnection.create_vendors_data_dict(redis_vendor_key)
+        vendor_data = {data_key: redis_vendor_data}
 
         # Delete vendor branch from ConfD
         response = self.confdService.delete_vendor(confd_suffix)
@@ -184,24 +189,24 @@ class Receiver:
 
                 count_of_implementations = len(implementations)
                 count_deleted = 0
-                for imp in implementations:
+                for implementation in implementations:
                     imp_key = ''
-                    if vendor and vendor != imp['vendor']:
+                    if vendor and vendor != implementation['vendor']:
                         continue
                     else:
-                        imp_key += imp['vendor']
-                    if platform != 'None' and platform != imp['platform']:
+                        imp_key += implementation['vendor']
+                    if platform != 'None' and platform != implementation['platform']:
                         continue
                     else:
-                        imp_key += ',' + imp['platform']
-                    if software_version != 'None' and software_version != imp['software-version']:
+                        imp_key += ',{}'.format(implementation['platform'])
+                    if software_version != 'None' and software_version != implementation['software-version']:
                         continue
                     else:
-                        imp_key += ',' + imp['software-version']
-                    if software_flavor != 'None' and software_flavor != imp['software-flavor']:
+                        imp_key += ',{}'.format(implementation['software-version'])
+                    if software_flavor != 'None' and software_flavor != implementation['software-flavor']:
                         continue
                     else:
-                        imp_key += ',' + imp['software-flavor']
+                        imp_key += ',{}'.format(implementation['software-flavor'])
                     # Delete module implementation from ConfD
                     response = self.confdService.delete_implementation(confd_key, imp_key)
                     if response.status_code != 204:
@@ -240,31 +245,34 @@ class Receiver:
                             deleted_modules.append(redis_key)
             except Exception:
                 self.LOGGER.exception('YANG file {} doesn\'t exist although it should exist'.format(confd_key))
-        all_modules = requests.get('{}search/modules'.format(self.__yangcatalog_api_prefix)).json()
+        raw_all_modules = self.redisConnection.get_all_modules()
+        all_modules = json.loads(raw_all_modules)
 
         # Delete dependets
         for confd_key in confd_keys:
             name, revision, organization = confd_key.split(',')
             redis_key = '{}@{}/{}'.format(name, revision, organization)
-            for existing_module in all_modules['module']:
+            for existing_module in all_modules.values():
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
                     for dep in dependents:
                         if dep['name'] == name and dep['revision'] == revision:
-                            mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
-                                                        existing_module['organization'])
+                            mod_key_confd = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
+                                                              existing_module['organization'])
+                            mod_key_redis = '{}@{}/{}'.format(existing_module['name'], existing_module['revision'],
+                                                              existing_module['organization'])
                             # Delete module's dependent from ConfD
-                            response = self.confdService.delete_dependent(mod_key, dep['name'])
+                            response = self.confdService.delete_dependent(mod_key_confd, dep['name'])
                             if response.status_code == 204:
-                                self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(dep['name'], mod_key))
+                                self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(dep['name'], mod_key_confd))
                             elif response.status_code == 404:
-                                self.LOGGER.debug('Dependent {} of module {} already deleted'.format(dep['name'], mod_key))
+                                self.LOGGER.debug('Dependent {} of module {} already deleted'.format(dep['name'], mod_key_confd))
                             else:
                                 self.LOGGER.error('Couldn\'t delete dependents {} of module {}. Error: {}'
-                                                  .format(dep['name'], mod_key, response.text))
+                                                  .format(dep['name'], mod_key_confd, response.text))
 
                             # Delete module's dependent from Redis
-                            self.redisConnection.delete_dependent(redis_key, dep['name'])
+                            self.redisConnection.delete_dependent(mod_key_redis, dep['name'])
 
         # Delete vendor branch from Redis
         redis_vendor_key = redis_vendor_key.replace(' ', '#')
@@ -273,7 +281,7 @@ class Receiver:
         if self.__notify_indexing:
             body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, deleted_modules,
                                                self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
-            if body_to_send['modules-to-delete']:
+            if body_to_send.get('modules-to-delete'):
                 send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
                                   self.__lock_file)
         return self.__response_type[1]
@@ -327,7 +335,6 @@ class Receiver:
                 is either 'Finished successfully' or 'Partially done'
         """
         try:
-            credentials = arguments[1:3]
             path_to_delete = arguments[3]
             modules = json.loads(path_to_delete)['modules']
             all_modules_raw = self.redisConnection.get_all_modules()
@@ -390,7 +397,7 @@ class Receiver:
                         if response.status_code == 204:
                             self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(mod['name'], mod_key))
                         elif response.status_code == 404:
-                            self.LOGGER.debug('Dependent {} of module {} already deleted'.format(mod['name'], mod_key))
+                            self.LOGGER.debug('Dependent {} of module {} already deleted'.format(mod['name'], mod_key))
                         else:
                             self.LOGGER.error('Couldn\'t delete dependents {} of module {}. Error: {}'
                                               .format(mod['name'], mod_key, response.text))
@@ -433,19 +440,34 @@ class Receiver:
         :return: response success or failed
         """
         try:
-            with open(self.temp_dir + '/run-ietf-api-stderr.txt', 'w') as f:
-                draft_pull_local = os.path.dirname(
-                    os.path.realpath(__file__)) + '/../ietfYangDraftPull/draftPullLocal.py'
-                arguments = ['python', draft_pull_local]
-                subprocess.check_call(arguments, stderr=f)
-            with open(self.temp_dir + '/run-openconfig-api-stderr.txt', 'w') as f:
-                openconfig_pull_local = os.path.dirname(
-                    os.path.realpath(__file__)) + '/../ietfYangDraftPull/openconfigPullLocal.py'
-                arguments = ['python', openconfig_pull_local]
-                subprocess.check_call(arguments, stderr=f)
+            # Run draftPullLocal.py script
+            script_name = 'draftPullLocal'
+            module = __import__('ietfYangDraftPull', fromlist=[script_name])
+            submodule = getattr(module, script_name)
+            script_conf = submodule.ScriptConfig()
+
+            self.LOGGER.info('Runnning draftPullLocal.py script')
+            try:
+                submodule.main(scriptConf=script_conf)
+            except Exception:
+                self.LOGGER.exception('Problem while running draftPullLocal script')
+                return '{}#split#Server error while running draftPullLocal script'.format(self.__response_type[0])
+            # Run openconfigPullLocal.py script
+            script_name = 'openconfigPullLocal'
+            module = __import__('ietfYangDraftPull', fromlist=[script_name])
+            submodule = getattr(module, script_name)
+            script_conf = submodule.ScriptConfig()
+
+            self.LOGGER.info('Runnning openconfigPullLocal.py script')
+            try:
+                submodule.main(scriptConf=script_conf)
+            except Exception:
+                self.LOGGER.exception('Problem while running openconfigPullLocal script')
+                return '{}#split#Server error while running openconfigPullLocal script'.format(self.__response_type[0])
+
             return self.__response_type[1]
-        except subprocess.CalledProcessError as e:
-            self.LOGGER.error('Server error: {}'.format(e))
+        except Exception:
+            self.LOGGER.exception('Server error while running scripts')
             return self.__response_type[0]
 
     def load_config(self):
@@ -471,10 +493,7 @@ class Receiver:
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
-        if self.__notify_indexing == 'True':
-            self.__notify_indexing = True
-        else:
-            self.__notify_indexing = False
+        self.__notify_indexing = self.__notify_indexing == 'True'
         separator = ':'
         suffix = self.__api_port
         if self.__is_uwsgi == 'True':
@@ -549,7 +568,7 @@ class Receiver:
                     self.LOGGER.error(
                         'check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(
                             e.output, e.stderr))
-                except:
+                except Exception:
                     final_response = self.__response_type[0]
                     self.LOGGER.error('check log_trigger.txt failed to process github message with error {}'.format(
                         sys.exc_info()[0]))
@@ -573,8 +592,8 @@ class Receiver:
                     shutil.rmtree(direc)
 
                 if final_response.split('#split#')[0] == self.__response_type[1]:
-                    res = self.make_cache(credentials)
-                    code = res.status_code
+                    response = self.make_cache(credentials)
+                    code = response.status_code
                     if code != 200 and code != 201 and code != 204:
                         final_response = '{}#split#Server error-> could not reload cache'.format(self.__response_type[0])
 
@@ -654,10 +673,12 @@ class Receiver:
                 if (key != 'credentials' and body_input[key] != script_args_list[key]['default']):
                     script_conf.args.__setattr__(key, body_input[key])
 
+            self.LOGGER.info('Runnning {}.py script with following configuration:\n{}'.format(
+                script_name, script_conf.args.__dict__))
             submodule.main(scriptConf=script_conf)
             return self.__response_type[1]
-        except subprocess.CalledProcessError as e:
-            self.LOGGER.error('Server error: {}'.format(e))
+        except Exception:
+            self.LOGGER.exception('Server error while running {} script'.format(script_name))
             return self.__response_type[0]
 
     def run_ping(self, message: str):

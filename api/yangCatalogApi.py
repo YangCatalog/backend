@@ -153,7 +153,7 @@ class MyFlask(Flask):
     def post_config_load(self):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
-        self.config['DB-ES-AWS'] = True if self.config.db_es_aws == 'True' else False
+        self.config['DB-ES-AWS'] = self.config.db_es_aws == 'True'
         if self.config.db_es_aws:
             self.config['ES'] = Elasticsearch([self.config.db_es_host],
                                               http_auth=(self.config.s_elk_credentials[0],
@@ -635,7 +635,7 @@ def load():
     with lock_for_load:
         app.logger.info('Application not locked for reload')
         app.redisConnection.reload_modules_cache()
-        # app.redisConnection.reload_vendors_cache()
+        app.redisConnection.reload_vendors_cache()
         load_uwsgi_cache()
         app.logger.info('Cache loaded successfully')
         app.loading = False

@@ -57,7 +57,7 @@ class MessageFactory:
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
         self.__is_production = config.get('General-Section', 'is-prod')
-        self.__is_production = True if self.__is_production == 'True' else False
+        self.__is_production = self.__is_production == 'True'
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')

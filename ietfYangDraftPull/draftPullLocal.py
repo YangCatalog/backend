@@ -93,7 +93,7 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    notify = config.get('General-Section', 'notify-index')
+    notify_indexing = config.get('General-Section', 'notify-index')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
@@ -104,7 +104,7 @@ def main(scriptConf=None):
     LOGGER.info('Starting cron job IETF pull request local')
 
     messages = []
-    notify = True if notify == 'True' else False
+    notify_indexing = notify_indexing == 'True'
     populate_error = False
     repo = None
     try:
@@ -133,7 +133,7 @@ def main(scriptConf=None):
             LOGGER.info('Checking for early revision in {}'.format(direc))
             check_early_revisions(direc, LOGGER)
 
-            execution_result = run_populate_script(direc, notify, LOGGER)
+            execution_result = run_populate_script(direc, notify_indexing, LOGGER)
             if execution_result == False:
                 populate_error = True
                 message = {'label': 'Standard RFC modules', 'message': 'Error while calling populate script'}
@@ -154,7 +154,7 @@ def main(scriptConf=None):
         LOGGER.info('Checking for early revision in {}'.format(experimental_path))
         check_early_revisions(experimental_path, LOGGER)
 
-        execution_result = run_populate_script(experimental_path, notify, LOGGER)
+        execution_result = run_populate_script(experimental_path, notify_indexing, LOGGER)
         if execution_result == False:
             populate_error = True
             message = {'label': 'Experimental modules', 'message': 'Error while calling populate script'}
@@ -173,7 +173,7 @@ def main(scriptConf=None):
             LOGGER.info('Checking for early revision in {}'.format(iana_path))
             check_early_revisions(iana_path, LOGGER)
 
-            execution_result = run_populate_script(iana_path, notify, LOGGER)
+            execution_result = run_populate_script(iana_path, notify_indexing, LOGGER)
             if execution_result == False:
                 populate_error = True
                 message = {'label': 'IANA modules', 'message': 'Error while calling populate script'}
@@ -195,5 +195,5 @@ def main(scriptConf=None):
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

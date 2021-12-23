@@ -1,5 +1,5 @@
 """
-This script will copy all the module from Redis db=0 to db=1.
+This script will copy all the modules from Redis db=0 to db=1.
 """
 
 import json
@@ -20,5 +20,5 @@ def main():
     redisConnection.reload_modules_cache()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

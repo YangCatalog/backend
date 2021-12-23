@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 import os
@@ -102,6 +102,7 @@ def check_github():
 
     github_repos_url = '{}/repos'.format(github_api)
     yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
+    pull_requests_url = '{}/pulls'.format(yang_models_url)
 
     token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
     if verify_commit:
@@ -127,26 +128,28 @@ def check_github():
         # Automatically merge PR if sent from YangModels/yang
         elif body['repository']['full_name'] == 'YangModels/yang':
             admin_token_header_value = 'token {}'.format(ac.s_admin_token)
-            pull_requests = body['check_run']['pull_requests']
-            if pull_requests != []:
-                pull_number = pull_requests[0]['number']
-                app.logger.info('Pull request {} was successful - sending review.'.format(pull_number))
-                url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, pull_number)
-                data = json.dumps({
-                    'body': 'AUTOMATED YANG CATALOG APPROVAL',
-                    'event': 'APPROVE'
-                })
-                response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
-                app.logger.info('Review response code {}'.format(response.status_code,))
-                data = json.dumps({'commit-title': 'Github Actions job passed',
-                                   'sha': body['check_run']['head_sha']})
-                response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(pull_number),
-                                        data, headers={'Authorization': admin_token_header_value})
-                app.logger.info('Merge response code {}\nMerge response {}'.format(response.status_code, response.text))
-                return ({'info': 'Success'}, 201)
+            pull_requests = requests.get(pull_requests_url).json()
+            for pull_request in pull_requests:
+                head_sha = pull_request['head']['sha']
+                if head_sha == commit_sha:
+                    pull_number = pull_request['number']
+                    app.logger.info('Pull request {} was successful - sending review.'.format(pull_number))
+                    url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, pull_number)
+                    data = json.dumps({
+                        'body': 'AUTOMATED YANG CATALOG APPROVAL',
+                        'event': 'APPROVE'
+                    })
+                    response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
+                    app.logger.info('Review response code {}'.format(response.status_code,))
+                    data = json.dumps({'commit-title': 'Github Actions job passed',
+                                       'sha': body['check_run']['head_sha']})
+                    response = requests.put('https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(pull_number),
+                                            data, headers={'Authorization': admin_token_header_value})
+                    app.logger.info('Merge response code {}\nMerge response {}'.format(response.status_code, response.text))
+                    return ({'info': 'Success'}, 201)
             else:
-                app.logger.warning('Github Actions did not pass')
-                return ({'info': 'Failed'}, 406)
+                message = 'No opened pull request found with head sha: {}'.format(commit_sha)
+                return ({'info': message}, 200)
         else:
             message = 'Owner name verification failed. Owner -> {}'.format(body['sender']['login'])
             app.logger.warning(message)

@@ -84,5 +84,523 @@
                 }
             ]
         }
-    ]
+    ],
+    "vendor-deletion-tests": {
+        "vendors": {
+            "name": "fujitsu",
+            "platforms": {
+                "platform": [
+                    {
+                        "name": "T100",
+                        "software-versions": {
+                            "software-version": [
+                                {
+                                    "name": "2.4",
+                                    "software-flavors": {
+                                        "software-flavor": [
+                                            {
+                                                "modules": {
+                                                    "module": [
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-access-control-list",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "2.4",
+                                                            "revision": "2015-11-09"
+                                                        },
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "deviation": [
+                                                                {
+                                                                    "name": "fujitsu-alarms-ext-dev.int",
+                                                                    "revision": "1970-01-01"
+                                                                }
+                                                            ],
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-alarms-ext",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "2.4",
+                                                            "revision": "2017-04-21"
+                                                        }
+                                                    ]
+                                                },
+                                                "name": "Linux",
+                                                "protocols": {
+                                                    "protocol": [
+                                                        {
+                                                            "capabilities": [
+                                                                "candidate:1.0",
+                                                                "confirmed-commit:1.0",
+                                                                "confirmed-commit:1.1",
+                                                                "interleave:1.0",
+                                                                "notification:1.0",
+                                                                "rollback-on-error:1.0",
+                                                                "url:1.0",
+                                                                "validate:1.0",
+                                                                "validate:1.1",
+                                                                "with-defaults:1.0",
+                                                                "xpath:1.0"
+                                                            ],
+                                                            "name": "yang-catalog:netconf",
+                                                            "protocol-version": [
+                                                                "urn:ietf:params:netconf:base:1.0",
+                                                                "urn:ietf:params:netconf:base:1.1",
+                                                                "urn:ietf:params:xml:ns:netconf:base:1.0?module=ietf-netconf&revision=2011-06-01"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                },
+                                {
+                                    "name": "2.4.2",
+                                    "software-flavors": {
+                                        "software-flavor": [
+                                            {
+                                                "modules": {
+                                                    "module": [
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-access-control-list",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "2.4.2",
+                                                            "revision": "2015-11-09"
+                                                        },
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-ains-keywords",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "2.4.2",
+                                                            "revision": "2018-05-17"
+                                                        },
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "deviation": [
+                                                                {
+                                                                    "name": "fujitsu-alarms-ext-dev.int",
+                                                                    "revision": "1970-01-01"
+                                                                }
+                                                            ],
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-alarms-ext",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "2.4.2",
+                                                            "revision": "2017-04-21"
+                                                        }
+                                                    ]
+                                                },
+                                                "name": "Linux",
+                                                "protocols": {
+                                                    "protocol": [
+                                                        {
+                                                            "capabilities": [
+                                                                "candidate:1.0",
+                                                                "confirmed-commit:1.0",
+                                                                "confirmed-commit:1.1",
+                                                                "interleave:1.0",
+                                                                "notification:1.0",
+                                                                "rollback-on-error:1.0",
+                                                                "url:1.0",
+                                                                "validate:1.0",
+                                                                "validate:1.1",
+                                                                "with-defaults:1.0",
+                                                                "xpath:1.0"
+                                                            ],
+                                                            "name": "yang-catalog:netconf",
+                                                            "protocol-version": [
+                                                                "urn:ietf:params:netconf:base:1.0",
+                                                                "urn:ietf:params:netconf:base:1.1",
+                                                                "urn:ietf:params:xml:ns:netconf:base:1.0?module=ietf-netconf&revision=2011-06-01"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        "name": "T600",
+                        "software-versions": {
+                            "software-version": [
+                                {
+                                    "name": "1.2",
+                                    "software-flavors": {
+                                        "software-flavor": [
+                                            {
+                                                "modules": {
+                                                    "module": [
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-access-control-list",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "1.2",
+                                                            "revision": "2018-06-26"
+                                                        },
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-ains-keywords",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "1.2",
+                                                            "revision": "2018-05-17"
+                                                        },
+                                                        {
+                                                            "conformance-type": "implement",
+                                                            "deviation": [
+                                                                {
+                                                                    "name": "fujitsu-alarms-ext-dev.int",
+                                                                    "revision": "1970-01-01"
+                                                                }
+                                                            ],
+                                                            "feature-set": "ALL",
+                                                            "name": "fujitsu-alarms-ext",
+                                                            "organization": "fujitsu",
+                                                            "os-type": "FSS2 Linux",
+                                                            "os-version": "1.2",
+                                                            "revision": "2019-02-27"
+                                                        }
+                                                    ]
+                                                },
+                                                "name": "Linux",
+                                                "protocols": {
+                                                    "protocol": [
+                                                        {
+                                                            "capabilities": [
+                                                                "candidate:1.0",
+                                                                "confirmed-commit:1.0",
+                                                                "confirmed-commit:1.1",
+                                                                "interleave:1.0",
+                                                                "notification:1.0",
+                                                                "rollback-on-error:1.0",
+                                                                "url:1.0",
+                                                                "validate:1.0",
+                                                                "validate:1.1",
+                                                                "with-defaults:1.0",
+                                                                "xpath:1.0"
+                                                            ],
+                                                            "name": "yang-catalog:netconf",
+                                                            "protocol-version": [
+                                                                "urn:ietf:params:netconf:base:1.0",
+                                                                "urn:ietf:params:netconf:base:1.1",
+                                                                "urn:ietf:params:xml:ns:netconf:base:1.0?module=ietf-netconf&revision=2011-06-01"
+                                                            ]
+                                                        }
+                                                    ]
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        },
+        "modules": [
+            {
+                "name": "fujitsu-access-control-list",
+                "revision": "2015-11-09",
+                "organization": "fujitsu",
+                "dependencies": [
+                    {
+                        "name": "iana-if-type",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T400/1.2/yang/standards/iana-if-type.yang"
+                    },
+                    {
+                        "name": "ietf-access-control-list",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T400/1.2/yang/standards/ietf-access-control-list.yang"
+                    },
+                    {
+                        "name": "ietf-interfaces",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T400/1.2/yang/standards/ietf-interfaces.yang"
+                    },
+                    {
+                        "name": "ietf-yang-types",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T400/1.2/yang/standards/ietf-yang-types.yang"
+                    }
+                ],
+                "implementations": {
+                    "implementation": [
+                        {
+                            "conformance-type": "implement",
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "2.4",
+                            "platform": "T100",
+                            "software-flavor": "Linux",
+                            "software-version": "2.4",
+                            "vendor": "fujitsu"
+                        },
+                        {
+                            "conformance-type": "implement",
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "2.4.2",
+                            "platform": "T100",
+                            "software-flavor": "Linux",
+                            "software-version": "2.4.2",
+                            "vendor": "fujitsu"
+                        }
+                    ]
+                },
+                "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T400/1.2/yang/fujitsu-access-control-list.yang"
+            },
+            {
+                "name": "fujitsu-access-control-list",
+                "revision": "2018-06-26",
+                "organization": "fujitsu",
+                "dependencies": [
+                    {
+                        "name": "fujitsu-protocols",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-protocols.yang"
+                    },
+                    {
+                        "name": "iana-if-type",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/iana-if-type.yang"
+                    },
+                    {
+                        "name": "ietf-access-control-list",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/ietf-access-control-list.yang"
+                    },
+                    {
+                        "name": "ietf-inet-types",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/ietf-inet-types.yang"
+                    },
+                    {
+                        "name": "ietf-interfaces",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/ietf-interfaces.yang"
+                    },
+                    {
+                        "name": "ietf-yang-types",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/ietf-yang-types.yang"
+                    }
+                ],
+                "derived-semantic-version": "2.0.0",
+                "description": "This module contains YANG definitions\nfor fujitsu extension of Access Control Lists\n\nCopyright (c) 2015 Fujitsu Ltd.\nAll rights reserved. ",
+                "expired": "not-applicable",
+                "generated-from": "not-applicable",
+                "implementations": {
+                    "implementation": [
+                        {
+                            "conformance-type": "implement",
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "1.2",
+                            "platform": "T600",
+                            "software-flavor": "Linux",
+                            "software-version": "1.2",
+                            "vendor": "fujitsu"
+                        }
+                    ]
+                },
+                "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-access-control-list.yang"
+            },
+            {
+                "name": "fujitsu-ains-keywords",
+                "revision": "2018-05-17",
+                "organization": "fujitsu",
+                "dependencies": [
+                    {
+                        "name": "tailf-common",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T400/1.2/yang/third_party/tailf-common.yang"
+                    }
+                ],
+                "dependents": [
+                    {
+                        "name": "fujitsu-ethernet-interfaces",
+                        "revision": "2018-03-19",
+                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T100/2.4.2/yang/fujitsu-ethernet-interfaces.yang"
+                    },
+                    {
+                        "name": "fujitsu-optical-channel-interfaces",
+                        "revision": "2018-04-11",
+                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T100/2.4.2/yang/fujitsu-optical-channel-interfaces.yang"
+                    },
+                    {
+                        "name": "fujitsu-otn-odu-interfaces",
+                        "revision": "2018-02-02",
+                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-otn-odu-interfaces.yang"
+                    },
+                    {
+                        "name": "fujitsu-otn-otu-interfaces",
+                        "revision": "2018-01-09",
+                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-otn-otu-interfaces.yang"
+                    },
+                    {
+                        "name": "fujitsu-system",
+                        "revision": "2018-05-31",
+                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T100/2.4.2/yang/fujitsu-system.yang"
+                    }
+                ],
+                "implementations": {
+                    "implementation": [
+                        {
+                            "conformance-type": "implement",
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "2.4.2",
+                            "platform": "T100",
+                            "software-flavor": "Linux",
+                            "software-version": "2.4.2",
+                            "vendor": "fujitsu"
+                        },
+                        {
+                            "conformance-type": "implement",
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "1.2",
+                            "platform": "T600",
+                            "software-flavor": "Linux",
+                            "software-version": "1.2",
+                            "vendor": "fujitsu"
+                        }
+                    ]
+                },
+                "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-ains-keywords.yang"
+            },
+            {
+                "name": "fujitsu-alarms-ext",
+                "revision": "2017-04-21",
+                "organization": "fujitsu",
+                "dependencies": [
+                    {
+                        "name": "ietf-alarms",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.1/yang/standards/ietf-alarms.yang"
+                    }
+                ],
+                "implementations": {
+                    "implementation": [
+                        {
+                            "conformance-type": "implement",
+                            "deviation": [
+                                {
+                                    "name": "fujitsu-alarms-ext-dev.int",
+                                    "revision": "1970-01-01"
+                                }
+                            ],
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "2.4",
+                            "platform": "T100",
+                            "software-flavor": "Linux",
+                            "software-version": "2.4",
+                            "vendor": "fujitsu"
+                        },
+                        {
+                            "conformance-type": "implement",
+                            "deviation": [
+                                {
+                                    "name": "fujitsu-alarms-ext-dev.int",
+                                    "revision": "1970-01-01"
+                                }
+                            ],
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "2.4.2",
+                            "platform": "T100",
+                            "software-flavor": "Linux",
+                            "software-version": "2.4.2",
+                            "vendor": "fujitsu"
+                        }
+                    ]
+                },
+                "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.1/yang/fujitsu-alarms-ext.yang"
+            },
+            {
+                "name": "fujitsu-alarms-ext",
+                "revision": "2019-02-27",
+                "organization": "fujitsu",
+                "dependencies": [
+                    {
+                        "name": "ietf-alarms",
+                        "schema": "https://raw.githubusercontent.com/yangmodels/yang/master/vendor/fujitsu/FSS2-API-Yang/T600-OC/1.2/yang/standards/ietf-alarms.yang"
+                    }
+                ],
+                "implementations": {
+                    "implementation": [
+                        {
+                            "conformance-type": "implement",
+                            "deviation": [
+                                {
+                                    "name": "fujitsu-alarms-ext-dev.int",
+                                    "revision": "1970-01-01"
+                                }
+                            ],
+                            "feature-set": "ALL",
+                            "os-type": "FSS2 Linux",
+                            "os-version": "1.2",
+                            "platform": "T600",
+                            "software-flavor": "Linux",
+                            "software-version": "1.2",
+                            "vendor": "fujitsu"
+                        }
+                    ]
+                },
+                "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.2/yang/fujitsu-alarms-ext.yang"
+            },
+            {
+                "name": "huawei-aaa",
+                "revision": "2020-07-01",
+                "organization": "huawei",
+                "implementations": {
+                    "implementation": [
+                        {
+                            "conformance-type": "implement",
+                            "deviation": [
+                                {
+                                    "name": "huawei-aaa-deviations-ATN-980B",
+                                    "revision": "2019-04-23"
+                                }
+                            ],
+                            "feature-set": "ALL",
+                            "os-type": "VRP",
+                            "os-version": "V300R005C00SPCa00",
+                            "platform": "atn-980b",
+                            "software-flavor": "ALL",
+                            "software-version": "V300R005C00SPCa00",
+                            "vendor": "huawei"
+                        }
+                    ]
+                },
+                "schema": "https://raw.githubusercontent.com/huawei/yang/855d2d384d49fea03872e75fcea4d40619cf3528/network-router/8.20.0/atn980b/huawei-aaa.yang",
+                "submodule": [
+                    {
+                        "name": "huawei-aaa-lam",
+                        "revision": "2020-03-02",
+                        "schema": "https://raw.githubusercontent.com/huawei/yang/855d2d384d49fea03872e75fcea4d40619cf3528/network-router/8.20.0/atn980b/huawei-aaa-lam.yang"
+                    },
+                    {
+                        "name": "huawei-aaa-type",
+                        "revision": "2020-01-09",
+                        "schema": "https://raw.githubusercontent.com/huawei/yang/855d2d384d49fea03872e75fcea4d40619cf3528/network-router/8.20.0/atn980b/huawei-aaa-type.yang"
+                    }
+                ],
+                "dependents": [
+                    {
+                        "name": "fujitsu-alarms-ext",
+                        "revision": "2017-04-21",
+                        "schema": "https://raw.githubusercontent.com/FujitsuNetworkCommunications/FSS2-Yang/2c04554e8da3135b5836542756a7809728a99482/FSS2-API-Yang/T600-OC/1.1/yang/fujitsu-alarms-ext.yang"
+                    }
+                ]
+            }
+        ]
+    }
 }
