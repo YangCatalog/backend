@@ -79,7 +79,7 @@ class Receiver:
             else:
                 shutil.copy2(s, d)
 
-    def process_sdo(self, arguments: list, all_modules: dict):
+    def process(self, arguments: list, all_modules: dict):
         """Process SDO modules. Calls populate.py script which will parse all the modules
         on the given path given by "dir" param. Populate script will also send the
         request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
@@ -94,6 +94,7 @@ class Receiver:
         tree_created = arguments[-1] == 'True'
         sdo = '--sdo' in arguments
         api = '--api' in arguments
+        data_type = 'sdo' if sdo else 'vendor'
 
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
@@ -116,69 +117,19 @@ class Receiver:
             return '{}#split#Server error while running populate script'.format(self.__response_type[0])
 
         try:
-            os.makedirs('{}/sdo'.format(self.temp_dir))
+            os.makedirs(os.path.join(self.temp_dir, data_type))
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
-                return '{}#split#Server error - could not create sdo directory'.format(self.__response_type[0])
+                return '{}#split#Server error - could not create {} directory'.format(self.__response_type[0], data_type)
 
         if tree_created:
-            self.copytree('{}/temp'.format(direc), '{}/sdo'.format(self.temp_dir))
-            with open('{}/prepare.json'.format(direc), 'r') as f:
+            self.copytree(os.path.join(direc, 'temp'), os.path.join(self.temp_dir, data_type))
+            with open(os.path.join(direc, 'prepare.json'), 'r') as f:
                 all_modules.update(json.load(f))
 
         return self.__response_type[1]
 
-    def process_vendor(self, arguments: list, all_modules: dict):
-        """Process vendor metadata. Calls populate.py script which will parse all
-        the modules that are contained in the given hello message xml file or in
-        ietf-yang-module xml which are stored on path given by "dir" param. Populate script will also send the
-        request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
-        parent directory of this project /api/sdo and finally also call indexing script to update searching.
-
-        Arguments:
-            :param arguments    (list) list of arguments sent from API sender
-            :return (__response_type) one of the response types which is either
-                'Failed' or 'Finished successfully'
-        """
-        direc = arguments[2]
-        tree_created = True if arguments[-1] == 'True' else False
-        sdo = '--sdo' in arguments
-        api = '--api' in arguments
-
-        script_name = 'populate'
-        module = __import__('parseAndPopulate', fromlist=[script_name])
-        submodule = getattr(module, script_name)
-        script_conf = submodule.ScriptConfig()
-        # Set populate script arguments
-        script_conf.args.__setattr__('sdo', sdo)
-        script_conf.args.__setattr__('api', api)
-        script_conf.args.__setattr__('dir', direc)
-        script_conf.args.__setattr__('force-parsing', True)
-        if self.__notify_indexing:
-            script_conf.args.__setattr__('notify-indexing', True)
-
-        self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
-            script_conf.args.__dict__))
-        try:
-            submodule.main(scriptConf=script_conf)
-        except Exception:
-            self.LOGGER.exception('Problem while running populate script')
-            return '{}#split#Server error while running populate script'.format(self.__response_type[0])
-
-        try:
-            os.makedirs('{}/vendor'.format(self.temp_dir))
-        except OSError as e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                return '{}#split#Server error - could not create vendor directory'.format(self.__response_type[0])
-
-        if tree_created:
-            self.copytree('{}/temp'.format(direc), '{}/vendor'.format(self.temp_dir))
-            with open('{}/prepare.json'.format(direc), 'r') as f:
-                all_modules.update(json.load(f))
-
-        return self.__response_type[1]
 
     def process_vendor_deletion(self, arguments: list):
         """Deleting vendors metadata. It calls the delete request to ConfD to delete all the module
@@ -611,12 +562,12 @@ class Receiver:
                     final_response = self.process_module_deletion(arguments)
                     credentials = arguments[1:3]
                 if arguments[0] == 'POPULATE-MODULES':
-                    final_response = self.process_sdo(arguments, all_modules)
+                    final_response = self.process(arguments, all_modules)
                     credentials = arguments[6:8]
                     direc = arguments[3]
                     shutil.rmtree(direc)
                 if arguments[0] == 'POPULATE-VENDORS':
-                    final_response = self.process_vendor(arguments, all_modules)
+                    final_response = self.process(arguments, all_modules)
                     credentials = arguments[5:7]
                     direc = arguments[2]
                     shutil.rmtree(direc)
