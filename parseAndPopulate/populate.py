@@ -29,14 +29,16 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import errno
 import json
 import multiprocessing
 import os
 import shutil
 import sys
 import time
+import types
 import typing as t
+from argparse import Namespace
+from importlib import import_module
 
 import requests
 import utility.log as log
@@ -149,7 +151,7 @@ class ScriptConfig(BaseScriptConfig):
         self.ytree_dir = config.get('Directory-Section', 'json-ytree')
 
 
-def reload_cache_in_parallel(credentials: list, yangcatalog_api_prefix: str):
+def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: str):
     LOGGER.info('Sending request to reload cache in different thread')
     url = '{}load-cache'.format(yangcatalog_api_prefix)
     response = requests.post(url, None,
@@ -161,7 +163,8 @@ def reload_cache_in_parallel(credentials: list, yangcatalog_api_prefix: str):
     LOGGER.info('Cache reloaded successfully')
 
 
-def __set_runcapabilities_script_conf(submodule, args, direc: str):
+def configure_runCapabilities(module: types.ModuleType, args: Namespace, json_dir: str)\
+    -> BaseScriptConfig:
     """ Set values to ScriptConfig arguments to be able to run runCapabilities script.
 
     Arguments:
@@ -169,19 +172,33 @@ def __set_runcapabilities_script_conf(submodule, args, direc: str):
         :param args         (obj) populate script arguments
         :param direc        (str) Directory where json files to populate ConfD will be stored
     """
-    script_conf = submodule.ScriptConfig()
-    script_conf.args.__setattr__('json_dir', direc)
-    script_conf.args.__setattr__('result_html_dir', args.result_html_dir)
-    script_conf.args.__setattr__('dir', args.dir)
-    script_conf.args.__setattr__('save_file_dir', args.save_file_dir)
-    script_conf.args.__setattr__('api_ip', args.api_ip)
-    script_conf.args.__setattr__('api_port', repr(args.api_port))
-    script_conf.args.__setattr__('api_protocol', args.api_protocol)
-    script_conf.args.__setattr__('api', args.api)
-    script_conf.args.__setattr__('sdo', args.sdo)
-    script_conf.args.__setattr__('save_file_hash', not args.force_parsing)
+    script_conf = module.ScriptConfig()
+    options = (
+        ('json_dir', json_dir),
+        ('result_html_dir', args.result_html_dir),
+        ('dir', args.dir),
+        ('save_file_dir', args.save_file_dir),
+        ('api_ip', args.api_ip),
+        ('api_port', repr(args.api_port)),
+        ('api_protocol', args.api_protocol),
+        ('api', args.api),
+        ('sdo', args.sdo),
+        ('save_file_hash', not args.force_parsing)
+    )
+    for attr, value in options:
+        setattr(script_conf.args, attr, value)
 
     return script_conf
+
+
+def create_dir_name(temp_dir: str) -> str:
+    i = 0
+    while True:
+        i += 1
+        new_dir_name = os.path.join(temp_dir, str(i))
+        if not os.path.exists(new_dir_name):
+            break
+    return os.path.join(temp_dir, repr(i))
 
 
 def main(scriptConf=None):
@@ -208,25 +225,16 @@ def main(scriptConf=None):
     LOGGER.info('Starting the populate script')
     start = time.time()
     if args.api:
-        direc = args.dir
-        args.dir += '/temp'
+        json_dir = args.dir
+        args.dir = os.path.join(args.dir, 'temp')
     else:
-        direc = 0
-        while True:
-            try:
-                os.makedirs('{}/{}'.format(temp_dir, repr(direc)))
-                break
-            except OSError as e:
-                direc += 1
-                if e.errno != errno.EEXIST:
-                    raise
-        direc = '{}/{}'.format(temp_dir, repr(direc))
-    LOGGER.info('Calling runcapabilities script')
+        json_dir = create_dir_name(temp_dir)
+        os.makedirs(json_dir)
+    LOGGER.info('Calling runCapabilities script')
     try:
-        module = __import__('parseAndPopulate', fromlist=['runCapabilities'])
-        submodule = getattr(module, 'runCapabilities')
-        script_conf = __set_runcapabilities_script_conf(submodule, args, direc)
-        submodule.main(scriptConf=script_conf)
+        runCapabilities = import_module('parseAndPopulate.runCapabilities')
+        script_conf = configure_runCapabilities(runCapabilities, args, json_dir)
+        runCapabilities.main(scriptConf=script_conf)
     except Exception as e:
         LOGGER.exception('runCapabilities error:\n{}'.format(e))
         raise e
@@ -234,23 +242,22 @@ def main(scriptConf=None):
     body_to_send = {}
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, '{}/prepare.json'.format(direc),
-                                           LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
+        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
+                                            LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
-    errors = False
-    with open('{}/prepare.json'.format(direc)) as data_file:
-        read = data_file.read()
-    modules = json.loads(read).get('module', [])
+    with open(os.path.join(json_dir, 'prepare.json')) as data_file:
+        data = data_file.read()
+    modules = json.loads(data).get('module', [])
     errors = confdService.patch_modules(modules)
     redisConnection.populate_modules(modules)
 
     # In each json
-    if os.path.exists('{}/normal.json'.format(direc)):
+    if os.path.exists(os.path.join(json_dir, 'normal.json')):
         LOGGER.info('Starting to add vendors')
-        with open('{}/normal.json'.format(direc)) as data:
+        with open(os.path.join(json_dir, 'normal.json')) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
-        errors = confdService.patch_vendors(vendors)
+        errors = errors or confdService.patch_vendors(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
         send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
@@ -263,7 +270,7 @@ def main(scriptConf=None):
         recursion_limit = sys.getrecursionlimit()
         sys.setrecursionlimit(50000)
         complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                             args.credentials, args.save_file_dir, direc, None,
+                                                             args.credentials, args.save_file_dir, json_dir, None,
                                                              yang_models, temp_dir, ytree_dir)
         complicatedAlgorithms.parse_non_requests()
         LOGGER.info('Waiting for cache reload to finish')
@@ -277,19 +284,16 @@ def main(scriptConf=None):
 
         # Keep new hashes only if the ConfD was patched successfully
         if not errors:
-            path = os.path.join(direc, 'temp_hashes.json')
+            path = os.path.join(json_dir, 'temp_hashes.json')
             fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, not args.force_parsing, log_directory)
             updated_hashes = fileHasher.load_hashed_files_list(path)
             if updated_hashes:
                 fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
 
-        try:
-            shutil.rmtree('{}'.format(direc))
-        except OSError:
-            # Be happy if deleted
-            pass
+        if os.path.exists(json_dir):
+            shutil.rmtree(json_dir)
     LOGGER.info('Populate script finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
