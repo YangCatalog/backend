@@ -227,7 +227,7 @@ class ModulesComplicatedAlgorithms:
                 else:
                     name_of_module = output.split('\n')[0].split(': ')[1]
                 name_of_module = name_of_module.split('-state')[0]
-                coresponding_nmda_file = self.__find_file(name_of_module)
+                coresponding_nmda_file = self._find_file(name_of_module)
                 if coresponding_nmda_file:
                     name = coresponding_nmda_file.split('/')[-1].split('.')[0]
                     revision = name.split('@')[-1]
@@ -349,7 +349,7 @@ class ModulesComplicatedAlgorithms:
             revision = module['revision']
             name_revision = '{}@{}'.format(name, revision)
             self.__path = '{}/{}.yang'.format(self.__save_file_dir, name_revision)
-            yang_file_exists = self.__check_schema_file(module)
+            yang_file_exists = self._check_schema_file(module)
             is_latest_revision = self.check_if_latest_revision(module)
             if not yang_file_exists:
                 LOGGER.error('Skipping module: {}'.format(name_revision))
@@ -480,8 +480,8 @@ class ModulesComplicatedAlgorithms:
             old_name_revision = '{}@{}'.format(old['name'], old['revision'])
             new_schema = '{}/{}.yang'.format(self.__save_file_dir, new_name_revision)
             old_schema = '{}/{}.yang'.format(self.__save_file_dir, old_name_revision)
-            new_schema_exist = self.__check_schema_file(new)
-            old_schema_exist = self.__check_schema_file(old)
+            new_schema_exist = self._check_schema_file(new)
+            old_schema_exist = self._check_schema_file(old)
             new_tree_path = '{}/{}.json'.format(self.ytree_dir, new_name_revision)
             old_tree_path = '{}/{}.json'.format(self.ytree_dir, old_name_revision)
 
@@ -725,7 +725,7 @@ class ModulesComplicatedAlgorithms:
         LOGGER.info('Adding existing modules as dependents')
         add_dependents(existing_modules, all_modules_dict)
 
-    def __find_file(self, name: str, revision: str = '*'):
+    def _find_file(self, name: str, revision: str = '*'):
         yang_name = '{}.yang'.format(name)
         yang_name_rev = '{}@{}.yang'.format(name, revision)
         directory = '/'.join(self.__path.split('/')[0:-1])
@@ -733,7 +733,7 @@ class ModulesComplicatedAlgorithms:
 
         return yang_file
 
-    def __check_schema_file(self, module: dict):
+    def _check_schema_file(self, module: dict):
         """ Check if the file exists and if not try to get it from Github.
 
         :param module   (dict) Details of currently parsed module
