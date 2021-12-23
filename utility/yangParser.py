@@ -15,12 +15,11 @@
 
 """Utility belt for working with ``pyang`` and ``pyangext``."""
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
-import io
 from os.path import isfile
 
 from pyang.context import Context
@@ -64,9 +63,6 @@ class objectify(object):  # pylint: disable=invalid-name
     """Utility for providing object access syntax (.attr) to dicts"""
 
     def __init__(self, *args, **kwargs):
-        for entry in args:
-            self.__dict__.update(entry)
-
         self.__dict__.update(kwargs)
 
     def __getattr__(self, _):
@@ -74,6 +70,10 @@ class objectify(object):  # pylint: disable=invalid-name
 
     def __setattr__(self, attr, value):
         self.__dict__[attr] = value
+
+
+class OptsContext(Context):
+    opts: objectify
 
 
 def _parse_features_string(feature_str):
@@ -143,7 +143,7 @@ def create_context(path='.', *options, **kwargs):
     opts = objectify(DEFAULT_OPTIONS, *options, **kwargs)
     repo = FileRepository(path, no_path_recurse=opts.no_path_recurse)
 
-    ctx = Context(repo)
+    ctx = OptsContext(repo)
     ctx.opts = opts
 
     for attr in _COPY_OPTIONS:
@@ -156,7 +156,7 @@ def create_context(path='.', *options, **kwargs):
 
     # apply deviations (taken from pyang bin)
     for file_name in opts.deviations:
-        with io.open(file_name, "r", encoding="utf-8") as fd:
+        with open(file_name) as fd:
             module = ctx.add_module(file_name, fd.read())
             if module is not None:
                 ctx.deviation_modules.append(module)

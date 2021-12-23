@@ -18,12 +18,13 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import logging
 import os
 import shutil
 import tempfile
 import typing as t
 
-from git import Repo
+from git.repo import Repo
 from git.cmd import Git
 
 
@@ -33,7 +34,7 @@ class RepoUtil(object):
     the repository and an appropriate set of credentials. At this
     """
 
-    def __init__(self, repourl, logger=None):
+    def __init__(self, repourl, logger: t.Optional[logging.Logger]=None):
         self.url = repourl
         self.localdir = None
         self.repo = None
@@ -48,6 +49,7 @@ class RepoUtil(object):
         repo_temp = self
         remove_temp_repo = False
         if path is not None:
+            assert self.repo is not None
             for submodule in self.repo.submodules:
                 if submodule.path in path:
                     repo_temp = RepoUtil(submodule._url)
@@ -55,9 +57,11 @@ class RepoUtil(object):
                     remove_temp_repo = True
                     break
         try:
+            assert repo_temp.repo is not None
             return repo_temp.repo.commit('origin/{}'.format(branch)).hexsha
         except:
-            self.logger.error('Git branch - {} - could not be resolved'.format(branch))
+            if self.logger:
+                self.logger.error('Git branch - {} - could not be resolved'.format(branch))
             return branch
         finally:
             if remove_temp_repo:

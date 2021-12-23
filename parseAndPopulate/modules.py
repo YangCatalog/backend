@@ -31,6 +31,7 @@ import os
 import re
 import sys
 import time
+import typing as t
 from datetime import datetime
 
 import statistic.statistics as stats
@@ -46,8 +47,8 @@ from parseAndPopulate.parseException import ParseException
 
 class Modules:
     def __init__(self, yang_models_dir: str, log_directory: str, path: str, html_result_dir: str, jsons: LoadFiles,
-                 temp_dir: str, is_vendor: bool = False, is_yang_lib: bool = False, data: dict = None,
-                 is_vendor_imp_inc: bool = False, run_integrity: bool = False):
+                 temp_dir: str, is_vendor: bool = False, is_yang_lib: bool = False,
+                 data: t.Union[dict, str, None] = None, is_vendor_imp_inc: bool = False, run_integrity: bool = False):
         """
         Preset Modules class to parse yang module and save data to it.
         :param yang_models_dir:     (str) directory with all yang modules from
@@ -92,6 +93,7 @@ class Modules:
 
         if is_vendor:
             if is_yang_lib:
+                assert isinstance(data, dict)
                 self.deviations = data['deviations']
                 self.features = data['features']
                 self.revision = data['revision']
@@ -99,6 +101,7 @@ class Modules:
                     self.revision = '*'
                 self.__path = self.__find_file(data['name'], self.revision)
             else:
+                assert isinstance(data, str)
                 self.features = self.\
                     __resolve_deviations_and_features('features=', data)
                 self.deviations = \
@@ -301,17 +304,17 @@ class Modules:
         except:
             return
 
-    def add_vendor_information(self, platform_data: set, conformance_type: str, capability: set,
-                               netconf_version: set, integrity_checker, split: set):
+    def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
+                               capability: list, netconf_version: list, integrity_checker, split: list):
         """
         If parsing Cisco modules, implementation details are stored in platform_metadata.json file.
         Method add Cisco vendor information to Module
-        :param platform_data:       (set) set of platform_data loaded from platform_metadata.json
-        :param conformance_type:    (str) string representing conformance type of module
-        :param capability:          (set) set of netconf capabilities loaded from platform_metadata.json
+        :param platform_data:       (list) set of platform_data loaded from platform_metadata.json
+        :param conformance_type:    (list) string representing conformance type of module
+        :param capability:          (list) set of netconf capabilities loaded from platform_metadata.json
         :param netconf_version:     (set) set of netconf versions loaded from platform_metadata.json
         :param integrity_checker:   (obj) integrity checker object
-        :param split:               (set) path to .xml capabalities files splitted by character "/"
+        :param split:               (list) path to .xml capabalities files splitted by character "/"
         """
         for data in platform_data:
             implementation = self.Implementations()
