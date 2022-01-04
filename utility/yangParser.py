@@ -20,6 +20,7 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+from functools import lru_cache
 from os.path import isfile
 
 from pyang.context import Context
@@ -63,6 +64,8 @@ class objectify(object):  # pylint: disable=invalid-name
     """Utility for providing object access syntax (.attr) to dicts"""
 
     def __init__(self, *args, **kwargs):
+        for arg in args:
+            self.__dict__.update(arg)
         self.__dict__.update(kwargs)
 
     def __getattr__(self, _):
@@ -164,6 +167,7 @@ def create_context(path='.', *options, **kwargs):
     return ctx
 
 
+@lru_cache(maxsize=1000)
 def parse(text, ctx=None):
     """Parse a YANG statement into an Abstract Syntax subtree.
 
@@ -191,7 +195,7 @@ def parse(text, ctx=None):
 
     if isfile(text):
         filename = text
-        with open(filename, 'r', encoding='utf-8') as f:
+        with open(filename) as f:
             text = f.read()
 
     # ensure reported errors are just from parsing

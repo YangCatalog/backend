@@ -34,7 +34,7 @@ class RepoUtil(object):
     the repository and an appropriate set of credentials. At this
     """
 
-    def __init__(self, repourl, logger: t.Optional[logging.Logger]=None):
+    def __init__(self, repourl: str, logger: t.Optional[logging.Logger] = None):
         self.url = repourl
         self.localdir = None
         self.repo = None
