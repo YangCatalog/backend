@@ -157,9 +157,8 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
-        all_modules = {}
 
-        response = self.receiver.process_sdo(arguments, all_modules)
+        response, all_modules = self.receiver.process(arguments)
         module = all_modules.get('module')[0]
         original_module_data = data['modules']['module'][0]
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
@@ -177,9 +176,8 @@ class TestReceiverClass(TestReceiverBaseClass):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
                      '--api', '--credentials', *self.credentials, 'True']
-        all_modules = {}
 
-        response = self.receiver.process_sdo(arguments, all_modules)
+        response, all_modules = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
@@ -203,9 +201,8 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
-        all_modules = {}
 
-        response = self.receiver.process_vendor(arguments, all_modules)
+        response, all_modules = self.receiver.process(arguments)
         modules = all_modules.get('module')
 
         self.assertEqual(response, 'Finished successfully')
@@ -232,9 +229,8 @@ class TestReceiverClass(TestReceiverBaseClass):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
-        all_modules = {}
 
-        response = self.receiver.process_vendor(arguments, all_modules)
+        response, all_modules = self.receiver.process(arguments)
 
         self.assertEqual(response, 'Failed#split#Server error while running populate script')
         self.assertEqual(all_modules, {})

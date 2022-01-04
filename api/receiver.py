@@ -92,11 +92,11 @@ class Receiver:
                 'Failed' or 'Finished successfully'
         """
         all_modules = {}
-        direc = arguments[3]
         tree_created = arguments[-1] == 'True'
         sdo = '--sdo' in arguments
         api = '--api' in arguments
         data_type = 'sdo' if sdo else 'vendor'
+        direc = arguments[3 if sdo else 2]
 
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
