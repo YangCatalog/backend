@@ -190,7 +190,10 @@ def main(scriptConf=None):
                 if 'ietf-yang-library' in pattern:
                     capability.parse_and_dump_yang_lib()
                 else:
-                    capability.parse_and_dump_vendor()
+                    try:
+                        capability.parse_and_dump_vendor()
+                    except Exception as e:
+                        LOGGER.warning('Skipping {}, error while parsing:\n{}'.format(filename, e))
         prepare.dump_modules(args.json_dir)
         prepare.dump_vendors(args.json_dir)
 

@@ -466,6 +466,9 @@ class Capability:
                     capabilities.append(cap_with_version.split('?')[0])
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
+        if not hasattr(self, 'owner'):
+            raise Exception('Could not resolve owner, likely caused by a broken path in {}/platform-metadata.json'
+                            .format('/'.join(self.split[:-1])))
         schema_part = '{}/{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
