@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import time
 from threading import Lock
@@ -82,13 +82,10 @@ class YangCatalogApiGlobalConfig():
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
-        if self.es_aws == 'True':
-            self.es_aws = True
-        else:
-            self.es_aws = False
+        self.es_aws = self.es_aws == 'True'
         if self.es_aws:
             self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
-                                    scheme="https", port=443)
+                                    scheme='https', port=443)
         else:
             self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
 
@@ -108,7 +105,7 @@ class YangCatalogApiGlobalConfig():
     def check_wait_redis_connected(self):
         while not self.redis.ping():
             time.sleep(5)
-            self.LOGGER.info("Waiting 5 seconds for redis to start")
+            self.LOGGER.info('Waiting 5 seconds for redis to start')
 
 
 yc_gc = YangCatalogApiGlobalConfig()

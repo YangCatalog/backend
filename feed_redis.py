@@ -63,9 +63,9 @@ def load_catalog_data():
     modules_data = {create_module_key(module): module for module in modules.get('module', [])}
     redisConnection.set_redis_module(modules_data, 'modules-data')
     print('{} modules set in Redis.'.format(len(modules.get('module', []))))
-    redis_cache.set('vendors-data', json.dumps(vendors))
+    redisConnection.populate_implementation(vendors.get('vendor', []))
+    redisConnection.reload_vendors_cache()
     print('{} vendors set in Redis.'.format(len(vendors.get('vendor', []))))
-    redis_cache.set('all-catalog-data', json.dumps(catalog_data))
 
 
 def main():

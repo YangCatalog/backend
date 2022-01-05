@@ -174,7 +174,7 @@ def delete_vendor(value: str):
     rights = accessRigths.split('/')
     rights += [None] * (4 - len(rights))
 
-    confd_suffix = '/restconf/data/yang-catalog:catalog/vendors/{}'.format(value)
+    confd_suffix = 'vendors/{}'.format(value)
 
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     params = []

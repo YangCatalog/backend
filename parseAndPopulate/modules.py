@@ -220,6 +220,7 @@ class Modules:
             self.__resolve_author_email(author_email)
             self.__resolve_maturity_level(maturity_level)
             self.__resolve_semver()
+        del self.jsons
 
     def __resolve_tree(self):
         if self.module_type == 'module':

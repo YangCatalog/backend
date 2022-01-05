@@ -251,6 +251,7 @@ def main(scriptConf=None):
         with open('{}/normal.json'.format(direc)) as data:
             vendors = json.loads(data.read())['vendors']['vendor']
         errors = confdService.patch_vendors(vendors)
+        redisConnection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
         send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_path, scriptConf.delete_cache_path,
@@ -284,12 +285,12 @@ def main(scriptConf=None):
                 fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
 
         try:
-            shutil.rmtree('{}'.format(direc))
+            shutil.rmtree(direc)
         except OSError:
             # Be happy if deleted
             pass
     LOGGER.info('Populate script finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

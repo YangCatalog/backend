@@ -135,7 +135,7 @@ class ConfdService:
 
     def delete_vendor(self, confd_suffix: str) -> requests.Response:
         self.LOGGER.debug('Sending DELETE request to vendors branch {}'.format(confd_suffix))
-        path = '{}{}'.format(self.confd_prefix, confd_suffix)
+        path = '{}/restconf/data/yang-catalog:catalog/{}'.format(self.confd_prefix, confd_suffix)
         response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response

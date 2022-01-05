@@ -95,7 +95,7 @@ def main(scriptConf=None):
     ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     is_production = config.get('General-Section', 'is-prod')
-    is_production = True if is_production == 'True' else False
+    is_production = is_production == 'True'
     LOGGER = log.get_logger('draftPull', '{}/jobs/draft-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job IETF pull request')
 
