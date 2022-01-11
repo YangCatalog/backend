@@ -20,11 +20,9 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import datetime
 import fnmatch
-import grp
 import json
 import optparse
 import os
-import pwd
 import socket
 import stat
 import sys
@@ -105,26 +103,6 @@ def find_first_file(directory: str, pattern: str,
                             return filename
                     else:
                         return filename
-
-
-def change_ownership_recursive(path: str, user: str = 'yang', group: str = 'yang'):
-    """ Ownership is set to the values passed as 'user' and 'group' arguments.
-
-    Arguments:
-        :param user     (str) name of the user who will have the ownership over 'path'
-        :param group    (str) name of the group which will have the ownership over 'path'    
-    """
-    uid = pwd.getpwnam(user).pw_uid
-    gid = grp.getgrnam(group).gr_gid
-
-    if os.path.isdir(path):
-        for root, dirs, files in os.walk(path, topdown=False):
-            for dir in [os.path.join(root, d) for d in dirs]:
-                os.chown(os.path.join(root, dir), uid, gid)
-            for file in [os.path.join(root, f) for f in files]:
-                os.chown(os.path.join(root, file), uid, gid)
-    else:
-        os.chown(path, uid, gid)
 
 
 def change_permissions_recursive(path: str):

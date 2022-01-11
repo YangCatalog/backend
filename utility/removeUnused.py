@@ -36,8 +36,7 @@ from elasticsearch import Elasticsearch
 import utility.log as log
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format
-from utility.util import (change_ownership_recursive, get_list_of_backups,
-                          job_log)
+from utility.util import get_list_of_backups, job_log
 
 
 def represents_int(s):
@@ -97,7 +96,7 @@ if __name__ == '__main__':
             if not abs.endswith('yangcat') and not abs.endswith('yang'):
                 try:
                     shutil.rmtree(abs)
-                except:
+                except Exception:
                     pass
 
         LOGGER.info('Removing old correlation ids')
@@ -112,7 +111,7 @@ if __name__ == '__main__':
         with open('{}/correlation_ids'.format(temp_dir), 'w') as filename:
             for line in lines:
                 line_datetime = line.split(' -')[0]
-                t = dt.strptime(line_datetime, "%a %b %d %H:%M:%S %Y")
+                t = dt.strptime(line_datetime, '%a %b %d %H:%M:%S %Y')
                 diff = dt.now() - t
                 if diff.days == 0:
                     filename.write(line)
@@ -120,13 +119,16 @@ if __name__ == '__main__':
         LOGGER.info('Removing old yangvalidator cache dirs')
         yang_validator_cache = os.path.join(temp_dir, 'yangvalidator')
         cutoff = current_time - 2*86400
-        change_ownership_recursive(yang_validator_cache)
         dirs = os.listdir(yang_validator_cache)
         for dir in dirs:
             if dir.startswith('yangvalidator-v2-cache-'):
                 creation_time = os.path.getctime(os.path.join(yang_validator_cache, dir))
                 if creation_time < cutoff:
-                    shutil.rmtree(os.path.join(yang_validator_cache, dir))
+                    try:
+                        shutil.rmtree(os.path.join(yang_validator_cache, dir))
+                    except PermissionError:
+                        LOGGER.exception('Problem while deleting {}'.format(dir))
+                        continue
 
         # LOGGER.info('Removing old elasticsearch snapshots')
         # if es_aws == 'True':
