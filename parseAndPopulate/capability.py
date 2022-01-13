@@ -250,7 +250,7 @@ class Capability:
             if repo is None:
                 repo = repoutil.RepoUtil(repo_url, self.logger)
                 repo.clone()
-            assert repo.repo is not None
+            assert repo.repo is not None, 'Failed to initialize git repo'
             is_submodule = False
             # Check if repository submodule
             submodule_name = ''
@@ -261,7 +261,7 @@ class Capability:
                     repo_url = submodule.url
                     repo_dir = '{}/{}'.format(self.yang_models_dir, submodule_name)
                     repo = repoutil.load(repo_dir, repo_url)
-                    assert repo is not None
+                    assert repo is not None, 'Failed to initialize git repo'
                     self.owner = repo.get_repo_owner()
                     self.repo = repo.get_repo_dir().split('.git')[0]
 
@@ -475,7 +475,7 @@ class Capability:
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
         for module in modules:
-            assert module.text is not None
+            module.text = module.text or ''
             if 'module=' in module.text:
                 # Parse name of the module
                 module_and_more = module.text.split('module=')[1]
