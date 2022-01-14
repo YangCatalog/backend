@@ -23,16 +23,16 @@ and it will store them as sdos since we don t have any vendor
 information about them
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import fileinput
 import json
 import os
 import re
-import sys
+import typing as t
 import unicodedata
 import xml.etree.ElementTree as ET
 
@@ -149,7 +149,7 @@ class Capability:
                     os_type = 'IOS-XR'
                     platform = self.split[platform_index + 2].split('.xml')[0].split('-')[1]
                 else:
-                    platform_index = self.split.index[-3]
+                    platform_index = -3
                     os_type = 'Unknown'
                     platform = 'Unknown'
                 self.platform_data.append(
@@ -157,7 +157,7 @@ class Capability:
                      'platform': platform,
                      'software-version': self.split[platform_index + 1],
                      'os-version': self.split[platform_index + 1],
-                     'feature-set': "ALL",
+                     'feature-set': 'ALL',
                      'os': os_type,
                      'vendor': self.split[platform_index - 1]})
         self.parsed_jsons = LoadFiles(private_dir, log_directory)
@@ -166,9 +166,11 @@ class Capability:
         if impl['module-list-file']['path'] in self.hello_message_file:
             LOGGER.info('Parsing a received platform-metadata.json file')
             self.owner = impl.get('module-list-file', {}).get('owner')
-            self.repo = impl.get('module-list-file', {}).get('repository').split('.')[0]
+            self.repo = impl.get('module-list-file', {}).get('repository')
+            if self.repo is not None:
+                self.repo = self.repo.split('.')[0]
             self.path = impl.get('module-list-file', {}).get('path')
-            self.branch = impl.get('module-list-file', {}).get('branch')
+            self.branch = impl.get('module-list-file', {}).get('branch', '')
             repo_url = '{}/{}/{}'.format(github_url, self.owner, self.repo)
             repo = None
             if self.owner == 'YangModels' and self.repo == 'yang':
@@ -188,14 +190,13 @@ class Capability:
                                        'vendor': impl['vendor'],
                                        'os': impl['os-type']})
 
-    def parse_and_dump_sdo(self, repo=None):
+    def parse_and_dump_sdo(self, repo: t.Optional[repoutil.RepoUtil] = None):
         """ If modules were sent via API, content of prepare-sdo.json file is parsed and modules are loaded from Git repository.
         Otherwise, all the .yang files in the directory are parsed.
 
         Argument:
             :param repo     Git repository which contains .yang files
         """
-        repo = repo
         branch = None
         if self.api:
             LOGGER.debug('Parsing sdo files sent via API')
@@ -213,17 +214,14 @@ class Capability:
                 if repo is None:
                     repo = repoutil.RepoUtil('{}/{}/{}'.format(github_url, self.owner, self.repo), self.logger)
                     repo.clone()
-                self.branch = sdo.get('source-file', {}).get('branch')
+                self.branch = sdo.get('source-file', {}).get('branch', '')
                 if not self.branch:
                     self.branch = 'master'
                 if branch is None:
                     branch = repo.get_commit_hash('/'.join(repo_file_path.split('/')[:-1]), self.branch)
                 root = '{}/{}/{}/{}'.format(self.owner, self.repo, branch, '/'.join(repo_file_path.split('/')[:-1]))
                 root = '{}/temp/{}'.format(self.json_dir, root)
-                if sys.version_info < (3, 4):
-                    root = '{}/temp/{}'.format(self.json_dir, unicodedata.normalize('NFKD', root).encode('ascii', 'ignore'))
-                if sys.version_info >= (3, 4):
-                    file_name = file_name.decode('utf-8', 'strict')
+                file_name = file_name.decode()
                 path = '{}/{}'.format(root, file_name)
                 if not os.path.isfile(path):
                     LOGGER.error('File {} sent via API was not downloaded'.format(file_name))
@@ -252,8 +250,10 @@ class Capability:
             if repo is None:
                 repo = repoutil.RepoUtil(repo_url, self.logger)
                 repo.clone()
+            assert repo.repo is not None, 'Failed to initialize git repo'
             is_submodule = False
             # Check if repository submodule
+            submodule_name = ''
             for submodule in repo.repo.submodules:
                 if submodule.name in '/'.join(self.split):
                     is_submodule = True
@@ -261,6 +261,7 @@ class Capability:
                     repo_url = submodule.url
                     repo_dir = '{}/{}'.format(self.yang_models_dir, submodule_name)
                     repo = repoutil.load(repo_dir, repo_url)
+                    assert repo is not None, 'Failed to initialize git repo'
                     self.owner = repo.get_repo_owner()
                     self.repo = repo.get_repo_dir().split('.git')[0]
 
@@ -358,11 +359,13 @@ class Capability:
             if 'module-set-id' in module.tag:
                 continue
             LOGGER.debug('Getting capabilities out of yang-library xml message')
-            module_name = None
+            module_name = ''
 
             for mod in module:
                 if 'name' in mod.tag:
                     module_name = mod.text
+                    if not module_name:
+                        module_name = ''
                     break
 
             yang_lib_info = {}
@@ -457,6 +460,8 @@ class Capability:
         if not capabilities_exist:
             for module in modules:
                 # Parse netconf version
+                if not module.text:
+                    module.text = ''
                 if ':netconf:base:' in module.text:
                     netconf_version.append(module.text)
                     LOGGER.debug('Getting netconf version')
@@ -476,6 +481,7 @@ class Capability:
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
         for module in modules:
+            module.text = module.text or ''
             if 'module=' in module.text:
                 # Parse name of the module
                 module_and_more = module.text.split('module=')[1]
@@ -534,11 +540,11 @@ class Capability:
             data = module.attrib
             for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
-                data[prop] = attributes.text
+                data[prop] = attributes.text if attributes.text else ''
                 if prop == 'xref':
                     xref_info = attributes.attrib
                     if xref_info.get('type') == 'draft':
-                        document_split = xref_info.get('data').replace('RFC', 'draft').split('-')
+                        document_split = xref_info['data'].replace('RFC', 'draft').split('-')
                         version = document_split[-1]
                         name = '-'.join(document_split[:-1])
                         additional_info['document-name'] = '{}-{}.txt'.format(name, version)
@@ -584,7 +590,7 @@ class Capability:
                                schema, self.path, self.save_file_to_dir, additional_info)
                 self.prepare.add_key_sdo_module(yang)
 
-    def parse_imp_inc(self, modules: list, set_of_names: dict, is_include: bool, schema_part: str,
+    def parse_imp_inc(self, modules: list, set_of_names: set, is_include: bool, schema_part: str,
                       capabilities: list, netconf_version: list):
         """
         Parse all yang modules which are either sumodules or imports of certain module.
@@ -592,7 +598,7 @@ class Capability:
         This method is then recursively called for all found submodules and import modules.
 
         :param modules          (list) List of modules to check (either submodules or imports of module)
-        :param set_of_name      (dict) Set of all the modules parsed out from capability file
+        :param set_of_name      (set) Set of all the modules parsed out from capability file
         :param is_include       (bool) Whether module is include or not
         :param schema_part      (str)  Part of Github schema URL
         :param capabilities     (list) List of capabilities parsed out from capability file

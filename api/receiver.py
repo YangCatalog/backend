@@ -43,6 +43,7 @@ import shutil
 import subprocess
 import sys
 import time
+import typing as t
 from datetime import datetime
 from distutils.dir_util import copy_tree
 
@@ -62,7 +63,7 @@ from utility.util import prepare_to_indexing, send_to_indexing2
 class Receiver:
 
     def __init__(self, config_path: str):
-        self.__config_path = config_path
+        self._config_path = config_path
         self.load_config()
         self.channel = None
         self.connection = None
@@ -79,7 +80,7 @@ class Receiver:
             else:
                 shutil.copy2(s, d)
 
-    def process_sdo(self, arguments: list, all_modules: dict):
+    def process(self, arguments: t.List[str]) -> t.Tuple[str, dict]:
         """Process SDO modules. Calls populate.py script which will parse all the modules
         on the given path given by "dir" param. Populate script will also send the
         request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
@@ -90,10 +91,12 @@ class Receiver:
             :return (__response_type) one of the response types which is either
                 'Failed' or 'Finished successfully'
         """
-        direc = arguments[3]
+        all_modules = {}
         tree_created = arguments[-1] == 'True'
         sdo = '--sdo' in arguments
         api = '--api' in arguments
+        data_type = 'sdo' if sdo else 'vendor'
+        direc = arguments[3 if sdo else 2]
 
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
@@ -104,7 +107,7 @@ class Receiver:
         script_conf.args.__setattr__('api', api)
         script_conf.args.__setattr__('dir', direc)
         script_conf.args.__setattr__('force-parsing', True)
-        if self.__notify_indexing:
+        if self._notify_indexing:
             script_conf.args.__setattr__('notify-indexing', True)
 
         self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
@@ -113,74 +116,26 @@ class Receiver:
             submodule.main(scriptConf=script_conf)
         except Exception:
             self.LOGGER.exception('Problem while running populate script')
-            return '{}#split#Server error while running populate script'.format(self.__response_type[0])
+            return '{}#split#Server error while running populate script'.format(self._response_type[0]), all_modules
 
         try:
-            os.makedirs('{}/sdo'.format(self.temp_dir))
+            os.makedirs(os.path.join(self.temp_dir, data_type))
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
-                return '{}#split#Server error - could not create sdo directory'.format(self.__response_type[0])
+                return ('{}#split#Server error - could not create {} directory'
+                        .format(self._response_type[0], data_type),
+                        all_modules)
 
         if tree_created:
-            self.copytree('{}/temp'.format(direc), '{}/sdo'.format(self.temp_dir))
-            with open('{}/prepare.json'.format(direc), 'r') as f:
+            self.copytree(os.path.join(direc, 'temp'), os.path.join(self.temp_dir, data_type))
+            with open(os.path.join(direc, 'prepare.json'), 'r') as f:
                 all_modules.update(json.load(f))
 
-        return self.__response_type[1]
+        return self._response_type[1], all_modules
 
-    def process_vendor(self, arguments: list, all_modules: dict):
-        """Process vendor metadata. Calls populate.py script which will parse all
-        the modules that are contained in the given hello message xml file or in
-        ietf-yang-module xml which are stored on path given by "dir" param. Populate script will also send the
-        request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
-        parent directory of this project /api/sdo and finally also call indexing script to update searching.
 
-        Arguments:
-            :param arguments    (list) list of arguments sent from API sender
-            :return (__response_type) one of the response types which is either
-                'Failed' or 'Finished successfully'
-        """
-        direc = arguments[2]
-        tree_created = arguments[-1] == 'True'
-        sdo = '--sdo' in arguments
-        api = '--api' in arguments
-
-        script_name = 'populate'
-        module = __import__('parseAndPopulate', fromlist=[script_name])
-        submodule = getattr(module, script_name)
-        script_conf = submodule.ScriptConfig()
-        # Set populate script arguments
-        script_conf.args.__setattr__('sdo', sdo)
-        script_conf.args.__setattr__('api', api)
-        script_conf.args.__setattr__('dir', direc)
-        script_conf.args.__setattr__('force-parsing', True)
-        if self.__notify_indexing:
-            script_conf.args.__setattr__('notify-indexing', True)
-
-        self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
-            script_conf.args.__dict__))
-        try:
-            submodule.main(scriptConf=script_conf)
-        except Exception:
-            self.LOGGER.exception('Problem while running populate script')
-            return '{}#split#Server error while running populate script'.format(self.__response_type[0])
-
-        try:
-            os.makedirs('{}/vendor'.format(self.temp_dir))
-        except OSError as e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                return '{}#split#Server error - could not create vendor directory'.format(self.__response_type[0])
-
-        if tree_created:
-            self.copytree('{}/temp'.format(direc), '{}/vendor'.format(self.temp_dir))
-            with open('{}/prepare.json'.format(direc), 'r') as f:
-                all_modules.update(json.load(f))
-
-        return self.__response_type[1]
-
-    def process_vendor_deletion(self, arguments: list):
+    def process_vendor_deletion(self, arguments: t.List[str]) -> str:
         """Deleting vendors metadata. It calls the delete request to ConfD to delete all the module
         in vendor branch of the yang-catalog.yang module on given path. If the module was
         added by vendor and it doesn't contain any other implementations it will delete the
@@ -195,7 +150,7 @@ class Receiver:
         vendor, platform, software_version, software_flavor = arguments[3:7]
         confd_suffix = arguments[-1]
 
-        path = '{}search'.format(self.__yangcatalog_api_prefix)
+        path = '{}search'.format(self._yangcatalog_api_prefix)
         redis_vendor_key = ''
         data_key = 'vendor'
         if vendor != 'None':
@@ -327,15 +282,15 @@ class Receiver:
         redis_vendor_key = redis_vendor_key.replace(' ', '#')
         response = self.redisConnection.delete_vendor(redis_vendor_key)
 
-        if self.__notify_indexing:
-            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, deleted_modules,
-                                               self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
+        if self._notify_indexing:
+            body_to_send = prepare_to_indexing(self._yangcatalog_api_prefix, deleted_modules,
+                                               self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
             if body_to_send.get('modules-to-delete'):
-                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
-                                  self.__lock_file)
-        return self.__response_type[1]
+                send_to_indexing2(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
+                                  self._lock_file)
+        return self._response_type[1]
 
-    def iterate_in_depth(self, value: dict, confd_keys: set):
+    def iterate_in_depth(self, value: dict, confd_keys: t.Set[str]):
         """Iterates through the branch to get to the level with modules.
 
         Arguments:
@@ -356,7 +311,7 @@ class Receiver:
                 else:
                     self.iterate_in_depth(val, confd_keys)
 
-    def make_cache(self, credentials: list):
+    def make_cache(self, credentials: t.List[str]) -> requests.Response:
         """After we delete or add modules we need to reload all the modules to the file
         for quicker search. This module is then loaded to the memory.
 
@@ -365,7 +320,7 @@ class Receiver:
             :return 'work' string if everything went through fine otherwise send back the reason why
                 it failed.
         """
-        path = self.__yangcatalog_api_prefix + 'load-cache'
+        path = self._yangcatalog_api_prefix + 'load-cache'
         response = requests.post(path, auth=(credentials[0], credentials[1]), headers=json_headers)
         code = response.status_code
 
@@ -373,7 +328,7 @@ class Receiver:
             self.LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
         return response
 
-    def process_module_deletion(self, arguments: list):
+    def process_module_deletion(self, arguments: t.List[str]) -> str:
         """Deleting one or more modules. It sends the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
         yang-catalog:yang module. It will also call indexing script to update searching.
@@ -390,16 +345,16 @@ class Receiver:
             all_modules = json.loads(all_modules_raw)
         except Exception:
             self.LOGGER.exception('Problem while processing arguments')
-            return '{}#split#Server error -> Unable to parse arguments'.format(self.__response_type[0])
+            return '{}#split#Server error -> Unable to parse arguments'.format(self._response_type[0])
 
-        def module_in(name: str, revision: str, modules: list):
+        def module_in(name: str, revision: str, modules: list) -> bool:
             for module in modules:
                 if module['name'] == name and module.get('revision') == revision:
                     return True
             return False
 
         @functools.lru_cache(maxsize=None)
-        def can_delete(name: str, revision: str):
+        def can_delete(name: str, revision: str) -> bool:
             """ Check whether module with given 'name' and 'revison' which should be removed
             is or is not depedency/submodule of some other existing module.
             If module-to-be-deleted has reference in another existing module, it cannot be deleted.
@@ -469,20 +424,20 @@ class Receiver:
                 self.LOGGER.debug('Module {} already deleted'.format(redis_key))
             modules_to_index.append(redis_key)
 
-        if self.__notify_indexing:
-            body_to_send = prepare_to_indexing(self.__yangcatalog_api_prefix, modules_to_index,
-                                               self.LOGGER, self.__save_file_dir, self.temp_dir, delete=True)
+        if self._notify_indexing:
+            body_to_send = prepare_to_indexing(self._yangcatalog_api_prefix, modules_to_index,
+                                               self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
 
             if len(body_to_send) > 0:
-                send_to_indexing2(body_to_send, self.LOGGER, self.__changes_cache_dir, self.__delete_cache_dir,
-                                  self.__lock_file)
+                send_to_indexing2(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
+                                  self._lock_file)
         if len(modules_not_deleted) == 0:
-            return self.__response_type[1]
+            return self._response_type[1]
         else:
             reason = 'modules-not-deleted:{}'.format(':'.join(modules_not_deleted))
-            return '{}#split#{}'.format(self.__response_type[2], reason)
+            return '{}#split#{}'.format(self._response_type[2], reason)
 
-    def run_ietf(self):
+    def run_ietf(self) -> str:
         """
         Runs ietf and openconfig scripts that should update all the new ietf
         and openconfig modules
@@ -500,7 +455,7 @@ class Receiver:
                 submodule.main(scriptConf=script_conf)
             except Exception:
                 self.LOGGER.exception('Problem while running draftPullLocal script')
-                return '{}#split#Server error while running draftPullLocal script'.format(self.__response_type[0])
+                return '{}#split#Server error while running draftPullLocal script'.format(self._response_type[0])
             # Run openconfigPullLocal.py script
             script_name = 'openconfigPullLocal'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
@@ -512,63 +467,65 @@ class Receiver:
                 submodule.main(scriptConf=script_conf)
             except Exception:
                 self.LOGGER.exception('Problem while running openconfigPullLocal script')
-                return '{}#split#Server error while running openconfigPullLocal script'.format(self.__response_type[0])
+                return '{}#split#Server error while running openconfigPullLocal script'.format(self._response_type[0])
 
-            return self.__response_type[1]
+            return self._response_type[1]
         except Exception:
             self.LOGGER.exception('Server error while running scripts')
-            return self.__response_type[0]
+            return self._response_type[0]
 
     def load_config(self):
-        config = create_config(self.__config_path)
-        self.__log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('receiver', os.path.join(self.__log_directory, 'receiver.log'))
+        config = create_config(self._config_path)
+        self._log_directory = config.get('Directory-Section', 'logs')
+        self.LOGGER = log.get_logger('receiver', os.path.join(self._log_directory, 'receiver.log'))
         self.LOGGER.info('Loading config')
         logging.getLogger('pika').setLevel(logging.INFO)
-        self.__api_ip = config.get('Web-Section', 'ip')
-        self.__api_port = int(config.get('Web-Section', 'api-port'))
-        self.__api_protocol = config.get('General-Section', 'protocol-api')
-        self.__notify_indexing = config.get('General-Section', 'notify-index')
-        self.__save_file_dir = config.get('Directory-Section', 'save-file-dir')
-        self.__yang_models = config.get('Directory-Section', 'yang-models-dir')
-        self.__is_uwsgi = config.get('General-Section', 'uwsgi')
-        self.__rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
-        self.__rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        self.__changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-        self.__delete_cache_dir = config.get('Directory-Section', 'delete-cache')
-        self.__lock_file = config.get('Directory-Section', 'lock')
+        self._api_ip = config.get('Web-Section', 'ip')
+        self._api_port = int(config.get('Web-Section', 'api-port'))
+        self._api_protocol = config.get('General-Section', 'protocol-api')
+        self._notify_indexing = config.get('General-Section', 'notify-index')
+        self._save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        self._yang_models = config.get('Directory-Section', 'yang-models-dir')
+        self._is_uwsgi = config.get('General-Section', 'uwsgi')
+        self._rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
+        self._rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
+        self._changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self._delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self._lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
-        self.__notify_indexing = self.__notify_indexing == 'True'
+        self._notify_indexing = self._notify_indexing == 'True'
         separator = ':'
-        suffix = self.__api_port
-        if self.__is_uwsgi == 'True':
+        suffix = self._api_port
+        if self._is_uwsgi == 'True':
             separator = '/'
             suffix = 'api'
-        self.__yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.__api_protocol, self.__api_ip, separator, suffix)
-        self.__response_type = ['Failed', 'Finished successfully', 'Partially done']
-        self.__rabbitmq_credentials = pika.PlainCredentials(
+        self._yangcatalog_api_prefix = '{}://{}{}{}/'.format(self._api_protocol, self._api_ip, separator, suffix)
+        self._response_type = ['Failed', 'Finished successfully', 'Partially done']
+        self._rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
         try:
-            self.channel.close()
+            if self.channel:
+                self.channel.close()
         except Exception:
             pass
         try:
-            self.connection.close()
+            if self.connection:
+                self.connection.close()
         except Exception:
             pass
         self.LOGGER.info('Config loaded succesfully')
 
-    def on_request(self, ch, method, properties, body):
+    def on_request(self, channel, method, properties, body):
         process_reload_cache = multiprocessing.Process(
-            target=self.on_request_thread_safe, args=(ch, method, properties, body,))
+            target=self.on_request_thread_safe, args=(properties, body))
         process_reload_cache.start()
 
-    def on_request_thread_safe(self, channel, method, properties, body):
+    def on_request_thread_safe(self, properties, body_raw: bytes):
         """Function called when something was sent from API sender. This function
         will process all the requests that would take too long to process for API.
         When the processing is done we will sent back the result of the request
@@ -579,9 +536,9 @@ class Receiver:
                     :param body: (str) String of arguments that need to be processed
                     separated by '#'.
         """
+        final_response = ''
         try:
-            if sys.version_info >= (3, 4):
-                body = body.decode(encoding='utf-8', errors='strict')
+            body = body_raw.decode()
             self.LOGGER.info('Received request with body {}'.format(body))
             arguments = body.split('#')
             if body == 'run_ietf':
@@ -606,60 +563,63 @@ class Receiver:
                         with open(self.temp_dir + '/log_trigger.txt', 'w') as f:
                             local_dir = paths_plus[-2]
                             arguments = arguments + ['--dir', local_dir + '/' + path]
-                            if self.__notify_indexing:
+                            if self._notify_indexing:
                                 arguments.append('--notify-indexing')
                             subprocess.check_call(arguments, stderr=f)
-                    final_response = self.__response_type[1]
+                    final_response = self._response_type[1]
                 except subprocess.CalledProcessError as e:
-                    final_response = self.__response_type[0]
+                    final_response = self._response_type[0]
                     mf = messageFactory.MessageFactory()
                     mf.send_automated_procedure_failed(arguments, self.temp_dir + '/log_no_sdo_api.txt')
                     self.LOGGER.error(
                         'check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(
                             e.output, e.stderr))
                 except Exception:
-                    final_response = self.__response_type[0]
+                    final_response = self._response_type[0]
                     self.LOGGER.error('check log_trigger.txt failed to process github message with error {}'.format(
                         sys.exc_info()[0]))
             else:
                 all_modules = {}
+                direc = ''
                 if arguments[0] == 'DELETE-VENDORS':
                     final_response = self.process_vendor_deletion(arguments)
                     credentials = arguments[1:3]
-                if arguments[0] == 'DELETE-MODULES':
+                elif arguments[0] == 'DELETE-MODULES':
                     final_response = self.process_module_deletion(arguments)
                     credentials = arguments[1:3]
-                if arguments[0] == 'POPULATE-MODULES':
-                    final_response = self.process_sdo(arguments, all_modules)
+                elif arguments[0] == 'POPULATE-MODULES':
+                    final_response, all_modules = self.process(arguments)
                     credentials = arguments[6:8]
                     direc = arguments[3]
                     shutil.rmtree(direc)
-                if arguments[0] == 'POPULATE-VENDORS':
-                    final_response = self.process_vendor(arguments, all_modules)
+                elif arguments[0] == 'POPULATE-VENDORS':
+                    final_response, all_modules = self.process(arguments)
                     credentials = arguments[5:7]
                     direc = arguments[2]
                     shutil.rmtree(direc)
+                else:
+                    assert False, 'Invalid request type'
 
-                if final_response.split('#split#')[0] == self.__response_type[1]:
+                if final_response.split('#split#')[0] == self._response_type[1]:
                     response = self.make_cache(credentials)
                     code = response.status_code
                     if code != 200 and code != 201 and code != 204:
-                        final_response = '{}#split#Server error-> could not reload cache'.format(self.__response_type[0])
+                        final_response = '{}#split#Server error-> could not reload cache'.format(self._response_type[0])
 
                     # TODO: This probably can be already done in populate.py
                     if all_modules:
                         self.LOGGER.info('Running ModulesComplicatedAlgorithms from receiver.py script')
-                        complicated_algorithms = ModulesComplicatedAlgorithms(self.__log_directory,
-                                                                              self.__yangcatalog_api_prefix,
+                        complicated_algorithms = ModulesComplicatedAlgorithms(self._log_directory,
+                                                                              self._yangcatalog_api_prefix,
                                                                               credentials,
-                                                                              self.__save_file_dir, direc,
-                                                                              all_modules, self.__yang_models,
+                                                                              self._save_file_dir, direc,
+                                                                              all_modules, self._yang_models,
                                                                               self.temp_dir, self.json_ytree)
                         complicated_algorithms.parse_non_requests()
                         complicated_algorithms.parse_requests()
                         complicated_algorithms.populate()
         except Exception:
-            final_response = self.__response_type[0]
+            final_response = self._response_type[0]
             self.LOGGER.exception('receiver.py failed')
         self.LOGGER.info('Receiver is done with id - {} and message = {}'
                          .format(properties.correlation_id, str(final_response)))
@@ -682,10 +642,10 @@ class Receiver:
         while True:
             try:
                 self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                    host=self.__rabbitmq_host,
-                    port=self.__rabbitmq_port,
+                    host=self._rabbitmq_host,
+                    port=self._rabbitmq_port,
                     heartbeat=10,
-                    credentials=self.__rabbitmq_credentials))
+                    credentials=self._rabbitmq_credentials))
                 self.channel = self.connection.channel()
                 self.channel.queue_declare(queue='module_queue')
 
@@ -699,15 +659,17 @@ class Receiver:
                 self.LOGGER.exception('Exception: {}'.format(str(e)))
                 time.sleep(10)
                 try:
-                    self.channel.close()
+                    if self.channel:
+                        self.channel.close()
                 except Exception:
                     pass
                 try:
-                    self.connection.close()
+                    if self.connection:
+                        self.connection.close()
                 except Exception:
                     pass
 
-    def run_script(self, arguments: list):
+    def run_script(self, arguments: t.List[str]) -> str:
         module_name = arguments[0]
         script_name = arguments[1]
         body_input = json.loads(arguments[2])
@@ -725,16 +687,16 @@ class Receiver:
             self.LOGGER.info('Runnning {}.py script with following configuration:\n{}'.format(
                 script_name, script_conf.args.__dict__))
             submodule.main(scriptConf=script_conf)
-            return self.__response_type[1]
+            return self._response_type[1]
         except Exception:
             self.LOGGER.exception('Server error while running {} script'.format(script_name))
-            return self.__response_type[0]
+            return self._response_type[0]
 
-    def run_ping(self, message: str):
+    def run_ping(self, message: str) -> str:
         if message == 'ping':
-            return self.__response_type[1]
+            return self._response_type[1]
         else:
-            return self.__response_type[0]
+            return self._response_type[0]
 
 
 if __name__ == '__main__':

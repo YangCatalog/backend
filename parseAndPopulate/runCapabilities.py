@@ -205,5 +205,5 @@ def main(scriptConf=None):
         fileHasher.dump_tmp_hashed_files_list(fileHasher.updated_hashes, args.json_dir)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
