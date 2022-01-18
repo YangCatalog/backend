@@ -1,4 +1,5 @@
 MAILTO=<MAIL_TO>
+PYTHONPATH=/backend:/backend/bin/python
 SHELL=/bin/bash
 YANGCATALOG_CONFIG_PATH=<YANGCATALOG_CONFIG_PATH>
 #
@@ -19,5 +20,5 @@ YANGCATALOG_CONFIG_PATH=<YANGCATALOG_CONFIG_PATH>
 5 22 * * * (cd ~ ; source bin/activate ; echo "`date` starting draftPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python draftPullLocal.py )
 17 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting recovery" >> /var/yang/logs/crons-log.log ; cd  recovery ; python recovery.py)
 30 15 * * * (cd ~ ; source bin/activate ; echo "`date` starting removeUnused" >> /var/yang/logs/crons-log.log ; cd  utility ; python removeUnused.py)
-*/3 * * * * (cd ~ ; source bin/activate ;  export PYTHONPATH=${PYTHONPATH}:/backend ; cd  elasticsearchIndexing ; python process-changed-mods.py)
+*/3 * * * * (cd ~ ; source bin/activate ; cd  elasticsearchIndexing ; python process-changed-mods.py)
 */30 * * * * (cd ~ ; source bin/activate ; cd utility ; python confdFullCheck.py)
