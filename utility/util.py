@@ -58,6 +58,14 @@ def get_curr_dir(path: str):
         return cur_dir
 
 
+def find_files(directory: str, pattern: str):
+    for root, _, files in os.walk(directory):
+        for basename in files:
+            if fnmatch.fnmatch(basename, pattern):
+                filename = os.path.join(root, basename)
+                yield root, filename
+
+
 def find_first_file(directory: str, pattern: str,
                     pattern_with_revision: str, yang_models_dir: str = '') -> t.Optional[str]:
     """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
@@ -67,7 +75,7 @@ def find_first_file(directory: str, pattern: str,
         :param pattern                  (str) name of the yang file
         :param pattern_with_revision    (str) name and revision of the module in format <name>@<revision>
         :param yang_models_dir          (str) path to the directory where YangModels/yang repo is cloned
-        :return path to current directory
+        :return                         (str) path to matched file
     """
     def match_file(directory, pattern) -> t.Optional[str]:
         for root, _, files in os.walk(directory):

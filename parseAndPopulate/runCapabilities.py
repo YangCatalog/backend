@@ -26,7 +26,6 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import fnmatch
 import os
 import time
 import typing as t
@@ -37,6 +36,7 @@ from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.prepare import Prepare
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.util import find_files
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -116,14 +116,6 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def find_files(directory: str, pattern: str):
-    for root, _, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
-                yield filename
-
-
 def main(scriptConf=None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
@@ -175,7 +167,8 @@ def main(scriptConf=None):
     else:
         patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']
         for pattern in patterns:
-            for filename in find_files(args.dir, pattern):
+            for root, basename in find_files(args.dir, pattern):
+                filename = os.path.join(root, basename)
                 LOGGER.info('Found xml source {}'.format(filename))
 
                 capability = Capability(log_directory, filename,
