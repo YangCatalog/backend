@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import datetime
 import fnmatch
@@ -59,11 +59,18 @@ def get_curr_dir(path: str):
 
 
 def find_files(directory: str, pattern: str):
+    """Generator that yields files matching a patern
+    
+    Arguments:
+        :param directory    directory in which to search
+        :param pattern      a unix shell style pattern
+        :yield              a tuple of the containing directory and the path to the matching file
+    """
     for root, _, files in os.walk(directory):
         for basename in files:
             if fnmatch.fnmatch(basename, pattern):
-                filename = os.path.join(root, basename)
-                yield root, filename
+                path = os.path.join(root, basename)
+                yield root, path
 
 
 def find_first_file(directory: str, pattern: str,
@@ -498,6 +505,13 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
 
 
 def get_list_of_backups(directory: str) -> t.List[str]:
+    """Get a sorted list of backup file or directory names in a directory.
+    Backups are identified by matching backup date format.
+
+    Arguments:
+        :param directory    directory in with to search
+        :return             sorted list of file/directory names
+    """
     dates: t.List[str] = []
     for name in os.listdir(directory):
         try:
