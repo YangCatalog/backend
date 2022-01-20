@@ -51,7 +51,7 @@ class ScriptConfig(BaseScriptConfig):
         api_host = config.get('Web-Section', 'ip', fallback='localhost')
         credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
         help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
-            ' cronjob'
+               ' cronjob'
         args: t.List[Arg] = [
             {
                 'flag': '--credentials',

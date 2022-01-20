@@ -64,9 +64,9 @@ class ScriptConfig(BaseScriptConfig):
         api_host = config.get('Web-Section', 'ip')
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
-        help = 'Parse hello messages and YANG files to JSON dictionary. These ' \
-               'dictionaries are used for populating a yangcatalog. This script runs ' \
-               'first a runCapabilities.py script to create a JSON files which are ' \
+        help = 'Parse hello messages and YANG files to a JSON dictionary. These ' \
+               'dictionaries are used for populating the yangcatalog. This script first ' \
+               'runs the runCapabilities.py script to create JSON files which are ' \
                'used to populate database.'
         args: t.List[Arg] = [
             {

@@ -391,8 +391,8 @@ class Capability:
                 try:
                     yang = Modules(self.yang_models_dir, self.log_directory,
                                    '/'.join(self.split), self.html_result_dir,
-                                   self.parsed_jsons, self.json_dir, True, True,
-                                   yang_lib_info)
+                                   self.parsed_jsons, self.json_dir, is_vendor=True, is_yang_lib=True,
+                                   data=yang_lib_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
@@ -443,10 +443,10 @@ class Capability:
                 platforms = data.get('platforms', {}).get('platform', [])
             for implementation in platforms:
                 if implementation['module-list-file']['path'] in self.hello_message_file:
-                    caps = implementation.get('netconf-capabilities')
-                    if caps:
+                    metadata_capabilities = implementation.get('netconf-capabilities')
+                    if metadata_capabilities:
                         capabilities_exist = True
-                        for capability in caps:
+                        for capability in metadata_capabilities:
                             # Parse netconf version
                             if ':netconf:base:' in capability:
                                 netconf_version.append(capability)
@@ -492,7 +492,7 @@ class Capability:
                     try:
                         yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
                                        self.html_result_dir, self.parsed_jsons,
-                                       self.json_dir, True, data=module_and_more)
+                                       self.json_dir, is_vendor=True, data=module_and_more)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(module_name))
                         continue
