@@ -49,7 +49,7 @@ class RepoUtil(object):
         repo_temp = self
         remove_temp_repo = False
         if path is not None:
-            assert self.repo is not None
+            assert self.repo is not None, 'Git repo not itialized'
             for submodule in self.repo.submodules:
                 if submodule.path in path:
                     repo_temp = RepoUtil(submodule._url)
@@ -57,7 +57,7 @@ class RepoUtil(object):
                     remove_temp_repo = True
                     break
         try:
-            assert repo_temp.repo is not None
+            assert repo_temp.repo is not None, 'Submodule repo should have been initialized during clone'
             return repo_temp.repo.commit('origin/{}'.format(branch)).hexsha
         except:
             if self.logger:

@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 from flask import Blueprint, jsonify, make_response
 
@@ -45,6 +45,6 @@ def bad_request(e):
 
 @bp.app_errorhandler(409)
 def conflict(e):
-    """Return message that can not be resolved"""
+    """Return conflict error message"""
     return make_response(jsonify({'error': 'Conflict',
                                   'description': e.description}), 409)

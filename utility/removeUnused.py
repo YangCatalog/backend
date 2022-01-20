@@ -19,10 +19,10 @@ automatically removes unused diff files, yangsuite
 users and correlation ids.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import argparse
 import hashlib
@@ -31,11 +31,13 @@ import shutil
 import time
 from datetime import datetime as dt
 
+from elasticsearch import Elasticsearch
+
 import utility.log as log
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format
-from utility.util import job_log, get_list_of_backups
-from elasticsearch import Elasticsearch
+from utility.util import get_list_of_backups, job_log
+
 
 def represents_int(s):
     try:
@@ -73,7 +75,7 @@ if __name__ == '__main__':
     es_host = config.get('DB-Section', 'es-host')
     es_port = config.get('DB-Section', 'es-port')
     es_aws = config.get('DB-Section', 'es-aws')
-    #elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+    # elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
     LOGGER = log.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
     LOGGER.info('Starting Cron job remove unused files')
 
@@ -94,7 +96,7 @@ if __name__ == '__main__':
             if not abs.endswith('yangcat') and not abs.endswith('yang'):
                 try:
                     shutil.rmtree(abs)
-                except:
+                except Exception:
                     pass
 
         LOGGER.info('Removing old correlation ids')
@@ -109,10 +111,11 @@ if __name__ == '__main__':
         with open('{}/correlation_ids'.format(temp_dir), 'w') as filename:
             for line in lines:
                 line_datetime = line.split(' -')[0]
-                t = dt.strptime(line_datetime, "%a %b %d %H:%M:%S %Y")
+                t = dt.strptime(line_datetime, '%a %b %d %H:%M:%S %Y')
                 diff = dt.now() - t
                 if diff.days == 0:
                     filename.write(line)
+
         LOGGER.info('Removing old yangvalidator cache dirs')
         yang_validator_cache = os.path.join(temp_dir, 'yangvalidator')
         cutoff = current_time - 2*86400
@@ -121,18 +124,23 @@ if __name__ == '__main__':
             if dir.startswith('yangvalidator-v2-cache-'):
                 creation_time = os.path.getctime(os.path.join(yang_validator_cache, dir))
                 if creation_time < cutoff:
-                    shutil.rmtree(os.path.join(yang_validator_cache, dir))
-        #LOGGER.info('Removing old elasticsearch snapshots')
-        #if es_aws == 'True':
+                    try:
+                        shutil.rmtree(os.path.join(yang_validator_cache, dir))
+                    except PermissionError:
+                        LOGGER.exception('Problem while deleting {}'.format(dir))
+                        continue
+
+        # LOGGER.info('Removing old elasticsearch snapshots')
+        # if es_aws == 'True':
         #    es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
-        #else:
+        # else:
         #    es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
 
-        #create_register_elk_repo(repo_name, args.compress, es)
-        #snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
-        #sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))
+        # create_register_elk_repo(repo_name, args.compress, es)
+        # snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
+        # sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))
 
-        #for snapshot in sorted_snapshots[:-5]:
+        # for snapshot in sorted_snapshots[:-5]:
         #    es.snapshot.delete(repository=repo_name, snapshot=snapshot['snapshot'])
         def hash_file(path: str) -> bytes:
             buf_size = 65536  # lets read stuff in 64kB chunks!

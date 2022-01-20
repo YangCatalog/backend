@@ -117,7 +117,7 @@ def change_permissions_recursive(path: str):
     """ Change permissions of all the files and folders recursively to rwxrwxr--
 
     Argument:
-        :param path:     (str) path to file or folder we need to change permission on
+        :param path     (str) path to file or folder we need to change permission on
     """
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path, topdown=False):

@@ -86,7 +86,7 @@ class Modules:
 
         if is_vendor:
             if is_yang_lib:
-                assert isinstance(data, dict)
+                assert isinstance(data, dict), 'Wrong format of yang_lib data'
                 self.deviations = data['deviations']
                 self.features = data['features']
                 self.revision = data['revision']
@@ -94,7 +94,7 @@ class Modules:
                     self.revision = '*'
                 self._path = self._find_file(data['name'], self.revision)
             else:
-                assert isinstance(data, str)
+                assert isinstance(data, str), 'Wrong format of vendor data'
                 self.features = self._resolve_deviations_and_features('features=', data)
                 self.deviations = self._resolve_deviations_and_features('deviations=', data)
 

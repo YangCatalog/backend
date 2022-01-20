@@ -29,28 +29,29 @@ RUN groupadd -g ${YANG_GID} -r yang \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
 
-ENV PYTHONPATH=$VIRTUAL_ENV/bin/python
+ENV PYTHONPATH="$VIRTUAL_ENV:$VIRTUAL_ENV/bin/python"
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 ENV GIT_PYTHON_GIT_EXECUTABLE=/usr/bin/git
 
 WORKDIR $VIRTUAL_ENV
 
+RUN mkdir /var/run/yang
+RUN chown -R yang:yang /var/run/yang
+
+RUN mkdir -p /usr/share/nginx/html/stats
+RUN chown -R yang:yang /usr/share/nginx
+RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
+
 COPY ./backend/requirements.txt .
 RUN pip install -r requirements.txt
 
-COPY ./backend $VIRTUAL_ENV
-RUN ./setup.py install
+COPY --chown=yang:yang ./backend $VIRTUAL_ENV
 
 # Add crontab file in the cron directory
-COPY ./backend/crontab /etc/cron.d/yang-cron
+COPY --chown=yang:yang ./backend/crontab /etc/cron.d/yang-cron
 
-RUN mkdir /var/run/yang
-
-RUN chown yang:yang /etc/cron.d/yang-cron
 RUN sed -i "s|<MAIL_TO>|${CRON_MAIL_TO}|g" /etc/cron.d/yang-cron
 RUN sed -i "s|<YANGCATALOG_CONFIG_PATH>|${YANGCATALOG_CONFIG_PATH}|g" /etc/cron.d/yang-cron
-RUN chown -R yang:yang $VIRTUAL_ENV
-RUN chown -R yang:yang /var/run/yang
 
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
@@ -67,10 +68,6 @@ WORKDIR $VIRTUAL_ENV
 RUN crontab /etc/cron.d/yang-cron
 
 USER root:root
-RUN mkdir -p /usr/share/nginx/html/stats
-RUN chown -R yang:yang /usr/share/nginx
-RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
-
-CMD chown -R yang:yang /var/run/yang && cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
+CMD cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
 EXPOSE 3031

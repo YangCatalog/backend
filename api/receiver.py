@@ -520,9 +520,9 @@ class Receiver:
             pass
         self.LOGGER.info('Config loaded succesfully')
 
-    def on_request(self, ch, method, properties, body):
+    def on_request(self, channel, method, properties, body):
         process_reload_cache = multiprocessing.Process(
-            target=self.on_request_thread_safe, args=(ch, method, properties, body))
+            target=self.on_request_thread_safe, args=(properties, body))
         process_reload_cache.start()
 
     def on_request_thread_safe(self, properties, body_raw: bytes):
@@ -598,7 +598,7 @@ class Receiver:
                     direc = arguments[2]
                     shutil.rmtree(direc)
                 else:
-                    assert False
+                    assert False, 'Invalid request type'
 
                 if final_response.split('#split#')[0] == self._response_type[1]:
                     response = self.make_cache(credentials)
