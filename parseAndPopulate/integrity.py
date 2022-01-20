@@ -1,5 +1,4 @@
-# Copyright The IETF Trust 2019, All Rights Reserved
-# Copyright 2018 Cisco and its affiliates
+# Copyright The IETF Trust 2022, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,133 +13,164 @@
 # limitations under the License.
 
 """
-This class serves to create integrity of yang files.
-It stores all the missing modules that are not in
-the directory and are in xml file or modules that
-have incorrect namespace, or modules with missing
-revision or missing submodules or even if we have
-extra files in the vendor directory - meaning that
-we have yang files in the directory that are not
-mentioned in capability xml file and/or are not
-included or imported by some module.
+This script checks the integrity of yang files.
+Runs on a directory containing either sdo or vendor files.
+Child directories are also checked recursively.
+Issues detected by this script:
+- unspecified revisions in yang files
+- unspecified/invalid namespaces in yang files
+- missing dependencies of files
+Additionally, in the case of vendor files:
+- modules mentioned in capability files not present in the directory
+- modules in the directory not mentioned by capability files
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Richard Zilincik'
+__copyright__ = 'Copyright The IETF Trust 2022, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'richard.zilincik@pantheon.tech'
 
-import fnmatch
-import glob
+
+import json
 import os
+import typing as t
+import xml.etree.ElementTree as ET
+from collections import defaultdict
 
-import time
+from pyang.statements import Statement
+
+from utility import yangParser # Hopefully temporary. Think I can speed this up with regex.
+from utility.create_config import create_config
+from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import NS_MAP
+from utility.util import find_files, find_first_file
 
 
-def find_missing_hello(directory, pattern):
-    for root, dirs, files in os.walk(directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, pattern):
-                if not any(".xml" in name for name in files):
-                    yield root
+class ScriptConfig(BaseScriptConfig):
+
+    def __init__(self):
+        config = create_config()
+        help = ''
+        args: t.List[Arg] = [
+            {
+                'flag': '--sdo',
+                'help': 'If we are processing sdo or vendor yang modules',
+                'action': 'store_true',
+                'default': False
+            },
+            {
+                'flag': '--dir',
+                'help': 'Set directory where to look for hello message xml files',
+                'type': str,
+                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+            },
+            {
+                'flag': '--output',
+                'help': 'Output json file',
+                'type': str,
+                'default': 'integrity.json'
+            }
+        ]
+        self.yang_models = config.get('Directory-Section', 'yang-models-dir')
+        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-class Statistics:
-    useless_modules = {}
-    missing_modules = {}
-    missing_submodules = {}
-    missing_revision = {}
-    missing_wrong_namespaces = {}
-    unique_modules_per_vendor = set()
-    os = {}
+missing_revisions: t.Set[str] = set()
+missing_namespaces: t.Set[str] = set()
+missing_modules: t.Dict[str, t.Set[str]] = defaultdict(set)
+missing_submodules: t.Dict[str, t.Set[str]] = defaultdict(set)
 
-    def __init__(self, path):
-        Statistics.missing_modules[path] = set()
-        Statistics.missing_submodules[path] = set()
-        Statistics.missing_wrong_namespaces[path] = set()
-        Statistics.missing_revision[path] = set()
-        folder = path.split('/')
-        os_type = '/'.join(path.split('/')[:-2])
-        folder.remove(path.split('/')[-1])
-        folder = '/'.join(folder)
-        if os_type not in Statistics.os:
-            Statistics.os[os_type] = set()
-        if folder not in Statistics.useless_modules:
-            Statistics.useless_modules[folder] = glob.glob(folder + '/*.yang')
 
-    @staticmethod
-    def add_platform(os_type, platform):
-        Statistics.os[os_type] = platform
+def check_revision(parsed: Statement) -> bool:
+    try:
+        parsed.search('revision')[0].arg
+    except:
+        return False
+    return True
 
-    @staticmethod
-    def add_unique(modules_revision):
-        Statistics.unique_modules_per_vendor.update(set(modules_revision))
 
-    @staticmethod
-    def remove_one(key, value):
-        if key + '/' + value in Statistics.useless_modules[key]:
-            Statistics.useless_modules[key].remove(key + '/' + value)
+def check_namespace(parsed: Statement) -> bool:
+    try:
+        namespace = parsed.search('revision')[0].arg
+    except:
+        return False
+    for ns, _ in NS_MAP:
+        if (ns in namespace or 'url:' in namespace) and 'urn:cisco' not in namespace:
+            return True
+    return False
 
-    @staticmethod
-    def dumps(file, yang_models):
-        file.write('<!DOCTYPE html><html><body> <ul>'
-                   '<li>Generated on {}</li>'
-                   '</ul><h1>Yangcatalog statistics</h1>'
-                   .format(time.strftime("%d/%m/%y")))
-        file.write('<h3>YANG modules in directory but not present in any NETCONF hello message in that directory:</h3>')
-        for key in Statistics.useless_modules:
-            if len(Statistics.useless_modules[key]) > 0:
-                file.write('<h5>' + key + ':</h5>')
-                file.write('<p>' + ', '.join([value.split('/')[-1] for value in Statistics.useless_modules[key]])
-                           + '</p>')
-        file.write('<h3>YANG modules in NETCONF hello messages for a directory but the YANG modules is not present'
-                   + ' in that directory:</h3>')
-        for key in Statistics.missing_modules:
-            file.write('<h5>' + key + ':</h5>')
-            file.write('<p>' + ', '.join([value.split('/')[-1] for value in Statistics.missing_modules[key]]) + '</p>')
-        file.write('<h3>YANG modules in NETCONF hello messages for a directory but their'
-                   + ' submodules are missing:</h3>')
-        for key in Statistics.missing_submodules:
-            file.write('<h5>' + key + ':</h5>')
-            file.write('<p>' + ', '.join([value.split('/')[-1] for value in Statistics.missing_submodules[key]])
-                       + '</p>')
-        file.write('<h3>YANG modules in NETCONF hello messages for a directory but their'
-                   + ' revision date is missing:</h3>')
-        for key in Statistics.missing_revision:
-            file.write('<h5>' + key + ':</h5>')
-            file.write('<p>' + ', '.join([value.split('/')[-1] for value in Statistics.missing_revision[key]]) + '</p>')
 
-        file.write('<h3>YANG modules in NETCONF hello messages for a directory but their'
-                   + ' namespace is wrong or missing:</h3>')
-        for key in Statistics.missing_wrong_namespaces:
-            file.write('<h5>' + key + ':</h5>')
-            for value in Statistics.missing_wrong_namespaces[key]:
-                file.write('<p>' + str(value) + '</p>')
-        missing = []
-        my_files = find_missing_hello(yang_models + '/vendor/', '*.yang')
-        for name in set(my_files):
-            if '.incompatible' not in name and 'MIBS' not in name:
-                missing.append(name)
-        missing = ', '.join(missing).replace(yang_models, '')
-        file.write('<h3>Folders with yang files but missing hello message inside of file:</h3><p>' + missing + '</p>')
-        file.write('</body></html>')
+def check_dependencies(dep_type: str, parsed: Statement, directory: str, yang_models_dir: str) -> t.Set[str]:
+    missing_modules: t.Set[str] = set()
+    for dependency in parsed.search(dep_type):
+        name = dependency.arg
+        revisions = dependency.search('revision-date')
+        revision = revisions[0].arg if revisions else '*'
+        pattern = '{}.yang'.format(name)
+        pattern_with_revision = '{}@{}.yang'.format(name, revision)
+        if not find_first_file(directory, pattern, pattern_with_revision, yang_models_dir):
+            missing_modules.add(pattern_with_revision)
+    return missing_modules
 
-    @staticmethod
-    def add_submodule(path, value):
-        if len(value) > 0:
-            Statistics.missing_submodules[path].update(value)
 
-    @staticmethod
-    def add_module(path, value):
-        if len(value) > 0:
-            Statistics.missing_modules[path].update(value)
+def check(path: str, directory: str, yang_models_dir: str):
+    parsed = yangParser.parse(path)
+    if parsed is None:
+        return
+    if not check_revision(parsed):
+        missing_revisions.add(path)
+    if not check_namespace(parsed):
+        missing_namespaces.add(path)
+    missing_modules[path] |= check_dependencies('import', parsed, directory, yang_models_dir)
+    missing_submodules[path] |= check_dependencies('include', parsed, directory, yang_models_dir)
 
-    @staticmethod
-    def add_namespace(path, value):
-        if value:
-            Statistics.missing_wrong_namespaces[path] = value
 
-    @staticmethod
-    def add_revision(path, value):
-        if value:
-            Statistics.missing_revision[path] = value
+def capabilities_to_modules(capabilities: str) -> t.List[str]:
+    modules: t.List[str] = []
+    deviation_modules: t.Set[str] = set()
+    root = ET.parse(capabilities).getroot()
+    namespace = root.tag.split('hello')[0]
+    for capability in root.iter('{}capability'.format(namespace)):
+        if capability.text:
+            modules.append(capability.text.split('module=')[1].split('&')[0])
+            deviation_modules.update(capability.text.split('deviations=')[1].split('&')[0].split(','))
+    modules += list(deviation_modules)
+    return modules
+
+
+def main(scriptConf: t.Optional[ScriptConfig] = None):
+    if scriptConf is None:
+        scriptConf = ScriptConfig()
+    args = scriptConf.args
+    unused_modules: t.Dict[str, t.Set[str]] = {}
+    if args.sdo:
+        for root, _, files in os.walk(args.dir):
+            for filename in files:
+                if filename.endswith('.yang'):
+                    check(os.path.join(root, filename), root, scriptConf.yang_models)
+    else:
+        for root, capabilities in find_files(args.dir, '*capabilit*.xml'):
+            files_in_dir = os.listdir(root)
+            if root not in unused_modules:
+                unused_modules[root] = {file for file in files_in_dir if file.endswith('.yang')}
+            modules = capabilities_to_modules(capabilities)
+            for module in modules:
+                filename = '{}.yang'.format(module)
+                unused_modules[root].discard(filename)
+                if filename in files_in_dir:
+                    check(os.path.join(root, filename), root, scriptConf.yang_models)
+                else:
+                    missing_modules[os.path.join(root, capabilities)].add(filename)
+
+    report = {
+        'missing-revisions': list(missing_revisions),
+        'missing-modules': {key: list(value) for key, value in missing_modules.items()},
+        'missing-submodules': {key: list(value) for key, value in missing_submodules.items()},
+        'unused-modules': {key: list(value) for key, value in unused_modules.items()}
+    }
+    with open(args.output, 'w') as f:
+        json.dump(report, f)
+
+
+if __name__ == '__main__':
+    main()
