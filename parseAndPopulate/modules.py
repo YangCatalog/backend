@@ -46,9 +46,10 @@ from parseAndPopulate.parseException import ParseException
 
 
 class Modules:
+
     def __init__(self, yang_models_dir: str, log_directory: str, path: str, html_result_dir: str, jsons: LoadFiles,
                  temp_dir: str, is_vendor: bool = False, is_yang_lib: bool = False,
-                 data: t.Union[dict, str, None] = None, is_vendor_imp_inc: bool = False, run_integrity: bool = False):
+                 data: t.Union[dict, str, None] = None, is_vendor_imp_inc: bool = False):
         """
         Preset Modules class to parse yang module and save data to it.
         :param yang_models_dir:     (str) directory with all yang modules from
@@ -67,20 +68,12 @@ class Modules:
         :param data:                (dict) data from yang_lib capability file with additional
                                     information
         :param is_vendor_imp_inc:   (bool) Obsolete
-        :param run_integrity        (bool) if we are running integrity as well. If true
-                                    part of the data parsed are not needed and therefor not
-                                    parsed
         """
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(log_directory))
         config = create_config()
         self._web_uri = config.get('Web-Section', 'my-uri', fallback='https://yangcatalog.org')
-        self.run_integrity = run_integrity
         self._temp_dir = temp_dir
-        self._missing_submodules = []
-        self._missing_modules = []
-        self._missing_namespace = None
-        self._missing_revision = None
         self.is_yang_lib = is_yang_lib
         self.html_result_dir = html_result_dir
         self.jsons = jsons
@@ -206,21 +199,20 @@ class Modules:
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in keys:
             return
-        if not self.run_integrity:
-            self._save_file(to)
-            self._resolve_generated_from(generated_from)
-            self._resolve_compilation_status_and_result()
-            self._resolve_yang_version()
-            self._resolve_prefix()
-            self._resolve_contact()
-            self._resolve_description()
-            self._resolve_document_name_and_reference(document_name, reference)
-            self._resolve_tree()
-            self._resolve_module_classification(module_classification)
-            self._resolve_working_group()
-            self._resolve_author_email(author_email)
-            self._resolve_maturity_level(maturity_level)
-            self._resolve_semver()
+        self._save_file(to)
+        self._resolve_generated_from(generated_from)
+        self._resolve_compilation_status_and_result()
+        self._resolve_yang_version()
+        self._resolve_prefix()
+        self._resolve_contact()
+        self._resolve_description()
+        self._resolve_document_name_and_reference(document_name, reference)
+        self._resolve_tree()
+        self._resolve_module_classification(module_classification)
+        self._resolve_working_group()
+        self._resolve_author_email(author_email)
+        self._resolve_maturity_level(maturity_level)
+        self._resolve_semver()
         del self.jsons
 
     def _resolve_tree(self):
@@ -304,7 +296,7 @@ class Modules:
             return
 
     def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
-                               capabilities: list, netconf_version: list, integrity_checker, split: list):
+                               capabilities: list, netconf_version: list, split: list):
         """
         If parsing Cisco modules, implementation details are stored in platform_metadata.json file.
         Method add Cisco vendor information to Module
@@ -312,7 +304,6 @@ class Modules:
         :param conformance_type:    (list) string representing conformance type of module
         :param capabilities:        (list) set of netconf capabilities loaded from platform_metadata.json
         :param netconf_version:     (set) set of netconf versions loaded from platform_metadata.json
-        :param integrity_checker:   (obj) integrity checker object
         :param split:               (list) path to .xml capabalities files splitted by character "/"
         """
         for data in platform_data:
@@ -346,8 +337,6 @@ class Modules:
                         try:
                             s = yang_file.split('/')
                             key = '/'.join(split[0:-1])
-                            if self.run_integrity:
-                                integrity_checker.mark_used(key, s[-1])
                             dev.revision = yangParser.parse(os.path.abspath(yang_file)) \
                                 .search('revision')[0].arg
                         except:
@@ -370,7 +359,6 @@ class Modules:
             try:
                 self.revision = self._parsed_yang.search('revision')[0].arg
             except:
-                self._missing_revision = self.name
                 self.revision = '1970-01-01'
             rev_parts = self.revision.split('-')
             try:
@@ -381,7 +369,6 @@ class Modules:
                         self.revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
                 except ValueError:
                     self.revision = '1970-01-01'
-                    self._missing_revision = self.name
 
     def _resolve_schema(self, schema, git_commit_hash, schema_start):
         LOGGER.debug('Resolving schema')
@@ -675,8 +662,6 @@ class Modules:
     def _resolve_namespace(self):
         LOGGER.debug('Resolving namespace')
         self.namespace = self._resolve_submodule_case('namespace')
-        if self.namespace == MISSING_ELEMENT:
-            self._missing_namespace = '{} : {}'.format(self.name, MISSING_ELEMENT)
 
     def _resolve_belongs_to(self):
         LOGGER.debug('Resolving belongs to')
@@ -927,11 +912,6 @@ class Modules:
         pattern = '{}.yang'.format(name)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
         yang_file = find_first_file('/'.join(self._path.split('/')[0:-1]), pattern, pattern_with_revision, self.yang_models)
-        if yang_file is None:
-            if submodule:
-                self._missing_submodules.append(name)
-            else:
-                self._missing_modules.append(name)
         return yang_file
 
     class Submodules:
@@ -966,24 +946,3 @@ class Modules:
                 self.name = None
                 self.revision = None
                 self.schema = None
-
-    # Currently deprecated and not used
-    def resolve_integrity(self, integrity_checker, split):
-        key = '/'.join(split[0:-1])
-        key2 = '{}/{}'.format(key, split[-1])
-        if self.name not in self._missing_modules:
-            integrity_checker.mark_used(key, self._path.split('/')[-1])
-        integrity_checker.add_submodules(key2, self._missing_submodules)
-        integrity_checker.add_modules(key2, self._missing_modules)
-        integrity_checker.add_revision(key2, self._missing_revision)
-
-        if self._missing_namespace is None:
-            for ns, _ in NS_MAP:
-                if (ns not in self.namespace and 'urn:' not in self.namespace) \
-                        or 'urn:cisco' in self.namespace:
-                    self._missing_namespace = '{} : {}'.format(self.name, self.namespace)
-                else:
-                    self._missing_namespace = None
-                    break
-
-        integrity_checker.add_namespace(key2, self._missing_namespace)
