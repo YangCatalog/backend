@@ -29,12 +29,13 @@ import time
 import typing as t
 
 import requests
-
 import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import json_headers
 from utility.util import job_log
+
 
 class ScriptConfig(BaseScriptConfig):
 
@@ -59,7 +60,7 @@ def resolve_revision(yang_file):
     try:
         parsed_yang = yangParser.parse(os.path.abspath(yang_file))
         revision = parsed_yang.search('revision')[0].arg
-    except:
+    except Exception:
         revision = '1970-01-01'
     return revision
 
@@ -82,7 +83,7 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
-    LOGGER = log.get_logger('openconfigPullLocal', log_directory + '/jobs/openconfig-pull.log')
+    LOGGER = log.get_logger('openconfigPullLocal', '{}/jobs/openconfig-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job openconfig pull request local')
 
     separator = ':'
@@ -122,7 +123,7 @@ def main(scriptConf=None):
                     modules.append(mod)
         output = json.dumps({'modules': {'module': modules}})
     except Exception as e:
-        LOGGER.error('Exception found while running openconfigPullLocal script')
+        LOGGER.exception('Exception found while running openconfigPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         if repo is not None:
             repo.remove()
@@ -130,8 +131,7 @@ def main(scriptConf=None):
     repo.remove()
     LOGGER.debug(output)
     api_path = '{}modules'.format(yangcatalog_api_prefix)
-    response = requests.put(api_path, output, auth=(credentials[0], credentials[1]),
-                  headers={'Content-Type': 'application/json'})
+    response = requests.put(api_path, output, auth=(credentials[0], credentials[1]), headers=json_headers)
 
     status_code = response.status_code
     payload = json.loads(response.text)
@@ -141,11 +141,11 @@ def main(scriptConf=None):
         LOGGER.info('Job finished, but an error occured while sending PUT to /api/modules')
     else:
         messages = [
-            { 'label': 'Job ID', 'message': payload['job-id'] }
+            {'label': 'Job ID', 'message': payload['job-id']}
         ]
         job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
         LOGGER.info('Job finished successfully')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
