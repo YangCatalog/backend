@@ -68,8 +68,7 @@ class TestCapabilityClass(unittest.TestCase):
         sdo = True
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_sdo(repo)
@@ -101,8 +100,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, path, prepare,
-                                None, api, sdo, json_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, path, prepare, api, sdo, json_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_sdo(repo)
@@ -135,8 +133,7 @@ class TestCapabilityClass(unittest.TestCase):
         sdo = True
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_sdo(repo)
@@ -181,8 +178,7 @@ class TestCapabilityClass(unittest.TestCase):
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, xml_path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, xml_path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_vendor()
@@ -222,8 +218,7 @@ class TestCapabilityClass(unittest.TestCase):
             print(line.replace('&amp;', '&'), end='')
         hello_file.close()
 
-        capability = Capability(yc_gc.logs_dir, xml_path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, xml_path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         self.assertEqual(capability.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
@@ -237,8 +232,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, xml_path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, xml_path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         platform_data = capability.platform_data
@@ -260,8 +254,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, xml_path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, xml_path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         platform_data = capability.platform_data
@@ -283,8 +276,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, xml_path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, xml_path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         platform_data = capability.platform_data
@@ -314,8 +306,7 @@ class TestCapabilityClass(unittest.TestCase):
         sdo = False
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = Capability(yc_gc.logs_dir, xml_path, prepare,
-                                None, api, sdo, self.tmp_dir, yc_gc.result_dir,
+        capability = Capability(yc_gc.logs_dir, xml_path, prepare, api, sdo, self.tmp_dir, yc_gc.result_dir,
                                 yc_gc.save_file_dir, self.test_private_dir, yc_gc.yang_models, self.fileHasher)
 
         capability.parse_and_dump_yang_lib()
@@ -361,7 +352,7 @@ class TestCapabilityClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
                        yc_gc.result_dir, parsed_jsons, self.tmp_dir)
-        yang.parse_all('master', module_name, {}, schema,
+        yang.parse_all('master', module_name, set(), schema,
                        None, yc_gc.save_file_dir)
 
         return yang

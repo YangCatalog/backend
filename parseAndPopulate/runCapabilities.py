@@ -151,13 +151,13 @@ def main(scriptConf=None):
 
             xml_path = '{}/yang-parameters.xml'.format(args.dir)
             capability = Capability(log_directory, xml_path, prepare,
-                                    None, args.api, args.sdo,
+                                    args.api, args.sdo,
                                     args.json_dir, args.result_html_dir,
                                     args.save_file_dir, private_dir, yang_models, fileHasher)
             capability.parse_and_dump_iana()
         else:
             capability = Capability(log_directory, args.dir, prepare,
-                                    None, args.api, args.sdo,
+                                    args.api, args.sdo,
                                     args.json_dir, args.result_html_dir,
                                     args.save_file_dir, private_dir, yang_models, fileHasher)
             LOGGER.info('Starting to parse files in sdo directory')
@@ -172,8 +172,7 @@ def main(scriptConf=None):
                 LOGGER.info('Found xml source {}'.format(filename))
 
                 capability = Capability(log_directory, filename,
-                                        prepare,
-                                        None, args.api,
+                                        prepare, args.api,
                                         args.sdo, args.json_dir,
                                         args.result_html_dir,
                                         args.save_file_dir,
@@ -186,7 +185,7 @@ def main(scriptConf=None):
                     try:
                         capability.parse_and_dump_vendor()
                     except Exception as e:
-                        LOGGER.warning('Skipping {}, error while parsing:\n{}'.format(filename, e))
+                        LOGGER.exception('Skipping {}, error while parsing'.format(filename))
         prepare.dump_modules(args.json_dir)
         prepare.dump_vendors(args.json_dir)
 

@@ -178,7 +178,6 @@ class TestPrepareClass(unittest.TestCase):
                                     'implement',
                                     netconf_capabilities,
                                     netconf_version,
-                                    None,
                                     xml_path.split('/'))
         # Prepare object
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -205,7 +204,7 @@ class TestPrepareClass(unittest.TestCase):
         yang = self.declare_sdo_module()
 
         # Clear dependencies property to test functionality of __get_dependencies() method
-        yang.dependencies = None
+        yang.dependencies = []
 
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
         prepare.add_key_sdo_module(yang)
@@ -232,12 +231,11 @@ class TestPrepareClass(unittest.TestCase):
                                     'implement',
                                     netconf_capabilities,
                                     netconf_version,
-                                    None,
                                     xml_path.split('/'))
 
         # Clear deviations property to test functionality of __get_deviations() method
-        for implementation in yang.implementation:
-            implementation.deviations = None
+        for implementation in yang.implementations:
+            implementation.deviations = []
 
         # Prepare object
         prepare = Prepare(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -267,7 +265,7 @@ class TestPrepareClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
                        yc_gc.result_dir, parsed_jsons, self.tmp_dir)
-        yang.parse_all('master', self.sdo_module_name, {}, self.schema,
+        yang.parse_all('master', self.sdo_module_name, set(), self.schema,
                        None, yc_gc.save_file_dir)
 
         return yang
@@ -286,8 +284,7 @@ class TestPrepareClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
                        parsed_jsons, self.tmp_dir, is_vendor=True, data=yang_lib_data)
-        yang.parse_all('master', module_name, {},
-                       '', None, yc_gc.save_file_dir)
+        yang.parse_all('master', module_name, set(), '', None, yc_gc.save_file_dir)
 
         return yang
 
@@ -298,7 +295,8 @@ class TestPrepareClass(unittest.TestCase):
         :param xml_path         (str) Absolute path of selected .xml file
         """
         platform_data = []
-        netconf_version = netconf_capabilities = set()
+        netconf_version = []
+        netconf_capabilities = []
 
         with open('/'.join(xml_path.split('/')[:-1]) + '/platform-metadata.json', 'r', encoding='utf-8') as f:
             file_content = json.load(f)
@@ -309,7 +307,7 @@ class TestPrepareClass(unittest.TestCase):
                                       'platform': platform['name'],
                                       'os-version': platform['software-version'],
                                       'software-version': platform['software-version'],
-                                      'feature-set': "ALL",
+                                      'feature-set': 'ALL',
                                       'vendor': platform['vendor'],
                                       'os': platform['os-type']})
                 if 'netconf-capabilities' in platform:

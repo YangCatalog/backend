@@ -55,7 +55,7 @@ class TestModulesClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
                        yc_gc.result_dir, self.parsed_jsons, self.tmp_dir)
-        yang.parse_all('master', self.sdo_module_name, {},
+        yang.parse_all('master', self.sdo_module_name, set(),
                        self.schema, None, yc_gc.save_file_dir)
 
         self.assertEqual(yang.document_name, 'rfc6991')
@@ -108,7 +108,7 @@ class TestModulesClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
                        self.parsed_jsons, self.tmp_dir, is_vendor=True, data=yang_lib_data)
-        yang.parse_all('master', module_name, {},
+        yang.parse_all('master', module_name, set(),
                        '', None, yc_gc.save_file_dir)
 
         self.assertEqual(yang.document_name, 'rfc8341')
@@ -138,18 +138,17 @@ class TestModulesClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
                        self.parsed_jsons, self.tmp_dir, is_vendor=True, data=yang_lib_data)
-        yang.parse_all('master', module_name, {},
+        yang.parse_all('master', module_name, set(),
                        '', None, yc_gc.save_file_dir)
         yang.add_vendor_information(platform_data,
                                     'implement',
                                     netconf_capabilities,
                                     netconf_version,
-                                    None,
                                     xml_path.split('/'))
 
-        self.assertNotEqual(len(yang.implementation), 0)
+        self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
-        for implementation, platform in zip(yang.implementation, platform_data):
+        for implementation, platform in zip(yang.implementations, platform_data):
             self.assertEqual(implementation.feature_set, platform['feature-set'])
             self.assertEqual(implementation.netconf_version, netconf_version)
             self.assertEqual(implementation.os_type, platform['os'])
@@ -181,19 +180,18 @@ class TestModulesClass(unittest.TestCase):
 
         yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
                        self.parsed_jsons, self.tmp_dir, True, True, yang_lib_info)
-        yang.parse_all('master', module_name, {},
+        yang.parse_all('master', module_name, set(),
                        schema_part, None, yc_gc.save_file_dir)
 
         yang.add_vendor_information(platform_data,
                                     'implement',
                                     netconf_capabilities,
                                     netconf_version,
-                                    None,
                                     xml_path.split('/'))
 
-        self.assertNotEqual(len(yang.implementation), 0)
+        self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
-        for implementation, platform in zip(yang.implementation, platform_data):
+        for implementation, platform in zip(yang.implementations, platform_data):
             self.assertEqual(implementation.feature_set, platform['feature-set'])
             self.assertEqual(implementation.netconf_version, netconf_version)
             self.assertEqual(implementation.os_type, platform['os'])
@@ -215,7 +213,8 @@ class TestModulesClass(unittest.TestCase):
         :param platform_name    (str) Name of platform to find
         """
         platform_data = []
-        netconf_version = netconf_capabilities = set()
+        netconf_version = []
+        netconf_capabilities = []
 
         with open('/'.join(xml_path.split('/')[:-1]) + '/platform-metadata.json', 'r', encoding='utf-8') as f:
             file_content = json.load(f)
