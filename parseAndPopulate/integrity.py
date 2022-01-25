@@ -36,6 +36,7 @@ import os
 import typing as t
 import xml.etree.ElementTree as ET
 from collections import defaultdict
+from datetime import date
 
 from pyang.statements import Statement
 
@@ -83,9 +84,21 @@ missing_submodules: t.Dict[str, t.Set[str]] = defaultdict(set)
 
 def check_revision(parsed: Statement) -> bool:
     try:
-        parsed.search('revision')[0].arg
+        revision = parsed.search('revision')[0].arg
     except:
         return False
+    revision_parts = [int(i) for i in revision.split('-')]
+    try:
+        date(*revision_parts)
+    except:
+        if revision_parts[1:] == [2, 29]:
+            revision_parts[2] = 28
+            try:
+                date(*revision_parts)
+            except:
+                return False
+        else:
+            return False
     return True
 
 
@@ -94,9 +107,13 @@ def check_namespace(parsed: Statement) -> bool:
         namespace = parsed.search('revision')[0].arg
     except:
         return False
+    if 'urn:cisco' in namespace:
+        return False
+    if 'urn:' in namespace:
+        return True
     for ns, _ in NS_MAP:
-        if (ns in namespace or 'url:' in namespace) and 'urn:cisco' not in namespace:
-            return True
+        if ns in namespace:
+                return True
     return False
 
 
