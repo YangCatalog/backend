@@ -21,7 +21,6 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 
-import redis
 import utility.log as log
 from redis import Redis
 from utility.create_config import create_config
@@ -228,17 +227,21 @@ class RedisConnection:
         for vendor_key in self.vendorsDB.scan_iter():
             key = vendor_key.decode('utf-8')
             if key != 'vendors-data' and searched_key in key:
-                data = self.vendorsDB.get(key)
-                redis_vendors_raw = (data or b'{}').decode('utf-8')
-                redis_vendor_data = json.loads(redis_vendors_raw)
-                vendor_name, platform_name, software_version_name, software_flavor_name = key.replace('#', ' ').split('/')
-                # Build up an object from bottom
-                software_flavor = {'name': software_flavor_name, **redis_vendor_data}
-                software_version = {'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}}
-                platform = {'name': platform_name, 'software-versions': {'software-version': [software_version]}}
-                vendor = {'name': vendor_name, 'platforms': {'platform': [platform]}}
-                new_data = {'yang-catalog:vendor': [vendor]}
-                self.merge_data(vendors_data, new_data)
+                try:
+                    data = self.vendorsDB.get(key)
+                    redis_vendors_raw = (data or b'{}').decode('utf-8')
+                    redis_vendor_data = json.loads(redis_vendors_raw)
+                    vendor_name, platform_name, software_version_name, software_flavor_name = key.replace('#', ' ').split('/')
+                    # Build up an object from bottom
+                    software_flavor = {'name': software_flavor_name, **redis_vendor_data}
+                    software_version = {'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}}
+                    platform = {'name': platform_name, 'software-versions': {'software-version': [software_version]}}
+                    vendor = {'name': vendor_name, 'platforms': {'platform': [platform]}}
+                    new_data = {'yang-catalog:vendor': [vendor]}
+                    self.merge_data(vendors_data, new_data)
+                except Exception:
+                    self.LOGGER.exception('Problem while creating vendor dict')
+                    continue
         return vendors_data['yang-catalog:vendor']
 
     def delete_vendor(self, vendor_key: str):

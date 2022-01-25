@@ -18,16 +18,18 @@ to ConfD database. Result of the script run will be logged into
 cronjob.json. This result then may be viewed in Admin UI.
 """
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
 import random
 import string
 import time
+
+from redisConnections.redisConnection import RedisConnection
 
 import utility.log as log
 from utility import confdService
@@ -41,36 +43,34 @@ if __name__ == '__main__':
     logs_dir = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
 
-    LOGGER = log.get_logger('healthcheck', '{}/healthcheck.log'.format(logs_dir))
+    LOGGER = log.get_logger('healthcheck', os.path.join(logs_dir, 'healthcheck.log'))
     messages = []
     letters = string.ascii_letters
     suffix = ''.join(random.choice(letters) for i in range(6))
     check_module_name = 'confd-full-check-{}'.format(suffix)
     confdService = confdService.ConfdService()
+    confdService.delete_modules()
+    confdService.delete_vendors()
 
     LOGGER.info('Running confdFullCheck')
     try:
-        # GET
-        result = {}
-        result['label'] = 'GET yang-catalog@2018-04-03'
-        module_key = 'yang-catalog,2018-04-03,ietf'
-        response = confdService.get_module(module_key)
+        redisConnection = RedisConnection()
+        yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
+        module = json.loads(yang_catalog_module)
+        error = confdService.patch_modules([module])
 
-        if response.status_code == 200:
-            module = json.loads(response.text)
-            result['message'] = '{} OK'.format(response.status_code)
+        if error:
+            LOGGER.error('Error occurred while patching yang-catalog@2018-04-03/ietf module')
         else:
-            LOGGER.info('Cannot get yang-catalog@2018-04-03 module from ConfD')
-            result['message'] = '{} NOT OK'.format(response.status_code)
-        messages.append(result)
+            LOGGER.info('yang-catalog@2018-04-03/ietf patched successfully')
 
         # Change module name to be used only for this check - to not affect real module
-        module['yang-catalog:module'][0]['name'] = check_module_name
+        module['name'] = check_module_name
 
         # PATCH
         result = {}
         result['label'] = 'PATCH {}@2018-04-03'.format(check_module_name)
-        errors = confdService.patch_modules([module['yang-catalog:module'][0]])
+        errors = confdService.patch_modules([module])
 
         if not errors:
             result['message'] = 'OK'

@@ -264,9 +264,9 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list]
                 data = response.json()
                 modules = data['yang-catalog:modules']['module']
                 for mod in modules:
-                    module_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
-                    confdService = ConfdService()
-                    confdService.delete_dependent(module_key, name)
+                    # module_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+                    # confdService = ConfdService()
+                    # confdService.delete_dependent(module_key, name)
                     redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
                     redisConnection = RedisConnection()
                     redisConnection.delete_dependent(redis_key, name)
