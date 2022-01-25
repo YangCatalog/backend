@@ -148,7 +148,7 @@ def capabilities_to_modules(capabilities: str) -> t.List[str]:
     root = ET.parse(capabilities).getroot()
     namespace = root.tag.split('hello')[0]
     for capability in root.iter('{}capability'.format(namespace)):
-        if capability.text:
+        if capability.text and 'module=' in capability.text:
             modules.append(capability.text.split('module=')[1].split('&')[0])
             deviation_modules.update(capability.text.split('deviations=')[1].split('&')[0].split(','))
     modules += list(deviation_modules)
