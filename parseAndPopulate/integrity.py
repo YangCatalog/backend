@@ -35,7 +35,7 @@ import json
 import os
 import typing as t
 import xml.etree.ElementTree as ET
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import date
 
 from pyang.statements import Statement
@@ -80,11 +80,12 @@ missing_revisions: t.Set[str] = set()
 missing_namespaces: t.Set[str] = set()
 missing_modules: t.Dict[str, t.Set[str]] = defaultdict(set)
 missing_submodules: t.Dict[str, t.Set[str]] = defaultdict(set)
+unused_modules: t.Dict[str, t.Set[str]] = defaultdict(set)
 
 
-def check_revision(parsed: Statement) -> bool:
+def check_revision(parsed_module: Statement) -> bool:
     try:
-        revision = parsed.search('revision')[0].arg
+        revision = parsed_module.search('revision')[0].arg
     except:
         return False
     revision_parts = [int(i) for i in revision.split('-')]
@@ -102,9 +103,9 @@ def check_revision(parsed: Statement) -> bool:
     return True
 
 
-def check_namespace(parsed: Statement) -> bool:
+def check_namespace(parsed_module: Statement) -> bool:
     try:
-        namespace = parsed.search('revision')[0].arg
+        namespace = parsed_module.search('revision')[0].arg
     except:
         return False
     if 'urn:cisco' in namespace:
@@ -117,29 +118,40 @@ def check_namespace(parsed: Statement) -> bool:
     return False
 
 
-def check_dependencies(dep_type: str, parsed: Statement, directory: str, yang_models_dir: str) -> t.Set[str]:
+modules_to_check = deque() # used for a breadth first search throught the dependency graph of vendor directories
+
+
+def check_dependencies(dep_type: str, parsed_module: Statement, directory: str, yang_models_dir: str) -> t.Set[str]:
     missing_modules: t.Set[str] = set()
-    for dependency in parsed.search(dep_type):
+    for dependency in parsed_module.search(dep_type):
         name = dependency.arg
         revisions = dependency.search('revision-date')
         revision = revisions[0].arg if revisions else '*'
-        pattern = '{}.yang'.format(name)
+        filename = '{}.yang'.format(name)
+        if directory in unused_modules: # this runs if we're checking a vendor directory
+            if filename in unused_modules[directory]:
+                unused_modules[directory].remove(filename)
+                modules_to_check.append(filename)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        if not find_first_file(directory, pattern, pattern_with_revision, yang_models_dir):
+        if not find_first_file(directory, filename, pattern_with_revision, yang_models_dir):
             missing_modules.add(pattern_with_revision)
     return missing_modules
 
 
 def check(path: str, directory: str, yang_models_dir: str):
-    parsed = yangParser.parse(path)
-    if parsed is None:
+    parsed_module = yangParser.parse(path)
+    if parsed_module is None:
         return
-    if not check_revision(parsed):
+    if not check_revision(parsed_module):
         missing_revisions.add(path)
-    if not check_namespace(parsed):
+    if not check_namespace(parsed_module):
         missing_namespaces.add(path)
-    missing_modules[path] |= check_dependencies('import', parsed, directory, yang_models_dir)
-    missing_submodules[path] |= check_dependencies('include', parsed, directory, yang_models_dir)
+    broken_imports = check_dependencies('import', parsed_module, directory, yang_models_dir)
+    if broken_imports:
+        missing_modules[path] |= broken_imports
+    broken_includes = check_dependencies('include', parsed_module, directory, yang_models_dir)
+    if broken_includes:
+        missing_submodules[path] |= broken_includes
 
 
 def capabilities_to_modules(capabilities: str) -> t.List[str]:
@@ -148,8 +160,10 @@ def capabilities_to_modules(capabilities: str) -> t.List[str]:
     root = ET.parse(capabilities).getroot()
     namespace = root.tag.split('hello')[0]
     for capability in root.iter('{}capability'.format(namespace)):
-        if capability.text and 'module=' in capability.text:
+        capability.text = capability.text or ''
+        if 'module=' in capability.text:
             modules.append(capability.text.split('module=')[1].split('&')[0])
+        if 'deviations=' in capability.text:
             deviation_modules.update(capability.text.split('deviations=')[1].split('&')[0].split(','))
     modules += list(deviation_modules)
     return modules
@@ -159,25 +173,28 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
-    unused_modules: t.Dict[str, t.Set[str]] = {}
-    if args.sdo:
+    if args.sdo: # sdo directory
         for root, _, files in os.walk(args.dir):
             for filename in files:
                 if filename.endswith('.yang'):
                     check(os.path.join(root, filename), root, scriptConf.yang_models)
-    else:
+    else: # vendor directory
         for root, capabilities in find_files(args.dir, '*capabilit*.xml'):
             files_in_dir = os.listdir(root)
+            modules_to_check.clear()
             if root not in unused_modules:
                 unused_modules[root] = {file for file in files_in_dir if file.endswith('.yang')}
             modules = capabilities_to_modules(capabilities)
             for module in modules:
                 filename = '{}.yang'.format(module)
-                unused_modules[root].discard(filename)
                 if filename in files_in_dir:
-                    check(os.path.join(root, filename), root, scriptConf.yang_models)
+                    modules_to_check.append(filename)
+                    unused_modules[root].remove(filename)
                 else:
                     missing_modules[os.path.join(root, capabilities)].add(filename)
+            while modules_to_check:
+                filename = modules_to_check.popleft()
+                check(os.path.join(root, filename), root, scriptConf.yang_models)
 
     report = {
         'missing-revisions': list(missing_revisions),
