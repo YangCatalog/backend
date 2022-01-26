@@ -34,7 +34,7 @@ class TestIntegrityClass(unittest.TestCase):
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         super().__init__(*args, **kwargs)
 
-    def module_path(self, name):
+    def module_path(self, name: str) -> str:
         return os.path.join(self.module_dir, '{}.yang'.format(name))
 
     def test_check_revision(self):
@@ -99,18 +99,18 @@ class TestIntegrityClass(unittest.TestCase):
 
         expected = {
             'missing-revisions': [
-                '/backend/tests/resources/integrity/invalid-revision.yang',
-                '/backend/tests/resources/integrity/missing-revision.yang'
+                self.module_path('invalid-revision'),
+                self.module_path('missing-revision')
             ],
             'missing-namespaces': [
-                '/backend/tests/resources/integrity/invalid-namespace.yang',
-                '/backend/tests/resources/integrity/missing-namespace.yang'
+                self.module_path('invalid-namespace'),
+                self.module_path('missing-namespace')
             ],
             'missing-modules': {
-                '/backend/tests/resources/integrity/missing-import.yang': ['nonexistent']
+                self.module_path('missing-import'): ['nonexistent']
             },
             'missing-submodules': {
-                '/backend/tests/resources/integrity/missing-include.yang': ['nonexistent']
+                self.module_path('missing-include'): ['nonexistent']
             },
             'unused-modules': {}
         }
@@ -133,22 +133,22 @@ class TestIntegrityClass(unittest.TestCase):
 
         expected = {
             'missing-revisions': [
-                '/backend/tests/resources/integrity/invalid-revision.yang',
-                '/backend/tests/resources/integrity/missing-revision.yang'
+                self.module_path('invalid-revision'),
+                self.module_path('missing-revision')
             ],
             'missing-namespaces': [
-                '/backend/tests/resources/integrity/invalid-namespace.yang',
-                '/backend/tests/resources/integrity/missing-namespace.yang'
+                self.module_path('invalid-namespace'),
+                self.module_path('missing-namespace')
             ],
             'missing-modules': {
-                '/backend/tests/resources/integrity/capabilities.xml': ['nonexistent'],
-                '/backend/tests/resources/integrity/missing-import.yang': ['nonexistent']
+                os.path.join(self.module_dir, 'capabilities.xml'): ['nonexistent'],
+                self.module_path('missing-import'): ['nonexistent']
             },
             'missing-submodules': {
-                '/backend/tests/resources/integrity/missing-include.yang': ['nonexistent']
+                self.module_path('missing-include'): ['nonexistent']
             },
             'unused-modules': {
-                '/backend/tests/resources/integrity': ['unused']
+                self.module_dir: ['unused']
             }
         }
 
