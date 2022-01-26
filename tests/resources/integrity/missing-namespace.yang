@@ -1,0 +1,5 @@
+module missing-namespace {
+  revision 2022-01-25 {
+    description "test";
+  }
+}

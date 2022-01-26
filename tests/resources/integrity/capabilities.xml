@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hello xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <capabilities>
+    <capability>urn:ietf:params:netconf:base:1.0</capability>
+    <capability>test&amp;module=good</capability>
+    <capability>test&amp;module=good&amp;deviations=deviation</capability>
+    <capability>test&amp;module=missing-revision</capability>
+    <capability>test&amp;module=invalid-revision</capability>
+    <capability>test&amp;module=missing-namespace</capability>
+    <capability>test&amp;module=invalid-namespace</capability>
+    <capability>test&amp;module=missing-import</capability>
+    <capability>test&amp;module=missing-include</capability>
+    <capability>test&amp;module=nonexistent</capability>
+  </capabilities>
+</hello>
