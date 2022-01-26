@@ -121,24 +121,27 @@ def check_namespace(parsed_module: Statement) -> bool:
 modules_to_check = deque() # used for a breadth first search throught the dependency graph of vendor directories
 
 
-def check_dependencies(dep_type: str, parsed_module: Statement, directory: str, yang_models_dir: str) -> t.Set[str]:
+def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: Statement,
+                       directory: str, yang_models_dir: str) -> t.Tuple[t.Set[str], t.Set[str]]:
+    all_modules: t.Set[str] = set()
     missing_modules: t.Set[str] = set()
     for dependency in parsed_module.search(dep_type):
         name = dependency.arg
+        all_modules.add(name)
         revisions = dependency.search('revision-date')
         revision = revisions[0].arg if revisions else '*'
-        filename = '{}.yang'.format(name)
-        if directory in unused_modules: # this runs if we're checking a vendor directory
-            if filename in unused_modules[directory]:
-                unused_modules[directory].remove(filename)
-                modules_to_check.append(filename)
+        pattern = '{}.yang'.format(name)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        if not find_first_file(directory, filename, pattern_with_revision, yang_models_dir):
-            missing_modules.add(pattern_with_revision)
-    return missing_modules
+        if not find_first_file(directory, pattern, pattern_with_revision, yang_models_dir):
+            # TODO: if the matched filename doesn't include the revision, maybe we should check it?
+            if revision != '*':
+                missing_modules.add('{}@{}'.format(name, revision))
+            else:
+                missing_modules.add(name)
+    return all_modules, missing_modules
 
 
-def check(path: str, directory: str, yang_models_dir: str):
+def check(path: str, directory: str, yang_models_dir: str, sdo: bool):
     parsed_module = yangParser.parse(path)
     if parsed_module is None:
         return
@@ -146,12 +149,18 @@ def check(path: str, directory: str, yang_models_dir: str):
         missing_revisions.add(path)
     if not check_namespace(parsed_module):
         missing_namespaces.add(path)
-    broken_imports = check_dependencies('import', parsed_module, directory, yang_models_dir)
+    all_imports, broken_imports = check_dependencies('import', parsed_module, directory, yang_models_dir)
     if broken_imports:
         missing_modules[path] |= broken_imports
-    broken_includes = check_dependencies('include', parsed_module, directory, yang_models_dir)
+    all_includes, broken_includes = check_dependencies('include', parsed_module, directory, yang_models_dir)
     if broken_includes:
         missing_submodules[path] |= broken_includes
+    if not sdo:
+        all_dependencies = all_imports | all_includes
+        for module in all_dependencies:
+            if module in unused_modules[directory]:
+                unused_modules[directory].remove(module)
+                modules_to_check.append(module)
 
 
 def capabilities_to_modules(capabilities: str) -> t.List[str]:
@@ -173,28 +182,29 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
     args = scriptConf.args
+    args.dir = args.dir.rstrip('/')
     if args.sdo: # sdo directory
         for root, _, files in os.walk(args.dir):
             for filename in files:
                 if filename.endswith('.yang'):
-                    check(os.path.join(root, filename), root, scriptConf.yang_models)
+                    check(os.path.join(root, filename), root, scriptConf.yang_models, sdo=True)
     else: # vendor directory
         for root, capabilities in find_files(args.dir, '*capabilit*.xml'):
             files_in_dir = os.listdir(root)
             modules_to_check.clear()
             if root not in unused_modules:
-                unused_modules[root] = {file for file in files_in_dir if file.endswith('.yang')}
+                unused_modules[root] = {file.removesuffix('.yang') for file in files_in_dir if file.endswith('.yang')}
             modules = capabilities_to_modules(capabilities)
             for module in modules:
                 filename = '{}.yang'.format(module)
-                if filename in files_in_dir:
-                    modules_to_check.append(filename)
-                    unused_modules[root].remove(filename)
-                else:
-                    missing_modules[os.path.join(root, capabilities)].add(filename)
+                if filename not in files_in_dir:
+                    missing_modules[os.path.join(root, capabilities)].add(module)
+                elif module in unused_modules[root]:
+                    modules_to_check.append(module)
+                    unused_modules[root].remove(module)
             while modules_to_check:
-                filename = modules_to_check.popleft()
-                check(os.path.join(root, filename), root, scriptConf.yang_models)
+                filename = '{}.yang'.format(modules_to_check.popleft())
+                check(os.path.join(root, filename), root, scriptConf.yang_models, sdo=False)
 
     report = {
         'missing-revisions': sorted(list(missing_revisions)),
