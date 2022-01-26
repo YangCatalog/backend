@@ -105,7 +105,7 @@ def check_revision(parsed_module: Statement) -> bool:
 
 def check_namespace(parsed_module: Statement) -> bool:
     try:
-        namespace = parsed_module.search('revision')[0].arg
+        namespace = parsed_module.search('namespace')[0].arg
     except:
         return False
     if 'urn:cisco' in namespace:
@@ -197,10 +197,11 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                 check(os.path.join(root, filename), root, scriptConf.yang_models)
 
     report = {
-        'missing-revisions': list(missing_revisions),
-        'missing-modules': {key: list(value) for key, value in missing_modules.items()},
-        'missing-submodules': {key: list(value) for key, value in missing_submodules.items()},
-        'unused-modules': {key: list(value) for key, value in unused_modules.items()}
+        'missing-revisions': sorted(list(missing_revisions)),
+        'missing-namespaces': sorted(list(missing_namespaces)),
+        'missing-modules': {key: sorted(list(value)) for key, value in missing_modules.items()},
+        'missing-submodules': {key: sorted(list(value)) for key, value in missing_submodules.items()},
+        'unused-modules': {key: sorted(list(value)) for key, value in unused_modules.items()}
     }
     with open(args.output, 'w') as f:
         json.dump(report, f)
