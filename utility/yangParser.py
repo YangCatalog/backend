@@ -20,7 +20,6 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-from functools import lru_cache
 from os.path import isfile
 
 from pyang.context import Context
@@ -167,7 +166,6 @@ def create_context(path='.', *options, **kwargs):
     return ctx
 
 
-@lru_cache(maxsize=1000)
 def parse(text, ctx=None):
     """Parse a YANG statement into an Abstract Syntax subtree.
 
@@ -187,7 +185,7 @@ def parse(text, ctx=None):
         It is also well known that ``parse`` function cannot solve
         YANG deviations yet.
     """
-    parser = YangParser() # Similar names, but, this one is from PYANG library
+    parser = YangParser()  # Similar names, but, this one is from PYANG library
 
     filename = 'parser-input'
 
@@ -203,5 +201,8 @@ def parse(text, ctx=None):
     ctx_.errors = []
 
     ast = parser.parse(ctx_, filename, text)
+
+    if ctx is not None:
+        ctx.internal_reset()
 
     return ast
