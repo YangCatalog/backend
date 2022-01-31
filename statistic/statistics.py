@@ -35,8 +35,8 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 
 import fnmatch
-import json
 import io
+import json
 import os
 import shutil
 import sys
@@ -46,14 +46,15 @@ from contextlib import redirect_stdout
 
 import jinja2
 import requests
-
 import utility.log as log
-from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import github_url, json_headers, NS_MAP, MISSING_ELEMENT
+from utility.staticVariables import (MISSING_ELEMENT, NS_MAP, github_url,
+                                     json_headers)
 from utility.util import find_first_file, get_curr_dir, job_log
+
+from statistic import runYANGallstats as all_stats
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -115,6 +116,7 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
     yang_modules = list_yang_modules_recursive(dir)
     num_of_modules = len(yang_modules)
     checked = {}
+    ctx = yangParser.create_context(dir)
     for i, module_path in enumerate(yang_modules, start=1):
         LOGGER.info('{} out of {} getting specifics from {}'.format(i, num_of_modules, dir))
         filename = os.path.basename(module_path)
@@ -126,7 +128,7 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
         checked[filename]['passed'] = False
         checked[filename]['in-catalog'] = False
         revision = None
-        parsed_yang = yangParser.parse(os.path.abspath(module_path))
+        parsed_yang = yangParser.parse(os.path.abspath(module_path), ctx)
         if parsed_yang:
             results = parsed_yang.search('revision')
             if results:
@@ -248,7 +250,7 @@ def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
     else:
         modules = int(out.split('{} : '.format(path))[1].splitlines()[0])
     num_in_catalog, passed = get_total_and_passed(path)
-    extra = '0.0 %' if modules == 0 else  '{} %'.format(repr(round((num_in_catalog / modules) * 100, 2)))
+    extra = '0.0 %' if modules == 0 else '{} %'.format(repr(round((num_in_catalog / modules) * 100, 2)))
     compiled = '0.0 %' if num_in_catalog == 0 else '{} %'.format(repr(round((passed / num_in_catalog) * 100, 2)))
     info_table: InfoTable = {
         'name': name,
@@ -368,7 +370,8 @@ def main(scriptConf: ScriptConfig = None):
                     with open(path, 'r') as f:
                         data = json.load(f)
                         metadata_platforms = data['platforms']['platform']
-                except:
+                except Exception:
+                    LOGGER.exception('Problem with opening {}'.format(path))
                     metadata_platforms = []
                 values = [version]
                 json_output[version] = {}
@@ -441,7 +444,7 @@ def main(scriptConf: ScriptConfig = None):
             for key, value in kwargs.items():
                 setattr(script_conf.args, key, value)
             with redirect_stdout(io.StringIO()) as f:
-                    all_stats.main(script_conf=script_conf)
+                all_stats.main(script_conf=script_conf)
             return f.getvalue()
 
         for direc in next(os.walk(os.path.join(yang_models, 'vendor')))[1]:
@@ -467,7 +470,7 @@ def main(scriptConf: ScriptConfig = None):
         def process_sdo_dir(dir: str, name: str):
             out = get_output(rootdir=os.path.join(yang_models, dir))
             process_data(out, sdo_list, os.path.join(yang_models, dir), name)
-        
+
         process_sdo_dir('standard/ietf/RFC', 'IETF RFCs')
         process_sdo_dir('standard/ietf/DRAFT', 'IETF drafts')
         process_sdo_dir('experimental/ietf-extracted-YANG-modules', 'IETF experimental drafts')
@@ -554,7 +557,7 @@ def main(scriptConf: ScriptConfig = None):
         total_time = end_time - start_time
         LOGGER.info('Final time in seconds to produce statistics {}'.format(total_time))
     except Exception as e:
-        LOGGER.error('Exception found while running statistics script')
+        LOGGER.exception('Exception found while running statistics script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         if repo is not None:
             repo.remove()
