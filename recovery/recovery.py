@@ -29,15 +29,11 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import datetime
 import gzip
 import json
-import logging
 import os
-import shutil
 import time
 import typing as t
-from collections import OrderedDict
 from time import sleep
 
-import redis
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from requests import ConnectionError
@@ -51,13 +47,12 @@ from utility.util import get_list_of_backups, job_log
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        help = 'This serves to save or load all the information in yangcatalog.org to JSON file in' \
-               ' case the server will go down and we would lose all the information we' \
-               ' have got. We have two options in here. Saving makes a GET request to the ConfD' \
-               ' and save modules to the file with name that would be passed as a argument or it will be set to' \
-               ' the current datetime. Load will first load data to Redis either from saved JSON file or' \
-               ' from snapshot of Redis. Then it will make PATCH request to write all the data to the ConfD.' \
-               ' This runs as a daily cronjob to save latest state of ConfD and Redis.'
+        help = 'This serves to save or load all the data in yangcatalog.org to JSON file in' \
+               ' case the server will go down and we would lose all the data we' \
+               ' have got. We have two options in here. Saving create backup of Redis .rdb file and also dumps' \
+               ' data from Redis into JSON file. Load will first load data to Redis either from saved JSON file or' \
+               ' from snapshot of Redis. Then it will make PATCH request to write  yang-catalog@2018-04-03 module' \
+               ' to the ConfD. This runs as a daily cronjob to save latest state of Redis database.'
         config = create_config()
         args: t.List[Arg] = [
             {
@@ -91,89 +86,7 @@ class ScriptConfig(BaseScriptConfig):
 
 
 def feed_confd_modules(modules: list, confdService: ConfdService):
-    confdService.patch_modules(modules)
-
-
-def feed_confd_vendors(vendors_data: list, confdService: ConfdService, LOGGER: logging.Logger):
-    # is there a reason for patching each software version separately?
-    for vendor in vendors_data:
-        vendor_name = vendor['name']
-        for platform in vendor['platforms']['platform']:
-            platform_name = platform['name']
-            x = 1
-            for software_version in platform['software-versions']['software-version']:
-                LOGGER.info(
-                    'Processing {} {} {} out of {}'.format(vendor_name, platform_name, x,
-                                                           len(platform['software-versions']['software-version'])))
-                x += 1
-                vendors = [{
-                    'name': vendor_name,
-                    'platforms': {
-                        'platform': [{
-                            'name': platform_name,
-                            'software-versions': {
-                                'software-version': [software_version]
-                            }
-                        }]
-                    }
-                }]
-
-                confdService.patch_vendors(vendors)
-
-
-def feed_redis_from_json(redis_cache: redis.Redis, catalog_data: dict, LOGGER: logging.Logger):
-    redis_cache.set('modules-data', '{}')
-    redis_cache.set('vendors-data', '{}')
-
-    for module in catalog_data['yang-catalog:catalog']['modules']['module']:
-        if module['name'] == 'yang-catalog' and module['revision'] == '2018-04-03':
-            redis_cache.set('yang-catalog@2018-04-03/ietf', json.dumps(module))
-            break
-    LOGGER.debug('yang-catalog@2018-04-03/ietf module set')
-
-    catalog = catalog_data['yang-catalog:catalog']
-    modules = catalog['modules']
-    vendors = catalog.get('vendors', {})
-    redis_cache.set('modules-data', json.dumps(modules))
-    redis_cache.set('vendors-data', json.dumps(vendors))
-
-    if len(modules) != 0:
-        existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
-        # recreate keys to redis if there are any
-        for mod in modules['module']:
-            key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
-            existing_keys.append(key)
-            value = json.dumps(mod)
-            redis_cache.set(key, value)
-        list_to_delete_keys_from_redis = []
-        for key in redis_cache.scan_iter():
-            if key.decode('utf-8') not in existing_keys:
-                list_to_delete_keys_from_redis.append(key)
-        if len(list_to_delete_keys_from_redis) != 0:
-            redis_cache.delete(*list_to_delete_keys_from_redis)
-
-    LOGGER.info('All the modules data set to Redis successfully')
-
-
-def feed_confd_from_json(catalog_data: dict, confdService: ConfdService, LOGGER: logging.Logger):
-    for counter in range(5, 0, -1):
-        try:
-            catalog = catalog_data.get('yang-catalog:catalog')
-
-            LOGGER.info('Starting to add modules')
-            feed_confd_modules(catalog['modules']['module'], confdService)
-
-            LOGGER.info('Starting to add vendors')
-            feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
-
-            break
-        except Exception:
-            LOGGER.exception('Failed to load data. Counter: {}'.format(counter))
-            time.sleep(10)
-    else:
-        LOGGER.error('Failed to load vendor data')
-
-    LOGGER.info('Cache loaded to ConfD. Starting to load data into Redis.')
+    return confdService.patch_modules(modules)
 
 
 def main(scriptConf=None):
@@ -184,47 +97,21 @@ def main(scriptConf=None):
     cache_directory = scriptConf.cache_directory
     log_directory = scriptConf.log_directory
     temp_dir = scriptConf.temp_dir
-    redis_host = scriptConf.redis_host
-    redis_port = scriptConf.redis_port
     var_yang = scriptConf.var_yang
     confdService = ConfdService()
 
     confd_backups = os.path.join(cache_directory, 'confd')
     redis_backups = os.path.join(cache_directory, 'redis')
+    redis_json_backup = os.path.join(cache_directory, 'redis-json')
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
-    LOGGER.info('Starting {} process of ConfD database'.format(args.type))
-
-    tries = 4
-    try:
-        response = confdService.head_confd()
-        LOGGER.info('Status code for HEAD request {} '.format(response.status_code))
-    except ConnectionError as e:
-        if tries == 0:
-            LOGGER.exception('Unable to connect to ConfD for over 5 minutes')
-            e = Exception('Unable to connect to ConfD')
-            filename = '{} - save'.format(os.path.basename(__file__).split('.py')[0])
-            job_log(start_time, temp_dir, error=str(e), status='Fail', filename=filename)
-            raise e
-        tries -= 1
-        sleep(60)
+    LOGGER.info('Starting {} process of Redis database'.format(args.type))
 
     if 'save' == args.type:
-        # ConfD backup
-        jsn = confdService.get_catalog_data().json()
-        confd_backup_file = os.path.join(confd_backups, '{}.json.gz'.format(args.name_save))
-        with gzip.open(confd_backup_file, 'w') as save_file:
-            save_file.write(json.dumps(jsn).encode())
-        LOGGER.info('Data dumped into {}'.format(confd_backup_file))
-        num_of_modules = len(jsn['yang-catalog:catalog'].get('modules', {}).get('module', []))
-        num_of_vendors = len(jsn['yang-catalog:catalog'].get('vendors', {}).get('vendor', []))
-        messages = [
-            {'label': 'Saved modules', 'message': num_of_modules},
-            {'label': 'Saved vendors', 'message': num_of_vendors}
-        ]
-
-        # Redis backup
+        # Redis dump.rdb file backup
         redis_backup_file = '{}/redis/dump.rdb'.format(var_yang)
+        if not os.path.exists(redis_backups):
+            os.mkdir(redis_backups)
         if os.path.exists(redis_backup_file):
             redis_copy_file = os.path.join(redis_backups, '{}.rdb.gz'.format(args.name_save))
             with gzip.open(redis_copy_file, 'w') as save_file:
@@ -233,56 +120,93 @@ def main(scriptConf=None):
             LOGGER.info('Backup of Redis dump.rdb file created')
         else:
             LOGGER.warning('Redis dump.rdb file does not exists')
+
+        # Backup content of Redis into JSON file
+        redisConnection = RedisConnection()
+        redis_modules_raw = redisConnection.get_all_modules()
+        redis_vendors_raw = redisConnection.get_all_vendors()
+        redis_modules_dict = json.loads(redis_modules_raw)
+        redis_modules = [i for i in redis_modules_dict.values()]
+        redis_vendors = json.loads(redis_vendors_raw)
+
+        if not os.path.exists(redis_json_backup):
+            os.mkdir(redis_json_backup)
+        with open(os.path.join(redis_json_backup, 'backup.json'), 'w') as f:
+            data = {
+                'yang-catalog:catalog': {
+                    'modules': redis_modules,
+                    'vendors': redis_vendors
+                }
+            }
+            json.dump(data, f)
+
+        num_of_modules = len(redis_modules)
+        num_of_vendors = len(redis_vendors.get('vendor', []))
+        messages = [
+            {'label': 'Saved modules', 'message': num_of_modules},
+            {'label': 'Saved vendors', 'message': num_of_vendors}
+        ]
         LOGGER.info('Save completed successfully')
         filename = '{} - save'.format(os.path.basename(__file__).split('.py')[0])
         job_log(start_time, temp_dir, messages=messages, status='Success', filename=filename)
     else:
+        file_name = ''
         if args.name_load:
             file_name = os.path.join(confd_backups, args.name_load)
         else:
             list_of_backups = get_list_of_backups(confd_backups)
             file_name = os.path.join(confd_backups, list_of_backups[-1])
 
-        catalog_data = None
-        response = confdService.head_catalog()
-        if response.status_code != 200:
-            # Fill ConfD from JSON file if empty
-            with gzip.open(file_name, 'r') as file_load:
-                LOGGER.info('Loading file {}'.format(file_load.name))
-                catalog_data = json.loads(file_load.read().decode())
-
-            LOGGER.info('Loading data into ConfD')
-            catalog = catalog_data.get('yang-catalog:catalog')
-
-            LOGGER.info('Starting to add modules')
-            feed_confd_modules(catalog['modules']['module'], confdService)
-
-            LOGGER.info('Starting to add vendors')
-            feed_confd_vendors(catalog['vendors']['vendor'], confdService, LOGGER)
-
-            LOGGER.info('Adding data to Redis db=0')
-            redis_cache = redis.Redis(host=redis_host, port=redis_port)
-            feed_redis_from_json(redis_cache, catalog_data, LOGGER)
-        else:
-            LOGGER.info('ConfD loaded from backup files')
-
         redisConnection = RedisConnection()
         redis_modules = redisConnection.get_all_modules()
         yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
 
         if '{}' in (redis_modules, yang_catalog_module):
-            # Feed Redis db=1 fron ConfD
-            LOGGER.info('Loading data from ConfD into Redis')
-
-            if not catalog_data:
-                response = confdService.get_catalog_data()
-                catalog_data = json.loads(response.text, object_pairs_hook=OrderedDict)
-            modules = catalog_data['yang-catalog:catalog']['modules']['module']
+            # RDB not exists - load from JSON
+            backup_path = os.path.join(redis_json_backup, 'backup.json')
+            if os.path.exists(backup_path):
+                with open(backup_path, 'r') as file_load:
+                    catalog_data = json.load(file_load)
+                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {})
+                    vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+            else:
+                if file_name.endswith('.gz'):
+                    with gzip.open(file_name, 'r') as file_load:
+                        LOGGER.info('Loading file {}'.format(file_load.name))
+                        catalog_data = json.loads(file_load.read().decode())
+                        modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
+                        vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+                elif file_name.endswith('.json'):
+                    with open(file_name, 'r') as file_load:
+                        LOGGER.info('Loading file {}'.format(file_load.name))
+                        catalog_data = json.load(file_load)
+                        modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
+                        vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+                else:
+                    print('unable to load modules - ending')
 
             redisConnection.populate_modules(modules)
+            redisConnection.populate_implementation(vendors)
             redisConnection.reload_modules_cache()
-        else:
-            LOGGER.info('Redis loaded from backup file')
+            redisConnection.reload_vendors_cache()
+            LOGGER.info('All the modules data set to Redis successfully')
+
+        tries = 4
+        try:
+            response = confdService.head_confd()
+            LOGGER.info('Status code for HEAD request {} '.format(response.status_code))
+            if response.status_code == 200:
+                yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
+                error = feed_confd_modules([json.loads(yang_catalog_module)], confdService)
+                if error:
+                    LOGGER.error('Error occurred while patching yang-catalog@2018-04-03/ietf module')
+                else:
+                    LOGGER.info('yang-catalog@2018-04-03/ietf patched successfully')
+        except ConnectionError:
+            if tries == 0:
+                LOGGER.exception('Unable to connect to ConfD for over 5 minutes')
+            tries -= 1
+            sleep(60)
 
     LOGGER.info('Job finished successfully')
 

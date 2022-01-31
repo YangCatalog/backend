@@ -36,7 +36,6 @@ import requests
 from redisConnections.redisConnection import RedisConnection
 
 import utility.log as log
-from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
@@ -50,7 +49,7 @@ class ScriptConfig(BaseScriptConfig):
         api_port = config.get('Web-Section', 'api-port', fallback=5000)
         api_host = config.get('Web-Section', 'ip', fallback='localhost')
         credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
-        help = 'Resolve expiration metadata for each module and set it to ConfD if changed. This runs as a daily' \
+        help = 'Resolve expiration metadata for each module and set it to Redis if changed. This runs as a daily' \
             ' cronjob'
         args: t.List[Arg] = [
             {
@@ -106,14 +105,13 @@ def __expires_change(expires_from_module, expires_from_datatracker):
 
 
 def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failures: list,
-                       confdService: ConfdService, redisConnection: RedisConnection):
+                       redisConnection: RedisConnection):
     """Walks through all the modules and updates them if necessary
 
         Arguments:
             :param module               (dict) Module with all the metadata
             :param LOGGER               (logging.Logger) formated logger with the specified name
             :param datatracker_failures (list) list of url that failed to get data from Datatracker
-            :param confdService         (ConfdService) Service used to communicate with ConfD
             :param redisConnection      (RedisConnection) Connection used to communication with Redis
     """
     reference = module.get('reference')
@@ -174,8 +172,6 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
         if expires is not None:
             module['expires'] = expires
         module['expired'] = expired
-        module_key = '{},{},{}'.format(module['name'], module['revision'], module['organization'])
-        response = confdService.patch_module(module)
 
         message = 'Module {} updated with code {}'.format(yang_name_rev, response.status_code)
         if response.text != '':
@@ -183,8 +179,7 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
         LOGGER.info(message)
         if expires == None and module.get('expires') is not None:
             # If the 'expires' property no longer contains a value,
-            # delete request need to be done to the ConfD to the 'expires' property
-            response = confdService.delete_expires(module_key)
+            # delete request need to be done to the Redis to the 'expires' property
             redisConnection.delete_expires(module)
             module.pop('expires', None)
 
@@ -215,7 +210,6 @@ def main(scriptConf=None):
         separator = '/'
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
-    confdService = ConfdService()
     redisConnection = RedisConnection()
     LOGGER.info('Starting Cron job resolve modules expiration')
     try:
@@ -234,7 +228,7 @@ def main(scriptConf=None):
         for module in modules:
             LOGGER.info('{} out of {}'.format(i, len(modules)))
             i += 1
-            ret = resolve_expiration(module, LOGGER, datatracker_failures, confdService, redisConnection)
+            ret = resolve_expiration(module, LOGGER, datatracker_failures, redisConnection)
             if ret:
                 revision_updated_modules += 1
             if not updated:

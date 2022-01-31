@@ -7,8 +7,8 @@ This package contains a python script to create a statistics.html file:
   * statistics.py containing script to get all statistics
 
 The statistics script goes through all the files in the githup repo and also through all the
- modules populated in the confd catalog using the search api. It counts all the modules for 
- each sdo and vendor and it calculates percentage that pass the compilations.
+ modules populated in the Redis database using the search API. It counts all the modules for 
+ each SDO and vendor and it calculates percentage that pass the compilations.
  
 This script will create a statistics.html file which will be automatically added to yc.o
 at [https://www.yangcatalog.org/statistics.html](https://www.yangcatalog.org/statistics.html)

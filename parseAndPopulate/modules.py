@@ -244,6 +244,7 @@ class Modules:
         yang_file.close()
 
     def __resolve_imports(self, git_commit_hash):
+        LOGGER.debug('Resolving imports')
         try:
             self.imports = self.__parsed_yang.search('import')
             if len(self.imports) == 0:
