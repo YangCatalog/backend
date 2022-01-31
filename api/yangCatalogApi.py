@@ -523,7 +523,8 @@ lock_for_load = Lock()
 
 
 def make_cache(response, data=None):
-    """After we delete or add modules we need to reload all the modules to the file
+    """ THIS METHOD IS DEPRECATED SINCE MOVING DATA FROM CONFD TO REDIS!
+    After we delete or add modules we need to reload all the modules to the file
     for quicker search. This module is then loaded to the memory.
     Arguments:
         :param response: (str) Contains string 'work' which will be sent back if
@@ -535,7 +536,7 @@ def make_cache(response, data=None):
         if data is None:
             data = ''
             while data is None or len(data) == 0 or data == 'None':
-                app.logger.debug('Loading data from confd')
+                app.logger.debug('Loading data from ConfD')
                 try:
                     data = app.confdService.get_catalog_data().json()
                     data = json.dumps(data)
@@ -550,7 +551,6 @@ def make_cache(response, data=None):
                     secs = 30
                     app.logger.info('ConfD not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
                     time.sleep(secs)
-        ac.redis.set('all-catalog-data', data)
     except Exception:
         e = sys.exc_info()[0]
         app.logger.exception('Could not load json to cache. Error: {}'.format(e))
@@ -636,12 +636,17 @@ def load():
         app.logger.info('Application not locked for reload')
         app.redisConnection.reload_modules_cache()
         app.redisConnection.reload_vendors_cache()
-        load_uwsgi_cache()
+        # load_uwsgi_cache()
         app.logger.info('Cache loaded successfully')
         app.loading = False
 
 
 def load_uwsgi_cache():
+    """ THIS METHOD IS DEPRECATED SINCE MOVING DATA FROM CONFD TO REDIS!
+    This method loads modules-data and vendors-data from ConfD and then set individual modules as keys
+    into Redis database db=0.
+    This method is no longer used since modules are now kept in Redis db=1.
+    """
     response = 'work'
     response, data = make_cache(response)
     cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
@@ -671,9 +676,9 @@ def load_uwsgi_cache():
 
 
 def load_app_first_time():
-    while ac.redis.get('yang-catalog@2018-04-03/ietf') is None:
+    while app.redisConnection.get_module('yang-catalog@2018-04-03/ietf') == '{}':
         sec = 30
-        app.logger.info('yang-catalog@2018-04-03 not loaded yet waiting for {} seconds'.format(sec))
+        app.logger.info('yang-catalog@2018-04-03 not loaded yet - waiting for {} seconds'.format(sec))
         time.sleep(sec)
 
 

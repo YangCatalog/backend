@@ -134,13 +134,11 @@ class Receiver:
 
         return self._response_type[1], all_modules
 
-
     def process_vendor_deletion(self, arguments: t.List[str]) -> str:
-        """Deleting vendors metadata. It calls the delete request to ConfD to delete all the module
-        in vendor branch of the yang-catalog.yang module on given path. If the module was
-        added by vendor and it doesn't contain any other implementations it will delete the
-        whole module in modules branch of the yang-catalog.yang module. It will also call
-        indexing script to update searching.
+        """Deleting vendors metadata. It deletes all the module in vendor branch of the yang-catalog.yang 
+        module on given path. If the module was added by vendor and it doesn't contain any other implementations 
+        it will delete the whole module in modules branch of the yang-catalog.yang module. 
+        It will also call indexing script to update Elasticsearch searching.
 
         Argument:
             :param arguments    (list) list of arguments sent from API sender
@@ -148,7 +146,7 @@ class Receiver:
                 is either 'Finished successfully' or 'Partially done'
         """
         vendor, platform, software_version, software_flavor = arguments[3:7]
-        confd_suffix = arguments[-1]
+        # confd_suffix = arguments[-1]
 
         path = '{}search'.format(self._yangcatalog_api_prefix)
         redis_vendor_key = ''
@@ -173,19 +171,14 @@ class Receiver:
         redis_vendor_data = self.redisConnection.create_vendors_data_dict(redis_vendor_key)
         vendor_data = {data_key: redis_vendor_data}
 
-        # Delete vendor branch from ConfD
-        response = self.confdService.delete_vendor(confd_suffix)
-        if response.status_code == 404:
-            self.LOGGER.info('Path {} already deleted'.format(confd_suffix))
-
-        confd_keys = set()
+        modules_keys = set()
         deleted_modules = []
-        self.iterate_in_depth(vendor_data, confd_keys)
+        self.iterate_in_depth(vendor_data, modules_keys)
 
         # Delete implementation
-        for confd_key in confd_keys:
+        for mod_key in modules_keys:
             try:
-                name, revision, organization = confd_key.split(',')
+                name, revision, organization = mod_key.split(',')
                 redis_key = '{}@{}/{}'.format(name, revision, organization)
                 raw_data = self.redisConnection.get_module(redis_key)
                 modules_data = json.loads(raw_data)
@@ -211,32 +204,18 @@ class Receiver:
                         continue
                     else:
                         imp_key += ',{}'.format(implementation['software-flavor'])
-                    # Delete module implementation from ConfD
-                    response = self.confdService.delete_implementation(confd_key, imp_key)
-                    if response.status_code != 204:
-                        self.LOGGER.error('Could not delete implementation {} of module {} because of error:\n{}'
-                                          .format(imp_key, confd_key, response.text))
 
                     # Delete module implementation from Redis
                     response = self.redisConnection.delete_implementation(redis_key, imp_key)
                     if response:
-                        self.LOGGER.info('Implementation {} deleted from module {} successfully'.format(imp_key, confd_key))
+                        self.LOGGER.info('Implementation {} deleted from module {} successfully'.format(imp_key, mod_key))
                     elif response == 0:
-                        self.LOGGER.debug('Implementation {} already deleted from module {}'.format(imp_key, confd_key))
+                        self.LOGGER.debug('Implementation {} already deleted from module {}'.format(imp_key, mod_key))
                     count_deleted += 1
 
                 if (count_deleted == count_of_implementations and count_of_implementations != 0):
                     if organization == vendor:
                         deletion_problem = False
-                        # Delete module from ConfD
-                        response = self.confdService.delete_module(confd_key)
-                        if response.status_code == 204:
-                            self.LOGGER.info('Module {} deleted successfully'.format(confd_key))
-                        elif response.status_code == 404:
-                            self.LOGGER.debug('Module {} already deleted'.format(confd_key))
-                        else:
-                            self.LOGGER.error('Couldn\'t delete module {}. Error: {}'.format(confd_key, response.text))
-                            deletion_problem = True
 
                         # Delete module from Redis
                         response = self.redisConnection.delete_modules([redis_key])
@@ -248,33 +227,21 @@ class Receiver:
                         if not deletion_problem:
                             deleted_modules.append(redis_key)
             except Exception:
-                self.LOGGER.exception('YANG file {} doesn\'t exist although it should exist'.format(confd_key))
+                self.LOGGER.exception('YANG file {} doesn\'t exist although it should exist'.format(mod_key))
         raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         # Delete dependets
-        for confd_key in confd_keys:
-            name, revision, organization = confd_key.split(',')
+        for module_key in modules_keys:
+            name, revision, organization = module_key.split(',')
             redis_key = '{}@{}/{}'.format(name, revision, organization)
             for existing_module in all_modules.values():
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
                     for dep in dependents:
                         if dep['name'] == name and dep['revision'] == revision:
-                            mod_key_confd = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
-                                                              existing_module['organization'])
                             mod_key_redis = '{}@{}/{}'.format(existing_module['name'], existing_module['revision'],
                                                               existing_module['organization'])
-                            # Delete module's dependent from ConfD
-                            response = self.confdService.delete_dependent(mod_key_confd, dep['name'])
-                            if response.status_code == 204:
-                                self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(dep['name'], mod_key_confd))
-                            elif response.status_code == 404:
-                                self.LOGGER.debug('Dependent {} of module {} already deleted'.format(dep['name'], mod_key_confd))
-                            else:
-                                self.LOGGER.error('Couldn\'t delete dependents {} of module {}. Error: {}'
-                                                  .format(dep['name'], mod_key_confd, response.text))
-
                             # Delete module's dependent from Redis
                             self.redisConnection.delete_dependent(mod_key_redis, dep['name'])
 
@@ -290,26 +257,26 @@ class Receiver:
                                   self._lock_file)
         return self._response_type[1]
 
-    def iterate_in_depth(self, value: dict, confd_keys: t.Set[str]):
+    def iterate_in_depth(self, value: dict, modules_keys: t.Set[str]):
         """Iterates through the branch to get to the level with modules.
 
         Arguments:
-            :param value        (dict) data through which we will need to iterate
-            :param confd_keys   (set) set that will contain all the modules that need to be deleted
+            :param value            (dict) data through which we will need to iterate
+            :param modules_keys     (set) set that will contain all the modules that need to be deleted
         """
         for key, val in value.items():
             if key == 'protocols':
                 continue
             if isinstance(val, list):
                 for v in val:
-                    self.iterate_in_depth(v, confd_keys)
+                    self.iterate_in_depth(v, modules_keys)
             if isinstance(val, dict):
                 if key == 'modules':
                     for mod in val['module']:
-                        confd_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
-                        confd_keys.add(confd_key)
+                        mod_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
+                        modules_keys.add(mod_key)
                 else:
-                    self.iterate_in_depth(val, confd_keys)
+                    self.iterate_in_depth(val, modules_keys)
 
     def make_cache(self, credentials: t.List[str]) -> requests.Response:
         """After we delete or add modules we need to reload all the modules to the file
@@ -394,28 +361,9 @@ class Receiver:
                     dependents_dict = ['{}@{}'.format(m['name'], m.get('revision', '')) for m in dependents]
                     searched_dependent = '{}@{}'.format(mod['name'], mod.get('revision', ''))
                     if searched_dependent in dependents_dict:
-                        mod_key = '{},{},{}'.format(existing_module['name'], existing_module['revision'],
-                                                    existing_module['organization'])
-                        response = self.confdService.delete_dependent(mod_key, mod['name'])
-
-                        if response.status_code == 204:
-                            self.LOGGER.info('Dependent {} of module {} deleted successfully'.format(mod['name'], mod_key))
-                        elif response.status_code == 404:
-                            self.LOGGER.debug('Dependent {} of module {} already deleted'.format(mod['name'], mod_key))
-                        else:
-                            self.LOGGER.error('Couldn\'t delete dependents {} of module {}. Error: {}'
-                                              .format(mod['name'], mod_key, response.text))
                         self.redisConnection.delete_dependent(redis_key, mod['name'])
         modules_to_index = []
         for mod_key, redis_key in zip(mod_keys_to_delete, redis_keys_to_delete):
-            response = self.confdService.delete_module(mod_key)
-            if response.status_code == 204:
-                self.LOGGER.info('Module {} deleted successfully'.format(mod_key))
-            elif response.status_code == 404:
-                self.LOGGER.debug('Module {} already deleted'.format(mod_key))
-            else:
-                self.LOGGER.error('Couldn\'t delete module {}. Error: {}'.format(mod_key, response.text))
-                modules_not_deleted.append(mod_key)
 
             response = self.redisConnection.delete_modules([redis_key])
             if response == 1:
