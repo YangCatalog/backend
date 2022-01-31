@@ -479,9 +479,9 @@ class Capability:
             raise
 
         platform_name = self.platform_data[0].get('platform', '')
-        modules_count = len(list(modules))
         # Parse modules
-        for i, module in enumerate(modules, start=1):
+        for module in modules:
+            module.text = module.text or ''
             if 'module=' in module.text:
                 # Parse name of the module
                 module_and_more = module.text.split('module=')[1]
@@ -493,7 +493,7 @@ class Capability:
                     should_parse = self.fileHasher.should_parse_vendor_module(path, platform_name)
                 if not should_parse:
                     continue
-                LOGGER.info('Parsing {} {} out of {}'.format(module_name, i, modules_count))
+                LOGGER.info('Parsing module {}'.format(module_name))
                 try:
                     try:
                         yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
