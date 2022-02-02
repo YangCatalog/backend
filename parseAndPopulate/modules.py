@@ -350,8 +350,7 @@ class Modules:
                             key = '/'.join(split[0:-1])
                             if self.run_integrity:
                                 integrity_checker.remove_one(key, s[-1])
-                            devs.revision = yangParser.parse(os.path.abspath(yang_file)) \
-                                .search('revision')[0].arg
+                            devs.revision = yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
                         except:
                             devs.revision = '1970-01-01'
                     implementation.deviations.append(devs)
@@ -558,8 +557,7 @@ class Modules:
                 yang_file = self.__find_file(sub.name, submodule=True)
                 try:
                     sub.revision = \
-                        yangParser.parse(os.path.abspath(yang_file)).search(
-                            'revision')[0].arg
+                        yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
                 except:
                     sub.revision = '1970-01-01'
             if yang_file is None:

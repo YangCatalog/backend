@@ -116,10 +116,9 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
     yang_modules = list_yang_modules_recursive(dir)
     num_of_modules = len(yang_modules)
     checked = {}
-    ctx = yangParser.create_context(dir)
     for i, module_path in enumerate(yang_modules, start=1):
-        LOGGER.info('{} out of {} getting specifics from {}'.format(i, num_of_modules, dir))
         filename = os.path.basename(module_path)
+        LOGGER.debug('{} out of {}: {}'.format(i, num_of_modules, filename))
         if filename in checked.keys():
             passed += checked[filename]['passed']
             num_in_catalog += checked[filename]['in-catalog']
@@ -128,7 +127,7 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
         checked[filename]['passed'] = False
         checked[filename]['in-catalog'] = False
         revision = None
-        parsed_yang = yangParser.parse(os.path.abspath(module_path), ctx)
+        parsed_yang = yangParser.parse(os.path.abspath(module_path))
         if parsed_yang:
             results = parsed_yang.search('revision')
             if results:

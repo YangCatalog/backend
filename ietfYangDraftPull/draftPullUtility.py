@@ -42,22 +42,21 @@ from utility import yangParser
 
 
 def get_latest_revision(path: str, LOGGER: logging.Logger):
-    """ Search for revision in yang file
+    """ Search for the latest revision in yang file
 
     Arguments:
         :param path     (str) full path to the yang file
         :param LOGGER   (logging.Logger) formated logger with the specified name
         :return         revision of the module at the given path
     """
-    stmt = yangParser.parse(path)
-    if stmt is None:  # In case of invalid YANG syntax, None is returned
-        LOGGER.info('Cannot yangParser.parse {}'.format(path))
-        return None
-    rev = stmt.search_one('revision')
-    if rev is None:
-        return None
+    try:
+        stmt = yangParser.parse(path)
+        rev = stmt.search_one('revision').arg
+    except Exception:
+        LOGGER.error('Cannot yangParser.parse {}'.format(path))
+        rev = None  # In case of invalid YANG syntax, None is returned
 
-    return rev.arg
+    return rev
 
 
 def check_name_no_revision_exist(directory: str, LOGGER_temp: logging.Logger = None):
@@ -79,7 +78,7 @@ def check_name_no_revision_exist(directory: str, LOGGER_temp: logging.Logger = N
             if '@' in basename:
                 yang_file_name = basename.split('@')[0] + '.yang'
                 revision = basename.split('@')[1].split('.')[0]
-                yang_file_path = '{}/{}'.format(directory, yang_file_name)
+                yang_file_path = os.path.join(directory, yang_file_name)
                 exists = os.path.exists(yang_file_path)
                 if exists:
                     compared_revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
