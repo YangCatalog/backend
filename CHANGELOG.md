@@ -1,6 +1,25 @@
 ## Backend Release Notes
 
-* ##### vm.m.p - 2021-MM-DD
+* ##### vm.m.p - 2022-MM-DD
+
+* ##### v5.0.0 - 2022-02-02
+
+  * Integrity checker script rework [#154](https://github.com/YangCatalog/backend/issues/154)
+  * Data migrated from ConfD to Redis completely [#405](https://github.com/YangCatalog/backend/issues/405)
+  * pyang context reset to decrease RAM usage of scripts [#436](https://github.com/YangCatalog/backend/issues/436)
+  * Change ownership of yangvalidator cache directories [yangvalidator #80](https://github.com/YangCatalog/yang-validator-extractor/issues/80)
+  * Handle broken paths in platform-metadata.json files [#422](https://github.com/YangCatalog/backend/issues/422)
+  * Bugfix: Memory leak while parsing modules [#421](https://github.com/YangCatalog/backend/issues/421)
+  * Pyang update to version 2.5.2 [deployment #113](https://github.com/YangCatalog/deployment/issues/113)
+  * Calculate percentage of modules with metadata [#416](https://github.com/YangCatalog/backend/issues/416)
+  * Adjustments to api/checkCompleteGithub endpoint [#435](https://github.com/YangCatalog/backend/issues/435)
+  * Allow to store vendors into both ConfD and Redis in parallel [#405](https://github.com/YangCatalog/backend/issues/405)
+  * Compressing backup files [#414](https://github.com/YangCatalog/backend/issues/414)
+  * lxml package version bumped
+  * prepare_environment script adjustments
+  * receiver.py script refactored [#412](https://github.com/YangCatalog/backend/issues/412)
+  * Bugfix: Fixed error while searching for some strings in yang-search [#407](https://github.com/YangCatalog/backend/issues/407)
+  * Send email notification with data that failed to write to ConfD [#71](https://github.com/YangCatalog/backend/issues/71)
 
 * ##### v4.3.0 - 2021-12-03
 
