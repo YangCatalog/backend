@@ -233,7 +233,6 @@ class Modules:
                 self.semver = re.findall('[0-9]+.[0-9]+.[0-9]+', line).pop()
         yang_file.close()
 
-
     def _resolve_imports(self, git_commit_hash):
         LOGGER.debug('Resolving imports')
         try:
@@ -339,7 +338,7 @@ class Modules:
                         try:
                             s = yang_file.split('/')
                             key = '/'.join(split[0:-1])
-                            devs.revision = yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
+                            dev.revision = yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
                         except:
                             dev.revision = '1970-01-01'
                     implementation.deviations.append(dev)
@@ -508,7 +507,7 @@ class Modules:
             self.ietf_wg = None
 
     def _resolve_document_name_and_reference(self, document_name=None,
-                                              reference=None):
+                                             reference=None):
         LOGGER.debug('Resolving document name and reference')
         if document_name:
             self.document_name = document_name
