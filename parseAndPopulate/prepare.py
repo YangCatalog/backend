@@ -63,7 +63,7 @@ class Prepare:
         key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
         LOGGER.debug('Module {} parsed'.format(key))
         if key in self.name_revision_organization:
-            self.yang_modules[key].implementation.extend(yang.implementation)
+            self.yang_modules[key].implementations.extend(yang.implementations)
         else:
             if yang.tree is not None:
                 yang.tree = '{}{}'.format(self.yangcatalog_api_prefix, yang.tree)
@@ -132,7 +132,7 @@ class Prepare:
                             implementation.deviations),
                         'conformance-type': implementation.conformance_type
                     } for implementation in
-                        self.yang_modules[key].implementation],
+                        self.yang_modules[key].implementations],
                 }
             } for key in sorted(self.name_revision_organization)]}, prepare_model, cls=NullJsonEncoder)
 
@@ -162,7 +162,7 @@ class Prepare:
                                                 'protocols': {
                                                     'protocol': [{
                                                         'name': 'netconf',
-                                                        'capabilities': impl.capability,
+                                                        'capabilities': impl.capabilities,
                                                         'protocol-version': impl.netconf_version,
                                                     }]
                                                 },
@@ -193,7 +193,7 @@ class Prepare:
                             }]
                         }
                     } for key in sorted(self.name_revision_organization) for impl in
-                        self.yang_modules[key].implementation]
+                        self.yang_modules[key].implementations]
                 }
             }, ietf_model, cls=NullJsonEncoder)
 

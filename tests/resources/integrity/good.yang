@@ -1,0 +1,11 @@
+module good {
+  namespace "urn:good";
+  revision 2022-01-25 {
+    description "test";
+  }
+  include invalid-namespace;
+  import invalid-revision {
+    prefix "ir";
+  }
+  include l1-dependency;
+}

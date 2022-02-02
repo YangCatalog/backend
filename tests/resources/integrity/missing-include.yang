@@ -1,0 +1,7 @@
+module good {
+  namespace "urn:good";
+  revision 2022-01-25 {
+    description "test";
+  }
+  include nonexistent;
+}

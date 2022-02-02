@@ -58,6 +58,21 @@ def get_curr_dir(path: str):
         return cur_dir
 
 
+def find_files(directory: str, pattern: str):
+    """Generator that yields files matching a patern
+    
+    Arguments:
+        :param directory    directory in which to search
+        :param pattern      a unix shell style pattern
+        :yield              a tuple of the containing directory and the path to the matching file
+    """
+    for root, _, files in os.walk(directory):
+        for basename in files:
+            if fnmatch.fnmatch(basename, pattern):
+                path = os.path.join(root, basename)
+                yield root, path
+
+
 def find_first_file(directory: str, pattern: str,
                     pattern_with_revision: str, yang_models_dir: str = '') -> t.Optional[str]:
     """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
@@ -67,7 +82,7 @@ def find_first_file(directory: str, pattern: str,
         :param pattern                  (str) name of the yang file
         :param pattern_with_revision    (str) name and revision of the module in format <name>@<revision>
         :param yang_models_dir          (str) path to the directory where YangModels/yang repo is cloned
-        :return path to current directory
+        :return                         (str) path to matched file
     """
     def match_file(directory, pattern) -> t.Optional[str]:
         for root, _, files in os.walk(directory):
@@ -487,6 +502,13 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
 
 
 def get_list_of_backups(directory: str) -> t.List[str]:
+    """Get a sorted list of backup file or directory names in a directory.
+    Backups are identified by matching backup date format.
+
+    Arguments:
+        :param directory    directory in with to search
+        :return             sorted list of file/directory names
+    """
     dates: t.List[str] = []
     for name in os.listdir(directory):
         try:

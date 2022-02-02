@@ -63,7 +63,6 @@ class YangCatalogApiGlobalConfig():
         self.oidc_client_id = config.get('Secrets-Section', 'client-id', fallback='')
         self.commit_msg_file = config.get('Directory-Section', 'commit-dir', fallback='')
         self.temp_dir = config.get('Directory-Section', 'temp', fallback='tests/resources/tmp')
-        self.integrity_file_location = config.get('Web-Section', 'public-directory', fallback='tests/resources/html')
         self.diff_file_dir = config.get('Web-Section', 'save-diff-dir', fallback='tests/resources/html')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.oidc_redirects = config.get('Web-Section', 'redirect-oidc', fallback='').split(' ')

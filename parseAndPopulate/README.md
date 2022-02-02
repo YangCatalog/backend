@@ -4,17 +4,22 @@ This package contains python scripts to parse yang files
 and consequently populate them to ConfD and Redis. Two main scripts
 can be called:
 
+## integrity script
+
+   This script will go through all the yang files and find all
+   the problems with them like missing includes or imports,
+   wrong namespaces, wrong revisions, missing or extra files in folders
+   with capabilities.xml files, etc...
+
+   The --dir option specifies the directory to check. The --sdo
+   option tell it not to look for capabilities.xml files. the --output
+   option specifies the output JSON file.
+
 ## runCapabilites script
 
    This script can be called if we don't want to populate parsed
    metadata to ConfD right away but we just want to see what metadata
    we get out of a specific sdo directory or vendor capabilities files.
-
-   This is also used if we want to create an integrity.html file using
-   --run-integrity option. This will go through all the yang files
-   and find all the problems with them like missing includes or imports,
-   wrong namespaces, wrong revisions, missing or extra files in folders
-   with capabilities.xml files, etc...
 
    Look for options in [runCapabilities](runCapabilities.py) before
    starting to parse yang modules. Two important options are the --dir

@@ -1,0 +1,6 @@
+module l2-dependency {
+  namespace "urn:l2-dependency";
+  revision 2022-01-25 {
+    description "test";
+  }
+}

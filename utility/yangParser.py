@@ -20,11 +20,13 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import typing as t
 from os.path import isfile
 
 from pyang.context import Context
 from pyang.error import error_codes
 from pyang.repository import FileRepository
+from pyang.statements import Statement
 from pyang.yang_parser import YangParser
 
 DEFAULT_OPTIONS = {
@@ -78,7 +80,7 @@ class OptsContext(Context):
     opts: objectify
 
 
-def _parse_features_string(feature_str):
+def _parse_features_string(feature_str: str) -> t.Tuple[str, t.List[str]]:
     if feature_str.find(':') == -1:
         return (feature_str, [])
 
@@ -90,7 +92,7 @@ def _parse_features_string(feature_str):
     return (module_name, features)
 
 
-def create_context(path='.', *options, **kwargs):
+def create_context(path: str = '.', *options, **kwargs) -> OptsContext:
     """Generates a pyang context.
 
     The dict options and keyword arguments are similar to the command
@@ -166,7 +168,7 @@ def create_context(path='.', *options, **kwargs):
     return ctx
 
 
-def parse(text: str):
+def parse(text: str) -> t.Optional[Statement]:
     """Parse a YANG statement into an Abstract Syntax subtree.
 
     Arguments:

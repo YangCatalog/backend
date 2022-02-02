@@ -33,8 +33,7 @@ added.
 
 To find all the modules with missing or wrong revisions, namespaces, imports,
 includes or modules that according to the capability.xml file should be in
-the folder but are missing, we can use the runCapabilities script with the `__integrity__`
-option.
+the folder but are missing, we can use the integrity script.
 
 #### API
 

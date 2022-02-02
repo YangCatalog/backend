@@ -50,8 +50,8 @@ from parseAndPopulate.prepare import Prepare
 
 class Capability:
 
-    def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, integrity_checker,
-                 api: bool, sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
+    def __init__(self, log_directory: str, hello_message_file: str, prepare: Prepare, api: bool,
+                 sdo: bool, json_dir: str, html_result_dir: str, save_file_to_dir: str, private_dir: str,
                  yang_models_dir: str, fileHasher: FileHasher):
         """
         Preset Capability class to get capabilities from directory passed as argument.
@@ -63,7 +63,6 @@ class Capability:
         :param log_directory        (str) directory where the log file is saved
         :param hello_message_file   (str) path to hello_message .xml file or path to directory containing yang files
         :param prepare              (Prepare) prepare object
-        :param integrity_checker:   (obj) integrity checker object
         :param api                  (bool) whether request came from API or not
         :param sdo                  (bool) whether processing sdo (= True) or vendor (= False) yang modules
         :param json_dir             (str) path to the directory where .json file to populate Confd will be stored
@@ -83,7 +82,6 @@ class Capability:
         self.html_result_dir = html_result_dir
         self.json_dir = json_dir
         self.prepare = prepare
-        self.integrity_checker = integrity_checker
         self.api = api
         self.path = None
         self.yang_models_dir = yang_models_dir
@@ -391,8 +389,8 @@ class Capability:
                 try:
                     yang = Modules(self.yang_models_dir, self.log_directory,
                                    '/'.join(self.split), self.html_result_dir,
-                                   self.parsed_jsons, self.json_dir, True, True,
-                                   yang_lib_info)
+                                   self.parsed_jsons, self.json_dir, is_vendor=True, is_yang_lib=True,
+                                   data=yang_lib_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
@@ -403,7 +401,6 @@ class Capability:
                 yang.add_vendor_information(self.platform_data,
                                             conformance_type,
                                             capabilities, netconf_version,
-                                            self.integrity_checker,
                                             self.split)
                 self.prepare.add_key_sdo_module(yang)
                 keys.add('{}@{}/{}'.format(yang.name, yang.revision, yang.organization))
@@ -443,10 +440,10 @@ class Capability:
                 platforms = data.get('platforms', {}).get('platform', [])
             for implementation in platforms:
                 if implementation['module-list-file']['path'] in self.hello_message_file:
-                    caps = implementation.get('netconf-capabilities')
-                    if caps:
+                    metadata_capabilities = implementation.get('netconf-capabilities')
+                    if metadata_capabilities:
                         capabilities_exist = True
-                        for capability in caps:
+                        for capability in metadata_capabilities:
                             # Parse netconf version
                             if ':netconf:base:' in capability:
                                 netconf_version.append(capability)
@@ -498,7 +495,7 @@ class Capability:
                     try:
                         yang = Modules(self.yang_models_dir, self.log_directory, '/'.join(self.split),
                                        self.html_result_dir, self.parsed_jsons,
-                                       self.json_dir, True, data=module_and_more)
+                                       self.json_dir, is_vendor=True, data=module_and_more)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(module_name))
                         continue
@@ -509,7 +506,6 @@ class Capability:
                                                 'implement',
                                                 capabilities,
                                                 netconf_version,
-                                                self.integrity_checker,
                                                 self.split)
                     self.prepare.add_key_sdo_module(yang)
                     key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
@@ -622,7 +618,6 @@ class Capability:
                 yang_file = find_first_file(path, pattern, pattern_with_revision, self.yang_models_dir)
 
                 if yang_file is None:
-                    # TODO add integrity that this file is missing
                     return
                 try:
                     try:
@@ -639,7 +634,6 @@ class Capability:
                     yang.add_vendor_information(self.platform_data,
                                                 conformance_type, capabilities,
                                                 netconf_version,
-                                                self.integrity_checker,
                                                 self.split)
                     self.prepare.add_key_sdo_module(yang)
                     self.parse_imp_inc(yang.submodule, set_of_names, True,

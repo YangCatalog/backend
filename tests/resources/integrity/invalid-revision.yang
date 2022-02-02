@@ -1,0 +1,6 @@
+module invalid-revision {
+  namespace "urn:invalid-revision";
+  revision 2022-13-25 {
+    description "test";
+  }
+}

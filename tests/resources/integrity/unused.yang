@@ -1,0 +1,6 @@
+module unused {
+  namespace "urn:unused";
+  revision 2022-01-25 {
+    description "test";
+  }
+}
