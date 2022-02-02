@@ -21,6 +21,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import datetime
 import fnmatch
 import json
+import logging
 import optparse
 import os
 import socket
@@ -38,7 +39,6 @@ from pyang.plugins.check_update import check_update
 from redisConnections.redisConnection import RedisConnection
 
 from utility import messageFactory, yangParser
-from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
@@ -243,7 +243,7 @@ def send_to_indexing(body_to_send: str, credentials: list, protocol: str, LOGGER
         LOGGER.info('Data sent for indexing successfully')
 
 
-def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list], LOGGER, save_file_dir: str, temp_dir: str,
+def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list], LOGGER: logging.Logger, save_file_dir: str, temp_dir: str,
                         sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
@@ -254,7 +254,7 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list]
     Arguments:
         :param yc_api_prefix        (str) prefix for sending request to api
         :param modules_to_index     (json file) prepare.json file generated while parsing
-        :param LOOGER:              (obj) LOGGER in case we can not use receiver's because other module is calling this method
+        :param LOOGER               (logging.Logger) formated logger with the specified name
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
         :param temp_dir             (str) path to temporary directory
         :param sdo_type             (bool) Whether or not it is sdo that needs to be sent
@@ -279,9 +279,6 @@ def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list]
                 data = response.json()
                 modules = data['yang-catalog:modules']['module']
                 for mod in modules:
-                    module_key = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
-                    confdService = ConfdService()
-                    confdService.delete_dependent(module_key, name)
                     redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
                     redisConnection = RedisConnection()
                     redisConnection.delete_dependent(redis_key, name)

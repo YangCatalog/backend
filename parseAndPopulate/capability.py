@@ -472,7 +472,7 @@ class Capability:
             schema_part = '{}/{}/{}/{}/'.format(github_raw, self.owner, self.repo, self.branch)
         except:
             LOGGER.exception('Missing attribute, likely caused by a broken path in {}/platform-metadata.json'
-                            .format('/'.join(self.split[:-1])))
+                             .format('/'.join(self.split[:-1])))
             raise
 
         platform_name = self.platform_data[0].get('platform', '')

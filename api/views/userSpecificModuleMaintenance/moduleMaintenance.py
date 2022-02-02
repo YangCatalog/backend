@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import errno
 import json
@@ -226,10 +226,11 @@ def add_modules():
     app.logger.info('Adding modules with body\n{}'.format(json.dumps(body, indent=2)))
     tree_created = False
 
-    with open('./prepare-sdo.json', 'w') as f:
-        json.dump(body, f)
     dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
-    shutil.copy('./prepare-sdo.json', dst_path)
+    if not os.path.exists(ac.d_save_requests):
+        os.mkdir(ac.d_save_requests)
+    with open(dst_path, 'w') as f:
+        json.dump(body, f)
 
     response = app.confdService.put_module_metadata(json.dumps(body))
 
@@ -341,8 +342,8 @@ def add_modules():
         if 'organization' in repr(resolved_authorization):
             warning.append('{} {}'.format(sdo['path'].split('/')[-1], resolved_authorization))
 
-    if os.path.isfile('./prepare-sdo.json'):
-        shutil.move('./prepare-sdo.json', direc)
+    with open(os.path.join(direc, 'prepare-sdo.json'), 'w') as f:
+        json.dump(body, f)
     for key in repo:
         repo[key].remove()
 
@@ -390,6 +391,8 @@ def add_vendors():
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
 
     dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    if not os.path.exists(ac.d_save_requests):
+        os.mkdir(ac.d_save_requests)
     with open(dst_path, 'w') as f:
         json.dump(body, f)
 

@@ -21,7 +21,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import typing as t
-from functools import lru_cache
 from os.path import isfile
 
 from pyang.context import Context
@@ -169,13 +168,11 @@ def create_context(path: str = '.', *options, **kwargs) -> OptsContext:
     return ctx
 
 
-@lru_cache(maxsize=1000)
-def parse(text: str, ctx: t.Optional[OptsContext] = None) -> t.Optional[Statement]:
+def parse(text: str) -> t.Optional[Statement]:
     """Parse a YANG statement into an Abstract Syntax subtree.
 
     Arguments:
         text (str): file name for a YANG module or text
-        ctx (optional pyang.Context): context used to validate text
 
     Returns:
         pyang.statements.Statement: Abstract syntax subtree
@@ -188,12 +185,14 @@ def parse(text: str, ctx: t.Optional[OptsContext] = None) -> t.Optional[Statemen
 
         It is also well known that ``parse`` function cannot solve
         YANG deviations yet.
+    Note II:
+        pyang.Context removed as optional parameter as it was not used anymore.
     """
-    parser = YangParser() # Similar names, but, this one is from PYANG library
+    parser = YangParser()  # Similar names, but, this one is from PYANG library
 
     filename = 'parser-input'
 
-    ctx_ = ctx or create_context()
+    ctx_ = create_context()
 
     if isfile(text):
         filename = text
@@ -205,5 +204,7 @@ def parse(text: str, ctx: t.Optional[OptsContext] = None) -> t.Optional[Statemen
     ctx_.errors = []
 
     ast = parser.parse(ctx_, filename, text)
+
+    ctx_.internal_reset()
 
     return ast

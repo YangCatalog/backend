@@ -233,7 +233,9 @@ class Modules:
                 self.semver = re.findall('[0-9]+.[0-9]+.[0-9]+', line).pop()
         yang_file.close()
 
+
     def _resolve_imports(self, git_commit_hash):
+        LOGGER.debug('Resolving imports')
         try:
             self.imports = self._parsed_yang.search('import')
             if len(self.imports) == 0:
@@ -337,8 +339,7 @@ class Modules:
                         try:
                             s = yang_file.split('/')
                             key = '/'.join(split[0:-1])
-                            dev.revision = yangParser.parse(os.path.abspath(yang_file)) \
-                                .search('revision')[0].arg
+                            devs.revision = yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
                         except:
                             dev.revision = '1970-01-01'
                     implementation.deviations.append(dev)
@@ -543,8 +544,7 @@ class Modules:
                 yang_file = self._find_file(sub.name, submodule=True)
                 try:
                     sub.revision = \
-                        yangParser.parse(os.path.abspath(yang_file)).search(
-                            'revision')[0].arg
+                        yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
                 except:
                     sub.revision = '1970-01-01'
             if yang_file is None:
