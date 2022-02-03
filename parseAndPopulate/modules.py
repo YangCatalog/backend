@@ -141,8 +141,6 @@ class Modules:
             self.imports = []
             self.json_submodules = json.dumps([])
             self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
-            if self._parsed_yang is None:
-                raise ParseException(path)
         else:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path.split('&')[0])
             # TODO file does not exist
@@ -753,8 +751,8 @@ class Modules:
             yang_file = self._find_file(self.belongs_to)
             if yang_file is None:
                 return None
-            parsed_parent_yang = yangParser.parse(os.path.abspath(yang_file))
             try:
+                parsed_parent_yang = yangParser.parse(os.path.abspath(yang_file))
                 return parsed_parent_yang.search(field)[0].arg
             except:
                 if field == 'prefix':

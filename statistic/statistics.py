@@ -127,13 +127,13 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
         checked[filename]['passed'] = False
         checked[filename]['in-catalog'] = False
         revision = None
-        parsed_yang = yangParser.parse(os.path.abspath(module_path))
-        if parsed_yang:
-            results = parsed_yang.search('revision')
-            if results:
-                revision = results[0].arg
-        else:
+        try:
+            parsed_yang = yangParser.parse(os.path.abspath(module_path))
+        except:
             continue
+        results = parsed_yang.search('revision')
+        if results:
+            revision = results[0].arg
         organization = resolve_organization(module_path, parsed_yang)
         name = filename.split('.')[0].split('@')[0]
         if revision is None:
@@ -215,11 +215,14 @@ def resolve_organization(path: str, parsed_yang) -> str:
             if yang_file is None:
                 yang_file = find_first_file('/'.join(path.split('/')[:-2]), pattern, pattern_with_revision)
             if yang_file is not None:
-                parsed = yangParser.parse(os.path.abspath(yang_file))
-                if parsed:
-                    results = parsed.search('namespace')
-                    if results:
-                        namespace = results[0].arg.lower()
+                try:
+                    parsed = yangParser.parse(os.path.abspath(yang_file))
+                    if parsed:
+                        results = parsed.search('namespace')
+                        if results:
+                            namespace = results[0].arg.lower()
+                except:
+                    pass
     if namespace is None:
         return MISSING_ELEMENT
     else:

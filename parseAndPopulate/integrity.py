@@ -142,8 +142,9 @@ def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: 
 
 
 def check(path: str, directory: str, yang_models_dir: str, sdo: bool):
-    parsed_module = yangParser.parse(path)
-    if parsed_module is None:
+    try:
+        parsed_module = yangParser.parse(path)
+    except:
         return
     if not check_revision(parsed_module):
         missing_revisions.add(path)
