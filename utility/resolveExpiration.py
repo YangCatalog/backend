@@ -173,20 +173,16 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
             module['expires'] = expires
         module['expired'] = expired
 
-        message = 'Module {} updated with code {}'.format(yang_name_rev, response.status_code)
-        if response.text != '':
-            message = '{} and text {}'.format(message, response.text)
-        LOGGER.info(message)
         if expires == None and module.get('expires') is not None:
             # If the 'expires' property no longer contains a value,
             # delete request need to be done to the Redis to the 'expires' property
-            redisConnection.delete_expires(module)
+            result = redisConnection.delete_expires(module)
             module.pop('expires', None)
 
-            message = 'Module {} expiration date deleted with code {}'.format(yang_name_rev, response.status_code)
-            if response.text != '':
-                message = '{} and text {}'.format(message, response.text)
-            LOGGER.info(message)
+            if result:
+                LOGGER.info('expires property removed from {}'.format(yang_name_rev))
+            else:
+                LOGGER.error('Error while removing expires property from {}'.format(yang_name_rev))
         return True
     else:
         return False
@@ -226,7 +222,7 @@ def main(scriptConf=None):
         modules = response.json().get('module', [])
         i = 1
         for module in modules:
-            LOGGER.info('{} out of {}'.format(i, len(modules)))
+            LOGGER.debug('{} out of {}'.format(i, len(modules)))
             i += 1
             ret = resolve_expiration(module, LOGGER, datatracker_failures, redisConnection)
             if ret:

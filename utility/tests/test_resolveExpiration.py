@@ -21,7 +21,8 @@ IV. Module is already expired - only initial draft
 V. Active draft - not expired with expiration date in the future
 VI. Module is already expired - last draft revision before RFC
 VII. Module set to expired - new version of draft available
-VIII. Datatracker unavailable - exception raised after GET request
+VIII. Active draft - change expires property to date in the future
+IX. Datatracker unavailable - exception raised after GET request
 """
 
 
@@ -47,7 +48,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.script_name = 'resolveExpiration'
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
         self.datatracker_failures = []
-        self.LOGGER = self.get_logger()
+        self.LOGGER = log.get_logger('resolveExpiration', '/var/yang/logs/jobs/resolveExpiration.log')
         self.redisConnection = RedisConnection()
 
     #########################
@@ -131,7 +132,7 @@ class TestResolveExpirationClass(unittest.TestCase):
     @mock.patch('utility.resolveExpiration.requests.get')
     def test_resolveExpiration_active_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
-        draft that is active.
+        draft that is still active.
         Also check values of module properties, which are requested in the method.
 
         Arguments:
@@ -148,7 +149,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('maturity-level'), 'adopted')
         self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05')
         self.assertEqual(module.get('expired'), False)
-        self.assertEqual(module.get('expires'), '2021-08-26T06:36:43-00:00')
+        self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
 
     @mock.patch('utility.resolveExpiration.requests.get')
     def test_resolveExpiration_draft_expired_last_rev(self, mock_requests_get: mock.MagicMock):
@@ -205,6 +206,29 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(len(self.datatracker_failures), 0)
 
     @mock.patch('utility.resolveExpiration.requests.get')
+    def test_resolveExpiration_active_draft_set_expires(self, mock_requests_get: mock.MagicMock):
+        """ Check result of the resolveExpiration method for the module
+        draft that is still active, but expires property was not set.
+        Also check values of module properties, which are requested in the method.
+
+        Arguments:
+        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+        """
+        mock_requests_get.return_value.status_code = 200
+        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
+
+        module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
+        del module['expires']
+        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+
+        self.assertEqual(result, True)
+        # Check the relevant properties values
+        self.assertEqual(module.get('maturity-level'), 'adopted')
+        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05')
+        self.assertEqual(module.get('expired'), False)
+        self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
+
+    @mock.patch('utility.resolveExpiration.requests.get')
     @mock.patch('utility.resolveExpiration.time.sleep')
     def test_resolveExpiration_datatracker_raise_exception(self, mock_time_sleep: mock.MagicMock, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method if the datatracker is unavailable
@@ -257,16 +281,6 @@ class TestResolveExpirationClass(unittest.TestCase):
     ##########################
     ### HELPER DEFINITIONS ###
     ##########################
-
-    def get_logger(self):
-        """ Init the logger and modify the handlers to avoid duplicate messages.
-        """
-        LOGGER = log.get_logger('resolveExpiration', '/var/yang/logs/jobs/resolveExpiration.log')
-        if len(LOGGER.handlers) > 1:
-            LOGGER.handlers[1].close()
-            LOGGER.removeHandler(LOGGER.handlers[1])
-
-        return LOGGER
 
     def load_from_json(self, key: str):
         with open('{}/utility_tests_data.json'.format(self.resources_path), 'r') as f:
