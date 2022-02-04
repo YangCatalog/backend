@@ -152,42 +152,43 @@ def tree_module_revision(module_name, revision):
         imports_includes = []
         imports_includes.extend(module_context.search('import'))
         imports_includes.extend(module_context.search('include'))
-        import_inlcude_map = {}
+        import_include_map = {}
         for imp_inc in imports_includes:
             prefix = imp_inc.search('prefix')
             if len(prefix) == 1:
                 prefix = prefix[0].arg
             else:
                 prefix = 'None'
-            import_inlcude_map[prefix] = imp_inc.arg
+            import_include_map[prefix] = imp_inc.arg
         ytree_dir = ac.d_json_ytree
         yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
-        response['maturity'] = get_module_data("{}@{}/{}".format(module_name, revision,
+        response['maturity'] = get_module_data('{}@{}/{}'.format(module_name, revision,
                                                                  organization)).get('maturity-level', '').upper()
-        response['import-include'] = import_inlcude_map
+        response['import-include'] = import_include_map
 
         if os.path.isfile(yang_tree_file_path):
             try:
-                json_tree = json.load(open(yang_tree_file_path))
+                with open(yang_tree_file_path) as f:
+                    json_tree = json.load(f)
                 if json_tree is None:
                     alerts.append('Failed to decode JSON data: ')
                 else:
                     response['namespace'] = json_tree.get('namespace', '')
                     response['prefix'] = json_tree.get('prefix', '')
-                    import_inlcude_map[response['prefix']] = module_name
-                    data_nodes = build_tree(json_tree, module_name, import_inlcude_map)
+                    import_include_map[response['prefix']] = module_name
+                    data_nodes = build_tree(json_tree, module_name, import_include_map)
                     jstree_json = dict()
                     jstree_json['data'] = [data_nodes]
                     if json_tree.get('rpcs') is not None:
                         rpcs = dict()
                         rpcs['name'] = json_tree['prefix'] + ':rpcs'
                         rpcs['children'] = json_tree['rpcs']
-                        jstree_json['data'].append(build_tree(rpcs, module_name, import_inlcude_map))
+                        jstree_json['data'].append(build_tree(rpcs, module_name, import_include_map))
                     if json_tree.get('notifications') is not None:
                         notifs = dict()
                         notifs['name'] = json_tree['prefix'] + ':notifs'
                         notifs['children'] = json_tree['notifications']
-                        jstree_json['data'].append(build_tree(notifs, module_name, import_inlcude_map))
+                        jstree_json['data'].append(build_tree(notifs, module_name, import_include_map))
                     if json_tree.get('augments') is not None:
                         augments = dict()
                         augments['name'] = json_tree['prefix'] + ':augments'
@@ -197,12 +198,12 @@ def tree_module_revision(module_name, revision):
                             aug_info['name'] = aug['augment_path']
                             aug_info['children'] = aug['augment_children']
                             augments['children'].append(aug_info)
-                        jstree_json['data'].append(build_tree(augments, module_name, import_inlcude_map, augments=True))
+                        jstree_json['data'].append(build_tree(augments, module_name, import_include_map, augments=True))
             except Exception as e:
                 alerts.append("Failed to read YANG tree data for {}@{}/{}, {}".format(module_name, revision,
                                                                                       organization, e))
         else:
-            alerts.append("YANG Tree data does not exist for {}@{}/{}".format(module_name, revision, organization))
+            alerts.append('YANG Tree data does not exist for {}@{}/{}'.format(module_name, revision, organization))
     if jstree_json is None:
         response['jstree_json'] = dict()
         alerts.append('Json tree could not be generated')
@@ -383,7 +384,7 @@ def show_node_with_revision(name, path, revision):
             abort(400, description='You must specify a "path" argument')
 
         if revision is None:
-            bp.LOGGER.warning("Revision not submitted getting latest")
+            bp.LOGGER.warning('Revision not submitted getting latest')
 
         if not revision:
             revision = get_latest_module(name)
@@ -495,7 +496,7 @@ def get_yang_catalog_help():
                                 for echild in child['enum']['children']:
                                     if echild.get('description') is not None:
                                         description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
-                                        help_text += "<br/>\r\n<br/>\r\n{}: {}".format(child['enum']['value'],
+                                        help_text += '<br/>\r\n<br/>\r\n{}: {}'.format(child['enum']['value'],
                                                                                        description)
 
                 break
@@ -519,7 +520,7 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
         module_details_data['help-text'] = help_text
         return
     last_path_data = path_to_populate.pop()
-    last_path_data = last_path_data.split(":")[-1].split('?')[0]
+    last_path_data = last_path_data.split(':')[-1].split('?')[0]
     if module_details_data.get(last_path_data):
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
     else:
@@ -625,7 +626,7 @@ def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_te
         updated_dictionary['help-text'] = help_text
         return
     pop = list_dictionaries.pop()
-    pop = pop.split(":")[-1].split('?')[0]
+    pop = pop.split(':')[-1].split('?')[0]
     if updated_dictionary.get(pop):
         update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
     else:
@@ -689,13 +690,24 @@ def get_module_data(module_key: str):
     return module_data
 
 
-def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False):
-    """
-    Builds data for yang_tree.html, takes json and recursively writes out it's children.
-    :param jsont: input json
-    :param module: module name
+def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augments=False):
+    """ Builds data for yang_tree.html, takes json and recursively writes out it's children.
+
+    Arguments:
+        :param jsont        (dict) input json
+        :param module       (str) module name
     :return: (dict) with all nodes and their parameters
     """
+    def _create_node_path(jsont_path: str):
+        if augments:
+            return jsont_path
+        else:
+            path_list = jsont_path.split('/')[1:]
+            path = ''
+            for schema in enumerate(pass_on_schemas):
+                path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+            return path
+
     node = dict()
     node['data'] = {
         'schema': '',
@@ -759,6 +771,8 @@ def build_tree(jsont, module, imp_inc_map, pass_on_schemas=None, augments=False)
                 node['data']['show_node_path'] = path
                 pass_on_schemas.pop()
     elif jsont.get('children') is not None:
+        if jsont.get('path') is not None:
+            node['data']['show_node_path'] = _create_node_path(jsont.get('path'))
         node['children'] = []
         for child in jsont['children']:
             node['children'].append(build_tree(child, module, imp_inc_map, pass_on_schemas, augments))
@@ -784,9 +798,9 @@ def get_type_str(json):
             type_str += get_type_str(val)
         else:
             if isinstance(val, list) or isinstance(val, dict):
-                type_str += " {} {} {}".format('{', ','.join([str(i) for i in val]), '}')
+                type_str += ' {} {} {}'.format('{', ','.join([str(i) for i in val]), '}')
             else:
-                type_str += " {} {} {}".format('{', val, '}')
+                type_str += ' {} {} {}'.format('{', val, '}')
     return type_str
 
 
