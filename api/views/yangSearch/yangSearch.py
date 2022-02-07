@@ -422,7 +422,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
     if module == '' or module is None:
         abort(400, description='No module name provided')
     if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
-        abort(400, description='Revision provided has wrong format please use "YYYY-MM-DD" format')
+        abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
 
     elk_response = get_modules_revision_organization(module, None, warnings)
     if 'warning' in elk_response:
@@ -567,12 +567,13 @@ def get_modules_revision_organization(module_name, revision=None, warnings=False
             revisions.append(hit['revision'])
         return revisions, organization
     except Exception:
-        bp.LOGGER.exception('Failed to get revisions and organization for {}@{}'.format(module_name, revision))
+        name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
+        bp.LOGGER.exception('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
-            return {'warning': 'Failed to find module {}@{} in elasticsearch'.format(module_name, revision)}
+            return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
         else:
-            abort(404, 'Failed to get revisions and organization for {}@{} - please use module that exists'
-                  .format(module_name, revision))
+            abort(404, 'Failed to get revisions and organization for {} - please use module that exists'
+                  .format(name_rev))
 
 
 def get_latest_module(module_name):
