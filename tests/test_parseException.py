@@ -23,8 +23,8 @@ import unittest
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.modules import Modules
-from parseAndPopulate.parseException import ParseException
+from parseAndPopulate.modules import SdoModule
+from utility.yangParser import ParseException
 
 
 class TestParseExceptionClass(unittest.TestCase):
@@ -38,9 +38,14 @@ class TestParseExceptionClass(unittest.TestCase):
         """
         jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         path = '/not/existing/path/module.yang'
+        dir_paths = {
+            'logs': yc_gc.logs_dir,
+            'result': yc_gc.result_dir,
+            'yang_models': yc_gc.yang_models
+        }
 
         with self.assertRaises(ParseException):
-            Modules(yc_gc.yang_models, yc_gc.logs_dir, path, yc_gc.result_dir, jsons, yc_gc.temp_dir)
+            SdoModule(path, jsons, dir_paths)
 
         with open(os.path.join(yc_gc.var_yang, 'unparsable-modules.json'), 'r') as f:
             modules = json.load(f)
