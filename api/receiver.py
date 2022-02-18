@@ -81,7 +81,7 @@ class Receiver:
                 shutil.copy2(s, d)
 
     def process(self, arguments: t.List[str]) -> t.Tuple[str, dict]:
-        """Process SDO modules. Calls populate.py script which will parse all the modules
+        """Process modules. Calls populate.py script which will parse the modules
         on the given path given by "dir" param. Populate script will also send the
         request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
         parent directory of this project /api/sdo and finally also call indexing script to update searching.

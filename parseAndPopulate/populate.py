@@ -50,8 +50,7 @@ from utility.staticVariables import json_headers
 from utility.util import prepare_to_indexing, send_to_indexing2
 
 from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -256,7 +255,11 @@ def main(scriptConf=None):
     if os.path.exists(os.path.join(json_dir, 'normal.json')):
         LOGGER.info('Starting to add vendors')
         with open(os.path.join(json_dir, 'normal.json')) as data:
-            vendors = json.loads(data.read())['vendors']['vendor']
+            try:
+                vendors = json.loads(data.read())['vendors']['vendor']
+            except:
+                LOGGER.error('No files were parsed. This probably means the directory is missing capability xml files')
+                exit(1)
         errors = errors or confdService.patch_vendors(vendors)
         redisConnection.populate_implementation(vendors)
     if body_to_send:

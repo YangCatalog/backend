@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
@@ -23,7 +23,7 @@ import unittest
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.modules import Modules
+from parseAndPopulate.modules import SdoModule, VendorModule
 from utility.staticVariables import github_raw
 
 
@@ -33,30 +33,35 @@ class TestModulesClass(unittest.TestCase):
         super(TestModulesClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema = '{}/YangModels/yang/master/standard/ietf/RFC/ietf-yang-types.yang'.format(github_raw)
+        self.schema_base = os.path.join(github_raw, 'YangModels/yang/master')
+        self.path_in_repo = 'standard/ietf/RFC/ietf-yang-types.yang'
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.test_private_dir = 'tests/resources/html/private'
+        self.test_private_dir = '{}/resources/html/private'.format(os.path.dirname(os.path.abspath(__file__)))
         self.parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        self.dir_paths = {
+            'log': yc_gc.logs_dir,
+            'result': yc_gc.result_dir,
+            'yang_models': yc_gc.yang_models
+        }
 
     #########################
     ### TESTS DEFINITIONS ###
     #########################
+    #TODO: we should probably have unit tests for the individual Model._resolve* methods
 
     def test_modules_parse_all_sdo_object(self):
         """
         Create modules object from SDO (= ietf) YANG file,
         and compare object properties values after calling parse_all() method.
         """
-        path_to_yang = '{}/{}'.format(yc_gc.save_file_dir, self.sdo_module_filename)
+        path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
-        yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
-                       yc_gc.result_dir, self.parsed_jsons, self.tmp_dir)
-        yang.parse_all('master', self.sdo_module_name, set(),
-                       self.schema, None, yc_gc.save_file_dir)
+        yang = SdoModule(path_to_yang, self.parsed_jsons, self.dir_paths)
+        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, self.path_in_repo, yc_gc.save_file_dir)
 
         self.assertEqual(yang.document_name, 'rfc6991')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -76,13 +81,21 @@ class TestModulesClass(unittest.TestCase):
         and compare object properties values after calling parse_all() method.
         Pass keys as an argument so only some properties will be resolved, while other will stay set to None.
         """
-        path_to_yang = '{}/{}'.format(yc_gc.save_file_dir, self.sdo_module_filename)
-        keys = {'ietf-yang-types@2013-07-15/ietf'}
+        path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
+        keys = {'ietf-yang-types@2013-07-15/ietf': ''}
+        additional_info = {
+            'author-email': 'test@test.test',
+            'maturity-level': 'ratified',
+            'reference': 'https://tools.ietf.org/html/rfc6991',
+            'document-name': 'rfc6991',
+            'generated-from': 'test',
+            'organization': 'ietf',
+            'module-classification': 'testing'
+        }
 
-        yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, path_to_yang,
-                       yc_gc.result_dir, self.parsed_jsons, self.tmp_dir)
-        yang.parse_all('master', self.sdo_module_name, keys,
-                       self.schema, None, yc_gc.save_file_dir)
+        yang = SdoModule(path_to_yang, self.parsed_jsons, self.dir_paths)
+        yang.parse_all(self.sdo_module_name, 'master', keys, self.schema_base,
+                       self.path_in_repo, yc_gc.save_file_dir, additional_info)
 
         self.assertEqual(yang.name, 'ietf-yang-types')
         self.assertEqual(yang.module_type, 'module')
@@ -101,15 +114,13 @@ class TestModulesClass(unittest.TestCase):
         Create modules object from vendor YANG file,
         and compare object properties values after calling parse_all() method.
         """
-        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
         yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = yang_lib_data.split('&revision')[0]
+        path_to_yang = '{}/master/vendor/cisco/xr/701/{}.yang'.format(yc_gc.temp_dir, module_name)
         deviation = yang_lib_data.split('&deviations=')[1]
 
-        yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
-                       self.parsed_jsons, self.tmp_dir, is_vendor=True, data=yang_lib_data)
-        yang.parse_all('master', module_name, set(),
-                       '', None, yc_gc.save_file_dir)
+        yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_data)
+        yang.parse_all(module_name, 'master', {}, '', '', yc_gc.save_file_dir)
 
         self.assertEqual(yang.document_name, 'rfc8341')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -121,7 +132,7 @@ class TestModulesClass(unittest.TestCase):
         self.assertEqual(yang.prefix, 'nacm')
         self.assertEqual(yang.reference, 'https://tools.ietf.org/html/rfc8341')
         self.assertEqual(yang.revision, '2018-02-14')
-        self.assertIn(deviation, yang.deviations)
+        self.assertIn(deviation, yang.deviations[0]['name'])
 
     def test_modules_add_vendor_information(self):
         """
@@ -129,28 +140,23 @@ class TestModulesClass(unittest.TestCase):
         Vendor information are then added using add_vendor_information() method and object values are compared
         with data from platform-metadata.json.
         """
-        xml_path = '{}/master/vendor/cisco/xr/701/{}'.format(yc_gc.temp_dir, self.hello_message_filename)
-        yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
-        module_name = yang_lib_data.split('&revision')[0]
+        xml_path = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701', self.hello_message_filename)
+        vendor_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
+        module_name = vendor_data.split('&revision')[0]
+        path_to_yang = '{}/master/vendor/cisco/xr/701/{}.yang'.format(yc_gc.temp_dir, module_name)
         platform_name = 'ncs5k'
 
-        platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
+        platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
-                       self.parsed_jsons, self.tmp_dir, is_vendor=True, data=yang_lib_data)
-        yang.parse_all('master', module_name, set(),
-                       '', None, yc_gc.save_file_dir)
-        yang.add_vendor_information(platform_data,
-                                    'implement',
-                                    netconf_capabilities,
-                                    netconf_version,
-                                    xml_path.split('/'))
+        yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=vendor_data)
+        yang.parse_all(module_name, 'master', {}, '', '', yc_gc.save_file_dir)
+        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
         self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
         for implementation, platform in zip(yang.implementations, platform_data):
             self.assertEqual(implementation.feature_set, platform['feature-set'])
-            self.assertEqual(implementation.netconf_version, netconf_version)
+            self.assertEqual(implementation.netconf_versions, netconf_versions)
             self.assertEqual(implementation.os_type, platform['os'])
             self.assertEqual(implementation.os_version, platform['os-version'])
             self.assertEqual(implementation.platform, platform['platform'])
@@ -172,28 +178,24 @@ class TestModulesClass(unittest.TestCase):
             'revision': '2020-07-01'
         }
         schema_part = '{}/YangModels/yang/master/'.format(github_raw)
-        xml_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml'.format(yc_gc.temp_dir)
+        xml_path = os.path.join(yc_gc.temp_dir, 'master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
         module_name = 'huawei-aaa'
+        path_to_yang = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e/{}.yang' \
+            .format(yc_gc.temp_dir, module_name)
         platform_name = 'ne5000e'
 
-        platform_data, netconf_version, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
+        platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = Modules(yc_gc.yang_models, yc_gc.logs_dir, xml_path, yc_gc.result_dir,
-                       self.parsed_jsons, self.tmp_dir, True, True, yang_lib_info)
-        yang.parse_all('master', module_name, set(),
-                       schema_part, None, yc_gc.save_file_dir)
+        yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_info)
+        yang.parse_all(module_name, 'master', {}, schema_part, '', yc_gc.save_file_dir)
 
-        yang.add_vendor_information(platform_data,
-                                    'implement',
-                                    netconf_capabilities,
-                                    netconf_version,
-                                    xml_path.split('/'))
+        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
         self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
         for implementation, platform in zip(yang.implementations, platform_data):
             self.assertEqual(implementation.feature_set, platform['feature-set'])
-            self.assertEqual(implementation.netconf_version, netconf_version)
+            self.assertEqual(implementation.netconf_versions, netconf_versions)
             self.assertEqual(implementation.os_type, platform['os'])
             self.assertEqual(implementation.os_version, platform['os-version'])
             self.assertEqual(implementation.platform, platform['platform'])

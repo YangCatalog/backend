@@ -363,13 +363,12 @@ def add_vendors():
     """Endpoint is used to add new vendors using the API.
     PUT request is used for updating each vendor in request body.
     POST request is used for creating new vendors that are not in ConfD/Redis yet.
-    First it checks if the sent request is ok and if so, it will send a another request
+    First it checks if the sent request is ok and if so, it will send another request
     to the receiver which will work on adding/updating vendors while this request
     will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id"
-    the job process.
+    User is able to check the success of the job using this "job_id".
 
-    :return response with "job_id" that user can use to check whether
+    :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
     if not request.json:
