@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import fileinput
 import json
@@ -24,19 +24,19 @@ import unittest
 from unittest import mock
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.capability import SdoDirectory, VendorCapabilities, VendorYangLibrary
+from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorYangLibrary
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
-from parseAndPopulate.prepare import Dumper
+from parseAndPopulate.dumper import Dumper
 from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 
 
-class TestCapabilityClass(unittest.TestCase):
+class TestGroupingsClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestCapabilityClass, self).__init__(*args, **kwargs)
+        super(TestGroupingsClass, self).__init__(*args, **kwargs)
 
         # Declare variables
         self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
@@ -47,7 +47,7 @@ class TestCapabilityClass(unittest.TestCase):
         self.test_private_dir = 'tests/resources/html/private'
         self.fileHasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
         self.dir_paths = {
-            'json': os.path.join(yc_gc.temp_dir, 'capability-tests'),
+            'json': os.path.join(yc_gc.temp_dir, 'groupings-tests'),
             'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
             'result': yc_gc.result_dir,
@@ -59,8 +59,8 @@ class TestCapabilityClass(unittest.TestCase):
     ### TESTS DEFINITIONS ###
     #########################
 
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
-    def test_capability_parse_and_load_sdo(self, mock_hash: mock.MagicMock):
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
+    def test_sdo_directory_parse_and_load(self, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and prepare object values were set correctly
         from all the .yang files which are located in 'path' directory.
@@ -74,9 +74,9 @@ class TestCapabilityClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
+        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
-        capability.parse_and_load(repo)
+        sdo_directory.parse_and_load(repo)
 
         for root, _, sdos in os.walk(path):
             for file_name in sdos:
@@ -84,10 +84,10 @@ class TestCapabilityClass(unittest.TestCase):
                     path_to_yang = os.path.join(path, file_name)
                     yang = self.declare_sdo_module(path_to_yang)
                     key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
-                    self.assertIn(key, capability.dumper.yang_modules)
+                    self.assertIn(key, sdo_directory.dumper.yang_modules)
 
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
-    def test_capability_parse_and_load_sdo_api(self, mock_hash: mock.MagicMock):
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
+    def test_sdo_directory_parse_and_load_api(self, mock_hash: mock.MagicMock):
         """
         Test whether key was created and prepare object value was set correctly
         from all modules loaded from prepare-sdo.json file.
@@ -97,15 +97,15 @@ class TestCapabilityClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
-        path = os.path.join(yc_gc.temp_dir, 'capability-tests/temp')
+        path = os.path.join(yc_gc.temp_dir, 'groupings-tests/temp')
         api = True
         sdo = True
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
+        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
-        capability.parse_and_load(repo)
+        sdo_directory.parse_and_load(repo)
         with open(os.path.join(self.dir_paths['json'], 'prepare-sdo.json'), 'r') as f:
             sdos_json = json.load(f)
 
@@ -113,11 +113,11 @@ class TestCapabilityClass(unittest.TestCase):
         self.assertNotEqual(len(sdos_list), 0)
         for sdo in sdos_list:
             key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
-            self.assertIn(key, capability.dumper.yang_modules)
+            self.assertIn(key, sdo_directory.dumper.yang_modules)
 
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     @mock.patch('parseAndPopulate.prepare.requests.get')
-    def test_capability_parse_and_load_sdo_submodule(self, mock_requests_get: mock.MagicMock, mock_hash: mock.MagicMock):
+    def test_sdo_directory_parse_and_load_submodule(self, mock_requests_get: mock.MagicMock, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and prepare object values were set correctly
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
@@ -133,10 +133,10 @@ class TestCapabilityClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
+        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
-        capability.parse_and_load(repo)
-        capability.dumper.dump_modules(yc_gc.temp_dir)
+        sdo_directory.parse_and_load(repo)
+        sdo_directory.dumper.dump_modules(yc_gc.temp_dir)
 
         desired_module_data = self.load_desired_prepare_json_data('git_submodule_huawei')
         dumped_module_data = self.load_dumped_prepare_json_data()
@@ -161,8 +161,8 @@ class TestCapabilityClass(unittest.TestCase):
                         else:
                             self.assertEqual(dumped_module[key], desired_module[key])
 
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
-    def test_capability_parse_and_load_vendor(self, mock_hash: mock.MagicMock):
+    @mock.patch('parseAndPopulate.grouping.repoutil.RepoUtil.get_commit_hash')
+    def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
         """ Test if all the modules from capability file (with their submodules) have correctly set information
         about implementaton from platform_metadata.json file.
         Parsed modules are dumped to prepare.json file, then loaded and implementation information is chcecked.
@@ -177,10 +177,10 @@ class TestCapabilityClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
 
-        capability.parse_and_load()
-        capability.dumper.dump_modules(yc_gc.temp_dir)
+        vendor_capabilities.parse_and_load()
+        vendor_capabilities.dumper.dump_modules(yc_gc.temp_dir)
 
         dumped_modules_data = self.load_dumped_prepare_json_data()
         self.assertNotEqual(len(dumped_modules_data), 0)
@@ -201,7 +201,7 @@ class TestCapabilityClass(unittest.TestCase):
                     self.assertEqual(implementation.get('feature-set'), 'ALL')
                     self.assertEqual(implementation.get('os-type'), platform_data.get('os-type'))
 
-    def test_capability_ampersand_exception(self):
+    def test_vendor_capabilities_ampersand_exception(self):
         """ Test if ampersand character will be replaced in .xml file if occurs.
         If ampersand character occurs, exception is raised, and character is replaced.
         """
@@ -216,11 +216,11 @@ class TestCapabilityClass(unittest.TestCase):
             print(line.replace('&amp;', '&'), end='')
         hello_file.close()
 
-        capability = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
 
-        self.assertEqual(capability.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
+        self.assertEqual(vendor_capabilities.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
-    def test_capability_solve_xr_os_type(self):
+    def test_vendor_capabilities_solve_xr_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
         directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/702')
@@ -229,10 +229,10 @@ class TestCapabilityClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
-        capability._parse_platform_metadata()
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities._parse_platform_metadata()
 
-        platform_data = capability.platform_data
+        platform_data = vendor_capabilities.platform_data
         # Load desired module data from .json file
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
@@ -241,7 +241,7 @@ class TestCapabilityClass(unittest.TestCase):
         self.assertNotEqual(len(platform_data), 0)
         self.assertEqual(desired_platform_data, platform_data[0])
 
-    def test_capability_solve_nx_os_type(self):
+    def test_vendor_capabilities_solve_nx_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
         directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/nx/9.2-1')
@@ -250,10 +250,10 @@ class TestCapabilityClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
-        capability._parse_platform_metadata()
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities._parse_platform_metadata()
 
-        platform_data = capability.platform_data
+        platform_data = vendor_capabilities.platform_data
         # Load desired module data from .json file
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
@@ -262,7 +262,7 @@ class TestCapabilityClass(unittest.TestCase):
         self.assertNotEqual(len(platform_data), 0)
         self.assertEqual(desired_platform_data, platform_data[0])
 
-    def test_capability_solve_xe_os_type(self):
+    def test_vendor_capabilities_solve_xe_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
         directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xe/16101')
@@ -271,10 +271,10 @@ class TestCapabilityClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
-        capability._parse_platform_metadata()
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities._parse_platform_metadata()
 
-        platform_data = capability.platform_data
+        platform_data = vendor_capabilities.platform_data
         # Load desired module data from .json file
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
@@ -283,8 +283,8 @@ class TestCapabilityClass(unittest.TestCase):
         self.assertNotEqual(len(platform_data), 0)
         self.assertEqual(desired_platform_data, platform_data[0])
 
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
-    def test_capability_parse_and_dump_yang_lib(self, mock_hash: mock.MagicMock):
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
+    def test_vendor_yang_lib_parse_and_dump(self, mock_hash: mock.MagicMock):
         """ Test if all the modules from ietf-yang-library xml file (with their submodules) have correctly set information
         about implementaton from platform_metadata.json file.
         Parsed modules are dumped to prepare.json file, then loaded and implementation information is checked.
@@ -301,10 +301,10 @@ class TestCapabilityClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
-        capability = VendorYangLibrary(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_yang_lib = VendorYangLibrary(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
 
-        capability.parse_and_load()
-        capability.dumper.dump_modules(yc_gc.temp_dir)
+        vendor_yang_lib.parse_and_load()
+        vendor_yang_lib.dumper.dump_modules(yc_gc.temp_dir)
 
         dumped_modules_data = self.load_dumped_prepare_json_data()
 

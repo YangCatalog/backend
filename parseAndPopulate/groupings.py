@@ -35,7 +35,7 @@ from utility.util import find_first_file
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.prepare import Dumper
+from parseAndPopulate.dumper import Dumper
 from utility.yangParser import ParseException
 
 

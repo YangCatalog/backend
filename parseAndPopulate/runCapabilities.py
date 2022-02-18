@@ -31,9 +31,9 @@ import time
 import typing as t
 
 import utility.log as log
-from parseAndPopulate.capability import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
+from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.prepare import Dumper
+from parseAndPopulate.dumper import Dumper
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import find_files
