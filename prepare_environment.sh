@@ -21,10 +21,10 @@ git clone --depth 1 https://github.com/YangModels/yang.git $YANG_MODELS_DIR
 cd $YANG_MODELS_DIR
 git submodule update --init vendor/huawei
 
-# Prepare files and directory structure for test_capability.py
-mkdir -p $TMP_DIR/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC/.
-cp $BACKEND/tests/resources/prepare-sdo.json $TMP_DIR/capability-tests/.
+# Prepare files and directory structure for test_groupings.py
+mkdir -p $TMP_DIR/groupings-tests/temp/YangModels/yang/master/standard/ietf/RFC
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/groupings-tests/temp/YangModels/yang/master/standard/ietf/RFC/.
+cp $BACKEND/tests/resources/prepare-sdo.json $TMP_DIR/groupings-tests/.
 
 # Create directories which match YangModels/yang/vendor/cisco structure, then copy certain files to these directories
 mkdir -p $TMP_DIR/master/vendor/cisco/xr/701/

@@ -36,16 +36,7 @@ class TestParseExceptionClass(unittest.TestCase):
         """ Test if ParseException is raised when non-existing path is passed as 'path' argument.
         Load content of unparsable-modules.json file and check whether name of the module is stored in file.
         """
-        jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path = '/not/existing/path/module.yang'
-        dir_paths = {
-            'logs': yc_gc.logs_dir,
-            'result': yc_gc.result_dir,
-            'yang_models': yc_gc.yang_models
-        }
-
-        with self.assertRaises(ParseException):
-            SdoModule(path, jsons, dir_paths)
+        ParseException('module.yang')
 
         with open(os.path.join(yc_gc.var_yang, 'unparsable-modules.json'), 'r') as f:
             modules = json.load(f)

@@ -142,7 +142,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(response, 'Failed')
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_sdo(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
         data = self.test_data.get('prepare-sdo-content')
@@ -171,7 +171,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         for prop in ['name', 'revision', 'organization', 'module-classification', 'generated-from']:
             self.assertEqual(module[prop], original_module_data[prop])
 
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_sdo_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
@@ -186,7 +186,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(all_modules, {})
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_vendor(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
         platform = self.test_data.get('capabilities-json-content')
@@ -224,7 +224,7 @@ class TestReceiverClass(TestReceiverBaseClass):
             redis_data = (redis_module or b'{}').decode('utf-8')
             self.assertNotEqual(redis_data, '{}')
 
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_vendor_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',

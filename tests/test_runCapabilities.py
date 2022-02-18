@@ -39,8 +39,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
     ### TESTS DEFINITIONS ###
     #########################
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_sdo(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over SDO yang files in directory.
         For testing purposes there is only 1 yang file (ietf-yang-types@2013-07-15.yang) in directory.
@@ -88,8 +88,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
                         else:
                             self.assertEqual(dumped_module[key], desired_module[key])
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_sdo_empty_dir(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over empty directory - no yang files.
         Test whether prepare.json file contain only empty dictionary '{}'.
@@ -118,8 +118,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             file_content = json.load(f)
         self.assertEqual(file_content, {})
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over vendor yang files in directory which also contains capability xml file.
         Compare content of normal.json and prepare.json files.
@@ -211,8 +211,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             file_content = json.load(f)
         self.assertEqual(file_content, {})
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapability script over yang_lib.xml. Compare content of normal.json and prepare.json files.
 

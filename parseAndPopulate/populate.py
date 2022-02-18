@@ -259,7 +259,7 @@ def main(scriptConf=None):
                 vendors = json.loads(data.read())['vendors']['vendor']
             except:
                 LOGGER.error('No files were parsed. This probably means the directory is missing capability xml files')
-                exit(1)
+                raise Exception
         errors = errors or confdService.patch_vendors(vendors)
         redisConnection.populate_implementation(vendors)
     if body_to_send:
@@ -300,4 +300,7 @@ def main(scriptConf=None):
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except:
+        exit(1)

@@ -116,10 +116,10 @@ class TestGroupingsClass(unittest.TestCase):
             self.assertIn(key, sdo_directory.dumper.yang_modules)
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_sdo_directory_parse_and_load_submodule(self, mock_requests_get: mock.MagicMock, mock_hash: mock.MagicMock):
         """
-        Test whether keys were created and prepare object values were set correctly
+        Test whether keys were created and dumper object values were set correctly
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
 
         Arguments:
@@ -161,7 +161,7 @@ class TestGroupingsClass(unittest.TestCase):
                         else:
                             self.assertEqual(dumped_module[key], desired_module[key])
 
-    @mock.patch('parseAndPopulate.grouping.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
         """ Test if all the modules from capability file (with their submodules) have correctly set information
         about implementaton from platform_metadata.json file.
