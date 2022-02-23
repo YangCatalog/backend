@@ -30,6 +30,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import io
 import json
 import os
+import typing as t
 from collections import defaultdict
 from copy import deepcopy
 from datetime import datetime
@@ -533,9 +534,9 @@ class ModulesComplicatedAlgorithms:
             name = new_module['name']
             revision = new_module['revision']
             if (revision not in self._existing_modules_dict[name] or
-                    self._existing_modules_dict.get(name).get(revision).get('derived-semantic-version') != new_module['derived-semantic-version']):
+                    self._existing_modules_dict[name][revision].get('derived-semantic-version') != new_module['derived-semantic-version']):
                 LOGGER.info('semver {} vs {} for module {}@{}'.format(
-                    self._existing_modules_dict.get(name).get(revision, {}).get('derived-semantic-version'),
+                    self._existing_modules_dict[name].get(revision, {}).get('derived-semantic-version'),
                     new_module['derived-semantic-version'], name, revision))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = new_module
@@ -570,22 +571,30 @@ class ModulesComplicatedAlgorithms:
                 module_temp['compilation'] = new_module.get('compilation-status', 'PENDING')
                 module_temp['date'] = date
                 module_temp['schema'] = new_module['schema']
-                mod_details = [module_temp]
+                mod_details: t.List[t.Dict[str, str]] = [module_temp]
 
                 # Loop through all other available revisions of the module
-                for mod in [revision for name in data.values() for revision in name.values()]:
-                    module_temp = {}
-                    revision = mod['revision']
-                    if revision == new_module['revision']:
+                revision = ''
+                try:
+                    for mod in [revision for name in data.values() for revision in name.values()]:
+                        module_temp = {}
+                        revision = mod['revision']
+                        if revision == new_module['revision']:
+                            continue
+                        module_temp['revision'] = revision
+                        module_temp['date'] = get_revision_datetime(mod)
+                        module_temp['name'] = name
+                        module_temp['organization'] = mod['organization']
+                        module_temp['schema'] = mod['schema']
+                        module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
+                        module_temp['semver'] = mod['derived-semantic-version']
+                        mod_details.append(module_temp)
+                except KeyError as e:
+                    LOGGER.error('Existing module {}@{} is missing the {} field'.format(name, revision, e))
+                    if str(e) == 'derived-semantic-version':
+                        LOGGER.error('Cannot resolve semver for {}@{}'.format(name, new_revision))
                         continue
-                    module_temp['revision'] = revision
-                    module_temp['date'] = get_revision_datetime(mod)
-                    module_temp['name'] = name
-                    module_temp['organization'] = mod.get('organization')
-                    module_temp['schema'] = mod.get('schema')
-                    module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
-                    module_temp['semver'] = mod.get('derived-semantic-version')
-                    mod_details.append(module_temp)
+
                 data[name][new_revision] = new_module
                 mod_details = sorted(mod_details, key=lambda k: k['date'])
                 # If we are adding a new module to the end (latest revision) of existing modules with this name
