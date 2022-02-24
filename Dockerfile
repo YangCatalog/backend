@@ -52,6 +52,7 @@ COPY --chown=yang:yang ./backend/crontab /etc/cron.d/yang-cron
 
 RUN sed -i "s|<MAIL_TO>|${CRON_MAIL_TO}|g" /etc/cron.d/yang-cron
 RUN sed -i "s|<YANGCATALOG_CONFIG_PATH>|${YANGCATALOG_CONFIG_PATH}|g" /etc/cron.d/yang-cron
+RUN sed -i "/imklog/s/^/#/" /etc/rsyslog.conf
 
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
