@@ -9,10 +9,10 @@ YANGCATALOG_CONFIG_PATH=<YANGCATALOG_CONFIG_PATH>
 #
 # Backend API maintenance
 #
-5 1 * * * (cd ~ ; source bin/activate; echo "`date` starting openconfigPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python openconfigPullLocal.py )
 5 3 * * * (cd ~ ; source bin/activate ; echo "`date` starting statistics" >> /var/yang/logs/crons-log.log ; cd statistic ; python statistics.py)
 5 4 * * * (cd ~ ; source bin/activate ; echo "`date` starting resolveExpiration" >> /var/yang/logs/crons-log.log ; cd utility ; python resolveExpiration.py)
 5 5 * * * (cd ~ ; source bin/activate ; echo "`date` starting reviseTreeType" >> /var/yang/logs/crons-log.log ; cd utility ; python reviseTreeType.py)
+5 6 * * * (cd ~ ; source bin/activate; echo "`date` starting openconfigPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python openconfigPullLocal.py )
 5 12 * * 0 (cd ~ ; source bin/activate ; echo "`date` starting reviseSemver" >> /var/yang/logs/crons-log.log ; cd parseAndPopulate ; python reviseSemver.py)
 5 10 * * * (cd ~ ; source bin/activate ; echo "`date` starting userReminder" >> /var/yang/logs/crons-log.log ; cd utility ; python userReminder.py)
 5 14 * * * (cd ~ ; source bin/activate ; echo "`date` starting ianaPull" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python ianaPull.py)
