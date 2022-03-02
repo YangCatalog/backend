@@ -889,14 +889,9 @@ class VendorModule(Module):
     def _resolve_schema(self, schema_base: str, git_commit_hash: str, path_in_repo: str):
         super()._resolve_schema(schema_base, git_commit_hash, path_in_repo)
         if schema_base:
-            split_index = git_commit_hash
-            if '/yangmodels/yang/' in self._path:
-                split_index = '/yangmodels/yang/'
-            suffix = os.path.abspath(self._path).split(split_index)[1]
-            if path_in_repo:
-                git_root_dir = path_in_repo.split('/')[0]
-                if git_root_dir in suffix:
-                    suffix = os.path.join(git_root_dir, suffix.split(git_root_dir)[1].removeprefix('/'))
+            assert '/tmp/' in self._path, 'Files should be copied in a subdirectory of tmp'
+            suffix = os.path.abspath(self._path).split('/tmp/')[1]
+            suffix = '/'.join(suffix.split('/')[3:]) # remove directory_number/owner/repo prefix
             self.schema = os.path.join(schema_base, suffix.removeprefix('/'))
 
 

@@ -83,7 +83,7 @@ class SdoDirectory(ModuleGrouping):
 
     def parse_and_load(self, repo: t.Optional[repoutil.RepoUtil] = None):
         """
-        If modules were sent via the API, the contents of the prepare-sdo.json file are parsed
+        If modules were sent via the API, the contents of the request-data.json file are parsed
         and modules are loaded from Git repository.
         Otherwise, all the .yang files in the directory are parsed.
 
@@ -101,7 +101,7 @@ class SdoDirectory(ModuleGrouping):
     def _parse_and_load_api(self):
         LOGGER.debug('Parsing sdo files sent via API')
         commit_hash = None
-        with open(os.path.join(self.dir_paths['json'], 'prepare-sdo.json'), 'r') as f:
+        with open(os.path.join(self.dir_paths['json'], 'request-data.json'), 'r') as f:
             sdos_json = json.load(f)
         sdos_list: t.List[dict] = sdos_json.get('modules', {}).get('module', [])
         sdos_count = len(sdos_list)
@@ -136,7 +136,7 @@ class SdoDirectory(ModuleGrouping):
                 name = file_name.split('.')[0].split('@')[0]
                 schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
                 yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                                 schema_base, repo_file_path, self.dir_paths['save'], sdo)
+                               schema_base, repo_file_path, self.dir_paths['save'], sdo)
                 self.dumper.add_module(yang)
 
     def _parse_and_load_not_api(self):
@@ -335,29 +335,29 @@ class VendorGrouping(ModuleGrouping):
                     'os': os_type,
                     'vendor': self.split[platform_index - 1]})
 
-    def _parse_implementation(self, impl: dict):
-        if impl['module-list-file']['path'] in self.xml_file:
-            self._initialize_repo(impl)
-            self.platform_data.append({'software-flavor': impl['software-flavor'],
-                                       'platform': impl['name'],
-                                       'os-version': impl['software-version'],
-                                       'software-version': impl['software-version'],
+    def _parse_implementation(self, implementation: dict):
+        if implementation['module-list-file']['path'] in self.xml_file:
+            self._initialize_repo(implementation)
+            self.platform_data.append({'software-flavor': implementation['software-flavor'],
+                                       'platform': implementation['name'],
+                                       'os-version': implementation['software-version'],
+                                       'software-version': implementation['software-version'],
                                        'feature-set': 'ALL',
-                                       'vendor': impl['vendor'],
-                                       'os': impl['os-type']})
-            raw_capabilities = impl.get('netconf-capabilities')
+                                       'vendor': implementation['vendor'],
+                                       'os': implementation['os-type']})
+            raw_capabilities = implementation.get('netconf-capabilities')
             if raw_capabilities:
                 self.found_capabilities = True
                 for raw_capability in raw_capabilities:
                     self._parse_raw_capability(raw_capability)
 
-    def _initialize_repo(self, impl: dict):
-        self.repo_owner = impl.get('module-list-file', {}).get('owner', '')
-        self.repo_name = impl.get('module-list-file', {}).get('repository', '')
+    def _initialize_repo(self, implementation: dict):
+        self.repo_owner = implementation.get('module-list-file', {}).get('owner', '')
+        self.repo_name = implementation.get('module-list-file', {}).get('repository', '')
         if self.repo_name is not None:
             self.repo_name = self.repo_name.split('.')[0]
-        self.path = impl.get('module-list-file', {}).get('path', '')
-        branch = impl.get('module-list-file', {}).get('branch', '')
+        self.path = implementation.get('module-list-file', {}).get('path', '')
+        branch = implementation.get('module-list-file', {}).get('branch', '')
         repo_url = os.path.join(github_url, self.repo_owner, self.repo_name)
         repo = None
         if self.repo_owner == 'YangModels' and self.repo_name == 'yang':
