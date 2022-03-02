@@ -96,7 +96,8 @@ class SdoDirectory(ModuleGrouping):
         else:
             self._parse_and_load_not_api()
         if repo is not None:
-            repo.remove()
+            if self.repo_owner != 'YangModels' or self.repo_name == 'yang':
+                repo.remove()
 
     def _parse_and_load_api(self):
         LOGGER.debug('Parsing sdo files sent via API')
@@ -113,6 +114,8 @@ class SdoDirectory(ModuleGrouping):
             self.repo_owner = sdo.get('source-file', {}).get('owner', '')
             repo_file_path = sdo.get('source-file', {}).get('path', '')
             self.repo_name = sdo.get('source-file', {}).get('repository', '').split('.')[0]
+            if self.repo_owner == 'YangModels' and self.repo_name == 'yang':
+                self._load_yangmodels_repo()
             if self.repo is None:
                 self.repo = repoutil.RepoUtil(os.path.join(github_url, self.repo_owner, self.repo_name), self.logger)
                 self.repo.clone()
@@ -307,7 +310,6 @@ class VendorGrouping(ModuleGrouping):
                 self._load_yangmodels_repo()
                 assert self.repo, 'Failed to initialize git repo' 
                 self.commit_hash = self.repo.get_commit_hash('master')
-                self.repo.remove()
                 # Solve for os-type
                 base = os.path.basename(self.xml_file).removesuffix('.xml')
                 if 'nx' in self.split:
@@ -368,7 +370,8 @@ class VendorGrouping(ModuleGrouping):
         if not branch:
             branch = 'master'
         self.commit_hash = repo.get_commit_hash(branch)
-        repo.remove()
+        if self.repo_owner != 'YangModels' or self.repo_name != 'yang':
+            repo.remove()
 
     def _parse_raw_capability(self, raw_capability: str):
         # Parse netconf version

@@ -319,7 +319,8 @@ def add_modules():
         if not resolved_authorization:
             shutil.rmtree(direc)
             for key in repo:
-                repo[key].remove()
+                if 'YangModels/yang' not in key:
+                    repo[key].remove()
             abort(401, description='Unauthorized for server unknown reason')
         if 'organization' in repr(resolved_authorization):
             warning.append('{} {}'.format(os.path.basename(module_path), resolved_authorization))
@@ -327,7 +328,8 @@ def add_modules():
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
     for key in repo:
-        repo[key].remove()
+        if 'YangModels/yang' not in key:
+            repo[key].remove()
 
     arguments = ['POPULATE-MODULES', '--sdo', '--dir', direc, '--api',
                  '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
@@ -434,7 +436,8 @@ def add_vendors():
         tree_created = True
 
     for key in repo:
-        repo[key].remove()
+        if 'YangModels/yang' not in key:
+            repo[key].remove()
     arguments = ['POPULATE-VENDORS', '--dir', direc, '--api',
                  '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
     job_id = ac.sender.send('#'.join(arguments))
