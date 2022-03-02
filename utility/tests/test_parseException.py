@@ -22,8 +22,6 @@ import os
 import unittest
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.modules import SdoModule
 from utility.yangParser import ParseException
 
 
