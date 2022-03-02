@@ -584,10 +584,10 @@ class ModulesComplicatedAlgorithms:
                         module_temp['revision'] = revision
                         module_temp['date'] = get_revision_datetime(mod)
                         module_temp['name'] = name
-                        module_temp['organization'] = mod['organization']
-                        module_temp['schema'] = mod['schema']
                         module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
                         module_temp['semver'] = mod['derived-semantic-version']
+                        module_temp['organization'] = mod['organization']
+                        module_temp['schema'] = mod['schema']
                         mod_details.append(module_temp)
                 except KeyError as e:
                     LOGGER.error('Existing module {}@{} is missing the {} field'.format(name, revision, e))

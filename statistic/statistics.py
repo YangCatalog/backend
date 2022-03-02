@@ -129,7 +129,7 @@ def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
         revision = None
         try:
             parsed_yang = yangParser.parse(os.path.abspath(module_path))
-        except:
+        except yangParser.ParseException:
             continue
         results = parsed_yang.search('revision')
         if results:
@@ -221,7 +221,7 @@ def resolve_organization(path: str, parsed_yang) -> str:
                         results = parsed.search('namespace')
                         if results:
                             namespace = results[0].arg.lower()
-                except:
+                except yangParser.ParseException:
                     pass
     if namespace is None:
         return MISSING_ELEMENT
