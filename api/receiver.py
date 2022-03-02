@@ -106,9 +106,9 @@ class Receiver:
         script_conf.args.__setattr__('sdo', sdo)
         script_conf.args.__setattr__('api', api)
         script_conf.args.__setattr__('dir', direc)
-        script_conf.args.__setattr__('force-parsing', True)
+        script_conf.args.__setattr__('force_parsing', True)
         if self._notify_indexing:
-            script_conf.args.__setattr__('notify-indexing', True)
+            script_conf.args.__setattr__('notify_indexing', True)
 
         self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
             script_conf.args.__dict__))
