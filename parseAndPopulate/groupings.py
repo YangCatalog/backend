@@ -95,35 +95,23 @@ class SdoDirectory(ModuleGrouping):
             self._parse_and_load_api()
         else:
             self._parse_and_load_not_api()
-        if repo is not None:
-            if self.repo_owner != 'YangModels' or self.repo_name == 'yang':
-                repo.remove()
 
     def _parse_and_load_api(self):
         LOGGER.debug('Parsing sdo files sent via API')
         commit_hash = None
         with open(os.path.join(self.dir_paths['json'], 'request-data.json'), 'r') as f:
             sdos_json = json.load(f)
-        sdos_list: t.List[dict] = sdos_json.get('modules', {}).get('module', [])
+        sdos_list: t.List[dict] = sdos_json['modules']['module']
         sdos_count = len(sdos_list)
         for i, sdo in enumerate(sdos_list, start=1):
             # remove diacritics
             file_name = unicodedata.normalize('NFKD', os.path.basename(sdo['source-file']['path'])) \
                 .encode('ascii', 'ignore').decode()
             LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
-            self.repo_owner = sdo.get('source-file', {}).get('owner', '')
-            repo_file_path = sdo.get('source-file', {}).get('path', '')
-            self.repo_name = sdo.get('source-file', {}).get('repository', '').split('.')[0]
-            if self.repo_owner == 'YangModels' and self.repo_name == 'yang':
-                self._load_yangmodels_repo()
-            if self.repo is None:
-                self.repo = repoutil.RepoUtil(os.path.join(github_url, self.repo_owner, self.repo_name), self.logger)
-                self.repo.clone()
-            branch = sdo.get('source-file', {}).get('branch', '')
-            if not branch:
-                branch = 'master'
-            if commit_hash is None:
-                commit_hash = self.repo.get_commit_hash(os.path.dirname(repo_file_path), branch)
+            self.repo_owner = sdo['source-file']['owner']
+            repo_file_path = sdo['source-file']['path']
+            self.repo_name = sdo['source-file']['repository'].split('.')[0]
+            commit_hash = sdo['source-file']['commit-hash']
             root = os.path.join(self.repo_owner, self.repo_name, commit_hash, os.path.dirname(repo_file_path))
             root = os.path.join(self.dir_paths['json'], 'temp', root)
             path = os.path.join(root, file_name)
@@ -354,24 +342,12 @@ class VendorGrouping(ModuleGrouping):
                     self._parse_raw_capability(raw_capability)
 
     def _initialize_repo(self, implementation: dict):
-        self.repo_owner = implementation.get('module-list-file', {}).get('owner', '')
-        self.repo_name = implementation.get('module-list-file', {}).get('repository', '')
+        self.repo_owner = implementation['module-list-file']['owner']
+        self.repo_name = implementation['module-list-file']['repository']
         if self.repo_name is not None:
             self.repo_name = self.repo_name.split('.')[0]
-        self.path = implementation.get('module-list-file', {}).get('path', '')
-        branch = implementation.get('module-list-file', {}).get('branch', '')
-        repo_url = os.path.join(github_url, self.repo_owner, self.repo_name)
-        repo = None
-        if self.repo_owner == 'YangModels' and self.repo_name == 'yang':
-            repo = repoutil.load(self.dir_paths['yang_models'], repo_url)
-        if repo is None:
-            repo = repoutil.RepoUtil(repo_url, self.logger)
-            repo.clone()
-        if not branch:
-            branch = 'master'
-        self.commit_hash = repo.get_commit_hash(branch)
-        if self.repo_owner != 'YangModels' or self.repo_name != 'yang':
-            repo.remove()
+        self.path = implementation['module-list-file']['path']
+        self.commit_hash = implementation['module-list-file']['commit-hash']
 
     def _parse_raw_capability(self, raw_capability: str):
         # Parse netconf version

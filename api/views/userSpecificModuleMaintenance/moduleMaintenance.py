@@ -273,18 +273,22 @@ def add_modules():
                 continue
         module_path = source_file.get('path')
         if module_path is None:
-            abort(400, description=missing_msg.format('modules-source["path"]'))
+            abort(400, description=missing_msg.format('source-file["path"]'))
         repo_name = source_file.get('repository')
         if repo_name is None:
-            abort(400, description=missing_msg.format('modules-source["repository"]'))
+            abort(400, description=missing_msg.format('source-file["repository"]'))
         owner = source_file.get('owner')
         if owner is None:
-            abort(400, description=missing_msg.format('modules-source["owner"]'))
+            abort(400, description=missing_msg.format('source-file["owner"]'))
+
 
         dir_in_repo = os.path.dirname(module_path)
         repo_url = os.path.join(github_url, owner, repo_name)
         if repo_url not in repo:
             repo[repo_url] = get_repo(repo_url, owner, repo_name)
+
+        # needed to later construct the schema
+        source_file['commit-hash'] = repo[repo_url].get_commit_hash(source_file.get('branch'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
         try:
@@ -422,6 +426,9 @@ def add_vendors():
 
         if repo_url not in repo:
             repo[repo_url] = get_repo(repo_url, owner, repo_name)
+
+        # needed to later construct the schema
+        module_list_file['commit-hash'] = repo[repo_url].get_commit_hash(module_list_file.get('branch'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
