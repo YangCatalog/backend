@@ -88,8 +88,7 @@ def find_first_file(directory: str, pattern: str,
         for root, _, files in os.walk(directory):
             for basename in files:
                 if fnmatch.fnmatch(basename, pattern):
-                    filename = os.path.join(root, basename)
-                    return filename
+                    return os.path.join(root, basename)
 
     rfcs_dir = '{}/standard/ietf/RFC'.format(yang_models_dir)
     standards_dir = '{}/standard'.format(yang_models_dir)

@@ -68,10 +68,26 @@ class ModuleGrouping:
         self.repo_owner = 'YangModels'
         self.repo_name = 'yang'
         repo_url = os.path.join(github_url, self.repo_owner, self.repo_name)
-        self.repo = repoutil.load(self.dir_paths['yang_models'], repo_url)
-        if self.repo is None:
-            self.repo = repoutil.RepoUtil(repo_url, self.logger)
-            self.repo.clone()
+        repo = repoutil.load(self.dir_paths['yang_models'], repo_url)
+        if repo is None:
+            repo = repoutil.RepoUtil(repo_url, self.logger)
+            repo.clone()
+        self.repo = repo
+
+    def _check_if_submodule(self) -> t.Optional[str]:
+        submodule_name = None
+        for submodule in self.repo.repo.submodules:
+            if submodule.name in self.directory:
+                submodule_name = submodule.name
+                repo_url = submodule.url.lower()
+                repo_dir = os.path.join(self.dir_paths['yang_models'], submodule_name)
+                repo = repoutil.load(repo_dir, repo_url)
+                assert repo is not None, 'Failed to initialize git repo'
+                self.repo = repo
+                self.repo_owner = self.repo.get_repo_owner()
+                self.repo_name = self.repo.get_repo_dir().split('.git')[0]
+                break
+        return submodule_name
 
     def parse_and_load(self):
         """Parse the modules and load the extracted data into the dumper."""
@@ -90,7 +106,6 @@ class SdoDirectory(ModuleGrouping):
         Argument:
             :param repo     Git repository which contains .yang files
         """
-        self.repo = repo
         if self.api:
             self._parse_and_load_api()
         else:
@@ -127,28 +142,15 @@ class SdoDirectory(ModuleGrouping):
                 name = file_name.split('.')[0].split('@')[0]
                 schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
                 yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                               schema_base, repo_file_path, self.dir_paths['save'], sdo)
+                               schema_base, self.dir_paths['save'], sdo)
                 self.dumper.add_module(yang)
 
     def _parse_and_load_not_api(self):
         LOGGER.debug('Parsing sdo files from directory')
         commit_hash = None
         self._load_yangmodels_repo()
-        assert self.repo and self.repo.repo, 'Failed to initialize git repo'
-        is_submodule = False
         # Check if repository submodule
-        submodule_name = ''
-        for submodule in self.repo.repo.submodules:
-            if submodule.name in self.directory:
-                is_submodule = True
-                submodule_name = submodule.name
-                repo_url = submodule.url
-                repo_dir = os.path.join(self.dir_paths['yang_models'], submodule_name)
-                self.repo = repoutil.load(repo_dir, repo_url)
-                assert self.repo is not None, 'Failed to initialize git repo'
-                self.repo_owner = self.repo.get_repo_owner()
-                self.repo_name = self.repo.get_repo_dir().split('.git')[0]
-                break
+        submodule_name = self._check_if_submodule()
 
         for root, _, sdos in os.walk(self.directory):
             sdos_count = len(sdos)
@@ -170,19 +172,11 @@ class SdoDirectory(ModuleGrouping):
                             LOGGER.exception('ParseException while parsing {}'.format(file_name))
                             continue
                         name = file_name.split('.')[0].split('@')[0]
-                        # Check if not submodule
-                        if is_submodule:
-                            path = path.replace('{}/'.format(submodule_name), '')
-                        abs_path = os.path.abspath(path)
-                        if '/yangmodels/yang/' in abs_path:
-                            path = abs_path.split('/yangmodels/yang/')[1]
-                        else:
-                            path = re.split(r'tmp\/\w*\/', abs_path)[1]
                         if commit_hash is None:
                             commit_hash = self.repo.get_commit_hash(path, 'master')
                         schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
                         yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                                         schema_base, path, self.dir_paths['save'])
+                                       schema_base, self.dir_paths['save'], submodule_name=submodule_name)
                         self.dumper.add_module(yang)
 
 
@@ -202,7 +196,6 @@ class IanaDirectory(SdoDirectory):
 
         commit_hash = None
         self._load_yangmodels_repo()
-        assert self.repo, 'Failed to initialize git repo' 
 
         for yang in modules:
             additional_info = {}
@@ -236,16 +229,11 @@ class IanaDirectory(SdoDirectory):
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
-                abs_path = os.path.abspath(path)
-                if '/yangmodels/yang/' in abs_path:
-                    path = abs_path.split('/yangmodels/yang/')[1]
-                else:
-                    path = re.split(r'tmp\/\w*\/', abs_path)[1]
                 if commit_hash is None:
                     commit_hash = self.repo.get_commit_hash(path, 'master')
                 schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
                 yang.parse_all(data['name'], commit_hash, self.dumper.yang_modules,
-                                 schema_base, path, self.dir_paths['save'], additional_info)
+                                 schema_base, self.dir_paths['save'], additional_info)
                 self.dumper.add_module(yang)
 
 
@@ -255,7 +243,7 @@ class VendorGrouping(ModuleGrouping):
                  file_hasher: FileHasher, api: bool, dir_paths: t.Dict[str, str]):
         super().__init__(directory, dumper, file_hasher, api, dir_paths)
 
-        self.path = ''
+        self.submodule_name = None
         self.found_capabilities = False
         self.capabilities = []
         self.netconf_versions = []
@@ -285,6 +273,9 @@ class VendorGrouping(ModuleGrouping):
             self._parse_implementation(implementation)
         # Vendor modules loaded from directory
         if not self.api:
+            self._load_yangmodels_repo()
+            self.submodule_name = self._check_if_submodule()
+            self.commit_hash = self.repo.get_commit_hash('master')
             metadata_path = os.path.join(self.directory, 'platform-metadata.json')
             if os.path.isfile(metadata_path):
                 LOGGER.info('Parsing a platform-metadata.json file')
@@ -295,9 +286,6 @@ class VendorGrouping(ModuleGrouping):
                     self._parse_implementation(implementation)
             else:
                 LOGGER.debug('Setting metadata concerning whole directory')
-                self._load_yangmodels_repo()
-                assert self.repo, 'Failed to initialize git repo' 
-                self.commit_hash = self.repo.get_commit_hash('master')
                 # Solve for os-type
                 base = os.path.basename(self.xml_file).removesuffix('.xml')
                 if 'nx' in self.split:
@@ -346,8 +334,8 @@ class VendorGrouping(ModuleGrouping):
         self.repo_name = implementation['module-list-file']['repository']
         if self.repo_name is not None:
             self.repo_name = self.repo_name.split('.')[0]
-        self.path = implementation['module-list-file']['path']
-        self.commit_hash = implementation['module-list-file']['commit-hash']
+        if self.api:
+            self.commit_hash = implementation['module-list-file']['commit-hash']
 
     def _parse_raw_capability(self, raw_capability: str):
         # Parse netconf version
@@ -385,7 +373,7 @@ class VendorGrouping(ModuleGrouping):
                 set_of_names.add(name)
                 pattern = '{}.yang'.format(name)
                 pattern_with_revision = '{}@*.yang'.format(name)
-                yang_file = find_first_file(self.directory, pattern,
+                yang_file = find_first_file(os.path.dirname(self.xml_file), pattern,
                                             pattern_with_revision, self.dir_paths['yang_models'])
                 if yang_file is None:
                     return
@@ -396,7 +384,7 @@ class VendorGrouping(ModuleGrouping):
                         LOGGER.exception('ParseException while parsing {}'.format(name))
                         continue
                     yang.parse_all(name, self.commit_hash, self.dumper.yang_modules,
-                                   schema_base, self.path, self.dir_paths['save'])
+                                   schema_base, self.dir_paths['save'], submodule_name=self.submodule_name)
                     yang.add_vendor_information(self.platform_data, conformance_type,
                                                 self.capabilities, self.netconf_versions)
                     self.dumper.add_module(yang)
@@ -464,7 +452,7 @@ class VendorCapabilities(VendorGrouping):
                         LOGGER.exception('ParseException while parsing {}'.format(module_name))
                         continue
                     yang.parse_all(module_name, self.commit_hash, self.dumper.yang_modules,
-                                   schema_base, self.path, self.dir_paths['save'])
+                                   schema_base, self.dir_paths['save'], submodule_name=self.submodule_name)
                     yang.add_vendor_information(self.platform_data, 'implement',
                                                 self.capabilities, self.netconf_versions)
                     self.dumper.add_module(yang)
@@ -535,7 +523,7 @@ class VendorYangLibrary(VendorGrouping):
                     continue
 
                 yang.parse_all(module_name, self.commit_hash, self.dumper.yang_modules,
-                               schema_base, self.path, self.dir_paths['save'])
+                               schema_base, self.dir_paths['save'], submodule_name=self.submodule_name)
                 yang.add_vendor_information(self.platform_data, conformance_type,
                                             self.capabilities, self.netconf_versions)
                 self.dumper.add_module(yang)

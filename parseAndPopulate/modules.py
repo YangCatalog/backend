@@ -103,7 +103,7 @@ class Module:
         return ret
 
     def parse_all(self, name: str, git_commit_hash: str, yang_modules: dict, schema_base: str,
-                  path_in_repo: str, save_file_dir: str, aditional_info: t.Optional[dict] = None):
+                  save_file_dir: str, aditional_info: t.Optional[dict] = None, submodule_name: t.Optional[str] = None):
         """
         Parse all data that we can from the module. Must only be called once.
 
@@ -113,9 +113,9 @@ class Module:
             :param yang_modules:    (dict) yang modules we've already parsed
             :param schema_base:     (str) url to a raw module on github up to and not including the
                                     path of the file in the repo
-            :param path_in_repo     (str) the rest of the url
             :param save_file_dir:   (str) directory, where all the modules are saved at
             :param aditional_info   (dict) some aditional information about module given from client
+            :param submodule_name   (str) name of the git submodule the yang module belongs to
         """
         def get_json(js):
             if js:
@@ -145,7 +145,7 @@ class Module:
         self._resolve_belongs_to()
         self._resolve_namespace()
         self._resolve_organization(organization)
-        self._resolve_schema(schema_base, git_commit_hash, path_in_repo)
+        self._resolve_schema(schema_base, submodule_name)
         self._resolve_submodule()
         self._resolve_imports(git_commit_hash)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
@@ -226,7 +226,7 @@ class Module:
                                 assert repo.repo, 'Is loaded either from the yang_models dir or freshly cloned'
                                 for submodule in repo.repo.submodules:
                                     if submodule.name in suffix:
-                                        repo_url = submodule.url
+                                        repo_url = submodule.url.lower()
                                         repo_dir = os.path.join(self.yang_models, submodule.name)
                                         repo = repoutil.load(repo_dir, repo_url)
                                         assert repo, 'Loaded from a known submodule'
@@ -275,14 +275,21 @@ class Module:
                 except ValueError:
                     self.revision = '1970-01-01'
 
-    def _resolve_schema(self, schema_base, git_commit_hash, path_in_repo):
+    def _resolve_schema(self, schema_base: str, submodule_name: t.Optional[str]):
         LOGGER.debug('Resolving schema')
-        schema = os.path.join(schema_base, path_in_repo)
         if self.organization == 'etsi':
             suffix = self._path.split('SOL006')[-1]
             self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw//master/{}'.format(suffix)
-        elif schema:
-            self.schema = schema
+        elif schema_base:
+            if 'yangmodels/yang' in self._path:
+                suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[1]
+            else:
+                assert '/tmp/' in self._path, 'Called by api, files should be copied in a subdirectory of tmp'
+                suffix = os.path.abspath(self._path).split('/tmp/')[1]
+                suffix = '/'.join(suffix.split('/')[3:]) # remove directory_number/owner/repo prefix
+            if submodule_name:
+                suffix = suffix.replace('{}/'.format(submodule_name), '')
+            self.schema = os.path.join(schema_base, suffix)
         else:
             self.schema = None
 
@@ -802,7 +809,7 @@ class Module:
     def _find_file(self, name: str, revision: str = '*') -> t.Optional[str]:
         pattern = '{}.yang'.format(name)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        yang_file = find_first_file('/'.join(self._path.split('/')[0:-1]), pattern, pattern_with_revision, self.yang_models)
+        yang_file = find_first_file(os.path.dirname(self._path), pattern, pattern_with_revision, self.yang_models)
         return yang_file
 
     # NOTE: Could these just be empty strings instead?
@@ -885,14 +892,6 @@ class VendorModule(Module):
             self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
         else:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
-
-    def _resolve_schema(self, schema_base: str, git_commit_hash: str, path_in_repo: str):
-        super()._resolve_schema(schema_base, git_commit_hash, path_in_repo)
-        if schema_base:
-            assert '/tmp/' in self._path, 'Files should be copied in a subdirectory of tmp'
-            suffix = os.path.abspath(self._path).split('/tmp/')[1]
-            suffix = '/'.join(suffix.split('/')[3:]) # remove directory_number/owner/repo prefix
-            self.schema = os.path.join(schema_base, suffix.removeprefix('/'))
 
 
     def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],

@@ -17,6 +17,7 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
+from ast import dump
 import json
 import os
 import unittest
@@ -52,7 +53,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path = '{}/temp/standard/ietf/RFC'.format(yc_gc.temp_dir)
+        path = '{}/test/YangModels/yang/standard/ietf/RFC'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -130,7 +131,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_commit_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        xml_path = '{}/master/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
+        xml_path = '{}/test/YangModels/yang/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -222,7 +223,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
-        xml_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
+        xml_path = '{}/test/YangModels/yang/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -256,7 +257,11 @@ class TestRunCapabilitiesClass(unittest.TestCase):
                                 dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
                                 self.assertEqual(desired_compilation_result, dumped_compilation_result)
                         else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+                            if isinstance(desired_module[key], list):
+                                for i in desired_module[key]:
+                                    self.assertIn(i, dumped_module[key], key)
+                            else:
+                                self.assertEqual(dumped_module[key], desired_module[key])
 
         # Load desired normal.json data from .json file
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
