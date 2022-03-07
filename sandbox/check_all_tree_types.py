@@ -1,3 +1,7 @@
+"""
+This sandbox script runs one part of ModulesComplicatedAlgorithms over all the modules in YANG Catalog.
+Script checks the tree type for each module and updates it if necessary.
+"""
 import sys
 import time
 
