@@ -1,3 +1,7 @@
+"""
+This sandbox script go through all the files found in /var/yang/ytrees directory.
+If size of the file is equal to 0, JSON tree is created using emit_tree plugin.
+"""
 import argparse
 import glob
 import os
@@ -5,8 +9,8 @@ from pathlib import Path
 
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
-from scripts.yangParser import create_context
 from utility.create_config import create_config
+from utility.yangParser import create_context
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
@@ -21,15 +25,15 @@ if __name__ == '__main__':
     json_ytree = config.get('Directory-Section', 'json-ytree')
 
     jsons = glob.glob('{}/*.json'.format(json_ytree))
+    num_of_jsons = len(jsons)
     i = 0
-    for jsn in jsons:
-        i += 1
-        print('tree {} {} out of {}'.format(jsn, i , len(jsons)))
-        file_stat = Path('{}'.format(jsn)).stat()
+    for i, jsn in enumerate(jsons):
+        print('tree {} {} out of {}'.format(jsn, i + 1, num_of_jsons))
+        file_stat = Path(jsn).stat()
         if file_stat.st_size != 0:
             continue
         plugin.init([])
-        ctx = create_context('{}'.format(save_file_dir))
+        ctx = create_context(save_file_dir)
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
         for p in plugin.plugins:
@@ -38,22 +42,22 @@ if __name__ == '__main__':
         name_revision = module.split('@')
         name = name_revision[0]
         revision = name_revision[1].split('.')[0]
-        m = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
+        all_modules_path = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
         try:
-            with open(m, 'r') as f:
-                parsed_module = ctx.add_module(m, f.read())
-        except:
-            print('not found ' + m)
+            with open(all_modules_path, 'r') as f:
+                parsed_module = ctx.add_module(all_modules_path, f.read())
+        except Exception:
+            print('Module not found {}'.format(all_modules_path))
         try:
             ctx.validate()
             if parsed_module is None:
                 continue
-        except:
-            print('module {} can not be validated'.format(m))
+        except Exception:
+            print('Module {} can not be validated'.format(all_modules_path))
 
         with open('{}/{}@{}.json'.format(json_ytree, name, revision), 'w') as f:
             try:
                 emit_tree([parsed_module], f, ctx)
-            except:
+            except Exception:
                 # create empty file so we still have access to that
                 f.write('')
