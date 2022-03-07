@@ -473,9 +473,9 @@ def main(scriptConf: ScriptConfig = None):
         process_sdo_dir('standard/ietf/RFC', 'IETF RFCs')
         process_sdo_dir('standard/ietf/DRAFT', 'IETF drafts')
         process_sdo_dir('experimental/ietf-extracted-YANG-modules', 'IETF experimental drafts')
+        process_sdo_dir('standard/iana', 'IANA standard')
         process_sdo_dir('standard/bbf/standard', 'BBF standard')
-        process_sdo_dir('standard/etsi/SOL006', 'ETSI standard')
-        process_sdo_dir('standard/bbf/draft', 'BBF draft')
+        process_sdo_dir('standard/etsi', 'ETSI standard')
 
         for direc in next(os.walk(os.path.join(yang_models, 'standard/ieee/published')))[1]:
             ieee_direc = os.path.join(yang_models, 'standard/ieee/published', direc)
