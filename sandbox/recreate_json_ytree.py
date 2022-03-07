@@ -1,17 +1,15 @@
 import argparse
 import glob
 import os
-from utility.create_config import create_config
+from pathlib import Path
+
 from pyang import plugin
 from pyang.plugins.json_tree import emit_tree
 from scripts.yangParser import create_context
-from pathlib import Path
+from utility.create_config import create_config
 
 if __name__ == '__main__':
-    #find_args = []
-
-    parser = argparse.ArgumentParser(
-        description="Process changed modules in a git repo")
+    parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
     parser.add_argument('--time', type=str,
                         help='Modified time argument to find(1)', required=False)
     parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
@@ -20,9 +18,9 @@ if __name__ == '__main__':
     config_path = args.config_path
     config = create_config(config_path)
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
-    ytree_dir = config.get('Directory-Section', 'json-ytree')
+    json_ytree = config.get('Directory-Section', 'json-ytree')
 
-    jsons = glob.glob("{}/*.json".format(ytree_dir))
+    jsons = glob.glob('{}/*.json'.format(json_ytree))
     i = 0
     for jsn in jsons:
         i += 1
@@ -53,9 +51,9 @@ if __name__ == '__main__':
         except:
             print('module {} can not be validated'.format(m))
 
-        with open('{}/{}@{}.json'.format(ytree_dir, name, revision), 'w') as f:
+        with open('{}/{}@{}.json'.format(json_ytree, name, revision), 'w') as f:
             try:
                 emit_tree([parsed_module], f, ctx)
             except:
                 # create empty file so we still have access to that
-                f.write("")
+                f.write('')
