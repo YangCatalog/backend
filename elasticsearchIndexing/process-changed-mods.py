@@ -54,7 +54,7 @@ if __name__ == '__main__':
     temp_dir = config.get('Directory-Section', 'temp')
     lock_file = config.get('Directory-Section', 'lock')
     lock_file_cron = config.get('Directory-Section', 'lock-cron')
-    ytree_dir = config.get('Directory-Section', 'json-ytree')
+    json_ytree = config.get('Directory-Section', 'json-ytree')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     threads = config.get('General-Section', 'threads')
     processes = int(config.get('General-Section', 'yProcesses'))
@@ -201,7 +201,7 @@ if __name__ == '__main__':
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
 
-        build_yindex.build_yindex(ytree_dir, mod_args, LOGGER, save_file_dir, es, threads,
+        build_yindex.build_yindex(json_ytree, mod_args, LOGGER, save_file_dir, es, threads,
                                   log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
     except:
         sys.setrecursionlimit(recursion_limit)

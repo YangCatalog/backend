@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac and Joe Clarke"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech, jclarke@cisco.com"
+__author__ = 'Miroslav Kovac and Joe Clarke'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech, jclarke@cisco.com'
 
 import io
 import json
@@ -54,7 +54,7 @@ def __run_pyang_commands(commands, output_only=True, decode=True):
         return stdout, stderr
 
 
-def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_file, failed_changes_dir, temp_dir):
+def build_yindex(json_ytree, modules, LOGGER, save_file_dir, es, threads, log_file, failed_changes_dir, temp_dir):
     initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
         __file__)), 'r'))
     initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
@@ -265,7 +265,7 @@ def build_yindex(ytree_dir, modules, LOGGER, save_file_dir, es, threads, log_fil
                         LOGGER.exception('module {}@{} timed out too many times failing'.format(name, revision))
                         raise e
 
-            with open('{}/{}@{}.json'.format(ytree_dir, name, revision), 'w') as f:
+            with open('{}/{}@{}.json'.format(json_ytree, name, revision), 'w') as f:
                 try:
                     emit_tree([parsed_module], f, ctx)
                 except Exception as e:

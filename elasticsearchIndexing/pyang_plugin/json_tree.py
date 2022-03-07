@@ -21,9 +21,7 @@ jstree output plugin.
 
 import json
 
-from pyang import plugin
-from pyang import statements
-from pyang import util
+from pyang import plugin, statements, util
 
 
 def pyang_plugin_init():
@@ -46,7 +44,6 @@ class JSONTreePlugin(plugin.PyangPlugin):
 def emit_tree(modules, fd, ctx):
     for module in modules:
         mod_out = {}
-        bstr = ""
         b = module.search_one('belongs-to')
         if b is not None:
             mod_out['belongs_to'] = b.arg
@@ -98,7 +95,7 @@ def emit_tree(modules, fd, ctx):
         if len(notifs) > 0:
             mod_out['notifications'] = get_children(notifs, module, ' ', ctx)
 
-        fd.write(json.dumps(mod_out, indent=4))
+        fd.write(json.dumps(mod_out))
 
 
 def get_children(i_children, module, prefix, ctx):
@@ -123,10 +120,10 @@ def get_node(s, module, prefix, ctx):
     if pr is not None:
         child['prefix'] = pr.arg
     else:
-        child['prefix'] = ""
+        child['prefix'] = ''
 
     descr = s.search_one('description')
-    child['description'] = "No description"
+    child['description'] = 'No description'
     if descr is not None:
         child['description'] = json_escape(descr.arg)
     child['flags'] = get_flags(s)
@@ -136,7 +133,7 @@ def get_node(s, module, prefix, ctx):
         p = s.search_one('presence')
         if p is not None:
             child['presence'] = p.arg
-            options = "Presence"
+            options = 'Presence'
     elif s.keyword == 'choice':
         m = s.search_one('mandatory')
         if m is None or m.arg == 'false':
@@ -171,11 +168,11 @@ def get_node(s, module, prefix, ctx):
     child['options'] = options
 
     if s.keyword == ('tailf-common', 'action'):
-        child['class'] = "action"
+        child['class'] = 'action'
         child['type_info'] = action_params(s)
-        child['schema_type'] = "action"
+        child['schema_type'] = 'action'
     elif s.keyword == 'rpc' or s.keyword == 'notification':
-        child['class'] = "folder"
+        child['class'] = 'folder'
         child['type_info'] = action_params(s)
     else:
         child['class'] = s.keyword

@@ -160,8 +160,8 @@ def tree_module_revision(module_name, revision):
             else:
                 prefix = 'None'
             import_include_map[prefix] = imp_inc.arg
-        ytree_dir = ac.d_json_ytree
-        yang_tree_file_path = '{}/{}@{}.json'.format(ytree_dir, module_name, revision)
+        json_ytree = ac.d_json_ytree
+        yang_tree_file_path = '{}/{}@{}.json'.format(json_ytree, module_name, revision)
         response['maturity'] = get_module_data('{}@{}/{}'.format(module_name, revision,
                                                                  organization)).get('maturity-level', '').upper()
         response['import-include'] = import_include_map

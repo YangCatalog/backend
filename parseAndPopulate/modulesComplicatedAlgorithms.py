@@ -50,7 +50,7 @@ from utility.yangParser import create_context
 class ModulesComplicatedAlgorithms:
 
     def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
-                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, ytree_dir: str):
+                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, json_ytree: str):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:
@@ -65,7 +65,7 @@ class ModulesComplicatedAlgorithms:
         self._path = None
         self._yang_models = yang_models_dir
         self.temp_dir = temp_dir
-        self.ytree_dir = ytree_dir
+        self.json_ytree = json_ytree
         self._trees = defaultdict(dict)
         self._unavailable_modules = []
         LOGGER.info('get all existing modules')
@@ -479,8 +479,8 @@ class ModulesComplicatedAlgorithms:
             old_schema = '{}/{}.yang'.format(self._save_file_dir, old_name_revision)
             new_schema_exist = self._check_schema_file(new)
             old_schema_exist = self._check_schema_file(old)
-            new_tree_path = '{}/{}.json'.format(self.ytree_dir, new_name_revision)
-            old_tree_path = '{}/{}.json'.format(self.ytree_dir, old_name_revision)
+            new_tree_path = '{}/{}.json'.format(self.json_ytree, new_name_revision)
+            old_tree_path = '{}/{}.json'.format(self.json_ytree, old_name_revision)
 
             if old_schema_exist and new_schema_exist:
                 ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,

@@ -148,7 +148,7 @@ class ScriptConfig(BaseScriptConfig):
         self.cache_dir = config.get('Directory-Section', 'cache')
         self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
         self.lock_file = config.get('Directory-Section', 'lock')
-        self.ytree_dir = config.get('Directory-Section', 'json-ytree')
+        self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
 
 def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: str):
@@ -210,7 +210,7 @@ def main(scriptConf=None):
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
     cache_dir = scriptConf.cache_dir
-    ytree_dir = scriptConf.ytree_dir
+    json_ytree = scriptConf.json_ytree
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
@@ -272,7 +272,7 @@ def main(scriptConf=None):
         sys.setrecursionlimit(50000)
         complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
                                                              args.credentials, args.save_file_dir, json_dir, None,
-                                                             yang_models, temp_dir, ytree_dir)
+                                                             yang_models, temp_dir, json_ytree)
         complicatedAlgorithms.parse_non_requests()
         LOGGER.info('Waiting for cache reload to finish')
         process_reload_cache.join()
