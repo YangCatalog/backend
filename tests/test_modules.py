@@ -46,6 +46,7 @@ class TestModulesClass(unittest.TestCase):
             'result': yc_gc.result_dir,
             'yang_models': yc_gc.yang_models
         }
+        self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -115,7 +116,7 @@ class TestModulesClass(unittest.TestCase):
         """
         yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = yang_lib_data.split('&revision')[0]
-        path_to_yang = '{}/master/vendor/cisco/xr/701/{}.yang'.format(yc_gc.temp_dir, module_name)
+        path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
         deviation = yang_lib_data.split('&deviations=')[1]
 
         yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_data)
@@ -139,10 +140,10 @@ class TestModulesClass(unittest.TestCase):
         Vendor information are then added using add_vendor_information() method and object values are compared
         with data from platform-metadata.json.
         """
-        xml_path = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701', self.hello_message_filename)
+        xml_path = os.path.join(self.test_repo, 'vendor/cisco/xr/701', self.hello_message_filename)
         vendor_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = vendor_data.split('&revision')[0]
-        path_to_yang = '{}/master/vendor/cisco/xr/701/{}.yang'.format(yc_gc.temp_dir, module_name)
+        path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
         platform_name = 'ncs5k'
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
@@ -170,17 +171,17 @@ class TestModulesClass(unittest.TestCase):
         with data from platform-metadata.json.
         """
         yang_lib_info = {
-            'path': '{}/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir),
+            'path': os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e'),
             'name': 'huawei-aaa',
             'features': [],
             'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
             'revision': '2020-07-01'
         }
         schema_part = '{}/YangModels/yang/master/'.format(github_raw)
-        xml_path = os.path.join(yc_gc.temp_dir, 'master/vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
+        xml_path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
         module_name = 'huawei-aaa'
-        path_to_yang = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e/{}.yang' \
-            .format(yc_gc.temp_dir, module_name)
+        path_to_yang = '{}/vendor/huawei/network-router/8.20.0/ne5000e/{}.yang' \
+            .format(self.test_repo, module_name)
         platform_name = 'ne5000e'
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)

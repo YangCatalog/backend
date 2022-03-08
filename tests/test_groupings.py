@@ -54,6 +54,7 @@ class TestGroupingsClass(unittest.TestCase):
             'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models
         }
+        self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -128,7 +129,7 @@ class TestGroupingsClass(unittest.TestCase):
         """
         mock_requests_get.return_value.json = {}
         mock_hash.return_value = 'master'
-        path = os.path.join(yc_gc.temp_dir, 'master/vendor/huawei/network-router/8.20.0/ne5000e')
+        path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
         repo = self.get_yangmodels_repository()
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -175,9 +176,9 @@ class TestGroupingsClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701')
+        directory = os.path.join(self.test_repo, 'vendor/cisco/xr/701')
         xml_file = os.path.join(directory, self.hello_message_filename)
-        platform_json_path = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701/platform-metadata.json')
+        platform_json_path = os.path.join(self.test_repo, 'vendor/cisco/xr/701/platform-metadata.json')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
 
@@ -209,7 +210,7 @@ class TestGroupingsClass(unittest.TestCase):
         """ Test if ampersand character will be replaced in .xml file if occurs.
         If ampersand character occurs, exception is raised, and character is replaced.
         """
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701')
+        directory = os.path.join(self.test_repo, 'vendor/cisco/xr/701')
         xml_file = os.path.join(directory, self.hello_message_filename)
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -227,7 +228,7 @@ class TestGroupingsClass(unittest.TestCase):
     def test_vendor_capabilities_solve_xr_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/702')
+        directory = os.path.join(self.test_repo, 'vendor/cisco/xr/702')
         xml_file = os.path.join(directory, 'capabilities-ncs5k.xml')
         api = False
 
@@ -248,7 +249,7 @@ class TestGroupingsClass(unittest.TestCase):
     def test_vendor_capabilities_solve_nx_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/nx/9.2-1')
+        directory = os.path.join(self.test_repo, 'vendor/cisco/nx/9.2-1')
         xml_file = os.path.join(directory, 'netconf-capabilities.xml')
         api = False
 
@@ -269,7 +270,7 @@ class TestGroupingsClass(unittest.TestCase):
     def test_vendor_capabilities_solve_xe_os_type(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xe/16101')
+        directory = os.path.join(self.test_repo, 'vendor/cisco/xe/16101')
         xml_file = os.path.join(directory, 'capability-asr1k.xml')
         api = False
 
@@ -297,10 +298,10 @@ class TestGroupingsClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/huawei/network-router/8.20.0/ne5000e')
+        directory = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
         xml_file = os.path.join(directory, 'ietf-yang-library.xml')
-        platform_json_path = os.path.join(yc_gc.temp_dir,
-                                          'master/vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json')
+        platform_json_path = os.path.join(self.test_repo,
+                                          'vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json')
         platform_name = 'ne5000e'
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
@@ -345,7 +346,6 @@ class TestGroupingsClass(unittest.TestCase):
         parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         module_name = path_to_yang.split('/')[-1].split('.yang')[0]
         schema_base = os.path.join(github_raw, 'YangModels/yang/master')
-        path_in_repo = 'standard/ietf/RFC/{}.yang'.format(module_name)
         if '@' in module_name:
             module_name = module_name.split('@')[0]
 

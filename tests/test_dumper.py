@@ -177,7 +177,7 @@ class TestDumperClass(unittest.TestCase):
         Content of dumped normal.json file is then compared with desired content loaded from parseAndPopulate_tests_data.json file.
         """
         # Modules object
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701')
+        directory = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/vendor/cisco/xr/701')
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(directory)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_version)
@@ -227,7 +227,7 @@ class TestDumperClass(unittest.TestCase):
         correctly set value.
         If value is set to None, it should not be dumped into .json file.
         """
-        directory = os.path.join(yc_gc.temp_dir, 'master/vendor/cisco/xr/701')
+        directory = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/vendor/cisco/xr/701')
         platform_data, netconf_version, netconf_capabilities = self.get_platform_data(directory)
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_version)
