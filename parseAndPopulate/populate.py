@@ -256,9 +256,9 @@ def main(scriptConf=None):
         with open(os.path.join(json_dir, 'normal.json')) as data:
             try:
                 vendors = json.loads(data.read())['vendors']['vendor']
-            except:
+            except KeyError as e:
                 LOGGER.error('No files were parsed. This probably means the directory is missing capability xml files')
-                raise Exception
+                raise e
         errors = errors or confdService.patch_vendors(vendors)
         redisConnection.populate_implementation(vendors)
     if body_to_send:

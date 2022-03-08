@@ -96,7 +96,8 @@ class Receiver:
         sdo = '--sdo' in arguments
         api = '--api' in arguments
         data_type = 'sdo' if sdo else 'vendor'
-        direc = arguments[3 if sdo else 2]
+        i = arguments.index('--dir')
+        direc = arguments[i+1]
 
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
