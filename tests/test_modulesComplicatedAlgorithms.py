@@ -275,9 +275,9 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         expected_semver_order = ['1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1']
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
-        # List od modules returned from patched /api/search/modules GET request
+        # List of modules returned from patched /api/search/modules GET request
         existing_modules = {}
-        existing_modules['module'] = deepcopy([{k: v for k, v in mod.items() if k != 'derived-semantic-version'} for mod in modules])
+        existing_modules['module'] = deepcopy(modules[:4] + modules[5:])
 
         mock_requests_get.return_value.json.return_value = existing_modules
 
@@ -292,11 +292,8 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
-        revisions = sorted(complicatedAlgorithms.new_modules['semver-test'])
-        for revision, expected_version in zip(revisions, expected_semver_order):
-            new_module = complicatedAlgorithms.new_modules['semver-test'].get(revision, {})
-            self.assertEqual(new_module.get('derived-semantic-version'), expected_version)
+        self.assertIn('2020-05-01', complicatedAlgorithms.new_modules['semver-test'])
+        self.assertEqual(complicatedAlgorithms.new_modules['semver-test']['2020-05-01']['derived-semantic-version'], '4.1.0')
 
     ### resolve_tree_type() ###
     ###########################
