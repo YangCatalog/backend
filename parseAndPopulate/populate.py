@@ -47,7 +47,7 @@ from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
-from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.util import prepare_to_indexing, send_to_indexing
 
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import \
@@ -136,6 +136,12 @@ class ScriptConfig(BaseScriptConfig):
                 'help': 'Force parse files (do not skip parsing for unchanged files).',
                 'action': 'store_true',
                 'default': False
+            },
+            {
+                'flag': '--force-indexing',
+                'help': 'Force indexing files (do not skip indexing for unchanged files).',
+                'action': 'store_true',
+                'default': False
             }
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
@@ -164,7 +170,7 @@ def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: s
 
 
 def configure_runCapabilities(module: types.ModuleType, args: Namespace, json_dir: str)\
-    -> BaseScriptConfig:
+        -> BaseScriptConfig:
     """ Set values to ScriptConfig arguments to be able to run runCapabilities script.
 
     Arguments:
@@ -243,7 +249,8 @@ def main(scriptConf=None):
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
         body_to_send = prepare_to_indexing(yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
-                                            LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api)
+                                           LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api,
+                                           force_indexing=args.force_indexing)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open(os.path.join(json_dir, 'prepare.json')) as data_file:
@@ -261,9 +268,9 @@ def main(scriptConf=None):
         redisConnection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
-        send_to_indexing2(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
-                          scriptConf.lock_file)
-    if not args.api:
+        send_to_indexing(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
+                         scriptConf.lock_file)
+    if modules:
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
                                                        args=(args.credentials, yangcatalog_api_prefix,))
         process_reload_cache.start()

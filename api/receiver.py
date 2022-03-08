@@ -50,14 +50,12 @@ from distutils.dir_util import copy_tree
 import pika
 import requests
 import utility.log as log
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
 from redisConnections.redisConnection import RedisConnection
 from utility import messageFactory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
-from utility.util import prepare_to_indexing, send_to_indexing2
+from utility.util import prepare_to_indexing, send_to_indexing
 
 
 class Receiver:
@@ -253,8 +251,8 @@ class Receiver:
             body_to_send = prepare_to_indexing(self._yangcatalog_api_prefix, deleted_modules,
                                                self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
             if body_to_send.get('modules-to-delete'):
-                send_to_indexing2(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
-                                  self._lock_file)
+                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
+                                 self._lock_file)
         return self._response_type[1]
 
     def iterate_in_depth(self, value: dict, modules_keys: t.Set[str]):
@@ -377,8 +375,8 @@ class Receiver:
                                                self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
 
             if len(body_to_send) > 0:
-                send_to_indexing2(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
-                                  self._lock_file)
+                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
+                                 self._lock_file)
         if len(modules_not_deleted) == 0:
             return self._response_type[1]
         else:
@@ -553,19 +551,6 @@ class Receiver:
                     code = response.status_code
                     if code != 200 and code != 201 and code != 204:
                         final_response = '{}#split#Server error-> could not reload cache'.format(self._response_type[0])
-
-                    # TODO: This probably can be already done in populate.py
-                    if all_modules:
-                        self.LOGGER.info('Running ModulesComplicatedAlgorithms from receiver.py script')
-                        complicated_algorithms = ModulesComplicatedAlgorithms(self._log_directory,
-                                                                              self._yangcatalog_api_prefix,
-                                                                              credentials,
-                                                                              self._save_file_dir, direc,
-                                                                              all_modules, self._yang_models,
-                                                                              self.temp_dir, self.json_ytree)
-                        complicated_algorithms.parse_non_requests()
-                        complicated_algorithms.parse_requests()
-                        complicated_algorithms.populate()
         except Exception:
             final_response = self._response_type[0]
             self.LOGGER.exception('receiver.py failed')
