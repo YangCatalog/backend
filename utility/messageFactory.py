@@ -108,7 +108,7 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message: str, email_to: list = None, subject: str = None):
+    def __post_to_email(self, message: str, email_to: list = None, subject: str = None, subtype: str = 'plain'):
         """Send message to an e-mail
 
             Arguments:
@@ -116,7 +116,7 @@ class MessageFactory:
                 :param email_to     (list) list of emails to send the message to
         """
         send_to = email_to if email_to else self.__email_to
-        msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me))
+        msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me), _subtype=subtype)
         msg['Subject'] = subject if subject else 'Automatic generated message - RFC IETF'
         msg['From'] = self.__email_from
         msg['To'] = ', '.join(send_to)
@@ -130,12 +130,13 @@ class MessageFactory:
         self.__smtp.quit()
 
     def send_user_reminder_message(self, users_stats):
-        message = ('{}\n\nTime to review the user profiles: affiliations and capabilities'
-                   '\n\n{}'
+        message = ('<DOCTYPE html>\n<html>\n<style>table, th, td {border:1px solid black;}</style><body>\n'
+                   + '{}\n\nTime to review the user profiles: affiliations and capabilities'
+                   '\n\n{}\n</body>\n</html>'
                    .format(GREETINGS, users_stats))
 
         self.__post_to_spark(message)
-        self.__post_to_email(message)
+        self.__post_to_email(message, subtype='html')
 
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
