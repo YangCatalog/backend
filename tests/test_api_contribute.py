@@ -303,10 +303,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(mm.organization_by_namespace('urn:test:test'), 'test')
         self.assertEqual(mm.organization_by_namespace('test'), '')
 
-    @mock.patch('shutil.move')
-    @mock.patch('shutil.copy')
-    @mock.patch('shutil.rmtree')
-    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.shutil.move')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.shutil.copy')
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.shutil.rmtree')
+    @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock(**{'return_value.get_commit_hash.return_value': 'master'}))
     @mock.patch('requests.put')
     def test_add_modules(self, mock_put: mock.MagicMock, *args):
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
@@ -413,7 +413,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules "source-file" is missing and is mandatory')
+        self.assertIn('source-file', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_no_organization(self, mock_put: mock.MagicMock):
@@ -429,7 +429,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules "organization" is missing and is mandatory')
+        self.assertIn('organization', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_no_name(self, mock_put: mock.MagicMock):
@@ -445,7 +445,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules "name" is missing and is mandatory')
+        self.assertIn('name', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_no_revision(self, mock_put: mock.MagicMock):
@@ -461,7 +461,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules "revision" is missing and is mandatory')
+        self.assertIn('revision', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_no_path(self, mock_put: mock.MagicMock):
@@ -477,7 +477,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules source file "path" is missing and is mandatory')
+        self.assertIn('path', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_no_repository(self, mock_put: mock.MagicMock):
@@ -493,7 +493,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules source file "repository" is missing and is mandatory')
+        self.assertIn('repository', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_no_owner(self, mock_put: mock.MagicMock):
@@ -509,7 +509,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - at least one of modules source file "owner" is missing and is mandatory')
+        self.assertIn('owner', data['description'])
 
     @mock.patch('requests.put')
     def test_add_modules_invalid_repo(self, mock_put: mock.MagicMock):
@@ -610,7 +610,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - "platforms" json object is missing and is mandatory')
+        self.assertIn('platforms', data['description'])
 
     def test_add_vendor_no_platform(self):
         result = self.client.put('api/platforms', json={'platforms': {'test': 'test'}}, auth=('test', 'test'))
@@ -619,7 +619,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - "platform" json list is missing and is mandatory')
+        self.assertIn('platform', data['description'])
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -648,8 +648,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'],
-                         'bad request - at least on of platform "module-list-file" is missing and is mandatory')
+        self.assertIn('module-list-file', data['description'])
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -666,9 +665,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'],
-                         'bad request - at least on of platform module-list-file'
-                         ' "path" for module is missing and is mandatory')
+        self.assertIn('path', data['description'])
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -685,9 +682,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'],
-                         'bad request - at least on of platform module-list-file'
-                         ' "repository" for module is missing and is mandatory')
+        self.assertIn('repository', data['description'])
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
@@ -704,9 +699,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'],
-                         'bad request - at least on of platform module-list-file'
-                         ' "owner" for module is missing and is mandatory')
+        self.assertIn('owner', data['description'])
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
