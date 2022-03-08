@@ -31,6 +31,21 @@ from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 
 
+class MockModulesComplicatedAlgorithms:
+    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
+                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, json_ytree: str):
+        pass
+
+    def parse_non_requests(self):
+        pass
+
+    def parse_requests(self):
+        pass
+
+    def populate(self):
+        pass
+
+
 class MockConfdService:
     def patch_modules(self, new_data: str):
         r = mock.MagicMock()
@@ -142,7 +157,9 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(response, 'Failed')
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
     @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_sdo(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
         data = self.test_data.get('prepare-sdo-content')
@@ -186,7 +203,9 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(all_modules, {})
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
     @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_vendor(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
         platform = self.test_data.get('capabilities-json-content')

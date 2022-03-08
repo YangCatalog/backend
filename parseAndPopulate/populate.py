@@ -298,8 +298,6 @@ def main(scriptConf=None):
             if updated_hashes:
                 fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
 
-        if os.path.exists(json_dir):
-            shutil.rmtree(json_dir)
     LOGGER.info('Populate script finished successfully')
 
 
