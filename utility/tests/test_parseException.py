@@ -22,9 +22,7 @@ import os
 import unittest
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.modules import Modules
-from parseAndPopulate.parseException import ParseException
+from utility.yangParser import ParseException
 
 
 class TestParseExceptionClass(unittest.TestCase):
@@ -36,11 +34,7 @@ class TestParseExceptionClass(unittest.TestCase):
         """ Test if ParseException is raised when non-existing path is passed as 'path' argument.
         Load content of unparsable-modules.json file and check whether name of the module is stored in file.
         """
-        jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path = '/not/existing/path/module.yang'
-
-        with self.assertRaises(ParseException):
-            Modules(yc_gc.yang_models, yc_gc.logs_dir, path, yc_gc.result_dir, jsons, yc_gc.temp_dir)
+        ParseException('module.yang')
 
         with open(os.path.join(yc_gc.var_yang, 'unparsable-modules.json'), 'r') as f:
             modules = json.load(f)

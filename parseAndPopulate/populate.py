@@ -50,8 +50,7 @@ from utility.staticVariables import json_headers
 from utility.util import prepare_to_indexing, send_to_indexing2
 
 from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -198,7 +197,7 @@ def create_dir_name(temp_dir: str) -> str:
         new_dir_name = os.path.join(temp_dir, str(i))
         if not os.path.exists(new_dir_name):
             break
-    return os.path.join(temp_dir, repr(i))
+    return os.path.join(temp_dir, str(i))
 
 
 def main(scriptConf=None):
@@ -226,7 +225,6 @@ def main(scriptConf=None):
     start = time.time()
     if args.api:
         json_dir = args.dir
-        args.dir = os.path.join(args.dir, 'temp')
     else:
         json_dir = create_dir_name(temp_dir)
         os.makedirs(json_dir)
@@ -256,7 +254,11 @@ def main(scriptConf=None):
     if os.path.exists(os.path.join(json_dir, 'normal.json')):
         LOGGER.info('Starting to add vendors')
         with open(os.path.join(json_dir, 'normal.json')) as data:
-            vendors = json.loads(data.read())['vendors']['vendor']
+            try:
+                vendors = json.loads(data.read())['vendors']['vendor']
+            except KeyError as e:
+                LOGGER.error('No files were parsed. This probably means the directory is missing capability xml files')
+                raise e
         errors = errors or confdService.patch_vendors(vendors)
         redisConnection.populate_implementation(vendors)
     if body_to_send:
@@ -297,4 +299,7 @@ def main(scriptConf=None):
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except:
+        exit(1)

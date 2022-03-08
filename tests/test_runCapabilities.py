@@ -12,11 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
+from ast import dump
 import json
 import os
 import unittest
@@ -39,8 +40,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
     ### TESTS DEFINITIONS ###
     #########################
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_sdo(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over SDO yang files in directory.
         For testing purposes there is only 1 yang file (ietf-yang-types@2013-07-15.yang) in directory.
@@ -52,7 +53,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path = '{}/temp/standard/ietf/RFC'.format(yc_gc.temp_dir)
+        path = '{}/test/YangModels/yang/standard/ietf/RFC'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -88,8 +89,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
                         else:
                             self.assertEqual(dumped_module[key], desired_module[key])
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_sdo_empty_dir(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over empty directory - no yang files.
         Test whether prepare.json file contain only empty dictionary '{}'.
@@ -118,8 +119,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             file_content = json.load(f)
         self.assertEqual(file_content, {})
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over vendor yang files in directory which also contains capability xml file.
         Compare content of normal.json and prepare.json files.
@@ -130,7 +131,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_commit_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        xml_path = '{}/master/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
+        xml_path = '{}/test/YangModels/yang/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -211,8 +212,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             file_content = json.load(f)
         self.assertEqual(file_content, {})
 
-    @mock.patch('parseAndPopulate.capability.LoadFiles')
-    @mock.patch('parseAndPopulate.capability.repoutil.RepoUtil.get_commit_hash')
+    @mock.patch('parseAndPopulate.groupings.LoadFiles')
+    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_runCapabilities_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapability script over yang_lib.xml. Compare content of normal.json and prepare.json files.
 
@@ -222,7 +223,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """
         mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
-        xml_path = '{}/master/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
+        xml_path = '{}/test/YangModels/yang/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -256,7 +257,11 @@ class TestRunCapabilitiesClass(unittest.TestCase):
                                 dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
                                 self.assertEqual(desired_compilation_result, dumped_compilation_result)
                         else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+                            if isinstance(desired_module[key], list):
+                                for i in desired_module[key]:
+                                    self.assertIn(i, dumped_module[key], key)
+                            else:
+                                self.assertEqual(dumped_module[key], desired_module[key])
 
         # Load desired normal.json data from .json file
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:

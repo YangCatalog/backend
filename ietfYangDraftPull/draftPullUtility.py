@@ -25,10 +25,10 @@ Contains following method definitions:
     set_permissions()
 """
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import grp
 import logging
@@ -59,7 +59,7 @@ def get_latest_revision(path: str, LOGGER: logging.Logger):
     return rev
 
 
-def check_name_no_revision_exist(directory: str, LOGGER_temp: logging.Logger = None):
+def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger):
     """
     This function checks the format of all the modules filename.
     If it contains module with a filename without revision,
@@ -69,9 +69,8 @@ def check_name_no_revision_exist(directory: str, LOGGER_temp: logging.Logger = N
 
     Arguments:
         :param directory    (str) full path to directory with yang modules
-        :param LOGGER_temp  (logging.Logger) formated logger with the specified name
+        :param LOGGER       (logging.Logger) formated logger with the specified name
     """
-    LOGGER = LOGGER_temp
     LOGGER.debug('Checking revision for directory: {}'.format(directory))
     for _, _, files in os.walk(directory):
         for basename in files:
@@ -88,7 +87,7 @@ def check_name_no_revision_exist(directory: str, LOGGER_temp: logging.Logger = N
                         os.remove(yang_file_path)
 
 
-def check_early_revisions(directory: str, LOGGER_temp: logging.Logger = None):
+def check_early_revisions(directory: str, LOGGER: logging.Logger):
     """
     This function checks all modules revisions and keeps only
     ones that are the newest. If there are two modules with
@@ -96,10 +95,8 @@ def check_early_revisions(directory: str, LOGGER_temp: logging.Logger = None):
 
     Arguments:
         :param directory    (str) full path to directory with yang modules
-        :param LOGGER_temp  (logging.Logger) formated logger with the specified name
+        :param LOGGER       (logging.Logger) formated logger with the specified name
     """
-    if LOGGER_temp is not None:
-        LOGGER = LOGGER_temp
     for f in os.listdir(directory):
         # Extract the YANG module name from the filename
         module_name = f.split('.yang')[0].split('@')[0]   # Beware of some invalid file names such as '@2015-03-09.yang'
