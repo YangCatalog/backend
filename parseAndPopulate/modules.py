@@ -283,15 +283,16 @@ class Module:
         elif schema_base:
             if 'yangmodels/yang' in self._path:
                 suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[1]
-            else:
-                assert '/tmp/' in self._path, 'Called by api, files should be copied in a subdirectory of tmp'
+            elif '/tmp/' in self._path:
                 suffix = os.path.abspath(self._path).split('/tmp/')[1]
                 suffix = '/'.join(suffix.split('/')[3:]) # remove directory_number/owner/repo prefix
+            else:
+                LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
+                return
             if submodule_name:
                 suffix = suffix.replace('{}/'.format(submodule_name), '')
             self.schema = os.path.join(schema_base, suffix)
-        else:
-            self.schema = None
+            
 
     def _resolve_module_classification(self, module_classification=None):
         LOGGER.debug('Resolving module classification')

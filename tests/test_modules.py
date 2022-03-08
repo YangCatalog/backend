@@ -34,7 +34,6 @@ class TestModulesClass(unittest.TestCase):
 
         # Declare variables
         self.schema_base = os.path.join(github_raw, 'YangModels/yang/master')
-        self.path_in_repo = 'standard/ietf/RFC/ietf-yang-types.yang'
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
@@ -61,7 +60,7 @@ class TestModulesClass(unittest.TestCase):
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
         yang = SdoModule(path_to_yang, self.parsed_jsons, self.dir_paths)
-        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, self.path_in_repo, yc_gc.save_file_dir)
+        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, yc_gc.save_file_dir)
 
         self.assertEqual(yang.document_name, 'rfc6991')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -95,7 +94,7 @@ class TestModulesClass(unittest.TestCase):
 
         yang = SdoModule(path_to_yang, self.parsed_jsons, self.dir_paths)
         yang.parse_all(self.sdo_module_name, 'master', keys, self.schema_base,
-                       self.path_in_repo, yc_gc.save_file_dir, additional_info)
+                       yc_gc.save_file_dir, additional_info)
 
         self.assertEqual(yang.name, 'ietf-yang-types')
         self.assertEqual(yang.module_type, 'module')
@@ -120,7 +119,7 @@ class TestModulesClass(unittest.TestCase):
         deviation = yang_lib_data.split('&deviations=')[1]
 
         yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_data)
-        yang.parse_all(module_name, 'master', {}, '', '', yc_gc.save_file_dir)
+        yang.parse_all(module_name, 'master', {}, '',  yc_gc.save_file_dir)
 
         self.assertEqual(yang.document_name, 'rfc8341')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -149,7 +148,7 @@ class TestModulesClass(unittest.TestCase):
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=vendor_data)
-        yang.parse_all(module_name, 'master', {}, '', '', yc_gc.save_file_dir)
+        yang.parse_all(module_name, 'master', {}, '', yc_gc.save_file_dir)
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
         self.assertNotEqual(len(yang.implementations), 0)
@@ -187,7 +186,7 @@ class TestModulesClass(unittest.TestCase):
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_info)
-        yang.parse_all(module_name, 'master', {}, schema_part, '', yc_gc.save_file_dir)
+        yang.parse_all(module_name, 'master', {}, schema_part, yc_gc.save_file_dir)
 
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
