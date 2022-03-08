@@ -127,8 +127,8 @@ class SdoDirectory(ModuleGrouping):
             repo_file_path = sdo['source-file']['path']
             self.repo_name = sdo['source-file']['repository'].split('.')[0]
             commit_hash = sdo['source-file']['commit-hash']
-            root = os.path.join(self.repo_owner, self.repo_name, commit_hash, os.path.dirname(repo_file_path))
-            root = os.path.join(self.dir_paths['json'], 'temp', root)
+            root = os.path.join(self.repo_owner, self.repo_name, os.path.dirname(repo_file_path))
+            root = os.path.join(self.dir_paths['json'], root)
             path = os.path.join(root, file_name)
             if not os.path.isfile(path):
                 LOGGER.error('File {} sent via API was not downloaded'.format(file_name))

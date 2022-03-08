@@ -22,9 +22,9 @@ cd $YANG_MODELS_DIR
 git submodule update --init vendor/huawei
 
 # Prepare files and directory structure for test_groupings.py
-mkdir -p $TMP_DIR/groupings-tests/temp/YangModels/yang/master/standard/ietf/RFC
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/groupings-tests/temp/YangModels/yang/master/standard/ietf/RFC/.
-cp $BACKEND/tests/resources/prepare-sdo.json $TMP_DIR/groupings-tests/.
+mkdir -p $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC/.
+cp $BACKEND/tests/resources/request-data.json $TMP_DIR/groupings-tests/.
 
 # Create directories which match YangModels/yang/vendor/cisco structure, then copy certain files to these directories
 TEST_REPO=$TMP_DIR/test/YangModels/yang

@@ -90,14 +90,14 @@ class TestGroupingsClass(unittest.TestCase):
     def test_sdo_directory_parse_and_load_api(self, mock_hash: mock.MagicMock):
         """
         Test whether key was created and prepare object value was set correctly
-        from all modules loaded from prepare-sdo.json file.
+        from all modules loaded from request-data.json file.
 
         Arguments:
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
-        path = os.path.join(yc_gc.temp_dir, 'groupings-tests/temp')
+        path = os.path.join(yc_gc.temp_dir, 'groupings-tests')
         api = True
         sdo = True
 
@@ -106,7 +106,7 @@ class TestGroupingsClass(unittest.TestCase):
         sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
         sdo_directory.parse_and_load(repo)
-        with open(os.path.join(self.dir_paths['json'], 'prepare-sdo.json'), 'r') as f:
+        with open(os.path.join(self.dir_paths['json'], 'request-data.json'), 'r') as f:
             sdos_json = json.load(f)
 
         sdos_list = sdos_json.get('modules', {}).get('module', [])
@@ -159,7 +159,11 @@ class TestGroupingsClass(unittest.TestCase):
                                 dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
                                 self.assertEqual(desired_compilation_result, dumped_compilation_result)
                         else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+                            if isinstance(desired_module[key], list):
+                                for i in desired_module[key]:
+                                    self.assertIn(i, dumped_module[key])
+                            else:
+                                self.assertEqual(dumped_module[key], desired_module[key])
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
@@ -346,7 +350,7 @@ class TestGroupingsClass(unittest.TestCase):
             module_name = module_name.split('@')[0]
 
         yang = SdoModule(path_to_yang, parsed_jsons, self.dir_paths)
-        yang.parse_all(module_name, 'master', {}, schema_base, path_in_repo, yc_gc.save_file_dir)
+        yang.parse_all(module_name, 'master', {}, schema_base, yc_gc.save_file_dir)
 
         return yang
 
