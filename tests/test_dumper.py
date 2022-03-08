@@ -36,7 +36,6 @@ class TestDumperClass(unittest.TestCase):
 
         # Declare variables
         self.schema_base = '{}/YangModels/yang/master/'.format(github_raw)
-        self.path_in_repo = 'standard/ietf/RFC/ietf-yang-types@2013-07-15.yang'
         self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
         self.prepare_output_filename = 'prepare'
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
@@ -146,7 +145,7 @@ class TestDumperClass(unittest.TestCase):
         # Load desired module data from .json file
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
             file_content = json.load(f)
-        desired_module_data = file_content.get('dumped_module', {}).get('module', [])[0]
+        desired_module_data = file_content['dumped_module']['module'][0]
 
         # Load module data from dumped prepare.json file
         with open('{}/{}.json'.format(yc_gc.temp_dir, self.prepare_output_filename), 'r') as f:
@@ -261,10 +260,10 @@ class TestDumperClass(unittest.TestCase):
         :rtype: Modules
         """
         parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        path_to_yang = os.path.join(yc_gc.temp_dir, 'temp/standard/ietf/RFC', self.sdo_module_filename)
+        path_to_yang = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/standard/ietf/RFC', self.sdo_module_filename)
 
         yang = SdoModule(path_to_yang, parsed_jsons, self.dir_paths)
-        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, self.path_in_repo, yc_gc.save_file_dir)
+        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, yc_gc.save_file_dir)
 
         return yang
 
@@ -281,7 +280,7 @@ class TestDumperClass(unittest.TestCase):
         module_path = '{}/{}.yang'.format(self.resources_path, module_name)
 
         yang = VendorModule(module_path, parsed_jsons, self.dir_paths, data=vendor_data)
-        yang.parse_all(module_name, 'master', {}, self.schema_base, self.path_in_repo, yc_gc.save_file_dir)
+        yang.parse_all(module_name, 'master', {}, self.schema_base, yc_gc.save_file_dir)
 
         return yang
 
