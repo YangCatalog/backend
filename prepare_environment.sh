@@ -48,7 +48,8 @@ rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.10
 rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.21.0
 export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne5000e
 mkdir -p $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e
-cp $YANG_MODELS_HUAWEI_DIR/*.yang $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_HUAWEI_DIR/ietf*.yang $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_HUAWEI_DIR/huawei-aaa*.yang $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
 cp $BACKEND/tests/resources/platform-metadata.json $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
 cp $BACKEND/tests/resources/ietf-yang-library.xml $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
 
