@@ -13,13 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This class will create temporary json file
-with all the metadata that were parsed from
-yang files on provided directory to runCapabilities.py
-script. The json file is formatted to be compliant with
-yangcatalog.yang file
-"""
 
 __author__ = 'Miroslav Kovac'
 __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
@@ -29,59 +22,80 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import json
 
 import requests
+import typing as t
 import utility.log as log
 
-from parseAndPopulate.modules import Modules
+from parseAndPopulate.modules import Module
 from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 
 
-class Prepare:
+def get_deviations(deviations):
+    if deviations is None:
+        return None
+    else:
+        return [
+            {'name': dev.name,
+                'revision': dev.revision
+                } for dev in deviations]
+
+
+def get_dependencies(dependencies):
+        if dependencies is None:
+            return None
+        else:
+            return [
+                {'name': dep.name,
+                 'revision': dep.revision,
+                 'schema': dep.schema
+                 } for dep in dependencies]
+
+
+class Dumper:
+    """A dumper for yang module metadata."""
+    
     def __init__(self, log_directory: str, file_name: str, yangcatalog_api_prefix: str):
         """
-        Preset Prepare class which will be used to create dictionary of yang modules.
-        This dictionary will hold all the metadata that were parsed from yang files on provided directory.
-        Dictionary 'yang_modules' will be dumped into .json file.
-
-        :param log_directory:           (str) directory where the log file is save
-        :param file_name:               (str) name of the file to which the modules are dumped
-        :param yangcatalog_api_prefix:  (str) yangcatalog api prefix used in while making requests
+        Arguments:
+            :param log_directory:           (str) directory where the log file is saved
+            :param file_name:               (str) name of the file to which the modules are dumped
+            :param yangcatalog_api_prefix:  (str) yangcatalog api prefix used for making requests
         """
         global LOGGER
         LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
         self.file_name = file_name
-        self.name_revision_organization = set()
-        self.yang_modules = {}
+        self.yang_modules: t.Dict[str, Module] = {}
         self.yangcatalog_api_prefix = yangcatalog_api_prefix
 
-    def add_key_sdo_module(self, yang: Modules):
+    def add_module(self, yang: Module):
         """
-        Create key in format <module_name>@<revision>/<organization> from yang Modules object passed as argument.
-        Dictionary of yang_modules is updated using created key and Modules object as a value.
+        Add a module's data to be dumped.
 
-        :param yang     (Modules) Modules object of yang module.
+        Argument:
+            :param yang     (Modules) Modules object
         """
         key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
         LOGGER.debug('Module {} parsed'.format(key))
-        if key in self.name_revision_organization:
+        if key in self.yang_modules:
             self.yang_modules[key].implementations.extend(yang.implementations)
         else:
             if yang.tree is not None:
-                yang.tree = '{}{}'.format(self.yangcatalog_api_prefix, yang.tree)
-            self.name_revision_organization.add(key)
+                yang.tree = self.yangcatalog_api_prefix + yang.tree
             self.yang_modules[key] = yang
             if self.yang_modules[key].compilation_status is None:
                 try:
-                    url = '{}search/modules/{},{},{}'.format(self.yangcatalog_api_prefix, yang.name, yang.revision, yang.organization)
-                    self.yang_modules[key].compilation_status = requests.get(url).json()['module'][0].get('compilation-status')
+                    url = '{}search/modules/{},{},{}'.format(self.yangcatalog_api_prefix, yang.name,
+                                                             yang.revision, yang.organization)
+                    self.yang_modules[key].compilation_status = \
+                        requests.get(url).json()['module'][0].get('compilation-status')
                 except:
                     self.yang_modules[key].compilation_status = 'unknown'
 
     def dump_modules(self, directory: str):
         """
-        All the data about modules from yang_modules variable are dumped into json file.
-        This file is stored in directory pased as an argument and is used by runCapabilities.py script
+        Dump all module data into a json file.
 
-        :param directory    (str) Absolute path to the directory where .json file will be saved.
+        Argument:
+            :param directory    (str) Absolute path to the directory where the .json file will be saved.
         """
         LOGGER.debug('Creating {}.json file from sdo information'.format(self.file_name))
 
@@ -114,8 +128,7 @@ class Prepare:
                 },
                 'namespace': self.yang_modules[key].namespace,
                 'submodule': json.loads(self.yang_modules[key].json_submodules),
-                'dependencies': self.__get_dependencies(self.yang_modules[key]
-                                                        .dependencies),
+                'dependencies': get_dependencies(self.yang_modules[key].dependencies),
                 'semantic-version': self.yang_modules[key].semver,
                 'derived-semantic-version': self.yang_modules[key].derived_semver,
                 'implementations': {
@@ -128,24 +141,23 @@ class Prepare:
                         'feature-set': implementation.feature_set,
                         'os-type': implementation.os_type,
                         'feature': implementation.feature,
-                        'deviation': self.__get_deviations(
-                            implementation.deviations),
+                        'deviation': get_deviations(implementation.deviations),
                         'conformance-type': implementation.conformance_type
                     } for implementation in
                         self.yang_modules[key].implementations],
                 }
-            } for key in sorted(self.name_revision_organization)]}, prepare_model, cls=NullJsonEncoder)
+            } for key in sorted(self.yang_modules.keys())]}, prepare_model, cls=NullJsonEncoder)
 
     def dump_vendors(self, directory: str):
         """
-        All the data about vendor and implementation are dumped into json file.
-        This file is stored in directory pased as an argument and is used by populate.py script
+        Dump vendor and implementation metadata into a normal.json file.
 
-        :param directory    (str) Absolute path to the directory where .json file will be saved.
+        Argument:
+            :param directory    (str) Absolute path to the directory where .json file will be saved.
         """
         LOGGER.debug('Creating normal.json file from vendor implementation information')
 
-        with open('{}/normal.json'.format(directory), 'w') as ietf_model:
+        with open('{}/normal.json'.format(directory), 'w') as f:
             json.dump({
                 'vendors': {
                     'vendor': [{
@@ -163,26 +175,22 @@ class Prepare:
                                                     'protocol': [{
                                                         'name': 'netconf',
                                                         'capabilities': impl.capabilities,
-                                                        'protocol-version': impl.netconf_version,
+                                                        'protocol-version': impl.netconf_versions,
                                                     }]
                                                 },
                                                 'modules': {
                                                     'module': [{
                                                         'name':
-                                                            self.yang_modules[
-                                                                key].name,
+                                                            self.yang_modules[key].name,
                                                         'revision':
-                                                            self.yang_modules[
-                                                                key].revision,
+                                                            self.yang_modules[key].revision,
                                                         'organization':
-                                                            self.yang_modules[
-                                                                key].organization,
+                                                            self.yang_modules[key].organization,
                                                         'os-version': impl.os_version,
                                                         'feature-set': impl.feature_set,
                                                         'os-type': impl.os_type,
                                                         'feature': impl.feature,
-                                                        'deviation': self.__get_deviations(
-                                                            impl.deviations),
+                                                        'deviation': get_deviations(impl.deviations),
                                                         'conformance-type': impl.conformance_type
                                                     }],
                                                 }
@@ -192,28 +200,7 @@ class Prepare:
                                 }
                             }]
                         }
-                    } for key in sorted(self.name_revision_organization) for impl in
-                        self.yang_modules[key].implementations]
+                    } for key in sorted(self.yang_modules.keys())
+                        for impl in self.yang_modules[key].implementations]
                 }
-            }, ietf_model, cls=NullJsonEncoder)
-
-    @staticmethod
-    def __get_deviations(deviations):
-        if deviations is None:
-            return None
-        else:
-            return [
-                {'name': dev.name,
-                 'revision': dev.revision
-                 } for dev in deviations]
-
-    @staticmethod
-    def __get_dependencies(dependencies):
-        if dependencies is None:
-            return None
-        else:
-            return [
-                {'name': dep.name,
-                 'revision': dep.revision,
-                 'schema': dep.schema
-                 } for dep in dependencies]
+            }, f, cls=NullJsonEncoder)

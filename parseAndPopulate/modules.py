@@ -1,7 +1,7 @@
 # Copyright The IETF Trust 2019, All Rights Reserved
 # Copyright 2018 Cisco and its affiliates
 #
-# Licensed under the Apache Licparse_allense, Version 2.0 (the "License");
+# Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 #
@@ -13,12 +13,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-This is a class of a single module to parse all the basic
-metadata we can get out of the module. From this class parse_all
-method is called which will call all the other methods that
-will get the rest of the metadata.
-"""
 
 __author__ = 'Miroslav Kovac'
 __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
@@ -34,118 +28,71 @@ import time
 import typing as t
 from datetime import datetime
 
+from pyang.statements import Statement
+
 import statistic.statistics as stats
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
 from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
                                      github_raw, github_url)
 from utility.util import find_first_file
-
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.parseException import ParseException
 
 
-class Modules:
+class Module:
+    """This is a class of a single module to parse all the basic metadata we can get out of it."""
 
-    def __init__(self, yang_models_dir: str, log_directory: str, path: str, html_result_dir: str, jsons: LoadFiles,
-                 temp_dir: str, is_vendor: bool = False, is_yang_lib: bool = False,
-                 data: t.Union[dict, str, None] = None, is_vendor_imp_inc: bool = False):
+    def __init__(self, path: str, jsons: LoadFiles, dir_paths: t.Dict[str, str]):
         """
         Preset Modules class to parse yang module and save data to it.
-        :param yang_models_dir:     (str) directory with all yang modules from
-                                    github https://github.com/YangModels/yang
-        :param log_directory:       (str) directory where the log file is saved
-        :param path:                (str) path to yang file being parsed
-        :param html_result_dir:     (str) path to directory with html result
-                                    files
-        :param jsons:               (obj) LoadFiles class containing all the json
-                                    and html files with parsed results
-        :param temp_dir:            (str) path to temporary directory
-        :param is_vendor:           (bool) if we parsing vendor files (cisco, huawei, ..)
-                                    or sdo files (ietf, ieee, ...)
-        :param is_yang_lib:         (bool) if we are parsing file from yang_lib
-                                    capability file
-        :param data:                (dict) data from yang_lib capability file with additional
-                                    information
-        :param is_vendor_imp_inc:   (bool) Obsolete
+        :param path:            (str) path to yang file being parsed
+        :param jsons:           (obj) LoadFiles class containing all the json
+                                and html files with parsed results
+        :param dir_paths        (dict) paths to various needed directories according to configuration
         """
         global LOGGER
-        LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(log_directory))
+        LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
         config = create_config()
         self._web_uri = config.get('Web-Section', 'my-uri', fallback='https://yangcatalog.org')
-        self._temp_dir = temp_dir
-        self.is_yang_lib = is_yang_lib
-        self.html_result_dir = html_result_dir
+        self.html_result_dir = dir_paths['result']
         self.jsons = jsons
-        self._is_vendor = is_vendor
         self.revision = '*'
         self._path = path
         self.features = []
         self.deviations = []
-        self.yang_models = yang_models_dir
+        self.yang_models = dir_paths['yang_models']
 
-        if is_vendor:
-            if is_yang_lib:
-                assert isinstance(data, dict), 'Wrong format of yang_lib data'
-                self.deviations = data['deviations']
-                self.features = data['features']
-                self.revision = data['revision']
-                if self.revision is None:
-                    self.revision = '*'
-                self._path = self._find_file(data['name'], self.revision)
-            else:
-                assert isinstance(data, str), 'Wrong format of vendor data'
-                self.features = self._resolve_deviations_and_features('features=', data)
-                self.deviations = self._resolve_deviations_and_features('deviations=', data)
-
-                if 'revision' in data:
-                    revision_and_more = data.split('revision=')[1]
-                    revision = revision_and_more.split('&')[0]
-                    self.revision = revision
-
-                self._path = self._find_file(data.split('&')[0], self.revision)
-        else:
-            self._path = path
-
-        if is_vendor_imp_inc:
-            self._is_vendor = True
-        if self._path:
-            self.name = None
-            self.organization = None
-            self.ietf_wg = None
-            self.namespace = None
-            self.schema = None
-            self.generated_from = None
-            self.maturity_level = None
-            self.document_name = None
-            self.author_email = None
-            self.reference = None
-            self.tree = None
-            self.expired = None
-            self.expiration_date = None
-            self.module_classification = None
-            self.compilation_status = None
-            self.compilation_result = {}
-            self.prefix = None
-            self.yang_version = None
-            self.description = None
-            self.contact = None
-            self.belongs_to = None
-            self.submodule = []
-            self.dependencies = []
-            self.module_type = None
-            self.tree_type = None
-            self.semver = None
-            self.derived_semver = None
-            self.implementations: t.List[Modules.Implementation] = []
-            self.imports = []
-            self.json_submodules = json.dumps([])
-            self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
-            if self._parsed_yang is None:
-                raise ParseException(path)
-        else:
-            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path.split('&')[0])
-            # TODO file does not exist
+        self.name = None
+        self.organization = None
+        self.ietf_wg = None
+        self.namespace = None
+        self.schema = None
+        self.generated_from = None
+        self.maturity_level = None
+        self.document_name = None
+        self.author_email = None
+        self.reference = None
+        self.tree = None
+        self.expired = None
+        self.expiration_date = None
+        self.module_classification = None
+        self.compilation_status = None
+        self.compilation_result = {}
+        self.prefix = None
+        self.yang_version = None
+        self.description = None
+        self.contact = None
+        self.belongs_to = None
+        self.submodule = []
+        self.dependencies = []
+        self.module_type = None
+        self.tree_type = None
+        self.semver = None
+        self.derived_semver = None
+        self.implementations: t.List[Module.Implementation] = []
+        self.imports = []
+        self.json_submodules = json.dumps([])
+        self._parsed_yang: Statement
 
     def _resolve_deviations_and_features(self, search_for: str, data: str) -> t.List[str]:
         ret = []
@@ -155,21 +102,26 @@ class Modules:
             ret = devs_or_features.split(',')
         return ret
 
-    def parse_all(self, git_commit_hash: str, name: str, keys: set, schema: str, schema_start, to: str, aditional_info: dict = None):
+    def parse_all(self, name: str, git_commit_hash: str, yang_modules: dict, schema_base: str,
+                  save_file_dir: str, aditional_info: t.Optional[dict] = None, submodule_name: t.Optional[str] = None):
         """
-        Parse all data that we can from the module.
-        :param git_commit_hash: (str) name of the git commit hash where we can find the module
-        :param name:            (str) name of the module (not parsed out of the module)
-        :param keys:            (set) set of keys labeled as "<name>@<revision>/<organization>"
-        :param schema:          (str) full url to raw github module
-        :param to:              (str) directory, where all the modules are saved at
-        :param aditional_info   (dict) some aditional information about module given from client
+        Parse all data that we can from the module. Must only be called once.
+
+        Arguments:
+            :param name:            (str) name of the module (not parsed out of the module)
+            :param git_commit_hash: (str) name of the git commit hash where we can find the module
+            :param yang_modules:    (dict) yang modules we've already parsed
+            :param schema_base:     (str) url to a raw module on github up to and not including the
+                                    path of the file in the repo
+            :param save_file_dir:   (str) directory, where all the modules are saved at
+            :param aditional_info   (dict) some aditional information about module given from client
+            :param submodule_name   (str) name of the git submodule the yang module belongs to
         """
         def get_json(js):
             if js:
                 return js
             else:
-                return u'missing element'
+                return 'missing element'
 
         if aditional_info:
             author_email = aditional_info.get('author-email')
@@ -193,13 +145,13 @@ class Modules:
         self._resolve_belongs_to()
         self._resolve_namespace()
         self._resolve_organization(organization)
-        self._resolve_schema(schema, git_commit_hash, schema_start)
+        self._resolve_schema(schema_base, submodule_name)
         self._resolve_submodule()
         self._resolve_imports(git_commit_hash)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
-        if key in keys:
+        if key in yang_modules:
             return
-        self._save_file(to)
+        self._save_file(save_file_dir)
         self._resolve_generated_from(generated_from)
         self._resolve_compilation_status_and_result()
         self._resolve_yang_version()
@@ -219,8 +171,8 @@ class Modules:
         if self.module_type == 'module':
             self.tree = 'services/tree/{}@{}.yang'.format(self.name, self.revision)
 
-    def _save_file(self, to):
-        file_with_path = '{}/{}@{}.yang'.format(to, self.name, self.revision)
+    def _save_file(self, save_file_dir):
+        file_with_path = '{}/{}@{}.yang'.format(save_file_dir, self.name, self.revision)
         if not os.path.exists(file_with_path):
             with open(self._path, 'r', encoding='utf-8') as f:
                 with open(file_with_path, 'w', encoding='utf-8') as f2:
@@ -265,23 +217,25 @@ class Modules:
                                 # First load/clone YangModels/yang repo
                                 owner_name = 'YangModels'
                                 repo_name = 'yang'
-                                repo_url = '{}/{}/{}'.format(github_url, owner_name, repo_name)
+                                repo_url = os.path.join(github_url, owner_name, repo_name)
                                 repo = repoutil.load(self.yang_models, repo_url)
                                 if repo is None:
                                     repo = repoutil.RepoUtil(repo_url)
                                     repo.clone()
                                 # Check if repository submodule
+                                assert repo.repo, 'Is loaded either from the yang_models dir or freshly cloned'
                                 for submodule in repo.repo.submodules:
                                     if submodule.name in suffix:
-                                        repo_url = submodule.url
-                                        repo_dir = '{}/{}'.format(self.yang_models, submodule.name)
+                                        repo_url = submodule.url.lower()
+                                        repo_dir = os.path.join(self.yang_models, submodule.name)
                                         repo = repoutil.load(repo_dir, repo_url)
+                                        assert repo, 'Loaded from a known submodule'
                                         owner_name = repo.get_repo_owner()
                                         repo_name = repo.get_repo_dir().split('.git')[0]
                                         suffix = suffix.replace('{}/'.format(submodule.name), '')
 
                                 branch = repo.get_commit_hash(suffix)
-                                schema = '{}/{}/{}/{}/{}'.format(github_raw, owner_name, repo_name, branch, suffix)
+                                schema = os.path.join(github_raw, owner_name, repo_name, branch, suffix)
 
                                 dependency.schema = schema
                             elif git_commit_hash in yang_file:
@@ -289,62 +243,13 @@ class Modules:
                                 suffix = os.path.abspath(yang_file).split('/{}/'.format(git_commit_hash))[1]
                                 dependency.schema = '{}/master/{}'.format(prefix, suffix)
                     except:
-                        LOGGER.ERROR('Unable to resolve schema for {}@{}.yang'.format(self.name, self.revision))
+                        LOGGER.exception('Unable to resolve schema for {}@{}.yang'
+                            .format(dependency.name, dependency.revision))
                         dependency.schema = None
                         self.dependencies.append(dependency)
                 self.dependencies.append(dependency)
         except:
             return
-
-    def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
-                               capabilities: list, netconf_version: list, split: list):
-        """
-        If parsing Cisco modules, implementation details are stored in platform_metadata.json file.
-        Method add Cisco vendor information to Module
-        :param platform_data:       (list) set of platform_data loaded from platform_metadata.json
-        :param conformance_type:    (list) string representing conformance type of module
-        :param capabilities:        (list) set of netconf capabilities loaded from platform_metadata.json
-        :param netconf_version:     (set) set of netconf versions loaded from platform_metadata.json
-        :param split:               (list) path to .xml capabalities files splitted by character "/"
-        """
-        for data in platform_data:
-            implementation = self.Implementation()
-            implementation.vendor = data['vendor']
-            implementation.platform = data['platform']
-            implementation.software_version = data['software-version']
-            implementation.software_flavor = data['software-flavor']
-            implementation.os_version = data['os-version']
-            implementation.feature_set = data['feature-set']
-            implementation.os_type = data['os']
-            implementation.feature = self.features
-            implementation.capabilities = capabilities
-            implementation.netconf_version = netconf_version
-
-            if self.is_yang_lib:
-                for deviation in self.deviations:
-                    dev = implementation.Deviation()
-                    dev.name = deviation['name']
-                    dev.revision = deviation['revision']
-                    implementation.deviations.append(dev)
-            else:
-                for name in self.deviations:
-                    dev = implementation.Deviation()
-                    dev.name = name
-                    yang_file = self._find_file(name)
-
-                    if yang_file is None:
-                        dev.revision = '1970-01-01'
-                    else:
-                        try:
-                            s = yang_file.split('/')
-                            key = '/'.join(split[0:-1])
-                            dev.revision = yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
-                        except:
-                            dev.revision = '1970-01-01'
-                    implementation.deviations.append(dev)
-
-            implementation.conformance_type = conformance_type
-            self.implementations.append(implementation)
 
     def _resolve_name(self, name):
         LOGGER.debug('Resolving name')
@@ -370,26 +275,24 @@ class Modules:
                 except ValueError:
                     self.revision = '1970-01-01'
 
-    def _resolve_schema(self, schema, git_commit_hash, schema_start):
+    def _resolve_schema(self, schema_base: str, submodule_name: t.Optional[str]):
         LOGGER.debug('Resolving schema')
         if self.organization == 'etsi':
             suffix = self._path.split('SOL006')[-1]
             self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw//master/{}'.format(suffix)
-        elif schema:
-            split_index = '/{}/'.format(git_commit_hash)
-            if '/yangmodels/yang/' in self._path:
-                split_index = '/yangmodels/yang/'
-            if self._is_vendor:
-                suffix = os.path.abspath(self._path).split(split_index)[1]
-                if schema_start is not None:
-                    git_root_dir = schema_start.split('/')[0]
-                    if len(suffix.split(git_root_dir)) > 1:
-                        suffix = '{}{}'.format(git_root_dir, suffix.split(git_root_dir)[1])
-                self.schema = '{}{}'.format(schema, suffix)
+        elif schema_base:
+            if 'yangmodels/yang' in self._path:
+                suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[1]
+            elif '/tmp/' in self._path:
+                suffix = os.path.abspath(self._path).split('/tmp/')[1]
+                suffix = '/'.join(suffix.split('/')[3:]) # remove directory_number/owner/repo prefix
             else:
-                self.schema = schema
-        else:
-            self.schema = None
+                LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
+                return
+            if submodule_name:
+                suffix = suffix.replace('{}/'.format(submodule_name), '')
+            self.schema = os.path.join(schema_base, suffix)
+            
 
     def _resolve_module_classification(self, module_classification=None):
         LOGGER.debug('Resolving module classification')
@@ -487,8 +390,8 @@ class Modules:
                 pass
             # try to find in draft with revision
             try:
-                self.ietf_wg = self.jsons.status['IETFDraft'][yang_name_rev][
-                    0].split('</a>')[0].split('\">')[1].split('-')[2]
+                self.ietf_wg = self.jsons.status['IETFDraft'][yang_name_rev][0] \
+                    .split('</a>')[0].split('\">')[1].split('-')[2]
                 return
             except KeyError:
                 pass
@@ -506,8 +409,7 @@ class Modules:
                 pass
             self.ietf_wg = None
 
-    def _resolve_document_name_and_reference(self, document_name=None,
-                                             reference=None):
+    def _resolve_document_name_and_reference(self, document_name=None, reference=None):
         LOGGER.debug('Resolving document name and reference')
         if document_name:
             self.document_name = document_name
@@ -537,10 +439,10 @@ class Modules:
                 sub.revision = chunk.search('revision-date')[0].arg
 
             if sub.revision:
-                yang_file = self._find_file(sub.name, sub.revision, submodule=True)
+                yang_file = self._find_file(sub.name, sub.revision)
                 dep.revision = sub.revision
             else:
-                yang_file = self._find_file(sub.name, submodule=True)
+                yang_file = self._find_file(sub.name)
                 try:
                     sub.revision = \
                         yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
@@ -562,8 +464,7 @@ class Modules:
             self.submodule.append(sub)
         self.json_submodules = json.dumps([{'name': self.submodule[x].name,
                                             'schema': self.submodule[x].schema,
-                                            'revision': self.submodule[
-                                                x].revision
+                                            'revision': self.submodule[x].revision
                                             } for x in
                                            range(0, len(self.submodule))])
 
@@ -576,7 +477,7 @@ class Modules:
         if self.yang_version == '1':
             self.yang_version = '1.0'
 
-    def _resolve_generated_from(self, generated_from=None):
+    def _resolve_generated_from(self, generated_from: t.Optional[str] = None):
         LOGGER.debug('Resolving generated from')
         if generated_from:
             self.generated_from = generated_from
@@ -595,11 +496,11 @@ class Modules:
             self.compilation_status['status'] = 'unknown'
         if self.compilation_status['status'] != 'passed':
             self.compilation_result = self._parse_result()
-            if (self.compilation_result['pyang'] == ''
+            if (self.organization == 'cisco'
+                and self.compilation_result['pyang'] == ''
                 and self.compilation_result['yanglint'] == ''
                 and self.compilation_result['confdrc'] == ''
                 and self.compilation_result['yumadump'] == ''
-                and self.organization == 'cisco'
                 and (self.generated_from == 'native'
                      or self.generated_from == 'mib')):
                 self.compilation_status['status'] = 'passed'
@@ -677,8 +578,7 @@ class Modules:
                 all_lines = file_input.readlines()
         except:
             LOGGER.critical(
-                'Could not open a file {}. Maybe a path is set wrongly'.format(
-                    self._path))
+                'Could not open a file {}. Maybe a path is set incorrectly'.format(self._path))
             sys.exit(10)
         commented_out = False
         for each_line in all_lines:
@@ -753,8 +653,8 @@ class Modules:
             yang_file = self._find_file(self.belongs_to)
             if yang_file is None:
                 return None
-            parsed_parent_yang = yangParser.parse(os.path.abspath(yang_file))
             try:
+                parsed_parent_yang = yangParser.parse(os.path.abspath(yang_file))
                 return parsed_parent_yang.search(field)[0].arg
             except:
                 if field == 'prefix':
@@ -907,41 +807,123 @@ class Modules:
             pass
         return [None, None]
 
-    def _find_file(self, name: str, revision: str = '*', submodule: bool = False):
+    def _find_file(self, name: str, revision: str = '*') -> t.Optional[str]:
         pattern = '{}.yang'.format(name)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        yang_file = find_first_file('/'.join(self._path.split('/')[0:-1]), pattern, pattern_with_revision, self.yang_models)
+        yang_file = find_first_file(os.path.dirname(self._path), pattern, pattern_with_revision, self.yang_models)
         return yang_file
 
+    # NOTE: Could these just be empty strings instead?
     class Submodules:
         def __init__(self):
-            self.name = None
-            self.revision = None
-            self.schema = None
+            self.name: t.Optional[str] = None
+            self.revision: t.Optional[str] = None
+            self.schema: t.Optional[str] = None
 
     class Dependency:
         def __init__(self):
-            self.name = None
-            self.revision = None
-            self.schema = None
+            self.name: t.Optional[str] = None
+            self.revision: t.Optional[str] = None
+            self.schema: t.Optional[str] = None
 
     class Implementation:
         def __init__(self):
-            self.vendor = None
-            self.platform = None
-            self.software_version = None
-            self.software_flavor = None
-            self.os_version = None
-            self.feature_set = None
-            self.os_type = None
+            self.vendor: t.Optional[str] = None
+            self.platform: t.Optional[str] = None
+            self.software_version: t.Optional[str] = None
+            self.software_flavor: t.Optional[str] = None
+            self.os_version: t.Optional[str] = None
+            self.feature_set: t.Optional[str] = None
+            self.os_type: t.Optional[str] = None
             self.feature = []
             self.deviations = []
-            self.conformance_type = None
-            self.capabilities = None
-            self.netconf_version = None
+            self.conformance_type: t.Optional[str] = None
+            self.capabilities = []
+            self.netconf_versions = []
 
         class Deviation:
             def __init__(self):
-                self.name = None
-                self.revision = None
-                self.schema = None
+                self.name: t.Optional[str] = None
+                self.revision: t.Optional[str] = None
+                self.schema: t.Optional[str] = None
+
+
+class SdoModule(Module):
+
+    def __init__(self, path: str, jsons: LoadFiles, dir_paths: t.Dict[str, str]):
+        super().__init__(path, jsons, dir_paths)
+        self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
+
+
+
+class VendorModule(Module):
+    """A module with additional vendor information."""
+
+    def __init__(self, path: str, jsons: LoadFiles, dir_paths: t.Dict[str, str],
+                 data: t.Optional[t.Union[str, dict]] = None):
+        super().__init__(path, jsons, dir_paths)
+        if isinstance(data, str): # string from a capabilities file
+            self.features = self._resolve_deviations_and_features('features=', data)
+            deviation_names = self._resolve_deviations_and_features('deviations=', data)
+            self.deviations  = []
+            for name in deviation_names:
+                deviation = {'name': name}
+                yang_file = self._find_file(name)
+                if yang_file is None:
+                    deviation['revision'] = '1970-01-01'
+                else:
+                    try:
+                        deviation['revision'] = yangParser.parse(os.path.abspath(yang_file)) \
+                            .search('revision')[0].arg
+                    except:
+                        deviation['revision'] = '1970-01-01'
+                self.deviations.append(deviation)
+            if 'revision' in data:
+                revision_and_more = data.split('revision=')[1]
+                revision = revision_and_more.split('&')[0]
+                self.revision = revision
+
+            self._path = self._find_file(data.split('&')[0], self.revision)
+        elif isinstance(data, dict): # dict parsed out from a ietf-yang-library file
+            self.deviations = data['deviations']
+            self.features = data['features']
+            self.revision = data['revision']
+            self._path = self._find_file(data['name'], self.revision)
+        if self._path:
+            self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
+        else:
+            raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
+
+
+    def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
+                               capabilities: list, netconf_versions: list):
+        """
+        Add information from platform-metadata json files provided with Cisco modules.
+
+        Arguments:
+            :param platform_data:       (list) list of platform_data loaded from platform_metadata.json
+            :param conformance_type:    (str) string representing conformance type of module
+            :param capabilities:        (list) list of netconf capabilities loaded from platform_metadata.json
+            :param netconf_versions:    (list) list of netconf versions loaded from platform-metadata.json
+        """
+        for data in platform_data:
+            implementation = self.Implementation()
+            implementation.vendor = data['vendor']
+            implementation.platform = data['platform']
+            implementation.software_version = data['software-version']
+            implementation.software_flavor = data['software-flavor']
+            implementation.os_version = data['os-version']
+            implementation.feature_set = data['feature-set']
+            implementation.os_type = data['os']
+            implementation.feature = self.features
+            implementation.capabilities = capabilities
+            implementation.netconf_versions = netconf_versions
+
+            for deviation in self.deviations:
+                dev = implementation.Deviation()
+                dev.name = deviation['name']
+                dev.revision = deviation['revision']
+                implementation.deviations.append(dev)
+
+            implementation.conformance_type = conformance_type
+            self.implementations.append(implementation)

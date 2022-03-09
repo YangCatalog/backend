@@ -79,7 +79,7 @@ class Receiver:
                 shutil.copy2(s, d)
 
     def process(self, arguments: t.List[str]) -> t.Tuple[str, dict]:
-        """Process SDO modules. Calls populate.py script which will parse all the modules
+        """Process modules. Calls populate.py script which will parse the modules
         on the given path given by "dir" param. Populate script will also send the
         request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
         parent directory of this project /api/sdo and finally also call indexing script to update searching.
@@ -94,7 +94,8 @@ class Receiver:
         sdo = '--sdo' in arguments
         api = '--api' in arguments
         data_type = 'sdo' if sdo else 'vendor'
-        direc = arguments[3 if sdo else 2]
+        i = arguments.index('--dir')
+        direc = arguments[i+1]
 
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
@@ -126,7 +127,8 @@ class Receiver:
                         all_modules)
 
         if tree_created:
-            self.copytree(os.path.join(direc, 'temp'), os.path.join(self.temp_dir, data_type))
+            # NOTE: is this ever used anywhere?
+            self.copytree(direc, os.path.join(self.temp_dir, data_type))
             with open(os.path.join(direc, 'prepare.json'), 'r') as f:
                 all_modules.update(json.load(f))
 
@@ -535,13 +537,17 @@ class Receiver:
                     credentials = arguments[1:3]
                 elif arguments[0] == 'POPULATE-MODULES':
                     final_response, all_modules = self.process(arguments)
-                    credentials = arguments[6:8]
-                    direc = arguments[3]
+                    i = arguments.index('--credentials')
+                    credentials = arguments[i+1:i+3]
+                    i = arguments.index('--dir')
+                    direc = arguments[i+1]
                     shutil.rmtree(direc)
                 elif arguments[0] == 'POPULATE-VENDORS':
                     final_response, all_modules = self.process(arguments)
-                    credentials = arguments[5:7]
-                    direc = arguments[2]
+                    i = arguments.index('--credentials')
+                    credentials = arguments[i+1:i+3]
+                    i = arguments.index('--dir')
+                    direc = arguments[i+1]
                     shutil.rmtree(direc)
                 else:
                     assert False, 'Invalid request type'

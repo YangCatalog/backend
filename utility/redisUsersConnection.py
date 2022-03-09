@@ -48,10 +48,10 @@ class RedisUsersConnection:
         return (r or b'').decode()
 
     def set_field(self, id: str, field: str, value: str) -> bool:
-        return self.redis.set('{}:{}'.format(id, field), value)
+        return bool(self.redis.set('{}:{}'.format(id, field), value))
 
     def delete_field(self, id: str, field: str) -> bool:
-        return self.redis.delete('{}:{}'.format(id, field))
+        return bool(self.redis.delete('{}:{}'.format(id, field)))
 
     def is_approved(self, id: str) -> bool:
         return self.redis.sismember('approved', id)

@@ -21,24 +21,25 @@ git clone --depth 1 https://github.com/YangModels/yang.git $YANG_MODELS_DIR
 cd $YANG_MODELS_DIR
 git submodule update --init vendor/huawei
 
-# Prepare files and directory structure for test_capability.py
-mkdir -p $TMP_DIR/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/capability-tests/temp/YangModels/yang/master/standard/ietf/RFC/.
-cp $BACKEND/tests/resources/prepare-sdo.json $TMP_DIR/capability-tests/.
+# Prepare files and directory structure for test_groupings.py
+mkdir -p $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC/.
+cp $BACKEND/tests/resources/request-data.json $TMP_DIR/groupings-tests/.
 
 # Create directories which match YangModels/yang/vendor/cisco structure, then copy certain files to these directories
-mkdir -p $TMP_DIR/master/vendor/cisco/xr/701/
-mkdir -p $TMP_DIR/master/vendor/cisco/xr/702/
-mkdir -p $TMP_DIR/master/vendor/cisco/nx/9.2-1
-mkdir -p $TMP_DIR/master/vendor/cisco/xe/16101
-mkdir -p $TMP_DIR/temp/standard/ietf/RFC/empty
-cp $BACKEND/tests/resources/capabilities-ncs5k.xml $TMP_DIR/master/vendor/cisco/xr/701/
-cp $YANG_MODELS_DIR/vendor/cisco/xr/701/platform-metadata.json $TMP_DIR/master/vendor/cisco/xr/701/
-cp $YANG_MODELS_DIR/vendor/cisco/xr/701/*.yang $TMP_DIR/master/vendor/cisco/xr/701/
-cp $YANG_MODELS_DIR/vendor/cisco/xr/702/capabilities-ncs5k.xml $TMP_DIR/master/vendor/cisco/xr/702/
-cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $TMP_DIR/master/vendor/cisco/nx/9.2-1/
-cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $TMP_DIR/master/vendor/cisco/xe/16101/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $TMP_DIR/temp/standard/ietf/RFC
+TEST_REPO=$TMP_DIR/test/YangModels/yang
+mkdir -p $TEST_REPO/vendor/cisco/xr/701/
+mkdir -p $TEST_REPO/vendor/cisco/xr/702/
+mkdir -p $TEST_REPO/vendor/cisco/nx/9.2-1
+mkdir -p $TEST_REPO/vendor/cisco/xe/16101
+mkdir -p $TEST_REPO/standard/ietf/RFC/empty
+cp $BACKEND/tests/resources/capabilities-ncs5k.xml $TEST_REPO/vendor/cisco/xr/701/
+cp $YANG_MODELS_DIR/vendor/cisco/xr/701/platform-metadata.json $TEST_REPO/vendor/cisco/xr/701/
+cp $YANG_MODELS_DIR/vendor/cisco/xr/701/*.yang $TEST_REPO/vendor/cisco/xr/701/
+cp $YANG_MODELS_DIR/vendor/cisco/xr/702/capabilities-ncs5k.xml $TEST_REPO/vendor/cisco/xr/702/
+cp $YANG_MODELS_DIR/vendor/cisco/nx/9.2-1/netconf-capabilities.xml $TEST_REPO/vendor/cisco/nx/9.2-1/
+cp $YANG_MODELS_DIR/vendor/cisco/xe/16101/capability-asr1k.xml $TEST_REPO/vendor/cisco/xe/16101/
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $TEST_REPO/standard/ietf/RFC
 
 # Prepare Huawei directory for ietf-yang-lib based tests
 rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/atn980b
@@ -46,13 +47,11 @@ rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne40e-x8x16
 rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.20.10
 rm -rf $YANG_MODELS_DIR/vendor/huawei/network-router/8.21.0
 export YANG_MODELS_HUAWEI_DIR=$YANG_MODELS_DIR/vendor/huawei/network-router/8.20.0/ne5000e
-mkdir -p $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e
-cp $YANG_MODELS_HUAWEI_DIR/huawei-aaa* $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e/
-cp $BACKEND/tests/resources/platform-metadata.json $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e/
-cp $BACKEND/tests/resources/ietf-yang-library.xml $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-library@2019-01-04.yang $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e/
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-inet-types@2013-07-15.yang $TMP_DIR/master/vendor/huawei/network-router/8.20.0/ne5000e/
+mkdir -p $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e
+cp $YANG_MODELS_HUAWEI_DIR/ietf*.yang $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $YANG_MODELS_HUAWEI_DIR/huawei-aaa*.yang $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $BACKEND/tests/resources/platform-metadata.json $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
+cp $BACKEND/tests/resources/ietf-yang-library.xml $TEST_REPO/vendor/huawei/network-router/8.20.0/ne5000e/
 
 # Prepare directory structure need for test_util.py
 mkdir -p $TMP_DIR/util-tests

@@ -20,6 +20,7 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import json
 import typing as t
 from os.path import isfile
 
@@ -28,6 +29,9 @@ from pyang.error import error_codes
 from pyang.repository import FileRepository
 from pyang.statements import Statement
 from pyang.yang_parser import YangParser
+
+from utility.create_config import create_config
+
 
 DEFAULT_OPTIONS = {
     'path': [],
@@ -168,7 +172,26 @@ def create_context(path: str = '.', *options, **kwargs) -> OptsContext:
     return ctx
 
 
-def parse(text: str) -> t.Optional[Statement]:
+class ParseException(Exception):
+
+    def __init__(self, path: t.Optional[str]):
+        if path is not None:
+            config = create_config()
+            var_path = config.get('Directory-Section', 'var')
+            self.msg = 'Failed to parse module on path {}'.format(path)
+            try:
+                with open('{}/unparsable-modules.json'.format(var_path), 'r') as f:
+                    modules = json.load(f)
+            except:
+                modules = []
+            module = path.split('/')[-1]
+            if module not in modules:
+                modules.append(module)
+            with open('{}/unparsable-modules.json'.format(var_path), 'w') as f:
+                json.dump(modules, f)
+
+
+def parse(text: str) -> Statement:
     """Parse a YANG statement into an Abstract Syntax subtree.
 
     Arguments:
@@ -204,6 +227,8 @@ def parse(text: str) -> t.Optional[Statement]:
     ctx_.errors = []
 
     ast = parser.parse(ctx_, filename, text)
+    if ast is None:
+        raise ParseException(filename if filename != 'parser-input' else None)
 
     ctx_.internal_reset()
 

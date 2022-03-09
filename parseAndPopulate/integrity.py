@@ -40,7 +40,7 @@ from datetime import date
 
 from pyang.statements import Statement
 
-from utility import yangParser # Hopefully temporary. Think I can speed this up with regex.
+from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import NS_MAP
@@ -142,8 +142,9 @@ def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: 
 
 
 def check(path: str, directory: str, yang_models_dir: str, sdo: bool):
-    parsed_module = yangParser.parse(path)
-    if parsed_module is None:
+    try:
+        parsed_module = yangParser.parse(path)
+    except yangParser.ParseException:
         return
     if not check_revision(parsed_module):
         missing_revisions.add(path)

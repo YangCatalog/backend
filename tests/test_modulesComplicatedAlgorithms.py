@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
@@ -53,7 +53,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
     V. 5th revision - minor version update (4.1.0)
     VI. 6th revision - patch version update (4.1.1)
     """
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_init_revision(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Only one - first revision of the module is passed to the modulesComplicatedAlgorithms script.
@@ -87,7 +87,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '1.0.0')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_update_major(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module compilation status is 'passed-with-warnings' so a major version update is expected.
@@ -121,7 +121,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '2.0.0')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_update_major_2(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module compilation status is 'passed' after previous 'passed-with-warnings' so a major version update is expected.
@@ -155,7 +155,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '3.0.0')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_update_major_3(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module compilation status is 'passed', but errors occured while running --check-update-from
@@ -190,7 +190,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.0.0')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_update_minor(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module compilation status is 'passed', no error occured while running --check-update-from,
@@ -225,7 +225,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.0')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_update_patch(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module compilation status is 'passed', no error occured while running --check-update-from,
@@ -262,7 +262,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
     ### parse_semver() - parsing middle revision ###
     ################################################
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_semver_update_versions(self, mock_requests_get: mock.MagicMock):
         """ Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module between two other revisions is parsed, which means, it will loop through all the available
@@ -275,9 +275,9 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         expected_semver_order = ['1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1']
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
-        # List od modules returned from patched /api/search/modules GET request
+        # List of modules returned from patched /api/search/modules GET request
         existing_modules = {}
-        existing_modules['module'] = deepcopy([{k: v for k, v in mod.items() if k != 'derived-semantic-version'} for mod in modules])
+        existing_modules['module'] = deepcopy(modules[:4] + modules[5:])
 
         mock_requests_get.return_value.json.return_value = existing_modules
 
@@ -292,15 +292,12 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
         complicatedAlgorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
-        revisions = sorted(complicatedAlgorithms.new_modules['semver-test'])
-        for revision, expected_version in zip(revisions, expected_semver_order):
-            new_module = complicatedAlgorithms.new_modules['semver-test'].get(revision, {})
-            self.assertEqual(new_module.get('derived-semantic-version'), expected_version)
+        self.assertIn('2020-05-01', complicatedAlgorithms.new_modules['semver-test'])
+        self.assertEqual(complicatedAlgorithms.new_modules['semver-test']['2020-05-01']['derived-semantic-version'], '4.1.0')
 
     ### resolve_tree_type() ###
     ###########################
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_non_requests_openconfig(self, mock_requests_get: mock.MagicMock):
         module = self.payloads['parse_tree_type']['module'][0]
         all_modules = {'module': [module]}
@@ -315,7 +312,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         revision = module['revision']
         self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'openconfig')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_non_requests_split(self, mock_requests_get: mock.MagicMock):
         module = self.payloads['parse_tree_type']['module'][1]
         all_modules = {'module': [module]}
@@ -330,7 +327,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         revision = module['revision']
         self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'split')
 
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_non_requests_combined(self, mock_requests_get: mock.MagicMock):
         module = self.payloads['parse_tree_type']['module'][2]
         all_modules = {'module': [module]}
@@ -349,7 +346,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
     ##########################
     @mock.patch('parseAndPopulate.modulesComplicatedAlgorithms.ModulesComplicatedAlgorithms.parse_semver',
                 mock.MagicMock())
-    @mock.patch('parseAndPopulate.prepare.requests.get')
+    @mock.patch('parseAndPopulate.dumper.requests.get')
     def test_parse_dependents(self, mock_requests_get: mock.MagicMock):
         payload = self.payloads['parse_dependents']
         all_modules = {'module': payload[0]['new']}

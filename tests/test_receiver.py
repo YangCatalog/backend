@@ -162,21 +162,20 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_sdo(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
-        data = self.test_data.get('prepare-sdo-content')
-        dst = '{}/temp/YangModels/yang/master/standard/ietf/RFC'.format(self.direc)
+        data = self.test_data.get('request-data-content')
+        dst = '{}/YangModels/yang/standard/ietf/RFC'.format(self.direc)
         os.makedirs(dst, exist_ok=True)
 
         RFC_dir = '{}/yangmodels/yang/standard/ietf/RFC'.format(self.nonietf_dir)
         shutil.copy('{}/ietf-yang-types@2010-09-24.yang'.format(RFC_dir),
                     '{}/ietf-yang-types@2010-09-24.yang'.format(dst))
-        with open('{}/prepare-sdo.json'.format(self.direc), 'w') as f:
+        with open('{}/request-data.json'.format(self.direc), 'w') as f:
             json.dump(data, f)
 
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
 
         response, all_modules = self.receiver.process(arguments)
-        module = all_modules['module'][0]
         original_module_data = data['modules']['module'][0]
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
         redis_data = (redis_module or b'{}').decode('utf-8')
@@ -185,10 +184,12 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertNotEqual(redis_data, '{}')
         self.assertNotEqual(all_modules, {})
         self.assertIn('module', all_modules)
+
+        module = all_modules['module'][0]
         for prop in ['name', 'revision', 'organization', 'module-classification', 'generated-from']:
             self.assertEqual(module[prop], original_module_data[prop])
 
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_sdo_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
@@ -210,7 +211,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
         platform = self.test_data.get('capabilities-json-content')
 
-        dst = '{}/temp/huawei/yang/master/network-router/8.20.0/ne5000e'.format(self.direc)
+        dst = '{}/huawei/yang/network-router/8.20.0/ne5000e'.format(self.direc)
         os.makedirs(dst, exist_ok=True)
 
         shutil.copy('{}/huawei-dsa.yang'.format(self.huawei_dir), '{}/huawei-dsa.yang'.format(dst))
@@ -243,7 +244,7 @@ class TestReceiverClass(TestReceiverBaseClass):
             redis_data = (redis_module or b'{}').decode('utf-8')
             self.assertNotEqual(redis_data, '{}')
 
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_vendor_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',

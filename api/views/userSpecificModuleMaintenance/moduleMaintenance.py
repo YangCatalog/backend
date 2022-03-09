@@ -21,6 +21,7 @@ import errno
 import json
 import os
 import shutil
+import typing as t
 from datetime import datetime
 
 from api.authentication.auth import auth, hash_pw
@@ -238,114 +239,101 @@ def add_modules():
         abort(400,
               description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
                           'Error code: {}'.format(response.text, response.status_code))
-    direc = 0
-    while os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
-        direc += 1
-    direc = '{}/{}'.format(ac.d_temp, direc)
+    direc_num = 0
+    while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
+        direc_num += 1
+    direc = os.path.join(ac.d_temp, str(direc_num))
     try:
         os.makedirs(direc)
     except OSError as e:
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
-    repo_url_dir_branch = {}
-    repo = {}
+    repo: t.Dict[str, repoutil.RepoUtil] = {}
     warning = []
-    for mod in module_list:
-        app.logger.debug(mod)
-        sdo = mod.get('source-file')
-        if sdo is None:
-            abort(400, description='bad request - at least one of modules "source-file" is missing and is mandatory')
-        mod_org = mod.get('organization')
-        if mod_org is None:
-            abort(400, description='bad request - at least one of modules "organization" is missing and is mandatory')
-        mod_name = mod.get('name')
-        if mod_name is None:
-            abort(400, description='bad request - at least one of modules "name" is missing and is mandatory')
-        mod_revision = mod.get('revision')
-        if mod_revision is None:
-            abort(400, description='bad request - at least one of modules "revision" is missing and is mandatory')
+    missing_msg = 'bad request - at least one module object is missing mandatory field {}'
+    for module in module_list:
+        app.logger.debug(module)
+        source_file: dict = module.get('source-file')
+        if source_file is None:
+            abort(400, description=missing_msg.format('source-file'))
+        organization_sent = module.get('organization')
+        if organization_sent is None:
+            abort(400, description=missing_msg.format('organization'))
+        name = module.get('name')
+        if name is None:
+            abort(400, description=missing_msg.format('name'))
+        revision = module.get('revision')
+        if revision is None:
+            abort(400, description=missing_msg.format('revision'))
         if request.method == 'POST':
             # Check if the module is already in Redis
-            redis_module = get_mod_redis(mod)
+            redis_module = get_mod_redis(module)
             if redis_module != {}:
                 continue
-        sdo_path = sdo.get('path')
-        if sdo_path is None:
-            abort(400, description='bad request - at least one of modules source file "path" is missing and is mandatory')
-        sdo_repo = sdo.get('repository')
-        if sdo_repo is None:
-            abort(400, description='bad request - at least one of modules source file "repository" is missing and is mandatory')
-        sdo_owner = sdo.get('owner')
-        if sdo_owner is None:
-            abort(400, description='bad request - at least one of modules source file "owner" is missing and is mandatory')
-        directory = '/'.join(sdo_path.split('/')[:-1])
+        module_path = source_file.get('path')
+        if module_path is None:
+            abort(400, description=missing_msg.format('source-file["path"]'))
+        repo_name = source_file.get('repository')
+        if repo_name is None:
+            abort(400, description=missing_msg.format('source-file["repository"]'))
+        owner = source_file.get('owner')
+        if owner is None:
+            abort(400, description=missing_msg.format('source-file["owner"]'))
 
-        repo_url = '{}/{}/{}'.format(github_url, sdo_owner, sdo_repo)
+
+        dir_in_repo = os.path.dirname(module_path)
+        repo_url = os.path.join(github_url, owner, repo_name)
         if repo_url not in repo:
-            app.logger.info('Downloading repo {}'.format(repo_url))
-            try:
-                repo[repo_url] = repoutil.RepoUtil(repo_url)
-                repo[repo_url].clone()
-            except GitCommandError as e:
-                abort(400, description='bad request - could not clone the Github repository. Please check owner,'
-                      ' repository and path of the request - {}'.format(e.stderr))
+            repo[repo_url] = get_repo(repo_url, owner, repo_name)
 
-        try:
-            branch = sdo.get('branch', 'master')
-            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, branch, directory)
-            if repo_url_dir_branch_temp not in repo_url_dir_branch:
-                branch = repo[repo_url].get_commit_hash(directory, branch)
-                repo_url_dir_branch[repo_url_dir_branch_temp] = branch
-            else:
-                branch = repo_url_dir_branch[repo_url_dir_branch_temp]
-        except GitCommandError as e:
-            abort(400, description='bad request - could not clone the Github repository. Please check owner,'
-                                   ' repository and path of the request - {}'.format(e.stderr))
-        save_to = '{}/temp/{}/{}/{}/{}'.format(direc, sdo_owner, sdo_repo.split('.')[0], branch, directory)
+        # needed to later construct the schema
+        source_file['commit-hash'] = repo[repo_url].get_commit_hash(source_file.get('branch'))
+
+        save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
         try:
             os.makedirs(save_to)
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        shutil.copy('{}/{}'.format(repo[repo_url].localdir, sdo_path), save_to)
+        assert repo[repo_url].localdir, 'localdir should be set either from a clone or from a load'
+        shutil.copy(os.path.join(repo[repo_url].localdir, module_path), save_to)
 
         tree_created = True
-        organization = ''
+        organization_parsed = ''
         try:
-            namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, sdo_path.split('/')[-1]))) \
+            namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, os.path.basename(module_path)))) \
                 .search('namespace')[0].arg
-            organization = organization_by_namespace(namespace)
+            organization_parsed = organization_by_namespace(namespace)
         except:
             while True:
                 try:
-                    belongs_to = yangParser.parse(os.path.abspath('{}/{}'.format(repo[repo_url].localdir, sdo_path))) \
+                    belongs_to = yangParser.parse(os.path.abspath(os.path.join(repo[repo_url].localdir, module_path))) \
                         .search('belongs-to')[0].arg
                 except:
                     break
-                try:
-                    namespace = yangParser.parse(
-                        os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
-                                                               '/'.join(sdo_path.split('/')[:-1]), belongs_to))
-                    ).search('namespace')[0].arg
-                    organization = organization_by_namespace(namespace)
-                    break
-                except:
-                    pass
-        resolved_authorization = authorize_for_sdos(request, mod_org, organization)
+                namespace = yangParser.parse(
+                    os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
+                                                            os.path.basename(module_path), belongs_to))
+                ).search('namespace')[0].arg
+                organization_parsed = organization_by_namespace(namespace)
+                break
+        resolved_authorization = authorize_for_sdos(request, organization_sent, organization_parsed)
         if not resolved_authorization:
             shutil.rmtree(direc)
             for key in repo:
-                repo[key].remove()
+                if 'YangModels/yang' not in key:
+                    repo[key].remove()
             abort(401, description='Unauthorized for server unknown reason')
         if 'organization' in repr(resolved_authorization):
-            warning.append('{} {}'.format(sdo['path'].split('/')[-1], resolved_authorization))
+            warning.append('{} {}'.format(os.path.basename(module_path), resolved_authorization))
 
-    with open(os.path.join(direc, 'prepare-sdo.json'), 'w') as f:
+    with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
     for key in repo:
-        repo[key].remove()
+        if 'YangModels/yang' not in key:
+            repo[key].remove()
 
     arguments = ['POPULATE-MODULES', '--sdo', '--dir', direc, '--api',
                  '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
@@ -363,13 +351,12 @@ def add_vendors():
     """Endpoint is used to add new vendors using the API.
     PUT request is used for updating each vendor in request body.
     POST request is used for creating new vendors that are not in ConfD/Redis yet.
-    First it checks if the sent request is ok and if so, it will send a another request
+    First it checks if the sent request is ok and if so, it will send another request
     to the receiver which will work on adding/updating vendors while this request
     will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id"
-    the job process.
+    User is able to check the success of the job using this "job_id".
 
-    :return response with "job_id" that user can use to check whether
+    :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
     if not request.json:
@@ -399,14 +386,13 @@ def add_vendors():
     response = app.confdService.put_platform_metadata(json.dumps(body))
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        abort(400,
-              description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
-                          'Error code: {}'.format(response.text, response.status_code))
+        abort(400, description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
+                               'Error code: {}'.format(response.text, response.status_code))
 
-    direc = 0
-    while os.path.isdir('{}/{}'.format(ac.d_temp, direc)):
-        direc += 1
-    direc = '{}/{}'.format(ac.d_temp, direc)
+    direc_num = 0
+    while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
+        direc_num += 1
+    direc = os.path.join(ac.d_temp, str(direc_num))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -414,63 +400,51 @@ def add_vendors():
         if e.errno != errno.EEXIST:
             raise
 
-    repo_url_dir_branch = {}
     repo = {}
+    missing_msg = 'bad request - at least one platform object is missing mandatory field {}'
     for platform in platform_list:
-        capability = platform.get('module-list-file')
-        if capability is None:
-            abort(400, description='bad request - at least on of platform "module-list-file" is missing and is mandatory')
-        capability_path = capability.get('path')
-        if capability_path is None:
-            abort(400, description='bad request - at least on of platform module-list-file "path" for module is missing and is mandatory')
-        file_name = capability_path.split('/')[-1]
-        repository = capability.get('repository')
-        if repository is None:
-            abort(400, description='bad request - at least on of platform module-list-file "repository" for module is missing and is mandatory')
-        owner = capability.get('owner')
+        module_list_file = platform.get('module-list-file')
+        if module_list_file is None:
+            abort(400, description=missing_msg.format('module-list-file'))
+        xml_path = module_list_file.get('path')
+        if xml_path is None:
+            abort(400, description=missing_msg.format('module-list-file["path"]'))
+        file_name = os.path.basename(xml_path)
+        repo_name = module_list_file.get('repository')
+        if repo_name is None:
+            abort(400, description=missing_msg.format('module-list-file["repository"]'))
+        owner = module_list_file.get('owner')
         if owner is None:
-            abort(400, description='bad request - at least on of platform module-list-file "owner" for module is missing and is mandatory')
+            abort(400, description=missing_msg.format('module-list-file["owner"]'))
         if request.method == 'POST':
             repoutil.pull(ac.d_yang_models_dir)
-            if os.path.isfile('{}/vendor/{}/{}'.format(ac.d_yang_models_dir, owner, capability_path)):
+            if os.path.isfile(os.path.join(ac.d_yang_models_dir, xml_path)):
                 continue
 
-        directory = '/'.join(capability_path.split('/')[:-1])
-        repo_url = '{}/{}/{}'.format(github_url, owner, repository)
+        dir_in_repo = os.path.dirname(xml_path)
+        repo_url = os.path.join(github_url, owner, repo_name)
 
         if repo_url not in repo:
-            app.logger.info('Downloading repo {}'.format(repo_url))
-            try:
-                repo[repo_url] = repoutil.RepoUtil(repo_url)
-                repo[repo_url].clone()
-            except GitCommandError as e:
-                abort(400, description='bad request - could not clone the Github repository. Please check owner,'
-                      ' repository and path of the request - {}'.format(e.stderr))
-        try:
-            branch = capability.get('branch', 'master')
-            repo_url_dir_branch_temp = '{}/{}/{}'.format(repo_url, directory, branch)
-            if repo_url_dir_branch_temp not in repo_url_dir_branch:
-                branch = repo[repo_url].get_commit_hash(directory, branch)
-                repo_url_dir_branch[repo_url_dir_branch_temp] = branch
-            else:
-                branch = repo_url_dir_branch[repo_url_dir_branch_temp]
-        except GitCommandError as e:
-            abort(400, description='bad request - could not clone the Github repository. Please check owner,'
-                                   ' repository and path of the request - {}'.format(e.stderr))
-        save_to = '{}/temp/{}/{}/{}/{}'.format(direc, owner, repository.split('.')[0], branch, directory)
+            repo[repo_url] = get_repo(repo_url, owner, repo_name)
+
+        # needed to later construct the schema
+        module_list_file['commit-hash'] = repo[repo_url].get_commit_hash(module_list_file.get('branch'))
+
+        save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
         try:
-            shutil.copytree('{}/{}'.format(repo[repo_url].localdir, directory), save_to,
+            shutil.copytree(os.path.join(repo[repo_url].localdir, dir_in_repo), save_to,
                             ignore=shutil.ignore_patterns('*.json', '*.xml', '*.sh', '*.md', '*.txt', '*.bin'))
         except OSError:
             pass
         with open('{}/{}.json'.format(save_to, file_name.split('.')[0]), 'w') as f:
             json.dump(platform, f)
-        shutil.copy('{}/{}'.format(repo[repo_url].localdir, capability['path']), save_to)
+        shutil.copy(os.path.join(repo[repo_url].localdir, module_list_file['path']), save_to)
         tree_created = True
 
     for key in repo:
-        repo[key].remove()
+        if 'YangModels/yang' not in key:
+            repo[key].remove()
     arguments = ['POPULATE-VENDORS', '--dir', direc, '--api',
                  '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
     job_id = ac.sender.send('#'.join(arguments))
@@ -592,3 +566,21 @@ def organization_by_namespace(namespace: str):
             if 'urn:' in namespace:
                 return namespace.split('urn:')[1].split(':')[0]
     return ''
+
+def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
+    if owner == 'YangModels' and repo_name == 'yang':
+        app.logger.info('Using repo already downloaded from {}'.format(repo_url))
+        repoutil.pull(ac.d_yang_models_dir)
+        yang_models_repo = repoutil.load(ac.d_yang_models_dir, github_url)
+        if not yang_models_repo:
+            raise Exception("Couldn't load YangModels/yang from directory")
+        return yang_models_repo
+    else:
+        app.logger.info('Downloading repo {}'.format(repo_url))
+        try:
+            repo = repoutil.RepoUtil(repo_url)
+            repo.clone()
+            return repo
+        except GitCommandError as e:
+            abort(400, description='bad request - could not clone the Github repository. Please check owner,'
+                                    ' repository and path of the request - {}'.format(e.stderr))

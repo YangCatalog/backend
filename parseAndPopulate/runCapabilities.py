@@ -31,9 +31,9 @@ import time
 import typing as t
 
 import utility.log as log
-from parseAndPopulate.capability import Capability
+from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.prepare import Prepare
+from parseAndPopulate.dumper import Dumper
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import find_files
@@ -123,12 +123,17 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-    LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(log_directory))
+    dir_paths: t.Dict[str, str] = {}
+    dir_paths['log'] = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+    dir_paths['private'] = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
+    dir_paths['yang_models'] = \
+        config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
+    dir_paths['cache'] = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
+    dir_paths['json'] = args.json_dir
+    dir_paths['result'] = args.result_html_dir
+    dir_paths['save'] = args.save_file_dir
+    LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(dir_paths['log']))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
-    private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
-    yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
-    cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
 
     separator = ':'
     suffix = args.api_port
@@ -138,63 +143,50 @@ def main(scriptConf=None):
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
 
     start = time.time()
-    prepare = Prepare(log_directory, 'prepare', yangcatalog_api_prefix)
-    fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, args.save_file_hash, log_directory)
+    dumper = Dumper(dir_paths['log'], 'prepare', yangcatalog_api_prefix)
+    fileHasher = FileHasher('backend_files_modification_hashes', dir_paths['cache'],
+                            args.save_file_hash, dir_paths['log'])
 
     LOGGER.info('Starting to iterate through files')
     if args.sdo:
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
 
         # If yang-parameters.xml exists -> parsing IANA-maintained modules
-        if os.path.isfile('{}/yang-parameters.xml'.format(args.dir)):
+        if os.path.isfile(os.path.join(args.dir, 'yang-parameters.xml')):
             LOGGER.info('yang-parameters.xml file found')
 
-            xml_path = '{}/yang-parameters.xml'.format(args.dir)
-            capability = Capability(log_directory, xml_path, prepare,
-                                    args.api, args.sdo,
-                                    args.json_dir, args.result_html_dir,
-                                    args.save_file_dir, private_dir, yang_models, fileHasher)
-            capability.parse_and_dump_iana()
+            grouping = IanaDirectory(args.dir, dumper, fileHasher, args.api, dir_paths)
+            grouping.parse_and_load()
         else:
-            capability = Capability(log_directory, args.dir, prepare,
-                                    args.api, args.sdo,
-                                    args.json_dir, args.result_html_dir,
-                                    args.save_file_dir, private_dir, yang_models, fileHasher)
             LOGGER.info('Starting to parse files in sdo directory')
-            capability.parse_and_dump_sdo()
 
-        prepare.dump_modules(args.json_dir)
+            grouping = SdoDirectory(args.dir, dumper, fileHasher, args.api, dir_paths)
+            grouping.parse_and_load()
+
+        dumper.dump_modules(dir_paths['json'])
     else:
-        patterns = ['*ietf-yang-library*.xml', '*capabilit*.xml']
-        for pattern in patterns:
+        for pattern in ['*capabilit*.xml', '*ietf-yang-library*.xml']:
             for root, basename in find_files(args.dir, pattern):
                 filename = os.path.join(root, basename)
                 LOGGER.info('Found xml source {}'.format(filename))
 
-                capability = Capability(log_directory, filename,
-                                        prepare, args.api,
-                                        args.sdo, args.json_dir,
-                                        args.result_html_dir,
-                                        args.save_file_dir,
-                                        private_dir,
-                                        yang_models,
-                                        fileHasher)
-                if 'ietf-yang-library' in pattern:
-                    capability.parse_and_dump_yang_lib()
+                if pattern == '*capabilit*.xml':
+                    grouping = VendorCapabilities(root, filename, dumper, fileHasher, args.api, dir_paths)
                 else:
-                    try:
-                        capability.parse_and_dump_vendor()
-                    except Exception as e:
-                        LOGGER.exception('Skipping {}, error while parsing'.format(filename))
-        prepare.dump_modules(args.json_dir)
-        prepare.dump_vendors(args.json_dir)
+                    grouping = VendorYangLibrary(root, filename, dumper, fileHasher, args.api, dir_paths)
+                try:
+                    grouping.parse_and_load()
+                except Exception as e:
+                    LOGGER.exception('Skipping {}, error while parsing'.format(filename))
+        dumper.dump_modules(dir_paths['json'])
+        dumper.dump_vendors(dir_paths['json'])
 
     end = time.time()
     LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
 
     # Dump updated hashes into temporary directory
     if len(fileHasher.updated_hashes) > 0:
-        fileHasher.dump_tmp_hashed_files_list(fileHasher.updated_hashes, args.json_dir)
+        fileHasher.dump_tmp_hashed_files_list(fileHasher.updated_hashes, dir_paths['json'])
 
 
 if __name__ == '__main__':
