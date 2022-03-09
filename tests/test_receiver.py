@@ -158,7 +158,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_sdo(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
@@ -205,7 +205,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @ mock.patch('parseAndPopulate.capability.LoadFiles')
+    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_vendor(self, mock_load_files: mock.MagicMock):
         mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
