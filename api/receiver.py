@@ -489,7 +489,6 @@ class Receiver:
         final_response = ''
         try:
             body = body_raw.decode()
-            self.LOGGER.info('Received request with body {}'.format(body))
             arguments = body.split('#')
             if body == 'run_ietf':
                 self.LOGGER.info('Running all ietf and openconfig modules')
