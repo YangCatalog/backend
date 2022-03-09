@@ -37,12 +37,13 @@ from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
                                      github_raw, github_url)
 from utility.util import find_first_file
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.runCapabilities import DirPaths
 
 
 class Module:
     """This is a class of a single module to parse all the basic metadata we can get out of it."""
 
-    def __init__(self, path: str, jsons: LoadFiles, dir_paths: t.Dict[str, str]):
+    def __init__(self, path: str, jsons: LoadFiles, dir_paths: DirPaths):
         """
         Preset Modules class to parse yang module and save data to it.
         :param path:            (str) path to yang file being parsed
@@ -850,7 +851,7 @@ class Module:
 
 class SdoModule(Module):
 
-    def __init__(self, path: str, jsons: LoadFiles, dir_paths: t.Dict[str, str]):
+    def __init__(self, path: str, jsons: LoadFiles, dir_paths: DirPaths):
         super().__init__(path, jsons, dir_paths)
         self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
 
@@ -859,7 +860,7 @@ class SdoModule(Module):
 class VendorModule(Module):
     """A module with additional vendor information."""
 
-    def __init__(self, path: str, jsons: LoadFiles, dir_paths: t.Dict[str, str],
+    def __init__(self, path: str, jsons: LoadFiles, dir_paths: DirPaths,
                  data: t.Optional[t.Union[str, dict]] = None):
         super().__init__(path, jsons, dir_paths)
         if isinstance(data, str): # string from a capabilities file

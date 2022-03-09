@@ -51,7 +51,7 @@ from utility.yangParser import create_context
 class ModulesComplicatedAlgorithms:
 
     def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
-                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, json_ytree: str):
+                 direc: str, all_modules: t.Optional[dict], yang_models_dir: str, temp_dir: str, json_ytree: str):
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:

@@ -116,6 +116,16 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
+class DirPaths(t.TypedDict):
+    cache: str
+    json: str
+    log: str
+    private: str
+    result: str
+    save: str
+    yang_models: str
+
+
 def main(scriptConf=None):
     if scriptConf is None:
         scriptConf = ScriptConfig()
@@ -123,15 +133,15 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    dir_paths: t.Dict[str, str] = {}
-    dir_paths['log'] = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-    dir_paths['private'] = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
-    dir_paths['yang_models'] = \
-        config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
-    dir_paths['cache'] = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
-    dir_paths['json'] = args.json_dir
-    dir_paths['result'] = args.result_html_dir
-    dir_paths['save'] = args.save_file_dir
+    dir_paths: DirPaths = {
+        'log': config.get('Directory-Section', 'logs', fallback='/var/yang/logs'),
+        'private': config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private'),
+        'yang_models': config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang'),
+        'cache': config.get('Directory-Section', 'cache', fallback='tests/resources/cache'),
+        'json': args.json_dir,
+        'result': args.result_html_dir,
+        'save': args.save_file_dir
+    }
     LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(dir_paths['log']))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
 
