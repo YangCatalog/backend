@@ -22,9 +22,9 @@ import os
 import unittest
 
 from api.globalConfig import yc_gc
+from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.runCapabilities import DirPaths
 from utility.staticVariables import github_raw
 
 

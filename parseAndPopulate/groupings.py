@@ -31,11 +31,11 @@ from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 from utility.util import find_first_file
 
+from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.runCapabilities import DirPaths
 from utility.yangParser import ParseException
 
 

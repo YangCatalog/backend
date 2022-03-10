@@ -36,8 +36,8 @@ from utility.create_config import create_config
 from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
                                      github_raw, github_url)
 from utility.util import find_first_file
+from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.runCapabilities import DirPaths
 
 
 class Module:

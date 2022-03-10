@@ -25,11 +25,11 @@ from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorYangLibrary
+from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
-from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.runCapabilities import DirPaths
 from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 

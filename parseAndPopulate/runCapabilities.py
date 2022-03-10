@@ -31,9 +31,10 @@ import time
 import typing as t
 
 import utility.log as log
-from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
-from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
+from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import find_files
@@ -114,16 +115,6 @@ class ScriptConfig(BaseScriptConfig):
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-class DirPaths(t.TypedDict):
-    cache: str
-    json: str
-    log: str
-    private: str
-    result: str
-    save: str
-    yang_models: str
 
 
 def main(scriptConf=None):
