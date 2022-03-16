@@ -28,6 +28,9 @@ jobs:
 
       - name: Prepare environment
         run: |
+          export PYTHONPATH=$PYTHONPATH:$PWD
+          sudo mkdir -p $VAR
+          sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
 
       - name: Install dependencies
