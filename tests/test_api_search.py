@@ -385,61 +385,6 @@ class TestApiSearchClass(unittest.TestCase):
 
         self.assertEqual(desired_output, response_text)
 
-    @mock.patch('api.views.ycSearch.ycSearch.os.makedirs')
-    def test_create_update_from_raise_exception(self, mock_os_makedirs: mock.MagicMock):
-        """os.mkdirs() method patched to raise OSError exception.
-        Error message is returned when exception was raised.
-        """
-        # Patch mock to raise OSError exception while trying to make directory
-        mock_os_makedirs.side_effect = OSError()
-
-        file1 = 'yang-catalog'
-        revision1 = '2018-04-03'
-        file2 = 'yang-catalog'
-        revision2 = '2017-09-26'
-
-        path = 'api/services/file1={}@{}/check-update-from/file2={}@{}'.format(file1, revision1, file2, revision2)
-        result = self.client.get(path)
-        data = result.data.decode()
-
-        self.assertEqual(data, 'Server error - could not create directory')
-
-    @mock.patch('api.views.ycSearch.ycSearch.os.makedirs')
-    def test_create_diff_file_raise_exception(self, mock_os_makedirs: mock.MagicMock):
-        """os.mkdirs() method patched to raise OSError exception.
-        Error message is returned when exception was raised.
-        """
-        mock_os_makedirs.side_effect = OSError()
-
-        file1 = 'yang-catalog'
-        revision1 = '2018-04-03'
-        file2 = 'yang-catalog'
-        revision2 = '2017-09-26'
-
-        path = 'api/services/diff-file/file1={}@{}/file2={}@{}'.format(file1, revision1, file2, revision2)
-        result = self.client.get(path)
-        data = result.data.decode()
-
-        self.assertEqual(data, 'Server error - could not create directory')
-
-    @mock.patch('api.views.ycSearch.ycSearch.os.makedirs')
-    def test_create_diff_tree_raise_exception(self, mock_os_makedirs: mock.MagicMock):
-        """os.mkdirs() method patched to raise OSError exception.
-        Error message is returned when exception was raised.
-        """
-        mock_os_makedirs.side_effect = OSError()
-
-        file1 = 'yang-catalog'
-        revision1 = '2018-04-03'
-        file2 = 'yang-catalog'
-        revision2 = '2017-09-26'
-
-        path = 'api/services/diff-tree/file1={}@{}/file2={}@{}'.format(file1, revision1, file2, revision2)
-        result = self.client.get(path)
-        data = result.data.decode()
-
-        self.assertEqual(data, 'Server error - could not create directory')
-
     def test_get_common_by_implementation(self):
         """Test if json payload has correct form (should not contain empty 'output' list)
         Based on request body, each module in 'output' list should not contain empty 'implementations' list.
