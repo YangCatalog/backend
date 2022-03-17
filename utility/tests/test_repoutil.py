@@ -179,6 +179,8 @@ class TestRepoutil(unittest.TestCase):
 
     def test_push(self):
         # relatively big repo, takes long to clone, maybe create a smaller dummy repo?
+        if self.token == 'test':
+            raise unittest.SkipTest('Replace yang-catalog-token in the Secrets-Section of the test config')
         push_repo = ru.RepoUtil('https://yang-catalog:{}@github.com/yang-catalog/deployment'.format(self.token))
         push_repo.clone('yang-catalog', 'fake@gmail.com')
         self.addCleanup(push_repo.remove)
