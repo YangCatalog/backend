@@ -89,15 +89,15 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
         self.nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
-        self.__redis_host = config.get('DB-Section', 'redis-host')
-        self.__redis_port = config.get('DB-Section', 'redis-port')
+        self._redis_host = config.get('DB-Section', 'redis-host')
+        self._redis_port = config.get('DB-Section', 'redis-port')
 
+        self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
         self.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
-        self.receiver.redisConnection = RedisConnection(modules_db=11, vendors_db=14)
-        self.redisConnection = RedisConnection(modules_db=11, vendors_db=14)
+        self.receiver.redisConnection = self.redisConnection
         self.receiver.confdService = MockConfdService()
-        self.modulesDB = Redis(host=self.__redis_host, port=self.__redis_port, db=11)
-        self.vendorsDB = Redis(host=self.__redis_host, port=self.__redis_port, db=14)
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
         self.huawei_dir = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.yang_models)
         self.direc = '{}/receiver_test'.format(self.temp_dir)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
@@ -110,7 +110,7 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.redis_modules_patcher = mock.patch('redisConnections.redisConnection.RedisConnection')
         self.mock_redis_modules = self.redis_modules_patcher.start()
         self.addCleanup(self.redis_modules_patcher.stop)
-        self.mock_redis_modules.return_value = RedisConnection(modules_db=11, vendors_db=14)
+        self.mock_redis_modules.return_value = self.redisConnection
 
         self.confd_patcher = mock.patch('utility.confdService.ConfdService')
         self.mock_confd_service = self.confd_patcher.start()
@@ -239,9 +239,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        redisConnection = RedisConnection(modules_db=11)
-        redisConnection.populate_modules(module_to_populate)
-        redisConnection.reload_modules_cache()
+        self.redisConnection.populate_modules(module_to_populate)
+        self.redisConnection.reload_modules_cache()
 
         modules_to_delete = {
             'modules': [
@@ -254,8 +253,8 @@ class TestReceiverClass(TestReceiverBaseClass):
         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         response = self.receiver.process_module_deletion(arguments)
-        redisConnection.reload_modules_cache()
-        raw_all_modules = redisConnection.get_all_modules()
+        self.redisConnection.reload_modules_cache()
+        raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(response, 'Finished successfully')
@@ -267,9 +266,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_cannot_delete(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        redisConnection = RedisConnection(modules_db=11)
-        redisConnection.populate_modules(module_to_populate)
-        redisConnection.reload_modules_cache()
+        self.redisConnection.populate_modules(module_to_populate)
+        self.redisConnection.reload_modules_cache()
 
         modules_to_delete = {
             'modules': [
@@ -282,8 +280,8 @@ class TestReceiverClass(TestReceiverBaseClass):
         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         response = self.receiver.process_module_deletion(arguments)
-        redisConnection.reload_modules_cache()
-        raw_all_modules = redisConnection.get_all_modules()
+        self.redisConnection.reload_modules_cache()
+        raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(response, 'Partially done#split#modules-not-deleted:yang-submodule,2020-02-01,ietf')
@@ -292,9 +290,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_module_and_its_dependent(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        redisConnection = RedisConnection(modules_db=11)
-        redisConnection.populate_modules(module_to_populate)
-        redisConnection.reload_modules_cache()
+        self.redisConnection.populate_modules(module_to_populate)
+        self.redisConnection.reload_modules_cache()
 
         modules_to_delete = {
             'modules': [
@@ -312,8 +309,8 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         response = self.receiver.process_module_deletion(arguments)
-        redisConnection.reload_modules_cache()
-        raw_all_modules = redisConnection.get_all_modules()
+        self.redisConnection.reload_modules_cache()
+        raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(response, 'Finished successfully')
@@ -328,9 +325,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_empty_list_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        redisConnection = RedisConnection(modules_db=11)
-        redisConnection.populate_modules(module_to_populate)
-        redisConnection.reload_modules_cache()
+        self.redisConnection.populate_modules(module_to_populate)
+        self.redisConnection.reload_modules_cache()
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps({'modules': []})]
         response = self.receiver.process_module_deletion(arguments)
@@ -340,9 +336,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
     def test_process_module_deletion_incorrect_arguments_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        redisConnection = RedisConnection(modules_db=11)
-        redisConnection.populate_modules(module_to_populate)
-        redisConnection.reload_modules_cache()
+        self.redisConnection.populate_modules(module_to_populate)
+        self.redisConnection.reload_modules_cache()
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps([])]
         response = self.receiver.process_module_deletion(arguments)

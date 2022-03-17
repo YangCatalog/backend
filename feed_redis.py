@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
@@ -25,14 +25,20 @@ from collections import OrderedDict
 import redis
 
 from redisConnections.redisConnection import RedisConnection
+from utility.create_config import create_config
 
 
+# NOTE: ideally, this should run after we have verified that RedisConnections actually works,
+#       i.e. after test_redisModulesConnection has run. I'm not sure if there's a sensible way to do this though.
 def create_module_key(module: dict):
     return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
 
 
 def load_catalog_data():
-    redis_cache = redis.Redis(host='localhost', port=6379)
+    config = create_config()
+    redis_host = config.get('DB-Section', 'redis-host')
+    redis_port = config.get('DB-Section', 'redis-port')
+    redis_cache = redis.Redis(host=redis_host , port=redis_port)
     redisConnection = RedisConnection()
     resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
     try:
