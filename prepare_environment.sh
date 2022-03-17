@@ -1,5 +1,4 @@
 BACKEND=$(pwd)
-VAR=/var/yang
 TMP_DIR=$VAR/tmp
 SAVE_FILE_DIR=$VAR/all_modules
 YANG_MODELS_DIR=$VAR/nonietf/yangmodels/yang
