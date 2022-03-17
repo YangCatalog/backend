@@ -34,7 +34,7 @@ from pyang.plugins.name import emit_name
 from pyang.plugins.yang_catalog_index_es import (IndexerPlugin,
                                                  resolve_organization)
 from pyang.util import get_latest_revision
-from utility.util import fetch_module_by_schema, get_curr_dir
+from utility.util import fetch_module_by_schema
 from utility.yangParser import create_context
 
 

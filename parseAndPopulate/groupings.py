@@ -22,7 +22,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fileinput
 import json
 import os
-import re
 import typing as t
 import unicodedata
 import xml.etree.ElementTree as ET

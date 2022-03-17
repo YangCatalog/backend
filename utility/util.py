@@ -44,20 +44,6 @@ from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
 
 
-def get_curr_dir(path: str):
-    """Get current working directory
-
-    Argument:
-        :param path     (str) path to file
-        :return     path to current directory
-    """
-    cur_dir = '/'.join(path.split('/')[:-1])
-    if cur_dir == '':
-        return os.getcwd()
-    else:
-        return cur_dir
-
-
 def find_files(directory: str, pattern: str):
     """Generator that yields files matching a patern
     

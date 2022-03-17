@@ -34,7 +34,7 @@ from flask import escape, request
 from flask_deprecate import deprecate_route
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
-from utility.util import context_check_update_from, get_curr_dir
+from utility.util import context_check_update_from
 from utility.yangParser import create_context
 
 

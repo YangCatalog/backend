@@ -27,7 +27,6 @@ from flask import Blueprint, abort
 from flask import current_app as app
 from flask import jsonify, make_response, request
 from pyang import plugin
-from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
 

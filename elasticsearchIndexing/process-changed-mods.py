@@ -22,7 +22,6 @@ import dateutil.parser
 from elasticsearch import Elasticsearch, NotFoundError
 from utility import log
 from utility.create_config import create_config
-from utility.util import get_curr_dir
 
 from elasticsearchIndexing import build_yindex
 

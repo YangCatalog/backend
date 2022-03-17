@@ -41,21 +41,6 @@ class TestUtilClass(unittest.TestCase):
     ### TESTS DEFINITIONS ###
     #########################
 
-    def test_get_curr_dir(self):
-        """ Test result of method for path passed as an argument.
-        """
-        path = '/example/folder/example.txt'
-        result = util.get_curr_dir(path)
-
-        self.assertEqual(result, '/example/folder')
-
-    def test_get_curr_dir_empty_path(self):
-        """ Test result of method, when empty string is passed as an argument.
-        """
-        result = util.get_curr_dir('')
-
-        self.assertEqual(result, os.getcwd())
-
     def test_find_first_file_with_specific_revision(self):
         """ Try to find the first file that matches the pattern with specific revision.
         Test if a module with the same name and revision was found.

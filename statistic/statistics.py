@@ -52,7 +52,7 @@ from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import (MISSING_ELEMENT, NS_MAP, github_url,
                                      json_headers)
-from utility.util import find_first_file, get_curr_dir, job_log
+from utility.util import find_first_file, job_log
 
 from statistic import runYANGallstats as all_stats
 
