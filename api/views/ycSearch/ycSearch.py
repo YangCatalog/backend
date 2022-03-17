@@ -302,12 +302,6 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
             :param revision2:        (str) revision of the second module in format YYYY-MM-DD
             :return preformatted HTML with corresponding data
     """
-    try:
-        os.makedirs(get_curr_dir(__file__) + '/temp')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            return 'Server error - could not create directory'
     new_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
     old_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
     ctx, _ = context_check_update_from(old_schema, new_schema, ac.d_yang_models_dir, ac.d_save_file_dir)
@@ -335,12 +329,6 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
             :param revision2:        (str) revision of the second module in format YYYY-MM-DD
             :return preformatted HTML with corresponding data
     """
-    try:
-        os.makedirs(get_curr_dir(__file__) + '/temp')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            return 'Server error - could not create directory'
     schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
     schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
     file_name1 = 'schema1-file-diff.txt'
@@ -386,12 +374,6 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
             :param revision2:        (str) revision of the second module in format YYYY-MM-DD
             :return preformatted HTML with corresponding data
     """
-    try:
-        os.makedirs(get_curr_dir(__file__) + '/temp')
-    except OSError as e:
-        # be happy if someone already created the path
-        if e.errno != errno.EEXIST:
-            return 'Server error - could not create directory'
     schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
     schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, file2, revision2)
     plugin.plugins = []
@@ -643,12 +625,12 @@ def search_vendor_statistics(vendor: str):
             for ver in version_list:
                 os_type[os[ver]][ver].add(plat['name'])
 
-    os_types = {}
-    for key, vals in os_type.items():
-        os_types[key] = {}
-        for key2, val in os_type[key].items():
-            os_types[key][key2] = list(os_type[key][key2])
-    return os_types
+    result = {}
+    for key in os_type.keys():
+        result[key] = {}
+        for key2 in os_type[key].keys():
+            result[key][key2] = list(os_type[key][key2])
+    return result
 
 
 @bp.route('/search/vendors/<path:value>', methods=['GET'])
@@ -1055,7 +1037,7 @@ def catalog_data():
 
 
 def create_bootstrap_info():
-    with open(get_curr_dir(__file__) + '/../../template/info.html', 'r') as f:
+    with open(os.path.join(os.environ['BACKEND'], 'api/template/info.html'), 'r') as f:
         template = f.read()
     return template
 
@@ -1063,7 +1045,8 @@ def create_bootstrap_info():
 def create_bootstrap_warning(text: str, message: str):
     app.logger.info('Rendering bootstrap warning data')
     context = {'warn_text': text, 'warn_message': message}
-    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/warning.html')
+    path = os.path.join(os.environ['BACKEND'], 'api/template')
+    filename = 'warning.html'
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)
@@ -1072,7 +1055,8 @@ def create_bootstrap_warning(text: str, message: str):
 def create_bootstrap_danger(message: str):
     app.logger.info('Rendering bootstrap danger data')
     context = {'danger_message': message}
-    path, filename = os.path.split(get_curr_dir(__file__) + '/../../template/danger.html')
+    path = os.path.join(os.environ['BACKEND'], 'api/template')
+    filename = 'danger.html'
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
                               ).get_template(filename).render(context)

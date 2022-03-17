@@ -17,6 +17,7 @@ __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
+import os
 import unittest
 from unittest import mock
 
@@ -29,7 +30,7 @@ class TestLoadFilesClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestLoadFilesClass, self).__init__(*args, **kwargs)
         self.excluded_names = ['private', 'IETFCiscoAuthorsYANGPageCompilation']
-        self.test_private_dir = 'tests/resources/html/private'
+        self.test_private_dir = os.path.join(os.environ['BACKEND'], 'tests/resources/html/private')
 
     def test_loadJsonFiles(self):
         """

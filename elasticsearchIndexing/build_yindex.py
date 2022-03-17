@@ -38,27 +38,11 @@ from utility.util import fetch_module_by_schema, get_curr_dir
 from utility.yangParser import create_context
 
 
-def __run_pyang_commands(commands, output_only=True, decode=True):
-    pyang_args = ['pyang']
-    pyang_args.extend(commands)
-    pyang = subprocess.Popen(pyang_args,
-                             stdout=subprocess.PIPE,
-                             stderr=subprocess.PIPE)
-    stdout, stderr = pyang.communicate()
-    if decode:
-        stdout = stdout.decode(encoding='utf-8', errors='strict')
-        stderr = stderr.decode(encoding='utf-8', errors='strict')
-    if output_only:
-        return stdout
-    else:
-        return stdout, stderr
-
-
 def build_yindex(json_ytree, modules, LOGGER, save_file_dir, es, threads, log_file, failed_changes_dir, temp_dir):
-    initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
-        __file__)), 'r'))
-    initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
-        __file__)), 'r'))
+    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_yindex_elasticsearch.json')) as f:
+        initialize_body_yindex = json.load(f)
+    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_module_elasticsearch.json')) as f:
+        initialize_body_modules = json.load(f)
 
     try:
         LOGGER.info('Creating Elasticsearch indices')

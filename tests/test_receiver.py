@@ -86,7 +86,6 @@ class TestReceiverBaseClass(unittest.TestCase):
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
-        self.private_dir = 'tests/resources/html/private'
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
         self.nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
@@ -101,9 +100,10 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.vendorsDB = Redis(host=self.__redis_host, port=self.__redis_port, db=14)
         self.huawei_dir = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.yang_models)
         self.direc = '{}/receiver_test'.format(self.temp_dir)
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.private_dir = os.path.join(self.resources_path, 'html/private')
 
-        with open('{}/receiver_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open(os.path.join(self.resources_path ,'receiver_tests_data.json'), 'r') as f:
             self.test_data = json.load(f)
 
     def setUp(self):

@@ -34,10 +34,10 @@ def create_module_key(module: dict):
 def load_catalog_data():
     redis_cache = redis.Redis(host='localhost', port=6379)
     redisConnection = RedisConnection()
-    resources_path = '{}/tests/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
+    resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
     try:
         print('Loading cache file from path {}'.format(resources_path))
-        with open('{}cache_data.json'.format(resources_path), 'r') as file_load:
+        with open(os.path.join(resources_path, 'cache_data.json'), 'r') as file_load:
             catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
             print('Content of cache file loaded successfully.')
     except:

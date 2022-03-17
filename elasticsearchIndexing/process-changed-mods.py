@@ -112,10 +112,10 @@ if __name__ == '__main__':
             es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
         else:
             es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
-        initialize_body_yindex = json.load(open('{}/../api/json/es/initialize_yindex_elasticsearch.json'.format(get_curr_dir(
-            __file__)), 'r'))
-        initialize_body_modules = json.load(open('{}/../api/json/es/initialize_module_elasticsearch.json'.format(get_curr_dir(
-            __file__)), 'r'))
+        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_yindex_elasticsearch.json')) as f:
+            initialize_body_yindex = json.load(f)
+        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_module_elasticsearch.json')) as f:
+            initialize_body_modules = json.load(f)
 
         es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
         es.indices.create(index='modules', body=initialize_body_modules, ignore=400)

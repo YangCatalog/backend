@@ -32,11 +32,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestRedisModulesConnectionClass, self).__init__(*args, **kwargs)
         config = create_config()
-        self.__redis_host = config.get('DB-Section', 'redis-host')
-        self.__redis_port = config.get('DB-Section', 'redis-port')
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.redisConnection = RedisConnection(modules_db=11, vendors_db=14)
-        self.redisDB = Redis(host=self.__redis_host, port=self.__redis_port, db=11)
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
 
     def setUp(self):
         redis_key = 'ietf-bgp@2021-10-25/ietf'

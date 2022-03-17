@@ -38,8 +38,8 @@ class TestModulesClass(unittest.TestCase):
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.test_private_dir = '{}/resources/html/private'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
         self.parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         self.dir_paths = {
             'log': yc_gc.logs_dir,

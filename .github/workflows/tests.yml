@@ -28,7 +28,8 @@ jobs:
 
       - name: Prepare environment
         run: |
-          export PYTHONPATH=$PYTHONPATH:$PWD
+          export BACKEND=$PWD
+          export PYTHONPATH=$PYTHONPATH:$BACKEND
           sudo mkdir -p $VAR
           sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
@@ -40,7 +41,7 @@ jobs:
 
       - name: Feed Redis
         run: |
-          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf python feed_redis.py
+          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf python feed_redis.py
 
       - name: Copy json_tree pyang plugin
         run: |
@@ -52,4 +53,4 @@ jobs:
           TOKEN: ${{ secrets.TOKEN }}
         run: |
           export TOKEN
-          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf pytest
+          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf pytest

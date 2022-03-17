@@ -34,8 +34,8 @@ class TestUtilClass(unittest.TestCase):
         super(TestUtilClass, self).__init__(*args, **kwargs)
         self.filename = os.path.basename(__file__).split('.py')[0]
         self.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.util_tests_dir = '{}/util-tests'.format(yc_gc.temp_dir)
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+        self.util_tests_dir = os.path.join(yc_gc.temp_dir, 'util-tests')
 
     #########################
     ### TESTS DEFINITIONS ###

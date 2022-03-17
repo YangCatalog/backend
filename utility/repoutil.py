@@ -112,7 +112,6 @@ class RepoUtil(object):
         """Push repo to origin. Credential errors may happen here."""
         self.repo.git.push("origin")
 
-    # TODO: this should be moved to a destructor
     def remove(self):
         """Remove the temporary storage."""
         if self.localdir is not None and os.path.isdir(self.localdir):

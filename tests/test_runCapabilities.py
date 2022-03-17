@@ -33,8 +33,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         super(TestRunCapabilitiesClass, self).__init__(*args, **kwargs)
         self.module_name = 'parseAndPopulate'
         self.script_name = 'runCapabilities'
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.test_private_dir = 'tests/resources/html/private'
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -264,13 +264,13 @@ class TestRunCapabilitiesClass(unittest.TestCase):
                                 self.assertEqual(dumped_module[key], desired_module[key])
 
         # Load desired normal.json data from .json file
-        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             desired_vendor_data = file_content.get('yang_lib_normal_json', {}).get('vendors', {}). get('vendor', [])
             self.assertNotEqual(len(desired_vendor_data), 0)
 
         # Load vendor module data from normal.json file
-        with open('{}/normal.json'.format(yc_gc.temp_dir), 'r') as f:
+        with open(os.path.join(yc_gc.temp_dir, 'normal.json'), 'r') as f:
             file_content = json.load(f)
             self.assertIn('vendors', file_content)
             self.assertIn('vendor', file_content.get('vendors', []))
@@ -329,7 +329,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
     def load_desired_prepare_json_data(self, key: str):
         """ Load desired prepare.json data from parseAndPopulate_tests_data.json file
         """
-        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             desired_module_data = file_content.get(key, {}).get('module', [])
         return desired_module_data
@@ -337,7 +337,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
     def load_dumped_prepare_json_data(self):
         """ Load module data from dumped prepare.json file
         """
-        with open('{}/prepare.json'.format(yc_gc.temp_dir), 'r') as f:
+        with open(os.path.join(yc_gc.temp_dir, 'prepare.json'), 'r') as f:
             file_content = json.load(f)
             self.assertIn('module', file_content)
             self.assertNotEqual(len(file_content['module']), 0)
@@ -345,5 +345,5 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         return dumped_module_data
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
