@@ -34,7 +34,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         config = create_config()
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = config.get('DB-Section', 'redis-port')
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
         self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
         self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
         self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
