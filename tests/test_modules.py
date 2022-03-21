@@ -22,6 +22,7 @@ import os
 import unittest
 
 from api.globalConfig import yc_gc
+from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
 from utility.staticVariables import github_raw
@@ -41,9 +42,13 @@ class TestModulesClass(unittest.TestCase):
         self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
         self.test_private_dir = '{}/resources/html/private'.format(os.path.dirname(os.path.abspath(__file__)))
         self.parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
-        self.dir_paths = {
+        self.dir_paths: DirPaths = {
+            'cache': '',
+            'json': '',
             'log': yc_gc.logs_dir,
+            'private': '',
             'result': yc_gc.result_dir,
+            'save': '',
             'yang_models': yc_gc.yang_models
         }
         self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')

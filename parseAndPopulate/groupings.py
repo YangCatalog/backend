@@ -22,7 +22,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fileinput
 import json
 import os
-import re
 import typing as t
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -32,10 +31,11 @@ from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 from utility.util import find_first_file
 
+from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.dumper import Dumper
 from utility.yangParser import ParseException
 
 
@@ -43,7 +43,7 @@ class ModuleGrouping:
     """Base class for a grouping of modules to be parsed togeather."""
 
     def __init__(self, directory: str, dumper: Dumper, file_hasher: FileHasher,
-                 api: bool, dir_paths: t.Dict[str, str]):
+                 api: bool, dir_paths: DirPaths):
         """
         Arguments:
             :param directory            (str) the directory containing the files
@@ -184,7 +184,7 @@ class IanaDirectory(SdoDirectory):
     """Directory containing IANA modules."""
 
     def __init__(self, directory: str, dumper: Dumper, file_hasher: FileHasher,
-                 api: bool, dir_paths: t.Dict[str, str]):
+                 api: bool, dir_paths: DirPaths):
         super().__init__(directory, dumper, file_hasher, api, dir_paths)
         self.root = ET.parse(os.path.join(directory, 'yang-parameters.xml')).getroot()
 
@@ -240,7 +240,7 @@ class IanaDirectory(SdoDirectory):
 class VendorGrouping(ModuleGrouping):
 
     def __init__(self, directory: str, xml_file: str, dumper: Dumper,
-                 file_hasher: FileHasher, api: bool, dir_paths: t.Dict[str, str]):
+                 file_hasher: FileHasher, api: bool, dir_paths: DirPaths):
         super().__init__(directory, dumper, file_hasher, api, dir_paths)
 
         self.submodule_name = None

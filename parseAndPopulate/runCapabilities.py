@@ -31,9 +31,10 @@ import time
 import typing as t
 
 import utility.log as log
-from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
-from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
+from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import find_files
@@ -123,15 +124,15 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    dir_paths: t.Dict[str, str] = {}
-    dir_paths['log'] = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-    dir_paths['private'] = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
-    dir_paths['yang_models'] = \
-        config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang')
-    dir_paths['cache'] = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
-    dir_paths['json'] = args.json_dir
-    dir_paths['result'] = args.result_html_dir
-    dir_paths['save'] = args.save_file_dir
+    dir_paths: DirPaths = {
+        'log': config.get('Directory-Section', 'logs', fallback='/var/yang/logs'),
+        'private': config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private'),
+        'yang_models': config.get('Directory-Section', 'yang-models-dir', fallback='tests/resources/yangmodels/yang'),
+        'cache': config.get('Directory-Section', 'cache', fallback='tests/resources/cache'),
+        'json': args.json_dir,
+        'result': args.result_html_dir,
+        'save': args.save_file_dir
+    }
     LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(dir_paths['log']))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
 
