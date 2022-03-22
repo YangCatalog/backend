@@ -26,14 +26,11 @@ from flask_oidc import OpenIDConnect
 from utility import log
 from utility.create_config import create_config
 
-from api.sender import Sender
-
 
 class YangCatalogApiGlobalConfig():
     loading = True
 
     def __init__(self):
-        config = create_config()
         self.oidc = OpenIDConnect()
         self.lock_uwsgi_cache1 = Lock()
         self.lock_uwsgi_cache2 = Lock()

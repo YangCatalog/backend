@@ -27,7 +27,6 @@ from flask import Blueprint, abort
 from flask import current_app as app
 from flask import jsonify, make_response, request
 from pyang import plugin
-from utility.util import get_curr_dir
 from utility.yangParser import create_context
 
 
@@ -331,7 +330,7 @@ def get_services_list(type: str, pattern: str):
         return make_response(jsonify(res), 200)
 
     try:
-        with open(get_curr_dir(__file__) + '/../../json/es/completion.json', 'r') as f:
+        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/completion.json'), 'r') as f:
             completion = json.load(f)
 
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
@@ -374,7 +373,7 @@ def show_node_with_revision(name, path, revision):
     app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
-        with open(get_curr_dir(__file__) + '/../../json/es/show_node.json', 'r') as f:
+        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/show_node.json'), 'r') as f:
             query = json.load(f)
 
         if name == '':
@@ -472,7 +471,7 @@ def get_yang_catalog_help():
     :return: returns json with yang-catalog help text
     """
     revision = get_latest_module('yang-catalog')
-    query = json.load(open(get_curr_dir(__file__) + '/../../json/es/get_yang_catalog_yang.json', 'r'))
+    query = json.load(open(os.path.join(os.environ['BACKEND'], 'api/json/es/get_yang_catalog_yang.json'), 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
     yang_catalog_module = ac.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
     module_details_data = {}

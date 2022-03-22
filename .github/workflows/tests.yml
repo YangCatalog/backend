@@ -28,7 +28,13 @@ jobs:
 
       - name: Prepare environment
         run: |
+          export VAR=/var/yang
+          export BACKEND=$PWD
+          export PYTHONPATH=$PYTHONPATH:$BACKEND
+          sudo mkdir -p $VAR
+          sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
+          sed -i "s/yc-redis/localhost/" $BACKEND/tests/resources/test.conf
 
       - name: Install dependencies
         run: |
@@ -37,7 +43,8 @@ jobs:
 
       - name: Feed Redis
         run: |
-          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf python feed_redis.py
+          export BACKEND=$PWD
+          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf python feed_redis.py
 
       - name: Copy json_tree pyang plugin
         run: |
@@ -49,4 +56,5 @@ jobs:
           TOKEN: ${{ secrets.TOKEN }}
         run: |
           export TOKEN
-          YANGCATALOG_CONFIG_PATH=$PWD/tests/resources/test.conf pytest
+          export BACKEND=$PWD
+          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf pytest

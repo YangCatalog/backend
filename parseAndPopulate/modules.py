@@ -525,7 +525,7 @@ class Module:
         result['generated'] = time.strftime('%d/%m/%Y')
         context = {'result': result,
                    'ths': self.compilation_status['ths']}
-        template = os.path.dirname(os.path.realpath(__file__)) + '/template/compilationStatusTemplate.html'
+        template = os.path.join(os.environ['BACKEND'], 'parseAndPopulate/template/compilationStatusTemplate.html')
         rendered_html = stats.render(template, context)
         file_url = '{}@{}_{}.html'.format(self.name, self.revision, self.organization)
 

@@ -52,7 +52,7 @@ class TestApiContributeClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestApiContributeClass, self).__init__(*args, **kwargs)
-        self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.client = app.test_client()
 
     def setUp(self):
@@ -834,7 +834,8 @@ class TestApiContributeClass(unittest.TestCase):
 
 
 def mock_redis_get(module: dict):
-    file = 'tests/resources/confd_responses/{}@{}.json'.format(module.get('name'), module.get('revision'))
+    file = '{}/tests/resources/confd_responses/{}@{}.json' \
+        .format(os.environ['BACKEND'], module['name'], module['revision'])
     if not os.path.isfile(file):
         return json.loads('{}')
     else:

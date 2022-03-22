@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
@@ -32,21 +32,23 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestRedisModulesConnectionClass, self).__init__(*args, **kwargs)
         config = create_config()
-        self.__redis_host = config.get('DB-Section', 'redis-host')
-        self.__redis_port = config.get('DB-Section', 'redis-port')
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.redisConnection = RedisConnection(modules_db=11, vendors_db=14)
-        self.redisDB = Redis(host=self.__redis_host, port=self.__redis_port, db=11)
+        self._redis_host = config.get('DB-Section', 'redis-host')
+        self._redis_port = config.get('DB-Section', 'redis-port')
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
+        self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
 
     def setUp(self):
         redis_key = 'ietf-bgp@2021-10-25/ietf'
         with open('{}/ietf-bgp@2021-10-25.json'.format(self.resources_path), 'r') as f:
             self.original_data = json.load(f)
-        self.redisDB.set(redis_key, json.dumps(self.original_data))
-        self.redisDB.set('modules-data', json.dumps({redis_key: self.original_data}))
+        self.modulesDB.set(redis_key, json.dumps(self.original_data))
+        self.modulesDB.set('modules-data', json.dumps({redis_key: self.original_data}))
 
     def tearDown(self):
-        self.redisDB.flushdb()
+        self.modulesDB.flushdb()
+        self.vendorsDB.flushdb()
 
     def test_get_module(self):
         name = 'ietf-bgp'
@@ -90,7 +92,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         revision = '2021-10-25'
         organization = 'ietf'
         redis_key = '{}@{}/{}'.format(name, revision, organization)
-        self.redisDB.flushdb()
+        self.modulesDB.flushdb()
 
         result = self.redisConnection.set_redis_module(self.original_data, redis_key)
         raw_data = self.redisConnection.get_module(redis_key)
@@ -103,7 +105,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         self.assertEqual(data.get('organization'), organization)
 
     def test_populate_modules_empty_database(self):
-        self.redisDB.flushdb()
+        self.modulesDB.flushdb()
         name = 'ietf-bgp'
         revision = '2021-10-25'
         organization = 'ietf'
@@ -122,7 +124,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
 
     def test_reload_modules_cache(self):
         redis_key = 'ietf-bgp@2021-10-25/ietf'
-        self.redisDB.delete('modules-data')
+        self.modulesDB.delete('modules-data')
         result = self.redisConnection.reload_modules_cache()
         raw_data = self.redisConnection.get_all_modules()
         data = json.loads(raw_data)
@@ -132,7 +134,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         self.assertIn(redis_key, data)
 
     def test_reload_modules_cache_empty_database(self):
-        self.redisDB.flushdb()
+        self.modulesDB.flushdb()
 
         result = self.redisConnection.reload_modules_cache()
         data = self.redisConnection.get_all_modules()

@@ -32,7 +32,7 @@ class TestApiInternalClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestApiInternalClass, self).__init__(*args, **kwargs)
-        self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.client = app.test_client()
 
     @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))

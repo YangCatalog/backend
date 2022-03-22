@@ -44,8 +44,8 @@ class TestGroupingsClass(unittest.TestCase):
         self.prepare_output_filename = 'prepare'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.platform_name = 'ncs5k'
-        self.resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
-        self.test_private_dir = 'tests/resources/html/private'
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
         self.fileHasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
         self.dir_paths: DirPaths = {
             'cache': '',

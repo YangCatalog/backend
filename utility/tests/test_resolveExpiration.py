@@ -46,7 +46,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         super(TestResolveExpirationClass, self).__init__(*args, **kwargs)
         self.module_name = 'utility'
         self.script_name = 'resolveExpiration'
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
         self.datatracker_failures = []
         self.LOGGER = log.get_logger('resolveExpiration', '/var/yang/logs/jobs/resolveExpiration.log')
         self.redisConnection = RedisConnection()

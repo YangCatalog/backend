@@ -295,8 +295,7 @@ def trigger_populate():
             mf.send_new_modified_platform_metadata(new, mod)
             app.logger.info('Forking the repo')
             try:
-                populate_path = os.path.abspath(
-                    os.path.dirname(os.path.realpath(__file__)) + '/../../../parseAndPopulate/populate.py')
+                populate_path = os.path.join(os.environ['BACKEND'], 'parseAndPopulate/populate.py')
                 arguments = ['python', populate_path, '--api-protocol', ac.g_protocol_api,
                              '--api-port', ac.w_api_port, '--api-ip', ac.w_ip,
                              '--result-html-dir', ac.w_result_html_dir,

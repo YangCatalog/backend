@@ -20,6 +20,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
+import typing as t
 
 import utility.log as log
 from redis import Redis
@@ -28,13 +29,17 @@ from utility.create_config import create_config
 
 class RedisConnection:
 
-    def __init__(self, modules_db: int = 1, vendors_db: int = 4):
+    def __init__(self, modules_db: t.Optional[int] = None, vendors_db: t.Optional[int] = None):
         config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
-        self.__redis_host = config.get('DB-Section', 'redis-host')
-        self.__redis_port = config.get('DB-Section', 'redis-port')
-        self.modulesDB = Redis(host=self.__redis_host, port=self.__redis_port, db=modules_db)
-        self.vendorsDB = Redis(host=self.__redis_host, port=self.__redis_port, db=vendors_db)
+        self._redis_host = config.get('DB-Section', 'redis-host')
+        self._redis_port = config.get('DB-Section', 'redis-port')
+        if modules_db is None:
+            modules_db = config.get('DB-Section', 'redis-modules-db', fallback=1)
+        if vendors_db is None:
+            vendors_db = config.get('DB-Section', 'redis-vendors-db', fallback=4)
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db)
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db)
 
         self.LOGGER = log.get_logger('redisModules', os.path.join(self.log_directory, 'redisModulesConnection.log'))
 

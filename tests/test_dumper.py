@@ -43,8 +43,8 @@ class TestDumperClass(unittest.TestCase):
         self.sdo_module_name = 'ietf-yang-types'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.platform_name = 'ncs5k'
-        self.resources_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
-        self.test_private_dir = 'tests/resources/html/private'
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.test_private_dir = os.path.join(self.resources_path, 'html/private')        
         self.dir_paths: DirPaths = {
             'cache': '',
             'json': '',

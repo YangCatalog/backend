@@ -18,11 +18,13 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'richard.zilncik@pantheon.tech'
 
 import datetime
+import typing as t
 
 from redis import Redis
 
 import utility.log as log
 from utility.create_config import create_config
+
 
 class RedisUsersConnection:
 
@@ -30,10 +32,12 @@ class RedisUsersConnection:
     _temp_fields = ['motivation']
     _appr_fields = ['access-rights-sdo', 'access-rights-vendor']
 
-    def __init__(self, db=2):
+    def __init__(self, db: t.Optional[int] = None):
         config = create_config()
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = config.get('DB-Section', 'redis-port')
+        if db is None:
+            db = config.get('DB-Section', 'redis-users-db', fallback=2)
         self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)
 
         self.log_directory = config.get('Directory-Section', 'logs')

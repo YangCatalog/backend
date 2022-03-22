@@ -34,27 +34,12 @@ class TestUtilClass(unittest.TestCase):
         super(TestUtilClass, self).__init__(*args, **kwargs)
         self.filename = os.path.basename(__file__).split('.py')[0]
         self.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
-        self.util_tests_dir = '{}/util-tests'.format(yc_gc.temp_dir)
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+        self.util_tests_dir = os.path.join(yc_gc.temp_dir, 'util-tests')
 
     #########################
     ### TESTS DEFINITIONS ###
     #########################
-
-    def test_get_curr_dir(self):
-        """ Test result of method for path passed as an argument.
-        """
-        path = '/example/folder/example.txt'
-        result = util.get_curr_dir(path)
-
-        self.assertEqual(result, '/example/folder')
-
-    def test_get_curr_dir_empty_path(self):
-        """ Test result of method, when empty string is passed as an argument.
-        """
-        result = util.get_curr_dir('')
-
-        self.assertEqual(result, os.getcwd())
 
     def test_find_first_file_with_specific_revision(self):
         """ Try to find the first file that matches the pattern with specific revision.

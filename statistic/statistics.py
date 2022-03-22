@@ -52,7 +52,7 @@ from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import (MISSING_ELEMENT, NS_MAP, github_url,
                                      json_headers)
-from utility.util import find_first_file, get_curr_dir, job_log
+from utility.util import find_first_file, job_log
 
 from statistic import runYANGallstats as all_stats
 
@@ -544,11 +544,11 @@ def main(scriptConf: ScriptConfig = None):
                       'nx': json_output['nx'],
                       'current_date': time.strftime('%d/%m/%y')}
             json.dump(output, f)
-        result = render(os.path.join(get_curr_dir(__file__), './template/stats.html'), context)
-        with open(os.path.join(get_curr_dir(__file__), './statistics.html'), 'w+') as f:
+        result = render(os.path.join(os.environ['BACKEND'], 'statistic/template/stats.html'), context)
+        with open(os.path.join(os.environ['BACKEND'], 'statistic/statistics.html'), 'w+') as f:
             f.write(result)
 
-        file_from = os.path.abspath(os.path.join(get_curr_dir(__file__), './statistics.html'))
+        file_from = os.path.abspath(os.path.join(os.environ['BACKEND'], 'statistic/statistics.html'))
         file_to = os.path.join(os.path.abspath(move_to), 'statistics.html')
         resolved_path_file_to = os.path.realpath(file_to)
         if move_to != './':

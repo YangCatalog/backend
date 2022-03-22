@@ -2,6 +2,7 @@ MAILTO=<MAIL_TO>
 PYTHONPATH=/backend:/backend/bin/python
 SHELL=/bin/bash
 YANGCATALOG_CONFIG_PATH=<YANGCATALOG_CONFIG_PATH>
+BACKEND=/backend
 #
 # For more information see the manual pages of crontab(5) and cron(8)
 #

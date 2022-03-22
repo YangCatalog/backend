@@ -39,7 +39,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestApiAdminClass, self).__init__(*args, **kwargs)
-        self.resources_path = '{}/resources/'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.client = app.test_client()
 
     def setUp(self):

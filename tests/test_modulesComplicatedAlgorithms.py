@@ -32,7 +32,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
         super(TestModulesComplicatedAlgorithmsClass, self).__init__(*args, **kwargs)
-        self.resources_path = '{}/resources'.format(os.path.dirname(os.path.abspath(__file__)))
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
             self.payloads = json.load(f)
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'

@@ -29,7 +29,7 @@ from utility.yangParser import parse
 class TestIntegrityClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        self.module_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources/integrity')
+        self.module_dir = os.path.join(os.environ['BACKEND'], 'tests/resources/integrity')
         config = create_config()
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         super().__init__(*args, **kwargs)
