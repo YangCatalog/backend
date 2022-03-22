@@ -30,13 +30,13 @@ import utility.log as log
 from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 from utility.util import find_first_file
+from utility.yangParser import ParseException
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from utility.yangParser import ParseException
 
 
 class ModuleGrouping:
@@ -133,17 +133,19 @@ class SdoDirectory(ModuleGrouping):
             if not os.path.isfile(path):
                 LOGGER.error('File {} sent via API was not downloaded'.format(file_name))
                 continue
-            if '[1]' not in file_name:
-                try:
-                    yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
-                except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(file_name))
-                    continue
-                name = file_name.split('.')[0].split('@')[0]
-                schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
-                yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                               schema_base, self.dir_paths['save'], sdo)
-                self.dumper.add_module(yang)
+            if '[1]' in file_name:
+                LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
+                continue
+            try:
+                yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
+            except ParseException:
+                LOGGER.exception('ParseException while parsing {}'.format(file_name))
+                continue
+            name = file_name.split('.')[0].split('@')[0]
+            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
+            yang.parse_all(name, commit_hash, self.dumper.yang_modules,
+                           schema_base, self.dir_paths['save'], sdo)
+            self.dumper.add_module(yang)
 
     def _parse_and_load_not_api(self):
         LOGGER.debug('Parsing sdo files from directory')
@@ -164,20 +166,20 @@ class SdoDirectory(ModuleGrouping):
                         continue
                     if '[1]' in file_name:
                         LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
-                    else:
-                        LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
-                        try:
-                            yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
-                        except ParseException:
-                            LOGGER.exception('ParseException while parsing {}'.format(file_name))
-                            continue
-                        name = file_name.split('.')[0].split('@')[0]
-                        if commit_hash is None:
-                            commit_hash = self.repo.get_commit_hash(path, 'master')
-                        schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
-                        yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                                       schema_base, self.dir_paths['save'], submodule_name=submodule_name)
-                        self.dumper.add_module(yang)
+                        continue
+                    LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
+                    try:
+                        yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
+                    except ParseException:
+                        LOGGER.exception('ParseException while parsing {}'.format(file_name))
+                        continue
+                    name = file_name.split('.')[0].split('@')[0]
+                    if commit_hash is None:
+                        commit_hash = self.repo.get_commit_hash(path, 'main')
+                    schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
+                    yang.parse_all(name, commit_hash, self.dumper.yang_modules,
+                                   schema_base, self.dir_paths['save'], submodule_name=submodule_name)
+                    self.dumper.add_module(yang)
 
 
 class IanaDirectory(SdoDirectory):
@@ -230,10 +232,10 @@ class IanaDirectory(SdoDirectory):
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
                 if commit_hash is None:
-                    commit_hash = self.repo.get_commit_hash(path, 'master')
+                    commit_hash = self.repo.get_commit_hash(path, 'main')
                 schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
                 yang.parse_all(data['name'], commit_hash, self.dumper.yang_modules,
-                                 schema_base, self.dir_paths['save'], additional_info)
+                               schema_base, self.dir_paths['save'], additional_info)
                 self.dumper.add_module(yang)
 
 

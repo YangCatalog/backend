@@ -28,14 +28,14 @@ import time
 import typing as t
 from datetime import datetime
 
-from pyang.statements import Statement
-
 import statistic.statistics as stats
+from pyang.statements import Statement
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
 from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
                                      github_raw, github_url)
 from utility.util import find_first_file
+
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
 
@@ -245,7 +245,7 @@ class Module:
                                 dependency.schema = '{}/master/{}'.format(prefix, suffix)
                     except:
                         LOGGER.exception('Unable to resolve schema for {}@{}.yang'
-                            .format(dependency.name, dependency.revision))
+                                         .format(dependency.name, dependency.revision))
                         dependency.schema = None
                         self.dependencies.append(dependency)
                 self.dependencies.append(dependency)
@@ -280,20 +280,26 @@ class Module:
         LOGGER.debug('Resolving schema')
         if self.organization == 'etsi':
             suffix = self._path.split('SOL006')[-1]
-            self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw//master/{}'.format(suffix)
-        elif schema_base:
-            if 'yangmodels/yang' in self._path:
-                suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[1]
-            elif '/tmp/' in self._path:
-                suffix = os.path.abspath(self._path).split('/tmp/')[1]
-                suffix = '/'.join(suffix.split('/')[3:]) # remove directory_number/owner/repo prefix
-            else:
-                LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
-                return
-            if submodule_name:
-                suffix = suffix.replace('{}/'.format(submodule_name), '')
+            self.schema = 'https://forge.etsi.org/rep/nfv/SOL006/raw/master/{}'.format(suffix)
+            return
+        if not schema_base:
+            return
+
+        if 'openconfig/public' in self._path:
+            suffix = os.path.abspath(self._path).split('/openconfig/public/')[-1]
             self.schema = os.path.join(schema_base, suffix)
-            
+            return
+        if 'yangmodels/yang' in self._path:
+            suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[-1]
+        elif '/tmp/' in self._path:
+            suffix = os.path.abspath(self._path).split('/tmp/')[1]
+            suffix = '/'.join(suffix.split('/')[3:])  # remove directory_number prefix
+        else:
+            LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
+            return
+        if submodule_name:
+            suffix = suffix.replace('{}/'.format(submodule_name), '')
+        self.schema = os.path.join(schema_base, suffix)
 
     def _resolve_module_classification(self, module_classification=None):
         LOGGER.debug('Resolving module classification')
@@ -856,17 +862,16 @@ class SdoModule(Module):
         self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
 
 
-
 class VendorModule(Module):
     """A module with additional vendor information."""
 
     def __init__(self, path: str, jsons: LoadFiles, dir_paths: DirPaths,
                  data: t.Optional[t.Union[str, dict]] = None):
         super().__init__(path, jsons, dir_paths)
-        if isinstance(data, str): # string from a capabilities file
+        if isinstance(data, str):  # string from a capabilities file
             self.features = self._resolve_deviations_and_features('features=', data)
             deviation_names = self._resolve_deviations_and_features('deviations=', data)
-            self.deviations  = []
+            self.deviations = []
             for name in deviation_names:
                 deviation = {'name': name}
                 yang_file = self._find_file(name)
@@ -885,7 +890,7 @@ class VendorModule(Module):
                 self.revision = revision
 
             self._path = self._find_file(data.split('&')[0], self.revision)
-        elif isinstance(data, dict): # dict parsed out from a ietf-yang-library file
+        elif isinstance(data, dict):  # dict parsed out from a ietf-yang-library file
             self.deviations = data['deviations']
             self.features = data['features']
             self.revision = data['revision']
@@ -894,7 +899,6 @@ class VendorModule(Module):
             self._parsed_yang = yangParser.parse(os.path.abspath(self._path))
         else:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
-
 
     def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
                                capabilities: list, netconf_versions: list):
