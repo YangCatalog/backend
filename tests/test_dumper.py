@@ -23,9 +23,10 @@ import unittest
 from unittest import mock
 
 from api.globalConfig import yc_gc
+from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.dumper import Dumper
 from utility.staticVariables import github_raw
 
 
@@ -43,13 +44,15 @@ class TestDumperClass(unittest.TestCase):
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.platform_name = 'ncs5k'
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
-        self.dir_paths = {
-            'temp': yc_gc.temp_dir,
+        self.test_private_dir = os.path.join(self.resources_path, 'html/private')        
+        self.dir_paths: DirPaths = {
+            'cache': '',
+            'json': '',
+            'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
-            'yang_models': yc_gc.yang_models,
             'result': yc_gc.result_dir,
-            'log': yc_gc.logs_dir
+            'save': '',
+            'yang_models': yc_gc.yang_models
         }
 
     #########################

@@ -25,10 +25,11 @@ from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorYangLibrary
+from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
-from parseAndPopulate.dumper import Dumper
 from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 
@@ -46,7 +47,8 @@ class TestGroupingsClass(unittest.TestCase):
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.test_private_dir = os.path.join(self.resources_path, 'html/private')
         self.fileHasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
-        self.dir_paths = {
+        self.dir_paths: DirPaths = {
+            'cache': '',
             'json': os.path.join(yc_gc.temp_dir, 'groupings-tests'),
             'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
