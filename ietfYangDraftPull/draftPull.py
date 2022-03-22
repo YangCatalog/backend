@@ -30,6 +30,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import errno
 import filecmp
+import glob
 import os
 import shutil
 import sys
@@ -39,16 +40,12 @@ import typing as t
 import requests
 import utility.log as log
 from git.exc import GitCommandError
-from utility import messageFactory, repoutil
+from utility import messageFactory
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import github_url
 from utility.util import job_log
 
-from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
-                                                check_name_no_revision_exist,
-                                                extract_rfc_tgz,
-                                                get_draft_module_content)
+from ietfYangDraftPull import draftPullUtility
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -99,82 +96,55 @@ def main(scriptConf=None):
     LOGGER = log.get_logger('draftPull', '{}/jobs/draft-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job IETF pull request')
 
-    # Check whether fork repository is up-to-date
-    try:
-        main_repo = repoutil.load(yang_models, '{}/YangModels/yang.git'.format(github_url))
-        origin = main_repo.repo.remote('origin')
-        fork = main_repo.repo.remote('fork')
-
-        # git fetch --all
-        for remote in main_repo.repo.remotes:
-            info = remote.fetch('master')[0]
-            LOGGER.info('Remote: {} - Commit: {}'.format(remote.name, info.commit))
-
-        # git pull origin master
-        origin.pull('master')[0]
-
-        # git push fork master
-        push_info = fork.push('master')[0]
-        LOGGER.info('Push info: {}'.format(push_info.summary))
-        if 'non-fast-forward' in push_info.summary:
-            LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
-    except:
-        LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
-
     repo_name = 'yang'
-    try:
-        # Try to clone yang-catalog/yang repo
-        retry = 3
-        while True:
-            try:
-                repourl = 'https://{}@github.com/{}/{}.git'.format(token, username, repo_name)
-                repo = repoutil.RepoUtil(repourl)
-                LOGGER.info('Cloning repository from: {}'.format(repourl))
-                repo.clone(config_name, config_email)
-                break
-            except Exception as e:
-                retry -= 1
-                LOGGER.warning('Repository not ready yet')
-                time.sleep(10)
-                if retry == 0:
-                    LOGGER.exception('Failed to clone repository {}'.format(repo_name))
-                    job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-                    raise Exception()
-        LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
+    repourl = 'https://{}@github.com/{}/{}.git'.format(token, username, repo_name)
+    commit_author = {
+        'name': config_name,
+        'email': config_email
+    }
 
+    draftPullUtility.update_forked_repository(yang_models, LOGGER)
+    repo = draftPullUtility.clone_forked_repository(repourl, commit_author, LOGGER)
+
+    if not repo:
+        error_message = 'Failed to clone repository {}/{}'.format(username, repo_name)
+        job_log(start_time, temp_dir, error=error_message, status='Fail', filename=os.path.basename(__file__))
+        sys.exit()
+
+    try:
         # Get rfc.tgz file
         response = requests.get(ietf_rfc_url)
         tgz_path = '{}/rfc.tgz'.format(repo.localdir)
         extract_to = '{}/standard/ietf/RFCtemp'.format(repo.localdir)
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
-        tar_opened = extract_rfc_tgz(tgz_path, extract_to, LOGGER)
+        tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
         if tar_opened:
             diff_files = []
             new_files = []
 
-            for root, _, sdos in os.walk('{}/standard/ietf/RFCtemp'.format(repo.localdir)):
-                for file_name in sdos:
-                    if '.yang' in file_name:
-                        if os.path.exists('{}/standard/ietf/RFC/{}'.format(repo.localdir, file_name)):
-                            same = filecmp.cmp(
-                                '{}/standard/ietf/RFC/{}'.format(repo.localdir, file_name),
-                                '{}/{}'.format(root, file_name))
-                            if not same:
-                                diff_files.append(file_name)
-                        else:
-                            new_files.append(file_name)
+            temp_rfc_yang_files = glob.glob('{}/standard/ietf/RFCtemp/*.yang'.format(repo.localdir))
+            for temp_rfc_yang_file in temp_rfc_yang_files:
+                file_name = os.path.basename(temp_rfc_yang_file)
+                rfc_yang_file = temp_rfc_yang_file.replace('RFCtemp', 'RFC')
+
+                if not os.path.exists(rfc_yang_file):
+                    new_files.append(file_name)
+                    continue
+
+                same = filecmp.cmp(rfc_yang_file, temp_rfc_yang_file)
+                if not same:
+                    diff_files.append(file_name)
+
             shutil.rmtree('{}/standard/ietf/RFCtemp'.format(repo.localdir))
 
             with open(exceptions, 'r') as exceptions_file:
                 remove_from_new = exceptions_file.read().split('\n')
-            for remove in remove_from_new:
-                if remove in new_files:
-                    new_files.remove(remove)
+            new_files = [file_name for file_name in new_files if file_name not in remove_from_new]
 
             if args.send_message:
-                if len(new_files) > 0 or len(diff_files) > 0:
-                    LOGGER.warning('new or modified RFC files found. Sending an E-mail')
+                if new_files or diff_files:
+                    LOGGER.info('new or modified RFC files found. Sending an E-mail')
                     mf = messageFactory.MessageFactory()
                     mf.send_new_rfc_message(new_files, diff_files)
 
@@ -188,13 +158,13 @@ def main(scriptConf=None):
         experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.localdir)
 
         LOGGER.info('Updating IETF drafts download links')
-        get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
+        draftPullUtility.get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
-        check_name_no_revision_exist(experimental_path, LOGGER)
+        draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
 
         LOGGER.info('Checking for early revision in {}'.format(experimental_path))
-        check_early_revisions(experimental_path, LOGGER)
+        draftPullUtility.check_early_revisions(experimental_path, LOGGER)
 
         messages = []
         try:

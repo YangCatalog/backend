@@ -14,12 +14,10 @@
 # limitations under the License.
 
 """
-This script runs populate.py over 3 different directories:
+Cronjob tool that automatically runs populate.py over 3 different directories:
 I. RFC .yang modules -> standard/ietf/RFC path
 II. Draft .yang modules -> experimental/ietf-extracted-YANG-modules path
 III. IANA maintained modules -> standard/iana path
-
-This script runs as automatic cronjob on daily basis.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -40,10 +38,7 @@ from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import github_url
 from utility.util import job_log
 
-from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
-                                                check_name_no_revision_exist,
-                                                extract_rfc_tgz,
-                                                get_draft_module_content)
+from ietfYangDraftPull import draftPullUtility
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -121,17 +116,17 @@ def main(scriptConf=None):
         extract_to = '{}/standard/ietf/RFC'.format(repo.localdir)
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
-        tar_opened = extract_rfc_tgz(tgz_path, extract_to, LOGGER)
+        tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
 
         if tar_opened:
             # Standard RFC modules
             direc = '{}/standard/ietf/RFC'.format(repo.localdir)
 
             LOGGER.info('Checking module filenames without revision in {}'.format(direc))
-            check_name_no_revision_exist(direc, LOGGER)
+            draftPullUtility.check_name_no_revision_exist(direc, LOGGER)
 
             LOGGER.info('Checking for early revision in {}'.format(direc))
-            check_early_revisions(direc, LOGGER)
+            draftPullUtility.check_early_revisions(direc, LOGGER)
 
             execution_result = run_populate_script(direc, notify_indexing, LOGGER)
             if execution_result == False:
@@ -146,13 +141,13 @@ def main(scriptConf=None):
         experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.localdir)
 
         LOGGER.info('Updating IETF drafts download links')
-        get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
+        draftPullUtility.get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
-        check_name_no_revision_exist(experimental_path, LOGGER)
+        draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
 
         LOGGER.info('Checking for early revision in {}'.format(experimental_path))
-        check_early_revisions(experimental_path, LOGGER)
+        draftPullUtility.check_early_revisions(experimental_path, LOGGER)
 
         execution_result = run_populate_script(experimental_path, notify_indexing, LOGGER)
         if execution_result == False:
@@ -168,10 +163,10 @@ def main(scriptConf=None):
 
         if os.path.exists(iana_path):
             LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))
-            check_name_no_revision_exist(iana_path, LOGGER)
+            draftPullUtility.check_name_no_revision_exist(iana_path, LOGGER)
 
             LOGGER.info('Checking for early revision in {}'.format(iana_path))
-            check_early_revisions(iana_path, LOGGER)
+            draftPullUtility.check_early_revisions(iana_path, LOGGER)
 
             execution_result = run_populate_script(iana_path, notify_indexing, LOGGER)
             if execution_result == False:

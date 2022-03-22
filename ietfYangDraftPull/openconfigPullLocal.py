@@ -14,8 +14,8 @@
 # limitations under the License.
 
 """
-This python script is a tool to parse and populate
-all new openconfig modules.
+Cronjob tool that automatically runs populate.py
+for all new openconfig modules.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -27,14 +27,18 @@ import json
 import os
 import time
 import typing as t
+from glob import glob
 
 import requests
 import utility.log as log
-from utility import repoutil, yangParser
+from parseAndPopulate.fileHasher import FileHasher
+from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import job_log
+
+from ietfYangDraftPull import draftPullUtility
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -51,10 +55,11 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def resolve_revision(yang_file):
-    """
-    search for revision in file "yang_file"
-    :param yang_file: yang file
+def resolve_revision(yang_file: str):
+    """ Search for revision in file "yang_file"
+
+    Argument:
+        :param yang_file    (str) full path to the yang file
     :return: revision of the yang file
     """
     try:
@@ -83,6 +88,7 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
+    cache_dir = config.get('Directory-Section', 'cache')
     LOGGER = log.get_logger('openconfigPullLocal', '{}/jobs/openconfig-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job openconfig pull request local')
 
@@ -91,37 +97,40 @@ def main(scriptConf=None):
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_ip,
-                                                   separator, suffix)
+    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_ip, separator, suffix)
 
-    repo = None
+    fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, True, log_directory)
+
+    commit_author = {
+        'name': config_name,
+        'email': config_email
+    }
+    repo = draftPullUtility.clone_forked_repository(openconfig_repo_url, commit_author, LOGGER)
+    modules = []
     try:
-        repo = repoutil.RepoUtil(openconfig_repo_url)
-
-        repo.clone(config_name, config_email)
-        LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
-
-        modules = []
-
-        for root, _, files in os.walk(repo.localdir + '/release/models/'):
-            for basename in files:
-                if '.yang' in basename:
-                    mod = {}
-                    name = basename.split('.')[0].split('@')[0]
-                    mod['generated-from'] = 'not-applicable'
-                    mod['module-classification'] = 'unknown'
-                    mod['name'] = name
-                    mod['revision'] = resolve_revision('{}/{}'.format(root,
-                                                                      basename))
-                    path = root.split(repo.localdir)[1].replace('/', '', 1)
-                    if not path.endswith('/'):
-                        path += '/'
-                    path += basename
-                    mod['organization'] = 'openconfig'
-                    mod['source-file'] = {'owner': 'openconfig', 'path': path,
-                                          'repository': 'public'}
-                    modules.append(mod)
-        output = json.dumps({'modules': {'module': modules}})
+        yang_files = glob('{}/release/models/**/*.yang'.format(repo.localdir), recursive=True)
+        for yang_file in yang_files:
+            basename = os.path.basename(yang_file)
+            name = basename.split('.')[0].split('@')[0]
+            revision = resolve_revision(yang_file)
+            should_parse = fileHasher.should_parse_sdo_module(yang_file)
+            if not should_parse:
+                continue
+            path = yang_file.split('{}/'.format(repo.localdir))[-1]
+            module = {
+                'generated-from': 'not-applicable',
+                'module-classification': 'unknown',
+                'name': name,
+                'revision': revision,
+                'organization': 'openconfig',
+                'source-file': {
+                    'owner': 'openconfig',
+                    'path': path,
+                    'repository': 'public'
+                }
+            }
+            modules.append(module)
+        data = json.dumps({'modules': {'module': modules}})
     except Exception as e:
         LOGGER.exception('Exception found while running openconfigPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
@@ -129,9 +138,9 @@ def main(scriptConf=None):
             repo.remove()
         raise e
     repo.remove()
-    LOGGER.debug(output)
+    LOGGER.debug(data)
     api_path = '{}modules'.format(yangcatalog_api_prefix)
-    response = requests.put(api_path, output, auth=(credentials[0], credentials[1]), headers=json_headers)
+    response = requests.put(api_path, data, auth=(credentials[0], credentials[1]), headers=json_headers)
 
     status_code = response.status_code
     payload = json.loads(response.text)
