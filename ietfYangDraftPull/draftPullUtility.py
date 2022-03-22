@@ -23,6 +23,8 @@ Contains following method definitions:
     get_draft_module_content()
     extract_rfc_tgz()
     set_permissions()
+    update_forked_repository()
+    clone_forked_repository()
 """
 
 __author__ = 'Slavomir Mazur'
@@ -35,10 +37,13 @@ import logging
 import os
 import pwd
 import tarfile
+import time
 from datetime import datetime
 
 import requests
-from utility import yangParser
+from git.exc import GitCommandError
+from utility import repoutil, yangParser
+from utility.staticVariables import github_url
 
 
 def get_latest_revision(path: str, LOGGER: logging.Logger):
@@ -200,3 +205,62 @@ def set_permissions(directory: str):
             os.chown(os.path.join(root, dir), uid, gid)
         for file in files:
             os.chown(os.path.join(root, file), uid, gid)
+
+
+def update_forked_repository(yang_models: str, LOGGER: logging.Logger) -> None:
+    """ Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
+    Push missing commits to the forked repository if any are missing.
+
+    Arguments:
+        :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
+        :param LOGGER           (logging.Logger) formated logger with the specified name
+    """
+    try:
+        main_repo = repoutil.load(yang_models, '{}/YangModels/yang.git'.format(github_url))
+        origin = main_repo.repo.remote('origin')
+        fork = main_repo.repo.remote('fork')
+
+        # git fetch --all
+        for remote in main_repo.repo.remotes:
+            info = remote.fetch('main')[0]
+            LOGGER.info('Remote: {} - Commit: {}'.format(remote.name, info.commit))
+
+        # git pull origin main
+        origin.pull('main')[0]
+
+        # git push fork main
+        push_info = fork.push('main')[0]
+        LOGGER.info('Push info: {}'.format(push_info.summary))
+        if 'non-fast-forward' in push_info.summary:
+            LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
+    except GitCommandError:
+        LOGGER.exception('yang-catalog/yang repo might not be up-to-date')
+
+
+def clone_forked_repository(repourl: str, commit_author: dict, LOGGER: logging.Logger):
+    """ Try to clone forked repository. Repeat the cloning process several times if the attempt was not successful.
+
+    Arguments:
+        :param repourl          (str) URL to the Github repository
+        :param commit_author    (dict) Dictionary that contains information about the author of the commit
+        :param LOGGER           (logging.Logger) formated logger with the specified name
+    """
+    attempts = 3
+    wait_for_seconds = 30
+    repo_name = repourl.split('github.com/')[-1].split('.git')[0]
+    while True:
+        try:
+            repo = repoutil.RepoUtil(repourl)
+            LOGGER.info('Cloning repository from: {}'.format(repourl))
+            repo.clone(commit_author['name'], commit_author['email'])
+            LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
+            break
+        except GitCommandError:
+            attempts -= 1
+            LOGGER.warning('Unable to clone {} repository - waiting for {} seconds'.format(repo_name, wait_for_seconds))
+            if attempts == 0:
+                LOGGER.exception('Failed to clone repository {}'.format(repo_name))
+                return
+            time.sleep(wait_for_seconds)
+
+    return repo

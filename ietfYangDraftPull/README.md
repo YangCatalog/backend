@@ -1,22 +1,31 @@
-Automatic yang modules pull and push
-====================================
+Automatic YANG modules pull and push scripts
+============================================
 
 This package contains a python scripts to process IETF and openconfig YANG files:
 
 - draftPull
 
-    This script serves as an automated tool to find all the new IETF
-    yang DRAFT and RFC files. It will automatically push new files
-    to github but ONLY DRAFT modules NO RFC modules. If there are
-    new RFC modules yangcatalog admin users will receive an e-mail
-    about such files.
+    Cronjob tool that automatically pushes new IETF
+    draft yang modules to the Github repository. Old ones
+    are removed and naming is corrected to <name>@<revision>.yang.
+    New IETF RFC modules are checked too, but they are not automatically added.
+    E-mail is sent to yangcatalog admin users if such thing occurs.
+    Message about new RFC or DRAFT yang modules is also sent
+    to the Cisco Webex Teams, room: YANG Catalog Admin.
 
 - draftPullLocal
 
-    This script serves as an automated tool to parse and populate all
-    the new IETF DRAFT and RFC modules to yangcatalog.
+    Cronjob tool that automatically runs populate.py over 3 different directories:
+    I. RFC .yang modules -> standard/ietf/RFC path
+    II. Draft .yang modules -> experimental/ietf-extracted-YANG-modules path
+    III. IANA maintained modules -> standard/iana path
+
+- ianaPull
+
+    Cronjob tool that automatically pushes new IANA-maintained
+    yang modules to the Github YangModels/yang repository.
+    Old ones are removed and naming is corrected to <name>@<revision>.yang.
 
 - openconfigPullLocal
 
-    This script serves as an automated tool to parse and populate all
-    the new openconfig modules to yangcatalog.
+    Cronjob tool that automatically runs populate.py for all new openconfig modules.

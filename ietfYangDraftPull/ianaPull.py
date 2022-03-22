@@ -35,14 +35,11 @@ from shutil import copy2
 
 import utility.log as log
 from git.exc import GitCommandError
-from utility import repoutil
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log
 
-from ietfYangDraftPull.draftPullUtility import (check_early_revisions,
-                                                check_name_no_revision_exist,
-                                                set_permissions)
+from ietfYangDraftPull import draftPullUtility
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -66,6 +63,7 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
+    yang_models = config.get('Directory-Section', 'yang-models-dir')
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     commit_dir = config.get('Directory-Section', 'commit-dir')
@@ -78,36 +76,32 @@ def main(scriptConf=None):
     LOGGER = log.get_logger('ianaPull', '{}/jobs/iana-pull.log'.format(log_directory))
     LOGGER.info('Starting job to pull IANA-maintained modules')
 
-    iana_path = '{}/iana'.format(temp_dir)
-    if os.path.exists(iana_path):
-        shutil.rmtree(iana_path)
     repo_name = 'yang'
-    try:
-        # Try to clone yang-catalog/yang repo
-        retry = 3
-        while True:
-            try:
-                repourl = 'https://{}@github.com/{}/{}.git'.format(token, username, repo_name)
-                repo = repoutil.RepoUtil(repourl)
-                LOGGER.info('Cloning repository from: {}'.format(repourl))
-                repo.clone(config_name, config_email)
-                break
-            except Exception as e:
-                retry -= 1
-                LOGGER.warning('Repository not ready yet')
-                time.sleep(10)
-                if retry == 0:
-                    LOGGER.exception('Failed to clone repository {}'.format(repo_name))
-                    job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-                    raise Exception()
-        LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
+    repourl = 'https://{}@github.com/{}/{}.git'.format(token, username, repo_name)
+    commit_author = {
+        'name': config_name,
+        'email': config_email
+    }
 
+    draftPullUtility.update_forked_repository(yang_models, LOGGER)
+    repo = draftPullUtility.clone_forked_repository(repourl, commit_author, LOGGER)
+
+    if not repo:
+        error_message = 'Failed to clone repository {}/{}'.format(username, repo_name)
+        job_log(start_time, temp_dir, error=error_message, status='Fail', filename=os.path.basename(__file__))
+        sys.exit()
+
+    try:
+        iana_temp_path = os.path.join(temp_dir, 'iana')
+        if os.path.exists(iana_temp_path):
+            shutil.rmtree(iana_temp_path)
         # call rsync to sync with rsync.iana.org::assignments/yang-parameters/
-        subprocess.call(['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', iana_path])
-        set_permissions(iana_path)
-        if not os.path.exists('{}/standard/iana'.format(repo.localdir)):
-            os.makedirs('{}/standard/iana'.format(repo.localdir))
-        xml_path = '{}/yang-parameters.xml'.format(iana_path)
+        subprocess.call(['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', iana_temp_path])
+        draftPullUtility.set_permissions(iana_temp_path)
+        iana_standard_path = os.path.join(repo.localdir, 'standard/iana')
+        if not os.path.exists(iana_standard_path):
+            os.makedirs(iana_standard_path)
+        xml_path = os.path.join(iana_temp_path, 'yang-parameters.xml')
         copy2(xml_path, '{}/standard/iana/yang-parameters.xml'.format(repo.localdir))
 
         # Parse yang-parameters.xml file
@@ -123,15 +117,15 @@ def main(scriptConf=None):
                 data[prop] = attributes.text
 
             if data.get('iana') == 'Y' and data.get('file'):
-                src = '{}/{}'.format(iana_path, data.get('file'))
+                src = '{}/{}'.format(iana_temp_path, data.get('file'))
                 dst = '{}/standard/iana/{}'.format(repo.localdir, data.get('file'))
                 copy2(src, dst)
 
-        LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))
-        check_name_no_revision_exist(iana_path, LOGGER)
+        LOGGER.info('Checking module filenames without revision in {}'.format(iana_standard_path))
+        draftPullUtility.check_name_no_revision_exist(iana_standard_path, LOGGER)
 
-        LOGGER.info('Checking for early revision in {}'.format(iana_path))
-        check_early_revisions(iana_path, LOGGER)
+        LOGGER.info('Checking for early revision in {}'.format(iana_standard_path))
+        draftPullUtility.check_early_revisions(iana_standard_path, LOGGER)
 
         messages = []
         try:

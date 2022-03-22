@@ -289,11 +289,15 @@ class Module:
             suffix = os.path.abspath(self._path).split('/openconfig/public/')[-1]
             self.schema = os.path.join(schema_base, suffix)
             return
+        if 'draftpulllocal' in self._path:
+            suffix = os.path.abspath(self._path).split('draftpulllocal/')[-1]
+            self.schema = os.path.join(schema_base, suffix)
+            return
         if 'yangmodels/yang' in self._path:
             suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[-1]
         elif '/tmp/' in self._path:
             suffix = os.path.abspath(self._path).split('/tmp/')[1]
-            suffix = '/'.join(suffix.split('/')[3:])  # remove directory_number prefix
+            suffix = '/'.join(suffix.split('/')[3:])  # remove directory_number/owner/repo prefix
         else:
             LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
             return
