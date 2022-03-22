@@ -112,8 +112,8 @@ def check_github():
             json_body = json.loads(json.dumps({
                 'title': 'Cronjob - every day pull and update of ietf draft yang files.',
                 'body': 'ietf extracted yang modules',
-                'head': 'yang-catalog:master',
-                'base': 'master'
+                'head': 'yang-catalog:main',
+                'base': 'main'
             }))
 
             url = '{}/pulls'.format(yang_models_url)
@@ -209,8 +209,8 @@ def check_local():
                     json_body = json.loads(json.dumps({
                         'title': 'Cronjob - every day pull and update of ietf draft yang files.',
                         'body': 'ietf extracted yang modules',
-                        'head': 'yang-catalog:master',
-                        'base': 'master'
+                        'head': 'yang-catalog:main',
+                        'base': 'main'
                     }))
 
                     url = '{}/pulls'.format(yang_models_url)
@@ -252,7 +252,7 @@ def check_local():
                     'title': 'Cron job - every day pull and update of ietf draft yang files.',
                     'body': 'ietf extracted yang modules',
                     'state': 'closed',
-                    'base': 'master'
+                    'base': 'main'
                 }))
                 requests.patch('{}/repos/YangModels/yang/pulls/{}'.format(github_api, pull_number), json=json_body,
                                headers={'Authorization': token_header_value})
