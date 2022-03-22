@@ -281,7 +281,6 @@ def add_modules():
         if owner is None:
             abort(400, description=missing_msg.format('source-file["owner"]'))
 
-
         dir_in_repo = os.path.dirname(module_path)
         repo_url = os.path.join(github_url, owner, repo_name)
         if repo_url not in repo:
@@ -315,7 +314,7 @@ def add_modules():
                     break
                 namespace = yangParser.parse(
                     os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
-                                                            os.path.basename(module_path), belongs_to))
+                                                           os.path.dirname(module_path), belongs_to))
                 ).search('namespace')[0].arg
                 organization_parsed = organization_by_namespace(namespace)
                 break
@@ -567,6 +566,7 @@ def organization_by_namespace(namespace: str):
                 return namespace.split('urn:')[1].split(':')[0]
     return ''
 
+
 def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
     if owner == 'YangModels' and repo_name == 'yang':
         app.logger.info('Using repo already downloaded from {}'.format(repo_url))
@@ -583,4 +583,4 @@ def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
             return repo
         except GitCommandError as e:
             abort(400, description='bad request - could not clone the Github repository. Please check owner,'
-                                    ' repository and path of the request - {}'.format(e.stderr))
+                  ' repository and path of the request - {}'.format(e.stderr))
