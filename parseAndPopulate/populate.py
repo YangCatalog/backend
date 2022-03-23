@@ -32,7 +32,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import json
 import multiprocessing
 import os
-import shutil
 import sys
 import time
 import types

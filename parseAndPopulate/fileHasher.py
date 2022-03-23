@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import hashlib
 import json
@@ -139,7 +139,7 @@ class FileHasher:
         validators['pyang_version'] = pyang.__version__
         return json.dumps(validators).encode('utf-8')
 
-    def should_parse_sdo_module(self, path: str):
+    def should_parse_sdo_module(self, path: str) -> bool:
         """ Decide whether SDO module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
@@ -156,7 +156,7 @@ class FileHasher:
 
         return True if not self.is_active else hash_changed
 
-    def should_parse_vendor_module(self, path: str, platform: str):
+    def should_parse_vendor_module(self, path: str, platform: str) -> bool:
         """ Decide whether vendor module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
@@ -174,6 +174,28 @@ class FileHasher:
             if self.updated_hashes.get(path) is None:
                 self.updated_hashes[path] = {}
             self.updated_hashes[path][platform] = file_hash
+            hash_changed = True
+
+        return True if not self.is_active else hash_changed
+
+    def should_parse_openconfig_module(self, path: str) -> bool:
+        """ Decide whether Openconfig module sent via API at the given path should be parsed or not.
+        Check whether file content hash has changed and keep it for the future use.
+
+        Argument:
+            :param path     (str) Full path to the file to be hashed
+            :rtype           bool
+        """
+        hash_changed = False
+
+        path_splitted = path.split('/')
+        del path_splitted[4]  # remove directory set by number from path
+        openconfig_tmp_path = '/'.join(path_splitted)
+
+        file_hash = self.hash_file(path)
+        old_file_hash = self.files_hashes.get(openconfig_tmp_path, None)
+        if old_file_hash is None or old_file_hash != file_hash:
+            self.updated_hashes[openconfig_tmp_path] = file_hash
             hash_changed = True
 
         return True if not self.is_active else hash_changed

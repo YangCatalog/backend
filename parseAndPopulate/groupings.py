@@ -50,7 +50,7 @@ class ModuleGrouping:
             :param dumper               (Dumper) Dumper object
             :param filehasher           (FileHasher) FileHasher object
             :param api                  (bool) whether the request came from API or not
-            :param dir_paths            (dict) paths to various needed directories according to configuration
+            :param dir_paths            (DirPaths) paths to various needed directories according to configuration
         """
 
         global LOGGER
@@ -136,6 +136,11 @@ class SdoDirectory(ModuleGrouping):
             if '[1]' in file_name:
                 LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                 continue
+            # Openconfig modules are sent via API daily; see openconfigPullLocal.py script
+            if '/openconfig/public/' in path:
+                should_parse = self.file_hasher.should_parse_openconfig_module(path)
+                if not should_parse:
+                    continue
             try:
                 yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
             except ParseException:
