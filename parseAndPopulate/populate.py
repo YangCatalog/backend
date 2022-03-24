@@ -49,7 +49,8 @@ from utility.staticVariables import json_headers
 from utility.util import prepare_to_indexing, send_to_indexing
 
 from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+from parseAndPopulate.modulesComplicatedAlgorithms import \
+    ModulesComplicatedAlgorithms
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -59,7 +60,7 @@ class ScriptConfig(BaseScriptConfig):
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         api_protocol = config.get('General-Section', 'protocol-api')
         api_port = config.get('Web-Section', 'api-port')
-        api_host = config.get('Web-Section', 'ip')
+        api_ip = config.get('Web-Section', 'ip')
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
         help = 'Parse hello messages and YANG files to a JSON dictionary. These ' \
@@ -69,9 +70,9 @@ class ScriptConfig(BaseScriptConfig):
         args: t.List[Arg] = [
             {
                 'flag': '--api-ip',
-                'help': 'Set host address where the API is started. Default: {}'.format(api_host),
+                'help': 'Set host address where the API is started. Default: {}'.format(api_ip),
                 'type': str,
-                'default': api_host
+                'default': api_ip
             },
             {
                 'flag': '--api-port',
@@ -148,9 +149,9 @@ class ScriptConfig(BaseScriptConfig):
         self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
-        self.changes_cache_dir = config.get('Directory-Section', 'changes-cache')
+        self.changes_cache_path = config.get('Directory-Section', 'changes-cache')
         self.cache_dir = config.get('Directory-Section', 'cache')
-        self.delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self.delete_cache_path = config.get('Directory-Section', 'delete-cache')
         self.lock_file = config.get('Directory-Section', 'lock')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
@@ -269,7 +270,7 @@ def main(scriptConf=None):
         redisConnection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, LOGGER, scriptConf.changes_cache_dir, scriptConf.delete_cache_dir,
+        send_to_indexing(body_to_send, LOGGER, scriptConf.changes_cache_path, scriptConf.delete_cache_path,
                          scriptConf.lock_file)
     if modules:
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
