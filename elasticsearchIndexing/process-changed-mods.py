@@ -12,25 +12,76 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+__author__ = 'Miroslav Kovac, Joe Clarke'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech, jclarke@cisco.com'
+
 import argparse
 import json
 import logging
 import os
+import shutil
 import sys
 
-import dateutil.parser
-from elasticsearch import Elasticsearch, NotFoundError
-from utility import log
+import requests
+from elasticsearch import Elasticsearch
+from utility import log, repoutil
 from utility.create_config import create_config
+from utility.util import fetch_module_by_schema, validate_revision
 
-from elasticsearchIndexing import build_yindex
+from elasticsearchIndexing.build_yindex import (build_indices,
+                                                delete_from_indices)
 
-__author__ = "Miroslav Kovac, Joe Clarke"
-__copyright__ = "Copyright 2018 Cisco and its affiliates"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech, jclarke@cisco.com"
 
-from utility.repoutil import pull
+def load_changes_cache(changes_cache_path: str):
+    changes_cache = {}
+
+    try:
+        with open(changes_cache_path, 'r') as f:
+            changes_cache = json.load(f)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        with open(changes_cache_path, 'w') as f:
+            json.dump({}, f)
+
+    return changes_cache
+
+
+def load_delete_cache(delete_cache_path: str):
+    delete_cache = []
+
+    try:
+        with open(delete_cache_path, 'r') as f:
+            delete_cache = json.load(f)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        with open(delete_cache_path, 'w') as f:
+            json.dump([], f)
+
+    return delete_cache
+
+
+def backup_cache_files(cache_path: str):
+    shutil.copyfile(cache_path, '{}.bak'.format(cache_path))
+    with open(cache_path, 'w') as f:
+        json.dump({}, f)
+
+
+def check_file_availability(module: dict, LOGGER: logging.Logger):
+    if not os.path.isfile(module['path']):
+        result = False
+        url = 'https://yangcatalog.org/api/search/modules/{},{},{}'.format(
+            module['name'], module['revision'], module['organization'])
+        try:
+            module_detail = requests.get(url).json().get('module', [])
+            schema = module_detail[0].get('schema')
+            result = fetch_module_by_schema(schema, module['path'])
+            if not result:
+                raise Exception
+            LOGGER.info('File content successfully retrieved from GitHub using module schema')
+        except Exception:
+            msg = 'Unable to retrieve content of {}@{}'.format(module['name'], module['revision'])
+            raise Exception(msg)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
@@ -40,175 +91,124 @@ if __name__ == '__main__':
     config_path = args.config_path
     config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    LOGGER = log.get_logger('process_changed_mods', '{}/process-changed-mods.log'.format(log_directory))
-
-    LOGGER.info('Initializing script loading config parameters')
     es_host = config.get('DB-Section', 'es-host')
     es_port = config.get('DB-Section', 'es-port')
     es_aws = config.get('DB-Section', 'es-aws')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
-    changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-    failed_changes_cache_dir = config.get('Directory-Section', 'changes-cache-failed')
-    delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+    changes_cache_path = config.get('Directory-Section', 'changes-cache')
+    failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
+    delete_cache_path = config.get('Directory-Section', 'delete-cache')
     temp_dir = config.get('Directory-Section', 'temp')
     lock_file = config.get('Directory-Section', 'lock')
     lock_file_cron = config.get('Directory-Section', 'lock-cron')
     json_ytree = config.get('Directory-Section', 'json-ytree')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
-    threads = config.get('General-Section', 'threads')
-    processes = int(config.get('General-Section', 'yProcesses'))
+    threads = int(config.get('General-Section', 'threads'))
     elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
-    recursion_limit = sys.getrecursionlimit()
+
+    LOGGER = log.get_logger('process_changed_mods', os.path.join(log_directory, 'process-changed-mods.log'))
+    LOGGER.info('Starting process-changed-mods.py script')
+
     if os.path.exists(lock_file) or os.path.exists(lock_file_cron):
-        # we can exist since this is run by cronjob every minute of every day
+        # we can exist since this is run by cronjob every 3 minutes of every day
         LOGGER.warning('Temporary lock file used by something else. Exiting script !!!')
         sys.exit()
     try:
         open(lock_file, 'w').close()
         open(lock_file_cron, 'w').close()
-    except:
+    except Exception:
         os.unlink(lock_file)
         os.unlink(lock_file_cron)
         LOGGER.error('Temporary lock file could not be created although it is not locked')
         sys.exit()
 
-    changes_cache = {}
-    delete_cache = []
-    if ((not os.path.exists(changes_cache_dir) or os.path.getsize(changes_cache_dir) <= 0)
-            and (not os.path.exists(delete_cache_dir) or os.path.getsize(delete_cache_dir) <= 0)):
+    changes_cache = load_changes_cache(changes_cache_path)
+    delete_cache = load_delete_cache(delete_cache_path)
+
+    if not changes_cache and not delete_cache:
         LOGGER.info('No new modules are added or removed. Exiting script!!!')
         os.unlink(lock_file)
         os.unlink(lock_file_cron)
         sys.exit()
-    else:
-        if os.path.exists(changes_cache_dir) and os.path.getsize(changes_cache_dir) > 0:
-            LOGGER.info('Loading changes cache')
-            f = open(changes_cache_dir, 'r+')
-            changes_cache = json.load(f)
-
-            # Backup the contents just in case
-            with open('{}.bak'.format(changes_cache_dir), 'w') as bfd:
-                json.dump(changes_cache, bfd)
-
-            f.truncate(0)
-            f.close()
-
-        if os.path.exists(delete_cache_dir) and os.path.getsize(delete_cache_dir) > 0:
-            LOGGER.info('Loading delete cache')
-            f = open(delete_cache_dir, 'r+')
-            delete_cache = json.load(f)
-
-            # Backup the contents just in case
-            with open('{}.bak'.format(delete_cache_dir), 'w') as bfd:
-                json.dump(delete_cache, bfd)
-
-            f.truncate(0)
-            f.close()
-        os.unlink(lock_file)
-
-    if len(delete_cache) > 0:
-        if es_aws == 'True':
-            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
-        else:
-            es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
-        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_yindex_elasticsearch.json')) as f:
-            initialize_body_yindex = json.load(f)
-        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_module_elasticsearch.json')) as f:
-            initialize_body_modules = json.load(f)
-
-        es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
-        es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
-
-        logging.getLogger('elasticsearch').setLevel(logging.ERROR)
-
-        for mod in delete_cache:
-            name, rev_org = mod.split('@')
-            revision, organization = rev_org.split('/')
-
-            try:
-                dateutil.parser.parse(revision)
-            except ValueError:
-                if revision[-2:] == '29' and revision[-5:-3] == '02':
-                    revision = revision.replace('02-29', '02-28')
-                else:
-                    revision = '1970-01-01'
-
-            try:
-                query = \
-                    {
-                        "query": {
-                            "bool": {
-                                "must": [{
-                                    "match_phrase": {
-                                        "module.keyword": {
-                                            "query": name
-                                        }
-                                    }
-                                }, {
-                                    "match_phrase": {
-                                        "revision": {
-                                            "query": revision
-                                        }
-                                    }
-                                }]
-                            }
-                        }
-                    }
-                es.delete_by_query(index='yindex', body=query, doc_type='modules', conflicts='proceed',
-                                   request_timeout=40)
-                query['query']['bool']['must'].append({
-                    "match_phrase": {
-                        "organization": {
-                            "query": organization
-                        }
-                    }
-                })
-                LOGGER.info('deleting {}'.format(query))
-                es.delete_by_query(index='modules', body=query, doc_type='modules', conflicts='proceed',
-                                   request_timeout=40)
-            except NotFoundError:
-                LOGGER.exception('Module not found')
-                pass
-
-    if len(changes_cache) == 0:
-        LOGGER.info('No module to be processed. Exiting.')
-        os.unlink(lock_file_cron)
-        sys.exit(0)
 
     LOGGER.info('Pulling latest YangModels/yang repository')
-    pull(yang_models)
+    repoutil.pull(yang_models)
 
-    mod_args = []
-    if type(changes_cache) is list:
-        for module_path in changes_cache:
-            if not module_path.startswith('/'):
-                module_path = '{}/{}'.format(yang_models, module_path)
-            mod_args.append(module_path)
+    LOGGER.info('Trying to initialize Elasticsearch')
+    if es_aws == 'True':
+        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
     else:
-        for key, module_path in changes_cache.items():
-            mparts = key.split('/')
-            if len(mparts) == 2:
-                module_path += ':' + mparts[1]
-            if not module_path.startswith('/'):
-                module_path = '{}/{}'.format(yang_models, module_path)
-            mod_args.append(module_path)
-    sys.setrecursionlimit(50000)
-    try:
-        LOGGER.info('Trying to initialize Elasticsearch')
-        if es_aws == 'True':
-            es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
-        else:
-            es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+        es = Elasticsearch([{'host': es_host, 'port': es_port}])
 
-        build_yindex.build_yindex(json_ytree, mod_args, LOGGER, save_file_dir, es, threads,
-                                  log_directory + '/process-changed-mods.log', failed_changes_cache_dir, temp_dir)
-    except:
+    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_yindex_elasticsearch.json')) as f:
+        initialize_body_yindex = json.load(f)
+    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_module_elasticsearch.json')) as f:
+        initialize_body_modules = json.load(f)
+
+    LOGGER.info('Creating Elasticsearch indices')
+    es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
+    es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+
+    logging.getLogger('elasticsearch').setLevel(logging.ERROR)
+
+    backup_cache_files(delete_cache_path)
+    backup_cache_files(changes_cache_path)
+    os.unlink(lock_file)
+
+    if delete_cache:
+        for module in delete_cache:
+            name, rev_org = module.split('@')
+            revision, organization = rev_org.split('/')
+            revision = validate_revision(revision)
+
+            module = {
+                'name': name,
+                'revision': revision,
+                'organization': organization
+            }
+            delete_from_indices(es, module, LOGGER)
+
+    if changes_cache:
+        recursion_limit = sys.getrecursionlimit()
+        sys.setrecursionlimit(50000)
+        x = 0
+        try:
+            for module_key, module_path in changes_cache.items():
+                x += 1
+                name, rev_org = module_key.split('@')
+                revision, organization = rev_org.split('/')
+                revision = validate_revision(revision)
+                name_revision = '{}@{}'.format(name, revision)
+
+                module = {
+                    'name': name,
+                    'revision': revision,
+                    'organization': organization,
+                    'path': module_path
+                }
+                LOGGER.info('yindex on module {}. module {} out of {}'.format(name_revision, x, len(changes_cache)))
+                check_file_availability(module, LOGGER)
+
+                try:
+                    build_indices(es, module, save_file_dir, json_ytree, threads, LOGGER)
+                except Exception:
+                    LOGGER.exception('Problem while processing module {}'.format(module_key))
+                    try:
+                        with open(failed_changes_cache_path, 'r') as f:
+                            failed_modules = json.load(f)
+                    except (FileNotFoundError, json.decoder.JSONDecodeError):
+                        failed_modules = {}
+                    if module_key not in failed_modules:
+                        failed_modules[module_key] = module_path
+                    with open(failed_changes_cache_path, 'w') as f:
+                        json.dump(failed_modules, f)
+        except Exception:
+            sys.setrecursionlimit(recursion_limit)
+            os.unlink(lock_file_cron)
+            LOGGER.exception('Error while running build_yindex.py script')
+            LOGGER.info('Job failed execution')
+            sys.exit()
+
         sys.setrecursionlimit(recursion_limit)
-        os.unlink(lock_file_cron)
-        LOGGER.exception('Error while running build_yindex.py script')
-        LOGGER.info('Job failed execution')
-        sys.exit()
-
-    sys.setrecursionlimit(recursion_limit)
     os.unlink(lock_file_cron)
     LOGGER.info('Job finished successfully')

@@ -252,7 +252,7 @@ class Receiver:
             body_to_send = prepare_to_indexing(self._yangcatalog_api_prefix, deleted_modules,
                                                self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
             if body_to_send.get('modules-to-delete'):
-                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
+                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
                                  self._lock_file)
         return self._response_type[1]
 
@@ -376,7 +376,7 @@ class Receiver:
                                                self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
 
             if len(body_to_send) > 0:
-                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_dir, self._delete_cache_dir,
+                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
                                  self._lock_file)
         if len(modules_not_deleted) == 0:
             return self._response_type[1]
@@ -436,8 +436,8 @@ class Receiver:
         self._is_uwsgi = config.get('General-Section', 'uwsgi')
         self._rabbitmq_host = config.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         self._rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
-        self._changes_cache_dir = config.get('Directory-Section', 'changes-cache')
-        self._delete_cache_dir = config.get('Directory-Section', 'delete-cache')
+        self._changes_cache_path = config.get('Directory-Section', 'changes-cache')
+        self._delete_cache_path = config.get('Directory-Section', 'delete-cache')
         self._lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
         rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')

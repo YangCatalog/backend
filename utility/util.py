@@ -18,7 +18,6 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import datetime
 import fnmatch
 import json
 import logging
@@ -29,7 +28,9 @@ import sys
 import time
 import typing as t
 import warnings
+from datetime import datetime
 
+import dateutil.parser
 import requests
 from Crypto.Hash import HMAC, SHA
 from elasticsearch import Elasticsearch
@@ -138,18 +139,18 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_to_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_dir: str, delete_cache_dir: str, lock_file: str):
+def send_to_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_path: str, delete_cache_path: str, lock_file: str):
     """
     Creates a json file that will be used for Elasticsearch indexing.
 
     Arguments:
         :param body_to_send:        (dict) body that needs to be indexed
         :param LOGGER:              (logging.Logger) Logger used for logging
-        :param changes_cache_dir:   (str) path to file containing module to be indexed (can be empty)
-        :param delete_cache_dir:    (str) path to file containing module to be removed from indexing (can be empty)
+        :param changes_cache_path   (str) path to file containing module to be indexed (can be empty)
+        :param delete_cache_path    (str) path to file containing module to be removed from indexing (can be empty)
         :param lock_file:           (str) path to file working as a lock file. If exists script has to wait until removed
     """
-    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(changes_cache_dir, delete_cache_dir))
+    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(changes_cache_path, delete_cache_path))
     while os.path.exists(lock_file):
         time.sleep(10)
     try:
@@ -160,11 +161,11 @@ def send_to_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_d
 
         changes_cache = dict()
         delete_cache = []
-        if os.path.exists(changes_cache_dir) and os.path.getsize(changes_cache_dir) > 0:
-            with open(changes_cache_dir, 'r') as f:
+        if os.path.exists(changes_cache_path) and os.path.getsize(changes_cache_path) > 0:
+            with open(changes_cache_path, 'r') as f:
                 changes_cache = json.load(f)
-        if os.path.exists(delete_cache_dir) and os.path.getsize(delete_cache_dir) > 0:
-            with open(delete_cache_dir, 'r') as f:
+        if os.path.exists(delete_cache_path) and os.path.getsize(delete_cache_path) > 0:
+            with open(delete_cache_path, 'r') as f:
                 delete_cache = json.load(f)
 
         if body_to_send.get('modules-to-index') is None:
@@ -183,10 +184,10 @@ def send_to_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_d
             if not exists:
                 delete_cache.append(mname)
 
-        with open(changes_cache_dir, 'w') as f:
+        with open(changes_cache_path, 'w') as f:
             json.dump(changes_cache, f, indent=2)
 
-        with open(delete_cache_dir, 'w') as f:
+        with open(delete_cache_path, 'w') as f:
             json.dump(delete_cache, f, indent=2)
     except Exception as e:
         LOGGER.exception('Problem while sending modules to indexing')
@@ -347,7 +348,7 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         f.write(json.dumps(file_content, indent=4))
 
 
-def fetch_module_by_schema(schema: str, dst_path: str):
+def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
     """ Fetch content of yang module from Github and store it to the file.
 
     Arguments:
@@ -474,10 +475,29 @@ def get_list_of_backups(directory: str) -> t.List[str]:
         try:
             i = name.index('.')
             root = name[:i]
-            datetime.datetime.strptime(root, backup_date_format)
+            datetime.strptime(root, backup_date_format)
             if os.stat(os.path.join(directory, name)).st_size == 0:
                 continue
             dates.append(name)
         except ValueError:
             continue
     return sorted(dates)
+
+
+def validate_revision(revision: str) -> str:
+    """ Validate if revision has correct format and return default 1970-01-01 if not.
+
+    Argument:
+        :param revision     (str) Revision to validate
+    """
+    if '02-29' in revision:
+        revision = revision.replace('02-29', '02-28')
+
+    try:
+        dateutil.parser.parse(revision)
+        year, month, day = map(int, revision.split('-'))
+        revision = datetime(year, month, day).date().isoformat()
+    except (ValueError, dateutil.parser._parser.ParserError):
+        revision = '1970-01-01'
+
+    return revision
