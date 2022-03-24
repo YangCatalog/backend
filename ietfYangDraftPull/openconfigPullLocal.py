@@ -31,7 +31,6 @@ from glob import glob
 
 import requests
 import utility.log as log
-from parseAndPopulate.fileHasher import FileHasher
 from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -88,7 +87,6 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
-    cache_dir = config.get('Directory-Section', 'cache')
     LOGGER = log.get_logger('openconfigPullLocal', '{}/jobs/openconfig-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job openconfig pull request local')
 
@@ -98,8 +96,6 @@ def main(scriptConf=None):
         separator = '/'
         suffix = 'api'
     yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_ip, separator, suffix)
-
-    fileHasher = FileHasher('backend_files_modification_hashes', cache_dir, True, log_directory)
 
     commit_author = {
         'name': config_name,
@@ -113,9 +109,6 @@ def main(scriptConf=None):
             basename = os.path.basename(yang_file)
             name = basename.split('.')[0].split('@')[0]
             revision = resolve_revision(yang_file)
-            should_parse = fileHasher.should_parse_sdo_module(yang_file)
-            if not should_parse:
-                continue
             path = yang_file.split('{}/'.format(repo.localdir))[-1]
             module = {
                 'generated-from': 'not-applicable',

@@ -105,7 +105,6 @@ class Receiver:
         script_conf.args.__setattr__('sdo', sdo)
         script_conf.args.__setattr__('api', api)
         script_conf.args.__setattr__('dir', direc)
-        script_conf.args.__setattr__('force_parsing', True)
         if self._notify_indexing:
             script_conf.args.__setattr__('notify_indexing', True)
 
