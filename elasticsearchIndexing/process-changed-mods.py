@@ -26,6 +26,7 @@ import sys
 
 import requests
 from elasticsearch import Elasticsearch
+from elasticsearch.exceptions import AuthorizationException
 from utility import log, repoutil
 from utility.create_config import create_config
 from utility.util import fetch_module_by_schema, validate_revision
@@ -146,8 +147,21 @@ if __name__ == '__main__':
         initialize_body_modules = json.load(f)
 
     LOGGER.info('Creating Elasticsearch indices')
-    es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
-    es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+    try:
+        es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
+        es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+    except AuthorizationException:
+        # Reference: https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
+        for index in es.indices.get_alias('*'):
+            read_only_query = {'index': {'blocks': {'read_only_allow_delete': 'false'}}}
+            es.indices.put_settings(index=index, body=read_only_query)
+        es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
+        es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+    except Exception:
+        LOGGER.exception('Error while creating ES indices')
+        os.unlink(lock_file)
+        os.unlink(lock_file_cron)
+        sys.exit()
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
