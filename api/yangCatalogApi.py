@@ -34,10 +34,10 @@ Documentation for all these endpoints can be found in
 website
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import collections
 import configparser
@@ -56,12 +56,13 @@ from datetime import datetime, timedelta
 from threading import Lock
 
 import requests
+import flask
 from elasticsearch import Elasticsearch
 from flask import (Config, Flask, Response, abort, jsonify, make_response,
                    redirect, request)
 from flask.logging import default_handler
 from flask_cors import CORS
-from flask_oidc import discovery
+from flask_pyoidc.user_session import UserSession
 from redis import Redis
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
@@ -70,7 +71,7 @@ from utility.redisUsersConnection import RedisUsersConnection
 import api.authentication.auth as auth
 from api.sender import Sender
 from api.views.admin.admin import bp as admin_bp
-from api.views.admin.admin import oidc
+from api.views.admin.admin import ietf_auth
 from api.views.errorHandlers.errorHandler import bp as error_handling_bp
 from api.views.healthCheck.healthCheck import bp as healthcheck_bp
 from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
@@ -130,7 +131,6 @@ class MyFlask(Flask):
         return mapping
 
     def init_config(self):
-        self.config['OIDC'] = oidc
         self.config['LOCK-UWSGI-CACHE1'] = threading.Lock()
         self.config['LOCK-UWSGI-CACHE2'] = threading.Lock()
 
@@ -219,18 +219,16 @@ class MyFlask(Flask):
         if not 'admin' in request.path:
             app.logger.info(request.path)
         if 'api/admin' in request.path and not 'api/admin/healthcheck' in request.path and not 'api/admin/ping' in request.path:
-            app.logger.info('User logged in {}'.format(self.config.oidc.user_loggedin))
-            if self.config.g_is_prod and not self.config.oidc.user_loggedin and 'login' not in request.path:
+            logged_in = UserSession(flask.session, 'default').is_authenticated()
+            app.logger.info('User logged in {}'.format(logged_in))
+            if self.config.g_is_prod and not logged_in and 'login' not in request.path:
                 return abort(401, description='not yet Authorized')
 
     def create_response_only_latest_revision(self, response):
         if request.args.get('latest-revision'):
             if 'True' == request.args.get('latest-revision'):
                 if response.data:
-                    if sys.version_info >= (3, 4):
-                        decoded_string = response.data.decode(encoding='utf-8', errors='strict')
-                    else:
-                        decoded_string = response.data
+                    decoded_string = response.data.decode(encoding='utf-8', errors='strict')
                     json_data = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(decoded_string)
                 else:
                     return response
@@ -434,78 +432,9 @@ class MyFlask(Flask):
 
 app = MyFlask(__name__)
 ac = app.config
-ac['OIDC_CLIENT_SECRETS'] = 'secrets_oidc.json'
-ac['OIDC_COOKIE_SECURE'] = False
-ac['OIDC_CALLBACK_ROUTE'] = '/api/admin/ping'
-ac['OIDC_SCOPES'] = ['openid', 'email', 'profile']
-ac['OIDC_ID_TOKEN_COOKIE_NAME'] = 'oidc_token'
 
-
-def create_secrets(discovered_secrets: dict):
-    """
-    Create secrets object and fill with actual user information.
-    Dump created secrets object into secrets_oidc.json file.
-    :param discovered_secrets:  (dict) Information about the provided OpenID Provider
-
-    :return: Returns created secrets object filled with information
-    :rtype: dict
-    """
-    secrets = dict()
-    secrets['web'] = dict()
-    secrets['web']['auth_uri'] = discovered_secrets['authorization_endpoint']
-    secrets['web']['token_uri'] = discovered_secrets['token_endpoint']
-    secrets['web']['userinfo_uri'] = discovered_secrets['userinfo_endpoint']
-    secrets['web']['redirect_uris'] = ac.w_redirect_oidc
-    secrets['web']['issuer'] = ac.w_issuer
-    secrets['web']['client_secret'] = ac.s_client_secret
-    secrets['web']['client_id'] = ac.s_client_id
-
-    with open('secrets_oidc.json', 'w') as f:
-        json.dump(secrets, f)
-
-    return secrets
-
-
-def retry_OP_discovery():
-    """
-    Try to get information about the provided OpenID Provider in loop.
-    This method is executed in two scenarios:
-    I. discovered_secrets were loaded from Redis, because getting from OpenID Provider failed
-    II. discovered_secrets is None because getting from OpenID Provider failed and Redis does not yet contain discovered_secrets
-    """
-    while True:
-        try:
-            discovered_secrets = discovery.discover_OP_information(ac.w_issuer)
-            create_secrets(discovered_secrets)
-            ac.redis.set('secrets-oidc', json.dumps(discovered_secrets))
-            app.logger.info('OpenID Provider information discovered successfully')
-            break
-        except Exception:
-            app.logger.warning('OpenID Provider information discovery failed')
-            time.sleep(30)
-    return True
-
-
-discovered = False
-discovered_secrets = None
-try:
-    discovered_secrets = discovery.discover_OP_information(ac.w_issuer)
-    app.logger.info('OpenID Provider information discovered successfully')
-    ac.redis.set('secrets-oidc', json.dumps(discovered_secrets))
-    discovered = True
-    app.logger.debug('Newly OpenID Provider discovered information saved to cache')
-except Exception:
-    data = ac.redis.get('secrets-oidc')
-
-    if data is not None:
-        data = data.decode('utf-8')
-        discovered_secrets = json.loads(data)
-        app.logger.info('OpenID Provider information loaded from cache')
-
-if discovered_secrets is not None:
-    create_secrets(discovered_secrets)
-
-ac.oidc.init_app(app)
+ac['OIDC_REDIRECT_URI'] = os.path.join(ac.yangcatalog_api_prefix, 'admin/ping')
+ietf_auth.init_app(app)
 
 # Register blueprint(s)
 app.register_blueprint(admin_bp)
@@ -683,7 +612,3 @@ def load_app_first_time():
 
 
 load_app_first_time()
-if not discovered:
-    discovery_thread = threading.Thread(target=retry_OP_discovery, daemon=True)
-    discovery_thread.start()
-    discovered = True
