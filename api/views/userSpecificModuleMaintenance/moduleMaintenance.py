@@ -297,7 +297,13 @@ def add_modules():
             if e.errno != errno.EEXIST:
                 raise
         assert repo[repo_url].localdir, 'localdir should be set either from a clone or from a load'
-        shutil.copy(os.path.join(repo[repo_url].localdir, module_path), save_to)
+        try:
+            shutil.copy(os.path.join(repo[repo_url].localdir, module_path), save_to)
+        except FileNotFoundError:
+            app.logger.exception('Problem with file {}'.format(module_path))
+            warning.append(
+                '{} does not exist'.format(os.path.join(repo_url, 'blob', source_file['commit-hash'], module_path)))
+            continue
 
         tree_created = True
         organization_parsed = ''
