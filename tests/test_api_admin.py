@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Richard Zilincik"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "richard.zilincik@pantheon.tech"
+__author__ = 'Richard Zilincik'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'richard.zilincik@pantheon.tech'
 
 import json
 import os
@@ -23,11 +23,9 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-import flask_oidc
 from redis import RedisError
 from werkzeug.exceptions import HTTPException
 
-import api.authentication.auth as auth
 import api.views.admin.admin as admin
 from api.yangCatalogApi import app
 from utility.redisUsersConnection import RedisUsersConnection
