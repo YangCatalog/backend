@@ -139,7 +139,7 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_to_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_path: str, delete_cache_path: str, lock_file: str):
+def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_path: str, delete_cache_path: str, lock_file: str):
     """
     Creates a json file that will be used for Elasticsearch indexing.
 
@@ -196,111 +196,84 @@ def send_to_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_p
     os.unlink(lock_file)
 
 
-def prepare_to_indexing(yc_api_prefix: str, modules_to_index: t.Union[str, list], LOGGER: logging.Logger, save_file_dir: str, temp_dir: str,
-                        sdo_type: bool = False, delete: bool = False, from_api: bool = True, force_indexing: bool = False):
+def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, LOGGER: logging.Logger):
+    for mod in modules_to_delete:
+        name, revision_organization = mod.split('@')
+        revision = revision_organization.split('/')[0]
+        path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
+        data = {'input': {'dependents': [{'name': name}]}}
+
+        response = requests.post('{}search-filter'.format(yc_api_prefix), json=data)
+        if response.status_code == 200:
+            data = response.json()
+            modules = data['yang-catalog:modules']['module']
+            for mod in modules:
+                redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
+                redisConnection = RedisConnection()
+                redisConnection.delete_dependent(redis_key, name)
+        if os.path.exists(path_to_delete_local):
+            os.remove(path_to_delete_local)
+
+    if modules_to_delete:
+        post_body = {'modules-to-delete': modules_to_delete}
+        LOGGER.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))
+        mf = messageFactory.MessageFactory()
+        mf.send_removed_yang_files(json.dumps(post_body, indent=4))
+
+    return post_body
+
+
+def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: logging.Logger,
+                            save_file_dir: str, force_indexing: bool = False):
     """ Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
-    modules. Other situation can be if we need to delete module. In this case we are sending
-    list of modules that need to be deleted.
+    modules.
 
     Arguments:
-        :param yc_api_prefix        (str) prefix for sending request to api
-        :param modules_to_index     (json file) prepare.json file generated while parsing
+        :param yc_api_prefix        (str) prefix for sending request to API
+        :param modules_to_index     (str) path to the prepare.json file generated while parsing
         :param LOOGER               (logging.Logger) formated logger with the specified name
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
-        :param temp_dir             (str) path to temporary directory
-        :param sdo_type             (bool) Whether or not it is sdo that needs to be sent
-        :param delete               (bool) Whether or not we are deleting module
-        :param from_api             (bool) Whether or not api sent the request to index.
         :param force_indexing       (bool) Whether or not we should force indexing even if module exists in cache.
     """
     mf = messageFactory.MessageFactory()
-    if delete:
-        post_body = {'modules-to-delete': modules_to_index}
+    with open(modules_to_index, 'r') as f:
+        sdos_json = json.load(f)
+        LOGGER.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
+    post_body = {}
+    load_new_files_to_github = False
+    for module in sdos_json.get('module', []):
+        url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
+                                                 module['name'], module['revision'], module['organization'])
+        response = requests.get(url, headers=json_headers)
+        code = response.status_code
 
-        mf.send_removed_yang_files(json.dumps(post_body, indent=4))
-        for mod in modules_to_index:
-            name, revision_organization = mod.split('@')
-            revision = revision_organization.split('/')[0]
-            path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
-            data = {'input': {'dependents': [{'name': name}]}}
-
-            response = requests.post('{}search-filter'.format(yc_api_prefix), json=data)
-            if response.status_code == 200:
-                data = response.json()
-                modules = data['yang-catalog:modules']['module']
-                for mod in modules:
-                    redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
-                    redisConnection = RedisConnection()
-                    redisConnection.delete_dependent(redis_key, name)
-            if os.path.exists(path_to_delete_local):
-                os.remove(path_to_delete_local)
-    else:
-        with open(modules_to_index, 'r') as f:
-            sdos_json = json.load(f)
-            LOGGER.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
-        post_body = {}
-        load_new_files_to_github = False
-        if from_api:
-            if sdo_type:
-                prefix = 'sdo/'
-            else:
-                prefix = 'vendor/'
-
-            for module in sdos_json.get('module', []):
-                url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
-                                                         module['name'], module['revision'], module['organization'])
-                response = requests.get(url, headers=json_headers)
-                code = response.status_code
-
-                in_es = False
-                in_redis = code == 200 or code == 201 or code == 204
-                if in_redis:
-                    es_result = get_module_from_es(module.get('name'), module.get('revision'))
-                    in_es = False if es_result == {} else es_result['hits']['total'] != 0
-
-                if force_indexing or not in_es or not in_redis:
-                    if module.get('schema'):
-                        path = '{}{}'.format(prefix, module['schema'].split('githubusercontent.com/')[1])
-                        path = os.path.abspath('{}/{}'.format(temp_dir, path))
-                    else:
-                        path = 'module does not exist'
-                    key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
-                    post_body[key] = path
+        in_es = False
+        in_redis = code == 200 or code == 201 or code == 204
+        if in_redis:
+            es_result = get_module_from_es(module.get('name'), module.get('revision'))
+            in_es = False if es_result == {} else es_result['hits']['total'] != 0
         else:
-            for module in sdos_json.get('module', []):
-                url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
-                                                         module['name'], module['revision'], module['organization'])
-                response = requests.get(url, headers=json_headers)
-                code = response.status_code
+            load_new_files_to_github = True
 
-                in_es = False
-                in_redis = code == 200 or code == 201 or code == 204
-                if in_redis:
-                    es_result = get_module_from_es(module.get('name'), module.get('revision'))
-                    in_es = False if es_result == {} else es_result['hits']['total'] != 0
-                else:
-                    load_new_files_to_github = True
+        if force_indexing or not in_es or not in_redis:
+            path = '{}/{}@{}.yang'.format(save_file_dir, module.get('name'), module.get('revision'))
+            key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
+            post_body[key] = path
 
-                if force_indexing or not in_es or not in_redis:
-                    path = '{}/{}@{}.yang'.format(save_file_dir, module.get('name'), module.get('revision'))
-                    key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
-                    post_body[key] = path
-
-        if len(post_body) > 0:
-            post_body = {'modules-to-index': post_body}
-            LOGGER.debug('Modules to index:\n{}'.format(json.dumps(post_body, indent=2)))
-        if len(post_body) > 0 and not force_indexing:
-            mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
-        if load_new_files_to_github:
-            try:
-                LOGGER.info('Calling draftPull.py script')
-                module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
-                submodule = getattr(module, 'draftPull')
-                submodule.main()
-            except Exception:
-                LOGGER.exception('Error occurred while running draftPull.py script')
+    if post_body:
+        post_body = {'modules-to-index': post_body}
+        LOGGER.debug('Modules to index:\n{}'.format(json.dumps(post_body, indent=2)))
+        mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
+    if load_new_files_to_github:
+        try:
+            LOGGER.info('Calling draftPull.py script')
+            module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
+            submodule = getattr(module, 'draftPull')
+            submodule.main()
+        except Exception:
+            LOGGER.exception('Error occurred while running draftPull.py script')
     return post_body
 
 

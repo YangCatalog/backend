@@ -55,7 +55,7 @@ from utility import messageFactory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
-from utility.util import prepare_to_indexing, send_to_indexing
+from utility.util import prepare_for_es_removal, send_for_es_indexing
 
 
 class Receiver:
@@ -93,7 +93,6 @@ class Receiver:
         tree_created = arguments[-1] == 'True'
         sdo = '--sdo' in arguments
         api = '--api' in arguments
-        data_type = 'sdo' if sdo else 'vendor'
         i = arguments.index('--dir')
         direc = arguments[i+1]
 
@@ -107,6 +106,7 @@ class Receiver:
         script_conf.args.__setattr__('dir', direc)
         if self._notify_indexing:
             script_conf.args.__setattr__('notify_indexing', True)
+            script_conf.args.__setattr__('force_indexing', True)
 
         self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
             script_conf.args.__dict__))
@@ -116,18 +116,7 @@ class Receiver:
             self.LOGGER.exception('Problem while running populate script')
             return '{}#split#Server error while running populate script'.format(self._response_type[0]), all_modules
 
-        try:
-            os.makedirs(os.path.join(self.temp_dir, data_type))
-        except OSError as e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                return ('{}#split#Server error - could not create {} directory'
-                        .format(self._response_type[0], data_type),
-                        all_modules)
-
         if tree_created:
-            # NOTE: is this ever used anywhere?
-            self.copytree(direc, os.path.join(self.temp_dir, data_type))
             with open(os.path.join(direc, 'prepare.json'), 'r') as f:
                 all_modules.update(json.load(f))
 
@@ -249,11 +238,11 @@ class Receiver:
         response = self.redisConnection.delete_vendor(redis_vendor_key)
 
         if self._notify_indexing:
-            body_to_send = prepare_to_indexing(self._yangcatalog_api_prefix, deleted_modules,
-                                               self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
+            body_to_send = prepare_for_es_removal(self._yangcatalog_api_prefix, deleted_modules,
+                                                  self._save_file_dir, self.LOGGER)
             if body_to_send.get('modules-to-delete'):
-                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
-                                 self._lock_file)
+                send_for_es_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
+                                     self._lock_file)
         return self._response_type[1]
 
     def iterate_in_depth(self, value: dict, modules_keys: t.Set[str]):
@@ -372,12 +361,12 @@ class Receiver:
             modules_to_index.append(redis_key)
 
         if self._notify_indexing:
-            body_to_send = prepare_to_indexing(self._yangcatalog_api_prefix, modules_to_index,
-                                               self.LOGGER, self._save_file_dir, self.temp_dir, delete=True)
+            body_to_send = prepare_for_es_removal(self._yangcatalog_api_prefix, modules_to_index,
+                                                  self._save_file_dir, self.LOGGER)
 
             if len(body_to_send) > 0:
-                send_to_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
-                                 self._lock_file)
+                send_for_es_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
+                                     self._lock_file)
         if len(modules_not_deleted) == 0:
             return self._response_type[1]
         else:
