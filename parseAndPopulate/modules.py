@@ -20,9 +20,11 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import errno
+import filecmp
 import json
 import os
 import re
+import shutil
 import sys
 import time
 import typing as t
@@ -174,10 +176,12 @@ class Module:
 
     def _save_file(self, save_file_dir):
         file_with_path = '{}/{}@{}.yang'.format(save_file_dir, self.name, self.revision)
-        if not os.path.exists(file_with_path):
-            with open(self._path, 'r', encoding='utf-8') as f:
-                with open(file_with_path, 'w', encoding='utf-8') as f2:
-                    f2.write(f.read())
+        try:
+            same = filecmp.cmp(self._path, file_with_path)
+            if not same:
+                shutil.copy(self._path, file_with_path)
+        except FileNotFoundError:
+            shutil.copy(self._path, file_with_path)
 
     def _resolve_semver(self):
         yang_file = open(self._path, encoding='utf-8')

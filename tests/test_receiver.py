@@ -118,7 +118,7 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.private_dir = os.path.join(self.resources_path, 'html/private')
 
-        with open(os.path.join(self.resources_path ,'receiver_tests_data.json'), 'r') as f:
+        with open(os.path.join(self.resources_path, 'receiver_tests_data.json'), 'r') as f:
             self.test_data = json.load(f)
 
     def setUp(self):
@@ -255,7 +255,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(response, 'Failed#split#Server error while running populate script')
         self.assertEqual(all_modules, {})
 
-    @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
+    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -282,7 +282,7 @@ class TestReceiverClass(TestReceiverBaseClass):
             dependents_list = ['{}@{}'.format(dep['name'], dep.get('revision')) for dep in module.get('dependents', [])]
             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
 
-    @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
+    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_cannot_delete(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -306,7 +306,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(response, 'Partially done#split#modules-not-deleted:yang-submodule,2020-02-01,ietf')
         self.assertIn(deleted_module_key, all_modules)
 
-    @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
+    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_module_and_its_dependent(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -341,7 +341,7 @@ class TestReceiverClass(TestReceiverBaseClass):
             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
             self.assertNotIn('yang-module@2020-01-01/ietf', dependents_list)
 
-    @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
+    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_empty_list_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -352,7 +352,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         self.assertEqual(response, 'Finished successfully')
 
-    @ mock.patch('api.receiver.prepare_to_indexing', mock.MagicMock)
+    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_incorrect_arguments_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -382,7 +382,7 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
         ('fujitsu', 'None', 'None', 'None'),
         ('huawei', 'ne5000e', 'None', 'None')
     )
-    @ mock.patch('api.receiver.prepare_to_indexing')
+    @ mock.patch('api.receiver.prepare_for_es_removal')
     def test_process_vendor_deletion(self, params, indexing_mock: mock.MagicMock):
         indexing_mock.return_value = {}
         vendor, platform, software_version, software_flavor = params

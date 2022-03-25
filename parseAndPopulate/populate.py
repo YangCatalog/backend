@@ -46,7 +46,7 @@ from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
-from utility.util import prepare_to_indexing, send_to_indexing
+from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import \
@@ -246,9 +246,8 @@ def main(scriptConf=None):
     body_to_send = {}
     if args.notify_indexing:
         LOGGER.info('Sending files for indexing')
-        body_to_send = prepare_to_indexing(yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
-                                           LOGGER, args.save_file_dir, temp_dir, sdo_type=args.sdo, from_api=args.api,
-                                           force_indexing=args.force_indexing)
+        body_to_send = prepare_for_es_indexing(yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
+                                               LOGGER, args.save_file_dir, force_indexing=args.force_indexing)
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open(os.path.join(json_dir, 'prepare.json')) as data_file:
@@ -270,8 +269,8 @@ def main(scriptConf=None):
         redisConnection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
-        send_to_indexing(body_to_send, LOGGER, scriptConf.changes_cache_path, scriptConf.delete_cache_path,
-                         scriptConf.lock_file)
+        send_for_es_indexing(body_to_send, LOGGER, scriptConf.changes_cache_path, scriptConf.delete_cache_path,
+                             scriptConf.lock_file)
     if modules:
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
                                                        args=(args.credentials, yangcatalog_api_prefix,))
