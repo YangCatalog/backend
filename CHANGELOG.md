@@ -2,6 +2,23 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.1.0 - 2022-03-28
+
+  * Directory structure for modules sent via API changed [#464](https://github.com/YangCatalog/backend/issues/464)
+  * Elasticsearch AuthorizationException error handled [#462](https://github.com/YangCatalog/backend/issues/462)
+  * User notified when module sent via API does not exist [#463](https://github.com/YangCatalog/backend/issues/463)
+  * Elasticsearch indexing pipeline updated [#462](https://github.com/YangCatalog/backend/issues/462)
+  * Files hashing for Openconfig modules enabled [#461](https://github.com/YangCatalog/backend/issues/461)
+  * Various updates to the scripts in the ietfYangDraftPull module [#460](https://github.com/YangCatalog/backend/issues/460)
+  * Various changes after YangModels/yang default branch rename [#459](https://github.com/YangCatalog/backend/issues/459)
+  * Tests modified to run locally [#451](https://github.com/YangCatalog/backend/issues/451)
+  * DirPaths TypedDict created for passing paths to the dirs as single argument
+  * parseAndPopulate pipeline refactored completely
+  * User reminder email formatted as HTML [#443](https://github.com/YangCatalog/backend/issues/443)
+  * statistics.py script now also processing ETSI and IANA modules
+  * JSON trees will no longer be stored with indentation [#458](https://github.com/YangCatalog/backend/issues/458)
+  * YANG tree: show_node_path attribute added also for nodes [yangcatalog-ui #43](https://github.com/YangCatalog/yangcatalog-ui/issues/43)
+
 * ##### v5.0.0 - 2022-02-02
 
   * Integrity checker script rework [#154](https://github.com/YangCatalog/backend/issues/154)
