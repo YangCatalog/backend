@@ -282,7 +282,10 @@ class VendorGrouping(ModuleGrouping):
         if not self.api:
             self._load_yangmodels_repo()
             self.submodule_name = self._check_if_submodule()
-            self.commit_hash = self.repo.get_commit_hash('master')
+            branch = 'main'
+            if self.submodule_name:
+                branch = 'master'
+            self.commit_hash = self.repo.get_commit_hash(branch=branch)
             metadata_path = os.path.join(self.directory, 'platform-metadata.json')
             if os.path.isfile(metadata_path):
                 LOGGER.info('Parsing a platform-metadata.json file')

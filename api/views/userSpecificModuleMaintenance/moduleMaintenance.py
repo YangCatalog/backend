@@ -287,7 +287,7 @@ def add_modules():
             repo[repo_url] = get_repo(repo_url, owner, repo_name)
 
         # needed to later construct the schema
-        source_file['commit-hash'] = repo[repo_url].get_commit_hash(source_file.get('branch'))
+        source_file['commit-hash'] = repo[repo_url].get_commit_hash(branch=source_file.get('branch', 'master'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
         try:
@@ -433,7 +433,7 @@ def add_vendors():
             repo[repo_url] = get_repo(repo_url, owner, repo_name)
 
         # needed to later construct the schema
-        module_list_file['commit-hash'] = repo[repo_url].get_commit_hash(module_list_file.get('branch'))
+        module_list_file['commit-hash'] = repo[repo_url].get_commit_hash(branch=module_list_file.get('branch', 'master'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
