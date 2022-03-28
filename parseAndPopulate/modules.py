@@ -239,7 +239,7 @@ class Module:
                                         repo_name = repo.get_repo_dir().split('.git')[0]
                                         suffix = suffix.replace('{}/'.format(submodule.name), '')
 
-                                branch = repo.get_commit_hash(suffix)
+                                branch = repo.get_commit_hash(suffix, 'main')
                                 schema = os.path.join(github_raw, owner_name, repo_name, branch, suffix)
 
                                 dependency.schema = schema
