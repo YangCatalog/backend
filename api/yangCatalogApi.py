@@ -434,7 +434,8 @@ app = MyFlask(__name__)
 ac = app.config
 
 ac['OIDC_REDIRECT_URI'] = os.path.join(ac.yangcatalog_api_prefix, 'admin/ping')
-ietf_auth.init_app(app)
+if ac.g_is_prod:
+    ietf_auth.init_app(app)
 
 # Register blueprint(s)
 app.register_blueprint(admin_bp)
