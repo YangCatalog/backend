@@ -52,8 +52,7 @@ redirect_uris = config.get('Web-Section', 'redirect-oidc').split()
 issuer = config.get('Web-Section', 'issuer')
 my_uri = config.get('Web-Section', 'my-uri')
 
-client_metadata = ClientMetadata(client_id=client_id, client_secret=client_secret, redirect_uris=redirect_uris,
-                                 post_logout_redirect_uris=[os.path.join(my_uri, 'api/admin/logout')])
+client_metadata = ClientMetadata(client_id=client_id, client_secret=client_secret, redirect_uris=redirect_uris)
 provider_config = ProviderConfiguration(issuer=issuer, client_metadata=client_metadata)
 ietf_auth = OIDCAuthentication({'default': provider_config})
 
@@ -100,8 +99,9 @@ def login():
 
 
 @bp.route('/api/admin/logout', methods=['POST'])
-@ietf_auth.oidc_logout
 def logout():
+    flask.session['id_token'] = None
+    flask.session['last_authenticated'] = None
     return {'info': 'Success'}
 
 
