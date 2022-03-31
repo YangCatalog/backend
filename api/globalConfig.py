@@ -22,7 +22,6 @@ from threading import Lock
 
 import redis
 from elasticsearch import Elasticsearch
-from flask_oidc import OpenIDConnect
 from utility import log
 from utility.create_config import create_config
 
@@ -31,7 +30,6 @@ class YangCatalogApiGlobalConfig():
     loading = True
 
     def __init__(self):
-        self.oidc = OpenIDConnect()
         self.lock_uwsgi_cache1 = Lock()
         self.lock_uwsgi_cache2 = Lock()
         self.load_config()

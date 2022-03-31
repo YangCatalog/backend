@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import fnmatch
 import grp
@@ -33,13 +33,28 @@ from datetime import datetime
 from functools import wraps
 from pathlib import Path
 
-from flask import Blueprint, abort
+import flask
+from flask import abort, Blueprint, jsonify, redirect, request
 from flask import current_app as app
-from flask import jsonify, redirect, request
 from flask_cors import CORS
-from flask_oidc import OpenIDConnect
+from flask_pyoidc import OIDCAuthentication
+from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
+from flask_pyoidc.user_session import UserSession
 from redis import RedisError
 
+from utility.create_config import create_config
+
+
+config = create_config()
+client_id = config.get('Secrets-Section', 'client-id')
+client_secret = config.get('Secrets-Section', 'client-secret')
+redirect_uris = config.get('Web-Section', 'redirect-oidc').split()
+issuer = config.get('Web-Section', 'issuer')
+my_uri = config.get('Web-Section', 'my-uri')
+
+client_metadata = ClientMetadata(client_id=client_id, client_secret=client_secret, redirect_uris=redirect_uris)
+provider_config = ProviderConfiguration(issuer=issuer, client_metadata=client_metadata)
+ietf_auth = OIDCAuthentication({'default': provider_config})
 
 class YangCatalogAdminBlueprint(Blueprint):
 
@@ -51,7 +66,6 @@ class YangCatalogAdminBlueprint(Blueprint):
 
 bp = YangCatalogAdminBlueprint('admin', __name__)
 CORS(bp, supports_credentials=True)
-oidc = OpenIDConnect()
 
 
 @bp.before_request
@@ -79,23 +93,21 @@ def catch_db_error(f):
 @bp.route('/api/admin/login')
 @bp.route('/admin')
 @bp.route('/admin/login')
-@oidc.require_login
+@ietf_auth.oidc_auth('default')
 def login():
-    if oidc.user_loggedin:
-        return redirect('{}/admin/healthcheck'.format(ac.w_my_uri), code=302)
-    else:
-        abort(401, 'user not logged in')
+    return redirect('{}/admin/healthcheck'.format(ac.w_my_uri), code=302)
 
 
 @bp.route('/api/admin/logout', methods=['POST'])
 def logout():
-    oidc.logout()
+    flask.session['id_token'] = None
+    flask.session['last_authenticated'] = None
     return {'info': 'Success'}
 
 
 @bp.route('/api/admin/ping')
 def ping():
-    app.logger.info('ping {}'.format(oidc.user_loggedin))
+    app.logger.info('ping {}'.format(UserSession(flask.session, 'default').is_authenticated()))
     return {'info': 'Success'}
 
 
@@ -135,7 +147,7 @@ def delete_admin_file(direc):
 
 @bp.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    app.logger.info("Updating file on path {}".format(direc))
+    app.logger.info('Updating file on path {}'.format(direc))
 
     body = get_input(request.json)
     if 'data' not in body:
