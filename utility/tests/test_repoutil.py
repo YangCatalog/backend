@@ -167,8 +167,6 @@ class TestRepoutil(unittest.TestCase):
             reset_repo.git.reset('--hard',current_tip)
             reset_repo.git.push(force=True)
 
-        self.addCleanup(clean)
-
         f = open(os.path.join(repodir, 'README.md'),'a+')
         f.write('This is added to the end of README.md file')
         f.close()
@@ -180,11 +178,13 @@ class TestRepoutil(unittest.TestCase):
 
         push_repo.commit_all()
         push_repo.push()
-        out = subprocess.getoutput(status_command)
-        self.assertIn("Your branch is up to date with 'origin/master'.", out)
-        out = subprocess.getoutput('cd {} && git log -1 --decorate=short'.format(repodir))
-        self.assertIn('origin', out)
-        self.assertNotEqual(push_repo.get_commit_hash(), current_tip)
+        status = subprocess.getoutput(status_command)
+        log = subprocess.getoutput('cd {} && git log -1 --decorate=short'.format(repodir))
+        commit_hash = push_repo.get_commit_hash()
+        clean()
+        self.assertIn("Your branch is up to date with 'origin/master'.", status)
+        self.assertIn('origin', log)
+        self.assertNotEqual(commit_hash, current_tip)
 
     def test_del(self):
         self.assertTrue(os.path.exists(self.repo.local_dir))

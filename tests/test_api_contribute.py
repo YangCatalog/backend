@@ -701,17 +701,12 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor_git_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
-
-        def mock_clone(self):
-            raise GitCommandError('test')
-
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
         with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
             content = json.load(f)
         body = content.get('add_vendor')
-        with mock.patch.object(MockRepoUtil, 'clone', mock_clone):
-            result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
+        result = self.client.put('api/platforms', json=body, auth=('test', 'test'))
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
