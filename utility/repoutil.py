@@ -25,6 +25,7 @@ import tempfile
 import typing as t
 
 from git.cmd import Git
+from git.exc import InvalidGitRepositoryError
 from git.repo import Repo
 from gitdb.exc import BadName
 
@@ -163,6 +164,9 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
         :param repo_url    (str) url to Github repository
     """
     repo = (RepoUtil if 'yangmodels/yang' in repo_dir else ModifiableRepoUtil)(repo_url, clone=False)
-    repo.repo = Repo(repo_dir)
+    try:
+        repo.repo = Repo(repo_dir)
+    except InvalidGitRepositoryError:
+        raise InvalidGitRepositoryError(repo_dir)
     repo.local_dir = repo_dir
     return repo
