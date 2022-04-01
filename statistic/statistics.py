@@ -500,13 +500,15 @@ def main(scriptConf: ScriptConfig = None):
 
         # Openconfig is from different repo that s why we need models in github zero
         LOGGER.info('Cloning the repo')
-        repo = repoutil.RepoUtil('{}/openconfig/public'.format(github_url))
-        repo.clone(config_name, config_email)
+        repo = repoutil.ModifiableRepoUtil(
+            os.path.join(github_url, 'openconfig/public'),
+            clone_options={
+                'config_username': config_name,
+                'config_user_email': config_email
+            })
 
-        assert repo.localdir is not None
-        out = get_output(rootdir=os.path.join(repo.localdir, 'release/models'))
-        process_data(out, sdo_list, os.path.join(repo.localdir, 'release/models'), 'openconfig')
-        repo.remove()
+        out = get_output(rootdir=os.path.join(repo.local_dir, 'release/models'))
+        process_data(out, sdo_list, os.path.join(repo.local_dir, 'release/models'), 'openconfig')
 
         context = {'table_sdo': sdo_list,
                    'table_vendor': vendor_list,

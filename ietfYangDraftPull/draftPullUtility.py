@@ -38,6 +38,7 @@ import os
 import pwd
 import tarfile
 import time
+import typing as t
 from datetime import datetime
 
 import requests
@@ -120,13 +121,14 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger):
                         revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
                         if revision is None:
                             continue
+
+                    # Basic date extraction can fail if there are alphanumeric characters in the revision filename part
+                    year = int(revision.split('-')[0])
+                    month = int(revision.split('-')[1])
+                    day = int(revision.split('-')[2])
                     try:
-                        # Basic date extraction can fail if there are alphanumeric characters in the revision filename part
-                        year = int(revision.split('-')[0])
-                        month = int(revision.split('-')[1])
-                        day = int(revision.split('-')[2])
                         revisions.append(datetime(year, month, day))
-                    except Exception:
+                    except ValueError:
                         LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
                         if month == 2 and day == 29:
                             revisions.append(datetime(year, month, 28))
@@ -237,7 +239,8 @@ def update_forked_repository(yang_models: str, LOGGER: logging.Logger) -> None:
         LOGGER.exception('yang-catalog/yang repo might not be up-to-date')
 
 
-def clone_forked_repository(repourl: str, commit_author: dict, LOGGER: logging.Logger):
+def clone_forked_repository(repourl: str, commit_author: dict, LOGGER: logging.Logger) \
+        -> t.Optional[repoutil.ModifiableRepoUtil]:
     """ Try to clone forked repository. Repeat the cloning process several times if the attempt was not successful.
 
     Arguments:
@@ -250,10 +253,14 @@ def clone_forked_repository(repourl: str, commit_author: dict, LOGGER: logging.L
     repo_name = repourl.split('github.com/')[-1].split('.git')[0]
     while True:
         try:
-            repo = repoutil.RepoUtil(repourl)
             LOGGER.info('Cloning repository from: {}'.format(repourl))
-            repo.clone(commit_author['name'], commit_author['email'])
-            LOGGER.info('Repository cloned to local directory {}'.format(repo.localdir))
+            repo = repoutil.ModifiableRepoUtil(
+                repourl,
+                clone_options={
+                    'config_username': commit_author['name'],
+                    'config_user_email': commit_author['email']
+                })
+            LOGGER.info('Repository cloned to local directory {}'.format(repo.local_dir))
             break
         except GitCommandError:
             attempts -= 1

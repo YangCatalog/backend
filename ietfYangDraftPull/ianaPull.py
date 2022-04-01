@@ -98,11 +98,11 @@ def main(scriptConf=None):
         # call rsync to sync with rsync.iana.org::assignments/yang-parameters/
         subprocess.call(['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', iana_temp_path])
         draftPullUtility.set_permissions(iana_temp_path)
-        iana_standard_path = os.path.join(repo.localdir, 'standard/iana')
+        iana_standard_path = os.path.join(repo.local_dir, 'standard/iana')
         if not os.path.exists(iana_standard_path):
             os.makedirs(iana_standard_path)
         xml_path = os.path.join(iana_temp_path, 'yang-parameters.xml')
-        copy2(xml_path, '{}/standard/iana/yang-parameters.xml'.format(repo.localdir))
+        copy2(xml_path, '{}/standard/iana/yang-parameters.xml'.format(repo.local_dir))
 
         # Parse yang-parameters.xml file
         root = ET.parse(xml_path).getroot()
@@ -118,7 +118,7 @@ def main(scriptConf=None):
 
             if data.get('iana') == 'Y' and data.get('file'):
                 src = '{}/{}'.format(iana_temp_path, data.get('file'))
-                dst = '{}/standard/iana/{}'.format(repo.localdir, data.get('file'))
+                dst = '{}/standard/iana/{}'.format(repo.local_dir, data.get('file'))
                 copy2(src, dst)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(iana_standard_path))
@@ -163,12 +163,10 @@ def main(scriptConf=None):
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-        repo.remove()
         raise e
 
     # Remove tmp folder
     LOGGER.info('Removing tmp directory')
-    repo.remove()
 
     if len(messages) == 0:
         messages = [

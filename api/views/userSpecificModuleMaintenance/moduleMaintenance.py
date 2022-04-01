@@ -28,7 +28,7 @@ from api.authentication.auth import auth, hash_pw
 from flask import Blueprint, abort
 from flask import current_app as app
 from flask import request
-from git import GitCommandError
+from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
@@ -249,7 +249,7 @@ def add_modules():
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
-    repo: t.Dict[str, repoutil.RepoUtil] = {}
+    repos: t.Dict[str, repoutil.RepoUtil] = {}
     warning = []
     missing_msg = 'bad request - at least one module object is missing mandatory field {}'
     for module in module_list:
@@ -283,11 +283,11 @@ def add_modules():
 
         dir_in_repo = os.path.dirname(module_path)
         repo_url = os.path.join(github_url, owner, repo_name)
-        if repo_url not in repo:
-            repo[repo_url] = get_repo(repo_url, owner, repo_name)
+        if repo_url not in repos:
+            repos[repo_url] = get_repo(repo_url, owner, repo_name)
 
         # needed to later construct the schema
-        source_file['commit-hash'] = repo[repo_url].get_commit_hash(branch=source_file.get('branch', 'master'))
+        source_file['commit-hash'] = repos[repo_url].get_commit_hash(branch=source_file.get('branch', 'HEAD'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
         try:
@@ -296,9 +296,8 @@ def add_modules():
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        assert repo[repo_url].localdir, 'localdir should be set either from a clone or from a load'
         try:
-            shutil.copy(os.path.join(repo[repo_url].localdir, module_path), save_to)
+            shutil.copy(os.path.join(repos[repo_url].local_dir, module_path), save_to)
         except FileNotFoundError:
             app.logger.exception('Problem with file {}'.format(module_path))
             warning.append(
@@ -314,12 +313,12 @@ def add_modules():
         except:
             while True:
                 try:
-                    belongs_to = yangParser.parse(os.path.abspath(os.path.join(repo[repo_url].localdir, module_path))) \
+                    belongs_to = yangParser.parse(os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))) \
                         .search('belongs-to')[0].arg
                 except:
                     break
                 namespace = yangParser.parse(
-                    os.path.abspath('{}/{}/{}.yang'.format(repo[repo_url].localdir,
+                    os.path.abspath('{}/{}/{}.yang'.format(repos[repo_url].local_dir,
                                                            os.path.dirname(module_path), belongs_to))
                 ).search('namespace')[0].arg
                 organization_parsed = organization_by_namespace(namespace)
@@ -327,18 +326,12 @@ def add_modules():
         resolved_authorization = authorize_for_sdos(request, organization_sent, organization_parsed)
         if not resolved_authorization:
             shutil.rmtree(direc)
-            for key in repo:
-                if 'YangModels/yang' not in key:
-                    repo[key].remove()
             abort(401, description='Unauthorized for server unknown reason')
         if 'organization' in repr(resolved_authorization):
             warning.append('{} {}'.format(os.path.basename(module_path), resolved_authorization))
 
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
-    for key in repo:
-        if 'YangModels/yang' not in key:
-            repo[key].remove()
 
     arguments = ['POPULATE-MODULES', '--sdo', '--dir', direc, '--api',
                  '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
@@ -405,7 +398,7 @@ def add_vendors():
         if e.errno != errno.EEXIST:
             raise
 
-    repo = {}
+    repos: t.Dict[str, repoutil.RepoUtil] = {}
     missing_msg = 'bad request - at least one platform object is missing mandatory field {}'
     for platform in platform_list:
         module_list_file = platform.get('module-list-file')
@@ -429,27 +422,24 @@ def add_vendors():
         dir_in_repo = os.path.dirname(xml_path)
         repo_url = os.path.join(github_url, owner, repo_name)
 
-        if repo_url not in repo:
-            repo[repo_url] = get_repo(repo_url, owner, repo_name)
+        if repo_url not in repos:
+            repos[repo_url] = get_repo(repo_url, owner, repo_name)
 
         # needed to later construct the schema
-        module_list_file['commit-hash'] = repo[repo_url].get_commit_hash(branch=module_list_file.get('branch', 'master'))
+        module_list_file['commit-hash'] = repos[repo_url].get_commit_hash(branch=module_list_file.get('branch', 'HEAD'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
         try:
-            shutil.copytree(os.path.join(repo[repo_url].localdir, dir_in_repo), save_to,
+            shutil.copytree(os.path.join(repos[repo_url].local_dir, dir_in_repo), save_to,
                             ignore=shutil.ignore_patterns('*.json', '*.xml', '*.sh', '*.md', '*.txt', '*.bin'))
         except OSError:
             pass
         with open('{}/{}.json'.format(save_to, file_name.split('.')[0]), 'w') as f:
             json.dump(platform, f)
-        shutil.copy(os.path.join(repo[repo_url].localdir, module_list_file['path']), save_to)
+        shutil.copy(os.path.join(repos[repo_url].local_dir, module_list_file['path']), save_to)
         tree_created = True
 
-    for key in repo:
-        if 'YangModels/yang' not in key:
-            repo[key].remove()
     arguments = ['POPULATE-VENDORS', '--dir', direc, '--api',
                  '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
     job_id = ac.sender.send('#'.join(arguments))
@@ -577,15 +567,15 @@ def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
     if owner == 'YangModels' and repo_name == 'yang':
         app.logger.info('Using repo already downloaded from {}'.format(repo_url))
         repoutil.pull(ac.d_yang_models_dir)
-        yang_models_repo = repoutil.load(ac.d_yang_models_dir, github_url)
-        if not yang_models_repo:
+        try:
+            yang_models_repo = repoutil.load(ac.d_yang_models_dir, github_url)
+        except InvalidGitRepositoryError:
             raise Exception("Couldn't load YangModels/yang from directory")
         return yang_models_repo
     else:
         app.logger.info('Downloading repo {}'.format(repo_url))
         try:
-            repo = repoutil.RepoUtil(repo_url)
-            repo.clone()
+            repo = repoutil.ModifiableRepoUtil(repo_url)
             return repo
         except GitCommandError as e:
             abort(400, description='bad request - could not clone the Github repository. Please check owner,'

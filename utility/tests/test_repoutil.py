@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Stanislav Chlebec"
-__copyright__ = "Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "stanislav.chlebec@pantheon.tech"
+__author__ = 'Stanislav Chlebec'
+__copyright__ = 'Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'stanislav.chlebec@pantheon.tech'
 
 import logging
 import os
@@ -23,7 +23,7 @@ import re
 import subprocess
 import unittest
 
-from git import Repo
+from git.repo import Repo
 from git.exc import GitCommandError
 
 import utility.repoutil as ru
@@ -43,46 +43,36 @@ class TestRepoutil(unittest.TestCase):
         f_handler.setFormatter(f_format)
         logger.addHandler(f_handler)
 
-        self.repo = ru.RepoUtil(repourl)
-
-        self.assertEqual(self.repo.url, repourl)
-        self.assertEqual(self.repo.localdir, None)
-        self.assertEqual(self.repo.repo, None)
-        self.assertEqual(self.repo.logger, None)
-
-        self.repo.logger = logger
-
         self.myname = 'yang-catalog'
         self.myemail = 'fake@gmail.com'
+
+        self.repo = ru.ModifiableRepoUtil(
+            repourl,
+            clone_options={
+                'config_username': self.myname,
+                'config_user_email': self.myemail
+            }
+        )
+
+        self.repo.logger = logger
 
         if os.environ.get('GITHUB_ACTIONS'):
             self.token = os.environ['TOKEN']
         else:
             self.token = create_config().get('Secrets-Section', 'yang-catalog-token')
 
-    def tearDown(self):
-        self.repo.remove()
-
     def test_pull(self):
-        self.repo.clone(self.myname, self.myemail)
-        ru.pull(self.repo.localdir)
+        ru.pull(self.repo.local_dir)
 
     def test_load(self):
-        self.repo.clone(self.myname, self.myemail)
-        repo = ru.load(self.repo.localdir, self.repo.url)
-        if repo:
-            self.addCleanup(repo.remove)
+        repo = ru.load(self.repo.local_dir, self.repo.url)
 
         self.assertEqual(repo.url, self.repo.url)
 
     def test_get_repo_dir(self):
-        self.repo.clone(self.myname, self.myemail)
-
         self.assertEqual(self.repo.get_repo_dir(), 'test')
 
     def test_get_commit_hash(self):
-        self.repo.clone(self.myname, self.myemail)
-
         self.assertEqual(self.repo.get_commit_hash(), '0d8d5a76cdd4cc2a9e9709f6acece6d57c0b06ea')
         self.assertEqual(self.repo.get_commit_hash(branch='test'), '971423d605268bd7b38c5153c72ff12bfa408f1d')
         self.assertEqual(self.repo.get_commit_hash('subrepo','master'), 'de04507eaba334bfdad41ac75a2044d9d63922ee')
@@ -91,38 +81,20 @@ class TestRepoutil(unittest.TestCase):
         self.assertEqual(self.repo.get_repo_owner(), 'yang-catalog')
 
     def test_clone(self):
-        self.repo.clone(self.myname, self.myemail)
-        localdir = self.repo.localdir
+        local_dir = self.repo.local_dir
 
-        self.assertTrue(os.path.exists(localdir))
+        self.assertTrue(os.path.exists(local_dir))
         self.assertIsNotNone(self.repo.repo)
         with self.repo.repo.config_reader() as config:
             self.assertEqual(config.get_value('user','email'), self.myemail)
             self.assertEqual(config.get_value('user','name'), self.myname)
-        self.repo.remove()
 
     def test_clone_invalid_url(self):
-        repo = ru.RepoUtil('https://github.com/yang-catalog/fake')
-
         with self.assertRaises(GitCommandError):
-            repo.clone(self.myname, self.myemail)
-        repo.remove()
-
-    def test_update_submodule(self):
-        self.repo.clone(self.myname, self.myemail)
-
-        self.assertTrue(os.path.isfile(os.path.join(self.repo.localdir, '.gitmodules')))
-        # init = False should not update submodules
-        self.repo.update_submodule(True, False)
-        subdir = os.path.join(self.repo.localdir, 'subrepo')
-        self.assertTrue(os.path.isdir(subdir))
-        self.assertFalse(os.listdir(subdir))
-        self.repo.update_submodule()
-        self.assertTrue(os.path.isfile(os.path.join(subdir, 'README.md')))
+            ru.ModifiableRepoUtil('https://github.com/yang-catalog/fake')
 
     def test_add_untracked_remove_deleted(self):
-        self.repo.clone(self.myname, self.myemail)
-        repodir = self.repo.localdir
+        repodir = self.repo.local_dir
         repo = Repo(repodir)
         status_command = 'cd {} && git status'.format(repodir)
 
@@ -161,8 +133,7 @@ class TestRepoutil(unittest.TestCase):
         self.assertTrue(re.search('renamed:.*foo/a\\.txt.*->.*dir/a\\.txt', out))
 
     def test_commit_all(self):
-        self.repo.clone(self.myname, self.myemail)
-        repodir = self.repo.localdir
+        repodir = self.repo.local_dir
         status_command = 'cd {} && git status'.format(repodir)
 
         file = os.path.join(repodir, 'README.md')
@@ -181,10 +152,13 @@ class TestRepoutil(unittest.TestCase):
         # relatively big repo, takes long to clone, maybe create a smaller dummy repo?
         if self.token == 'test':
             raise unittest.SkipTest('Replace yang-catalog-token in the Secrets-Section of the test config')
-        push_repo = ru.RepoUtil('https://yang-catalog:{}@github.com/yang-catalog/deployment'.format(self.token))
-        push_repo.clone('yang-catalog', 'fake@gmail.com')
-        self.addCleanup(push_repo.remove)
-        repodir = push_repo.localdir
+        push_repo = ru.ModifiableRepoUtil(
+            'https://yang-catalog:{}@github.com/yang-catalog/deployment'.format(self.token),
+            clone_options={
+                'config_username': 'yang-catalog',
+                'config_user_email': 'fake@gmail.com'
+            })
+        repodir = push_repo.local_dir
         current_tip = push_repo.get_commit_hash()
         status_command = 'cd {} && git status'.format(repodir)
 
@@ -212,20 +186,13 @@ class TestRepoutil(unittest.TestCase):
         self.assertIn('origin', out)
         self.assertNotEqual(push_repo.get_commit_hash(), current_tip)
 
-    def test_remove(self):
-        self.repo.clone(self.myname, self.myemail)
-        self.assertTrue(os.path.exists(self.repo.localdir))
-        repodir = self.repo.localdir
+    def test_del(self):
+        self.assertTrue(os.path.exists(self.repo.local_dir))
+        repodir = self.repo.local_dir
 
-        self.repo.remove()
-        self.assertEqual(self.repo.localdir, None)
-        self.assertEqual(self.repo.repo, None)
+        del self.repo
         self.assertFalse(os.path.exists(repodir))
 
-    def test_remove_twice(self):
-        self.repo.clone(self.myname, self.myemail)
-        self.repo.remove()
-        self.repo.remove()
 
 if __name__ == '__main__':
     unittest.main()

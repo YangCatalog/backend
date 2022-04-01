@@ -95,13 +95,11 @@ def get_commit_hash_history(module: dict):
     # Clone repo to get the commit hashes history for repository
     if commit_hash is None:
         repo_url = '{}/{}/{}'.format(github_url, repo_owner, repo_name)
-        repo = repoutil.RepoUtil(repo_url)
         LOGGER.info('Cloning repo from {}'.format(repo_url))
-        repo.clone()
+        repo = repoutil.ModifiableRepoUtil(repo_url)
 
         # Get list of all historic hashes
         commit_hash_history[repo_owner_name] = [commit.hexsha for commit in repo.repo.iter_commits('master')]
-        repo.remove()
 
 
 def __print_patch_response(key: str, response):

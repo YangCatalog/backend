@@ -33,19 +33,13 @@ from utility.redisUsersConnection import RedisUsersConnection
 
 
 class MockRepoUtil:
-    localdir = 'test'
+    local_dir = 'test'
 
     def __init__(self, repourl, logger=None):
         pass
 
-    def clone(self):
-        pass
-
     def get_commit_hash(self, path=None, branch='master'):
         return branch
-
-    def remove(self):
-        pass
 
 
 class TestApiContributeClass(unittest.TestCase):
@@ -552,7 +546,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.ModifiableRepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
@@ -574,7 +568,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.ModifiableRepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
         mock_authorize.return_value = True
