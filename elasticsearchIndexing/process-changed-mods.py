@@ -92,8 +92,6 @@ if __name__ == '__main__':
     config_path = args.config_path
     config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    es_host = config.get('DB-Section', 'es-host')
-    es_port = config.get('DB-Section', 'es-port')
     es_aws = config.get('DB-Section', 'es-aws')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     changes_cache_path = config.get('Directory-Section', 'changes-cache')
@@ -136,14 +134,19 @@ if __name__ == '__main__':
     repoutil.pull(yang_models)
 
     LOGGER.info('Trying to initialize Elasticsearch')
+
+    es_host_config = {
+        'host': config.get('DB-Section', 'es-host', fallback='localhost'),
+        'port': config.get('DB-Section', 'es-port', fallback='9200')
+    }
     if es_aws == 'True':
-        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
+        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
     else:
-        es = Elasticsearch([{'host': es_host, 'port': es_port}])
+        es = Elasticsearch(hosts=[es_host_config])
 
     with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_yindex_elasticsearch.json')) as f:
         initialize_body_yindex = json.load(f)
-    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_module_elasticsearch.json')) as f:
+    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_modules_elasticsearch.json')) as f:
         initialize_body_modules = json.load(f)
 
     LOGGER.info('Creating Elasticsearch indices')
