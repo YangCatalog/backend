@@ -24,75 +24,97 @@ import shutil
 import tempfile
 import typing as t
 
-from git.repo import Repo
 from git.cmd import Git
+from git.exc import InvalidGitRepositoryError
+from git.repo import Repo
+from gitdb.exc import BadName
 
 
-class RepoUtil(object):
+class RepoUtil:
     """Simple class for rolling up some git operations as part of file
     manipulation. The user should create the object with the URL to
-    the repository and an appropriate set of credentials. At this
+    the repository and an appropriate set of credentials.
     """
 
-    def __init__(self, repourl: str, logger: t.Optional[logging.Logger] = None):
+    local_dir: str
+    repo: Repo
+
+    def __init__(self, repourl: str, clone: bool = True, clone_options: dict = {}, 
+                 logger: t.Optional[logging.Logger] = None):
+        """
+        Arguments:
+            :param repourl          (str) URL of the repository
+            :param clone            (bool) Should always be set to True. To load a repository
+                                           which has already been cloned, see  the load() function.
+            :param clone_options    (dict) May contain the keys local_dir, config_username and config_email
+            :param logger           (logging.Logger)
+        """
         self.url = repourl
-        self.localdir = None
-        self.repo = None
         self.logger = logger
+        if clone:
+            self._clone(**clone_options)
+
 
     def get_repo_dir(self) -> str:
         """Return the repository directory name from the URL"""
         return os.path.splitext(os.path.basename(self.url))[0]
 
-    def get_commit_hash(self, path: t.Optional[str] = None, branch: str = 'master') -> str:
-        self.update_submodule()
-        repo_temp = self
-        remove_temp_repo = False
-        if path is not None:
-            assert self.repo is not None, 'Git repo not itialized'
-            for submodule in self.repo.submodules:
-                if submodule.path in path:
-                    repo_temp = RepoUtil(submodule._url)
-                    repo_temp.clone()
-                    remove_temp_repo = True
-                    break
+    def get_commit_hash(self, path: str = '', branch: str = 'HEAD') -> str:
+        """Get the commit hash of a branch.
+
+        Arguments:
+            :param path     (str) Path to a file of interest. This is used to determine
+                                  if we should search for the the commit hash in a submodule.
+            :param branch   (str) The branch we want to get the commit hash of.
+            :return         (str) The commit hash.
+        """
+        assert self.repo is not None, 'Git repo not initialized'
         try:
-            assert repo_temp.repo is not None, 'Submodule repo should have been initialized during clone'
-            return repo_temp.repo.commit('origin/{}'.format(branch)).hexsha
-        except:
+            if path:
+                for submodule in self.repo.submodules:
+                    if submodule.path in path:
+                        return load(os.path.join(self.local_dir, submodule.path), submodule._url) \
+                            .get_commit_hash(path, branch)
+            return self.repo.commit('origin/{}'.format(branch)).hexsha
+        except BadName:
             if self.logger:
                 self.logger.error('Git branch - {} - could not be resolved'.format(branch))
             return branch
-        finally:
-            if remove_temp_repo:
-                repo_temp.remove()
 
     def get_repo_owner(self) -> str:
         """Return the root directory name of the repo.  In GitHub
         parlance, this would be the owner of the repository.
+
+        Arguments:
+            :return:
         """
         owner = os.path.basename(os.path.dirname(self.url))
         return owner.split(':')[-1]
 
-    def clone(self, config_user_name: t.Optional[str] = None,
-              config_user_email: t.Optional[str] = None, local_dir: t.Optional[str] = None):
-        """Clone the specified repository to a local temp directory. This
-        method may generate a git.exec.GitCommandError if the
-        repository does not exist
+    def _clone(self, local_dir: t.Optional[str] = None, config_username: t.Optional[str] = None,
+              config_user_email: t.Optional[str] = None):
+        """Clone the specified repository and recursively clone submodules.
+        This method raises a git.exec.GitCommandError if the repository does not exist.
         """
         if local_dir:
-            self.localdir = local_dir
+            self.local_dir = local_dir
         else:
-            self.localdir = tempfile.mkdtemp()
-        self.repo = Repo.clone_from(self.url, self.localdir)
-        if config_user_name:
+            self.local_dir = tempfile.mkdtemp()
+        self.repo = Repo.clone_from(self.url, self.local_dir, multi_options=['--recurse-submodules'])
+        if config_username:
             with self.repo.config_writer() as config:
                 config.set_value('user', 'email', config_user_email)
-                config.set_value('user', 'name', config_user_name)
+                config.set_value('user', 'name', config_username)
 
-    def update_submodule(self, recursive: bool = True, init: bool = True):
-        """Clone submodules of a git repository"""
-        self.repo.submodule_update(recursive=recursive, init=init)
+
+class ModifiableRepoUtil(RepoUtil):
+    """RepoUtil subclass with methods for manipulating the repository.
+    The repository directory is automatically removed on object deletion.
+    """
+
+    def __init__(self, repourl: str, clone: bool = True, clone_options: dict = {}, 
+                 logger: t.Optional[logging.Logger] = None):
+        super().__init__(repourl, clone, clone_options, logger)
 
     def add_untracked_remove_deleted(self):
         """Add untracked files and remove deleted files. This method shouldn't
@@ -110,21 +132,21 @@ class RepoUtil(object):
 
     def push(self):
         """Push repo to origin. Credential errors may happen here."""
-        self.repo.git.push("origin")
+        self.repo.git.push('origin')
 
-    def remove(self):
+    def __del__(self):
         """Remove the temporary storage."""
-        if self.localdir is not None and os.path.isdir(self.localdir):
-            shutil.rmtree(self.localdir)
-        self.localdir = None
-        self.repo = None
+        if os.path.isdir(self.local_dir):
+            shutil.rmtree(self.local_dir)
 
 
 def pull(repo_dir: str):
     """
     Pull all the new files in the master in specified directory.
     Directory should contain path where .git file is located.
-    :param repo_dir: directory where .git file is located
+
+    Arguments:
+        :param repo_dir directory where .git file is located
     """
     git = Git(repo_dir)
     git.pull()
@@ -133,17 +155,18 @@ def pull(repo_dir: str):
         submodule.update(recursive=True, init=True)
 
 
-def load(repo_dir: str, repo_url: str) -> t.Optional[RepoUtil]:
+def load(repo_dir: str, repo_url: str) -> RepoUtil:
     """
     Load git repository from local directory into Python object.
 
-    :param repo_dir:    (str) directory where .git file is located
-    :param repo_url:    (str) url to Github repository
+    Arguments:
+        :param repo_dir    (str) directory where .git file is located
+        :param repo_url    (str) url to Github repository
     """
-    repo = RepoUtil(repo_url)
+    repo = (RepoUtil if 'yangmodels/yang' in repo_dir else ModifiableRepoUtil)(repo_url, clone=False)
     try:
         repo.repo = Repo(repo_dir)
-        repo.localdir = repo_dir
-    except:
-        repo = None
+    except InvalidGitRepositoryError:
+        raise InvalidGitRepositoryError(repo_dir)
+    repo.local_dir = repo_dir
     return repo

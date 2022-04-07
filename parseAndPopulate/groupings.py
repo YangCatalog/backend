@@ -26,6 +26,8 @@ import typing as t
 import unicodedata
 import xml.etree.ElementTree as ET
 
+from git import InvalidGitRepositoryError
+
 import utility.log as log
 from utility import repoutil
 from utility.staticVariables import github_raw, github_url
@@ -68,10 +70,11 @@ class ModuleGrouping:
         self.repo_owner = 'YangModels'
         self.repo_name = 'yang'
         repo_url = os.path.join(github_url, self.repo_owner, self.repo_name)
-        repo = repoutil.load(self.dir_paths['yang_models'], repo_url)
-        if repo is None:
-            repo = repoutil.RepoUtil(repo_url, self.logger)
-            repo.clone()
+        try:
+            repo = repoutil.load(self.dir_paths['yang_models'], repo_url)
+        except InvalidGitRepositoryError:
+            repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': self.dir_paths['yang_models']},
+                                     logger=self.logger)
         self.repo = repo
 
     def _check_if_submodule(self) -> t.Optional[str]:
@@ -82,7 +85,6 @@ class ModuleGrouping:
                 repo_url = submodule.url.lower()
                 repo_dir = os.path.join(self.dir_paths['yang_models'], submodule_name)
                 repo = repoutil.load(repo_dir, repo_url)
-                assert repo is not None, 'Failed to initialize git repo'
                 self.repo = repo
                 self.repo_owner = self.repo.get_repo_owner()
                 self.repo_name = self.repo.get_repo_dir().split('.git')[0]

@@ -31,7 +31,9 @@ import typing as t
 from datetime import datetime
 
 import statistic.statistics as stats
+from git import InvalidGitRepositoryError
 from pyang.statements import Statement
+
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
 from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
@@ -223,18 +225,16 @@ class Module:
                                 owner_name = 'YangModels'
                                 repo_name = 'yang'
                                 repo_url = os.path.join(github_url, owner_name, repo_name)
-                                repo = repoutil.load(self.yang_models, repo_url)
-                                if repo is None:
-                                    repo = repoutil.RepoUtil(repo_url)
-                                    repo.clone()
+                                try:
+                                    repo = repoutil.load(self.yang_models, repo_url)
+                                except InvalidGitRepositoryError:
+                                    repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': self.yang_models})
                                 # Check if repository submodule
-                                assert repo.repo, 'Is loaded either from the yang_models dir or freshly cloned'
                                 for submodule in repo.repo.submodules:
                                     if submodule.name in suffix:
                                         repo_url = submodule.url.lower()
                                         repo_dir = os.path.join(self.yang_models, submodule.name)
                                         repo = repoutil.load(repo_dir, repo_url)
-                                        assert repo, 'Loaded from a known submodule'
                                         owner_name = repo.get_repo_owner()
                                         repo_name = repo.get_repo_dir().split('.git')[0]
                                         suffix = suffix.replace('{}/'.format(submodule.name), '')

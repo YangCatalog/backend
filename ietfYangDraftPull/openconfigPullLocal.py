@@ -104,12 +104,12 @@ def main(scriptConf=None):
     repo = draftPullUtility.clone_forked_repository(openconfig_repo_url, commit_author, LOGGER)
     modules = []
     try:
-        yang_files = glob('{}/release/models/**/*.yang'.format(repo.localdir), recursive=True)
+        yang_files = glob('{}/release/models/**/*.yang'.format(repo.local_dir), recursive=True)
         for yang_file in yang_files:
             basename = os.path.basename(yang_file)
             name = basename.split('.')[0].split('@')[0]
             revision = resolve_revision(yang_file)
-            path = yang_file.split('{}/'.format(repo.localdir))[-1]
+            path = yang_file.split('{}/'.format(repo.local_dir))[-1]
             module = {
                 'generated-from': 'not-applicable',
                 'module-classification': 'unknown',
@@ -127,10 +127,7 @@ def main(scriptConf=None):
     except Exception as e:
         LOGGER.exception('Exception found while running openconfigPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-        if repo is not None:
-            repo.remove()
         raise e
-    repo.remove()
     LOGGER.debug(data)
     api_path = '{}modules'.format(yangcatalog_api_prefix)
     response = requests.put(api_path, data, auth=(credentials[0], credentials[1]), headers=json_headers)

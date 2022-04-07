@@ -107,20 +107,25 @@ def main(scriptConf=None):
         clone_dir = '{}/draftpulllocal'.format(temp_dir)
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
-        repo = repoutil.RepoUtil('{}/YangModels/yang.git'.format(github_url))
-        repo.clone(config_name, config_email, clone_dir)
-        LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.localdir))
+        repo = repoutil.ModifiableRepoUtil(
+            os.path.join(github_url, 'YangModels/yang.git'),
+            clone_options={
+                'config_username': config_name,
+                'config_user_email': config_email,
+                'local_dir': clone_dir
+            })
+        LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.local_dir))
 
         response = requests.get(ietf_rfc_url)
-        tgz_path = '{}/rfc.tgz'.format(repo.localdir)
-        extract_to = '{}/standard/ietf/RFC'.format(repo.localdir)
+        tgz_path = '{}/rfc.tgz'.format(repo.local_dir)
+        extract_to = '{}/standard/ietf/RFC'.format(repo.local_dir)
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
         tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
 
         if tar_opened:
             # Standard RFC modules
-            direc = '{}/standard/ietf/RFC'.format(repo.localdir)
+            direc = '{}/standard/ietf/RFC'.format(repo.local_dir)
 
             LOGGER.info('Checking module filenames without revision in {}'.format(direc))
             draftPullUtility.check_name_no_revision_exist(direc, LOGGER)
@@ -138,7 +143,7 @@ def main(scriptConf=None):
                 messages.append(message)
 
         # Experimental modules
-        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.localdir)
+        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.local_dir)
 
         LOGGER.info('Updating IETF drafts download links')
         draftPullUtility.get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
@@ -159,7 +164,7 @@ def main(scriptConf=None):
             messages.append(message)
 
         # IANA modules
-        iana_path = '{}/standard/iana'.format(repo.localdir)
+        iana_path = '{}/standard/iana'.format(repo.local_dir)
 
         if os.path.exists(iana_path):
             LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))
@@ -180,9 +185,7 @@ def main(scriptConf=None):
     except Exception as e:
         LOGGER.exception('Exception found while running draftPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-        repo.remove()
         raise e
-    repo.remove()
     if not populate_error:
         LOGGER.info('Job finished successfully')
     else:

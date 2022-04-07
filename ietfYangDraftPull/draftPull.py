@@ -114,8 +114,8 @@ def main(scriptConf=None):
     try:
         # Get rfc.tgz file
         response = requests.get(ietf_rfc_url)
-        tgz_path = '{}/rfc.tgz'.format(repo.localdir)
-        extract_to = '{}/standard/ietf/RFCtemp'.format(repo.localdir)
+        tgz_path = '{}/rfc.tgz'.format(repo.local_dir)
+        extract_to = '{}/standard/ietf/RFCtemp'.format(repo.local_dir)
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
         tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
@@ -123,7 +123,7 @@ def main(scriptConf=None):
             diff_files = []
             new_files = []
 
-            temp_rfc_yang_files = glob.glob('{}/standard/ietf/RFCtemp/*.yang'.format(repo.localdir))
+            temp_rfc_yang_files = glob.glob('{}/standard/ietf/RFCtemp/*.yang'.format(repo.local_dir))
             for temp_rfc_yang_file in temp_rfc_yang_files:
                 file_name = os.path.basename(temp_rfc_yang_file)
                 rfc_yang_file = temp_rfc_yang_file.replace('RFCtemp', 'RFC')
@@ -136,7 +136,7 @@ def main(scriptConf=None):
                 if not same:
                     diff_files.append(file_name)
 
-            shutil.rmtree('{}/standard/ietf/RFCtemp'.format(repo.localdir))
+            shutil.rmtree('{}/standard/ietf/RFCtemp'.format(repo.local_dir))
 
             with open(exceptions, 'r') as exceptions_file:
                 remove_from_new = exceptions_file.read().split('\n')
@@ -150,12 +150,12 @@ def main(scriptConf=None):
 
         # Experimental draft modules
         try:
-            os.makedirs('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.localdir))
+            os.makedirs('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.local_dir))
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.localdir)
+        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.local_dir)
 
         LOGGER.info('Updating IETF drafts download links')
         draftPullUtility.get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
@@ -202,11 +202,7 @@ def main(scriptConf=None):
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-        repo.remove()
         raise e
-    # Remove tmp folder
-    LOGGER.info('Removing tmp directory')
-    repo.remove()
 
     if len(messages) == 0:
         messages = [
