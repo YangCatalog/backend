@@ -290,7 +290,7 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
-def main(scriptConf: ScriptConfig = None):
+def main(scriptConf: t.Optional[ScriptConfig] = None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()

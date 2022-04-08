@@ -41,7 +41,7 @@ def get_password(username: str) -> bytes:
             return users.get_field(id, 'password').encode()
     except RedisError as err:
         current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
-        return None
+    return b''
 
 
 def check_authorized(signature: str, payload: str):

@@ -63,7 +63,7 @@ def get_available_commit_hash(module: dict, commit_hash_list: list):
     return available_commit_hash
 
 
-def check_schema_availability(module: str):
+def check_schema_availability(module: dict):
     schema = module.get('schema', '')
     repo_owner, repo_name = get_repo_owner_name(schema)
     repo_owner_name = '{}/{}'.format(repo_owner, repo_name)

@@ -32,7 +32,7 @@ class RedisUsersConnection:
     _temp_fields = ['motivation']
     _appr_fields = ['access-rights-sdo', 'access-rights-vendor']
 
-    def __init__(self, db: t.Optional[int] = None):
+    def __init__(self, db: t.Optional[t.Union[int, str]] = None):
         config = create_config()
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = config.get('DB-Section', 'redis-port')
@@ -47,20 +47,20 @@ class RedisUsersConnection:
     def username_exists(self, username: str) -> bool:
         return self.redis.hexists('usernames', username)
 
-    def get_field(self, id: str, field: str) -> str:
+    def get_field(self, id: t.Union[str, int], field: str) -> str:
         r = self.redis.get('{}:{}'.format(id, field))
         return (r or b'').decode()
 
-    def set_field(self, id: str, field: str, value: str) -> bool:
+    def set_field(self, id: t.Union[str, int], field: str, value: str) -> bool:
         return bool(self.redis.set('{}:{}'.format(id, field), value))
 
-    def delete_field(self, id: str, field: str) -> bool:
+    def delete_field(self, id: t.Union[str, int], field: str) -> bool:
         return bool(self.redis.delete('{}:{}'.format(id, field)))
 
-    def is_approved(self, id: str) -> bool:
+    def is_approved(self, id: t.Union[str, int]) -> bool:
         return self.redis.sismember('approved', id)
 
-    def is_temp(self, id: str) -> bool:
+    def is_temp(self, id: t.Union[str, int]) -> bool:
         return self.redis.sismember('temp', id)
 
     def id_by_username(self, username: str) -> str:
@@ -84,7 +84,7 @@ class RedisUsersConnection:
                 self.set_field(id, field, kwargs[field.replace('-', '_')])
         return id
 
-    def delete(self, id: str, temp: bool):
+    def delete(self, id: t.Union[str, int], temp: bool):
         self.LOGGER.info('Deleting user with id {}'.format(id))
         self.redis.hdel('usernames', self.get_field(id, 'username'))
         for field in self._universal_fields:
@@ -97,7 +97,7 @@ class RedisUsersConnection:
             for field in self._appr_fields:
                 self.delete_field(id, field)
 
-    def approve(self, id: str, access_rights_sdo: str, access_rights_vendor: str):
+    def approve(self, id: t.Union[str, int], access_rights_sdo: str, access_rights_vendor: str):
         self.LOGGER.info('Approving user with id {}'.format(id))
         self.redis.srem('temp', id)
         self.set_field(id, 'access-rights-sdo', access_rights_sdo)
@@ -108,7 +108,7 @@ class RedisUsersConnection:
     def get_all(self, status) -> list:
         return [id.decode() for id in self.redis.smembers(status)]
 
-    def get_all_fields(self, id: str) -> dict:
+    def get_all_fields(self, id: t.Union[str, int]) -> dict:
         r = {}
         for field in self._universal_fields:
             r[field] = self.get_field(id, field)

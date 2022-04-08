@@ -63,7 +63,6 @@ class ModulesComplicatedAlgorithms:
         self.new_modules = defaultdict(dict)
         self._credentials = credentials
         self._save_file_dir = save_file_dir
-        self._path = None
         self._yang_models = yang_models_dir
         self.temp_dir = temp_dir
         self.json_ytree = json_ytree
@@ -472,6 +471,8 @@ class ModulesComplicatedAlgorithms:
                 return len(new) == len(old) and all(any((trees_match(i, j) for j in old)) for i in new)
             elif type(new) in (str, set, bool):
                 return new == old
+            else:
+                assert False
 
         def get_trees(new: dict, old: dict):
             new_name_revision = '{}@{}'.format(new['name'], new['revision'])
@@ -685,7 +686,7 @@ class ModulesComplicatedAlgorithms:
                         break
             return False
 
-        def add_dependents(dependents: list, dependencies):
+        def add_dependents(dependents: list, dependencies: t.Dict[str, t.Dict[str, dict]]):
             for dependent in dependents:
                 for dep_filter in dependent.get('dependencies', []):
                     name = dep_filter['name']

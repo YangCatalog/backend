@@ -20,6 +20,8 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import json
 import os
 import re
+import typing as t
+from logging import Logger
 
 from flask import Blueprint, abort
 from flask import jsonify, make_response, request
@@ -32,6 +34,8 @@ from utility.yangParser import create_context
 
 
 class YangSearch(Blueprint):
+
+    LOGGER: Logger
 
     def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
@@ -411,11 +415,11 @@ def module_details_no_revision(module: str):
     Revision will be the latest one that we have.
     :return: returns json with yang-catalog saved metdata of a specific module
     """
-    return module_details(module, None)
+    return jsonify(module_details(module, None))
 
 
 @bp.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: str, json_data=False, warnings=False):
+def module_details(module: str, revision: t.Optional[str], warnings=False):
     """
     Search for data saved in our datastore (ConfD/Redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -458,10 +462,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
     else:
         module_data = json.loads(module_data)
     resp['metadata'] = module_data
-    if json_data:
-        return resp
-    else:
-        return make_response(jsonify(resp), 200)
+    return resp
 
 
 @bp.route('/yang-catalog-help', methods=['GET'])

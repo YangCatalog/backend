@@ -68,6 +68,9 @@ _COPY_OPTIONS = [
 class objectify(object):  # pylint: disable=invalid-name
     """Utility for providing object access syntax (.attr) to dicts"""
 
+    features: list
+    deviations: list
+
     def __init__(self, *args, **kwargs):
         for arg in args:
             self.__dict__.update(arg)

@@ -34,7 +34,7 @@ class BaseArg(t.TypedDict):
 
 class Arg(BaseArg, total=False):
     type: type
-    action: str
+    action: t.Literal['store_true', 'store_false']
     nargs: int
     choices: t.List[str]
 

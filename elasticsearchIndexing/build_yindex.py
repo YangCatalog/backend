@@ -21,8 +21,7 @@ import io
 import json
 import logging
 
-import elasticsearch
-from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
+from elasticsearch import ConnectionError, ConnectionTimeout, RequestError, Elasticsearch
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
 from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
@@ -35,7 +34,7 @@ from utility.util import validate_revision
 ES_CHUNK_SIZE = 30
 
 
-def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytree: str, threads: int, LOGGER: logging.Logger):
+def build_indices(es: Elasticsearch, module: dict, save_file_dir: str, json_ytree: str, threads: int, LOGGER: logging.Logger):
     name_revision = '{}@{}'.format(module['name'], module['revision'])
 
     plugin.init([])
