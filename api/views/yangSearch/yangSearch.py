@@ -21,12 +21,13 @@ import json
 import os
 import re
 
-import utility.log as log
-from api.views.yangSearch.elkSearch import ElkSearch
 from flask import Blueprint, abort
-from flask import current_app as app
 from flask import jsonify, make_response, request
 from pyang import plugin
+
+import utility.log as log
+from api.my_flask import app
+from api.views.yangSearch.elkSearch import ElkSearch
 from utility.yangParser import create_context
 
 

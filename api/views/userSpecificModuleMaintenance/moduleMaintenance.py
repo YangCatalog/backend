@@ -26,10 +26,11 @@ from datetime import datetime
 
 from api.authentication.auth import auth, hash_pw
 from flask import Blueprint, abort
-from flask import current_app as app
 from flask import request
 from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
+
+from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import NS_MAP, backup_date_format, github_url

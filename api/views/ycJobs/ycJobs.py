@@ -23,8 +23,9 @@ import os
 import requests
 from api.authentication.auth import auth, check_authorized
 from flask import Blueprint, abort
-from flask import current_app as app
 from flask import request
+
+from api.my_flask import app
 from utility import messageFactory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature

@@ -18,18 +18,21 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "slavomir.mazur@pantheon.tech"
 
 import json
+from logging import Logger
 import time
 
 import requests
-import utility.log as log
 from elasticsearch import Elasticsearch
 from flask import Blueprint
-from flask import current_app as app
 from flask import jsonify, make_response
+
+import utility.log as log
+from api.my_flask import app
 from utility.staticVariables import json_headers
 
 
 class HealthcheckBlueprint(Blueprint):
+    LOGGER: Logger
 
     def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):

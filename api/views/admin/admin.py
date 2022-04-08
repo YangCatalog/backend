@@ -35,13 +35,13 @@ from pathlib import Path
 
 import flask
 from flask import abort, Blueprint, jsonify, redirect, request
-from flask import current_app as app
 from flask_cors import CORS
 from flask_pyoidc import OIDCAuthentication
 from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
 from flask_pyoidc.user_session import UserSession
 from redis import RedisError
 
+from api.my_flask import app
 from utility.create_config import create_config
 
 

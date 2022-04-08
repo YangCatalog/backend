@@ -28,12 +28,13 @@ from operator import contains, eq
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
-from flask import Blueprint, abort
-from flask import current_app as app
-from flask import escape, request
+from flask import Blueprint, abort, request
+from markupsafe import escape
 from flask_deprecate import deprecate_route
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
+
+from api.my_flask import app
 from utility.util import context_check_update_from
 from utility.yangParser import create_context
 
