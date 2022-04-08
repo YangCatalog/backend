@@ -57,8 +57,7 @@ RUN sed -i "/imklog/s/^/#/" /etc/rsyslog.conf
 
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
 
-COPY ./backend/elasticsearchIndexing/pyang_plugin/json_tree.py /backend/lib/python3.9/site-packages/pyang/plugins/.
-COPY ./backend/elasticsearchIndexing/pyang_plugin/yang_catalog_index_es.py /backend/lib/python3.9/site-packages/pyang/plugins/.
+ENV PYANG_PLUGINPATH="/backend/elasticsearchIndexing/pyang_plugin"
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 

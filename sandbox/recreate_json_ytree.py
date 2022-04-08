@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from pyang import plugin
-from pyang.plugins.json_tree import emit_tree
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
 from utility.create_config import create_config
 from utility.yangParser import create_context
 

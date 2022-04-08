@@ -37,7 +37,7 @@ from datetime import datetime
 
 import requests
 from pyang import plugin
-from pyang.plugins.json_tree import emit_tree as emit_json_tree
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from pyang.plugins.tree import emit_tree
 from redisConnections.redisConnection import RedisConnection
 from utility import log, messageFactory

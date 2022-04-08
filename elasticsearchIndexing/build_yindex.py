@@ -25,8 +25,8 @@ import elasticsearch
 from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
-from pyang.plugins.json_tree import emit_tree
-from pyang.plugins.yang_catalog_index_es import IndexerPlugin
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
+from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import IndexerPlugin
 from pyang.util import get_latest_revision
 from requests import ConnectionError
 from utility import yangParser
