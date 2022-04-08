@@ -367,8 +367,8 @@ def main(scriptConf: ScriptConfig = None):
             platform_values = []
             json_output = {}
             for version in versions:
+                path = '{}/vendor/cisco/{}/{}/platform-metadata.json'.format(yang_models, os_type, version)
                 try:
-                    path = '{}/vendor/cisco/{}/{}/platform-metadata.json'.format(yang_models, os_type, version)
                     with open(path, 'r') as f:
                         data = json.load(f)
                         metadata_platforms = data['platforms']['platform']

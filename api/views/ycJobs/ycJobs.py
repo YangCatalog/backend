@@ -90,8 +90,9 @@ def check_github():
     # Commit verification
     verify_commit = False
     app.logger.info('Checking commit SHA if it is the commit sent by yang-catalog user.')
+
+    commit_sha = body['check_run']['head_sha']
     if body['repository']['full_name'] == 'yang-catalog/yang' or body['repository']['full_name'] == 'YangModels/yang':
-        commit_sha = body['check_run']['head_sha']
         try:
             with open(ac.d_commit_dir, 'r') as commit_file:
                 for line in commit_file:

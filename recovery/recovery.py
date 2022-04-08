@@ -164,6 +164,8 @@ def main(scriptConf=None):
         if '{}' in (redis_modules, yang_catalog_module):
             # RDB not exists - load from JSON
             backup_path = os.path.join(redis_json_backup, 'backup.json')
+            modules = []
+            vendors = []
             if os.path.exists(backup_path):
                 with open(backup_path, 'r') as file_load:
                     catalog_data = json.load(file_load)

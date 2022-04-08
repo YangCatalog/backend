@@ -145,17 +145,17 @@ if __name__ == '__main__':
     requests_done = []
     commit_hash_history = {}
     for module in all_existing_modules:
-        try:
-            update = False
-            key = '{}@{}'.format(module.get('name'), module.get('revision'))
-            schema = module.get('schema')
+        update = False
+        key = '{}@{}'.format(module.get('name'), module.get('revision'))
+        schema = module.get('schema')
 
-            if key in unavailable_schemas:
-                LOGGER.warning('Skipping module {} - schema unavailable'.format(key))
-                continue
-            if schema is None:
-                unavailable_schemas[key] = ''
-                continue
+        if key in unavailable_schemas:
+            LOGGER.warning('Skipping module {} - schema unavailable'.format(key))
+            continue
+        if schema is None:
+            unavailable_schemas[key] = ''
+            continue
+        try:
             available_commit_hash = get_branch_from_schema(schema)
             get_commit_hash_history(module)
 
@@ -221,9 +221,9 @@ if __name__ == '__main__':
 
         # Check the schema path of each dependent
         for dependent in dependents:
+            dependent_schema = dependent.get('schema', '')
+            dependent_key = '{}@{}'.format(dependent.get('name'), dependent.get('revision'))
             try:
-                dependent_schema = dependent.get('schema', '')
-                dependent_key = '{}@{}'.format(dependent.get('name'), dependent.get('revision'))
                 available_commit_hash = get_branch_from_schema(dependent_schema)
                 get_commit_hash_history(module)
 
@@ -251,9 +251,9 @@ if __name__ == '__main__':
                 continue
         # Check the schema path of each submodule
         for submodule in submodules:
+            submodule_schema = submodule.get('schema', '')
+            submodule_key = '{}@{}'.format(submodule.get('name'), submodule.get('revision'))
             try:
-                submodule_schema = submodule.get('schema', '')
-                submodule_key = '{}@{}'.format(submodule.get('name'), submodule.get('revision'))
                 available_commit_hash = get_branch_from_schema(submodule_schema)
                 get_commit_hash_history(module)
 

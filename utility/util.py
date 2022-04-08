@@ -214,6 +214,7 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
         if os.path.exists(path_to_delete_local):
             os.remove(path_to_delete_local)
 
+    post_body = {}
     if modules_to_delete:
         post_body = {'modules-to-delete': modules_to_delete}
         LOGGER.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))

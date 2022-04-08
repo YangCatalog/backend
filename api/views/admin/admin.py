@@ -351,6 +351,7 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
             for line in reversed(f.readlines()):
                 if format_text:
                     line_timestamp = None
+                    line_beginning = ''
                     try:
                         d = re.findall(date_regex, line)[0][0]
                         t = re.findall(time_regex, line)[0]

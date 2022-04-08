@@ -101,13 +101,12 @@ if __name__ == '__main__':
 
     # PHASE I: Check modules from Redis in Elasticsearch
     for key in redis.scan_iter():
+        key = key.decode('utf-8')
+        name = key.split('@')[0]
+        revision = key.split('@')[1].split('/')[0]
+        organization = key.split('@')[1].split('/')[1]
+        redis_modules += 1
         try:
-            key = key.decode('utf-8')
-            name = key.split('@')[0]
-            revision = key.split('@')[1].split('/')[0]
-            organization = key.split('@')[1].split('/')[1]
-            redis_modules += 1
-
             query = create_query(name, revision)
             es_result = es.search(index='modules', doc_type='modules', body=query)
 
