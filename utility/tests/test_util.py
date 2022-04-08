@@ -302,8 +302,7 @@ class TestUtilClass(unittest.TestCase):
         ctx, new_schema_ctx = util.context_check_update_from(old_schema, new_schema,
                                                              yc_gc.yang_models, yc_gc.save_file_dir)
 
-        self.assertNotEqual(new_schema_ctx, None)
-        self.assertEqual(new_schema_ctx.arg, 'ietf-yang-types')
+        self.assertIsNotNone(new_schema_ctx)
         self.assertNotEqual(ctx, None)
         self.assertEqual(len(ctx.errors), 0)
         self.assertEqual(ctx.errors, [])

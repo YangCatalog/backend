@@ -348,7 +348,7 @@ class ElkSearch:
             return
         elk_response = {}
         try:
-            elk_response = self.__es.scroll(self.__current_scroll_id, scroll=u'2m', request_timeout=20)
+            elk_response = self.__es.scroll(scroll_id=self.__current_scroll_id, scroll=u'2m', request_timeout=20)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
             elk_response['hits'] = {'hits': []}

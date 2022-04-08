@@ -132,10 +132,7 @@ def create_signature(secret_key: str, string: str):
         :return A string of 2* `digest_size` bytes. It contains only
             hexadecimal ASCII digits.
     """
-    string_to_sign = string.encode('utf-8')
-    if sys.version_info >= (3, 4):
-        secret_key = secret_key.encode('utf-8')
-    hmac = HMAC.new(secret_key, string_to_sign, SHA)
+    hmac = HMAC.new(secret_key.encode('utf-8'), string.encode('utf-8'), SHA)
     return hmac.hexdigest()
 
 
@@ -310,9 +307,9 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         last_successfull = end_time
     else:
         try:
-            previous_state = file_content.get(filename)
-            last_successfull = previous_state.get('last_successfull')
-        except Exception:
+            previous_state = file_content[filename]
+            last_successfull = previous_state['last_successfull']
+        except KeyError:
             last_successfull = None
 
     result['last_successfull'] = last_successfull
@@ -471,7 +468,7 @@ def validate_revision(revision: str) -> str:
         dateutil.parser.parse(revision)
         year, month, day = map(int, revision.split('-'))
         revision = datetime(year, month, day).date().isoformat()
-    except (ValueError, dateutil.parser._parser.ParserError):
+    except (ValueError, dateutil.parser.ParserError):
         revision = '1970-01-01'
 
     return revision

@@ -543,14 +543,13 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
         :param username     (str) authorized user's username
         :param is_vendor    (bool) whether method should return vendor or SDO accessRigt
     """
-    accessRigths = None
     try:
         if users.username_exists(username):
             id = users.id_by_username(username)
             return users.get_field(id, 'access-rights-vendor' if is_vendor else 'access-rights-sdo')
     except RedisError as err:
         app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
-    return accessRigths
+    return None
 
 
 def get_mod_redis(module: dict):

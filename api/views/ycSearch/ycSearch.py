@@ -18,11 +18,11 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import collections
-import errno
 import io
 import json
 import os
 import re
+import typing as t
 from operator import contains, eq
 
 import api.yangSearch.elasticsearchIndex as inde
@@ -48,7 +48,6 @@ class YcSearch(Blueprint):
 
 
 bp = YcSearch('ycSearch', __name__)
-ac = None
 
 
 @bp.before_request
@@ -83,7 +82,6 @@ def fast_search():
         res = []
         found_modules = {}
         rejects = []
-        not_founds = []
         errors = []
 
         for row in search_res:
@@ -98,22 +96,12 @@ def fast_search():
 
             mod_meta = None
             try:
-                if mod_sig not in not_founds:
-                    if mod_sig in found_modules:
-                        mod_meta = found_modules[mod_sig]
-                    else:
-                        mod_meta = search_module(m_name, m_revision, m_organization)
-                        if mod_meta.status_code == 404 and m_revision.endswith('02-28'):
-                            mod_meta = search_module(m_name, m_revision.replace('02-28', '02-29'), m_organization)
-                        if mod_meta.status_code == 404:
-                            not_founds.append(mod_sig)
-                            app.logger.error('index search module {}@{} not found but exist in elasticsearch'.format(m_name, m_revision))
-                            res_row = {'module': {'error': 'no {}@{} in API'.format(m_name, m_revision)}}
-                            res.append(res_row)
-                            continue
-                        else:
-                            mod_meta = mod_meta.json['module'][0]
-                            found_modules[mod_sig] = mod_meta
+                if mod_sig in found_modules:
+                    mod_meta = found_modules[mod_sig]
+                else:
+                    mod_meta = search_module(m_name, m_revision, m_organization)
+                    mod_meta = mod_meta['module'][0]
+                    found_modules[mod_sig] = mod_meta
 
                 if 'include-mibs' not in payload or payload['include-mibs'] is False:
                     if re.search('yang:smiv2:', mod_meta.get('namespace')):
@@ -228,7 +216,7 @@ def rpc_search_get_one(leaf: str):
 
 
 @bp.route('/search-filter', methods=['POST'])
-def rpc_search(body: dict = None):
+def rpc_search(body: dict = {}):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
     """
     from_api = False

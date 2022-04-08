@@ -232,7 +232,7 @@ class ModulesComplicatedAlgorithms:
                     revision = name.split('@')[-1]
                     name = name.split('@')[0]
                     if '{}@{}'.format(name, revision) in self._trees:
-                        stdout = self._trees['{}@{}'.format(name, revision)]
+                        stdout = self._trees[name][revision]
                         pyang_list_of_rows = stdout.split('\n')[2:]
                     else:
                         plugin.plugins = []
@@ -423,9 +423,9 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'unclassified'
             LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
             if (revision not in self._existing_modules_dict[name] or
-                    self._existing_modules_dict.get(name).get(revision).get('tree-type') != module['tree-type']):
+                    self._existing_modules_dict[name][revision].get('tree-type') != module['tree-type']):
                 LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
-                    self._existing_modules_dict.get(name).get(revision, {}).get('tree-type'), module['tree-type'],
+                    self._existing_modules_dict[name].get(revision, {}).get('tree-type'), module['tree-type'],
                     module['name'], module['revision']))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
@@ -704,7 +704,7 @@ class ModulesComplicatedAlgorithms:
                             if revision in self.new_modules[name]:
                                 dependency_copy = self.new_modules[name][revision]
                             elif revision in self._existing_modules_dict[name]:
-                                dependency_copy = deepcopy(self._existing_modules_dict.get(name).get(revision))
+                                dependency_copy = deepcopy(self._existing_modules_dict[name][revision])
                             else:
                                 dependency_copy = dependency
                             if not check_latest_revision_and_remove(dependent, dependency_copy):

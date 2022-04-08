@@ -72,6 +72,7 @@ class RepoUtil:
         try:
             if path:
                 for submodule in self.repo.submodules:
+                    assert isinstance(submodule.path, str)
                     if submodule.path in path:
                         return load(os.path.join(self.local_dir, submodule.path), submodule._url) \
                             .get_commit_hash(path, branch)

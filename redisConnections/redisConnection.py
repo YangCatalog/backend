@@ -29,7 +29,8 @@ from utility.create_config import create_config
 
 class RedisConnection:
 
-    def __init__(self, modules_db: t.Optional[int] = None, vendors_db: t.Optional[int] = None):
+    def __init__(self, modules_db: t.Optional[t.Union[int, str]] = None,
+                 vendors_db: t.Optional[t.Union[int, str]] = None):
         config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
         self._redis_host = config.get('DB-Section', 'redis-host')

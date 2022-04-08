@@ -1062,12 +1062,12 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
-    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
     @mock.patch('api.my_flask.Redis.get')
     def test_catalog_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from catalog_data() method
         """
+        search_bp.ac = ac
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
         with app.app_context():
