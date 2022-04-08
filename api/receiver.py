@@ -58,6 +58,10 @@ from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_removal, send_for_es_indexing
 
 
+class ConfigReloadedException(Exception):
+    pass
+
+
 class Receiver:
 
     def __init__(self, config_path: str):
@@ -444,16 +448,6 @@ class Receiver:
         self._rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
-        try:
-            if self.channel:
-                self.channel.close()
-        except Exception:
-            pass
-        try:
-            if self.connection:
-                self.connection.close()
-        except Exception:
-            pass
         self.LOGGER.info('Config loaded succesfully')
 
     def on_request(self, channel, method, properties, body):
@@ -472,7 +466,7 @@ class Receiver:
                     :param body: (str) String of arguments that need to be processed
                     separated by '#'.
         """
-        final_response = ''
+        config_reloaded = False
         try:
             body = body_raw.decode()
             arguments = body.split('#')
@@ -480,7 +474,7 @@ class Receiver:
                 self.LOGGER.info('Running all ietf and openconfig modules')
                 final_response = self.run_ietf()
             elif body == 'reload_config':
-                self.load_config()
+                config_reloaded = True
             elif 'run_ping' == arguments[0]:
                 final_response = self.run_ping(arguments[1])
             elif 'run_script' == arguments[0]:
@@ -563,6 +557,8 @@ class Receiver:
                     f.write(new_line)
                 else:
                     f.write(line)
+        if config_reloaded:
+            raise ConfigReloadedException
 
     def start_receiving(self):
         while True:
@@ -581,12 +577,15 @@ class Receiver:
                 self.LOGGER.info('Awaiting RPC request')
 
                 self.channel.start_consuming()
+            except ConfigReloadedException:
+                pass
             except Exception as e:
                 self.LOGGER.exception('Exception: {}'.format(str(e)))
+            finally:
                 time.sleep(10)
                 try:
                     if self.channel:
-                        self.channel.close()
+                        self.channel.stop_consuming()
                 except Exception:
                     pass
                 try:
