@@ -40,6 +40,7 @@ import time
 import uuid
 
 import pika
+import pika.exceptions
 
 import utility.log as log
 

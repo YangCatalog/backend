@@ -124,7 +124,7 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
                 raise e
 
 
-def delete_from_indices(es: elasticsearch, module: dict, LOGGER: logging.Logger):
+def delete_from_indices(es: Elasticsearch, module: dict, LOGGER: logging.Logger):
     query = _create_query(module['name'], module['revision'])
     LOGGER.debug('deleting data from index: yindex')
     try:
