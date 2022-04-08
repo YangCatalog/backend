@@ -102,6 +102,7 @@ def main(scriptConf=None):
         'email': config_email
     }
     repo = draftPullUtility.clone_forked_repository(openconfig_repo_url, commit_author, LOGGER)
+    assert repo
     modules = []
     try:
         yang_files = glob('{}/release/models/**/*.yang'.format(repo.local_dir), recursive=True)

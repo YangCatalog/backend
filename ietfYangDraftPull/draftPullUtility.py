@@ -57,7 +57,9 @@ def get_latest_revision(path: str, LOGGER: logging.Logger):
     """
     try:
         stmt = yangParser.parse(path)
-        rev = stmt.search_one('revision').arg
+        result = stmt.search_one('revision')
+        assert result
+        rev = result.arg
     except Exception:
         LOGGER.error('Cannot yangParser.parse {}'.format(path))
         rev = None  # In case of invalid YANG syntax, None is returned

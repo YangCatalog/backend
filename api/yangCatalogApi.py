@@ -164,6 +164,7 @@ def load_to_memory():
     """Load all the data populated to yang-catalog to memory.
             :return response to the request.
     """
+    assert request.authorization
     username = request.authorization['username']
     if username != 'admin':
         return abort(401, description='User must be admin')
@@ -181,6 +182,7 @@ def load():
             app.logger.info('application wating for reload with id - {}'.format(special_id))
             if special_id in app.release_locked:
                 code = app.response_waiting.status_code
+                assert app.response_waiting.json
                 body = app.response_waiting.json
                 body['extra-info'] = 'this message was generated with previous reload-cache response'
                 app.special_id_counter[special_id] -= 1
@@ -214,6 +216,7 @@ def load_uwsgi_cache():
     """
     response = 'work'
     response, data = make_cache(response)
+    assert data, response
     cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
     modules = cat['modules']
     vendors = cat.get('vendors', {})

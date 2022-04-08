@@ -98,7 +98,9 @@ def main(scriptConf=None):
             for key in keys:
                 key_type = redis.type(key).decode()
                 if key_type == 'string':
-                    value = redis.get(key).decode()
+                    value = redis.get(key)
+                    assert value
+                    value = value.decode()
                 elif key_type == 'set':
                     value = [i.decode() for i in redis.smembers(key)]
                 elif key_type == 'hash':

@@ -139,12 +139,12 @@ def tree_module_revision(module_name, revision):
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
 
-        module_context = {}
         for p in plugin.plugins:
             p.setup_ctx(ctx)
         try:
             with open(path_to_yang, 'r') as f:
                 module_context = ctx.add_module(path_to_yang, f.read())
+                assert module_context
         except Exception:
             msg = 'File {} was not found'.format(path_to_yang)
             bp.LOGGER.exception(msg)
@@ -234,8 +234,10 @@ def impact_analysis():
             abort(400, 'only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
     # GET module details
     response = {}
-
-    searched_module = module_details(name, revision, True)['metadata']
+    details = module_details(name, revision, True)
+    assert isinstance(details, dict)
+    searched_module = details['metadata']
+    assert isinstance(searched_module, dict)
     response['name'] = searched_module['name']
     response['revision'] = searched_module['revision']
     response['organization'] = searched_module['organization']
@@ -806,11 +808,13 @@ def get_type_str(json):
 
 
 def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_organizations, rfc_allowed):
-    module_detail = module_details(module_data['name'], module_data.get('revision'), True, True)
+    module_detail = module_details(module_data['name'], module_data.get('revision'), True)
+    assert isinstance(module_detail, dict)
     if 'warning' in module_detail:
         return module_detail
     else:
         module_detail = module_detail['metadata']
+        assert isinstance(module_detail, dict)
     module_type = module_detail.get('module-type', '')
     if module_type == '':
         bp.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),

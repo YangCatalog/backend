@@ -84,7 +84,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
+        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '1.0.0')
 
     @mock.patch('parseAndPopulate.dumper.requests.get')
@@ -118,7 +118,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
+        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '2.0.0')
 
     @mock.patch('parseAndPopulate.dumper.requests.get')
@@ -152,7 +152,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
+        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '3.0.0')
 
     @mock.patch('parseAndPopulate.dumper.requests.get')
@@ -187,7 +187,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
+        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.0.0')
 
     @mock.patch('parseAndPopulate.dumper.requests.get')
@@ -222,7 +222,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
+        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.0')
 
     @mock.patch('parseAndPopulate.dumper.requests.get')
@@ -257,7 +257,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules.get(name).get(revision, {})
+        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.1')
 
     ### parse_semver() - parsing middle revision ###

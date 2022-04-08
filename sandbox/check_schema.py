@@ -37,7 +37,7 @@ def get_branch_from_schema(schema: str):
 
 def get_available_commit_hash(module: dict, commit_hash_list: list):
     name = module.get('name')
-    schema = module.get('schema')
+    schema = module.get('schema', '')
     revision = module.get('revision')
 
     branch = get_branch_from_schema(schema)

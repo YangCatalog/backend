@@ -53,6 +53,7 @@ def set_config():
 @bp.route('/ietf', methods=['GET'])
 @auth.login_required
 def trigger_ietf_pull():
+    assert request.authorization
     username = request.authorization['username']
     if username != 'admin':
         abort(401, description='User must be admin')
@@ -274,6 +275,7 @@ def trigger_populate():
     app.logger.info('Trigger populate if necessary')
     repoutil.pull(ac.d_yang_models_dir)
     try:
+        assert request.json
         commits = request.json.get('commits') if request.is_json else None
         paths = set()
         new = []

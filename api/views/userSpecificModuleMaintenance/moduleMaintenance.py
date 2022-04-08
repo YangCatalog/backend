@@ -119,6 +119,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         else:
             abort(404, description="Data must start with 'input' root element in json")
 
+    assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
@@ -167,9 +168,11 @@ def delete_vendor(value: str):
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
+    assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
+    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
@@ -486,6 +489,7 @@ def authorize_for_vendors(request, body: dict):
     username = request.authorization['username']
     app.logger.info('Checking vendor authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
+    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
@@ -517,6 +521,7 @@ def authorize_for_sdos(request, organizations_sent: str, organization_parsed: st
     username = request.authorization['username']
     app.logger.info('Checking sdo authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
+    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
 
     passed = False
     if accessRigths == '/':

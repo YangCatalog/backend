@@ -232,12 +232,13 @@ def rpc_search(body: dict = None):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
     """
     from_api = False
-    if body is None:
+    if not body:
+        assert request.json is not None
         body = request.json
         from_api = True
     app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body)))
     data = modules_data().get('module', {})
-    body = body.get('input')
+    body = body.get('input', {})
     if body:
         matched_modules = []
         operator = contains if body.get('partial') is not None else eq

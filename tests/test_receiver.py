@@ -223,12 +223,12 @@ class TestReceiverClass(TestReceiverBaseClass):
                      '--credentials', *self.credentials, 'True']
 
         response, all_modules = self.receiver.process(arguments)
-        modules = all_modules.get('module')
 
         self.assertEqual(response, 'Finished successfully')
         self.assertNotEqual(all_modules, {})
         self.assertIn('module', all_modules)
 
+        modules = all_modules['module']
         for module in modules:
             self.assertIn('implementations', module)
             implementations = module.get('implementations', {})
