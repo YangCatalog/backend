@@ -89,7 +89,7 @@ def metrics():
     params = parse_qs(urlparse(request.path).query)
     if 'name[]' in params:
         registry = registry.restricted_registry(params['name[]'])
-    output = generate_latest(registry)
+    output = generate_latest(registry) # pyright: ignore
     response = make_response(output)
     response.headers['Content-Type'] = CONTENT_TYPE_LATEST
     return response

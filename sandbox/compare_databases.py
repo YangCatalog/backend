@@ -81,7 +81,7 @@ if __name__ == '__main__':
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
     # Create Redis and Elasticsearch connections
-    redis = Redis(host=redis_host, port=redis_port, db=1)
+    redis = Redis(host=redis_host, port=redis_port, db=1) # pyright: ignore
 
     if es_aws == 'True':
         es_aws = True

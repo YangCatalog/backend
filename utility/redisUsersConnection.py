@@ -38,7 +38,7 @@ class RedisUsersConnection:
         self._redis_port = config.get('DB-Section', 'redis-port')
         if db is None:
             db = config.get('DB-Section', 'redis-users-db', fallback=2)
-        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)
+        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db) # pyright: ignore
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('redisUsersConnection', '{}/redisUsersConnection.log'.format(self.log_directory))

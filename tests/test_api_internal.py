@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# We always check result.is_json, so result.json will never return None.
+# pyright: reportOptionalSubscript=false
+
 __author__ = "Richard Zilincik"
 __copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
 __license__ = "Apache License, Version 2.0"

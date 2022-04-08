@@ -110,9 +110,9 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
         self.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
         self.receiver.redisConnection = self.redisConnection
-        self.receiver.confdService = MockConfdService()
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
+        self.receiver.confdService = MockConfdService() # pyright: ignore
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6) # pyright: ignore
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9) # pyright:ignore
         self.huawei_dir = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.yang_models)
         self.direc = '{}/receiver_test'.format(self.temp_dir)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')

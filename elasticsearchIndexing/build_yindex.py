@@ -112,7 +112,7 @@ def build_indices(es: Elasticsearch, module: dict, save_file_dir: str, json_ytre
 
             # Index new modules to index: modules
             LOGGER.debug('pushing data to index: modules')
-            es.index(index='modules', doc_type='modules', body=query, request_timeout=40)
+            es.index(index='modules', doc_type='modules', body=query, request_timeout=40) # pyright: ignore
             break
         except (ConnectionTimeout, ConnectionError) as e:
             attempts -= attempts

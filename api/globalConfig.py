@@ -93,7 +93,7 @@ class YangCatalogApiGlobalConfig():
         self.LOGGER.info('yangcatalog configuration reloaded')
         self.redis = redis.Redis(
             host=self.redis_host,
-            port=self.redis_port)
+            port=self.redis_port)  # pyright: ignore
         self.check_wait_redis_connected()
 
     def check_wait_redis_connected(self):

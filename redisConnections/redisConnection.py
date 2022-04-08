@@ -39,8 +39,8 @@ class RedisConnection:
             modules_db = config.get('DB-Section', 'redis-modules-db', fallback=1)
         if vendors_db is None:
             vendors_db = config.get('DB-Section', 'redis-vendors-db', fallback=4)
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db)
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db)
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db) # pyright: ignore
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db) # pyright: ignore
 
         self.LOGGER = log.get_logger('redisModules', os.path.join(self.log_directory, 'redisModulesConnection.log'))
 

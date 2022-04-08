@@ -303,6 +303,7 @@ class TestUtilClass(unittest.TestCase):
                                                              yc_gc.yang_models, yc_gc.save_file_dir)
 
         self.assertIsNotNone(new_schema_ctx)
+        self.assertEqual(new_schema_ctx.arg, 'ietf-yang-types') # pyright: ignore
         self.assertNotEqual(ctx, None)
         self.assertEqual(len(ctx.errors), 0)
         self.assertEqual(ctx.errors, [])

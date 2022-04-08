@@ -206,7 +206,7 @@ def main(scriptConf=None):
 
     if len(messages) == 0:
         messages = [
-            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}
+            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)} # pyright: ignore
         ]
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')

@@ -38,7 +38,7 @@ def load_catalog_data():
     config = create_config()
     redis_host = config.get('DB-Section', 'redis-host')
     redis_port = config.get('DB-Section', 'redis-port')
-    redis_cache = redis.Redis(host=redis_host , port=redis_port)
+    redis_cache = redis.Redis(host=redis_host , port=redis_port) # pyright: ignore
     redisConnection = RedisConnection()
     resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
     try:

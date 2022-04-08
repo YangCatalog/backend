@@ -381,7 +381,7 @@ class TestApiSearchClass(unittest.TestCase):
         path = 'api/services/file1={}@{}/check-update-from/file2={}@{}'.format(file1, revision1, file2, revision2)
         result = self.client.get(path)
 
-        response_text = ET.fromstring(result.data).find('body').find('pre').text
+        response_text = ET.fromstring(result.data).find('body').find('pre').text # pyright: ignore
 
         self.assertEqual(desired_output, response_text)
 
@@ -966,7 +966,7 @@ class TestApiSearchClass(unittest.TestCase):
 
         result = self.client.get('api/services/tree/{}@{}.yang'.format(filename, revision))
         data = result.data.decode()
-        response_text = ET.fromstring(data).find('body').find('pre').text
+        response_text = ET.fromstring(data).find('body').find('pre').text # pyright: ignore
 
         with open(os.path.join(self.resources_path, 'yang-tree.txt'), 'r') as f:
             yang_tree_data = f.readlines()
