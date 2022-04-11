@@ -81,7 +81,7 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
                 try:
                     query = _create_query(subm_n, subm_r)
                     LOGGER.debug('deleting data from index: yindex')
-                    es.delete_by_query(index='yindex', body=query, doc_type='modules', conflicts='proceed',
+                    es.delete_by_query(index='yindex', body=query, conflicts='proceed',
                                        request_timeout=40)
                 except RequestError:
                     LOGGER.exception('Problem while deleting {}@{}'.format(subm_n, subm_r))
@@ -92,16 +92,15 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
                 for idx, chunk in enumerate(chunks, start=1):
                     LOGGER.debug('pushing data to index: yindex {} out of {}'.format(idx, len(chunks)))
                     for success, info in parallel_bulk(es, chunk, thread_count=threads, index='yindex',
-                                                       doc_type='modules', request_timeout=40):
+                                                       request_timeout=40):
                         if not success:
                             LOGGER.error('A elasticsearch document failed with info: {}'.format(info))
 
             # Remove exisiting modules from index: modules
             query = _create_query(module['name'], module['revision'])
             LOGGER.debug('deleting data from index: modules')
-            total = es.delete_by_query(index='modules', body=query, doc_type='modules', conflicts='proceed',
-                                       request_timeout=40)['deleted']
-            if total > 1:
+            delete_result = es.delete_by_query(index='modules', body=query, conflicts='proceed', request_timeout=40)
+            if delete_result['deleted'] > 1:
                 LOGGER.info(name_revision)
 
             query = {
@@ -113,7 +112,7 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
 
             # Index new modules to index: modules
             LOGGER.debug('pushing data to index: modules')
-            es.index(index='modules', doc_type='modules', body=query, request_timeout=40)
+            es.index(index='modules', body=query, request_timeout=40)
             break
         except (ConnectionTimeout, ConnectionError) as e:
             attempts -= attempts
@@ -128,7 +127,7 @@ def delete_from_indices(es: elasticsearch, module: dict, LOGGER: logging.Logger)
     query = _create_query(module['name'], module['revision'])
     LOGGER.debug('deleting data from index: yindex')
     try:
-        es.delete_by_query(index='yindex', body=query, doc_type='modules', conflicts='proceed', request_timeout=40)
+        es.delete_by_query(index='yindex', body=query, conflicts='proceed', request_timeout=40)
     except RequestError:
         LOGGER.exception('Problem while deleting {}@{}'.format(module['name'], module['revision']))
 
@@ -141,7 +140,7 @@ def delete_from_indices(es: elasticsearch, module: dict, LOGGER: logging.Logger)
     })
     LOGGER.debug('deleting data from index: modules')
     try:
-        es.delete_by_query(index='modules', body=query, doc_type='modules', conflicts='proceed', request_timeout=40)
+        es.delete_by_query(index='modules', body=query, conflicts='proceed', request_timeout=40)
     except RequestError:
         LOGGER.exception('Problem while deleting {}@{}'.format(module['name'], module['revision']))
 

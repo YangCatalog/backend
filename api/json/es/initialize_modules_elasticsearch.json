@@ -1,7 +1,9 @@
 {
   "settings": {
     "index": {
-      "blocks": {"read_only_allow_delete": "false"},
+      "blocks": {
+        "read_only_allow_delete": "false"
+      },
       "max_ngram_diff": 150,
       "number_of_shards": 2,
       "number_of_replicas": 1
@@ -28,26 +30,24 @@
     }
   },
   "mappings": {
-    "modules": {
-      "properties": {
-        "module": {
-          "type": "text",
-          "analyzer": "my_analyzer_lowercase",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+    "properties": {
+      "module": {
+        "type": "text",
+        "analyzer": "my_analyzer_lowercase",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
-        },
-        "organization": {
-          "type": "text",
-          "analyzer": "my_analyzer_lowercase",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+        }
+      },
+      "organization": {
+        "type": "text",
+        "analyzer": "my_analyzer_lowercase",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
         }
       }

@@ -355,29 +355,31 @@ def get_module_from_es(name: str, revision: str):
     """
     config = create_config()
     es_aws = config.get('DB-Section', 'es-aws', fallback=False)
-    es_host = config.get('DB-Section', 'es-host', fallback='localhost')
-    es_port = config.get('DB-Section', 'es-port', fallback='9200')
     elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
 
+    es_host_config = {
+        'host': config.get('DB-Section', 'es-host', fallback='localhost'),
+        'port': config.get('DB-Section', 'es-port', fallback='9200')
+    }
     if es_aws == 'True':
-        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
+        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
     else:
-        es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+        es = Elasticsearch(hosts=[es_host_config])
 
     query = \
         {
-            "query": {
-                "bool": {
-                    "must": [{
-                        "match_phrase": {
-                            "module.keyword": {
-                                "query": name
+            'query': {
+                'bool': {
+                    'must': [{
+                        'match_phrase': {
+                            'module.keyword': {
+                                'query': name
                             }
                         }
                     }, {
-                        "match_phrase": {
-                            "revision": {
-                                "query": revision
+                        'match_phrase': {
+                            'revision': {
+                                'query': revision
                             }
                         }
                     }]
@@ -386,7 +388,7 @@ def get_module_from_es(name: str, revision: str):
         }
 
     try:
-        es_result = es.search(index='modules', doc_type='modules', body=query)
+        es_result = es.search(index='modules', body=query)
     except Exception:
         return {}
 

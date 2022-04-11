@@ -55,8 +55,8 @@ import uuid
 from datetime import datetime, timedelta
 from threading import Lock
 
-import requests
 import flask
+import requests
 from elasticsearch import Elasticsearch
 from flask import (Config, Flask, Response, abort, jsonify, make_response,
                    redirect, request)
@@ -154,13 +154,17 @@ class MyFlask(Flask):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
         self.config['DB-ES-AWS'] = self.config.db_es_aws == 'True'
+        es_host_config = {
+            'host': self.config.db_es_host,
+            'port': self.config.db_es_port
+        }
         if self.config.db_es_aws:
-            self.config['ES'] = Elasticsearch([self.config.db_es_host],
+            self.config['ES'] = Elasticsearch(hosts=[es_host_config],
                                               http_auth=(self.config.s_elk_credentials[0],
                                                          self.config.s_elk_credentials[1]),
-                                              scheme='https', port=443)
+                                              scheme='https')
         else:
-            self.config['ES'] = Elasticsearch([{'host': '{}'.format(self.config.db_es_host), 'port': self.config.db_es_port}])
+            self.config['ES'] = Elasticsearch(hosts=[es_host_config])
 
         rabbitmq_host = self.config.config_parser.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(self.config.config_parser.get('RabbitMQ-Section', 'port', fallback='5672'))

@@ -77,11 +77,17 @@ class YangCatalogApiGlobalConfig():
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
         self.es_aws = self.es_aws == 'True'
+        es_host_config = {
+            'host': self.es_host,
+            'port': self.es_port
+        }
         if self.es_aws:
-            self.es = Elasticsearch([self.es_host], http_auth=(self.elk_credentials[0], self.elk_credentials[1]),
-                                    scheme='https', port=443)
+            self.es = Elasticsearch(hosts=[es_host_config],
+                                    http_auth=(self.elk_credentials[0],
+                                               self.elk_credentials[1]),
+                                    scheme='https')
         else:
-            self.es = Elasticsearch([{'host': '{}'.format(self.es_host), 'port': self.es_port}])
+            self.es = Elasticsearch(hosts=[es_host_config])
 
         self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
         separator = ':'
