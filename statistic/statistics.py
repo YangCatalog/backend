@@ -563,8 +563,6 @@ def main(scriptConf: ScriptConfig = None):
     except Exception as e:
         LOGGER.exception('Exception found while running statistics script')
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
-        if repo is not None:
-            repo.remove()
         raise Exception(e)
     job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
