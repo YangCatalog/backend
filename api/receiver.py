@@ -59,10 +59,6 @@ from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_removal, send_for_es_indexing
 
 
-class ConfigReloadedException(Exception):
-    pass
-
-
 class Receiver:
 
     def __init__(self, config_path: str):
@@ -558,7 +554,8 @@ class Receiver:
                 else:
                     f.write(line)
         if config_reloaded:
-            raise ConfigReloadedException
+            assert self.channel, 'Should only be called from self.channel.start_consuming()'
+            self.channel.stop_consuming()
 
     def start_receiving(self):
         while True:
@@ -577,10 +574,10 @@ class Receiver:
                 self.LOGGER.info('Awaiting RPC request')
 
                 self.channel.start_consuming()
-            except ConfigReloadedException:
-                pass
             except Exception as e:
                 self.LOGGER.exception('Exception: {}'.format(str(e)))
+            else:
+                self.LOGGER.info('Restarting connection after config reload')
             finally:
                 time.sleep(10)
                 try:
