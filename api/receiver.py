@@ -33,7 +33,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import argparse
-import errno
 import functools
 import json
 import logging
@@ -49,7 +48,9 @@ from distutils.dir_util import copy_tree
 
 import pika
 import requests
+
 import utility.log as log
+from api.status_message import StatusMessage
 from redisConnections.redisConnection import RedisConnection
 from utility import messageFactory
 from utility.confdService import ConfdService
@@ -78,7 +79,7 @@ class Receiver:
             else:
                 shutil.copy2(s, d)
 
-    def process(self, arguments: t.List[str]) -> t.Tuple[str, dict]:
+    def process(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
         """Process modules. Calls populate.py script which will parse the modules
         on the given path given by "dir" param. Populate script will also send the
         request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
@@ -89,8 +90,6 @@ class Receiver:
             :return (__response_type) one of the response types which is either
                 'Failed' or 'Finished successfully'
         """
-        all_modules = {}
-        tree_created = arguments[-1] == 'True'
         sdo = '--sdo' in arguments
         api = '--api' in arguments
         i = arguments.index('--dir')
@@ -114,15 +113,11 @@ class Receiver:
             submodule.main(scriptConf=script_conf)
         except Exception:
             self.LOGGER.exception('Problem while running populate script')
-            return '{}#split#Server error while running populate script'.format(self._response_type[0]), all_modules
+            return StatusMessage.FAIL, 'Server error while running populate script'
 
-        if tree_created:
-            with open(os.path.join(direc, 'prepare.json'), 'r') as f:
-                all_modules.update(json.load(f))
+        return StatusMessage.SUCCESS, ''
 
-        return self._response_type[1], all_modules
-
-    def process_vendor_deletion(self, arguments: t.List[str]) -> str:
+    def process_vendor_deletion(self, arguments: t.List[str]) -> StatusMessage:
         """Deleting vendors metadata. It deletes all the module in vendor branch of the yang-catalog.yang 
         module on given path. If the module was added by vendor and it doesn't contain any other implementations 
         it will delete the whole module in modules branch of the yang-catalog.yang module. 
@@ -131,7 +126,7 @@ class Receiver:
         Argument:
             :param arguments    (list) list of arguments sent from API sender
             :return (__response_type) one of the response types which
-                is either 'Finished successfully' or 'Partially done'
+                is either 'Finished successfully' or 'In progress'
         """
         vendor, platform, software_version, software_flavor = arguments[3:7]
         # confd_suffix = arguments[-1]
@@ -243,7 +238,7 @@ class Receiver:
             if body_to_send.get('modules-to-delete'):
                 send_for_es_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
                                      self._lock_file)
-        return self._response_type[1]
+        return StatusMessage.SUCCESS
 
     def iterate_in_depth(self, value: dict, modules_keys: t.Set[str]):
         """Iterates through the branch to get to the level with modules.
@@ -283,7 +278,7 @@ class Receiver:
             self.LOGGER.error('Could not load json to memory-cache. Error: {} {}'.format(response.text, code))
         return response
 
-    def process_module_deletion(self, arguments: t.List[str]) -> str:
+    def process_module_deletion(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
         """Deleting one or more modules. It sends the delete request to ConfD to delete module on
         given path. This will delete whole module in modules branch of the
         yang-catalog:yang module. It will also call indexing script to update searching.
@@ -300,7 +295,7 @@ class Receiver:
             all_modules = json.loads(all_modules_raw)
         except Exception:
             self.LOGGER.exception('Problem while processing arguments')
-            return '{}#split#Server error -> Unable to parse arguments'.format(self._response_type[0])
+            return StatusMessage.FAIL, 'Server error -> Unable to parse arguments'
 
         def module_in(name: str, revision: str, modules: list) -> bool:
             for module in modules:
@@ -368,12 +363,12 @@ class Receiver:
                 send_for_es_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
                                      self._lock_file)
         if len(modules_not_deleted) == 0:
-            return self._response_type[1]
+            return StatusMessage.SUCCESS, ''
         else:
             reason = 'modules-not-deleted:{}'.format(':'.join(modules_not_deleted))
-            return '{}#split#{}'.format(self._response_type[2], reason)
+            return StatusMessage.IN_PROGRESS, reason
 
-    def run_ietf(self) -> str:
+    def run_ietf(self) -> t.Tuple[StatusMessage, str]:
         """
         Runs ietf and openconfig scripts that should update all the new ietf
         and openconfig modules
@@ -391,7 +386,7 @@ class Receiver:
                 submodule.main(scriptConf=script_conf)
             except Exception:
                 self.LOGGER.exception('Problem while running draftPullLocal script')
-                return '{}#split#Server error while running draftPullLocal script'.format(self._response_type[0])
+                return StatusMessage.FAIL, 'Server error while running draftPullLocal script'
             # Run openconfigPullLocal.py script
             script_name = 'openconfigPullLocal'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
@@ -403,14 +398,14 @@ class Receiver:
                 submodule.main(scriptConf=script_conf)
             except Exception:
                 self.LOGGER.exception('Problem while running openconfigPullLocal script')
-                return '{}#split#Server error while running openconfigPullLocal script'.format(self._response_type[0])
+                return StatusMessage.FAIL, 'Server error while running openconfigPullLocal script'
 
-            return self._response_type[1]
+            return StatusMessage.SUCCESS, ''
         except Exception:
             self.LOGGER.exception('Server error while running scripts')
-            return self._response_type[0]
+            return StatusMessage.FAIL, ''
 
-    def load_config(self):
+    def load_config(self) -> StatusMessage:
         config = create_config(self._config_path)
         self._log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('receiver', os.path.join(self._log_directory, 'receiver.log'))
@@ -440,21 +435,11 @@ class Receiver:
             separator = '/'
             suffix = 'api'
         self._yangcatalog_api_prefix = '{}://{}{}{}/'.format(self._api_protocol, self._api_ip, separator, suffix)
-        self._response_type = ['Failed', 'Finished successfully', 'Partially done']
         self._rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
-        try:
-            if self.channel:
-                self.channel.close()
-        except Exception:
-            pass
-        try:
-            if self.connection:
-                self.connection.close()
-        except Exception:
-            pass
         self.LOGGER.info('Config loaded succesfully')
+        return StatusMessage.SUCCESS
 
     def on_request(self, channel, method, properties, body):
         process_reload_cache = multiprocessing.Process(
@@ -472,19 +457,23 @@ class Receiver:
                     :param body: (str) String of arguments that need to be processed
                     separated by '#'.
         """
-        final_response = ''
+        config_reloaded = False
+        status: StatusMessage
+        details: str = ''
+
         try:
             body = body_raw.decode()
             arguments = body.split('#')
             if body == 'run_ietf':
                 self.LOGGER.info('Running all ietf and openconfig modules')
-                final_response = self.run_ietf()
+                status, details = self.run_ietf()
             elif body == 'reload_config':
-                self.load_config()
+                status = self.load_config()
+                config_reloaded = True
             elif 'run_ping' == arguments[0]:
-                final_response = self.run_ping(arguments[1])
+                status = self.run_ping(arguments[1])
             elif 'run_script' == arguments[0]:
-                final_response = self.run_script(arguments[1:])
+                status = self.run_script(arguments[1:])
             elif 'github' == arguments[-1]:
                 self.LOGGER.info('Github automated message starting to populate')
                 paths_plus = arguments[arguments.index('repoLocalDir'):]
@@ -501,36 +490,35 @@ class Receiver:
                             if self._notify_indexing:
                                 arguments.append('--notify-indexing')
                             subprocess.check_call(arguments, stderr=f)
-                    final_response = self._response_type[1]
+                    status = StatusMessage.SUCCESS
                 except subprocess.CalledProcessError as e:
-                    final_response = self._response_type[0]
+                    status = StatusMessage.FAIL
                     mf = messageFactory.MessageFactory()
                     mf.send_automated_procedure_failed(arguments, self.temp_dir + '/log_no_sdo_api.txt')
                     self.LOGGER.error(
                         'check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(
                             e.output, e.stderr))
                 except Exception:
-                    final_response = self._response_type[0]
+                    status = StatusMessage.FAIL
                     self.LOGGER.error('check log_trigger.txt failed to process github message with error {}'.format(
                         sys.exc_info()[0]))
             else:
-                all_modules = {}
                 direc = ''
                 if arguments[0] == 'DELETE-VENDORS':
-                    final_response = self.process_vendor_deletion(arguments)
+                    status = self.process_vendor_deletion(arguments)
                     credentials = arguments[1:3]
                 elif arguments[0] == 'DELETE-MODULES':
-                    final_response = self.process_module_deletion(arguments)
+                    status, details = self.process_module_deletion(arguments)
                     credentials = arguments[1:3]
                 elif arguments[0] == 'POPULATE-MODULES':
-                    final_response, all_modules = self.process(arguments)
+                    status, details = self.process(arguments)
                     i = arguments.index('--credentials')
                     credentials = arguments[i+1:i+3]
                     i = arguments.index('--dir')
                     direc = arguments[i+1]
                     shutil.rmtree(direc)
                 elif arguments[0] == 'POPULATE-VENDORS':
-                    final_response, all_modules = self.process(arguments)
+                    status, details = self.process(arguments)
                     i = arguments.index('--credentials')
                     credentials = arguments[i+1:i+3]
                     i = arguments.index('--dir')
@@ -539,16 +527,18 @@ class Receiver:
                 else:
                     assert False, 'Invalid request type'
 
-                if final_response.split('#split#')[0] == self._response_type[1]:
+                if status == StatusMessage.SUCCESS:
                     response = self.make_cache(credentials)
                     code = response.status_code
                     if code != 200 and code != 201 and code != 204:
-                        final_response = '{}#split#Server error-> could not reload cache'.format(self._response_type[0])
+                        status = StatusMessage.FAIL
+                        details = 'Server error-> could not reload cache'
         except Exception:
-            final_response = self._response_type[0]
+            status = StatusMessage.FAIL
             self.LOGGER.exception('receiver.py failed')
+        final_response = status.value if not details else '{}#split#{}'.format(status.value, details)
         self.LOGGER.info('Receiver is done with id - {} and message = {}'
-                         .format(properties.correlation_id, str(final_response)))
+                         .format(properties.correlation_id, final_response))
 
         f = open('{}/correlation_ids'.format(self.temp_dir), 'r')
         lines = f.readlines()
@@ -563,6 +553,9 @@ class Receiver:
                     f.write(new_line)
                 else:
                     f.write(line)
+        if config_reloaded:
+            assert self.channel, 'Should only be called from self.channel.start_consuming()'
+            self.channel.stop_consuming()
 
     def start_receiving(self):
         while True:
@@ -583,10 +576,13 @@ class Receiver:
                 self.channel.start_consuming()
             except Exception as e:
                 self.LOGGER.exception('Exception: {}'.format(str(e)))
+            else:
+                self.LOGGER.info('Restarting connection after config reload')
+            finally:
                 time.sleep(10)
                 try:
                     if self.channel:
-                        self.channel.close()
+                        self.channel.stop_consuming()
                 except Exception:
                     pass
                 try:
@@ -595,7 +591,7 @@ class Receiver:
                 except Exception:
                     pass
 
-    def run_script(self, arguments: t.List[str]) -> str:
+    def run_script(self, arguments: t.List[str]) -> StatusMessage:
         module_name = arguments[0]
         script_name = arguments[1]
         body_input = json.loads(arguments[2])
@@ -613,16 +609,16 @@ class Receiver:
             self.LOGGER.info('Runnning {}.py script with following configuration:\n{}'.format(
                 script_name, script_conf.args.__dict__))
             submodule.main(scriptConf=script_conf)
-            return self._response_type[1]
+            return StatusMessage.SUCCESS
         except Exception:
             self.LOGGER.exception('Server error while running {} script'.format(script_name))
-            return self._response_type[0]
+            return StatusMessage.FAIL
 
-    def run_ping(self, message: str) -> str:
+    def run_ping(self, message: str) -> StatusMessage:
         if message == 'ping':
-            return self._response_type[1]
+            return StatusMessage.SUCCESS
         else:
-            return self._response_type[0]
+            return StatusMessage.FAIL
 
 
 if __name__ == '__main__':

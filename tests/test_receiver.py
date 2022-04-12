@@ -23,10 +23,12 @@ import shutil
 import unittest
 from unittest import mock
 
-from api.receiver import Receiver
 from ddt import data, ddt
-from parseAndPopulate.loadJsonFiles import LoadFiles
 from redis import Redis
+
+from api.receiver import Receiver
+from api.status_message import StatusMessage
+from parseAndPopulate.loadJsonFiles import LoadFiles
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 
@@ -147,14 +149,14 @@ class TestReceiverClass(TestReceiverBaseClass):
         shutil.rmtree(self.direc)
 
     def test_run_ping_successful(self):
-        response = self.receiver.run_ping('ping')
+        status = self.receiver.run_ping('ping')
 
-        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(status, StatusMessage.SUCCESS)
 
     def test_run_ping_failure(self):
-        response = self.receiver.run_ping('pong')
+        status = self.receiver.run_ping('pong')
 
-        self.assertEqual(response, 'Failed')
+        self.assertEqual(status, StatusMessage.FAIL)
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
@@ -173,35 +175,30 @@ class TestReceiverClass(TestReceiverBaseClass):
             json.dump(data, f)
 
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api',
-                     '--credentials', *self.credentials, 'True']
+                     '--credentials', *self.credentials]
 
-        response, all_modules = self.receiver.process(arguments)
+        status, details = self.receiver.process(arguments)
         original_module_data = data['modules']['module'][0]
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
-        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(status, StatusMessage.SUCCESS)
+        self.assertEqual(details, '')
         self.assertNotEqual(redis_data, '{}')
-        self.assertNotEqual(all_modules, {})
-        self.assertIn('module', all_modules)
-
-        module = all_modules['module'][0]
-        for prop in ['name', 'revision', 'organization', 'module-classification', 'generated-from']:
-            self.assertEqual(module[prop], original_module_data[prop])
 
     @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_sdo_failed_populate(self, mock_load_files: mock.MagicMock):
         mock_load_files.side_effect = Exception
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
-                     '--api', '--credentials', *self.credentials, 'True']
+                     '--api', '--credentials', *self.credentials]
 
-        response, all_modules = self.receiver.process(arguments)
+        status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
-        self.assertEqual(response, 'Failed#split#Server error while running populate script')
+        self.assertEqual(status, StatusMessage.FAIL)
+        self.assertEqual(details, 'Server error while running populate script')
         self.assertEqual(redis_data, '{}')
-        self.assertEqual(all_modules, {})
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
@@ -222,27 +219,10 @@ class TestReceiverClass(TestReceiverBaseClass):
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
 
-        response, all_modules = self.receiver.process(arguments)
-        modules = all_modules.get('module')
+        status, details = self.receiver.process(arguments)
 
-        self.assertEqual(response, 'Finished successfully')
-        self.assertNotEqual(all_modules, {})
-        self.assertIn('module', all_modules)
-
-        for module in modules:
-            self.assertIn('implementations', module)
-            implementations = module.get('implementations', {})
-            self.assertIn('implementation', implementations)
-            for implementation in implementations.get('implementation'):
-                for prop in ['vendor', 'software-version', 'software-flavor']:
-                    self.assertEqual(implementation.get(prop), platform.get(prop))
-                self.assertEqual(implementation.get('platform'), platform.get('name'))
-
-            # Test whether modules are stored in Redis database after running populate script
-            redis_key = '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
-            redis_module = self.modulesDB.get(redis_key)
-            redis_data = (redis_module or b'{}').decode('utf-8')
-            self.assertNotEqual(redis_data, '{}')
+        self.assertEqual(status, StatusMessage.SUCCESS)
+        self.assertEqual(details, '')
 
     @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     def test_process_vendor_failed_populate(self, mock_load_files: mock.MagicMock):
@@ -250,10 +230,10 @@ class TestReceiverClass(TestReceiverBaseClass):
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
 
-        response, all_modules = self.receiver.process(arguments)
+        status, details = self.receiver.process(arguments)
 
-        self.assertEqual(response, 'Failed#split#Server error while running populate script')
-        self.assertEqual(all_modules, {})
+        self.assertEqual(status, StatusMessage.FAIL)
+        self.assertEqual(details, 'Server error while running populate script')
 
     @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion(self):
@@ -271,12 +251,13 @@ class TestReceiverClass(TestReceiverBaseClass):
             ]}
         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
-        response = self.receiver.process_module_deletion(arguments)
+        status, details = self.receiver.process_module_deletion(arguments)
         self.redisConnection.reload_modules_cache()
         raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
-        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(status, StatusMessage.SUCCESS)
+        self.assertEqual(details, '')
         self.assertNotIn(deleted_module_key, all_modules)
         for module in all_modules.values():
             dependents_list = ['{}@{}'.format(dep['name'], dep.get('revision')) for dep in module.get('dependents', [])]
@@ -298,12 +279,13 @@ class TestReceiverClass(TestReceiverBaseClass):
             ]}
         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
-        response = self.receiver.process_module_deletion(arguments)
+        status, details = self.receiver.process_module_deletion(arguments)
         self.redisConnection.reload_modules_cache()
         raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
-        self.assertEqual(response, 'Partially done#split#modules-not-deleted:yang-submodule,2020-02-01,ietf')
+        self.assertEqual(status, StatusMessage.IN_PROGRESS)
+        self.assertEqual(details, 'modules-not-deleted:yang-submodule,2020-02-01,ietf')
         self.assertIn(deleted_module_key, all_modules)
 
     @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
@@ -327,12 +309,13 @@ class TestReceiverClass(TestReceiverBaseClass):
             ]}
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
-        response = self.receiver.process_module_deletion(arguments)
+        status, details = self.receiver.process_module_deletion(arguments)
         self.redisConnection.reload_modules_cache()
         raw_all_modules = self.redisConnection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
-        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(status, StatusMessage.SUCCESS)
+        self.assertEqual(details, '')
         self.assertNotIn('another-yang-module@2020-03-01/ietf', all_modules)
         self.assertNotIn('yang-module@2020-01-01/ietf', all_modules)
 
@@ -348,9 +331,10 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.redisConnection.reload_modules_cache()
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps({'modules': []})]
-        response = self.receiver.process_module_deletion(arguments)
+        status, details = self.receiver.process_module_deletion(arguments)
 
-        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(status, StatusMessage.SUCCESS)
+        self.assertEqual(details, '')
 
     @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_incorrect_arguments_input(self):
@@ -359,9 +343,10 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.redisConnection.reload_modules_cache()
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps([])]
-        response = self.receiver.process_module_deletion(arguments)
+        status, details = self.receiver.process_module_deletion(arguments)
 
-        self.assertEqual(response, 'Failed#split#Server error -> Unable to parse arguments')
+        self.assertEqual(status, StatusMessage.FAIL)
+        self.assertEqual(details, 'Server error -> Unable to parse arguments')
 
 
 @ddt
@@ -403,12 +388,12 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
             deleted_vendor_branch += software_flavor
 
         arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor, confd_suffix]
-        response = self.receiver.process_vendor_deletion(arguments)
+        status = self.receiver.process_vendor_deletion(arguments)
         self.redisConnection.reload_vendors_cache()
         self.redisConnection.reload_modules_cache()
 
         created_vendors_dict = self.redisConnection.create_vendors_data_dict(deleted_vendor_branch)
-        self.assertEqual(response, 'Finished successfully')
+        self.assertEqual(status, StatusMessage.SUCCESS)
         self.assertEqual(created_vendors_dict, [])
         for key in self.vendorsDB.scan_iter():
             redis_key = key.decode('utf-8')

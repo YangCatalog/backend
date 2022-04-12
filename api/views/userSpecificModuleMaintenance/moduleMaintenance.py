@@ -225,7 +225,6 @@ def add_modules():
         abort(400, description='bad request - "module" json list is missing and is mandatory')
 
     app.logger.info('Adding modules with body\n{}'.format(json.dumps(body, indent=2)))
-    tree_created = False
 
     dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
     if not os.path.exists(ac.d_save_requests):
@@ -304,7 +303,6 @@ def add_modules():
                 '{} does not exist'.format(os.path.join(repo_url, 'blob', source_file['commit-hash'], module_path)))
             continue
 
-        tree_created = True
         organization_parsed = ''
         try:
             namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, os.path.basename(module_path)))) \
@@ -334,7 +332,7 @@ def add_modules():
         json.dump(body, f)
 
     arguments = ['POPULATE-MODULES', '--sdo', '--dir', direc, '--api',
-                 '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
+                 '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1]]
     job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
     if len(warning) > 0:
@@ -454,12 +452,11 @@ def get_job(job_id: str):
     :return response to the request with the job
     """
     app.logger.info('Searching for job_id {}'.format(job_id))
-    # EVY result = application.sender.get_response(job_id)
     result = ac.sender.get_response(job_id)
     split = result.split('#split#')
 
     reason = None
-    if split[0] == 'Failed' or split[0] == 'Partially done':
+    if split[0] == 'Failed' or split[0] == 'In progress':
         result = split[0]
         if len(split) == 2:
             reason = split[1]
