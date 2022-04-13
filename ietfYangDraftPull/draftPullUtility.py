@@ -123,10 +123,10 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger):
                             continue
 
                     # Basic date extraction can fail if there are alphanumeric characters in the revision filename part
-                    year = int(revision.split('-')[0])
-                    month = int(revision.split('-')[1])
-                    day = int(revision.split('-')[2])
                     try:
+                        year = int(revision.split('-')[0])
+                        month = int(revision.split('-')[1])
+                        day = int(revision.split('-')[2])
                         revisions.append(datetime(year, month, day))
                     except ValueError:
                         LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
