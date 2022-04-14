@@ -24,7 +24,6 @@ import logging
 import optparse
 import os
 import stat
-import sys
 import time
 import typing as t
 import warnings

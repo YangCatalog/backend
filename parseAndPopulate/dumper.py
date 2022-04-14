@@ -21,7 +21,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 
-import requests
 import typing as t
 import utility.log as log
 
@@ -81,14 +80,6 @@ class Dumper:
             if yang.tree is not None:
                 yang.tree = self.yangcatalog_api_prefix + yang.tree
             self.yang_modules[key] = yang
-            if self.yang_modules[key].compilation_status is None:
-                try:
-                    url = '{}search/modules/{},{},{}'.format(self.yangcatalog_api_prefix, yang.name,
-                                                             yang.revision, yang.organization)
-                    self.yang_modules[key].compilation_status = \
-                        requests.get(url).json()['module'][0].get('compilation-status')
-                except:
-                    self.yang_modules[key].compilation_status = 'unknown'
 
     def dump_modules(self, directory: str):
         """
@@ -113,15 +104,15 @@ class Dumper:
                 'module-classification': self.yang_modules[key].module_classification,
                 'compilation-status': self.yang_modules[key].compilation_status,
                 'compilation-result': self.yang_modules[key].compilation_result,
-                'expires': self.yang_modules[key].expiration_date,
-                'expired': self.yang_modules[key].expired,
+                'expires': None,
+                'expired': None,
                 'prefix': self.yang_modules[key].prefix,
                 'yang-version': self.yang_modules[key].yang_version,
                 'description': self.yang_modules[key].description,
                 'contact': self.yang_modules[key].contact,
                 'module-type': self.yang_modules[key].module_type,
                 'belongs-to': self.yang_modules[key].belongs_to,
-                'tree-type': self.yang_modules[key].tree_type,
+                'tree-type': None,
                 'yang-tree': self.yang_modules[key].tree,
                 'ietf': {
                     'ietf-wg': self.yang_modules[key].ietf_wg
@@ -130,7 +121,7 @@ class Dumper:
                 'submodule': json.loads(self.yang_modules[key].json_submodules),
                 'dependencies': get_dependencies(self.yang_modules[key].dependencies),
                 'semantic-version': self.yang_modules[key].semver,
-                'derived-semantic-version': self.yang_modules[key].derived_semver,
+                'derived-semantic-version': None,
                 'implementations': {
                     'implementation': [{
                         'vendor': implementation.vendor,

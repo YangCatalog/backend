@@ -119,17 +119,14 @@ class TestGroupingsClass(unittest.TestCase):
             self.assertIn(key, sdo_directory.dumper.yang_modules)
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    @mock.patch('parseAndPopulate.dumper.requests.get')
-    def test_sdo_directory_parse_and_load_submodule(self, mock_requests_get: mock.MagicMock, mock_hash: mock.MagicMock):
+    def test_sdo_directory_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_requests_get.return_value.json = {}
         mock_hash.return_value = 'master'
         path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
         repo = self.get_yangmodels_repository()
@@ -351,8 +348,7 @@ class TestGroupingsClass(unittest.TestCase):
         if '@' in module_name:
             module_name = module_name.split('@')[0]
 
-        yang = SdoModule(path_to_yang, parsed_jsons, self.dir_paths)
-        yang.parse_all(module_name, 'master', {}, schema_base, yc_gc.save_file_dir)
+        yang = SdoModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, schema_base)
 
         return yang
 

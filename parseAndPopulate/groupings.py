@@ -143,15 +143,14 @@ class SdoDirectory(ModuleGrouping):
                 should_parse = self.file_hasher.should_parse_openconfig_module(path)
                 if not should_parse:
                     continue
+            name = file_name.split('.')[0].split('@')[0]
+            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
             try:
-                yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
+                yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, commit_hash, self.dumper.yang_modules,
+                                 schema_base, aditional_info=sdo)
             except ParseException:
                 LOGGER.exception('ParseException while parsing {}'.format(file_name))
                 continue
-            name = file_name.split('.')[0].split('@')[0]
-            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
-            yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                           schema_base, self.dir_paths['save'], sdo)
             self.dumper.add_module(yang)
 
     def _parse_and_load_not_api(self):
@@ -175,17 +174,16 @@ class SdoDirectory(ModuleGrouping):
                         LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                         continue
                     LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
-                    try:
-                        yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
-                    except ParseException:
-                        LOGGER.exception('ParseException while parsing {}'.format(file_name))
-                        continue
                     name = file_name.split('.')[0].split('@')[0]
                     if commit_hash is None:
                         commit_hash = self.repo.get_commit_hash(path, 'main')
-                    schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
-                    yang.parse_all(name, commit_hash, self.dumper.yang_modules,
-                                   schema_base, self.dir_paths['save'], submodule_name=submodule_name)
+                    schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+                    try:
+                        yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, commit_hash,
+                                         self.dumper.yang_modules, schema_base, submodule_name=submodule_name)
+                    except ParseException:
+                        LOGGER.exception('ParseException while parsing {}'.format(file_name))
+                        continue
                     self.dumper.add_module(yang)
 
 
@@ -233,16 +231,15 @@ class IanaDirectory(SdoDirectory):
                 module_name = data['file'].split('.yang')[0]
 
                 LOGGER.info('Parsing module {}'.format(module_name))
+                if commit_hash is None:
+                    commit_hash = self.repo.get_commit_hash(path, 'main')
+                schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
                 try:
-                    yang = SdoModule(path, self.parsed_jsons, self.dir_paths)
+                    yang = SdoModule(data['name'], path, self.parsed_jsons, self.dir_paths, commit_hash,
+                                     self.dumper.yang_modules, schema_base, additional_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
-                if commit_hash is None:
-                    commit_hash = self.repo.get_commit_hash(path, 'main')
-                schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, commit_hash)
-                yang.parse_all(data['name'], commit_hash, self.dumper.yang_modules,
-                               schema_base, self.dir_paths['save'], additional_info)
                 self.dumper.add_module(yang)
 
 
@@ -369,7 +366,7 @@ class VendorGrouping(ModuleGrouping):
             :param set_of_namea     (set) Set of all the modules parsed out from the capability file
             :param is_include       (bool) Whether module is include or not
             :param schema_base      (str) url to a raw module on github up to and not including the
-                                    path of the file in the repo
+                                    commit hash
         """
         for module in modules:
             if not is_include:
@@ -391,12 +388,11 @@ class VendorGrouping(ModuleGrouping):
                     return
                 try:
                     try:
-                        yang = VendorModule(yang_file, self.parsed_jsons, self.dir_paths)
+                        yang = VendorModule(name, yang_file, self.parsed_jsons, self.dir_paths, self.commit_hash,
+                                            self.dumper.yang_modules, schema_base, submodule_name=self.submodule_name)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(name))
                         continue
-                    yang.parse_all(name, self.commit_hash, self.dumper.yang_modules,
-                                   schema_base, self.dir_paths['save'], submodule_name=self.submodule_name)
                     yang.add_vendor_information(self.platform_data, conformance_type,
                                                 self.capabilities, self.netconf_versions)
                     self.dumper.add_module(yang)
@@ -435,7 +431,7 @@ class VendorCapabilities(VendorGrouping):
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
         try:
-            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, self.commit_hash)
+            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
         except:
             LOGGER.exception('Missing attribute, likely caused by a broken path in {}/platform-metadata.json'
                              .format(self.directory))
@@ -459,12 +455,12 @@ class VendorCapabilities(VendorGrouping):
                 LOGGER.info('Parsing module {}'.format(module_name))
                 try:
                     try:
-                        yang = VendorModule(path, self.parsed_jsons, self.dir_paths, data=module_and_more)
+                        yang = VendorModule(module_name, path, self.parsed_jsons, self.dir_paths, self.commit_hash,
+                                            self.dumper.yang_modules, schema_base, submodule_name=self.submodule_name,
+                                            data=module_and_more)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(module_name))
                         continue
-                    yang.parse_all(module_name, self.commit_hash, self.dumper.yang_modules,
-                                   schema_base, self.dir_paths['save'], submodule_name=self.submodule_name)
                     yang.add_vendor_information(self.platform_data, 'implement',
                                                 self.capabilities, self.netconf_versions)
                     self.dumper.add_module(yang)
@@ -494,7 +490,7 @@ class VendorYangLibrary(VendorGrouping):
         modules = self.root[0]
         set_of_names = set()
         keys = set()
-        schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name, self.commit_hash)
+        schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
         for yang in modules:
             if 'module-set-id' in yang.tag:
                 continue
@@ -529,13 +525,13 @@ class VendorYangLibrary(VendorGrouping):
             LOGGER.info('Starting to parse {}'.format(module_name))
             try:
                 try:
-                    yang = VendorModule(self.xml_file, self.parsed_jsons, self.dir_paths, yang_lib_info)
+                    yang = VendorModule(module_name, self.xml_file, self.parsed_jsons, self.dir_paths, self.commit_hash,
+                                        self.dumper.yang_modules, schema_base, submodule_name=self.submodule_name,
+                                        data=yang_lib_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
 
-                yang.parse_all(module_name, self.commit_hash, self.dumper.yang_modules,
-                               schema_base, self.dir_paths['save'], submodule_name=self.submodule_name)
                 yang.add_vendor_information(self.platform_data, conformance_type,
                                             self.capabilities, self.netconf_versions)
                 self.dumper.add_module(yang)
