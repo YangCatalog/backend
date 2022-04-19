@@ -21,7 +21,6 @@ import io
 import json
 import logging
 
-import elasticsearch
 from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
@@ -32,10 +31,13 @@ from requests import ConnectionError
 from utility import yangParser
 from utility.util import validate_revision
 
+from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.es_indices import ESIndices
+
 ES_CHUNK_SIZE = 30
 
 
-def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytree: str, threads: int, LOGGER: logging.Logger):
+def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str, threads: int, LOGGER: logging.Logger):
     name_revision = '{}@{}'.format(module['name'], module['revision'])
 
     plugin.init([])
@@ -73,16 +75,22 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
     attempts = 3
     while attempts > 0:
         try:
+            # Remove exisiting modules from all indices
+            LOGGER.debug('deleting data from index: modules')
+            es_manager.delete_from_indices(module)
+
             # Remove existing submodules from index: yindex
             for subm in submodules:
                 subm_n = subm.arg
                 rev = get_latest_revision(subm)
                 subm_r = validate_revision(rev)
+                submodule = {
+                    'name': subm_n,
+                    'revision': subm_r
+                }
                 try:
-                    query = _create_query(subm_n, subm_r)
                     LOGGER.debug('deleting data from index: yindex')
-                    es.delete_by_query(index='yindex', body=query, conflicts='proceed',
-                                       request_timeout=40)
+                    es_manager.delete_from_index(ESIndices.YINDEX, submodule)
                 except RequestError:
                     LOGGER.exception('Problem while deleting {}@{}'.format(subm_n, subm_r))
 
@@ -91,28 +99,17 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
                 chunks = [yindexes[key][i:i + ES_CHUNK_SIZE] for i in range(0, len(yindexes[key]), ES_CHUNK_SIZE)]
                 for idx, chunk in enumerate(chunks, start=1):
                     LOGGER.debug('pushing data to index: yindex {} out of {}'.format(idx, len(chunks)))
-                    for success, info in parallel_bulk(es, chunk, thread_count=threads, index='yindex',
+                    for success, info in parallel_bulk(es_manager.es, chunk, thread_count=threads, index='yindex',
                                                        request_timeout=40):
                         if not success:
                             LOGGER.error('A elasticsearch document failed with info: {}'.format(info))
 
-            # Remove exisiting modules from index: modules
-            query = _create_query(module['name'], module['revision'])
-            LOGGER.debug('deleting data from index: modules')
-            delete_result = es.delete_by_query(index='modules', body=query, conflicts='proceed', request_timeout=40)
-            if delete_result['deleted'] > 1:
-                LOGGER.info(name_revision)
-
-            query = {
-                'module': module['name'],
-                'organization': module['organization'],
-                'revision': module['revision'],
-                'dir': module['path']
-            }
-
             # Index new modules to index: modules
             LOGGER.debug('pushing data to index: modules')
-            es.index(index='modules', body=query, request_timeout=40)
+            es_manager.index_module(ESIndices.MODULES, module)
+            # Index new modules to index: autocomplete
+            LOGGER.debug('pushing data to index: autocomplete')
+            es_manager.index_module(ESIndices.AUTOCOMPLETE, module)
             break
         except (ConnectionTimeout, ConnectionError) as e:
             attempts -= attempts
@@ -121,28 +118,6 @@ def build_indices(es: elasticsearch, module: dict, save_file_dir: str, json_ytre
             else:
                 LOGGER.exception('module {} timed out too many times failing'.format(name_revision))
                 raise e
-
-
-def delete_from_indices(es: elasticsearch, module: dict, LOGGER: logging.Logger):
-    query = _create_query(module['name'], module['revision'])
-    LOGGER.debug('deleting data from index: yindex')
-    try:
-        es.delete_by_query(index='yindex', body=query, conflicts='proceed', request_timeout=40)
-    except RequestError:
-        LOGGER.exception('Problem while deleting {}@{}'.format(module['name'], module['revision']))
-
-    query['query']['bool']['must'].append({
-        'match_phrase': {
-            'organization': {
-                'query': module['organization']
-            }
-        }
-    })
-    LOGGER.debug('deleting data from index: modules')
-    try:
-        es.delete_by_query(index='modules', body=query, conflicts='proceed', request_timeout=40)
-    except RequestError:
-        LOGGER.exception('Problem while deleting {}@{}'.format(module['name'], module['revision']))
 
 
 def _find_submodules(ctx, submodules, module):
@@ -155,27 +130,3 @@ def _find_submodules(ctx, submodules, module):
         if subm is not None and subm not in submodules:
             submodules.append(subm)
             _find_submodules(ctx, submodules, subm)
-
-
-def _create_query(name: str, revision: str) -> dict:
-    return {
-        'query': {
-            'bool': {
-                'must': [
-                    {
-                        'match_phrase': {
-                            'module.keyword': {
-                                'query': name
-                            }
-                        }
-                    }, {
-                        'match_phrase': {
-                            'revision': {
-                                'query': revision
-                            }
-                        }
-                    }
-                ]
-            }
-        }
-    }

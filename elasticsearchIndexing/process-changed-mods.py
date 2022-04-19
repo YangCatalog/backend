@@ -31,8 +31,9 @@ from utility import log, repoutil
 from utility.create_config import create_config
 from utility.util import fetch_module_by_schema, validate_revision
 
-from elasticsearchIndexing.build_yindex import (build_indices,
-                                                delete_from_indices)
+from elasticsearchIndexing.build_yindex import build_indices
+from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.es_indices import ESIndices
 
 
 def load_changes_cache(changes_cache_path: str):
@@ -63,28 +64,32 @@ def load_delete_cache(delete_cache_path: str):
 
 def backup_cache_files(cache_path: str):
     shutil.copyfile(cache_path, '{}.bak'.format(cache_path))
+    empty = {}
+    if 'deletes' in cache_path:
+        empty = []
     with open(cache_path, 'w') as f:
-        json.dump({}, f)
+        json.dump(empty, f)
 
 
 def check_file_availability(module: dict, LOGGER: logging.Logger):
-    if not os.path.isfile(module['path']):
-        result = False
-        url = 'https://yangcatalog.org/api/search/modules/{},{},{}'.format(
-            module['name'], module['revision'], module['organization'])
-        try:
-            module_detail = requests.get(url).json().get('module', [])
-            schema = module_detail[0].get('schema')
-            result = fetch_module_by_schema(schema, module['path'])
-            if not result:
-                raise Exception
-            LOGGER.info('File content successfully retrieved from GitHub using module schema')
-        except Exception:
-            msg = 'Unable to retrieve content of {}@{}'.format(module['name'], module['revision'])
-            raise Exception(msg)
+    if os.path.isfile(module['path']):
+        return
+    result = False
+    url = 'https://yangcatalog.org/api/search/modules/{},{},{}'.format(
+        module['name'], module['revision'], module['organization'])
+    try:
+        module_detail = requests.get(url).json().get('module', [])
+        schema = module_detail[0].get('schema')
+        result = fetch_module_by_schema(schema, module['path'])
+        if not result:
+            raise Exception
+        LOGGER.info('File content successfully retrieved from GitHub using module schema')
+    except Exception:
+        msg = 'Unable to retrieve content of {}@{}'.format(module['name'], module['revision'])
+        raise Exception(msg)
 
 
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
     parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
@@ -97,7 +102,6 @@ if __name__ == '__main__':
     changes_cache_path = config.get('Directory-Section', 'changes-cache')
     failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
     delete_cache_path = config.get('Directory-Section', 'delete-cache')
-    temp_dir = config.get('Directory-Section', 'temp')
     lock_file = config.get('Directory-Section', 'lock')
     lock_file_cron = config.get('Directory-Section', 'lock-cron')
     json_ytree = config.get('Directory-Section', 'json-ytree')
@@ -151,20 +155,24 @@ if __name__ == '__main__':
 
     LOGGER.info('Creating Elasticsearch indices')
     try:
-        es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
-        es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+        es.indices.create(index=ESIndices.YINDEX.value, body=initialize_body_yindex, ignore=400)
+        es.indices.create(index=ESIndices.MODULES.value, body=initialize_body_modules, ignore=400)
     except AuthorizationException:
         # Reference: https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
         for index in es.indices.get_alias('*'):
             read_only_query = {'index': {'blocks': {'read_only_allow_delete': 'false'}}}
             es.indices.put_settings(index=index, body=read_only_query)
-        es.indices.create(index='yindex', body=initialize_body_yindex, ignore=400)
-        es.indices.create(index='modules', body=initialize_body_modules, ignore=400)
+        es.indices.create(index=ESIndices.YINDEX.value, body=initialize_body_yindex, ignore=400)
+        es.indices.create(index=ESIndices.MODULES.value, body=initialize_body_modules, ignore=400)
     except Exception:
         LOGGER.exception('Error while creating ES indices')
         os.unlink(lock_file)
         os.unlink(lock_file_cron)
         sys.exit()
+
+    es_manager = ESManager()
+    if not es_manager.index_exists(ESIndices.AUTOCOMPLETE):
+        es_manager.create_index(ESIndices.AUTOCOMPLETE)
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
@@ -183,7 +191,7 @@ if __name__ == '__main__':
                 'revision': revision,
                 'organization': organization
             }
-            delete_from_indices(es, module, LOGGER)
+            es_manager.delete_from_indices(module)
 
     if changes_cache:
         recursion_limit = sys.getrecursionlimit()
@@ -207,7 +215,7 @@ if __name__ == '__main__':
                 check_file_availability(module, LOGGER)
 
                 try:
-                    build_indices(es, module, save_file_dir, json_ytree, threads, LOGGER)
+                    build_indices(es_manager, module, save_file_dir, json_ytree, threads, LOGGER)
                 except Exception:
                     LOGGER.exception('Problem while processing module {}'.format(module_key))
                     try:
@@ -229,3 +237,7 @@ if __name__ == '__main__':
         sys.setrecursionlimit(recursion_limit)
     os.unlink(lock_file_cron)
     LOGGER.info('Job finished successfully')
+
+
+if __name__ == '__main__':
+    main()
