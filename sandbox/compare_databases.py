@@ -13,45 +13,19 @@ import json
 import os
 
 import utility.log as log
-from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
+from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.es_indices import ESIndices
 from redis import Redis
 from utility.create_config import create_config
 from utility.util import fetch_module_by_schema
 
 
-def create_query(name: str, revision: str):
-    query = \
-        {
-            'query': {
-                'bool': {
-                    'must': [{
-                        'match_phrase': {
-                             'module.keyword': {
-                                 'query': name
-                             }
-                             }
-                    }, {
-                        'match_phrase': {
-                            'revision': {
-                                'query': revision
-                            }
-                        }
-                    }]
-                }
-            }
-        }
-
-    return query
-
-
-def check_module_in_redis(hits: list):
+def check_module_in_redis(hits: dict, redis: Redis):
     redis_missing = []
     redis_missing_count = 0
 
-    for hit in hits:
-        modules = hit['_source']
-        key = '{}@{}/{}'.format(modules['module'], modules['revision'], modules['organization'])
+    for key in hits:
         data = redis.get(key)
         if data == '{}':
             redis_missing.append(key)
@@ -63,35 +37,20 @@ def check_module_in_redis(hits: list):
     return redis_missing
 
 
-if __name__ == '__main__':
+def main():
     config = create_config()
     redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
-    redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
-    es_aws = config.get('DB-Section', 'es-aws', fallback=False)
-    es_host = config.get('DB-Section', 'es-host', fallback='localhost')
-    es_port = config.get('DB-Section', 'es-port', fallback='9200')
-    elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
+    redis_port = int(config.get('DB-Section', 'redis-port', fallback='6379'))
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-    api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
-    ip = config.get('Web-Section', 'ip', fallback='localhost')
-    api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-    is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
 
+    global LOGGER
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
     # Create Redis and Elasticsearch connections
-    redis = Redis(host=redis_host, port=redis_port, db=1) # pyright: ignore
-
-    es_host_config = {
-        'host': es_host,
-        'port': es_port
-    }
-    if es_aws == 'True':
-        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
-    else:
-        es = Elasticsearch(hosts=[es_host_config])
+    redis = Redis(host=redis_host, port=redis_port, db=1)
+    es_manager = ESManager()
 
     # Set up variables and counters
     es_missing_modules = []
@@ -99,36 +58,43 @@ if __name__ == '__main__':
     incorrect_format_modules = []
     modules_to_index_dict = {}
     modules_to_index_list = []
-    es_modules = 0
     redis_modules = 0
 
     # PHASE I: Check modules from Redis in Elasticsearch
     LOGGER.info('Starting PHASE I')
-    for key in redis.scan_iter():
-        key = key.decode('utf-8')
-        name = key.split('@')[0]
-        revision = key.split('@')[1].split('/')[0]
-        organization = key.split('@')[1].split('/')[1]
-        redis_modules += 1
+    for redis_key in redis.scan_iter():
         try:
-            query = create_query(name, revision)
-            es_count = es.count(index='modules', body=query)
+            key = redis_key.decode('utf-8')
+            name, rev_org = key.split('@')
+            revision, organization = rev_org.split('/')
+            redis_modules += 1
+            module = {
+                'name': name,
+                'revision': revision,
+                'organization': organization
+            }
+        except ValueError:
+            continue
+        try:
+            in_es = es_manager.document_exists(ESIndices.MODULES, module)
+            if in_es:
+                continue
 
-            if es_count['count'] == 0:
-                es_missing_modules.append(key)
-                module = json.loads(redis.get(key))
-                # Check if this file is in /var/yang/all_modules folder
-                all_modules_path = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
-                if not os.path.isfile(all_modules_path):
-                    schema = module.get('schema')
-                    LOGGER.warning('Trying to retreive file content from Github for module {}'.format(key))
-                    result = fetch_module_by_schema(schema, all_modules_path)
-                    if result:
-                        modules_to_index_dict[key] = all_modules_path
-                        modules_to_index_list.append(module)
-                else:
+            es_missing_modules.append(key)
+            module_raw = redis.get(redis_key)
+            module = json.loads(module_raw or '{}')
+            # Check if this file is in /var/yang/all_modules folder
+            all_modules_path = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
+            if not os.path.isfile(all_modules_path):
+                schema = module.get('schema')
+                LOGGER.warning('Trying to retreive file content from Github for module {}'.format(key))
+                result = fetch_module_by_schema(schema, all_modules_path)
+                if result:
                     modules_to_index_dict[key] = all_modules_path
                     modules_to_index_list.append(module)
+            else:
+                modules_to_index_dict[key] = all_modules_path
+                modules_to_index_list.append(module)
         except RequestError:
             incorrect_format_modules.append(key)
             LOGGER.exception('Problem with module {}@{}. SKIPPING'.format(name, revision))
@@ -138,31 +104,9 @@ if __name__ == '__main__':
 
     # PHASE II: Check modules from Elasticsearch in Redis
     LOGGER.info('Starting PHASE II')
-    match_all = {
-        'query': {
-            'match_all': {}
-        }
-    }
-    es_result = es.search(index='modules', body=match_all, scroll=u'10s', size=250)
-    scroll_id = es_result.get('_scroll_id')
-    hits = es_result['hits']['hits']
-    es_modules += len(hits)
-    result = check_module_in_redis(hits)
+    all_es_modules = es_manager.match_all(ESIndices.MODULES)
+    result = check_module_in_redis(all_es_modules, redis)
     redis_missing_modules.extend(result)
-
-    while len(es_result['hits']['hits']):
-        es_result = es.scroll(
-            scroll_id=scroll_id,
-            scroll=u'10s'
-        )
-
-        scroll_id = es_result.get('_scroll_id')
-        hits = es_result['hits']['hits']
-        es_modules += len(hits)
-        result = check_module_in_redis(hits)
-        redis_missing_modules.extend(result)
-
-    es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
 
     # Log results
     LOGGER.info('REDIS')
@@ -172,7 +116,7 @@ if __name__ == '__main__':
     LOGGER.info('Number of missing modules which can be immediately indexed: {}'.format(len(modules_to_index_dict)))
 
     LOGGER.info('ELASTICSEARCH')
-    LOGGER.info('Number of modules in Elasticsearch: {}'.format(es_modules))
+    LOGGER.info('Number of modules in Elasticsearch: {}'.format(len(all_es_modules)))
     LOGGER.info('Number of ES modules missing in Redis: {}'.format(len(redis_missing_modules)))
 
     result = {}
@@ -183,3 +127,7 @@ if __name__ == '__main__':
     with open('{}/compared_databases.json'.format(temp_dir), 'w') as f:
         json.dump(result, f)
     LOGGER.info('Job finished successfully')
+
+
+if __name__ == '__main__':
+    main()

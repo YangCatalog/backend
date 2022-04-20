@@ -26,6 +26,7 @@ from elasticsearch.exceptions import AuthorizationException
 from utility.create_config import create_config
 
 from elasticsearchIndexing.models.es_indices import ESIndices
+from elasticsearchIndexing.models.keywords_names import KeywordsNames
 
 
 class ESManager:
@@ -69,6 +70,26 @@ class ESManager:
         """ Check if the index already exists. """
         return self.es.indices.exists(index=index.value)
 
+    def autocomplete(self, index: ESIndices, keyword: KeywordsNames, searched_term: str) -> list:
+        """ Get list of the modules which will be returned as autocomplete
+        after entering the "search_term" by the user.
+        Arguments:
+            :param keyword          (KeywordsNames)
+            :param searched_term    (str)
+        """
+        autocomplete_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/completion.json')
+        with open(autocomplete_json_path, encoding='utf-8') as reader:
+            autocomplete_query = json.load(reader)
+
+        autocomplete_query['query']['bool']['must'][0]['term'] = {keyword.value: searched_term.lower()}
+        autocomplete_query['aggs']['groupby_module']['terms']['field'] = f'{keyword.value}.keyword'
+        rows = self.es.search(index=index.value, body=autocomplete_query)
+        hits = rows['aggregations']['groupby_module']['buckets']
+
+        result = [hit['key'] for hit in hits]
+
+        return result
+
     def delete_from_index(self, index: ESIndices, module: dict):
         delete_module_query = self._get_name_revision_query(index, module)
 
@@ -90,6 +111,83 @@ class ESManager:
             document['module'] = name
 
         return self.es.index(index=index.value, body=document, request_timeout=40)
+
+    def match_all(self, index: ESIndices):
+        def _store_hits(hits: list, all_results: dict):
+            for hit in hits:
+                name = ''
+                path = ''
+                if index == ESIndices.AUTOCOMPLETE:
+                    name = hit['_source']['name']
+                    path = hit['_source']['path']
+                if index == ESIndices.MODULES:
+                    name = hit['_source']['module']
+                    path = hit['_source']['dir']
+                mod = {
+                    'name': name,
+                    'revision': hit['_source']['revision'],
+                    'organization': hit['_source']['organization'],
+                    'path': path
+                }
+                key = '{}@{}/{}'.format(mod.get('name'), mod.get('revision'), mod.get('organization'))
+                if key not in all_results:
+                    all_results[key] = mod
+                else:
+                    print('{} already in all results'.format(key))
+
+        all_results = {}
+        match_all_query = {
+            'query': {
+                'match_all': {}
+            }
+        }
+        total_index_docs = 0
+        es_result = self.es.search(index=index.value, body=match_all_query, scroll=u'10s', size=250)
+        scroll_id = es_result.get('_scroll_id')
+        hits = es_result['hits']['hits']
+        _store_hits(hits, all_results)
+        total_index_docs += len(hits)
+
+        while es_result['hits']['hits']:
+            es_result = self.es.scroll(
+                scroll_id=scroll_id,
+                scroll=u'10s'
+            )
+
+            scroll_id = es_result.get('_scroll_id')
+            hits = es_result['hits']['hits']
+            _store_hits(hits, all_results)
+            total_index_docs += len(hits)
+
+        self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
+        return all_results
+
+    def get_module_by_name_revision(self, index: ESIndices, module: dict) -> bool:
+        get_module_query = self._get_name_revision_query(index, module)
+
+        es_result = self.es.search(index=index.value, body=get_module_query)
+
+        return es_result['hits']['hits']
+
+    def get_latest_module_revision(self, index: ESIndices, name: str):
+        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/latest_revision_query.json')
+        with open(query_path, encoding='utf-8') as reader:
+            latest_revision_query = json.load(reader)
+
+        # TODO: Remove this after reindexing and unification of both indices
+        if index == ESIndices.AUTOCOMPLETE:
+            del latest_revision_query['query']['bool']['must'][0]['match_phrase']['module.keyword']
+            latest_revision_query['query']['bool']['must'][0]['match_phrase'] = {
+                'name.keyword': {
+                    'query': name
+                }
+            }
+        else:
+            latest_revision_query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = name
+
+        es_result = self.es.search(index=index.value, body=latest_revision_query)
+
+        return es_result['hits']['hits']
 
     def document_exists(self, index: ESIndices, module: dict) -> bool:
         get_module_query = self._get_name_revision_query(index, module)

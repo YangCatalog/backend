@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 import os
@@ -23,14 +23,18 @@ import re
 import typing as t
 from logging import Logger
 
-from flask import Blueprint, abort
-from flask import jsonify, make_response, request
-from pyang import plugin
-
 import utility.log as log
 from api.my_flask import app
 from api.views.yangSearch.elkSearch import ElkSearch
+from elasticsearchIndexing.models.es_indices import ESIndices
+from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from flask.blueprints import Blueprint
+from flask.globals import request
+from flask.helpers import make_response
+from flask.json import jsonify
+from pyang import plugin
 from utility.yangParser import create_context
+from werkzeug.exceptions import abort
 
 
 class YangSearch(Blueprint):
@@ -322,36 +326,24 @@ def search():
 @bp.route('/completions/<type>/<pattern>', methods=['GET'])
 def get_services_list(type: str, pattern: str):
     """
-    Provides auto-completions for search bars on web pages impact_analysis
+    Provides autocompletion for search bars on web pages of impact_analysis
     and module_details.
-    :param type: Type of what we are auto-completing, module or org.
-    :param pattern: Pattern which we are writing in bar.
-    :return: auto-completion results
+
+    Arguments:
+        :param type     (str) Type of what we are autocompleting 'module' or 'organization'
+        :param pattern  (str) Searched string - input from user
+    :return: list of autocompletion results
     """
-    res = []
-
-    if type is None or (type != 'organization' and type != 'module'):
-        return make_response(jsonify(res), 200)
-
+    result = []
     if not pattern:
-        return make_response(jsonify(res), 200)
+        return make_response(jsonify(result), 200)
 
-    try:
-        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/completion.json'), 'r') as f:
-            completion = json.load(f)
+    if type == 'organization':
+        result = ac.es_manager.autocomplete(ESIndices.MODULES, KeywordsNames.ORGANIZATION, pattern)
+    if type == 'module':
+        result = ac.es_manager.autocomplete(ESIndices.MODULES, KeywordsNames.MODULE, pattern)
 
-            completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
-            completion['aggs']['groupby_module']['terms']['field'] = '{}.keyword'.format(type.lower())
-            rows = ac.es.search(index='modules', body=completion,
-                                size=0)['aggregations']['groupby_module']['buckets']
-
-            for row in rows:
-                res.append(row['key'])
-
-    except Exception:
-        bp.LOGGER.exception('Failed to get completions result')
-        return make_response(jsonify(res), 400)
-    return make_response(jsonify(res), 200)
+    return make_response(jsonify(result), 200)
 
 
 @bp.route('/show-node/<name>/<path:path>', methods=['GET'])
@@ -531,45 +523,33 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
 
 
-def get_modules_revision_organization(module_name, revision=None, warnings=False):
+def get_modules_revision_organization(module_name, revision=None, warnings: bool = False):
     """
-    Get list of revision of module_name that we have in our database and organization as well
-    :param module_name: module name of searched module
-    :param revision: revision of searched module (can be None)
+    Get list of revisions and organization of the module give by 'module_name'. 
+
+    Arguments:
+        :param module_name      (str) Name of the searched module
+        :param revision         (str) Revision of the searched module (can be None)
+        :param warnings         (bool) Whether return with warnings or not
     :return: tuple (list of revisions and organization) of specified module name
     """
     try:
         if revision is None:
-            query = elasticsearch_descending_module_querry(module_name)
+            hits = ac.es_manager.get_latest_module_revision(ESIndices.MODULES, module_name)
         else:
-            query = \
-                {
-                    "query": {
-                        "bool": {
-                            "must": [{
-                                "match_phrase": {
-                                    "module.keyword": {
-                                        "query": module_name
-                                    }
-                                }
-                            }, {
-                                "match_phrase": {
-                                    "revision": {
-                                        "query": revision
-                                    }
-                                }
-                            }]
-                        }
-                    }
-                }
-        hits = ac.es.search(index='modules', body=query, size=100)['hits']['hits']
+            module = {
+                'name': module_name,
+                'revision': revision
+            }
+            hits = ac.es_manager.get_module_by_name_revision(ESIndices.MODULES, module)
+
         organization = hits[0]['_source']['organization']
         revisions = []
         for hit in hits:
             hit = hit['_source']
             revisions.append(hit['revision'])
         return revisions, organization
-    except Exception:
+    except IndexError:
         name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
         bp.LOGGER.exception('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
@@ -579,41 +559,20 @@ def get_modules_revision_organization(module_name, revision=None, warnings=False
                   .format(name_rev))
 
 
-def get_latest_module(module_name):
+def get_latest_module(module_name: str):
     """
-    Gets latest version of module.
-    :param module_name: module name of searched module
-    :return: latest revision
+    Gets latest revision of the module.
+
+    Argument:
+        :param module_name      (str) Name of the searched module
+    :return: latest revision of the module
     """
     try:
-        query = elasticsearch_descending_module_querry(module_name)
-        rev_org = ac.es.search(index='modules', body=query)['hits']['hits'][0]['_source']
-        return rev_org['revision']
-    except Exception as e:
+        es_result = ac.es_manager.get_latest_module_revision(ESIndices.MODULES, module_name)
+        return es_result[0]['_source']['revision']
+    except IndexError:
         bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))
         abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
-
-
-def elasticsearch_descending_module_querry(module_name):
-    """
-    Return query to search for specific module in descending order in elasticsearch based on module name
-    """
-    return {
-        "query": {
-            "bool": {
-                "must": [{
-                    "match_phrase": {
-                        "module.keyword": {
-                            "query": module_name
-                        }
-                    }
-                }]
-            }
-        },
-        "sort": [
-            {"revision": {"order": "desc"}}
-        ]
-    }
 
 
 def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_text: str):

@@ -4,9 +4,8 @@
       "blocks": {
         "read_only_allow_delete": "false"
       },
-      "max_ngram_diff": 150,
-      "number_of_shards": 2,
-      "number_of_replicas": 1
+      "max_ngram_diff": 100,
+      "number_of_shards": 2
     },
     "analysis": {
       "tokenizer": {
@@ -22,9 +21,6 @@
           "filter": [
             "lowercase"
           ]
-        },
-        "my_analyzer_case_sensitive": {
-          "tokenizer": "my_tokenizer"
         }
       }
     }
