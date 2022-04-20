@@ -20,7 +20,6 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 import unittest
-from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
@@ -51,7 +50,7 @@ class TestDumperClass(unittest.TestCase):
             'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
             'result': yc_gc.result_dir,
-            'save': '',
+            'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models
         }
 

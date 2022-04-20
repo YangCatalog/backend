@@ -48,7 +48,7 @@ class TestModulesClass(unittest.TestCase):
             'log': yc_gc.logs_dir,
             'private': '',
             'result': yc_gc.result_dir,
-            'save': '',
+            'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models
         }
         self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
