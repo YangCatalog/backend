@@ -15,7 +15,7 @@
 
 """
 This script will save or load all the records saved in
-Elasticsearch database.
+Elasticsearch database snapshots.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -23,14 +23,12 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-
-import os
+import datetime
 import typing as t
-from operator import itemgetter
 
-from elasticsearch import Elasticsearch
-from utility.create_config import create_config
+from elasticsearchIndexing.es_manager import ESManager
 from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import backup_date_format
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -44,7 +42,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--name_save',
                 'help': 'Set name of the file to save. Default name is date and time in UTC',
                 'type': str,
-                'default': ''
+                'default': datetime.datetime.utcnow().strftime(backup_date_format).lower()
             },
             {
                 'flag': '--name_load',
@@ -75,24 +73,9 @@ class ScriptConfig(BaseScriptConfig):
                 'help': 'Set whether to compress snapshot files. Default is True',
                 'action': 'store_true',
                 'default': True
-            },
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH']
             }
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-def create_register_elk_repo(name, is_compress, elk):
-    body = {}
-    body['type'] = 'fs'
-    body['settings'] = {}
-    body['settings']['location'] = name
-    body['settings']['compress'] = is_compress
-    elk.snapshot.create_repository(name, body)
 
 
 def main(scriptConf=None):
@@ -100,42 +83,22 @@ def main(scriptConf=None):
         scriptConf = ScriptConfig()
     args = scriptConf.args
 
-    config_path = args.config_path
-    config = create_config(config_path)
-    repo_name = config.get('General-Section', 'elk-repo-name')
-
-    es_aws = config.get('DB-Section', 'es-aws')
-    elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
-    es_host_config = {
-        'host': config.get('DB-Section', 'es-host'),
-        'port': config.get('DB-Section', 'es-port')
-    }
-    if es_aws == 'True':
-        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
-    else:
-        es = Elasticsearch(hosts=[es_host_config])
-
     save = args.save
     if args.load:
         save = False
 
+    es_manager = ESManager()
+    es_manager.create_snapshot_repository(args.compress)
+
     if save:
-        create_register_elk_repo(repo_name, args.compress, es)
-        index_body = {
-            'indices': '_all'
-        }
-        es.snapshot.create(repository=repo_name, snapshot=args.name_save, body=index_body)
+        es_manager.create_snapshot(args.name_save)
     else:
-        create_register_elk_repo(repo_name, args.compress, es)
-        index_body = {
-            'indices': '_all'
-        }
-        if args.latest:
-            snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
-            sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))
-            es.snapshot.restore(repository=repo_name, snapshot=sorted_snapshots[-1]['snapshot'], body=index_body)
-        else:
-            es.snapshot.restore(repository=repo_name, snapshot=args.name_load, body=index_body)
+        if not args.latest:
+            snapshot_name = args.name_load
+
+        sorted_snapshots = es_manager.get_sorted_snapshots()
+        snapshot_name = sorted_snapshots[-1]['snapshot']
+        es_manager.restore_snapshot(snapshot_name)
 
 
 if __name__ == '__main__':

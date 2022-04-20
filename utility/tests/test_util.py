@@ -220,79 +220,6 @@ class TestUtilClass(unittest.TestCase):
         self.assertEqual(result, False)
         self.assertEqual(os.path.isfile(dst_path), False)
 
-    @mock.patch('utility.util.Elasticsearch.search')
-    def test_get_module_from_es_result_found(self, mock_es: mock.MagicMock):
-        """ Test whether Elasticsearch search has the correct structure
-        and contains the searched data when the module was found in the database.
-
-        Arguments:
-        :param mock_es  (mock.MagicMock) Elasticsearch search() method is patched,
-        so it is not necessary to have a running Elasticsearch instance
-        """
-        # Load desired Elasticsearch search result
-        with open('{}/utility_tests_data.json'.format(self.resources_path), 'r') as f:
-            file_content = json.load(f)
-            es_search_result_found = file_content.get('es_search_result_found', {})
-        mock_es.return_value = es_search_result_found
-        name = 'ietf-yang-types'
-        revision = '2013-07-15'
-        organization = 'ietf'
-        desired_dir = '{}/{}@{}.yang'.format(yc_gc.save_file_dir, name, revision)
-        result = util.get_module_from_es(name, revision)
-
-        self.assertNotEqual(result, {})
-        self.assertIn('hits', result)
-        self.assertIn('total', result['hits'])
-        self.assertNotEqual(result['hits']['total'], 0)
-
-        hits = result['hits']['hits']
-        for module in hits:
-            self.assertEqual(module['_source']['module'], name)
-            self.assertEqual(module['_source']['revision'], revision)
-            self.assertEqual(module['_source']['organization'], organization)
-            self.assertEqual(module['_source']['dir'], desired_dir)
-
-    @mock.patch('utility.util.Elasticsearch.search')
-    def test_get_module_from_es_result_not_found(self, mock_es: mock.MagicMock):
-        """ Test whether Elasticsearch search has the correct structure
-        and contains the searched data when the module was NOT found in the database.
-
-        Arguments:
-        :param mock_es  (mock.MagicMock) Elasticsearch search() method is patched,
-        so it is not necessary to have a running Elasticsearch instance
-        """
-        # Load desired Elasticsearch search result
-        with open('{}/utility_tests_data.json'.format(self.resources_path), 'r') as f:
-            file_content = json.load(f)
-            es_search_result_not_found = file_content.get('es_search_result_not_found', {})
-        mock_es.return_value = es_search_result_not_found
-        name = 'non-existing-module'
-        revision = '2013-07-15'
-        result = util.get_module_from_es(name, revision)
-
-        self.assertNotEqual(result, {})
-        self.assertIn('hits', result)
-        self.assertIn('total', result['hits'])
-        self.assertEqual(result['hits']['total'], 0)
-
-        hits = result['hits']['hits']
-        self.assertEqual(hits, [])
-
-    @mock.patch('utility.util.Elasticsearch.search')
-    def test_get_module_from_es_missing_arguments(self, mock_es: mock.MagicMock):
-        """ Test whether method returned empty dictionaty when Elasticsearch search raised exception.
-
-        Arguments:
-        :param mock_es  (mock.MagicMock) Elasticsearch search() method is patched,
-        so it is not necessary to have a running Elasticsearch instance
-        """
-        mock_es.side_effect = Exception()
-        name = ''
-        revision = ''
-        result = util.get_module_from_es(name, revision)
-
-        self.assertEqual(result, {})
-
     def test_context_check_update_from(self):
         """ Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions.
         """
@@ -303,7 +230,7 @@ class TestUtilClass(unittest.TestCase):
                                                              yc_gc.yang_models, yc_gc.save_file_dir)
 
         self.assertIsNotNone(new_schema_ctx)
-        self.assertEqual(new_schema_ctx.arg, 'ietf-yang-types') # pyright: ignore
+        self.assertEqual(new_schema_ctx.arg, 'ietf-yang-types')  # pyright: ignore
         self.assertNotEqual(ctx, None)
         self.assertEqual(len(ctx.errors), 0)
         self.assertEqual(ctx.errors, [])

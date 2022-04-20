@@ -32,13 +32,13 @@ from datetime import datetime
 import dateutil.parser
 import requests
 from Crypto.Hash import HMAC, SHA
-from elasticsearch import Elasticsearch
+from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.es_indices import ESIndices
 from pyang import plugin
 from pyang.plugins.check_update import check_update
 from redisConnections.redisConnection import RedisConnection
 
 from utility import messageFactory, yangParser
-from utility.create_config import create_config
 from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
 
@@ -235,6 +235,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
         :param force_indexing       (bool) Whether or not we should force indexing even if module exists in cache.
     """
     mf = messageFactory.MessageFactory()
+    es_manager = ESManager()
     with open(modules_to_index, 'r') as f:
         sdos_json = json.load(f)
         LOGGER.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
@@ -249,8 +250,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
         in_es = False
         in_redis = code == 200 or code == 201 or code == 204
         if in_redis:
-            es_result = get_module_from_es(module.get('name'), module.get('revision'))
-            in_es = False if es_result == {} else es_result['hits']['total'] != 0
+            in_es = es_manager.document_exists(ESIndices.MODULES, module)
         else:
             load_new_files_to_github = True
 
@@ -341,55 +341,6 @@ def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
         file_exist = os.path.isfile(dst_path)
 
     return file_exist
-
-
-def get_module_from_es(name: str, revision: str):
-    """ Get module with the given name and revision from Elasticsearch.
-
-    Arguments:
-        :param name         (str) name of the module
-        :param revision     (str) revision of the module in format YYYY-MM-DD
-    """
-    config = create_config()
-    es_aws = config.get('DB-Section', 'es-aws', fallback=False)
-    elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
-
-    es_host_config = {
-        'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-        'port': config.get('DB-Section', 'es-port', fallback='9200')
-    }
-    if es_aws == 'True':
-        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
-    else:
-        es = Elasticsearch(hosts=[es_host_config])
-
-    query = \
-        {
-            'query': {
-                'bool': {
-                    'must': [{
-                        'match_phrase': {
-                            'module.keyword': {
-                                'query': name
-                            }
-                        }
-                    }, {
-                        'match_phrase': {
-                            'revision': {
-                                'query': revision
-                            }
-                        }
-                    }]
-                }
-            }
-        }
-
-    try:
-        es_result = es.search(index='modules', body=query)
-    except Exception:
-        return {}
-
-    return es_result
 
 
 def context_check_update_from(old_schema: str, new_schema: str, yang_models: str, save_file_dir: str):

@@ -31,12 +31,15 @@ import shutil
 import time
 from datetime import datetime as dt
 
-from elasticsearch import Elasticsearch
+from elasticsearchIndexing.es_manager import ESManager
 
 import utility.log as log
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
+
+DAY = 86400
+BLOCK_SIZE = 65536
 
 
 def represents_int(s):
@@ -47,16 +50,7 @@ def represents_int(s):
         return False
 
 
-def create_register_elk_repo(name, is_compress, elk):
-    body = {}
-    body['type'] = 'fs'
-    body['settings'] = {}
-    body['settings']['location'] = name
-    body['settings']['compress'] = is_compress
-    elk.snapshot.create_repository(name, body)
-
-
-if __name__ == '__main__':
+def main():
     start_time = int(time.time())
     parser = argparse.ArgumentParser()
 
@@ -64,21 +58,21 @@ if __name__ == '__main__':
                         help='Set path to config file')
     parser.add_argument('--compress', action='store_true', default=True,
                         help='Set whether to compress snapshot files. Default is True')
-    args, extra_args = parser.parse_known_args()
+    args = parser.parse_args()
     config_path = args.config_path
     config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     ys_users = config.get('Directory-Section', 'ys-users')
     cache_directory = config.get('Directory-Section', 'cache')
-    repo_name = config.get('General-Section', 'elk-repo-name')
     es_aws = config.get('DB-Section', 'es-aws')
-    elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
-    LOGGER = log.get_logger('removeUnused', log_directory + '/jobs/removeUnused.log')
+
+    log_file_path = os.path.join(log_directory, 'jobs', 'removeUnused.log')
+    LOGGER = log.get_logger('removeUnused', log_file_path)
     LOGGER.info('Starting Cron job remove unused files')
 
     current_time = time.time()
-    cutoff = current_time - 86400
+    cutoff = current_time - DAY
     try:
         LOGGER.info('Removing old tmp directory representing int folders')
         for dir in next(os.walk(temp_dir))[1]:
@@ -116,7 +110,7 @@ if __name__ == '__main__':
 
         LOGGER.info('Removing old yangvalidator cache dirs')
         yang_validator_cache = os.path.join(temp_dir, 'yangvalidator')
-        cutoff = current_time - 2*86400
+        cutoff = current_time - 2*DAY
         dirs = os.listdir(yang_validator_cache)
         for dir in dirs:
             if dir.startswith('yangvalidator-v2-cache-'):
@@ -128,30 +122,21 @@ if __name__ == '__main__':
                         LOGGER.exception('Problem while deleting {}'.format(dir))
                         continue
 
-        # LOGGER.info('Removing old elasticsearch snapshots')
-        # es_host_config = {
-        #     'host': config.get('DB-Section', 'es-host'),
-        #     'port': config.get('DB-Section', 'es-port')
-        # }
-        # if es_aws == 'True':
-        #     es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
-        # else:
-        #     es = Elasticsearch(hosts=[es_host_config])
+        if es_aws != 'True':
+            LOGGER.info('Removing old elasticsearch snapshots')
+            es_manager = ESManager()
+            es_manager.create_snapshot_repository(args.compress)
+            sorted_snapshots = es_manager.get_sorted_snapshots()
 
-        # create_register_elk_repo(repo_name, args.compress, es)
-        # snapshots = es.snapshot.get(repository=repo_name, snapshot='_all')['snapshots']
-        # sorted_snapshots = sorted(snapshots, key=itemgetter('start_time_in_millis'))
+            for snapshot in sorted_snapshots[:-5]:
+                es_manager.delete_snapshot(snapshot['snapshot'])
 
-        # for snapshot in sorted_snapshots[:-5]:
-        #    es.snapshot.delete(repository=repo_name, snapshot=snapshot['snapshot'])
         def hash_file(path: str) -> bytes:
-            buf_size = 65536  # lets read stuff in 64kB chunks!
-
             sha1 = hashlib.sha1()
 
             with open(path, 'rb') as byte_file:
                 while True:
-                    data = byte_file.read(buf_size)
+                    data = byte_file.read(BLOCK_SIZE)
                     if not data:
                         break
                     sha1.update(data)
@@ -229,3 +214,7 @@ if __name__ == '__main__':
         raise e
     job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
+
+
+if __name__ == '__main__':
+    main()

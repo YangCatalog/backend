@@ -47,9 +47,13 @@ import time
 import uuid
 from threading import Lock
 
-from flask import abort, g, jsonify, make_response, redirect, request
+from flask.globals import g, request
+from flask.helpers import make_response
+from flask.json import jsonify
 from flask.wrappers import Response
 from flask_cors import CORS
+from werkzeug.exceptions import abort
+from werkzeug.utils import redirect
 
 import api.authentication.auth as auth
 from api.my_flask import MyFlask
@@ -62,8 +66,6 @@ from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
 from api.views.yangSearch.yangSearch import bp as yang_search_bp
 from api.views.ycJobs.ycJobs import bp as jobs_bp
 from api.views.ycSearch.ycSearch import bp as search_bp
-
-
 
 app = MyFlask(__name__)
 ac = app.config

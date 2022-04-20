@@ -12,22 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
-from logging import Logger
 import time
+from logging import Logger
 
 import requests
-from elasticsearch import Elasticsearch
-from flask import Blueprint
-from flask import jsonify, make_response
-
 import utility.log as log
 from api.my_flask import app
+from elasticsearch import Elasticsearch
+from flask.blueprints import Blueprint
+from flask.helpers import make_response
+from flask.json import jsonify
 from utility.staticVariables import json_headers
 
 

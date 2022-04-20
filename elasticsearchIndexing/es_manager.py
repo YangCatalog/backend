@@ -1,5 +1,25 @@
+# Copyright The IETF Trust 2022, All Rights Reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2022, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
+
 import json
 import os
+from operator import itemgetter
 
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import AuthorizationException
@@ -13,6 +33,7 @@ class ESManager:
         config = create_config()
         es_aws = config.get('DB-Section', 'es-aws')
         elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+        self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
             'port': config.get('DB-Section', 'es-port', fallback='9200')
@@ -55,7 +76,7 @@ class ESManager:
 
     def delete_from_indices(self, module: dict):
         for index in ESIndices:
-            delete_result = self.delete_from_index(index, module)
+            self.delete_from_index(index, module)
 
     def index_module(self, index: ESIndices, document: dict):
         # TODO: Remove this after reindexing and unification of both indices
@@ -64,14 +85,11 @@ class ESManager:
             del document['path']
             document['dir'] = path
 
-        return self.es.index(index=index.value, body=document, request_timeout=40) # pyright: ignore
+            name = document['name']
+            del document['name']
+            document['module'] = name
 
-    def get_module_by_name_revison(self, index: ESIndices, module: dict) -> bool:
-        get_module_query = self._get_name_revision_query(index, module)
-
-        es_result = self.es.search(index=index.value, query=get_module_query['query'])
-
-        return es_result['hits']['hits']
+        return self.es.index(index=index.value, body=document, request_timeout=40)
 
     def document_exists(self, index: ESIndices, module: dict) -> bool:
         get_module_query = self._get_name_revision_query(index, module)
@@ -79,6 +97,37 @@ class ESManager:
         es_count = self.es.count(index=index.value, body=get_module_query)
 
         return es_count['count'] > 0
+
+    def create_snapshot_repository(self, compress):
+        body = {
+            'type': 'fs',
+            'settings': {
+                'location': self.elk_repo_name,
+                'compress': compress
+            }
+        }
+        es_result = self.es.snapshot.create_repository(repository=self.elk_repo_name, body=body)
+
+        return es_result
+
+    def create_snapshot(self, snapshot_name: str):
+        index_body = {
+            'indices': '_all'
+        }
+        return self.es.snapshot.create(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
+
+    def get_sorted_snapshots(self) -> list:
+        snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')['snapshots']
+        return sorted(snapshots, key=itemgetter('start_time_in_millis'))
+
+    def restore_snapshot(self, snapshot_name: str):
+        index_body = {
+            'indices': '_all'
+        }
+        return self.es.snapshot.restore(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
+
+    def delete_snapshot(self, snapshot_name: str):
+        return self.es.snapshot.delete(repository=self.elk_repo_name, snapshot=snapshot_name)
 
     def _get_name_revision_query(self, index: ESIndices, module: dict):
         module_search_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/module_search.json')
