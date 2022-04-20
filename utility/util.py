@@ -24,7 +24,6 @@ import logging
 import optparse
 import os
 import stat
-import sys
 import time
 import typing as t
 import warnings
@@ -132,10 +131,7 @@ def create_signature(secret_key: str, string: str):
         :return A string of 2* `digest_size` bytes. It contains only
             hexadecimal ASCII digits.
     """
-    string_to_sign = string.encode('utf-8')
-    if sys.version_info >= (3, 4):
-        secret_key = secret_key.encode('utf-8')
-    hmac = HMAC.new(secret_key, string_to_sign, SHA)
+    hmac = HMAC.new(secret_key.encode('utf-8'), string.encode('utf-8'), SHA)
     return hmac.hexdigest()
 
 
@@ -214,6 +210,7 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
         if os.path.exists(path_to_delete_local):
             os.remove(path_to_delete_local)
 
+    post_body = {}
     if modules_to_delete:
         post_body = {'modules-to-delete': modules_to_delete}
         LOGGER.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))
@@ -309,9 +306,9 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         last_successfull = end_time
     else:
         try:
-            previous_state = file_content.get(filename)
-            last_successfull = previous_state.get('last_successfull')
-        except Exception:
+            previous_state = file_content[filename]
+            last_successfull = previous_state['last_successfull']
+        except KeyError:
             last_successfull = None
 
     result['last_successfull'] = last_successfull
@@ -472,7 +469,7 @@ def validate_revision(revision: str) -> str:
         dateutil.parser.parse(revision)
         year, month, day = map(int, revision.split('-'))
         revision = datetime(year, month, day).date().isoformat()
-    except (ValueError, dateutil.parser._parser.ParserError):
+    except (ValueError, dateutil.parser.ParserError):
         revision = '1970-01-01'
 
     return revision

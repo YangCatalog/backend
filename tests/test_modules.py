@@ -48,7 +48,7 @@ class TestModulesClass(unittest.TestCase):
             'log': yc_gc.logs_dir,
             'private': '',
             'result': yc_gc.result_dir,
-            'save': '',
+            'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models
         }
         self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
@@ -61,12 +61,12 @@ class TestModulesClass(unittest.TestCase):
     def test_modules_parse_all_sdo_object(self):
         """
         Create modules object from SDO (= ietf) YANG file,
-        and compare object properties values after calling parse_all() method.
+        and compare object property values.
         """
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
-        yang = SdoModule(path_to_yang, self.parsed_jsons, self.dir_paths)
-        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, yc_gc.save_file_dir)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {},
+                         self.schema_base)
 
         self.assertEqual(yang.document_name, 'rfc6991')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -83,7 +83,7 @@ class TestModulesClass(unittest.TestCase):
     def test_modules_parse_all_sdo_object_already_in_keys(self):
         """
         Create modules object from SDO (= ietf) YANG file,
-        and compare object properties values after calling parse_all() method.
+        and compare object property values.
         Pass keys as an argument so only some properties will be resolved, while other will stay set to None.
         """
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
@@ -98,34 +98,27 @@ class TestModulesClass(unittest.TestCase):
             'module-classification': 'testing'
         }
 
-        yang = SdoModule(path_to_yang, self.parsed_jsons, self.dir_paths)
-        yang.parse_all(self.sdo_module_name, 'master', keys, self.schema_base,
-                       yc_gc.save_file_dir, additional_info)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', keys,
+                         self.schema_base, additional_info)
 
         self.assertEqual(yang.name, 'ietf-yang-types')
         self.assertEqual(yang.module_type, 'module')
         self.assertEqual(yang.organization, 'ietf')
         self.assertEqual(yang.revision, '2013-07-15')
         self.assertEqual(yang.namespace, 'urn:ietf:params:xml:ns:yang:ietf-yang-types')
-        self.assertEqual(yang.author_email, None)
-        self.assertEqual(yang.reference, None)
-        self.assertEqual(yang.maturity_level, None)
-        self.assertEqual(yang.generated_from, None)
-        self.assertEqual(yang.module_classification, None)
-        self.assertEqual(yang.document_name, None)
 
     def test_modules_parse_all_vendor_object(self):
         """
         Create modules object from vendor YANG file,
-        and compare object properties values after calling parse_all() method.
+        and compare object property values.
         """
         yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = yang_lib_data.split('&revision')[0]
         path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
         deviation = yang_lib_data.split('&deviations=')[1]
 
-        yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_data)
-        yang.parse_all(module_name, 'master', {}, '',  yc_gc.save_file_dir)
+        yang = VendorModule(module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {}, '',
+                            data=yang_lib_data)
 
         self.assertEqual(yang.document_name, 'rfc8341')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -153,8 +146,8 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=vendor_data)
-        yang.parse_all(module_name, 'master', {}, '', yc_gc.save_file_dir)
+        yang = VendorModule(module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {}, '',
+                            data=vendor_data)
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
         self.assertNotEqual(len(yang.implementations), 0)
@@ -172,7 +165,7 @@ class TestModulesClass(unittest.TestCase):
     def test_modules_add_vendor_information_is_yang_lib(self):
         """
         Create modules object from yang_lib (= huawei) YANG file.
-        Vendor information are then added using add_vendor_information() method and object values are compared
+        Vendor information is then added using the add_vendor_information() method and object values are compared
         with data from platform-metadata.json.
         """
         yang_lib_info = {
@@ -191,8 +184,8 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = VendorModule(path_to_yang, self.parsed_jsons, self.dir_paths, data=yang_lib_info)
-        yang.parse_all(module_name, 'master', {}, schema_part, yc_gc.save_file_dir)
+        yang = VendorModule(module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {}, schema_part,
+                            data=yang_lib_info)
 
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
@@ -214,7 +207,7 @@ class TestModulesClass(unittest.TestCase):
 
     def get_platform_data(self, xml_path: str, platform_name: str):
         """
-        Load content of platform-metadata.json file and parse data of selected platform.
+        Load content of platform-metadata.json file and parse data of a selected platform.
 
         :param xml_path         (str) Absolute path of selected .xml file
         :param platform_name    (str) Name of platform to find

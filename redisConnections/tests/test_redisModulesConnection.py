@@ -36,8 +36,8 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         self._redis_port = config.get('DB-Section', 'redis-port')
         self.resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
         self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6) # pyright: ignore
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9) # pyright: ignore
 
     def setUp(self):
         redis_key = 'ietf-bgp@2021-10-25/ietf'

@@ -28,6 +28,7 @@ if __name__ == '__main__':
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
     suffix = api_port
+    separator = ':'
     if is_uwsgi == 'True':
         separator = '/'
         suffix = 'api'

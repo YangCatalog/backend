@@ -159,7 +159,7 @@ def main():
         es.indices.create(index=ESIndices.MODULES.value, body=initialize_body_modules, ignore=400)
     except AuthorizationException:
         # Reference: https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
-        for index in es.indices.get_alias('*'):
+        for index in es.indices.get_alias(index='*'):
             read_only_query = {'index': {'blocks': {'read_only_allow_delete': 'false'}}}
             es.indices.put_settings(index=index, body=read_only_query)
         es.indices.create(index=ESIndices.YINDEX.value, body=initialize_body_yindex, ignore=400)

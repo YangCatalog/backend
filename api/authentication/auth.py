@@ -1,6 +1,5 @@
 import base64
 import hashlib
-import sys
 
 import requests
 from flask import current_app
@@ -11,7 +10,7 @@ from redis import RedisError
 from utility.redisUsersConnection import RedisUsersConnection
 
 auth = HTTPBasicAuth()
-users = None
+users: RedisUsersConnection
 
 
 @auth.hash_password
@@ -22,9 +21,7 @@ def hash_pw(password: str) -> bytes:
         :param password     (str) password provided via API
         :return hashed password
     """
-    if sys.version_info >= (3, 4):
-        password = password.encode()
-    return hashlib.sha256(password).hexdigest().encode()
+    return hashlib.sha256(password.encode()).hexdigest().encode()
 
 
 @auth.get_password
@@ -41,7 +38,7 @@ def get_password(username: str) -> bytes:
             return users.get_field(id, 'password').encode()
     except RedisError as err:
         current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
-        return None
+    return b''
 
 
 def check_authorized(signature: str, payload: str):

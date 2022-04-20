@@ -82,7 +82,7 @@ if __name__ == '__main__':
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
     # Create Redis and Elasticsearch connections
-    redis = Redis(host=redis_host, port=redis_port, db=1)
+    redis = Redis(host=redis_host, port=redis_port, db=1) # pyright: ignore
 
     es_host_config = {
         'host': es_host,
@@ -105,13 +105,12 @@ if __name__ == '__main__':
     # PHASE I: Check modules from Redis in Elasticsearch
     LOGGER.info('Starting PHASE I')
     for key in redis.scan_iter():
+        key = key.decode('utf-8')
+        name = key.split('@')[0]
+        revision = key.split('@')[1].split('/')[0]
+        organization = key.split('@')[1].split('/')[1]
+        redis_modules += 1
         try:
-            key = key.decode('utf-8')
-            name = key.split('@')[0]
-            revision = key.split('@')[1].split('/')[0]
-            organization = key.split('@')[1].split('/')[1]
-            redis_modules += 1
-
             query = create_query(name, revision)
             es_count = es.count(index='modules', body=query)
 

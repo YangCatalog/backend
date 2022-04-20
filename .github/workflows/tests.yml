@@ -46,14 +46,10 @@ jobs:
           export BACKEND=$PWD
           YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf python feed_redis.py
 
-      - name: Copy json_tree pyang plugin
-        run: |
-          mkdir -p $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins
-          cp elasticsearchIndexing/pyang_plugin/json_tree.py $LD_LIBRARY_PATH/python${{ matrix.python-version }}/site-packages/pyang/plugins/.
-
       - name: Test with pytest
         env:
           TOKEN: ${{ secrets.TOKEN }}
+          PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
           export TOKEN
           export BACKEND=$PWD

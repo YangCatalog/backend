@@ -82,7 +82,7 @@ def main():
     # FILL 'autocomplete' INDEX
     # ------------------------------------------------------------------------------------------------------------------
     for query in all_results.values():
-        index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE.value, query)
+        index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, query)
         if index_result['result'] != 'created':
             print(index_result)
 

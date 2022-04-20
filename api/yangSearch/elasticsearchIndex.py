@@ -82,6 +82,7 @@ def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
         es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
     else:
         es = Elasticsearch(hosts=[es_host_config])
+    search_term = opts['search']
 
     if 'case-sensitive' in opts and opts['case-sensitive']:
         case_sensitive = 'sensitive'

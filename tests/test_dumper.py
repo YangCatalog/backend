@@ -20,7 +20,6 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 import unittest
-from unittest import mock
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
@@ -36,7 +35,7 @@ class TestDumperClass(unittest.TestCase):
         super(TestDumperClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema_base = '{}/YangModels/yang/master/'.format(github_raw)
+        self.schema_base = '{}/YangModels/yang/'.format(github_raw)
         self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
         self.prepare_output_filename = 'prepare'
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
@@ -51,7 +50,7 @@ class TestDumperClass(unittest.TestCase):
             'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
             'result': yc_gc.result_dir,
-            'save': '',
+            'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models
         }
 
@@ -75,63 +74,6 @@ class TestDumperClass(unittest.TestCase):
 
         self.assertEqual(created_key, desired_key)
         self.assertIn(desired_key, dumper.yang_modules)
-
-    def test_dumper_add_module_no_compilation_status(self):
-        """
-        Dumper object is initialized and key of one Modules object is added to 'yang_modules' dictionary.
-        Created key is then retreived from 'yang_modules' dictionary and compared with desired format of key.
-        Check if 'compilation_status' is  property set, after setting to None (value should be requested).
-        """
-        desired_key = 'ietf-yang-types@2013-07-15/ietf'
-
-        yang = self.declare_sdo_module()
-
-        # Clear compilation status to test functionality of requesting compilation_status
-        yang.compilation_status = None
-
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
-        dumper.add_module(yang)
-
-        created_key = list(dumper.yang_modules.keys())[0]
-
-        self.assertEqual(created_key, desired_key)
-        self.assertIn(desired_key, dumper.yang_modules)
-
-        yang_module = dumper.yang_modules[desired_key]
-        # Check if object contains 'compilation_status' property
-        self.assertIn('compilation_status', yang_module.__dict__)
-
-    @mock.patch('parseAndPopulate.dumper.requests.get')
-    def test_dumper_add_module_no_compilation_status_exception(self, mock_requests_get: mock.MagicMock):
-        """
-        Dumper object is initialized and key of one Modules object is added to 'yang_modules' dictionary.
-        Created key is then retreived from 'yang_modules' dictionary and compared with desired format of key.
-        Check if 'compilation_status' is  property set, after setting to None (value should be requested).
-
-        Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return None, so exception is raised.
-        """
-        mock_requests_get.return_value = None
-        desired_key = 'ietf-yang-types@2013-07-15/ietf'
-
-        yang = self.declare_sdo_module()
-
-        # Clear compilation status to test functionality of requesting compilation_status
-        yang.compilation_status = None
-
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
-        dumper.add_module(yang)
-
-        created_key = list(dumper.yang_modules.keys())[0]
-
-        self.assertEqual(created_key, desired_key)
-        self.assertIn(desired_key, dumper.yang_modules)
-
-        yang_module = dumper.yang_modules[desired_key]
-
-        # Check if 'compilation_status' property is set correctly to value 'unknown'
-        self.assertIn('compilation_status', yang_module.__dict__)
-        self.assertEqual(yang_module.__getattribute__('compilation_status'), 'unknown')
 
     def test_dumper_dump_modules(self):
         """
@@ -157,6 +99,7 @@ class TestDumperClass(unittest.TestCase):
 
         # Compare properties/keys of desired and dumped module data objects
         for key in desired_module_data:
+            self.assertIn(key, dumped_module_data, desired_module_data[key])
             if key == 'yang-tree':
                 # Compare only URL suffix (exclude domain)
                 desired_tree_suffix = '/api{}'.format(desired_module_data[key].split('/api')[1])
@@ -265,8 +208,8 @@ class TestDumperClass(unittest.TestCase):
         parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         path_to_yang = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/standard/ietf/RFC', self.sdo_module_filename)
 
-        yang = SdoModule(path_to_yang, parsed_jsons, self.dir_paths)
-        yang.parse_all(self.sdo_module_name, 'master', {}, self.schema_base, yc_gc.save_file_dir)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {},
+                         self.schema_base)
 
         return yang
 
@@ -282,8 +225,8 @@ class TestDumperClass(unittest.TestCase):
         module_name = vendor_data.split('&revision')[0]
         module_path = '{}/{}.yang'.format(self.resources_path, module_name)
 
-        yang = VendorModule(module_path, parsed_jsons, self.dir_paths, data=vendor_data)
-        yang.parse_all(module_name, 'master', {}, self.schema_base, yc_gc.save_file_dir)
+        yang = VendorModule(module_name, module_path, parsed_jsons, self.dir_paths, 'master', {}, self.schema_base,
+                            data=vendor_data)
 
         return yang
 

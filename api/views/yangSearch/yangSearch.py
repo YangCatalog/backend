@@ -20,17 +20,22 @@ __email__ = "miroslav.kovac@pantheon.tech"
 import json
 import os
 import re
+import typing as t
+from logging import Logger
 
-import utility.log as log
-from api.views.yangSearch.elkSearch import ElkSearch
 from flask import Blueprint, abort
-from flask import current_app as app
 from flask import jsonify, make_response, request
 from pyang import plugin
+
+import utility.log as log
+from api.my_flask import app
+from api.views.yangSearch.elkSearch import ElkSearch
 from utility.yangParser import create_context
 
 
 class YangSearch(Blueprint):
+
+    LOGGER: Logger
 
     def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
@@ -138,12 +143,12 @@ def tree_module_revision(module_name, revision):
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
 
-        module_context = {}
         for p in plugin.plugins:
             p.setup_ctx(ctx)
         try:
             with open(path_to_yang, 'r') as f:
                 module_context = ctx.add_module(path_to_yang, f.read())
+                assert module_context
         except Exception:
             msg = 'File {} was not found'.format(path_to_yang)
             bp.LOGGER.exception(msg)
@@ -233,8 +238,10 @@ def impact_analysis():
             abort(400, 'only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
     # GET module details
     response = {}
-
-    searched_module = module_details(name, revision, True)['metadata']
+    details = module_details(name, revision, True)
+    assert isinstance(details, dict)
+    searched_module = details['metadata']
+    assert isinstance(searched_module, dict)
     response['name'] = searched_module['name']
     response['revision'] = searched_module['revision']
     response['organization'] = searched_module['organization']
@@ -408,11 +415,11 @@ def module_details_no_revision(module: str):
     Revision will be the latest one that we have.
     :return: returns json with yang-catalog saved metdata of a specific module
     """
-    return module_details(module, None)
+    return jsonify(module_details(module, None))
 
 
 @bp.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: str, json_data=False, warnings=False):
+def module_details(module: str, revision: t.Optional[str], warnings=False):
     """
     Search for data saved in our datastore (ConfD/Redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -455,10 +462,7 @@ def module_details(module: str, revision: str, json_data=False, warnings=False):
     else:
         module_data = json.loads(module_data)
     resp['metadata'] = module_data
-    if json_data:
-        return resp
-    else:
-        return make_response(jsonify(resp), 200)
+    return resp
 
 
 @bp.route('/yang-catalog-help', methods=['GET'])
@@ -805,11 +809,13 @@ def get_type_str(json):
 
 
 def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_organizations, rfc_allowed):
-    module_detail = module_details(module_data['name'], module_data.get('revision'), True, True)
+    module_detail = module_details(module_data['name'], module_data.get('revision'), True)
+    assert isinstance(module_detail, dict)
     if 'warning' in module_detail:
         return module_detail
     else:
         module_detail = module_detail['metadata']
+        assert isinstance(module_detail, dict)
     module_type = module_detail.get('module-type', '')
     if module_type == '':
         bp.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),

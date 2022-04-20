@@ -114,6 +114,7 @@ def main(scriptConf=None):
             data = module.attrib
             for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
+                assert attributes.text is not None
                 data[prop] = attributes.text
 
             if data.get('iana') == 'Y' and data.get('file'):
@@ -170,7 +171,7 @@ def main(scriptConf=None):
 
     if len(messages) == 0:
         messages = [
-            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}
+            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)} # pyright: ignore
         ]
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')

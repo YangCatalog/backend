@@ -23,8 +23,9 @@ import os
 import requests
 from api.authentication.auth import auth, check_authorized
 from flask import Blueprint, abort
-from flask import current_app as app
 from flask import request
+
+from api.my_flask import app
 from utility import messageFactory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
@@ -52,6 +53,7 @@ def set_config():
 @bp.route('/ietf', methods=['GET'])
 @auth.login_required
 def trigger_ietf_pull():
+    assert request.authorization
     username = request.authorization['username']
     if username != 'admin':
         abort(401, description='User must be admin')
@@ -89,8 +91,9 @@ def check_github():
     # Commit verification
     verify_commit = False
     app.logger.info('Checking commit SHA if it is the commit sent by yang-catalog user.')
+
+    commit_sha = body['check_run']['head_sha']
     if body['repository']['full_name'] == 'yang-catalog/yang' or body['repository']['full_name'] == 'YangModels/yang':
-        commit_sha = body['check_run']['head_sha']
         try:
             with open(ac.d_commit_dir, 'r') as commit_file:
                 for line in commit_file:
@@ -272,6 +275,7 @@ def trigger_populate():
     app.logger.info('Trigger populate if necessary')
     repoutil.pull(ac.d_yang_models_dir)
     try:
+        assert request.json
         commits = request.json.get('commits') if request.is_json else None
         paths = set()
         new = []

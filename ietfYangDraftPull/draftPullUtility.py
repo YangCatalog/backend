@@ -57,7 +57,9 @@ def get_latest_revision(path: str, LOGGER: logging.Logger):
     """
     try:
         stmt = yangParser.parse(path)
-        rev = stmt.search_one('revision').arg
+        result = stmt.search_one('revision')
+        assert result
+        rev = result.arg
     except Exception:
         LOGGER.error('Cannot yangParser.parse {}'.format(path))
         rev = None  # In case of invalid YANG syntax, None is returned
@@ -127,6 +129,11 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger):
                         year = int(revision.split('-')[0])
                         month = int(revision.split('-')[1])
                         day = int(revision.split('-')[2])
+                    except ValueError:
+                        # Revision contained invalid characters
+                        LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
+                        continue
+                    try:
                         revisions.append(datetime(year, month, day))
                     except ValueError:
                         LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))

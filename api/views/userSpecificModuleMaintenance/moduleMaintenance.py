@@ -26,10 +26,11 @@ from datetime import datetime
 
 from api.authentication.auth import auth, hash_pw
 from flask import Blueprint, abort
-from flask import current_app as app
 from flask import request
 from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
+
+from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import NS_MAP, backup_date_format, github_url
@@ -118,6 +119,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         else:
             abort(404, description="Data must start with 'input' root element in json")
 
+    assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
@@ -166,9 +168,11 @@ def delete_vendor(value: str):
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
+    assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
+    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
@@ -482,6 +486,7 @@ def authorize_for_vendors(request, body: dict):
     username = request.authorization['username']
     app.logger.info('Checking vendor authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username, is_vendor=True)
+    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
 
     if accessRigths.startswith('/') and len(accessRigths) > 1:
         accessRigths = accessRigths[1:]
@@ -513,6 +518,7 @@ def authorize_for_sdos(request, organizations_sent: str, organization_parsed: st
     username = request.authorization['username']
     app.logger.info('Checking sdo authorization for user {}'.format(username))
     accessRigths = get_user_access_rights(username)
+    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
 
     passed = False
     if accessRigths == '/':
@@ -534,14 +540,13 @@ def get_user_access_rights(username: str, is_vendor: bool = False):
         :param username     (str) authorized user's username
         :param is_vendor    (bool) whether method should return vendor or SDO accessRigt
     """
-    accessRigths = None
     try:
         if users.username_exists(username):
             id = users.id_by_username(username)
             return users.get_field(id, 'access-rights-vendor' if is_vendor else 'access-rights-sdo')
     except RedisError as err:
         app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
-    return accessRigths
+    return None
 
 
 def get_mod_redis(module: dict):

@@ -20,6 +20,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import hashlib
 import json
 
+import gevent
 import gevent.queue
 from elasticsearch import ConnectionTimeout, Elasticsearch
 from redisConnections.redisConnection import RedisConnection

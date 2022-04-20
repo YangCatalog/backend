@@ -64,7 +64,7 @@ class ESManager:
             del document['path']
             document['dir'] = path
 
-        return self.es.index(index=index.value, body=document, request_timeout=40)
+        return self.es.index(index=index.value, body=document, request_timeout=40) # pyright: ignore
 
     def get_module_by_name_revison(self, index: ESIndices, module: dict) -> bool:
         get_module_query = self._get_name_revision_query(index, module)

@@ -83,7 +83,7 @@ class MessageFactory:
         self.__room = rooms[0]
         self.__smtp = smtplib.SMTP('localhost')
 
-    def __post_to_spark(self, msg: str, markdown: bool = False, files: list = None):
+    def __post_to_spark(self, msg: str, markdown: bool = False, files: list = []):
         """Send message to a spark room
 
         Arguments:
@@ -108,7 +108,7 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message: str, email_to: list = None, subject: str = None, subtype: str = 'plain'):
+    def __post_to_email(self, message: str, email_to: list = [], subject: str = '', subtype: str = 'plain'):
         """Send message to an e-mail
 
             Arguments:

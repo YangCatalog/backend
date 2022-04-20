@@ -37,7 +37,7 @@ from datetime import datetime
 
 import requests
 from pyang import plugin
-from pyang.plugins.json_tree import emit_tree as emit_json_tree
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from pyang.plugins.tree import emit_tree
 from redisConnections.redisConnection import RedisConnection
 from utility import log, messageFactory
@@ -63,7 +63,6 @@ class ModulesComplicatedAlgorithms:
         self.new_modules = defaultdict(dict)
         self._credentials = credentials
         self._save_file_dir = save_file_dir
-        self._path = None
         self._yang_models = yang_models_dir
         self.temp_dir = temp_dir
         self.json_ytree = json_ytree
@@ -233,7 +232,7 @@ class ModulesComplicatedAlgorithms:
                     revision = name.split('@')[-1]
                     name = name.split('@')[0]
                     if '{}@{}'.format(name, revision) in self._trees:
-                        stdout = self._trees['{}@{}'.format(name, revision)]
+                        stdout = self._trees[name][revision]
                         pyang_list_of_rows = stdout.split('\n')[2:]
                     else:
                         plugin.plugins = []
@@ -424,9 +423,9 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'unclassified'
             LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
             if (revision not in self._existing_modules_dict[name] or
-                    self._existing_modules_dict.get(name).get(revision).get('tree-type') != module['tree-type']):
+                    self._existing_modules_dict[name][revision].get('tree-type') != module['tree-type']):
                 LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
-                    self._existing_modules_dict.get(name).get(revision, {}).get('tree-type'), module['tree-type'],
+                    self._existing_modules_dict[name].get(revision, {}).get('tree-type'), module['tree-type'],
                     module['name'], module['revision']))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
@@ -472,6 +471,8 @@ class ModulesComplicatedAlgorithms:
                 return len(new) == len(old) and all(any((trees_match(i, j) for j in old)) for i in new)
             elif type(new) in (str, set, bool):
                 return new == old
+            else:
+                assert False
 
         def get_trees(new: dict, old: dict):
             new_name_revision = '{}@{}'.format(new['name'], new['revision'])
@@ -685,7 +686,7 @@ class ModulesComplicatedAlgorithms:
                         break
             return False
 
-        def add_dependents(dependents: list, dependencies):
+        def add_dependents(dependents: list, dependencies: t.Dict[str, t.Dict[str, dict]]):
             for dependent in dependents:
                 for dep_filter in dependent.get('dependencies', []):
                     name = dep_filter['name']
@@ -703,7 +704,7 @@ class ModulesComplicatedAlgorithms:
                             if revision in self.new_modules[name]:
                                 dependency_copy = self.new_modules[name][revision]
                             elif revision in self._existing_modules_dict[name]:
-                                dependency_copy = deepcopy(self._existing_modules_dict.get(name).get(revision))
+                                dependency_copy = deepcopy(self._existing_modules_dict[name][revision])
                             else:
                                 dependency_copy = dependency
                             if not check_latest_revision_and_remove(dependent, dependency_copy):

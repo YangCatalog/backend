@@ -68,6 +68,9 @@ _COPY_OPTIONS = [
 class objectify(object):  # pylint: disable=invalid-name
     """Utility for providing object access syntax (.attr) to dicts"""
 
+    features: list
+    deviations: list
+
     def __init__(self, *args, **kwargs):
         for arg in args:
             self.__dict__.update(arg)
@@ -96,7 +99,7 @@ def _parse_features_string(feature_str: str) -> t.Tuple[str, t.List[str]]:
     return (module_name, features)
 
 
-def create_context(path: str = '.', *options, **kwargs) -> OptsContext:
+def create_context(path: str = '.') -> OptsContext:
     """Generates a pyang context.
 
     The dict options and keyword arguments are similar to the command
@@ -108,10 +111,6 @@ def create_context(path: str = '.', *options, **kwargs) -> OptsContext:
         path (str): location of YANG modules.
             (Join string with ``os.pathsep`` for multiple locations).
             Default is the current working dir.
-        *options: list of dicts, with options to be passed to context.
-            See bellow.
-        **kwargs: similar to ``options`` but have a higher precedence.
-            See bellow.
 
     Keyword Arguments:
         print_error_code (bool): On errors, print the error code instead
@@ -148,7 +147,7 @@ def create_context(path: str = '.', *options, **kwargs) -> OptsContext:
     """
     # deviations (list): Deviation module (NOT CURRENTLY WORKING).
 
-    opts = objectify(DEFAULT_OPTIONS, *options, **kwargs)
+    opts = objectify(DEFAULT_OPTIONS)
     repo = FileRepository(path, no_path_recurse=opts.no_path_recurse)
 
     ctx = OptsContext(repo)

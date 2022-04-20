@@ -164,10 +164,12 @@ def main(scriptConf=None):
         if '{}' in (redis_modules, yang_catalog_module):
             # RDB not exists - load from JSON
             backup_path = os.path.join(redis_json_backup, 'backup.json')
+            modules = []
+            vendors = []
             if os.path.exists(backup_path):
                 with open(backup_path, 'r') as file_load:
                     catalog_data = json.load(file_load)
-                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {})
+                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
                     vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
             else:
                 if file_name.endswith('.gz'):

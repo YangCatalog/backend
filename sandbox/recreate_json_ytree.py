@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 
 from pyang import plugin
-from pyang.plugins.json_tree import emit_tree
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
 from utility.create_config import create_config
 from utility.yangParser import create_context
 
@@ -43,6 +43,7 @@ if __name__ == '__main__':
         name = name_revision[0]
         revision = name_revision[1].split('.')[0]
         all_modules_path = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
+        parsed_module = None
         try:
             with open(all_modules_path, 'r') as f:
                 parsed_module = ctx.add_module(all_modules_path, f.read())
