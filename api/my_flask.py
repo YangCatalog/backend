@@ -9,18 +9,22 @@ from datetime import datetime, timedelta
 import flask
 import requests
 from elasticsearch import Elasticsearch
-from flask import Config, Flask, abort, g, request
-from flask import current_app as app
+from elasticsearchIndexing.es_manager import ESManager
+from flask.app import Flask
+from flask.config import Config
+from flask.globals import current_app as app
+from flask.globals import g, request
 from flask.logging import default_handler
 from flask_pyoidc.user_session import UserSession
 from redis import Redis
 from redisConnections.redisConnection import RedisConnection
+from utility.confdService import ConfdService
+from utility.redisUsersConnection import RedisUsersConnection
 from werkzeug.datastructures import EnvironHeaders
+from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
 from api.sender import Sender
-from utility.confdService import ConfdService
-from utility.redisUsersConnection import RedisUsersConnection
 
 
 class MyFlask(Flask):
@@ -106,6 +110,8 @@ class MyFlask(Flask):
                                               scheme='https')
         else:
             self.config['ES'] = Elasticsearch(hosts=[es_host_config])
+
+        self.config['ES-MANAGER'] = ESManager()
 
         rabbitmq_host = self.config.config_parser.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(self.config.config_parser.get('RabbitMQ-Section', 'port', fallback='5672'))
