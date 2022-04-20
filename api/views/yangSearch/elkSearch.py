@@ -261,7 +261,7 @@ class ElkSearch:
         process_first_search.join()
         processed_rows = self.__process_hits(hits.get(), [])
         if self.__current_scroll_id is not None:
-            self.__es.clear_scroll(body={'scroll_id': [self.__current_scroll_id]}, ignore=(404,))
+            self.__es.clear_scroll(scroll_id=self.__current_scroll_id, ignore=(404,))
         return processed_rows
 
     def __process_hits(self, hits: list, response_rows: list, reject=None):
@@ -333,7 +333,7 @@ class ElkSearch:
         try:
             query_no_agg = self.query.copy()
             query_no_agg.pop('aggs', '')
-            elk_response = self.__es.search(index='yindex', doc_type='modules', body=query_no_agg, request_timeout=20,
+            elk_response = self.__es.search(index='yindex', body=query_no_agg, request_timeout=20,
                                             scroll=u'2m', size=self.__response_size)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
@@ -358,7 +358,7 @@ class ElkSearch:
     def __resolve_aggregations(self):
         response = {'aggregations': {'groupby': {'buckets': []}}}
         try:
-            response = self.__es.search(index='yindex', doc_type='modules', body=self.query, size=0)
+            response = self.__es.search(index='yindex', body=self.query, size=0)
         except ConnectionTimeout as e:
             self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
         aggregations = response['aggregations']['groupby']['buckets']

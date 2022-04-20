@@ -73,11 +73,14 @@ def get_services_list():
 def health_check_elk():
     service_name = 'Elasticsearch'
     try:
+        es_host_config = {
+            'host': ac.db_es_host,
+            'port': ac.db_es_port
+        }
         if ac.db_es_aws:
-            es = Elasticsearch([ac.db_es_host], http_auth=(ac.s_elk_credentials[0], ac.s_elk_credentials[1]),
-                               scheme='https', port=443)
+            es = Elasticsearch(hosts=[es_host_config], http_auth=(ac.s_elk_credentials[0], ac.s_elk_credentials[1]), scheme='https')
         else:
-            es = Elasticsearch([{'host': '{}'.format(ac.db_es_host), 'port': ac.db_es_port}])
+            es = Elasticsearch(hosts=[es_host_config])
 
         # try to ping Elasticsearch
         if es.ping():

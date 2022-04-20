@@ -342,7 +342,7 @@ def get_services_list(type: str, pattern: str):
 
             completion['query']['bool']['must'][0]['term'] = {type.lower(): pattern.lower()}
             completion['aggs']['groupby_module']['terms']['field'] = '{}.keyword'.format(type.lower())
-            rows = ac.es.search(index='modules', doc_type='modules', body=completion,
+            rows = ac.es.search(index='modules', body=completion,
                                 size=0)['aggregations']['groupby_module']['buckets']
 
             for row in rows:
@@ -397,7 +397,7 @@ def show_node_with_revision(name, path, revision):
         query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = name
         query['query']['bool']['must'][1]['match_phrase']['path']['query'] = path
         query['query']['bool']['must'][2]['match_phrase']['revision']['query'] = revision
-        hits = ac.es.search(index='yindex', doc_type='modules', body=query)['hits']['hits']
+        hits = ac.es.search(index='yindex', body=query)['hits']['hits']
         if len(hits) == 0:
             abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
         else:
@@ -477,7 +477,7 @@ def get_yang_catalog_help():
     revision = get_latest_module('yang-catalog')
     query = json.load(open(os.path.join(os.environ['BACKEND'], 'api/json/es/get_yang_catalog_yang.json'), 'r'))
     query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
-    yang_catalog_module = ac.es.search(index='yindex', doc_type='modules', body=query, size=10000)['hits']['hits']
+    yang_catalog_module = ac.es.search(index='yindex', body=query, size=10000)['hits']['hits']
     module_details_data = {}
     skip_statement = ['typedef', 'grouping', 'identity']
     for m in yang_catalog_module:
@@ -562,7 +562,7 @@ def get_modules_revision_organization(module_name, revision=None, warnings=False
                         }
                     }
                 }
-        hits = ac.es.search(index='modules', doc_type='modules', body=query, size=100)['hits']['hits']
+        hits = ac.es.search(index='modules', body=query, size=100)['hits']['hits']
         organization = hits[0]['_source']['organization']
         revisions = []
         for hit in hits:
@@ -587,7 +587,7 @@ def get_latest_module(module_name):
     """
     try:
         query = elasticsearch_descending_module_querry(module_name)
-        rev_org = ac.es.search(index='modules', doc_type='modules', body=query)['hits']['hits'][0]['_source']
+        rev_org = ac.es.search(index='modules', body=query)['hits']['hits'][0]['_source']
         return rev_org['revision']
     except Exception as e:
         bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))

@@ -104,14 +104,16 @@ def main(scriptConf=None):
     config = create_config(config_path)
     repo_name = config.get('General-Section', 'elk-repo-name')
 
-    es_host = config.get('DB-Section', 'es-host')
-    es_port = config.get('DB-Section', 'es-port')
     es_aws = config.get('DB-Section', 'es-aws')
     elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+    es_host_config = {
+        'host': config.get('DB-Section', 'es-host'),
+        'port': config.get('DB-Section', 'es-port')
+    }
     if es_aws == 'True':
-        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
+        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
     else:
-        es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+        es = Elasticsearch(hosts=[es_host_config])
 
     save = args.save
     if args.load:

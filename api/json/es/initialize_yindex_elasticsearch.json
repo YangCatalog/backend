@@ -1,16 +1,18 @@
 {
   "settings": {
     "index": {
-      "blocks": {"read_only_allow_delete": "false"},
+      "blocks": {
+        "read_only_allow_delete": "false"
+      },
       "max_ngram_diff": 150,
       "number_of_shards": 3,
       "number_of_replicas": 2
     },
     "analysis": {
-      "filter":{
-        "synonym":{
-          "type":"synonym",
-          "synonyms_path":"analyzers/F124173889"
+      "filter": {
+        "synonym": {
+          "type": "synonym",
+          "synonyms_path": "thesaurus.conf"
         }
       },
       "tokenizer": {
@@ -29,7 +31,7 @@
           ]
         },
         "my_analyzer_case_sensitive": {
-          "filter":[
+          "filter": [
             "synonym"
           ],
           "tokenizer": "my_tokenizer"
@@ -38,64 +40,61 @@
     }
   },
   "mappings": {
-    "modules": {
-      "properties": {
-        "module": {
-          "type": "text",
-          "analyzer": "my_analyzer_lowercase",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+    "properties": {
+      "module": {
+        "type": "text",
+        "analyzer": "my_analyzer_lowercase",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
-        },
-        "organization": {
-          "type": "text",
-          "analyzer": "my_analyzer_lowercase",
-          "fields": {
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+        }
+      },
+      "organization": {
+        "type": "text",
+        "analyzer": "my_analyzer_lowercase",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
-        },
-        "argument": {
-          "type": "text",
-          "fields": {
-            "sensitive": {
-              "type": "text",
-              "analyzer": "my_analyzer_case_sensitive"
-            },
-            "lowercase": {
-              "type": "text",
-              "analyzer": "my_analyzer_lowercase"
-            },
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+        }
+      },
+      "argument": {
+        "type": "text",
+        "fields": {
+          "sensitive": {
+            "type": "text",
+            "analyzer": "my_analyzer_case_sensitive"
+          },
+          "lowercase": {
+            "type": "text",
+            "analyzer": "my_analyzer_lowercase"
+          },
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
-        },
-        "description": {
-          "type": "text",
-          "fields": {
-            "sensitive": {
-              "type": "text",
-              "analyzer": "my_analyzer_case_sensitive"
-            },
-            "lowercase": {
-              "type": "text",
-              "analyzer": "my_analyzer_lowercase"
-            },
-            "keyword": {
-              "type": "keyword",
-              "ignore_above": 256
-            }
+        }
+      },
+      "description": {
+        "type": "text",
+        "fields": {
+          "sensitive": {
+            "type": "text",
+            "analyzer": "my_analyzer_case_sensitive"
+          },
+          "lowercase": {
+            "type": "text",
+            "analyzer": "my_analyzer_lowercase"
+          },
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
           }
         }
       }
     }
   }
 }
-

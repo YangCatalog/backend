@@ -18,8 +18,8 @@ __copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
-from elasticsearch import Elasticsearch, ConnectionTimeout
-from elasticsearch.helpers import scan, ScanError
+from elasticsearch import ConnectionTimeout, Elasticsearch
+from elasticsearch.helpers import ScanError, scan
 
 __schema_types = [
     'typedef',
@@ -50,7 +50,7 @@ __node_data = {
 }
 
 
-def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
+def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
     query = \
         {
             'query': {
@@ -74,11 +74,14 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
                 }
             }
         }
-
+    es_host_config = {
+        'host': es_host,
+        'port': es_port
+    }
     if es_aws:
-        es = Elasticsearch([host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme="https", port=443)
+        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
     else:
-        es = Elasticsearch([{'host': '{}'.format(host), 'port': port}])
+        es = Elasticsearch(hosts=[es_host_config])
     search_term = opts['search']
 
     if 'case-sensitive' in opts and opts['case-sensitive']:
@@ -99,7 +102,7 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
         term_regex = 'term'
 
     should = {
-        'bool': {'should':[]}
+        'bool': {'should': []}
     }
     request_number = 1
     if 'request-number' in opts:
@@ -136,7 +139,7 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     limit_reacher = LimitReacher()
     try:
         search = scan(es, LOGGER, limit_reacher, query, request_timeout=20, scroll=u'2m', scroll_limit=2*request_number,
-                      index='yindex', doc_type='modules')
+                      index='yindex')
     except ConnectionTimeout as e:
         return None, None
     LOGGER.info(search)
@@ -153,7 +156,7 @@ def do_search(opts, host, port, es_aws, elk_credentials, LOGGER):
     all_revisions = True
     if 'latest-revisions' in opts and opts['latest-revisions'] is True:
         all_revisions = False
-        aggregations = es.search(index='yindex', doc_type='modules', body=query, size=0)['aggregations']['groupby']['buckets']
+        aggregations = es.search(index='yindex', body=query, size=0)['aggregations']['groupby']['buckets']
         for agg in aggregations:
             latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
     for row in rows:
@@ -240,7 +243,7 @@ def scan(client, LOGGER, limit_reacher, query=None, scroll='5m', raise_on_error=
             # check if we have any errors
             if resp["_shards"]["successful"] < resp["_shards"]["total"]:
                 LOGGER.warning(
-                   'Scroll request has only succeeded on %d shards out of %d.',
+                    'Scroll request has only succeeded on %d shards out of %d.',
                     resp['_shards']['successful'], resp['_shards']['total']
                 )
                 if raise_on_error:

@@ -43,6 +43,7 @@ import pika
 import pika.exceptions
 
 import utility.log as log
+from api.status_message import StatusMessage
 
 
 class Sender:
@@ -55,18 +56,16 @@ class Sender:
         self.LOGGER = log.get_logger('sender', log_directory + '/yang.log')
         logging.getLogger('pika').setLevel(logging.INFO)
         self.LOGGER.debug('Initializing sender')
-        self.__response_type = ['Failed', 'In progress',
-                                'Finished successfully', 'does not exist']
-        self.__rabbitmq_host = rabbitmq_host
-        self.__rabbitmq_port = rabbitmq_port
-        self.__rabbitmq_virtual_host = rabbitmq_virtual_host
-        self.__credentials = pika.PlainCredentials(
+        self._rabbitmq_host = rabbitmq_host
+        self._rabbitmq_port = rabbitmq_port
+        self._rabbitmq_virtual_host = rabbitmq_virtual_host
+        self._credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)
         # Let try to connect to RabbitMQ until success..
 
-        self.__temp_dir = temp_dir
-        self.__response_file = 'correlation_ids'
+        self._temp_dir = temp_dir
+        self._response_file = 'correlation_ids'
         self.LOGGER.debug('Sender initialized')
 
     def get_response(self, correlation_id):
@@ -76,18 +75,18 @@ class Sender:
                     :param correlation_id: (str) job_id searched between
                      responses
                     :return one of the following - 'Failed', 'In progress',
-                        'Finished successfully' or 'does not exist'
+                        'Finished successfully' or 'Does not exist'
         """
         self.LOGGER.debug('Trying to get response from correlation ids')
 
-        f = open('{}/{}'.format(self.__temp_dir, self.__response_file), 'r')
+        f = open('{}/{}'.format(self._temp_dir, self._response_file), 'r')
         lines = f.readlines()
         f.close()
         for line in lines:
             if correlation_id == line.split('- ')[1].strip():
                 return line.split('- ')[-1].strip()
 
-        return self.__response_type[3]
+        return StatusMessage.NONEXISTENT.value
 
     def send(self, arguments):
         """Send data to receiver queue to process
@@ -100,10 +99,10 @@ class Sender:
             try:
                 connection = pika.BlockingConnection(
                     pika.ConnectionParameters(
-                        host=self.__rabbitmq_host,
-                        port=self.__rabbitmq_port,
-                        virtual_host=self.__rabbitmq_virtual_host,
-                        credentials=self.__credentials))
+                        host=self._rabbitmq_host,
+                        port=self._rabbitmq_port,
+                        virtual_host=self._rabbitmq_virtual_host,
+                        credentials=self._credentials))
                 channel = connection.channel()
                 channel.queue_declare(queue='module_queue')
                 break
@@ -118,9 +117,9 @@ class Sender:
                                        correlation_id=corr_id,
                                    )
                               )
-        with open('{}/{}'.format(self.__temp_dir, self.__response_file), 'a') as f:
+        with open('{}/{}'.format(self._temp_dir, self._response_file), 'a') as f:
             line = '{} -- {} - {}\n'.format(datetime.datetime.now().ctime(),
-                                            corr_id, self.__response_type[1])
+                                            corr_id, StatusMessage.IN_PROGRESS.value)
             f.write(line)
         connection.close()
         return corr_id

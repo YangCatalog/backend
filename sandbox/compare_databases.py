@@ -23,18 +23,18 @@ from utility.util import fetch_module_by_schema
 def create_query(name: str, revision: str):
     query = \
         {
-            "query": {
-                "bool": {
-                    "must": [{
-                        "match_phrase": {
-                             "module.keyword": {
-                                 "query": name
+            'query': {
+                'bool': {
+                    'must': [{
+                        'match_phrase': {
+                             'module.keyword': {
+                                 'query': name
                              }
                              }
                     }, {
-                        "match_phrase": {
-                            "revision": {
-                                "query": revision
+                        'match_phrase': {
+                            'revision': {
+                                'query': revision
                             }
                         }
                     }]
@@ -57,7 +57,8 @@ def check_module_in_redis(hits: list):
             redis_missing.append(key)
             redis_missing_count += 1
 
-    LOGGER.info('{} out of {} missing in Redis'.format(redis_missing_count, len(hits)))
+    if redis_missing_count:
+        LOGGER.info('{} out of {} missing in Redis'.format(redis_missing_count, len(hits)))
 
     return redis_missing
 
@@ -83,12 +84,14 @@ if __name__ == '__main__':
     # Create Redis and Elasticsearch connections
     redis = Redis(host=redis_host, port=redis_port, db=1) # pyright: ignore
 
+    es_host_config = {
+        'host': es_host,
+        'port': es_port
+    }
     if es_aws == 'True':
-        es_aws = True
-        es = Elasticsearch([es_host], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https', port=443)
+        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
     else:
-        es_aws = False
-        es = Elasticsearch([{'host': '{}'.format(es_host), 'port': es_port}])
+        es = Elasticsearch(hosts=[es_host_config])
 
     # Set up variables and counters
     es_missing_modules = []
@@ -100,6 +103,7 @@ if __name__ == '__main__':
     redis_modules = 0
 
     # PHASE I: Check modules from Redis in Elasticsearch
+    LOGGER.info('Starting PHASE I')
     for key in redis.scan_iter():
         key = key.decode('utf-8')
         name = key.split('@')[0]
@@ -108,9 +112,9 @@ if __name__ == '__main__':
         redis_modules += 1
         try:
             query = create_query(name, revision)
-            es_result = es.search(index='modules', doc_type='modules', body=query)
+            es_count = es.count(index='modules', body=query)
 
-            if es_result['hits']['total'] == 0:
+            if es_count['count'] == 0:
                 es_missing_modules.append(key)
                 module = json.loads(redis.get(key))
                 # Check if this file is in /var/yang/all_modules folder
@@ -133,12 +137,13 @@ if __name__ == '__main__':
             continue
 
     # PHASE II: Check modules from Elasticsearch in Redis
+    LOGGER.info('Starting PHASE II')
     match_all = {
-        "query": {
-            "match_all": {}
+        'query': {
+            'match_all': {}
         }
     }
-    es_result = es.search(index='modules', doc_type='modules', body=match_all, scroll=u'10s', size=250)
+    es_result = es.search(index='modules', body=match_all, scroll=u'10s', size=250)
     scroll_id = es_result.get('_scroll_id')
     hits = es_result['hits']['hits']
     es_modules += len(hits)
@@ -157,7 +162,7 @@ if __name__ == '__main__':
         result = check_module_in_redis(hits)
         redis_missing_modules.extend(result)
 
-    es.clear_scroll(body={'scroll_id': [scroll_id]}, ignore=(404, ))
+    es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
 
     # Log results
     LOGGER.info('REDIS')
