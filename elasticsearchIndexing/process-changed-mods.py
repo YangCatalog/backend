@@ -25,8 +25,6 @@ import shutil
 import sys
 
 import requests
-from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import AuthorizationException
 from utility import log, repoutil
 from utility.create_config import create_config
 from utility.util import fetch_module_by_schema, validate_revision
@@ -40,11 +38,11 @@ def load_changes_cache(changes_cache_path: str):
     changes_cache = {}
 
     try:
-        with open(changes_cache_path, 'r') as f:
-            changes_cache = json.load(f)
+        with open(changes_cache_path, 'r') as reader:
+            changes_cache = json.load(reader)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
-        with open(changes_cache_path, 'w') as f:
-            json.dump({}, f)
+        with open(changes_cache_path, 'w') as writer:
+            json.dump({}, writer)
 
     return changes_cache
 
@@ -53,11 +51,11 @@ def load_delete_cache(delete_cache_path: str):
     delete_cache = []
 
     try:
-        with open(delete_cache_path, 'r') as f:
-            delete_cache = json.load(f)
+        with open(delete_cache_path, 'r') as reader:
+            delete_cache = json.load(reader)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
-        with open(delete_cache_path, 'w') as f:
-            json.dump([], f)
+        with open(delete_cache_path, 'w') as writer:
+            json.dump([], writer)
 
     return delete_cache
 
@@ -67,8 +65,8 @@ def backup_cache_files(cache_path: str):
     empty = {}
     if 'deletes' in cache_path:
         empty = []
-    with open(cache_path, 'w') as f:
-        json.dump(empty, f)
+    with open(cache_path, 'w') as writer:
+        json.dump(empty, writer)
 
 
 def check_file_availability(module: dict, LOGGER: logging.Logger):
@@ -97,7 +95,6 @@ def main():
     config_path = args.config_path
     config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
-    es_aws = config.get('DB-Section', 'es-aws')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     changes_cache_path = config.get('Directory-Section', 'changes-cache')
     failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
@@ -107,7 +104,6 @@ def main():
     json_ytree = config.get('Directory-Section', 'json-ytree')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     threads = int(config.get('General-Section', 'threads'))
-    elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
 
     LOGGER = log.get_logger('process_changed_mods', os.path.join(log_directory, 'process-changed-mods.log'))
     LOGGER.info('Starting process-changed-mods.py script')
@@ -137,45 +133,15 @@ def main():
     LOGGER.info('Pulling latest YangModels/yang repository')
     repoutil.pull(yang_models)
 
-    LOGGER.info('Trying to initialize Elasticsearch')
-
-    es_host_config = {
-        'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-        'port': config.get('DB-Section', 'es-port', fallback='9200')
-    }
-    if es_aws == 'True':
-        es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
-    else:
-        es = Elasticsearch(hosts=[es_host_config])
-
-    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_yindex_elasticsearch.json')) as f:
-        initialize_body_yindex = json.load(f)
-    with open(os.path.join(os.environ['BACKEND'], 'api/json/es/initialize_modules_elasticsearch.json')) as f:
-        initialize_body_modules = json.load(f)
-
-    LOGGER.info('Creating Elasticsearch indices')
-    try:
-        es.indices.create(index=ESIndices.YINDEX.value, body=initialize_body_yindex, ignore=400)
-        es.indices.create(index=ESIndices.MODULES.value, body=initialize_body_modules, ignore=400)
-    except AuthorizationException:
-        # Reference: https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
-        for index in es.indices.get_alias(index='*'):
-            read_only_query = {'index': {'blocks': {'read_only_allow_delete': 'false'}}}
-            es.indices.put_settings(index=index, body=read_only_query)
-        es.indices.create(index=ESIndices.YINDEX.value, body=initialize_body_yindex, ignore=400)
-        es.indices.create(index=ESIndices.MODULES.value, body=initialize_body_modules, ignore=400)
-    except Exception:
-        LOGGER.exception('Error while creating ES indices')
-        os.unlink(lock_file)
-        os.unlink(lock_file_cron)
-        sys.exit()
-
+    LOGGER.info('Trying to initialize Elasticsearch indices')
     es_manager = ESManager()
-    if not es_manager.index_exists(ESIndices.AUTOCOMPLETE):
-        es_manager.create_index(ESIndices.AUTOCOMPLETE)
+    for index in ESIndices:
+        if not es_manager.index_exists(index):
+            es_manager.create_index(index)
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
+    LOGGER.info('Running cache files backup')
     backup_cache_files(delete_cache_path)
     backup_cache_files(changes_cache_path)
     os.unlink(lock_file)
@@ -219,14 +185,14 @@ def main():
                 except Exception:
                     LOGGER.exception('Problem while processing module {}'.format(module_key))
                     try:
-                        with open(failed_changes_cache_path, 'r') as f:
-                            failed_modules = json.load(f)
+                        with open(failed_changes_cache_path, 'r') as reader:
+                            failed_modules = json.load(reader)
                     except (FileNotFoundError, json.decoder.JSONDecodeError):
                         failed_modules = {}
                     if module_key not in failed_modules:
                         failed_modules[module_key] = module_path
-                    with open(failed_changes_cache_path, 'w') as f:
-                        json.dump(failed_modules, f)
+                    with open(failed_changes_cache_path, 'w') as writer:
+                        json.dump(failed_modules, writer)
         except Exception:
             sys.setrecursionlimit(recursion_limit)
             os.unlink(lock_file_cron)

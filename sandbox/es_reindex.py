@@ -65,12 +65,13 @@ def main():
     else:
         es = Elasticsearch(hosts=[es_host_config])
     # ------------------------------------------------------------------------------------------------------------------
-    # INIT NEW AUTOCOMPLETE INDEX
+    # INIT ALL INDICES
     # ------------------------------------------------------------------------------------------------------------------
     es_manager = ESManager()
-    if not es_manager.index_exists(ESIndices.AUTOCOMPLETE):
-        create_result = es_manager.create_index(ESIndices.AUTOCOMPLETE)
-        print(create_result)
+    for index in ESIndices:
+        if not es_manager.index_exists(index):
+            create_result = es_manager.create_index(index)
+            print(create_result)
     # ------------------------------------------------------------------------------------------------------------------
     # GET ALL MODULES FROM 'modules' INDEX
     # ------------------------------------------------------------------------------------------------------------------
