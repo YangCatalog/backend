@@ -17,11 +17,15 @@ __copyright__ = 'Copyright The IETF Trust 2022, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
+import json
+import os
 import unittest
 from unittest import mock
 
+from elasticsearch import Elasticsearch
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
+from utility.create_config import create_config
 
 
 class MockESManager(ESManager):
@@ -29,22 +33,59 @@ class MockESManager(ESManager):
         self.es = mock.MagicMock()
 
 
-class TestESManagerClass(unittest.TestCase):
+class TestESManagerWithoutIndexClass(unittest.TestCase):
 
     def __init__(self, *args, **kwargs):
-        super(TestESManagerClass, self).__init__(*args, **kwargs)
+        super(TestESManagerWithoutIndexClass, self).__init__(*args, **kwargs)
+        config = create_config()
+        es_host_config = {
+            'host': config.get('DB-Section', 'es-host', fallback='localhost'),
+            'port': config.get('DB-Section', 'es-port', fallback='9200')
+        }
+        self.es = Elasticsearch(hosts=[es_host_config])
+        self.test_index = ESIndices.TEST
 
     def setUp(self):
-        self.es_manager = MockESManager()
         self.es_manager = ESManager()
-
-    # @mock.patch('elasticsearchIndexing.es_manager.ESManager.create_index')
-    # def test_create_index(self, mock_create_index: mock.MagicMock):
-    #     mock_create_index.return_value = {'todo'}
-    #     result = self.es_manager.create_index(ESIndices.MODULES)
+        self.es.indices.delete(index=ESIndices.TEST.value, ignore=[400, 404])
 
     def test_create_index(self):
-        result = self.es_manager.create_index(ESIndices.MODULES)
+        create_result = self.es_manager.create_index(self.test_index)
+
+        self.assertIn('acknowledged', create_result)
+        self.assertIn('index', create_result)
+        self.assertTrue(create_result['acknowledged'])
+        self.assertEqual(create_result['index'], self.test_index.value)
+
+
+class TestESManagerWithIndexClass(unittest.TestCase):
+
+    def __init__(self, *args, **kwargs):
+        super(TestESManagerWithIndexClass, self).__init__(*args, **kwargs)
+        config = create_config()
+        es_host_config = {
+            'host': config.get('DB-Section', 'es-host', fallback='localhost'),
+            'port': config.get('DB-Section', 'es-port', fallback='9200')
+        }
+        self.es = Elasticsearch(hosts=[es_host_config])
+        self.test_index = ESIndices.TEST
+
+    def setUp(self):
+        self.es_manager = ESManager()
+        index_json_name = f'initialize_{self.test_index.value}_index.json'
+        index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
+        with open(index_json_path, encoding='utf-8') as reader:
+            index_config = json.load(reader)
+        self.es.indices.create(index=self.test_index.value, body=index_config, ignore=400)
+
+    def test_create_index_already_exists(self):
+        create_result = self.es_manager.create_index(self.test_index)
+
+        self.assertIn('error', create_result)
+        self.assertIn('status', create_result)
+        self.assertEqual(create_result['status'], 400)
+        self.assertEqual(create_result['error']['index'], self.test_index.value)
+        self.assertEqual(create_result['error']['type'], 'resource_already_exists_exception')
 
 
 if __name__ == '__main__':
