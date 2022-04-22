@@ -38,8 +38,6 @@ jobs:
         uses: getong/elasticsearch-action@v1.2
         with:
           elasticsearch version: ${{ matrix.elasticsearch-version }}
-          cluster name: 'yangcatalog'
-          node name: 'elasticsearch'
           host port: 9200
           container port: 9200
           discovery type: 'single-node'          

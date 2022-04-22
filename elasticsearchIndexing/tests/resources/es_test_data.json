@@ -1,0 +1,49 @@
+{
+  "autocomplete_modules": [
+    {
+      "name": "ietf-routing",
+      "revision": "2018-03-13",
+      "organization": "ietf"
+    },
+    {
+      "name": "ietf-routing",
+      "revision": "2018-01-25",
+      "organization": "ietf"
+    },
+    {
+      "name": "ietf-rip",
+      "revision": "2020-02-20",
+      "organization": "ietf"
+    },
+    {
+      "name": "ietf-restconf",
+      "revision": "2017-01-26",
+      "organization": "ietf"
+    },
+    {
+      "name": "ietf-yang-types",
+      "revision": "2022-03-22",
+      "organization": "ietf"
+    },
+    {
+      "name": "ietf-yang-types",
+      "revision": "2022-02-03",
+      "organization": "ietf"
+    },
+    {
+      "name": "openconfig-bgp",
+      "revision": "2021-12-01",
+      "organization": "openconfig"
+    },
+    {
+      "name": "openconfig-bgp",
+      "revision": "2021-10-21",
+      "organization": "openconfig"
+    },
+    {
+      "name": "openconfig-isis",
+      "revision": "2022-03-01",
+      "organization": "openconfig"
+    }
+  ]
+}

@@ -6,6 +6,47 @@
       },
       "max_ngram_diff": 100,
       "number_of_shards": 2
+    },
+    "analysis": {
+      "tokenizer": {
+        "edge_ngram_tokenizer": {
+          "type": "ngram",
+          "min_gram": 3,
+          "max_gram": 100
+        }
+      },
+      "analyzer": {
+        "edge_ngram_analyzer": {
+          "tokenizer": "edge_ngram_tokenizer",
+          "filter": [
+            "lowercase"
+          ]
+        }
+      }
+    }
+  },
+  "mappings": {
+    "properties": {
+      "name": {
+        "type": "text",
+        "analyzer": "edge_ngram_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "organization": {
+        "type": "text",
+        "analyzer": "edge_ngram_analyzer",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      }
     }
   }
 }
