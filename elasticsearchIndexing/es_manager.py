@@ -22,7 +22,7 @@ import os
 from operator import itemgetter
 
 from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import AuthorizationException
+from elasticsearch.exceptions import AuthorizationException, RequestError
 from utility.create_config import create_config
 
 from elasticsearchIndexing.models.es_indices import ESIndices
@@ -48,7 +48,7 @@ class ESManager:
         """ Create Elasticsearch index with given name.
 
         Argument:
-            :param index_name   (str) name of the index to be created
+            :param index   (ESIndices) Index to be created
         """
         index_name = index.value
         index_json_name = f'initialize_{index_name}_index.json'
@@ -67,15 +67,21 @@ class ESManager:
         return create_result
 
     def index_exists(self, index: ESIndices) -> bool:
-        """ Check if the index already exists. """
+        """ Check if the index already exists. 
+
+        Argument:
+            :param index   (ESIndices) Index to be checked
+        """
         return self.es.indices.exists(index=index.value)
 
     def autocomplete(self, index: ESIndices, keyword: KeywordsNames, searched_term: str) -> list:
         """ Get list of the modules which will be returned as autocomplete
-        after entering the "search_term" by the user.
+        after entering the 'searched_term' by the user.
+
         Arguments:
+            :param index            (ESIndices) Index in which to search
             :param keyword          (KeywordsNames)
-            :param searched_term    (str)
+            :param searched_term    (str) String entered by the user
         """
         autocomplete_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/completion.json')
         with open(autocomplete_json_path, encoding='utf-8') as reader:
@@ -90,7 +96,13 @@ class ESManager:
 
         return result
 
-    def delete_from_index(self, index: ESIndices, module: dict):
+    def delete_from_index(self, index: ESIndices, module: dict) -> dict:
+        """ Delete module from the index.
+
+        Arguments:
+            :param index        (ESIndices) Target index from which to delete module
+            :param document     (dict) Document to delete
+        """
         delete_module_query = self._get_name_revision_query(index, module)
 
         return self.es.delete_by_query(index=index.value, body=delete_module_query, conflicts='proceed')
@@ -99,35 +111,42 @@ class ESManager:
         for index in ESIndices:
             self.delete_from_index(index, module)
 
-    def index_module(self, index: ESIndices, document: dict):
-        # TODO: Remove this after reindexing and unification of both indices
-        if index == ESIndices.MODULES:
-            path = document['path']
-            del document['path']
-            document['dir'] = path
+    def index_module(self, index: ESIndices, document: dict) -> dict:
+        """ Creates or updates a 'document' in an selcted index.
 
-            name = document['name']
-            del document['name']
-            document['module'] = name
+        Arguments:
+            :param index            (ESIndices) Target index to be indexed
+            :param document         (dict) Document to index
+        """
+        # TODO: Remove this IF after reindexing and unification of both indices
+        if index == ESIndices.MODULES:
+            try:
+                name = document['name']
+                del document['name']
+                document['module'] = name
+            except KeyError:
+                pass
 
         return self.es.index(index=index.value, body=document, request_timeout=40)
 
-    def match_all(self, index: ESIndices):
+    def match_all(self, index: ESIndices) -> dict:
+        """ Return the dictionary of all modules that are in the index.
+
+        Argument:
+            :param index    (ESIndices) Index in which to search
+        """
         def _store_hits(hits: list, all_results: dict):
             for hit in hits:
                 name = ''
-                path = ''
-                if index == ESIndices.AUTOCOMPLETE:
+                try:
                     name = hit['_source']['name']
-                    path = hit['_source']['path']
-                if index == ESIndices.MODULES:
+                except KeyError:
                     name = hit['_source']['module']
-                    path = hit['_source']['dir']
+
                 mod = {
                     'name': name,
                     'revision': hit['_source']['revision'],
-                    'organization': hit['_source']['organization'],
-                    'path': path
+                    'organization': hit['_source']['organization']
                 }
                 key = '{}@{}/{}'.format(mod.get('name'), mod.get('revision'), mod.get('organization'))
                 if key not in all_results:
@@ -162,41 +181,53 @@ class ESManager:
         self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
         return all_results
 
-    def get_module_by_name_revision(self, index: ESIndices, module: dict) -> bool:
+    def get_module_by_name_revision(self, index: ESIndices, module: dict) -> list:
         get_module_query = self._get_name_revision_query(index, module)
 
         es_result = self.es.search(index=index.value, body=get_module_query)
 
         return es_result['hits']['hits']
 
-    def get_latest_module_revision(self, index: ESIndices, name: str):
-        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/latest_revision_query.json')
+    def get_sorted_module_revisions(self, index: ESIndices, name: str):
+        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/sorted_name_rev_query.json')
         with open(query_path, encoding='utf-8') as reader:
-            latest_revision_query = json.load(reader)
+            sorted_name_rev_query = json.load(reader)
 
-        # TODO: Remove this after reindexing and unification of both indices
-        if index == ESIndices.AUTOCOMPLETE:
-            del latest_revision_query['query']['bool']['must'][0]['match_phrase']['module.keyword']
-            latest_revision_query['query']['bool']['must'][0]['match_phrase'] = {
-                'name.keyword': {
+        # TODO: Remove this IF after reindexing and unification of both indices
+        if index == ESIndices.MODULES:
+            del sorted_name_rev_query['query']['bool']['must'][0]['match_phrase']['name.keyword']
+            sorted_name_rev_query['query']['bool']['must'][0]['match_phrase'] = {
+                'module.keyword': {
                     'query': name
                 }
             }
         else:
-            latest_revision_query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = name
+            sorted_name_rev_query['query']['bool']['must'][0]['match_phrase']['name.keyword']['query'] = name
 
-        es_result = self.es.search(index=index.value, body=latest_revision_query)
+        try:
+            es_result = self.es.search(index=index.value, body=sorted_name_rev_query)
+        except RequestError:
+            return []
 
         return es_result['hits']['hits']
 
     def document_exists(self, index: ESIndices, module: dict) -> bool:
+        """ Check whether 'module' already exists in index - if count is greater than 0.
+
+        Arguments:
+            :param index        (ESIndices) Index in which to search
+            :param module       (dict) Document to search
+        """
         get_module_query = self._get_name_revision_query(index, module)
 
         es_count = self.es.count(index=index.value, body=get_module_query)
 
         return es_count['count'] > 0
 
-    def create_snapshot_repository(self, compress):
+    ### SNAPSOTS RELATED METHODS ###
+
+    def create_snapshot_repository(self, compress: bool) -> dict:
+        """ Register a snapshot repository."""
         body = {
             'type': 'fs',
             'settings': {
@@ -204,44 +235,60 @@ class ESManager:
                 'compress': compress
             }
         }
-        es_result = self.es.snapshot.create_repository(repository=self.elk_repo_name, body=body)
+        return self.es.snapshot.create_repository(repository=self.elk_repo_name, body=body)
 
-        return es_result
+    def create_snapshot(self, snapshot_name: str) -> dict:
+        """ Creates a snapshot with given 'snapshot_name' in a snapshot repository.
 
-    def create_snapshot(self, snapshot_name: str):
+        Argument:
+            :param snapshot_name    (str) Name of the snapshot to be created
+        """
         index_body = {
             'indices': '_all'
         }
         return self.es.snapshot.create(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
 
     def get_sorted_snapshots(self) -> list:
+        """ Return a sorted list of existing snapshots. """
         snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')['snapshots']
         return sorted(snapshots, key=itemgetter('start_time_in_millis'))
 
-    def restore_snapshot(self, snapshot_name: str):
+    def restore_snapshot(self, snapshot_name: str) -> dict:
+        """ Restore snapshot which is given by 'snapshot_name'.
+
+        Argument:
+            :param snapshot_name    (str) Name of the snapshot to restore
+        """
         index_body = {
             'indices': '_all'
         }
         return self.es.snapshot.restore(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
 
-    def delete_snapshot(self, snapshot_name: str):
+    def delete_snapshot(self, snapshot_name: str) -> dict:
+        """ Delete snapshot which is given by 'snapshot_name'.
+
+        Argument:
+            :param snapshot_name    (str) Name of the snapshot to delete
+        """
         return self.es.snapshot.delete(repository=self.elk_repo_name, snapshot=snapshot_name)
 
-    def _get_name_revision_query(self, index: ESIndices, module: dict):
+    ### HELPER METHODS ###
+
+    def _get_name_revision_query(self, index: ESIndices, module: dict) -> dict:
         module_search_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/module_search.json')
         with open(module_search_path, encoding='utf-8') as reader:
             name_revision_query = json.load(reader)
 
-        # TODO: Remove this after reindexing and unification of both indices
-        if index == ESIndices.AUTOCOMPLETE:
-            del name_revision_query['query']['bool']['must'][0]['match_phrase']['module.keyword']
+        # TODO: Remove this IF after reindexing and unification of both indices
+        if index == ESIndices.MODULES:
+            del name_revision_query['query']['bool']['must'][0]['match_phrase']['name.keyword']
             name_revision_query['query']['bool']['must'][0]['match_phrase'] = {
-                'name.keyword': {
+                'module.keyword': {
                     'query': module['name']
                 }
             }
         else:
-            name_revision_query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = module['name']
+            name_revision_query['query']['bool']['must'][0]['match_phrase']['name.keyword']['query'] = module['name']
         name_revision_query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = module['revision']
 
         return name_revision_query

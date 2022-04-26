@@ -4,7 +4,7 @@
       "must": [
         {
           "match_phrase": {
-            "module.keyword": {
+            "name.keyword": {
               "query": ""
             }
           }

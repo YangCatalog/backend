@@ -22,6 +22,7 @@ import os
 import unittest
 from unittest import mock
 
+from ddt import data, ddt
 from elasticsearch import Elasticsearch
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
@@ -43,6 +44,11 @@ class TestESManagerClass(unittest.TestCase):
         self.resources_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/tests/resources')
         self.test_data = self._load_test_data()
         self.es_manager = ESManager()
+        self.ietf_rip_module = {
+            'name': 'ietf-rip',
+            'revision': '2020-02-20',
+            'organization': 'ietf'
+        }
 
     def setUp(self):
         self.es.indices.delete(index=self.test_index.value, ignore=[400, 404])
@@ -75,10 +81,10 @@ class TestESManagerWithoutIndexClass(TestESManagerClass):
         self.assertFalse(index_exists)
 
 
-class TestESManagerWithIndexClass(TestESManagerClass):
+class TestESManagerWithEmptyIndexClass(TestESManagerClass):
 
     def setUp(self):
-        super(TestESManagerWithIndexClass, self).setUp()
+        super(TestESManagerWithEmptyIndexClass, self).setUp()
         index_json_name = f'initialize_{self.test_index.value}_index.json'
         index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
@@ -99,11 +105,53 @@ class TestESManagerWithIndexClass(TestESManagerClass):
 
         self.assertTrue(index_exists)
 
+    def test_document_exists(self):
+        in_es = self.es_manager.document_exists(self.test_index, self.ietf_rip_module)
 
-class TestESManagerAutocompleteClass(TestESManagerClass):
+        self.assertFalse(in_es)
+
+    def test_autocomplete_no_results(self):
+        searched_term = 'ietf-'
+        results = self.es_manager.autocomplete(self.test_index, KeywordsNames.NAME, searched_term)
+
+        self.assertEqual(results, [])
+
+    def test_delete_from_index(self):
+        delete_result = self.es_manager.delete_from_index(self.test_index, self.ietf_rip_module)
+
+        self.assertIn('deleted', delete_result)
+        self.assertEqual(delete_result['deleted'], 0)
+
+    def test_index_module(self):
+        index_result = self.es_manager.index_module(self.test_index, self.ietf_rip_module)
+
+        self.assertIn('result', index_result)
+        self.assertEqual(index_result['result'], 'created')
+        self.assertEqual(index_result['_shards']['successful'], 1)
+        self.assertEqual(index_result['_shards']['failed'], 0)
+
+    def test_get_module_by_name_revision(self):
+        hits = self.es_manager.get_module_by_name_revision(self.test_index, self.ietf_rip_module)
+
+        self.assertEqual(hits, [])
+
+    def test_get_sorted_module_revisions(self):
+        name = 'ietf-rip'
+        hits = self.es_manager.get_sorted_module_revisions(self.test_index, name)
+
+        self.assertEqual(hits, [])
+
+    def test_match_all(self):
+        all_es_modules = self.es_manager.match_all(self.test_index)
+
+        self.assertEqual(all_es_modules, {})
+
+
+@ddt
+class TestESManagerAutocompleteIndexClass(TestESManagerClass):
 
     def setUp(self):
-        super(TestESManagerAutocompleteClass, self).setUp()
+        super(TestESManagerAutocompleteIndexClass, self).setUp()
         index_json_name = f'initialize_{self.test_index.value}_index.json'
         index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
@@ -114,12 +162,93 @@ class TestESManagerAutocompleteClass(TestESManagerClass):
         for module in autocomplete_modules:
             self.es.index(index=self.test_index.value, body=module, refresh='true')
 
-    def test_autocomplete(self):
-        results = self.es_manager.autocomplete(self.test_index, KeywordsNames.NAME, 'ietf-')
+    @data(
+        'ietf-', 'IETF-R', '-yang-'
+    )
+    def test_autocomplete(self, searched_term: str):
+        results = self.es_manager.autocomplete(self.test_index, KeywordsNames.NAME, searched_term)
 
         self.assertNotEqual(results, [])
         for result in results:
-            self.assertIn('ietf-', result)
+            self.assertIn(searched_term.lower(), result)
+
+    @data(
+        'a', 'ab', 'ief-r'
+    )
+    def test_autocomplete_no_results(self, searched_term: str):
+        results = self.es_manager.autocomplete(self.test_index, KeywordsNames.NAME, searched_term)
+
+        self.assertEqual(results, [])
+
+    @data(
+        'ietf', 'open'
+    )
+    def test_autocomplete_organization(self, searched_term: str):
+        results = self.es_manager.autocomplete(self.test_index, KeywordsNames.ORGANIZATION, searched_term)
+
+        self.assertNotEqual(results, [])
+        for result in results:
+            self.assertIn(searched_term.lower(), result)
+
+    @data(
+        'i', 'ie', 'random'
+    )
+    def test_autocomplete_organization_no_results(self, searched_term: str):
+        results = self.es_manager.autocomplete(self.test_index, KeywordsNames.ORGANIZATION, searched_term)
+
+        self.assertEqual(results, [])
+
+    def test_delete_from_index(self):
+        delete_result = self.es_manager.delete_from_index(self.test_index, self.ietf_rip_module)
+
+        self.assertIn('deleted', delete_result)
+        self.assertNotEqual(delete_result['deleted'], 0)
+
+    def test_document_exists(self):
+        in_es = self.es_manager.document_exists(self.test_index, self.ietf_rip_module)
+
+        self.assertTrue(in_es)
+
+    def test_get_module_by_name_revision(self):
+        hits = self.es_manager.get_module_by_name_revision(self.test_index, self.ietf_rip_module)
+
+        self.assertNotEqual(hits, [])
+        self.assertEqual(len(hits), 1)
+        hit = hits.pop()
+        self.assertEqual(hit['_source'], self.ietf_rip_module)
+
+    def test_get_module_by_name_revision_not_exists(self):
+        module = {
+            'name': 'random',
+            'revision': '2022-01-01',
+            'organization': 'random'
+        }
+        hits = self.es_manager.get_module_by_name_revision(self.test_index, module)
+
+        self.assertEqual(hits, [])
+
+    def test_get_sorted_module_revisions(self):
+        name = 'ietf-rip'
+        hits = self.es_manager.get_sorted_module_revisions(self.test_index, name)
+
+        self.assertNotEqual(hits, [])
+        for hit in hits:
+            self.assertEqual(hit['_source']['name'], name)
+
+    def test_get_sorted_module_revisions_not_exists(self):
+        name = 'random'
+        hits = self.es_manager.get_sorted_module_revisions(self.test_index, name)
+
+        self.assertEqual(hits, [])
+
+    def test_match_all(self):
+        all_es_modules = self.es_manager.match_all(self.test_index)
+
+        self.assertNotEqual(all_es_modules, {})
+        for module in all_es_modules.values():
+            self.assertIn('name', module)
+            self.assertIn('revision', module)
+            self.assertIn('organization', module)
 
 
 if __name__ == '__main__':
