@@ -2,11 +2,10 @@ import base64
 import hashlib
 
 import requests
-from flask import current_app
+from flask.globals import current_app
 from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 from redis import RedisError
-
 from utility.redisUsersConnection import RedisUsersConnection
 
 auth = HTTPBasicAuth()

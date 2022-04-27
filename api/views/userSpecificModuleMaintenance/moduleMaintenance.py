@@ -25,15 +25,15 @@ import typing as t
 from datetime import datetime
 
 from api.authentication.auth import auth, hash_pw
-from flask import Blueprint, abort
-from flask import request
+from api.my_flask import app
+from flask.blueprints import Blueprint
+from flask.globals import request
 from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
-
-from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
 from utility.staticVariables import NS_MAP, backup_date_format, github_url
+from werkzeug.exceptions import abort
 
 
 class UserSpecificModuleMaintenance(Blueprint):
