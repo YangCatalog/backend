@@ -22,13 +22,13 @@ import os
 
 import requests
 from api.authentication.auth import auth, check_authorized
-from flask import Blueprint, abort
-from flask import request
-
 from api.my_flask import app
+from flask.blueprints import Blueprint
+from flask.globals import request
 from utility import messageFactory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
+from werkzeug.exceptions import abort
 
 
 class YcJobs(Blueprint):

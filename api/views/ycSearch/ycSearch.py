@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import collections
 import io
@@ -28,15 +28,16 @@ from operator import contains, eq
 import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
-from flask import Blueprint, abort, request
-from markupsafe import escape
+from api.my_flask import app
+from flask.blueprints import Blueprint
+from flask.globals import request
 from flask_deprecate import deprecate_route
+from markupsafe import escape
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
-
-from api.my_flask import app
 from utility.util import context_check_update_from
 from utility.yangParser import create_context
+from werkzeug.exceptions import abort
 
 
 class YcSearch(Blueprint):

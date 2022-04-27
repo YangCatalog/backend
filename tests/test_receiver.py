@@ -23,12 +23,11 @@ import shutil
 import unittest
 from unittest import mock
 
-from ddt import data, ddt
-from redis import Redis
-
 from api.receiver import Receiver
 from api.status_message import StatusMessage
+from ddt import data, ddt
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from redis import Redis
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 
@@ -107,14 +106,14 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self._redis_host = config.get('DB-Section', 'redis-host')
-        self._redis_port = config.get('DB-Section', 'redis-port')
+        self._redis_port = int(config.get('DB-Section', 'redis-port'))
 
         self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
         self.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
         self.receiver.redisConnection = self.redisConnection
-        self.receiver.confdService = MockConfdService() # pyright: ignore
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6) # pyright: ignore
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9) # pyright:ignore
+        self.receiver.confdService = MockConfdService()  # pyright: ignore
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
         self.huawei_dir = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.yang_models)
         self.direc = '{}/receiver_test'.format(self.temp_dir)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')

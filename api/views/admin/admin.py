@@ -34,16 +34,19 @@ from functools import wraps
 from pathlib import Path
 
 import flask
-from flask import abort, Blueprint, jsonify, redirect, request
+from api.my_flask import app
+from flask.blueprints import Blueprint
+from flask.globals import request
+from flask.json import jsonify
 from flask_cors import CORS
 from flask_pyoidc import OIDCAuthentication
-from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
+from flask_pyoidc.provider_configuration import (ClientMetadata,
+                                                 ProviderConfiguration)
 from flask_pyoidc.user_session import UserSession
 from redis import RedisError
-
-from api.my_flask import app
 from utility.create_config import create_config
-
+from werkzeug.exceptions import abort
+from werkzeug.utils import redirect
 
 config = create_config()
 client_id = config.get('Secrets-Section', 'client-id')
@@ -55,6 +58,7 @@ my_uri = config.get('Web-Section', 'my-uri')
 client_metadata = ClientMetadata(client_id=client_id, client_secret=client_secret, redirect_uris=redirect_uris)
 provider_config = ProviderConfiguration(issuer=issuer, client_metadata=client_metadata)
 ietf_auth = OIDCAuthentication({'default': provider_config})
+
 
 class YangCatalogAdminBlueprint(Blueprint):
 
@@ -443,6 +447,7 @@ def get_logs():
                 'output': output}
     return response
 
+
 @bp.route('/api/admin/move-user', methods=['POST'])
 @catch_db_error
 def move_user():
@@ -538,6 +543,7 @@ def update_user(status, id):
     app.logger.info('Record with ID {} with status {} updated successfully'.format(id, status))
     return {'info': 'ID {} updated successfully'.format(id)}
 
+
 @bp.route('/api/admin/users/<status>', methods=['GET'])
 @catch_db_error
 def get_users(status):
@@ -617,6 +623,7 @@ def hash_pw(password):
     if sys.version_info >= (3, 4):
         password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(password).hexdigest()
+
 
 def get_input(body):
     if body is None:

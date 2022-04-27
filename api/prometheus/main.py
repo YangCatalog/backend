@@ -13,37 +13,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
+import sys
 import time
 
-
 import requests
-from flask import request
+from flask.globals import g, request
 from flask.helpers import make_response
-from prometheus_client import core, generate_latest, CONTENT_TYPE_LATEST, Gauge, Histogram, Counter
-import flask
-import sys
+from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Gauge, Histogram,
+                               core, generate_latest)
 
 if sys.version_info >= (3, 4):
-    from urllib.parse import urlparse, parse_qs
+    from urllib.parse import parse_qs, urlparse
 else:
-    from urlparse import urlparse, parse_qs
+    from urlparse import parse_qs, urlparse
 
 
 def monitor(app):
     def before_request():
-        flask.g.start_time = time.time()
+        g.start_time = time.time()
         http_concurrent_request_count.inc()
         content_length = request.content_length
         if (content_length):
             http_request_size_bytes.labels(request.method, request.path).observe(content_length)
 
     def after_request(response):
-        request_latency = time.time() - flask.g.start_time
+        request_latency = time.time() - g.start_time
         http_request_latency_ms.labels(request.method, request.path).observe(request_latency)
 
         http_concurrent_request_count.dec()
@@ -89,7 +88,7 @@ def metrics():
     params = parse_qs(urlparse(request.path).query)
     if 'name[]' in params:
         registry = registry.restricted_registry(params['name[]'])
-    output = generate_latest(registry) # pyright: ignore
+    output = generate_latest(registry)  # pyright: ignore
     response = make_response(output)
     response.headers['Content-Type'] = CONTENT_TYPE_LATEST
     return response

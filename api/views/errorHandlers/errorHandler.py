@@ -17,7 +17,9 @@ __copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-from flask import Blueprint, jsonify, make_response
+from flask.blueprints import Blueprint
+from flask.helpers import make_response
+from flask.json import jsonify
 
 bp = Blueprint('error-handling', __name__)
 
