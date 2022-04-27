@@ -275,7 +275,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     return post_body
 
 
-def job_log(start_time: int, temp_dir: str, filename: str, messages: list, error: str = '', status: str = ''):
+def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], error: str = '', status: str = ''):
     """ Dump job run information into cronjob.json file.
 
     Arguments:
