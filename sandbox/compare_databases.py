@@ -76,7 +76,7 @@ def main():
         except ValueError:
             continue
         try:
-            in_es = es_manager.document_exists(ESIndices.MODULES, module)
+            in_es = es_manager.document_exists(ESIndices.AUTOCOMPLETE, module)
             if in_es:
                 continue
 
@@ -104,7 +104,7 @@ def main():
 
     # PHASE II: Check modules from Elasticsearch in Redis
     LOGGER.info('Starting PHASE II')
-    all_es_modules = es_manager.match_all(ESIndices.MODULES)
+    all_es_modules = es_manager.match_all(ESIndices.AUTOCOMPLETE)
     result = check_module_in_redis(all_es_modules, redis)
     redis_missing_modules.extend(result)
 
@@ -124,8 +124,8 @@ def main():
     result['redis_missing_modules_list'] = redis_missing_modules
     result['incorrect_format_modules_list'] = incorrect_format_modules
     result['modules_to_index'] = modules_to_index_dict
-    with open('{}/compared_databases.json'.format(temp_dir), 'w') as f:
-        json.dump(result, f)
+    with open('{}/compared_databases.json'.format(temp_dir), 'w') as writer:
+        json.dump(result, writer)
     LOGGER.info('Job finished successfully')
 
 

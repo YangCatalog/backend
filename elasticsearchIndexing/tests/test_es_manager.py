@@ -20,7 +20,6 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 import unittest
-from unittest import mock
 
 from ddt import data, ddt
 from elasticsearch import Elasticsearch

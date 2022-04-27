@@ -114,8 +114,8 @@ def change_permissions_recursive(path: str):
     """
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path, topdown=False):
-            for dir in [os.path.join(root, d) for d in dirs]:
-                os.chmod(dir, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
+            for directory in [os.path.join(root, d) for d in dirs]:
+                os.chmod(directory, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
             for file in [os.path.join(root, f) for f in files]:
                 os.chmod(file, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
     else:
@@ -135,7 +135,8 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_path: str, delete_cache_path: str, lock_file: str):
+def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_path: str,
+                         delete_cache_path: str, lock_file: str):
     """
     Creates a json file that will be used for Elasticsearch indexing.
 
@@ -158,11 +159,11 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cac
         changes_cache = dict()
         delete_cache = []
         if os.path.exists(changes_cache_path) and os.path.getsize(changes_cache_path) > 0:
-            with open(changes_cache_path, 'r') as f:
-                changes_cache = json.load(f)
+            with open(changes_cache_path, 'r') as reader:
+                changes_cache = json.load(reader)
         if os.path.exists(delete_cache_path) and os.path.getsize(delete_cache_path) > 0:
-            with open(delete_cache_path, 'r') as f:
-                delete_cache = json.load(f)
+            with open(delete_cache_path, 'r') as reader:
+                delete_cache = json.load(reader)
 
         if body_to_send.get('modules-to-index') is None:
             body_to_send['modules-to-index'] = {}
@@ -180,11 +181,11 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cac
             if not exists:
                 delete_cache.append(mname)
 
-        with open(changes_cache_path, 'w') as f:
-            json.dump(changes_cache, f, indent=2)
+        with open(changes_cache_path, 'w') as writer:
+            json.dump(changes_cache, writer, indent=2)
 
-        with open(delete_cache_path, 'w') as f:
-            json.dump(delete_cache, f, indent=2)
+        with open(delete_cache_path, 'w') as writer:
+            json.dump(delete_cache, writer, indent=2)
     except Exception as e:
         LOGGER.exception('Problem while sending modules to indexing')
         os.unlink(lock_file)
@@ -193,8 +194,8 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cac
 
 
 def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, LOGGER: logging.Logger):
-    for mod in modules_to_delete:
-        name, revision_organization = mod.split('@')
+    for mod_to_delete in modules_to_delete:
+        name, revision_organization = mod_to_delete.split('@')
         revision = revision_organization.split('/')[0]
         path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
         data = {'input': {'dependents': [{'name': name}]}}
@@ -236,8 +237,8 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     """
     mf = messageFactory.MessageFactory()
     es_manager = ESManager()
-    with open(modules_to_index, 'r') as f:
-        sdos_json = json.load(f)
+    with open(modules_to_index, 'r') as reader:
+        sdos_json = json.load(reader)
         LOGGER.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
     post_body = {}
     load_new_files_to_github = False
@@ -250,7 +251,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
         in_es = False
         in_redis = code == 200 or code == 201 or code == 204
         if in_redis:
-            in_es = es_manager.document_exists(ESIndices.MODULES, module)
+            in_es = es_manager.document_exists(ESIndices.AUTOCOMPLETE, module)
         else:
             load_new_files_to_github = True
 
@@ -274,7 +275,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     return post_body
 
 
-def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], error: str = '', status: str = ''):
+def job_log(start_time: int, temp_dir: str, filename: str, messages: list, error: str = '', status: str = ''):
     """ Dump job run information into cronjob.json file.
 
     Arguments:
@@ -294,9 +295,9 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
     result['messages'] = messages
 
     try:
-        with open('{}/cronjob.json'.format(temp_dir), 'r') as f:
-            file_content = json.load(f)
-    except Exception:
+        with open('{}/cronjob.json'.format(temp_dir), 'r') as reader:
+            file_content = json.load(reader)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
         file_content = {}
 
     filename = filename.split('.py')[0]
@@ -314,8 +315,8 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
     result['last_successfull'] = last_successfull
     file_content[filename] = result
 
-    with open('{}/cronjob.json'.format(temp_dir), 'w') as f:
-        f.write(json.dumps(file_content, indent=4))
+    with open('{}/cronjob.json'.format(temp_dir), 'w') as writer:
+        writer.write(json.dumps(file_content, indent=4))
 
 
 def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
@@ -333,8 +334,8 @@ def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
         yang_file_content = yang_file_response.content.decode(encoding='utf-8')
 
         if yang_file_response.status_code == 200:
-            with open(dst_path, 'w') as f:
-                f.write(yang_file_content)
+            with open(dst_path, 'w') as writer:
+                writer.write(yang_file_content)
             os.chmod(dst_path, 0o644)
             file_exist = os.path.isfile(dst_path)
     except Exception:
@@ -359,11 +360,11 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
     optParser = optparse.OptionParser('', add_help_option=False)
-    for p in plugin.plugins:
-        p.setup_ctx(ctx)
-        p.add_opts(optParser)
-    with open(new_schema, 'r', errors='ignore') as f:
-        new_schema_ctx = ctx.add_module(new_schema, f.read())
+    for plug in plugin.plugins:
+        plug.setup_ctx(ctx)
+        plug.add_opts(optParser)
+    with open(new_schema, 'r', errors='ignore') as reader:
+        new_schema_ctx = ctx.add_module(new_schema, reader.read())
     ctx.opts.check_update_from = old_schema
     ctx.opts.old_path = [os.path.abspath(yang_models)]
     ctx.opts.verbose = False

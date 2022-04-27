@@ -137,6 +137,9 @@ class ESManager:
         """
         def _store_hits(hits: list, all_results: dict):
             for hit in hits:
+                new_path = '/var/yang/all_modules/{}@{}.yang'.format(hit['_source']['module'], hit['_source']['revision'])
+                if not os.path.exists(new_path):
+                    print('{} does not exists'.format(new_path))                
                 name = ''
                 try:
                     name = hit['_source']['name']
@@ -151,8 +154,6 @@ class ESManager:
                 key = '{}@{}/{}'.format(mod.get('name'), mod.get('revision'), mod.get('organization'))
                 if key not in all_results:
                     all_results[key] = mod
-                else:
-                    print('{} already in all results'.format(key))
 
         all_results = {}
         match_all_query = {

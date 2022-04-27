@@ -24,31 +24,32 @@ import logging
 from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
 from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
-from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
-from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import IndexerPlugin
 from pyang.util import get_latest_revision
-from requests import ConnectionError
 from utility import yangParser
 from utility.util import validate_revision
 
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
+from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import \
+    IndexerPlugin
 
 ES_CHUNK_SIZE = 30
 
 
-def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str, threads: int, LOGGER: logging.Logger):
+def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str,
+                  threads: int, LOGGER: logging.Logger):
     name_revision = '{}@{}'.format(module['name'], module['revision'])
 
     plugin.init([])
     ctx = yangParser.create_context(save_file_dir)
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
-    for p in plugin.plugins:
-        p.setup_ctx(ctx)
+    for plug in plugin.plugins:
+        plug.setup_ctx(ctx)
 
-    with open(module['path'], 'r') as f:
-        parsed_module = ctx.add_module(module['path'], f.read())
+    with open(module['path'], 'r') as reader:
+        parsed_module = ctx.add_module(module['path'], reader.read())
     if parsed_module is None:
         raise Exception('Unable to pyang parse module')
     ctx.validate()
@@ -59,18 +60,18 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
     f = io.StringIO()
     ctx.opts.yang_index_make_module_table = True
     ctx.opts.yang_index_no_schema = True
-    indexerPlugin = IndexerPlugin()
-    indexerPlugin.emit(ctx, [parsed_module], f)
+    indexer_plugin = IndexerPlugin()
+    indexer_plugin.emit(ctx, [parsed_module], f)
 
     yindexes = json.loads(f.getvalue())
 
-    with open('{}/{}.json'.format(json_ytree, name_revision), 'w') as f:
+    with open('{}/{}.json'.format(json_ytree, name_revision), 'w') as writer:
         try:
-            emit_tree([parsed_module], f, ctx)
+            emit_tree([parsed_module], writer, ctx)
         except Exception:
             # create empty file so we still have access to that
             LOGGER.exception('unable to create ytree for module {}'.format(name_revision))
-            f.write('')
+            writer.write('')
 
     attempts = 3
     while attempts > 0:
@@ -104,11 +105,9 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
                         if not success:
                             LOGGER.error('A elasticsearch document failed with info: {}'.format(info))
 
-            # Index new modules to index: modules
-            LOGGER.debug('pushing data to index: modules')
-            es_manager.index_module(ESIndices.MODULES, module)
             # Index new modules to index: autocomplete
             LOGGER.debug('pushing data to index: autocomplete')
+            del module['path']
             es_manager.index_module(ESIndices.AUTOCOMPLETE, module)
             break
         except (ConnectionTimeout, ConnectionError) as e:
@@ -122,11 +121,11 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
 
 def _find_submodules(ctx, submodules, module):
     for i in module.search('include'):
-        r = i.search_one('revision-date')
-        if r is None:
+        revision = i.search_one('revision-date')
+        if revision is None:
             subm = ctx.get_module(i.arg)
         else:
-            subm = ctx.search_module(module.pos, i.arg, r.arg)
+            subm = ctx.search_module(module.pos, i.arg, revision.arg)
         if subm is not None and subm not in submodules:
             submodules.append(subm)
             _find_submodules(ctx, submodules, subm)
