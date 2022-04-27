@@ -108,7 +108,7 @@ def set_config():
 
 
 @bp.route('/tree/<module_name>', methods=['GET'])
-def tree_module(module_name):
+def tree_module(module_name: str):
     """
     Generates yang tree view of the module.
     :param module_name: Module for which we are generating the tree.
@@ -118,7 +118,7 @@ def tree_module(module_name):
 
 
 @bp.route('/tree/<module_name>@<revision>', methods=['GET'])
-def tree_module_revision(module_name, revision):
+def tree_module_revision(module_name: str, revision):
     """
     Generates yang tree view of the module.
     :param module_name: Module for which we are generating the tree.
@@ -143,12 +143,12 @@ def tree_module_revision(module_name, revision):
         path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, module_name, revision)
         plugin.plugins = []
         plugin.init([])
-        ctx = create_context('{}'.format(ac.d_yang_models_dir))
+        ctx = create_context(ac.d_yang_models_dir)
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
 
-        for p in plugin.plugins:
-            p.setup_ctx(ctx)
+        for plug in plugin.plugins:
+            plug.setup_ctx(ctx)
         try:
             with open(path_to_yang, 'r') as f:
                 module_context = ctx.add_module(path_to_yang, f.read())
@@ -339,9 +339,9 @@ def get_services_list(type: str, pattern: str):
         return make_response(jsonify(result), 200)
 
     if type == 'organization':
-        result = ac.es_manager.autocomplete(ESIndices.MODULES, KeywordsNames.ORGANIZATION, pattern)
+        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
     if type == 'module':
-        result = ac.es_manager.autocomplete(ESIndices.MODULES, KeywordsNames.MODULE, pattern)
+        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
 
     return make_response(jsonify(result), 200)
 
@@ -535,13 +535,13 @@ def get_modules_revision_organization(module_name, revision=None, warnings: bool
     """
     try:
         if revision is None:
-            hits = ac.es_manager.get_latest_module_revision(ESIndices.MODULES, module_name)
+            hits = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         else:
             module = {
                 'name': module_name,
                 'revision': revision
             }
-            hits = ac.es_manager.get_module_by_name_revision(ESIndices.MODULES, module)
+            hits = ac.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
@@ -568,7 +568,7 @@ def get_latest_module(module_name: str):
     :return: latest revision of the module
     """
     try:
-        es_result = ac.es_manager.get_latest_module_revision(ESIndices.MODULES, module_name)
+        es_result = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         return es_result[0]['_source']['revision']
     except IndexError:
         bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))

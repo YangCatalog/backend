@@ -142,6 +142,9 @@ class ESManager:
                     name = hit['_source']['name']
                 except KeyError:
                     name = hit['_source']['module']
+                new_path = '/var/yang/all_modules/{}@{}.yang'.format(name, hit['_source']['revision'])
+                if not os.path.exists(new_path):
+                    print('{} does not exists'.format(new_path))
 
                 mod = {
                     'name': name,
@@ -151,8 +154,6 @@ class ESManager:
                 key = '{}@{}/{}'.format(mod.get('name'), mod.get('revision'), mod.get('organization'))
                 if key not in all_results:
                     all_results[key] = mod
-                else:
-                    print('{} already in all results'.format(key))
 
         all_results = {}
         match_all_query = {
