@@ -22,7 +22,6 @@ import json
 import logging
 
 from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
-from elasticsearch.helpers import parallel_bulk
 from pyang import plugin
 from pyang.util import get_latest_revision
 from utility import yangParser
@@ -38,7 +37,7 @@ ES_CHUNK_SIZE = 30
 
 
 def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str,
-                  threads: int, LOGGER: logging.Logger):
+                  LOGGER: logging.Logger):
     name_revision = '{}@{}'.format(module['name'], module['revision'])
 
     plugin.init([])
@@ -100,10 +99,7 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
                 chunks = [yindexes[key][i:i + ES_CHUNK_SIZE] for i in range(0, len(yindexes[key]), ES_CHUNK_SIZE)]
                 for idx, chunk in enumerate(chunks, start=1):
                     LOGGER.debug('pushing data to index: yindex {} out of {}'.format(idx, len(chunks)))
-                    for success, info in parallel_bulk(es_manager.es, chunk, thread_count=threads, index='yindex',
-                                                       request_timeout=40):
-                        if not success:
-                            LOGGER.error('A elasticsearch document failed with info: {}'.format(info))
+                    es_manager.bulk_modules(ESIndices.YINDEX, chunk)
 
             # Index new modules to index: autocomplete
             LOGGER.debug('pushing data to index: autocomplete')

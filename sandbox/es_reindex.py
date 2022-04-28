@@ -47,9 +47,18 @@ def main():
     # ----------------------------------------------------------------------------------------------
     # FILL 'autocomplete' INDEX
     # ----------------------------------------------------------------------------------------------
-    for query in all_es_modules.values():
-        es_manager.delete_from_index(ESIndices.AUTOCOMPLETE, query)
-        index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, query)
+    for module in all_es_modules.values():
+        try:
+            name = module['name']
+        except KeyError:
+            name = module['module']
+        document = {
+            'name': name,
+            'revision': module['revision'],
+            'organization': module['organization']
+        }
+        es_manager.delete_from_index(ESIndices.AUTOCOMPLETE, document)
+        index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, document)
         if index_result['result'] != 'created':
             print(index_result)
 

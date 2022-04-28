@@ -103,7 +103,6 @@ def main():
     lock_file_cron = config.get('Directory-Section', 'lock-cron')
     json_ytree = config.get('Directory-Section', 'json-ytree')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
-    threads = int(config.get('General-Section', 'threads'))
 
     LOGGER = log.get_logger('process_changed_mods', os.path.join(log_directory, 'process-changed-mods.log'))
     LOGGER.info('Starting process-changed-mods.py script')
@@ -181,7 +180,7 @@ def main():
                 check_file_availability(module, LOGGER)
 
                 try:
-                    build_indices(es_manager, module, save_file_dir, json_ytree, threads, LOGGER)
+                    build_indices(es_manager, module, save_file_dir, json_ytree, LOGGER)
                 except Exception:
                     LOGGER.exception('Problem while processing module {}'.format(module_key))
                     try:

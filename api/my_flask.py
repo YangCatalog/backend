@@ -8,7 +8,6 @@ from datetime import datetime, timedelta
 
 import flask
 import requests
-from elasticsearch import Elasticsearch
 from elasticsearchIndexing.es_manager import ESManager
 from flask.app import Flask
 from flask.config import Config
@@ -20,7 +19,6 @@ from redis import Redis
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.redisUsersConnection import RedisUsersConnection
-from werkzeug.datastructures import EnvironHeaders
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
@@ -99,18 +97,6 @@ class MyFlask(Flask):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
         self.config['DB-ES-AWS'] = self.config.db_es_aws == 'True'
-        es_host_config = {
-            'host': self.config.db_es_host,
-            'port': self.config.db_es_port
-        }
-        if self.config.db_es_aws:
-            self.config['ES'] = Elasticsearch(hosts=[es_host_config],
-                                              http_auth=(self.config.s_elk_credentials[0],
-                                                         self.config.s_elk_credentials[1]),
-                                              scheme='https')
-        else:
-            self.config['ES'] = Elasticsearch(hosts=[es_host_config])
-
         self.config['ES-MANAGER'] = ESManager()
 
         rabbitmq_host = self.config.config_parser.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')

@@ -1,2 +1,1 @@
 include **/template/*.html
-include **/json/es/*.json

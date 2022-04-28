@@ -24,6 +24,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import datetime
+import sys
 import typing as t
 
 from elasticsearchIndexing.es_manager import ESManager
@@ -97,8 +98,12 @@ def main(scriptConf=None):
             snapshot_name = args.name_load
 
         sorted_snapshots = es_manager.get_sorted_snapshots()
+        if not sorted_snapshots:
+            print('There are no snapshots to restore')
+            sys.exit(1)
         snapshot_name = sorted_snapshots[-1]['snapshot']
-        es_manager.restore_snapshot(snapshot_name)
+        restore_result = es_manager.restore_snapshot(snapshot_name)
+        print('Restore result:\n{}'.format(restore_result))
 
 
 if __name__ == '__main__':

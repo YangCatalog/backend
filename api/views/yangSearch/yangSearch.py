@@ -315,7 +315,7 @@ def search():
     output_columns = isListOneOf(payload, 'output-columns', __output_columns)
     sub_search = eachKeyIsOneOf(payload, 'sub-search', __output_columns)
     elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, ac.d_logs,
-                           ac.es, latest_revision, app.redisConnection, include_mibs, yang_versions, output_columns,
+                           ac.es_manager.es, latest_revision, app.redisConnection, include_mibs, yang_versions, output_columns,
                            __output_columns, sub_search)
     elk_search.construct_query()
     response['rows'] = elk_search.search()
@@ -347,7 +347,7 @@ def get_services_list(type: str, pattern: str):
 
 
 @bp.route('/show-node/<name>/<path:path>', methods=['GET'])
-def show_node(name, path):
+def show_node(name: str, path: str):
     """
     View for show_node page, which provides context for show_node.html
     Shows description for yang modules.
@@ -355,46 +355,43 @@ def show_node(name, path):
     :param path: Path for node.
     :return: returns json to show node
     """
-    return show_node_with_revision(name, path, None)
+    return show_node_with_revision(name, path)
 
 
 @bp.route('/show-node/<name>/<path:path>/<revision>', methods=['GET'])
-def show_node_with_revision(name, path, revision):
+def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = None):
     """
     View for show_node page, which provides context for show_node.html
-    Shows description for yang modules.
+    Shows description for yang modules.s
     :param name: Takes first argument from url which is module name.
     :param path: Path for node.
     :param revision: revision for yang module, if specified.
     :return: returns json to show node
     """
+    if not name:
+        abort(400, description='You must specify a "name" argument')
+    if not path:
+        abort(400, description='You must specify a "path" argument')
+
     properties = []
     app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
-        with open(os.path.join(os.environ['BACKEND'], 'api/json/es/show_node.json'), 'r') as f:
-            query = json.load(f)
-
-        if name == '':
-            abort(400, description='You must specify a "name" argument')
-
-        if path == '':
-            abort(400, description='You must specify a "path" argument')
-
-        if revision is None:
-            bp.LOGGER.warning('Revision not submitted getting latest')
-
         if not revision:
-            revision = get_latest_module(name)
-        query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = name
-        query['query']['bool']['must'][1]['match_phrase']['path']['query'] = path
-        query['query']['bool']['must'][2]['match_phrase']['revision']['query'] = revision
-        hits = ac.es.search(index='yindex', body=query)['hits']['hits']
-        if len(hits) == 0:
+            bp.LOGGER.warning('Revision not submitted - getting latest')
+            revision = get_latest_module_revision(name)
+
+        module = {
+            'name': name,
+            'revision': revision,
+            'path': path
+        }
+        hits = ac.es_manager.get_node(module)['hits']['hits']
+
+        if not hits:
             abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
-        else:
-            result = hits[0]['_source']
-            properties = json.loads(result['properties'])
+        result = hits[0]['_source']
+        properties = json.loads(result['properties'])
     except Exception as e:
         abort(400, description='Module and path that you specified can not be found - {}'.format(e))
     return make_response(jsonify(properties), 200)
@@ -466,38 +463,44 @@ def get_yang_catalog_help():
     but other container/list/leaf under this statement again as a dictionary
     :return: returns json with yang-catalog help text
     """
-    revision = get_latest_module('yang-catalog')
-    query = json.load(open(os.path.join(os.environ['BACKEND'], 'api/json/es/get_yang_catalog_yang.json'), 'r'))
-    query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = revision
-    yang_catalog_module = ac.es.search(index='yindex', body=query, size=10000)['hits']['hits']
+    revision = get_latest_module_revision('yang-catalog')
+    module = {
+        'name': 'yang-catalog',
+        'revision': revision
+    }
+    hits = ac.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
     module_details_data = {}
     skip_statement = ['typedef', 'grouping', 'identity']
-    for m in yang_catalog_module:
+    for hit in hits:
         help_text = ''
-        m = m['_source']
-        paths = m['path'].split('/')[4:]
-        if 'yc:vendors?container/' in m['path'] or m['statement'] in skip_statement or len(paths) == 0 \
-                or 'platforms' in m['path']:
+        hit = hit['_source']
+        paths = hit['path'].split('/')[4:]
+        if 'yc:vendors?container/' in hit['path'] or hit['statement'] in skip_statement or len(paths) == 0 \
+                or 'platforms' in hit['path']:
             continue
-        if m.get('argument') is not None:
-            if m.get('description') is not None:
-                help_text = m.get('description').replace('\\n', '\n')
-            nprops = json.loads(m['properties'])
-            for prop in nprops:
-                if prop.get('type') is not None:
-                    if prop.get('type')['has_children']:
-                        for child in prop['type']['children']:
-                            if child.get('enum') and child['enum']['has_children']:
-                                for echild in child['enum']['children']:
-                                    if echild.get('description') is not None:
-                                        description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
-                                        help_text += '<br/>\r\n<br/>\r\n{}: {}'.format(child['enum']['value'],
-                                                                                       description)
+        if not hit.get('argument'):
+            continue
+        if hit.get('description'):
+            help_text = hit.get('description').replace('\\n', '\n')
+        properties = json.loads(hit.get('properties'))
+        for prop in properties:
+            if not prop.get('type'):
+                continue
+            if not prop.get('type', {}).get('has_children'):
+                continue
+            for child in prop['type']['children']:
+                if not child.get('enum', {}).get('has_children'):
+                    continue
+                for echild in child['enum']['children']:
+                    if not echild['description']:
+                        continue
+                    description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
+                    help_text += '<br/>\r\n<br/>\r\n{}: {}'.format(child.get('enum')['value'], description)
+            break
 
-                break
         paths.reverse()
-
         update_dictionary_recursively(module_details_data, paths, help_text)
+
     return make_response(jsonify(module_details_data), 200)
 
 
@@ -559,7 +562,7 @@ def get_modules_revision_organization(module_name, revision=None, warnings: bool
                   .format(name_rev))
 
 
-def get_latest_module(module_name: str):
+def get_latest_module_revision(module_name: str) -> str:
     """
     Gets latest revision of the module.
 

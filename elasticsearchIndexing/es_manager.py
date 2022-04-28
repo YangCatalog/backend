@@ -21,8 +21,11 @@ import json
 import os
 from operator import itemgetter
 
+import utility.log as log
 from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import AuthorizationException, RequestError
+from elasticsearch.exceptions import (AuthorizationException, NotFoundError,
+                                      RequestError)
+from elasticsearch.helpers import parallel_bulk
 from utility.create_config import create_config
 
 from elasticsearchIndexing.models.es_indices import ESIndices
@@ -32,6 +35,8 @@ from elasticsearchIndexing.models.keywords_names import KeywordsNames
 class ESManager:
     def __init__(self) -> None:
         config = create_config()
+        self.threads = int(config.get('General-Section', 'threads'))
+        log_directory = config.get('Directory-Section', 'logs')
         es_aws = config.get('DB-Section', 'es-aws')
         elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
         self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
@@ -43,6 +48,15 @@ class ESManager:
             self.es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
         else:
             self.es = Elasticsearch(hosts=[es_host_config])
+        log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
+        self.LOGGER = log.get_logger('es-manager', log_file_path)
+
+    def ping(self) -> bool:
+        return self.es.ping()
+
+    def cluster_health(self) -> dict:
+        """ Returns a brief representation of the cluster health """
+        return self.es.cluster.health()
 
     def create_index(self, index: ESIndices):
         """ Create Elasticsearch index with given name.
@@ -61,6 +75,7 @@ class ESManager:
             create_result = self.es.indices.create(index=index_name, body=index_config, ignore=400)
         except AuthorizationException:
             # https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
+            self.LOGGER.exception('Problem with index creation')
             read_only_query = {'index': {'blocks': {'read_only_allow_delete': 'false'}}}
             self.es.indices.put_settings(index=index_name, body=read_only_query)
             create_result = self.es.indices.create(index=index_name, body=index_config, ignore=400)
@@ -73,6 +88,10 @@ class ESManager:
             :param index   (ESIndices) Index to be checked
         """
         return self.es.indices.exists(index=index.value)
+
+    def get_indices(self) -> list:
+        """ Returns a list of existing indices. """
+        return list(self.es.indices.get_alias().keys())
 
     def autocomplete(self, index: ESIndices, keyword: KeywordsNames, searched_term: str) -> list:
         """ Get list of the modules which will be returned as autocomplete
@@ -119,7 +138,7 @@ class ESManager:
             :param document         (dict) Document to index
         """
         # TODO: Remove this IF after reindexing and unification of both indices
-        if index == ESIndices.MODULES:
+        if index in [ESIndices.MODULES, ESIndices.YINDEX]:
             try:
                 name = document['name']
                 del document['name']
@@ -128,6 +147,12 @@ class ESManager:
                 pass
 
         return self.es.index(index=index.value, body=document, request_timeout=40)
+
+    def bulk_modules(self, index: ESIndices, chunk):
+        for success, info in parallel_bulk(client=self.es, actions=chunk, index=index.value, thread_count=self.threads,
+                                           request_timeout=40):
+            if not success:
+                self.LOGGER.error('Elasticsearch document failed with info: {}'.format(info))
 
     def match_all(self, index: ESIndices) -> dict:
         """ Return the dictionary of all modules that are in the index.
@@ -138,22 +163,19 @@ class ESManager:
         def _store_hits(hits: list, all_results: dict):
             for hit in hits:
                 name = ''
+                revision = hit['_source']['revision']
+                organization = hit['_source']['organization']
                 try:
                     name = hit['_source']['name']
                 except KeyError:
                     name = hit['_source']['module']
-                new_path = '/var/yang/all_modules/{}@{}.yang'.format(name, hit['_source']['revision'])
+                new_path = '/var/yang/all_modules/{}@{}.yang'.format(name, revision)
                 if not os.path.exists(new_path):
-                    print('{} does not exists'.format(new_path))
+                    self.LOGGER.error('{} does not exists'.format(new_path))
 
-                mod = {
-                    'name': name,
-                    'revision': hit['_source']['revision'],
-                    'organization': hit['_source']['organization']
-                }
-                key = '{}@{}/{}'.format(mod.get('name'), mod.get('revision'), mod.get('organization'))
+                key = '{}@{}/{}'.format(name, revision, organization)
                 if key not in all_results:
-                    all_results[key] = mod
+                    all_results[key] = hit['_source']
 
         all_results = {}
         match_all_query = {
@@ -185,7 +207,7 @@ class ESManager:
     def get_module_by_name_revision(self, index: ESIndices, module: dict) -> list:
         get_module_query = self._get_name_revision_query(index, module)
 
-        es_result = self.es.search(index=index.value, body=get_module_query)
+        es_result = self.es.search(index=index.value, body=get_module_query, size=1000)
 
         return es_result['hits']['hits']
 
@@ -195,7 +217,7 @@ class ESManager:
             sorted_name_rev_query = json.load(reader)
 
         # TODO: Remove this IF after reindexing and unification of both indices
-        if index == ESIndices.MODULES:
+        if index in [ESIndices.MODULES, ESIndices.YINDEX]:
             del sorted_name_rev_query['query']['bool']['must'][0]['match_phrase']['name.keyword']
             sorted_name_rev_query['query']['bool']['must'][0]['match_phrase'] = {
                 'module.keyword': {
@@ -212,6 +234,18 @@ class ESManager:
 
         return es_result['hits']['hits']
 
+    def get_node(self, module: dict) -> dict:
+        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/show_node.json')
+        with open(query_path, encoding='utf-8') as reader:
+            show_node_query = json.load(reader)
+
+        show_node_query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = module['name']
+        show_node_query['query']['bool']['must'][1]['match_phrase']['path']['query'] = module['path']
+        show_node_query['query']['bool']['must'][2]['match_phrase']['revision']['query'] = module['revision']
+        hits = self.es.search(index=ESIndices.YINDEX.value, body=show_node_query)
+
+        return hits
+
     def document_exists(self, index: ESIndices, module: dict) -> bool:
         """ Check whether 'module' already exists in index - if count is greater than 0.
 
@@ -225,7 +259,7 @@ class ESManager:
 
         return es_count['count'] > 0
 
-    ### SNAPSOTS RELATED METHODS ###
+    ### SNAPSHOTS RELATED METHODS ###
 
     def create_snapshot_repository(self, compress: bool) -> dict:
         """ Register a snapshot repository."""
@@ -251,8 +285,12 @@ class ESManager:
 
     def get_sorted_snapshots(self) -> list:
         """ Return a sorted list of existing snapshots. """
-        snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')['snapshots']
-        return sorted(snapshots, key=itemgetter('start_time_in_millis'))
+        try:
+            snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')
+        except NotFoundError:
+            self.LOGGER.exception('Snapshots not found')
+            return []
+        return sorted(snapshots['snapshots'], key=itemgetter('start_time_in_millis'))
 
     def restore_snapshot(self, snapshot_name: str) -> dict:
         """ Restore snapshot which is given by 'snapshot_name'.
@@ -263,7 +301,14 @@ class ESManager:
         index_body = {
             'indices': '_all'
         }
-        return self.es.snapshot.restore(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
+        for index in ESIndices:
+            try:
+                self.es.indices.close(index.value)
+            except NotFoundError:
+                continue
+
+        return self.es.snapshot.restore(repository=self.elk_repo_name, snapshot=snapshot_name,
+                                        body=index_body, wait_for_completion=True)
 
     def delete_snapshot(self, snapshot_name: str) -> dict:
         """ Delete snapshot which is given by 'snapshot_name'.
@@ -281,7 +326,7 @@ class ESManager:
             name_revision_query = json.load(reader)
 
         # TODO: Remove this IF after reindexing and unification of both indices
-        if index == ESIndices.MODULES:
+        if index in [ESIndices.MODULES, ESIndices.YINDEX]:
             del name_revision_query['query']['bool']['must'][0]['match_phrase']['name.keyword']
             name_revision_query['query']['bool']['must'][0]['match_phrase'] = {
                 'module.keyword': {
