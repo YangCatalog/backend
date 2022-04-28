@@ -19,12 +19,10 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
-from operator import itemgetter
 
 import utility.log as log
 from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import (AuthorizationException, NotFoundError,
-                                      RequestError)
+from elasticsearch.exceptions import AuthorizationException, RequestError
 from elasticsearch.helpers import parallel_bulk
 from utility.create_config import create_config
 
@@ -258,65 +256,6 @@ class ESManager:
         es_count = self.es.count(index=index.value, body=get_module_query)
 
         return es_count['count'] > 0
-
-    ### SNAPSHOTS RELATED METHODS ###
-
-    def create_snapshot_repository(self, compress: bool) -> dict:
-        """ Register a snapshot repository."""
-        body = {
-            'type': 'fs',
-            'settings': {
-                'location': self.elk_repo_name,
-                'compress': compress
-            }
-        }
-        return self.es.snapshot.create_repository(repository=self.elk_repo_name, body=body)
-
-    def create_snapshot(self, snapshot_name: str) -> dict:
-        """ Creates a snapshot with given 'snapshot_name' in a snapshot repository.
-
-        Argument:
-            :param snapshot_name    (str) Name of the snapshot to be created
-        """
-        index_body = {
-            'indices': '_all'
-        }
-        return self.es.snapshot.create(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
-
-    def get_sorted_snapshots(self) -> list:
-        """ Return a sorted list of existing snapshots. """
-        try:
-            snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')
-        except NotFoundError:
-            self.LOGGER.exception('Snapshots not found')
-            return []
-        return sorted(snapshots['snapshots'], key=itemgetter('start_time_in_millis'))
-
-    def restore_snapshot(self, snapshot_name: str) -> dict:
-        """ Restore snapshot which is given by 'snapshot_name'.
-
-        Argument:
-            :param snapshot_name    (str) Name of the snapshot to restore
-        """
-        index_body = {
-            'indices': '_all'
-        }
-        for index in ESIndices:
-            try:
-                self.es.indices.close(index.value)
-            except NotFoundError:
-                continue
-
-        return self.es.snapshot.restore(repository=self.elk_repo_name, snapshot=snapshot_name,
-                                        body=index_body, wait_for_completion=True)
-
-    def delete_snapshot(self, snapshot_name: str) -> dict:
-        """ Delete snapshot which is given by 'snapshot_name'.
-
-        Argument:
-            :param snapshot_name    (str) Name of the snapshot to delete
-        """
-        return self.es.snapshot.delete(repository=self.elk_repo_name, snapshot=snapshot_name)
 
     ### HELPER METHODS ###
 
