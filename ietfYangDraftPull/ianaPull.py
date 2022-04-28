@@ -114,12 +114,11 @@ def main(scriptConf=None):
             data = module.attrib
             for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
-                assert attributes.text is not None
-                data[prop] = attributes.text
+                data[prop] = attributes.text or ''
 
-            if data.get('iana') == 'Y' and data.get('file'):
-                src = '{}/{}'.format(iana_temp_path, data.get('file'))
-                dst = '{}/standard/iana/{}'.format(repo.local_dir, data.get('file'))
+            if data.get('iana') == 'Y' and 'file' in data:
+                src = '{}/{}'.format(iana_temp_path, data['file'])
+                dst = '{}/standard/iana/{}'.format(repo.local_dir, data['file'])
                 copy2(src, dst)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(iana_standard_path))
