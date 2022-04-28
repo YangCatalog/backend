@@ -27,7 +27,7 @@ import datetime
 import sys
 import typing as t
 
-from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import backup_date_format
 
@@ -88,21 +88,21 @@ def main(scriptConf=None):
     if args.load:
         save = False
 
-    es_manager = ESManager()
-    es_manager.create_snapshot_repository(args.compress)
+    es_snapshots_manager = ESSnapshotsManager()
+    es_snapshots_manager.create_snapshot_repository(args.compress)
 
     if save:
-        es_manager.create_snapshot(args.name_save)
+        es_snapshots_manager.create_snapshot(args.name_save)
     else:
         if not args.latest:
             snapshot_name = args.name_load
 
-        sorted_snapshots = es_manager.get_sorted_snapshots()
+        sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
         if not sorted_snapshots:
             print('There are no snapshots to restore')
             sys.exit(1)
         snapshot_name = sorted_snapshots[-1]['snapshot']
-        restore_result = es_manager.restore_snapshot(snapshot_name)
+        restore_result = es_snapshots_manager.restore_snapshot(snapshot_name)
         print('Restore result:\n{}'.format(restore_result))
 
 

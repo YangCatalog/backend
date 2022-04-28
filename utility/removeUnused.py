@@ -31,7 +31,7 @@ import shutil
 import time
 from datetime import datetime as dt
 
-from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 
 import utility.log as log
 from utility.create_config import create_config
@@ -124,12 +124,12 @@ def main():
 
         if es_aws != 'True':
             LOGGER.info('Removing old elasticsearch snapshots')
-            es_manager = ESManager()
-            es_manager.create_snapshot_repository(args.compress)
-            sorted_snapshots = es_manager.get_sorted_snapshots()
+            es_snapshots_manager = ESSnapshotsManager()
+            es_snapshots_manager.create_snapshot_repository(args.compress)
+            sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
 
             for snapshot in sorted_snapshots[:-5]:
-                es_manager.delete_snapshot(snapshot['snapshot'])
+                es_snapshots_manager.delete_snapshot(snapshot['snapshot'])
 
         def hash_file(path: str) -> bytes:
             sha1 = hashlib.sha1()
