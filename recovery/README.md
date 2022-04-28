@@ -1,7 +1,7 @@
 Recovery
 ========
 
-This package contains a python script to save or load all the modules
+This package contains a Python scripts to save or load all the modules.
 
 We need to specify an option to either save or load the modules.
 
@@ -18,8 +18,8 @@ We need to specify an option to either save or load the modules.
     load the file with latest date. Option to load modules is
     "--type load" which is not the default option
 
-It also contains elkRecovery script which allows us to save or load
-the elasticsearch database
+It also contains `elk_recovery.py` script which allows us to save or load
+the Elasticsearch database.
 
 1. Saving database
 
@@ -31,4 +31,4 @@ the elasticsearch database
 
     When loading a dabase, we need to either provide the name of the snapshot
     or we can use the "--latest" option and it will automaticaly load
-    the latest snapshot to elasticsearch.
+    the latest snapshot to Elasticsearch.

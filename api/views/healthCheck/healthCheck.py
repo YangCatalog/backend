@@ -24,7 +24,6 @@ from logging import Logger
 import requests
 import utility.log as log
 from api.my_flask import app
-from elasticsearch import Elasticsearch
 from flask.blueprints import Blueprint
 from flask.helpers import make_response
 from flask.json import jsonify
@@ -73,24 +72,15 @@ def get_services_list():
 def health_check_elk():
     service_name = 'Elasticsearch'
     try:
-        es_host_config = {
-            'host': ac.db_es_host,
-            'port': ac.db_es_port
-        }
-        if ac.db_es_aws:
-            es = Elasticsearch(hosts=[es_host_config], http_auth=(ac.s_elk_credentials[0], ac.s_elk_credentials[1]), scheme='https')
-        else:
-            es = Elasticsearch(hosts=[es_host_config])
-
         # try to ping Elasticsearch
-        if es.ping():
+        if ac.es_manager.ping():
             bp.LOGGER.info('Successfully connected to Elasticsearch')
             # get health of cluster
-            health = es.cluster.health()
+            health = ac.es_manager.cluster_health()
             health_status = health.get('status')
             bp.LOGGER.info('Health status of cluster: {}'.format(health_status))
             # get list of indices
-            indices = es.indices.get_alias().keys()
+            indices = ac.es_manager.get_indices()
             if len(indices) > 0:
                 return make_response(jsonify({'info': 'Elasticsearch is running',
                                               'status': 'running',

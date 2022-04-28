@@ -99,18 +99,18 @@ You must replace <code>admin admin</code> with your personal name password.
 Inside of the body we need to provide a list of modules with the following,
 parameters for each module
 
-Parameter | Description
---------- | -----------
-name | Name of the yang module
-revision | Revision of the yang module
-organization | Organization of the yang module
-maturity-level | ratified, adopted, initial not-applicable (more information at [yangcatalog RFC](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.5))
-author-email | Email of the author that created this module
-module-classification | network-service, network-element, unknown, not-applicable ([RFC8199](https://tools.ietf.org/html/rfc8199) YANG Module Classification)
-source-file | Object with source file information
-repository | Name of the repository
-owner | Name of the owner of the repository
-path | Path in the repository for the given yang module
+| Parameter             | Description                                                                                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name                  | Name of the yang module                                                                                                                                         |
+| revision              | Revision of the yang module                                                                                                                                     |
+| organization          | Organization of the yang module                                                                                                                                 |
+| maturity-level        | ratified, adopted, initial not-applicable (more information at [yangcatalog RFC](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.5)) |
+| author-email          | Email of the author that created this module                                                                                                                    |
+| module-classification | network-service, network-element, unknown, not-applicable ([RFC8199](https://tools.ietf.org/html/rfc8199) YANG Module Classification)                           |
+| source-file           | Object with source file information                                                                                                                             |
+| repository            | Name of the repository                                                                                                                                          |
+| owner                 | Name of the owner of the repository                                                                                                                             |
+| path                  | Path in the repository for the given yang module                                                                                                                |
 
 ## Add model metadata
 
@@ -183,18 +183,18 @@ You must replace <code>admin admin</code> with your personal name password.
 Inside of the body we need to provide a list of modules with following,
 parameters for each module
 
-Parameter | Description
---------- | -----------
-name | Name of the yang module
-revision | Revision of the yang module
-organization | Organization of the yang module
-maturity-level | ratified, adopted, initial not-applicable (more information at [yangcatalog RFC](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.5))
-author-email | Email of the author that created this module
-module-classification | network-service, network-element, unknown, not-applicable ([RFC8199](https://tools.ietf.org/html/rfc8199) YANG Module Classification)
-source-file | Object with source file information
-repository | Name of the repository
-owner | Name of the owner of the repository
-path | Path in the repository for the given yang module
+| Parameter             | Description                                                                                                                                                     |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| name                  | Name of the yang module                                                                                                                                         |
+| revision              | Revision of the yang module                                                                                                                                     |
+| organization          | Organization of the yang module                                                                                                                                 |
+| maturity-level        | ratified, adopted, initial not-applicable (more information at [yangcatalog RFC](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03#section-2.5)) |
+| author-email          | Email of the author that created this module                                                                                                                    |
+| module-classification | network-service, network-element, unknown, not-applicable ([RFC8199](https://tools.ietf.org/html/rfc8199) YANG Module Classification)                           |
+| source-file           | Object with source file information                                                                                                                             |
+| repository            | Name of the repository                                                                                                                                          |
+| owner                 | Name of the owner of the repository                                                                                                                             |
+| path                  | Path in the repository for the given yang module                                                                                                                |
 
 ## Update implementation metadata
 
@@ -272,19 +272,19 @@ You must replace <code>admin admin</code> with your personal name password.
 Inside of the body we need to provide a list of platforms with following,
 parameters for each platform
 
-Parameter | Description
---------- | -----------
-vendor | Name of the vendor (example: cisco or ciena)
-name | Platform on which this module is implemented
-module-list-file | Object with source file information
-type | capabilities or yang-library
-repository | Name of the repository
-owner | Name of the owner of the repository
-path | Path in the repository for the given "type" file
-platform-ids | The specific product ID or IDs to which this data applies
-software-flavor | A variation of a specific version where YANG model support may be different
-software-version | Name of the version of software
-os-type | Type of the operating system using the module
+| Parameter        | Description                                                                 |
+| ---------------- | --------------------------------------------------------------------------- |
+| vendor           | Name of the vendor (example: cisco or ciena)                                |
+| name             | Platform on which this module is implemented                                |
+| module-list-file | Object with source file information                                         |
+| type             | capabilities or yang-library                                                |
+| repository       | Name of the repository                                                      |
+| owner            | Name of the owner of the repository                                         |
+| path             | Path in the repository for the given "type" file                            |
+| platform-ids     | The specific product ID or IDs to which this data applies                   |
+| software-flavor  | A variation of a specific version where YANG model support may be different |
+| software-version | Name of the version of software                                             |
+| os-type          | Type of the operating system using the module                               |
 
 ## Add implementation metadata
 
@@ -363,19 +363,19 @@ You must replace <code>admin admin</code> with your personal name password.
 Inside of the body we need to provide a list of platforms with following
 parameters for each platform
 
-Parameter | Description
---------- | -----------
-vendor | Name of the vendor (example: cisco or ciena)
-name | Platform on which this module is implemented
-module-list-file | Object with source file information
-type | capabilities or yang-library
-repository | Name of the repository
-owner | Name of the owner of the repository
-path | Path in the repository for the given "type" file
-platform-ids | The specific product ID or IDs to which this data applies
-software-flavor | A variation of a specific version where YANG model support may be different
-software-version | Name of the version of software
-os-type | Type of the operating system using the module
+| Parameter        | Description                                                                 |
+| ---------------- | --------------------------------------------------------------------------- |
+| vendor           | Name of the vendor (example: cisco or ciena)                                |
+| name             | Platform on which this module is implemented                                |
+| module-list-file | Object with source file information                                         |
+| type             | capabilities or yang-library                                                |
+| repository       | Name of the repository                                                      |
+| owner            | Name of the owner of the repository                                         |
+| path             | Path in the repository for the given "type" file                            |
+| platform-ids     | The specific product ID or IDs to which this data applies                   |
+| software-flavor  | A variation of a specific version where YANG model support may be different |
+| software-version | Name of the version of software                                             |
+| os-type          | Type of the operating system using the module                               |
 
 ## Delete models metadata
 
@@ -438,11 +438,11 @@ You must replace <code>admin admin</code> with your personal name password.
 Inside of the body we need to provide a list of modules with following,
 parameters for each platform
 
-Parameter | Description
---------- | -----------
-name | Name of the module
-revision | Revision of the module
-organization | Organization of the module
+| Parameter    | Description                |
+| ------------ | -------------------------- |
+| name         | Name of the module         |
+| revision     | Revision of the module     |
+| organization | Organization of the module |
 
 ## Delete model metadata
 
@@ -485,11 +485,11 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-name | Name of the module
-revision | Revision of the module
-organization | Organization of the module
+| Parameter    | Description                |
+| ------------ | -------------------------- |
+| name         | Name of the module         |
+| revision     | Revision of the module     |
+| organization | Organization of the module |
 
 ## Delete implementation metadata
 
@@ -531,9 +531,9 @@ You must replace <code>admin admin</code> with your personal name password.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:value | Path to a specific vendor modules you want to remove (example: vendors/vendor/cisco/platforms/platform/xe would delete all xe cisco modules)
+| Parameter  | Description                                                                                                                                  |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| path:value | Path to a specific vendor modules you want to remove (example: vendors/vendor/cisco/platforms/platform/xe would delete all xe cisco modules) |
 
 ## Get job status
 
@@ -569,9 +569,9 @@ This endpoint serves to get the job status which can be either 'Failed', 'In pro
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-job-id | Id of the job provided as a response to any of the above requests
+| Parameter | Description                                                       |
+| --------- | ----------------------------------------------------------------- |
+| job-id    | Id of the job provided as a response to any of the above requests |
 
 # Search
 
@@ -746,11 +746,11 @@ This endpoint serves to get a specific module's metadata
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-name | Name of the module
-revision | Revision of the module
-organization | Organization of the module
+| Parameter    | Description                |
+| ------------ | -------------------------- |
+| name         | Name of the module         |
+| revision     | Revision of the module     |
+| organization | Organization of the module |
 
 ## Get implementation metadata
 
@@ -775,9 +775,9 @@ This endpoint serves to get a specific module's metadata
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules)
+| Parameter  | Description                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules) |
 
 ## Get organization platform list
 
@@ -831,9 +831,9 @@ This endpoint serves to get all the platforms where a specific organization has 
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-org | organization that you are trying to search for (example: cisco would get you all platforms with cisco modules)
+| Parameter | Description                                                                                                    |
+| --------- | -------------------------------------------------------------------------------------------------------------- |
+| org       | organization that you are trying to search for (example: cisco would get you all platforms with cisco modules) |
 
 ## Filter leaf data
 
@@ -911,15 +911,15 @@ keyword
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules)
+| Parameter  | Description                                                                                                    |
+| ---------- | -------------------------------------------------------------------------------------------------------------- |
+| path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules) |
 
 ### Query Parameters
 
-Parameter | Default | Description
---------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only the latest revisions of found yang modules.
+| Parameter       | Default | Description                                                                             |
+| --------------- | ------- | --------------------------------------------------------------------------------------- |
+| latest-revision | false   | If set to true, the result will filter only the latest revisions of found yang modules. |
 
 # RPC search
 
@@ -1015,9 +1015,9 @@ with data as provided by `<data>` in body of the request
 
 ### Query Parameters
 
-Parameter | Default | Description
---------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only the latest revisions of found yang modules.
+| Parameter       | Default | Description                                                                             |
+| --------------- | ------- | --------------------------------------------------------------------------------------- |
+| latest-revision | false   | If set to true, the result will filter only the latest revisions of found yang modules. |
 
 ### Body Parameters
 
@@ -1139,9 +1139,9 @@ by leafs with data provided in `<data>` in the body of the request
 
 ### Query Parameters
 
-Parameter | Default | Description
---------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only the latest revisions of found yang modules.
+| Parameter       | Default | Description                                                                             |
+| --------------- | ------- | --------------------------------------------------------------------------------------- |
+| latest-revision | false   | If set to true, the result will filter only the latest revisions of found yang modules. |
 
 ### Body Parameters
 
@@ -1273,9 +1273,9 @@ with reason-to-show data which shows either 'New module' or 'Different revision'
 
 ### Query Parameters
 
-Parameter | Default | Description
---------- | ------- | -----------
-latest-revision | false | If set to true, the result will filter only for latest revision of found yang modules.
+| Parameter       | Default | Description                                                                            |
+| --------------- | ------- | -------------------------------------------------------------------------------------- |
+| latest-revision | false   | If set to true, the result will filter only for latest revision of found yang modules. |
 
 ### Body Parameters
 
@@ -1325,10 +1325,10 @@ This endpoint serves to get tree of a specific yang module
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-name | Name of the yang file
-revision | Revision of the yang file
+| Parameter | Description               |
+| --------- | ------------------------- |
+| name      | Name of the yang file     |
+| revision  | Revision of the yang file |
 
 ## Get schema of the module
 
@@ -1372,10 +1372,10 @@ This endpoint serves to get the reference schema of a specific yang module
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-name | Name of the yang file
-revision | Revision of the yang file
+| Parameter | Description               |
+| --------- | ------------------------- |
+| name      | Name of the yang file     |
+| revision  | Revision of the yang file |
 
 ## Get semantic differences
 
@@ -1520,12 +1520,12 @@ This endpoint serves to get diff of the two yang modules
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-f1 | Name of the first module
-r1 | Revision of the first module
-f2 | Name of the second module
-r2 | Revision of the second module
+| Parameter | Description                   |
+| --------- | ----------------------------- |
+| f1        | Name of the first module      |
+| r1        | Revision of the first module  |
+| f2        | Name of the second module     |
+| r2        | Revision of the second module |
 
 ## Get tree difference
 
@@ -1573,12 +1573,12 @@ This endpoint serves to get tree diff of the two yang modules
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-f1 | Name of the first module
-r1 | Revision of the first module
-f2 | Name of the second module
-r2 | Revision of the second module
+| Parameter | Description                   |
+| --------- | ----------------------------- |
+| f1        | Name of the first module      |
+| r1        | Revision of the first module  |
+| f2        | Name of the second module     |
+| r2        | Revision of the second module |
 
 ## Get update difference
 
@@ -1628,12 +1628,12 @@ between two modules provided in the path of the request
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-f1 | Name of the first module
-r1 | Revision of the first module
-f2 | Name of the second module
-r2 | Revision of the second module
+| Parameter | Description                   |
+| --------- | ----------------------------- |
+| f1        | Name of the first module      |
+| r1        | Revision of the first module  |
+| f2        | Name of the second module     |
+| r2        | Revision of the second module |
 
 ## Get single leaf data
 
@@ -1762,10 +1762,10 @@ This endpoint serves to get a raw yang module in html form
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-f1 | Name of the first module
-r1 | Revision of the first module
+| Parameter | Description                  |
+| --------- | ---------------------------- |
+| f1        | Name of the first module     |
+| r1        | Revision of the first module |
 
 # Internal
 
@@ -2107,9 +2107,9 @@ session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:direc | path to the file we want to read from /var/yang folder
+| Parameter  | Description                                            |
+| ---------- | ------------------------------------------------------ |
+| path:direc | path to the file we want to read from /var/yang folder |
 
 ## Delete file from directory
 
@@ -2146,9 +2146,9 @@ a session created. Otherwise you'll get an unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:direc | path to the file we want to delete - from /var/yang folder. This can be empty
+| Parameter  | Description                                                                   |
+| ---------- | ----------------------------------------------------------------------------- |
+| path:direc | path to the file we want to delete - from /var/yang folder. This can be empty |
 
 ## Update file from directory
 
@@ -2199,9 +2199,9 @@ a session created. Otherwise you'll get an unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:direc | path to the file we want to update - from /var/yang folder.
+| Parameter  | Description                                                 |
+| ---------- | ----------------------------------------------------------- |
+| path:direc | path to the file we want to update - from /var/yang folder. |
 
 ## Get directory structure
 
@@ -2266,21 +2266,21 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:direc | path to the file we want to read from the /var/yang folder. This can be empty
+| Parameter  | Description                                                                   |
+| ---------- | ----------------------------------------------------------------------------- |
+| path:direc | path to the file we want to read from the /var/yang folder. This can be empty |
 
 ### Ouptut Parameters
 
 Each file and folder contains following data
 
-Parameter | Description
---------- | -----------
-group | linux group name that this file or folder belongs to
-name | name of the file or folder
-permissions | permissions of the file or folder
-size | size of the file or folder
-user | linux user name that this file or folder belongs to
+| Parameter   | Description                                          |
+| ----------- | ---------------------------------------------------- |
+| group       | linux group name that this file or folder belongs to |
+| name        | name of the file or folder                           |
+| permissions | permissions of the file or folder                    |
+| size        | size of the file or folder                           |
+| user        | linux user name that this file or folder belongs to  |
 
 ## List nginx files
 
@@ -2353,9 +2353,9 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-path:nginx_file | path to the nginx file we want to read
+| Parameter       | Description                            |
+| --------------- | -------------------------------------- |
+| path:nginx_file | path to the nginx file we want to read |
 
 ## Read yangcatalog config file
 
@@ -2661,9 +2661,9 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-status | Status of the user to be added, either `temp` or `approved`
+| Parameter | Description                                                 |
+| --------- | ----------------------------------------------------------- |
+| status    | Status of the user to be added, either `temp` or `approved` |
 
 ## Delete user
 
@@ -2693,10 +2693,10 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-status | Status of the user to be added, either `temp` or `approved`
-id | Id of the user you are deleting
+| Parameter | Description                                                 |
+| --------- | ----------------------------------------------------------- |
+| status    | Status of the user to be added, either `temp` or `approved` |
+| id        | Id of the user you are deleting                             |
 
 ## List all users with the specified status
 
@@ -2754,9 +2754,9 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-status | Status of the user to be added, either `temp` or `approved`
+| Parameter | Description                                                 |
+| --------- | ----------------------------------------------------------- |
+| status    | Status of the user to be added, either `temp` or `approved` |
 
 ## Get list of all scripts
 
@@ -2783,7 +2783,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
     "openconfigPullLocal",
     "statistics",
     "recovery",
-    "elkRecovery",
+    "elk_recovery",
     "elkFill",
     "resolveExpiration"
   ],
@@ -2906,9 +2906,9 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-script | Name of the script you want to use
+| Parameter | Description                        |
+| --------- | ---------------------------------- |
+| script    | Name of the script you want to use |
 
 ## Run script
 
@@ -2963,9 +2963,9 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-script | Name of the script you want to run
+| Parameter | Description                        |
+| --------- | ---------------------------------- |
+| script    | Name of the script you want to run |
 
 ## Get script details
 
@@ -3006,9 +3006,9 @@ a session created. Otherwise you ll get unauthorized 401 response.
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-script | Name of the script you want to use
+| Parameter | Description                        |
+| --------- | ---------------------------------- |
+| script    | Name of the script you want to use |
 
 
 # Healthchecks
@@ -3107,17 +3107,17 @@ This endpoint serves to provide the service health status
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-service-name | Name of the service you want to test health for
+| Parameter    | Description                                     |
+| ------------ | ----------------------------------------------- |
+| service-name | Name of the service you want to test health for |
 
 ### Output Parameters
 
-Parameter | Description
---------- | -----------
-info | status information
-message | short description of status (why it failed or why are we saying it is running)
-status | status enum - can be 'running', 'failed' or 'problem'
+| Parameter | Description                                                                    |
+| --------- | ------------------------------------------------------------------------------ |
+| info      | status information                                                             |
+| message   | short description of status (why it failed or why are we saying it is running) |
+| status    | status enum - can be 'running', 'failed' or 'problem'                          |
 
 ## Get service admin healthcheck
 
@@ -3153,17 +3153,17 @@ but also trying to make requests on some real data and checking if they are gett
 
 ### URL Parameters
 
-Parameter | Description
---------- | -----------
-service-name | Name of the service you want to test health for. It can be yang-validator, yanre or yang-search
+| Parameter    | Description                                                                                     |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| service-name | Name of the service you want to test health for. It can be yang-validator, yanre or yang-search |
 
 ### Output Parameters
 
-Parameter | Description
---------- | -----------
-info | status information
-message | short description of status (why it failed or why are we saying it is running)
-status | status enum - can be 'running', 'failed' or 'problem'
+| Parameter | Description                                                                    |
+| --------- | ------------------------------------------------------------------------------ |
+| info      | status information                                                             |
+| message   | short description of status (why it failed or why are we saying it is running) |
+| status    | status enum - can be 'running', 'failed' or 'problem'                          |
 
 ## Get cronjobs healthcheck
 
@@ -3247,10 +3247,10 @@ about its starting and ending timestamp, status if it failed or run successfully
 
 each cronjob contains the following data
 
-Parameter | Description
---------- | -----------
-end | timestamp of last run end time
-error | error message if job failed
-last_successfull | timestamp of last successful run
-start | timestamp of last run start time
-status | status enum - can be 'Fail' or 'Success'
+| Parameter        | Description                              |
+| ---------------- | ---------------------------------------- |
+| end              | timestamp of last run end time           |
+| error            | error message if job failed              |
+| last_successfull | timestamp of last successful run         |
+| start            | timestamp of last run start time         |
+| status           | status enum - can be 'Fail' or 'Success' |

@@ -9,7 +9,6 @@ api/vendor
 api/standard
 **/*.json
 **/*.html
-!api/json/**/*
 !elasticsearchIndexing/json/**/*
 /venv
 !statistics/template/stats.html
