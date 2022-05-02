@@ -21,7 +21,6 @@ import collections
 import io
 import json
 import os
-import typing as t
 from operator import contains, eq
 
 import jinja2
@@ -29,6 +28,7 @@ import requests
 from api.my_flask import app
 from flask.blueprints import Blueprint
 from flask.globals import request
+from flask.wrappers import Response
 from flask_deprecate import deprecate_route
 from markupsafe import escape
 from pyang import error, plugin
@@ -58,21 +58,20 @@ def set_config():
 
 
 @bp.route('/fast', methods=['POST'])
-@deprecate_route('Use "/yang-search/v2/search" instead')
+@deprecate_route(message='Use "/yang-search/v2/search" instead')
 def fast_search():
-    return {
-        'warning': 'This endpoint is deprecated. Use "/yang-search/v2/search" instead.'
-    }
+    return Response('This endpoint is deprecated. Use "/yang-search/v2/search" instead.')
 
 
 @bp.route('/search/<path:value>', methods=['GET'])
 def search(value: str):
     """Search for a specific leaf from yang-catalog.yang module in modules
     branch. The key searched is defined in @module_keys variable.
-        Arguments:
-            :param value: (str) path that contains one of the @module_keys and
-                ends with /value searched for
-            :return response to the request.
+
+    Argument:
+        :param value    (str) path that contains one of the @module_keys and
+            ends with /value searched for
+        :return response to the request.
     """
     path = value
     app.logger.info('Searching for {}'.format(value))

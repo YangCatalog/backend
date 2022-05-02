@@ -29,6 +29,8 @@ from utility.create_config import create_config
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
 
+REQUEST_TIMEOUT = 30
+
 
 class ESManager:
     def __init__(self) -> None:
@@ -144,11 +146,11 @@ class ESManager:
             except KeyError:
                 pass
 
-        return self.es.index(index=index.value, body=document, request_timeout=40)
+        return self.es.index(index=index.value, body=document, request_timeout=REQUEST_TIMEOUT)
 
     def bulk_modules(self, index: ESIndices, chunk):
         for success, info in parallel_bulk(client=self.es, actions=chunk, index=index.value, thread_count=self.threads,
-                                           request_timeout=40):
+                                           request_timeout=REQUEST_TIMEOUT):
             if not success:
                 self.LOGGER.error('Elasticsearch document failed with info: {}'.format(info))
 
@@ -182,24 +184,21 @@ class ESManager:
             }
         }
         total_index_docs = 0
-        es_result = self.es.search(index=index.value, body=match_all_query, scroll=u'10s', size=250)
+        es_result = self.es.search(index=index.value, body=match_all_query, scroll=u'1m', size=250)
         scroll_id = es_result.get('_scroll_id')
         hits = es_result['hits']['hits']
         _store_hits(hits, all_results)
         total_index_docs += len(hits)
 
         while es_result['hits']['hits']:
-            es_result = self.es.scroll(
-                scroll_id=scroll_id,
-                scroll=u'10s'
-            )
+            es_result = self.scroll(scroll_id)
 
             scroll_id = es_result.get('_scroll_id')
             hits = es_result['hits']['hits']
             _store_hits(hits, all_results)
             total_index_docs += len(hits)
 
-        self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
+        self.clear_scroll(scroll_id)
         return all_results
 
     def get_module_by_name_revision(self, index: ESIndices, module: dict) -> list:
@@ -243,6 +242,19 @@ class ESManager:
         hits = self.es.search(index=ESIndices.YINDEX.value, body=show_node_query)
 
         return hits
+
+    def generic_search(self, index: ESIndices, query: dict, response_size: int = 0, use_scroll: bool = False):
+        if use_scroll:
+            return self.es.search(index=index.value, body=query, request_timeout=REQUEST_TIMEOUT,
+                                  scroll=u'1m', size=response_size)
+        return self.es.search(index=index.value, body=query, request_timeout=REQUEST_TIMEOUT,
+                              size=response_size)
+
+    def clear_scroll(self, scroll_id: str):
+        return self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
+
+    def scroll(self, scroll_id: str):
+        return self.es.scroll(scroll_id=scroll_id, scroll=u'2m', request_timeout=REQUEST_TIMEOUT)
 
     def document_exists(self, index: ESIndices, module: dict) -> bool:
         """ Check whether 'module' already exists in index - if count is greater than 0.

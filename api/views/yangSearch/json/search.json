@@ -1,0 +1,37 @@
+{
+  "query": {
+    "bool": {
+      "must": [
+        {
+          "bool": {
+            "must": {
+              "terms": {
+                "statement": ""
+              }
+            }
+          }
+        },
+        {
+          "bool": {
+            "should": []
+          }
+        }
+      ]
+    }
+  },
+  "aggs": {
+    "groupby": {
+      "terms": {
+        "field": "module.keyword",
+        "size": 2000
+      },
+      "aggs": {
+        "latest-revision": {
+          "max": {
+            "field": "revision"
+          }
+        }
+      }
+    }
+  }
+}
