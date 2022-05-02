@@ -110,17 +110,6 @@ OUTPUT_COLUMNS = [
     'compilation-status',
     'description'
 ]
-NODE_DATA = {
-    'name': 'argument',
-    'description': 'description',
-    'path': 'path',
-    'type': 'statement'
-}
-SEARCH_FIELDS = [
-    'argument',
-    'description',
-    'module'
-]
 MODULE_PROPERTIES_ORDER = {
     'name': 1,
     'revision': 2,

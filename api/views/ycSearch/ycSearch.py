@@ -21,11 +21,9 @@ import collections
 import io
 import json
 import os
-import re
 import typing as t
 from operator import contains, eq
 
-import api.yangSearch.elasticsearchIndex as inde
 import jinja2
 import requests
 from api.my_flask import app
@@ -60,87 +58,11 @@ def set_config():
 
 
 @bp.route('/fast', methods=['POST'])
-@deprecate_route("Use foo instead")
+@deprecate_route('Use "/yang-search/v2/search" instead')
 def fast_search():
-    """Search through the YANG keyword index for a given search pattern.
-       The arguments are a payload specifying search options and filters.
-    """
-    if not request.json:
-        abort(400, description='No input data')
-
-    limit = 1000000
-    payload = request.json
-    app.logger.info(payload)
-    if 'search' not in payload:
-        abort(400, description='You must specify a "search" argument')
-    try:
-        count = 0
-        search_res, limit_reached = inde.do_search(payload, ac.db_es_host,
-                                                   ac.db_es_port, ac.db_es_aws, ac.s_elk_credentials,
-                                                   app.logger)
-        if search_res is None and limit_reached is None:
-            abort(400, description='Search is too broad. Please search for something more specific')
-        res = []
-        found_modules = {}
-        rejects = []
-        errors = []
-
-        for row in search_res:
-            res_row = {}
-            res_row['node'] = row['node']
-            m_name = row['module']['name']
-            m_revision = row['module']['revision']
-            m_organization = row['module']['organization']
-            mod_sig = '{}@{}/{}'.format(m_name, m_revision, m_organization)
-            if mod_sig in rejects:
-                continue
-
-            mod_meta = None
-            try:
-                if mod_sig in found_modules:
-                    mod_meta = found_modules[mod_sig]
-                else:
-                    mod_meta = search_module(m_name, m_revision, m_organization)
-                    mod_meta = mod_meta['module'][0]
-                    found_modules[mod_sig] = mod_meta
-
-                if 'include-mibs' not in payload or payload['include-mibs'] is False:
-                    if re.search('yang:smiv2:', mod_meta.get('namespace')):
-                        rejects.append(mod_sig)
-                        continue
-
-                if mod_meta is not None and 'yang-versions' in payload and len(payload['yang-versions']) > 0:
-                    if mod_meta.get('yang-version') not in payload['yang-versions']:
-                        rejects.append(mod_sig)
-                        continue
-
-                if mod_meta is not None:
-                    if 'filter' not in payload or 'module-metadata' not in payload['filter']:
-                        # If the filter is not specified, return all
-                        # fields.
-                        res_row['module'] = mod_meta
-                    elif 'module-metadata' in payload['filter']:
-                        res_row['module'] = {}
-                        for field in payload['filter']['module-metadata']:
-                            if field in mod_meta:
-                                res_row['module'][field] = mod_meta[field]
-            except Exception as e:
-                count -= 1
-                if mod_sig not in errors:
-                    res_row['module'] = {
-                        'error': 'Search failed at {}: {}'.format(mod_sig, e)}
-                    errors.append(mod_sig)
-
-            if not filter_using_api(res_row, payload):
-                count += 1
-                res.append(res_row)
-            else:
-                rejects.append(mod_sig)
-            if count >= limit:
-                break
-        return {'results': res, 'limit_reched': limit_reached}
-    except Exception as e:
-        return ({'error': str(e)}, 500)
+    return {
+        'warning': 'This endpoint is deprecated. Use "/yang-search/v2/search" instead.'
+    }
 
 
 @bp.route('/search/<path:value>', methods=['GET'])
@@ -217,7 +139,7 @@ def rpc_search_get_one(leaf: str):
 
 
 @bp.route('/search-filter', methods=['POST'])
-def rpc_search(body: dict):
+def rpc_search(body: dict = {}):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
     """
     from_api = False
