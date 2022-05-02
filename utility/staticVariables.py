@@ -73,3 +73,82 @@ github_raw = 'https://raw.githubusercontent.com'
 github_api = 'https://api.github.com'
 MISSING_ELEMENT = 'missing element'
 backup_date_format = '%Y-%m-%d_%H:%M:%S-UTC'
+
+SDOS = [
+    'bbf',
+    'etsi',
+    'iana',
+    'ieee',
+    'ietf',
+    'mef',
+    'odp'
+]
+SCHEMA_TYPES = [
+    'typedef',
+    'grouping',
+    'feature',
+    'identity',
+    'extension',
+    'rpc',
+    'container',
+    'list',
+    'leaf-list',
+    'leaf',
+    'notification',
+    'action'
+]
+OUTPUT_COLUMNS = [
+    'name',
+    'revision',
+    'schema-type',
+    'path',
+    'module-name',
+    'origin',
+    'organization',
+    'maturity',
+    'dependents',
+    'compilation-status',
+    'description'
+]
+MODULE_PROPERTIES_ORDER = {
+    'name': 1,
+    'revision': 2,
+    'organization': 3,
+    'ietf': 4,
+    'ietf-wg': 1,
+    'namespace': 5,
+    'schema': 6,
+    'generated-from': 7,
+    'maturity-level': 8,
+    'document-name': 9,
+    'author-email': 10,
+    'reference': 11,
+    'module-classification': 12,
+    'compilation-status': 13,
+    'compilation-result': 14,
+    'prefix': 15,
+    'yang-version': 16,
+    'description': 17,
+    'contact': 18,
+    'module-type': 19,
+    'belongs-to': 20,
+    'tree-type': 21,
+    'yang-tree': 22,
+    'expires': 23,
+    'expired': 24,
+    'submodule': 25,
+    'dependencies': 26,
+    'dependents': 27,
+    'semantic-version': 28,
+    'derived-semantic-version': 29,
+    'implementations': 30,
+    'implementation': 1,
+    'vendor': 1,
+    'platform': 2,
+    'software-version': 3,
+    'software-flavor': 4,
+    'os-version': 5,
+    'feature-set': 6,
+    'os-type': 7,
+    'conformance-type': 8
+}
