@@ -19,12 +19,15 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import hashlib
 import json
+import os
 
 import gevent
 import gevent.queue
+from api.views.yangSearch.search_params import SearchParams
 from elasticsearch import ConnectionTimeout, Elasticsearch
 from redisConnections.redisConnection import RedisConnection
 from utility import log
+from utility.staticVariables import OUTPUT_COLUMNS, SDOS
 
 
 class ElkSearch:
@@ -33,40 +36,22 @@ class ElkSearch:
     which returns output that needs to be processed. We process this into a list which is displayed as rows
     in a grid of yangcatalog search.
     """
-    # TODO this should end up being in some kind of file since different SDOs may come in future and we dont want to
-    # keep changing the code
-    SDOS = [
-        'ietf',
-        'ieee',
-        'bbf',
-        'odp',
-        'mef'
-    ]
 
-    def __init__(self, searched_term: str, case_sensitive: bool, searched_fields: list, type: str,
-                 schema_types: list, logs_dir: str, es: Elasticsearch, latest_revision: bool,
-                 redisConnection: RedisConnection, include_mibs: bool, yang_versions: list, needed_output_colums: list,
-                 all_output_columns: list, sub_search: list) -> None:
+    def __init__(self, searched_term: str, logs_dir: str, es: Elasticsearch, redis_connection: RedisConnection,
+                 search_params: SearchParams) -> None:
         """
-        Initialization of search under elasticsearch engine. We need to prepare a query
-        that will be used to search in elasticsearch.
+        Initialization of search under Elasticsearch engine. We need to prepare a query
+        that will be used to search in Elasticsearch.
 
-        :param searched_term:   (str) String that we are searching for
-        :param case_sensitive:  (boolean) Whether we want search to be case sensitive or not
-        :param searched_fields: (list) Fields under which we are searching (it can be [argument, description, module])
-        :param type:            (str) Can be only regex or term
-        :param schema_types     (list) In which schema types do we search for (typedef, leaf, leaflist, container, etc.)
-        :param logs_dir         (str) Directory to log files
-        :param es               (ElasticSearch) Elasticsearch engine
-        :param latest_revision  (boolean) Whether we want to search only for latest revision of found modules.
-        :param redisConnection  (RedisConnection) Redis connection to modules db (db=1)
-        :param include_mibs     (boolean) Whether we want to search for MIBs as well from the searched modules
-        :param yang_versions    (list) List of yang version that we search for
-        :param needed_output_colums (list) output columns that are going to be used within response json
-        :param all_output_columns   (list) all existing output columns so we can get diff which we need to remove
-        :param sub_search       (list of dic) search for specific part of text from output received from elasticsearch
+        Arguments:
+            :param searched_term    (str) String that we are searching for
+            :param logs_dir         (str) Directory to log files
+            :param es               (ElasticSearch) Elasticsearch engine
+            :param redis_connection  (RedisConnection) Redis connection to modules db (db=1)
+            :param search_params    (SearchParams) Contains search parameters
         """
-        self.__response_size = 2000
+        self._response_size = 2000
+        self._search_params = search_params
         self.query = \
             {
                 'query': {
@@ -75,7 +60,7 @@ class ElkSearch:
                             'bool': {
                                 'must': {
                                     'terms': {
-                                        'statement': schema_types
+                                        'statement': self._search_params.schema_types
                                     }
                                 }
                             }
@@ -90,7 +75,7 @@ class ElkSearch:
                     'groupby': {
                         'terms': {
                             'field': 'module.keyword',
-                            'size': self.__response_size
+                            'size': self._response_size
                         },
                         'aggs': {
                             'latest-revision': {
@@ -102,23 +87,16 @@ class ElkSearch:
                     }
                 }
             }
-        self.__case_sensitive = case_sensitive
-        self.__searched_fields = searched_fields
-        self.__searched_term = searched_term
-        self.__type = type
-        self.__es = es
-        self.__redisConnection = redisConnection
-        self.__latest_revision = latest_revision
-        self.__include_mibs = include_mibs
-        self.__yang_versions = yang_versions
-        self.__sub_search = sub_search
-        self.__current_scroll_id = None
-        self.__latest_revisions = {}
-        self.__output_columns = needed_output_colums
-        self.__remove_columns = list(set(all_output_columns) - set(needed_output_colums))
-        self.__row_hashes = []
-        self.__missing_modules = []
-        self.LOGGER = log.get_logger('yc-elasticsearch', '{}/yang.log'.format(logs_dir))
+        self._searched_term = searched_term
+        self._es = es
+        self._redis_connection = redis_connection
+        self._current_scroll_id = None
+        self._latest_revisions = {}
+        self._remove_columns = list(set(OUTPUT_COLUMNS) - set(self._search_params.output_columns))
+        self._row_hashes = []
+        self._missing_modules = []
+        log_file_path = os.path.join(logs_dir, 'yang.log')
+        self.LOGGER = log.get_logger('yc-elasticsearch', log_file_path)
 
     def alerts(self):
         """
@@ -126,7 +104,7 @@ class ElkSearch:
         :return: missing modules from redis
         """
         alerts = []
-        for missing in self.__missing_modules:
+        for missing in self._missing_modules:
             alerts.append('Module {} metadata does not exist in yangcatalog'.format(missing))
         return alerts
 
@@ -215,27 +193,27 @@ class ElkSearch:
         }
         """
         sensitive = 'lowercase'
-        if self.__case_sensitive:
+        if self._search_params.case_sensitive:
             sensitive = 'sensitive'
         else:
-            self.__searched_term = self.__searched_term.lower()
+            self._searched_term = self._searched_term.lower()
         search_in = self.query['query']['bool']['must'][1]['bool']['should']
-        for searched_field in self.__searched_fields:
+        for searched_field in self._search_params.searched_fields:
             should_query = \
                 {
                     'bool': {
                         'must': {
-                            self.__type: {}
+                            self._search_params.query_type: {}
                         }
                     }
                 }
             if searched_field == 'module':
-                should_query['bool']['must'][self.__type][searched_field] = self.__searched_term
+                should_query['bool']['must'][self._search_params.query_type][searched_field] = self._searched_term
             else:
-                should_query['bool']['must'][self.__type][
-                    '{}.{}'.format(searched_field, sensitive)] = self.__searched_term
+                should_query['bool']['must'][self._search_params.query_type][
+                    '{}.{}'.format(searched_field, sensitive)] = self._searched_term
             search_in.append(should_query)
-        self.LOGGER.debug('query:  {}'.format(self.query))
+        self.LOGGER.debug('Constructed query:\n{}'.format(self.query))
 
     def search(self):
         """
@@ -245,32 +223,32 @@ class ElkSearch:
         give us an output of aggregations. That is why we have to create second normal search where we don t care about
         finding of search but we get only get aggregations from response. These two searches may run in parallel.
 
-        Next we have to process the given response in self.__process_hits definition. And while processing it we can
+        Next we have to process the given response in self._process_hits definition. And while processing it we can
         use scroll search to get next batch of result from search to process if it will be needed.
 
         :return list of rows containing dictionary that is filled with output for each column for yangcatalog search
         """
         hits = gevent.queue.JoinableQueue()
-        process_first_search = gevent.spawn(self.__first_scroll, hits)
+        process_first_search = gevent.spawn(self._first_scroll, hits)
 
         self.LOGGER.debug('Running first search in parallel')
-        if self.__latest_revision:
+        if self._search_params.latest_revision:
             self.LOGGER.debug('Processing aggregations search in parallel')
-            self.__resolve_aggregations()
+            self._resolve_aggregations()
             self.LOGGER.debug('Aggregations processed joining the search')
         process_first_search.join()
-        processed_rows = self.__process_hits(hits.get(), [])
-        if self.__current_scroll_id is not None:
-            self.__es.clear_scroll(scroll_id=self.__current_scroll_id, ignore=(404,))
+        processed_rows = self._process_hits(hits.get(), [])
+        if self._current_scroll_id is not None:
+            self._es.clear_scroll(scroll_id=self._current_scroll_id, ignore=(404,))
         return processed_rows
 
-    def __process_hits(self, hits: list, response_rows: list, reject=None):
+    def _process_hits(self, hits: list, response_rows: list, reject=None):
         if reject is None:
             reject = []
-        if hits is None or len(hits) == 0:
+        if not hits:
             return response_rows
         secondary_hits = gevent.queue.JoinableQueue()
-        process_scroll_search = gevent.spawn(self.__continue_scrolling, secondary_hits)
+        process_scroll_search = gevent.spawn(self._continue_scrolling, secondary_hits)
         for hit in hits:
             row = {}
             source = hit['_source']
@@ -280,22 +258,22 @@ class ElkSearch:
             module_index = '{}@{}/{}'.format(name, revision, organization)
             if module_index in reject:
                 continue
-            if not self.__latest_revision or revision == self.__latest_revisions.get(name, '').replace('02-28', '02-29'):
+            if not self._search_params.latest_revision or revision == self._latest_revisions.get(name, '').replace('02-28', '02-29'):
                 # we need argument, description, path and statement out of the elk response
                 argument = source['argument']
                 description = source['description']
                 statement = source['statement']
                 path = source['path']
-                module_data = self.__redisConnection.get_module(module_index)
+                module_data = self._redis_connection.get_module(module_index)
                 if module_data != '{}':
                     module_data = json.loads(module_data)
                 else:
                     self.LOGGER.error('Failed to get module from redis but found in elasticsearch {}'
                                       .format(module_index))
                     reject.append(module_index)
-                    self.__missing_modules.append(module_index)
+                    self._missing_modules.append(module_index)
                     continue
-                if self.__rejects_mibs_or_versions(module_index, reject, module_data):
+                if self._rejects_mibs_or_versions(module_index, reject, module_data):
                     continue
                 row['name'] = argument
                 row['revision'] = revision
@@ -303,7 +281,7 @@ class ElkSearch:
                 row['path'] = path
                 row['module-name'] = name
 
-                if organization in self.SDOS:
+                if organization in SDOS:
                     row['origin'] = 'Industry Standard'
                 elif organization == 'N/A':
                     row['origin'] = organization
@@ -314,100 +292,100 @@ class ElkSearch:
                 row['dependents'] = len(module_data.get('dependents', []))
                 row['compilation-status'] = module_data.get('compilation-status', 'unknown')
                 row['description'] = description
-                if not self.__found_in_sub_search(row):
+                if not self._found_in_sub_search(row):
                     continue
-                self.__trim_and_hash_row_by_columns(row, response_rows)
-                if len(response_rows) >= self.__response_size or self.__current_scroll_id is None:
+                self._trim_and_hash_row_by_columns(row, response_rows)
+                if len(response_rows) >= self._response_size or self._current_scroll_id is None:
                     self.LOGGER.debug('elk search finished with len {} and scroll id {}'
-                                      .format(len(response_rows), self.__current_scroll_id))
+                                      .format(len(response_rows), self._current_scroll_id))
                     process_scroll_search.kill()
                     return response_rows
             else:
                 reject.append(module_index)
 
         process_scroll_search.join()
-        return self.__process_hits(secondary_hits.get(), response_rows, reject)
+        return self._process_hits(secondary_hits.get(), response_rows, reject)
 
-    def __first_scroll(self, hits):
+    def _first_scroll(self, hits):
         elk_response = {}
         try:
             query_no_agg = self.query.copy()
             query_no_agg.pop('aggs', '')
-            elk_response = self.__es.search(index='yindex', body=query_no_agg, request_timeout=20,
-                                            scroll=u'2m', size=self.__response_size)
-        except ConnectionTimeout as e:
-            self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
+            elk_response = self._es.search(index='yindex', body=query_no_agg, request_timeout=20,
+                                           scroll=u'2m', size=self._response_size)
+        except ConnectionTimeout:
+            self.LOGGER.exception('Failed to connect to Elasticsearch')
             elk_response['hits'] = {'hits': []}
         self.LOGGER.debug('search complete with {} hits'.format(len(elk_response['hits']['hits'])))
-        self.__current_scroll_id = elk_response.get('_scroll_id')
+        self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 
-    def __continue_scrolling(self, hits):
-        if self.__current_scroll_id is None:
+    def _continue_scrolling(self, hits):
+        if self._current_scroll_id is None:
             hits.put([])
             return
         elk_response = {}
         try:
-            elk_response = self.__es.scroll(scroll_id=self.__current_scroll_id, scroll=u'2m', request_timeout=20)
-        except ConnectionTimeout as e:
-            self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
+            elk_response = self._es.scroll(scroll_id=self._current_scroll_id, scroll=u'2m', request_timeout=20)
+        except ConnectionTimeout:
+            self.LOGGER.exception('Failed to connect to Elasticsearch')
             elk_response['hits'] = {'hits': []}
-        self.__current_scroll_id = elk_response.get('_scroll_id')
+        self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 
-    def __resolve_aggregations(self):
+    def _resolve_aggregations(self):
         response = {'aggregations': {'groupby': {'buckets': []}}}
         try:
-            response = self.__es.search(index='yindex', body=self.query, size=0)
-        except ConnectionTimeout as e:
-            self.LOGGER.error('Failed to connect to elasticsearch database with error - {}'.format(e))
+            response = self._es.search(index='yindex', body=self.query, size=0)
+        except ConnectionTimeout:
+            self.LOGGER.exception('Failed to connect to Elasticsearch')
         aggregations = response['aggregations']['groupby']['buckets']
         for agg in aggregations:
-            self.__latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
+            self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
 
-    def __rejects_mibs_or_versions(self, module_index, reject, module_data):
-        if not self.__include_mibs and 'yang:smiv2:' in module_data.get('namespace', ''):
+    def _rejects_mibs_or_versions(self, module_index, reject, module_data):
+        if not self._search_params.include_mibs and 'yang:smiv2:' in module_data.get('namespace', ''):
             reject.append(module_index)
             return True
-        if module_data.get('yang-version') not in self.__yang_versions:
+        if module_data.get('yang-version') not in self._search_params.yang_versions:
             reject.append(module_index)
             return True
         return False
 
-    def __trim_and_hash_row_by_columns(self, row: dict, response_rows: list):
-        if len(self.__remove_columns) == 0:
+    def _trim_and_hash_row_by_columns(self, row: dict, response_rows: list):
+        if len(self._remove_columns) == 0:
             response_rows.append(row)
         else:
             # if we are removing some columns we need to make sure that we trim the output if it is same.
             # This actually happens only if name description or path is being removed
-            if 'name' in self.__remove_columns or 'description' in self.__remove_columns \
-                    or 'path' in self.__remove_columns:
+            if 'name' in self._remove_columns or 'description' in self._remove_columns \
+                    or 'path' in self._remove_columns:
                 row_hash = hashlib.sha256()
                 for key, value in row.items():
-                    if key in self.__output_columns:
+                    if key in self._search_params.output_columns:
                         row_hash.update(str(value).encode('utf-8'))
                         if key == 'name':
                             # if we use key as well
                             row_hash.update(str(row['path']).encode('utf-8'))
                 row_hexadecimal = row_hash.hexdigest()
 
-                for key in self.__remove_columns:
+                for key in self._remove_columns:
                     # remove keys that we do not want to be provided in output
                     row.pop(key, '')
 
-                    if row_hexadecimal in self.__row_hashes:
+                    if row_hexadecimal in self._row_hashes:
                         self.LOGGER.info(
                             'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
                     else:
-                        self.__row_hashes.append(row_hexadecimal)
+                        self._row_hashes.append(row_hexadecimal)
                         response_rows.append(row)
             else:
-                for key in self.__remove_columns:
+                for key in self._remove_columns:
                     # remove keys that we do not want to be provided in output
                     row.pop(key, '')
                 response_rows.append(row)
 
-    def __found_in_sub_search(self, row):
+    def _found_in_sub_search(self, row):
         """
         The following json as an example might come here:
           "sub-search": [
@@ -429,9 +407,9 @@ class ElkSearch:
         Which means - name has to contain words 'shared' AND 'leafs' AND has to have
         organization 'ietf' OR name can be also contain only word 'organization'
         """
-        if len(self.__sub_search) == 0:
+        if len(self._search_params.sub_search) == 0:
             return True
-        for search in self.__sub_search:
+        for search in self._search_params.sub_search:
             passed = True
             for key, value in search.items():
                 if not passed:

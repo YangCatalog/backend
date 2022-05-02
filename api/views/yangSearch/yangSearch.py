@@ -26,6 +26,7 @@ from logging import Logger
 import utility.log as log
 from api.my_flask import app
 from api.views.yangSearch.elkSearch import ElkSearch
+from api.views.yangSearch.search_params import SearchParams
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
 from flask.blueprints import Blueprint
@@ -33,6 +34,8 @@ from flask.globals import request
 from flask.helpers import make_response
 from flask.json import jsonify
 from pyang import plugin
+from utility.staticVariables import (MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS,
+                                     SCHEMA_TYPES)
 from utility.yangParser import create_context
 from werkzeug.exceptions import abort
 
@@ -45,50 +48,6 @@ class YangSearch(Blueprint):
                  url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
         super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
                          url_defaults, root_path)
-        # ordering important for frontend to show metadata in correct order
-        self.order = \
-            {
-                'name': 1,
-                'revision': 2,
-                'organization': 3,
-                'ietf': 4,
-                'ietf-wg': 1,
-                'namespace': 5,
-                'schema': 6,
-                'generated-from': 7,
-                'maturity-level': 8,
-                'document-name': 9,
-                'author-email': 10,
-                'reference': 11,
-                'module-classification': 12,
-                'compilation-status': 13,
-                'compilation-result': 14,
-                'prefix': 15,
-                'yang-version': 16,
-                'description': 17,
-                'contact': 18,
-                'module-type': 19,
-                'belongs-to': 20,
-                'tree-type': 21,
-                'yang-tree': 22,
-                'expires': 23,
-                'expired': 24,
-                'submodule': 25,
-                'dependencies': 26,
-                'dependents': 27,
-                'semantic-version': 28,
-                'derived-semantic-version': 29,
-                'implementations': 30,
-                'implementation': 1,
-                'vendor': 1,
-                'platform': 2,
-                'software-version': 3,
-                'software-flavor': 4,
-                'os-version': 5,
-                'feature-set': 6,
-                'os-type': 7,
-                'conformance-type': 8
-            }
 
 
 bp = YangSearch('yangSearch', __name__)
@@ -118,7 +77,7 @@ def tree_module(module_name: str):
 
 
 @bp.route('/tree/<module_name>@<revision>', methods=['GET'])
-def tree_module_revision(module_name: str, revision):
+def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
     """
     Generates yang tree view of the module.
     :param module_name: Module for which we are generating the tree.
@@ -275,51 +234,28 @@ def search():
     payload = request.json
     bp.LOGGER.info('Running search with following payload {}'.format(payload))
     searched_term = payload.get('searched-term')
-    if searched_term is None or searched_term == '' or len(searched_term) < 2 or not isinstance(searched_term, str):
-        abort(400, description='You have to write "searched-term" key containing at least 2 characters')
-    __schema_types = [
-        'typedef',
-        'grouping',
-        'feature',
-        'identity',
-        'extension',
-        'rpc',
-        'container',
-        'list',
-        'leaf-list',
-        'leaf',
-        'notification',
-        'action'
-    ]
-    __output_columns = [
-        'name',
-        'revision',
-        'schema-type',
-        'path',
-        'module-name',
-        'origin',
-        'organization',
-        'maturity',
-        'dependents',
-        'compilation-status',
-        'description'
-    ]
-    response = {}
-    case_sensitive = isBoolean(payload, 'case-sensitive', False)
-    terms_regex = isStringOneOf(payload, 'type', 'term', ['term', 'regexp'])
-    include_mibs = isBoolean(payload, 'include-mibs', False)
-    latest_revision = isBoolean(payload, 'latest-revision', True)
-    searched_fields = isListOneOf(payload, 'searched-fields', ['module', 'argument', 'description'])
-    yang_versions = isListOneOf(payload, 'yang-versions', ['1.0', '1.1'])
-    schema_types = isListOneOf(payload, 'schema-types', __schema_types)
-    output_columns = isListOneOf(payload, 'output-columns', __output_columns)
-    sub_search = eachKeyIsOneOf(payload, 'sub-search', __output_columns)
-    elk_search = ElkSearch(searched_term, case_sensitive, searched_fields, terms_regex, schema_types, ac.d_logs,
-                           ac.es_manager.es, latest_revision, app.redisConnection, include_mibs, yang_versions, output_columns,
-                           __output_columns, sub_search)
+    if not searched_term or not isinstance(searched_term, str):
+        abort(400, description='You have to define "searched_term" as a string')
+    if len(searched_term) < 2:
+        abort(400, description='You have to define "searched-term" containing at least 2 characters')
+
+    search_params = SearchParams(
+        case_sensitive=is_boolean(payload, 'case-sensitive', False),
+        query_type=is_string_in(payload, 'type', 'term', ['term', 'regexp']),
+        include_mibs=is_boolean(payload, 'include-mibs', False),
+        latest_revision=is_boolean(payload, 'latest-revision', True),
+        searched_fields=is_list_in(payload, 'searched-fields', ['module', 'argument', 'description']),
+        yang_versions=is_list_in(payload, 'yang-versions', ['1.0', '1.1']),
+        schema_types=is_list_in(payload, 'schema-types', SCHEMA_TYPES),
+        output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
+        sub_search=each_key_in(payload, 'sub-search', OUTPUT_COLUMNS)
+    )
+    elk_search = ElkSearch(searched_term, ac.d_logs, ac.es_manager.es, app.redisConnection, search_params)
     elk_search.construct_query()
-    response['rows'] = elk_search.search()
-    response['warning'] = elk_search.alerts()
+    response = {
+        'rows': elk_search.search(),
+        'warning': elk_search.alerts()
+    }
     return make_response(jsonify(response), 200)
 
 
@@ -408,7 +344,7 @@ def module_details_no_revision(module: str):
 
 
 @bp.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: t.Optional[str], warnings=False):
+def module_details(module: str, revision: t.Optional[str] = None, warnings=False):
     """
     Search for data saved in our datastore (ConfD/Redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
@@ -522,11 +458,11 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
     if module_details_data.get(last_path_data):
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
     else:
-        module_details_data[last_path_data] = {'ordering': bp.order.get(last_path_data, '')}
+        module_details_data[last_path_data] = {'ordering': MODULE_PROPERTIES_ORDER.get(last_path_data, '')}
         update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
 
 
-def get_modules_revision_organization(module_name, revision=None, warnings: bool = False):
+def get_modules_revision_organization(module_name: str, revision: t.Optional[str] = None, warnings: bool = False):
     """
     Get list of revisions and organization of the module give by 'module_name'. 
 
@@ -600,49 +536,43 @@ def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_te
         update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
 
 
-def isBoolean(payload, key, default):
+def is_boolean(payload: dict, key: str, default: bool):
     obj = payload.get(key, default)
-    if isinstance(obj, bool):
-        return obj
-    else:
-        abort(400, 'Value of key {} must be boolean'.format(key))
+    if not isinstance(obj, bool):
+        abort(400, 'Value of key "{}" must be boolean'.format(key))
+    return obj
 
 
-def isStringOneOf(payload, key, default, one_of):
+def is_string_in(payload: dict, key: str, default: str, one_of: t.List[str]):
     obj = payload.get(key, default)
-    if isinstance(obj, str):
-        if obj not in one_of:
-            abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
-        return obj
-    else:
-        abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
+    if not isinstance(obj, str) or obj not in one_of:
+        abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+    return obj
 
 
-def isListOneOf(payload, key, default):
+def is_list_in(payload: dict, key: str, default: t.List[str]):
     objs = payload.get(key, default)
     if str(objs).lower() == 'all':
         return default
     one_of = default
-    if isinstance(objs, list):
-        if len(objs) == 0:
-            return default
-        for obj in objs:
-            if obj not in one_of:
-                abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
-        return objs
-    else:
-        abort(400, 'Value of key {} must be string from following list {}'.format(key, one_of))
+    if not isinstance(objs, list):
+        abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+    if len(objs) == 0:
+        return default
+    for obj in objs:
+        if obj not in one_of:
+            abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+    return objs
 
 
-def eachKeyIsOneOf(payload, payload_key, keys):
+def each_key_in(payload: dict, payload_key: str, keys: t.List[str]):
     rows = payload.get(payload_key, [])
-    if isinstance(rows, list):
-        for row in rows:
-            for key in row.keys():
-                if key not in keys:
-                    abort(400, 'key {} must be string from following list {} in {}'.format(key, keys, payload_key))
-    else:
-        abort(400, 'Value of key {} must be string from following list {}'.format(payload_key, keys))
+    if not isinstance(rows, list):
+        abort(400, 'Value of key "{}" must be string from following list: {}'.format(payload_key, keys))
+    for row in rows:
+        for key in row.keys():
+            if key not in keys:
+                abort(400, 'Key {} must be string from following list: {} in {}'.format(key, keys, payload_key))
     return rows
 
 
@@ -651,8 +581,7 @@ def get_module_data(module_key: str):
     module_data = app.redisConnection.get_module(module_key)
     if module_data == '{}':
         abort(404, description='Provided module does not exist')
-    else:
-        module_data = json.loads(module_data)
+    module_data = json.loads(module_data)
     return module_data
 
 

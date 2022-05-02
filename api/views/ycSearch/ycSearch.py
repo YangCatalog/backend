@@ -217,7 +217,7 @@ def rpc_search_get_one(leaf: str):
 
 
 @bp.route('/search-filter', methods=['POST'])
-def rpc_search(body: dict = {}):
+def rpc_search(body: dict):
     """Get all the modules that contains all the leafs with data as provided in body of the request.
     """
     from_api = False

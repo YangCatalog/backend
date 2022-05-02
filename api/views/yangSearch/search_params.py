@@ -1,0 +1,15 @@
+from dataclasses import dataclass
+from typing import List
+
+
+@dataclass
+class SearchParams:
+    case_sensitive: bool
+    query_type: str
+    include_mibs: bool
+    latest_revision: bool
+    searched_fields: List
+    yang_versions: List
+    schema_types: List
+    output_columns: List
+    sub_search: List

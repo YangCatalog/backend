@@ -13,41 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 from elasticsearch import ConnectionTimeout, Elasticsearch
 from elasticsearch.helpers import ScanError, scan
-
-__schema_types = [
-    'typedef',
-    'grouping',
-    'feature',
-    'identity',
-    'extension',
-    'rpc',
-    'container',
-    'list',
-    'leaf-list',
-    'leaf',
-    'notification',
-    'action'
-]
-
-__search_fields = [
-    'argument',
-    'description',
-    'module'
-]
-
-__node_data = {
-    'name': 'argument',
-    'description': 'description',
-    'path': 'path',
-    'type': 'statement'
-}
+from utility.staticVariables import NODE_DATA, SCHEMA_TYPES, SEARCH_FIELDS
 
 
 def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
@@ -92,7 +65,7 @@ def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
 
     #    case_sensitivity = 'BINARY '
 
-    sts = __search_fields
+    sts = SEARCH_FIELDS
     if 'search-fields' in opts:
         sts = opts['search-fields']
 
@@ -108,7 +81,7 @@ def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
     if 'request-number' in opts:
         request_number = opts['request-number']
     for field in sts:
-        if field in __search_fields:
+        if field in SEARCH_FIELDS:
             if field == 'module':
                 field_term = field
                 final_term = search_term.lower()
@@ -126,7 +99,7 @@ def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
     queries = []
     if 'schema-types' in opts:
         for st in opts['schema-types']:
-            if st in __schema_types:
+            if st in SCHEMA_TYPES:
                 queries.append(st)
     must = {
         'terms': {
@@ -140,11 +113,12 @@ def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
     try:
         search = scan(es, LOGGER, limit_reacher, query, request_timeout=20, scroll=u'2m', scroll_limit=2*request_number,
                       index='yindex')
-    except ConnectionTimeout as e:
+    except ConnectionTimeout:
+        LOGGER.exception('Problem while running scan method')
         return None, None
     LOGGER.info(search)
 
-    filter_list = __node_data.keys()
+    filter_list = NODE_DATA.keys()
     results = []
     rows = search
 
@@ -166,8 +140,8 @@ def do_search(opts, es_host, es_port, es_aws, elk_credentials, LOGGER):
             result = {'module': module}
             result['node'] = {}
             for nf in filter_list:
-                if nf in __node_data:
-                    result['node'][nf] = r[__node_data[nf]]
+                if nf in NODE_DATA:
+                    result['node'][nf] = r[NODE_DATA[nf]]
 
             results.append(result)
     return (results, limit_reacher.limit_reached)
