@@ -250,23 +250,22 @@ def search():
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
         sub_search=each_key_in(payload, 'sub-search', OUTPUT_COLUMNS)
     )
-    elk_search = ElkSearch(searched_term, ac.d_logs, ac.es_manager.es, app.redisConnection, search_params)
+    elk_search = ElkSearch(searched_term, ac.d_logs, ac.es_manager, app.redisConnection, search_params)
     elk_search.construct_query()
-    response = {
-        'rows': elk_search.search(),
-        'warning': elk_search.alerts()
-    }
+    response = {}
+    response['rows'], response['max-hits'] = elk_search.search()
+    response['warning'] = elk_search.alerts()
     return make_response(jsonify(response), 200)
 
 
-@bp.route('/completions/<type>/<pattern>', methods=['GET'])
-def get_services_list(type: str, pattern: str):
+@bp.route('/completions/<keyword>/<pattern>', methods=['GET'])
+def get_services_list(keyword: str, pattern: str):
     """
     Provides autocompletion for search bars on web pages of impact_analysis
     and module_details.
 
     Arguments:
-        :param type     (str) Type of what we are autocompleting 'module' or 'organization'
+        :param keyword  (str) Type of what we are autocompleting 'module' or 'organization'
         :param pattern  (str) Searched string - input from user
     :return: list of autocompletion results
     """
@@ -274,9 +273,9 @@ def get_services_list(type: str, pattern: str):
     if not pattern:
         return make_response(jsonify(result), 200)
 
-    if type == 'organization':
+    if keyword == 'organization':
         result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
-    if type == 'module':
+    if keyword == 'module':
         result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
 
     return make_response(jsonify(result), 200)
@@ -287,8 +286,10 @@ def show_node(name: str, path: str):
     """
     View for show_node page, which provides context for show_node.html
     Shows description for yang modules.
-    :param name: Takes first argument from url which is module name.
-    :param path: Path for node.
+
+    Arguments:
+        :param name     (str) Takes first argument from URL which is module name
+        :param path     (str) Path for node
     :return: returns json to show node
     """
     return show_node_with_revision(name, path)
@@ -298,10 +299,12 @@ def show_node(name: str, path: str):
 def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = None):
     """
     View for show_node page, which provides context for show_node.html
-    Shows description for yang modules.s
-    :param name: Takes first argument from url which is module name.
-    :param path: Path for node.
-    :param revision: revision for yang module, if specified.
+    Shows description for yang modules.
+
+    Arguments:
+        :param name     (str) Takes first argument from URL which is module name
+        :param path     (str) Path for node
+        :param revision (str) Revision of YANG module - if specified
     :return: returns json to show node
     """
     if not name:

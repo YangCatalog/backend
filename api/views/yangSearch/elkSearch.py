@@ -24,10 +24,14 @@ import os
 import gevent
 import gevent.queue
 from api.views.yangSearch.search_params import SearchParams
-from elasticsearch import ConnectionTimeout, Elasticsearch
+from elasticsearch import ConnectionTimeout
+from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.es_indices import ESIndices
 from redisConnections.redisConnection import RedisConnection
 from utility import log
 from utility.staticVariables import OUTPUT_COLUMNS, SDOS
+
+RESPONSE_SIZE = 2000
 
 
 class ElkSearch:
@@ -37,7 +41,7 @@ class ElkSearch:
     in a grid of yangcatalog search.
     """
 
-    def __init__(self, searched_term: str, logs_dir: str, es: Elasticsearch, redis_connection: RedisConnection,
+    def __init__(self, searched_term: str, logs_dir: str, es_manager: ESManager, redis_connection: RedisConnection,
                  search_params: SearchParams) -> None:
         """
         Initialization of search under Elasticsearch engine. We need to prepare a query
@@ -46,49 +50,16 @@ class ElkSearch:
         Arguments:
             :param searched_term    (str) String that we are searching for
             :param logs_dir         (str) Directory to log files
-            :param es               (ElasticSearch) Elasticsearch engine
-            :param redis_connection  (RedisConnection) Redis connection to modules db (db=1)
+            :param es_manager       (ESManager) Elasticsearch manager
+            :param redis_connection (RedisConnection) Redis connection to modules db (db=1)
             :param search_params    (SearchParams) Contains search parameters
         """
-        self._response_size = 2000
         self._search_params = search_params
-        self.query = \
-            {
-                'query': {
-                    'bool': {
-                        'must': [{
-                            'bool': {
-                                'must': {
-                                    'terms': {
-                                        'statement': self._search_params.schema_types
-                                    }
-                                }
-                            }
-                        }, {
-                            'bool': {
-                                'should': []
-                            }
-                        }]
-                    }
-                },
-                'aggs': {
-                    'groupby': {
-                        'terms': {
-                            'field': 'module.keyword',
-                            'size': self._response_size
-                        },
-                        'aggs': {
-                            'latest-revision': {
-                                'max': {
-                                    'field': 'revision'
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+        search_query_path = os.path.join(os.environ['BACKEND'], 'api/views/yangSearch/json/search.json')
+        with open(search_query_path, encoding='utf-8') as reader:
+            self.query = json.load(reader)
         self._searched_term = searched_term
-        self._es = es
+        self._es_manager = es_manager
         self._redis_connection = redis_connection
         self._current_scroll_id = None
         self._latest_revisions = {}
@@ -110,88 +81,89 @@ class ElkSearch:
 
     def construct_query(self):
         """
-        Create a json query that is then sent to elasticsearch. This query looks as follows
+        Create a json query that is then sent to Elasticsearch.
         Changes being made while creating query:
         - statement is a list of schema types. It is one or more or all of ['typedef', 'grouping', 'feature',
         'identity', 'extension', 'rpc', 'container', 'list', 'leaf-list', 'leaf', 'notification', 'action']
-        - Under query -> bool -> must -> bool -> should -> are 3 different bool -> must -> whcih can contain
+        - Under query -> bool -> must -> bool -> should -> are 3 different bool -> must -> which can contain
         either term if we are searching specific text or regex if we are searching for regular expression
-        - The 3 different bools mentioned above are constructed dynamicly where at least one must exist and
+        - The 3 different bools mentioned above are constructed dynamicaly, while at least one must exist and
         all three may exist
         - lowercase may be changed with sensitive giving us an option to search for case sensitive text. If we
-        use lowercase everything will be automatically put to lowercase and so we don t care about case sensitivity.
+        use lowercase everything will be automatically put to lowercase and so we don't care about case sensitivity.
         - aggs (or aggregations) are used to find latest revisions of a module if we are searching for latest
         revisions only.
-
+        This query looks as follows:
         {
-            "query":{
-                "bool":{
-                    "must":[
-                        {
-                            "bool":{
-                                "must":{
-                                    "terms":{
-                                        "statement":[
-                                            "leaf",
-                                            "container"
-                                        ]
-                                    }
-                                }
-                            }
-                        },
-                        {
-                            "bool":{
-                                "should":[
-                                    {
-                                        "bool":{
-                                            "must":{
-                                                "term":{
-                                                    "argument.lowercase":"foo"
-                                                }
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "bool":{
-                                            "must":{
-                                                "term":{
-                                                    "description.lowercase":"foo"
-                                                }
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "bool":{
-                                            "must":{
-                                                "term":{
-                                                    "module":"foo"
-                                                }
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            },
-            "aggs":{
-                "groupby":{
-                    "terms":{
-                        "field":"module.keyword",
-                        "size": 2000
-                    },
-                    "aggs":{
-                        "latest-revision":{
-                            "max":{
-                                "field":"revision"
-                            }
-                        }
+          "query": {
+            "bool": {
+              "must": [
+                {
+                  "bool": {
+                    "must": {
+                      "terms": {
+                        "statement": [
+                          "leaf",
+                          "container"
+                        ]
+                      }
                     }
+                  }
+                },
+                {
+                  "bool": {
+                    "should": [
+                      {
+                        "bool": {
+                          "must": {
+                            "term": {
+                              "argument.lowercase": "foo"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "bool": {
+                          "must": {
+                            "term": {
+                              "description.lowercase": "foo"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "bool": {
+                          "must": {
+                            "term": {
+                              "module": "foo"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
                 }
+              ]
             }
+          },
+          "aggs": {
+            "groupby": {
+              "terms": {
+                "field": "module.keyword",
+                "size": 2000
+              },
+              "aggs": {
+                "latest-revision": {
+                  "max": {
+                    "field": "revision"
+                  }
+                }
+              }
+            }
+          }
         }
         """
+        self.query['query']['bool']['must'][0]['bool']['must']['terms']['statement'] = self._search_params.schema_types
         sensitive = 'lowercase'
         if self._search_params.case_sensitive:
             sensitive = 'sensitive'
@@ -237,10 +209,11 @@ class ElkSearch:
             self._resolve_aggregations()
             self.LOGGER.debug('Aggregations processed joining the search')
         process_first_search.join()
-        processed_rows = self._process_hits(hits.get(), [])
+        hits = hits.get()
+        processed_rows = self._process_hits(hits, [])
         if self._current_scroll_id is not None:
-            self._es.clear_scroll(scroll_id=self._current_scroll_id, ignore=(404,))
-        return processed_rows
+            self._es_manager.clear_scroll(self._current_scroll_id)
+        return processed_rows, len(hits) == RESPONSE_SIZE
 
     def _process_hits(self, hits: list, response_rows: list, reject=None):
         if reject is None:
@@ -295,7 +268,7 @@ class ElkSearch:
                 if not self._found_in_sub_search(row):
                     continue
                 self._trim_and_hash_row_by_columns(row, response_rows)
-                if len(response_rows) >= self._response_size or self._current_scroll_id is None:
+                if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
                     self.LOGGER.debug('elk search finished with len {} and scroll id {}'
                                       .format(len(response_rows), self._current_scroll_id))
                     process_scroll_search.kill()
@@ -311,8 +284,8 @@ class ElkSearch:
         try:
             query_no_agg = self.query.copy()
             query_no_agg.pop('aggs', '')
-            elk_response = self._es.search(index='yindex', body=query_no_agg, request_timeout=20,
-                                           scroll=u'2m', size=self._response_size)
+            elk_response = self._es_manager.generic_search(ESIndices.YINDEX, query_no_agg,
+                                                           response_size=RESPONSE_SIZE, use_scroll=True)
         except ConnectionTimeout:
             self.LOGGER.exception('Failed to connect to Elasticsearch')
             elk_response['hits'] = {'hits': []}
@@ -326,7 +299,7 @@ class ElkSearch:
             return
         elk_response = {}
         try:
-            elk_response = self._es.scroll(scroll_id=self._current_scroll_id, scroll=u'2m', request_timeout=20)
+            elk_response = self._es_manager.scroll(self._current_scroll_id)
         except ConnectionTimeout:
             self.LOGGER.exception('Failed to connect to Elasticsearch')
             elk_response['hits'] = {'hits': []}
@@ -336,7 +309,7 @@ class ElkSearch:
     def _resolve_aggregations(self):
         response = {'aggregations': {'groupby': {'buckets': []}}}
         try:
-            response = self._es.search(index='yindex', body=self.query, size=0)
+            response = self._es_manager.generic_search(ESIndices.YINDEX, self.query)
         except ConnectionTimeout:
             self.LOGGER.exception('Failed to connect to Elasticsearch')
         aggregations = response['aggregations']['groupby']['buckets']

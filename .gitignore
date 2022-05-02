@@ -10,6 +10,7 @@ api/standard
 **/*.json
 **/*.html
 !elasticsearchIndexing/json/**/*
+!api/views/yangSearch/json/*
 /venv
 !statistics/template/stats.html
 yang.egg-info
