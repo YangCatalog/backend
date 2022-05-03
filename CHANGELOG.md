@@ -2,6 +2,21 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.2.0 - 2022-05-03
+
+  * Type checking fixes with pyright [deployment #126](https://github.com/YangCatalog/deployment/issues/126)
+  * Pyang update to version 2.5.3 [deployment #124](https://github.com/YangCatalog/deployment/issues/124)
+  * No longer needed Dockerfile (documentation) deleted [deployment #123](https://github.com/YangCatalog/deployment/issues/123)
+  * ESSnapshotsManager class created [#494](https://github.com/YangCatalog/backend/issues/494)
+  * ESManager class created [#493](https://github.com/YangCatalog/backend/issues/493)  
+  * Bugfix: Empty arrays passed as the files argument [#492](https://github.com/YangCatalog/backend/issues/492)
+  * Deprecated "/fast" API endpoint removed completely [#491](https://github.com/YangCatalog/backend/issues/491)
+  * SearchParams dataclass created [#490](https://github.com/YangCatalog/backend/issues/490)
+  * repoUtil functionality refactored [#489](https://github.com/YangCatalog/backend/issues/489)
+  * Elasticsearch updated to version 7.10 [#471](https://github.com/YangCatalog/backend/issues/471)
+  * Bugfix: Closing RabbitMQ connection properly [#470](https://github.com/YangCatalog/backend/issues/470)
+  * flask-oidc replaced with Flask-pyoidc library [#440](https://github.com/YangCatalog/backend/issues/440)
+
 * ##### v5.1.0 - 2022-03-28
 
   * Directory structure for modules sent via API changed [#464](https://github.com/YangCatalog/backend/issues/464)
