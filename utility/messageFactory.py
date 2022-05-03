@@ -100,9 +100,9 @@ class MessageFactory:
                     os.remove(f)
             return
         if markdown:
-            self.__api.messages.create(self.__room.id, markdown=msg, files=files)
+            self.__api.messages.create(self.__room.id, markdown=msg, files=files or None)
         else:
-            self.__api.messages.create(self.__room.id, text=msg, files=files)
+            self.__api.messages.create(self.__room.id, text=msg, files=files or None)
 
         if files:
             for f in files:
