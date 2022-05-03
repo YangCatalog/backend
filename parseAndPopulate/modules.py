@@ -79,6 +79,8 @@ class Implementation:
 class Module:
     """This is a class of a single module to parse all the basic metadata we can get out of it."""
 
+    #NOTE: Maybe we should consider passing all or some of the arguments togeather in some sort of structure,
+    #      as passing this many arguments is ugly and error prone.
     def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths, git_commit_hash: str,
                  yang_modules: dict, schema_base: str, aditional_info: t.Optional[t.Dict[str, str]],
                  submodule_name: t.Optional[str]):
@@ -449,6 +451,8 @@ class Module:
 
     def _resolve_compilation_status_and_result(self, generated_from: str) -> t.Tuple[str, str]:
         LOGGER.debug('Resolving compiation status and result')
+        if self._jsons.mangled_name is None:
+            return 'unknown', ''
         status, ths = self._parse_status()
         if status not in ['passed', 'passed-with-warnings', 'failed', 'pending', 'unknown']:
             status = 'unknown'
@@ -614,36 +618,33 @@ class Module:
         LOGGER.debug('Parsing status of module {}'.format(self._path))
         status = 'unknown'
         ths = []
-        with_revision = [True, False]
-        for w_rev in with_revision:
-            for name in self._jsons.names:
-                if status == 'unknown':
-                    if name == 'IETFDraft':
-                        status, ths = self._get_module_status(w_rev, name, 3)
-                    else:
-                        status, ths = self._get_module_status(w_rev, name)
-                else:
+        for w_rev in [True, False]:
+                status, ths = self._get_module_status(w_rev)
+                if status != 'unknown':
                     break
         return status, ths
 
-    def _get_module_status(self, with_revision, name, index=0) -> t.Tuple[str, t.List[str]]:
-        if name == 'IETFYANGRFC':
+    def _get_module_status(self, with_revision) -> t.Tuple[str, t.List[str]]:
+        index = 0
+        if self._jsons.mangled_name == 'IETFYANGRFC':
             return 'unknown', []
+        if self._jsons.mangled_name == 'IETFDraft':
+            index = 3
         if with_revision:
             yang_file = '{}@{}.yang'.format(self.name, self.revision)
         else:
             yang_file = '{}.yang'.format(self.name)
         try:
-            status = self._jsons.status[name][yang_file][index]
+            status = self._jsons.status[self._jsons.mangled_name][yang_file][index]
             if status == 'PASSED WITH WARNINGS':
                 status = 'passed-with-warnings'
             status = status.lower()
-            ths = self._jsons.headers[name]
+            ths = self._jsons.headers[self._jsons.mangled_name]
             assert status != ''
             return status, ths
         except:
             pass
-        ths = self._jsons.headers[name]
+        ths = self._jsons.headers[self._jsons.mangled_name]
         return 'unknown', ths
 
     def _parse_result(self) -> t.Dict[str, str]:
@@ -651,20 +652,18 @@ class Module:
         res = {}
         with_revision = [True, False]
         for w_rev in with_revision:
-            for name in self._jsons.names:
-                if name == 'IETFYANGRFC':
-                    continue
-                if not res:
-                    if name == 'IETFDraft':
-                        res = self._parse_res(w_rev, name, 3)
-                    else:
-                        res = self._parse_res(w_rev, name)
-                else:
-                    return res
+            res = self._parse_res(w_rev)
+            if res:
+                break
         return {'pyang': '', 'pyang_lint': '', 'confdrc': '', 'yumadump': '', 'yanglint': ''}
 
-    def _parse_res(self, with_revision: bool, name: str, index: int = 0) -> t.Dict[str, str]:
+    def _parse_res(self, with_revision: bool) -> t.Dict[str, str]:
+        index = 0
         result = {}
+        if self._jsons.mangled_name == 'IETFDraft':
+            index = 3
+        elif self._jsons.mangled_name == 'IETFYANGRFC':
+            return {}
         if with_revision:
             # try to find with revision
             yang_file = '{}@{}.yang'.format(self.name, self.revision)
@@ -672,11 +671,11 @@ class Module:
             # try to find without revision
             yang_file = '{}.yang'.format(self.name)
         try:
-            result['pyang_lint'] = self._jsons.status[name][yang_file][1 + index]
-            result['pyang'] = self._jsons.status[name][yang_file][2 + index]
-            result['confdrc'] = self._jsons.status[name][yang_file][3 + index]
-            result['yumadump'] = self._jsons.status[name][yang_file][4 + index]
-            result['yanglint'] = self._jsons.status[name][yang_file][5 + index]
+            result['pyang_lint'] = self._jsons.status[self._jsons.mangled_name][yang_file][1 + index]
+            result['pyang'] = self._jsons.status[self._jsons.mangled_name][yang_file][2 + index]
+            result['confdrc'] = self._jsons.status[self._jsons.mangled_name][yang_file][3 + index]
+            result['yumadump'] = self._jsons.status[self._jsons.mangled_name][yang_file][4 + index]
+            result['yanglint'] = self._jsons.status[self._jsons.mangled_name][yang_file][5 + index]
             return result
         except:
             pass
@@ -767,6 +766,8 @@ class VendorModule(Module):
                     except:
                         deviation['revision'] = '1970-01-01'
                 self.deviations.append(deviation)
+
+            self.revision = '*'
             if 'revision' in data:
                 revision_and_more = data.split('revision=')[1]
                 revision = revision_and_more.split('&')[0]

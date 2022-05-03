@@ -27,6 +27,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 
 from git import InvalidGitRepositoryError
+from git.repo import Repo
 
 import utility.log as log
 from utility import repoutil
@@ -64,7 +65,10 @@ class ModuleGrouping:
         self.api = api
         self.file_hasher = file_hasher
         self.directory = directory
-        self.parsed_jsons = LoadFiles(dir_paths['private'], dir_paths['log'])
+        self._submodule_map = {}
+        for submodule in Repo(dir_paths['yang_models']).submodules:
+            url = submodule.url.replace(github_url, github_raw).removesuffix('.git')
+            self._submodule_map[url] = submodule.path
 
     def _load_yangmodels_repo(self):
         self.repo_owner = 'YangModels'
@@ -94,6 +98,81 @@ class ModuleGrouping:
     def parse_and_load(self):
         """Parse the modules and load the extracted data into the dumper."""
         pass
+
+
+    def _construct_json_name(self, schema_base: str, directory: str) -> t.Optional[str]:
+        # This function reimplements the name mangling from sdo_analysis/bin/runYANGgenericstats.sh
+        #TODO: Support for repositories that use multiple branches. This includes OpenROADM,
+        #      and ETSI when cloned independently of YangModels/yang
+        alnum: t.Callable[[str], str] = lambda s: ''.join(c for c in s if c.isalnum())
+        split_path = os.path.abspath(directory).split('/')
+        if 'openconfig' in split_path:
+            return 'Openconfig'
+        elif 'OpenNetworkingFoundation' in schema_base or 'onf' in split_path:
+            return 'ONFOpenTransport'
+        elif 'sysrepo' in split_path:
+            if 'internal' in split_path:
+                return 'SysrepoInternal'
+            elif 'applications' in split_path:
+                return 'SysrepoApplication'
+        if 'tmp' in split_path:
+            if schema_base in self._submodule_map:
+                split_path = self._submodule_map[schema_base].split('/') + split_path[4:]
+        else:
+            split_path = split_path[split_path.index('yang', 3) + 1:]
+        module_category, organization, split_path = split_path[0], split_path[1], split_path[2:]
+        if module_category == 'standard':
+            if organization == 'ietf':
+                module_type = split_path[0]
+                if module_type == 'DRAFT':
+                    return 'IETFDraft'
+                elif module_type == 'RFC':
+                    return 'IETFYANGRFC'
+            elif organization == 'etsi':
+                if split_path[0] == 'NFV-SOL006-v2.6.1':
+                    return 'ETSI261'
+                elif split_path[0] == 'NFV-SOL006-v2.7.1':
+                    return 'ETSI271'
+            elif organization == 'bff':
+                return 'BFF'
+            elif organization == 'mef':
+                if 'standard' in split_path[-2:]:
+                    return 'MEFStandard'
+                elif 'draft' in split_path[-2:]:
+                    return 'MEFExperimental'
+            elif organization == 'ieee':
+                module_status = split_path[0]
+                if module_status == 'published':
+                    return 'IEEEStandard'
+                elif module_status == 'draft':
+                    return 'IEEEStandardDraft'
+            elif organization == 'iana':
+                return 'IANAStandard'
+        elif module_category == 'experimental':
+            if organization == 'ieee':
+                return 'IEEEExperimental'
+        elif module_category == 'vendor':
+            if organization == 'cisco':
+                cisco_os, version = split_path[0], split_path[1]
+                return 'Cisco{}{}'.format(cisco_os.upper(), alnum(version))
+            elif organization == 'juniper':
+                version = split_path[0]
+                if version == '14.2':
+                    return 'Juniper142'
+                else:
+                    version_detail = split_path[1]
+                    return 'Juniper{}'.format(alnum(version_detail))
+            elif organization == 'huawei':
+                version  = split_path[1]
+                return 'NETWORKROUTER{}'.format(alnum(version))
+            elif organization == 'ciena':
+                return 'CIENA'
+            elif organization == 'fujitsu':
+                return 'Fujitsu{}{}'.format(alnum(split_path[1]), alnum(split_path[2]))
+            elif organization == 'nokia':
+                version = split_path[1].removeprefix('latest_sros_')
+                return 'Nokia{}'.format(alnum(version))
+        return None
 
 
 class SdoDirectory(ModuleGrouping):
@@ -145,6 +224,8 @@ class SdoDirectory(ModuleGrouping):
                     continue
             name = file_name.split('.')[0].split('@')[0]
             schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+            self.parsed_jsons = LoadFiles(self._construct_json_name(schema_base, self.directory),
+                                          self.dir_paths['private'], self.dir_paths['log'])
             try:
                 yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, commit_hash, self.dumper.yang_modules,
                                  schema_base, aditional_info=sdo)
@@ -178,6 +259,9 @@ class SdoDirectory(ModuleGrouping):
                     if commit_hash is None:
                         commit_hash = self.repo.get_commit_hash(path, 'main')
                     schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+                    self.parsed_jsons = \
+                        LoadFiles(self._construct_json_name(schema_base, os.path.join(self.directory, root)),
+                                  self.dir_paths['private'], self.dir_paths['log'])
                     try:
                         yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, commit_hash,
                                          self.dumper.yang_modules, schema_base, submodule_name=submodule_name)
@@ -234,6 +318,7 @@ class IanaDirectory(SdoDirectory):
                 if commit_hash is None:
                     commit_hash = self.repo.get_commit_hash(path, 'main')
                 schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+                self.parsed_jsons = LoadFiles('IANAStandard', self.dir_paths['private'], self.dir_paths['log'])
                 try:
                     yang = SdoModule(data['name'], path, self.parsed_jsons, self.dir_paths, commit_hash,
                                      self.dumper.yang_modules, schema_base, additional_info)
@@ -244,6 +329,8 @@ class IanaDirectory(SdoDirectory):
 
 
 class VendorGrouping(ModuleGrouping):
+
+    parsed_jsons: LoadFiles
 
     def __init__(self, directory: str, xml_file: str, dumper: Dumper,
                  file_hasher: FileHasher, api: bool, dir_paths: DirPaths):
@@ -436,6 +523,9 @@ class VendorCapabilities(VendorGrouping):
             LOGGER.exception('Missing attribute, likely caused by a broken path in {}/platform-metadata.json'
                              .format(self.directory))
             raise
+        self.parsed_jsons = \
+            LoadFiles(self._construct_json_name(schema_base, self.directory),
+                      self.dir_paths['private'], self.dir_paths['log'])
 
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
@@ -491,6 +581,9 @@ class VendorYangLibrary(VendorGrouping):
         set_of_names = set()
         keys = set()
         schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+        self.parsed_jsons = \
+            LoadFiles(self._construct_json_name(schema_base, self.directory),
+                      self.dir_paths['private'], self.dir_paths['log'])
         for yang in modules:
             if 'module-set-id' in yang.tag:
                 continue
