@@ -163,7 +163,7 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_sdo(self, mock_load_files: mock.MagicMock):
-        mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
+        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.private_dir, self.log_directory)
         data = self.test_data.get('request-data-content')
         dst = '{}/YangModels/yang/standard/ietf/RFC'.format(self.direc)
         os.makedirs(dst, exist_ok=True)
@@ -205,7 +205,7 @@ class TestReceiverClass(TestReceiverBaseClass):
     @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
     def test_process_vendor(self, mock_load_files: mock.MagicMock):
-        mock_load_files.return_value = LoadFiles(self.private_dir, self.log_directory)
+        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.private_dir, self.log_directory)
         platform = self.test_data.get('capabilities-json-content')
 
         dst = '{}/huawei/yang/network-router/8.20.0/ne5000e'.format(self.direc)
