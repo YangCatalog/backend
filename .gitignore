@@ -7,7 +7,6 @@
 /dist/
 api/vendor
 api/standard
-**/*.json
 **/*.html
 !elasticsearchIndexing/json/**/*
 !api/views/yangSearch/json/*
@@ -29,5 +28,4 @@ yang-catalog.service
 */yang-catalog.service
 /venv/
 /api/test.py
-/.vscode/
 htmlcov/
