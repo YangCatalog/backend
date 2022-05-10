@@ -46,6 +46,9 @@
             "ignore_above": 256
           }
         }
+      },
+      "revision": {
+        "type": "date"
       }
     }
   }

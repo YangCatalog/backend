@@ -1,4 +1,13 @@
 {
+  "sort": [
+    {
+      "sdo": {
+        "order": "desc",
+        "unmapped_type": "boolean"
+      }
+    },
+    "_score"
+  ],
   "query": {
     "bool": {
       "must": [

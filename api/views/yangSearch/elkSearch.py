@@ -17,19 +17,20 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import hashlib
 import json
 import os
+import typing as t
 
 import gevent
 import gevent.queue
+from api.views.yangSearch.response_row import ResponseRow
 from api.views.yangSearch.search_params import SearchParams
 from elasticsearch import ConnectionTimeout
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from redisConnections.redisConnection import RedisConnection
 from utility import log
-from utility.staticVariables import OUTPUT_COLUMNS, SDOS
+from utility.staticVariables import OUTPUT_COLUMNS
 
 RESPONSE_SIZE = 2000
 
@@ -223,58 +224,49 @@ class ElkSearch:
         secondary_hits = gevent.queue.JoinableQueue()
         process_scroll_search = gevent.spawn(self._continue_scrolling, secondary_hits)
         for hit in hits:
-            row = {}
-            source = hit['_source']
-            name = source['module']
-            revision = source['revision'].replace('02-28', '02-29')
-            organization = source['organization']
-            module_index = '{}@{}/{}'.format(name, revision, organization)
-            if module_index in reject:
+            row = ResponseRow(elastic_hit=hit['_source'])
+            module_key = '{}@{}/{}'.format(row.module_name, row.revision, row.organization)
+            if module_key in reject:
                 continue
-            if not self._search_params.latest_revision or revision == self._latest_revisions.get(name, '').replace('02-28', '02-29'):
-                # we need argument, description, path and statement out of the elk response
-                argument = source['argument']
-                description = source['description']
-                statement = source['statement']
-                path = source['path']
-                module_data = self._redis_connection.get_module(module_index)
-                if module_data != '{}':
-                    module_data = json.loads(module_data)
-                else:
-                    self.LOGGER.error('Failed to get module from redis but found in elasticsearch {}'
-                                      .format(module_index))
-                    reject.append(module_index)
-                    self._missing_modules.append(module_index)
-                    continue
-                if self._rejects_mibs_or_versions(module_index, reject, module_data):
-                    continue
-                row['name'] = argument
-                row['revision'] = revision
-                row['schema-type'] = statement
-                row['path'] = path
-                row['module-name'] = name
 
-                if organization in SDOS:
-                    row['origin'] = 'Industry Standard'
-                elif organization == 'N/A':
-                    row['origin'] = organization
-                else:
-                    row['origin'] = 'Vendor-Specific'
-                row['organization'] = organization
-                row['maturity'] = module_data.get('maturity-level', '')
-                row['dependents'] = len(module_data.get('dependents', []))
-                row['compilation-status'] = module_data.get('compilation-status', 'unknown')
-                row['description'] = description
-                if not self._found_in_sub_search(row):
+            module_latest_revision = self._latest_revisions.get(row.module_name, '').replace('02-28', '02-29')
+            if self._search_params.latest_revision and row.revision != module_latest_revision:
+                reject.append(module_key)
+                continue
+
+            module_data = self._redis_connection.get_module(module_key)
+            module_data = json.loads(module_data)
+            if not module_data:
+                self.LOGGER.error('Failed to get module from Redis, but found in Elasticsearch: {}'.format(module_key))
+                reject.append(module_key)
+                self._missing_modules.append(module_key)
+                continue
+            row.maturity = module_data.get('maturity-level', '')
+            row.dependents = len(module_data.get('dependents', []))
+            row.compilation_status = module_data.get('compilation-status', 'unknown')
+            row.create_representation()
+
+            if self._rejects_mibs_or_versions(module_key, reject, module_data):
+                continue
+
+            if not row.meets_subsearch_condition(self._search_params.sub_search):
+                continue
+
+            row.create_output(self._remove_columns)
+            if self._remove_columns:
+                row_hash = row.get_row_hash_by_columns()
+                if row_hash in self._row_hashes:
+                    self.LOGGER.info(
+                        'Trimmed output row {} already exists in response rows - cutting this one out'
+                        .format(row.output_row))
                     continue
-                self._trim_and_hash_row_by_columns(row, response_rows)
-                if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
-                    self.LOGGER.debug('elk search finished with len {} and scroll id {}'
-                                      .format(len(response_rows), self._current_scroll_id))
-                    process_scroll_search.kill()
-                    return response_rows
-            else:
-                reject.append(module_index)
+                self._row_hashes.append(row_hash)
+            response_rows.append(row.output_row)
+            if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
+                self.LOGGER.debug('ElkSearch finished with len {} and scroll id {}'
+                                  .format(len(response_rows), self._current_scroll_id))
+                process_scroll_search.kill()
+                return response_rows
 
         process_scroll_search.join()
         return self._process_hits(secondary_hits.get(), response_rows, reject)
@@ -316,89 +308,11 @@ class ElkSearch:
         for agg in aggregations:
             self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
 
-    def _rejects_mibs_or_versions(self, module_index, reject, module_data):
+    def _rejects_mibs_or_versions(self, module_key: str, reject: t.List[str], module_data: dict) -> bool:
         if not self._search_params.include_mibs and 'yang:smiv2:' in module_data.get('namespace', ''):
-            reject.append(module_index)
+            reject.append(module_key)
             return True
         if module_data.get('yang-version') not in self._search_params.yang_versions:
-            reject.append(module_index)
+            reject.append(module_key)
             return True
-        return False
-
-    def _trim_and_hash_row_by_columns(self, row: dict, response_rows: list):
-        if len(self._remove_columns) == 0:
-            response_rows.append(row)
-        else:
-            # if we are removing some columns we need to make sure that we trim the output if it is same.
-            # This actually happens only if name description or path is being removed
-            if 'name' in self._remove_columns or 'description' in self._remove_columns \
-                    or 'path' in self._remove_columns:
-                row_hash = hashlib.sha256()
-                for key, value in row.items():
-                    if key in self._search_params.output_columns:
-                        row_hash.update(str(value).encode('utf-8'))
-                        if key == 'name':
-                            # if we use key as well
-                            row_hash.update(str(row['path']).encode('utf-8'))
-                row_hexadecimal = row_hash.hexdigest()
-
-                for key in self._remove_columns:
-                    # remove keys that we do not want to be provided in output
-                    row.pop(key, '')
-
-                    if row_hexadecimal in self._row_hashes:
-                        self.LOGGER.info(
-                            'Trimmed output row {} already exists in response rows. Cutting this one out'.format(row))
-                    else:
-                        self._row_hashes.append(row_hexadecimal)
-                        response_rows.append(row)
-            else:
-                for key in self._remove_columns:
-                    # remove keys that we do not want to be provided in output
-                    row.pop(key, '')
-                response_rows.append(row)
-
-    def _found_in_sub_search(self, row):
-        """
-        The following json as an example might come here:
-          "sub-search": [
-            {
-              "name": [
-                "shared",
-                "leafs"
-              ],
-              "organization": [
-                "ietf"
-              ]
-            },
-            {
-              "name": [
-                "organization"
-              ]
-            }
-          ]
-        Which means - name has to contain words 'shared' AND 'leafs' AND has to have
-        organization 'ietf' OR name can be also contain only word 'organization'
-        """
-        if len(self._search_params.sub_search) == 0:
-            return True
-        for search in self._search_params.sub_search:
-            passed = True
-            for key, value in search.items():
-                if not passed:
-                    break
-                if isinstance(value, list):
-                    for v in value:
-                        if v.lower() in str(row[key]).lower():
-                            passed = True
-                        else:
-                            passed = False
-                            break
-                else:
-                    if value.lower() in str(row[key]).lower():
-                        passed = True
-                    else:
-                        passed = False
-            if passed:
-                return True
         return False

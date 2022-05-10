@@ -13,20 +13,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from pyang import plugin, statements
-from datetime import datetime
-
+import hashlib
 import json
 import optparse
-import dateutil.parser
-import hashlib
-from pyang.util import get_latest_revision
+from datetime import datetime
 
-from utility.staticVariables import NS_MAP
+import dateutil.parser
+from pyang import plugin, statements
+from pyang.util import get_latest_revision
+from utility.staticVariables import NS_MAP, SDOS
 
 _yang_catalog_index_values = []
 _values = {'yindex': []}
 _ctx = None
+
 
 def pyang_plugin_init():
     plugin.register_plugin(IndexerPlugin())
@@ -68,18 +68,18 @@ class IndexerPlugin(plugin.PyangPlugin):
 
 
 def emit_index(ctx, modules, fd):
-    global  _yang_catalog_index_values
-    global  _values
-    global  _ctx
+    global _yang_catalog_index_values
+    global _values
+    global _ctx
 
     _ctx = ctx
     if not ctx.opts.yang_index_schema_only_es:
         _yang_catalog_index_values = []
-        mods = []
+        mods = set()
         for module in modules:
             if module in mods:
                 continue
-            mods.append(module)
+            mods.add(module)
         for module in mods:
             non_chs = list(module.i_typedefs.values()) + list(module.i_features.values()) + list(module.i_identities.values()) + \
                 list(module.i_groupings.values()) + list(module.i_extensions.values())
@@ -125,7 +125,7 @@ def index_get_other(stmt):
 def index_printer(stmt):
     global _yang_catalog_index_values
     global _values
-    global  _ctx
+    global _ctx
 
     if stmt.arg is None:
         return
@@ -180,6 +180,7 @@ def index_printer(stmt):
     vals['statement'] = skey
     vals['argument'] = stmt.arg
     vals['description'] = dstr
+    vals['sdo'] = vals['organization'] in SDOS
     vals['properties'] = json.dumps(subs)
 
     text = '{} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],
@@ -187,6 +188,7 @@ def index_printer(stmt):
                                             vals['description'], vals['properties'])
     vals['sort-hash-id'] = hashlib.sha256(text.encode('utf-8')).hexdigest()
     _values['yindex'].append(vals)
+
 
 def mk_path_str(s, with_prefixes=False):
     """Returns the XPath path of the node"""
@@ -204,6 +206,7 @@ def mk_path_str(s, with_prefixes=False):
     else:
         p = mk_path_str(s.parent, with_prefixes)
         return p + "/" + name(s)
+
 
 def resolve_organization(module):
     if module.keyword == 'submodule':
