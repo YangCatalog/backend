@@ -265,7 +265,10 @@ class ESManager:
         """
         get_module_query = self._get_name_revision_query(index, module)
 
-        es_count = self.es.count(index=index.value, body=get_module_query)
+        try:
+            es_count = self.es.count(index=index.value, body=get_module_query)
+        except RequestError:
+            return False
 
         return es_count['count'] > 0
 
