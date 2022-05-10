@@ -41,7 +41,6 @@ class TestModulesClass(unittest.TestCase):
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.test_private_dir = os.path.join(self.resources_path, 'html/private')
-        self.parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
         self.dir_paths: DirPaths = {
             'cache': '',
             'json': '',
@@ -65,7 +64,8 @@ class TestModulesClass(unittest.TestCase):
         """
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {},
+        parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {},
                          self.schema_base)
 
         self.assertEqual(yang.document_name, 'rfc6991')
@@ -98,7 +98,8 @@ class TestModulesClass(unittest.TestCase):
             'module-classification': 'testing'
         }
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', keys,
+        parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', keys,
                          self.schema_base, additional_info)
 
         self.assertEqual(yang.name, 'ietf-yang-types')
@@ -117,7 +118,8 @@ class TestModulesClass(unittest.TestCase):
         path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
         deviation = yang_lib_data.split('&deviations=')[1]
 
-        yang = VendorModule(module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {}, '',
+        parsed_jsons = LoadFiles('CiscoXR701', self.test_private_dir, yc_gc.logs_dir)
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, '',
                             data=yang_lib_data)
 
         self.assertEqual(yang.document_name, 'rfc8341')
@@ -146,7 +148,8 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = VendorModule(module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {}, '',
+        parsed_jsons = LoadFiles('CiscoXR701', self.test_private_dir, yc_gc.logs_dir)
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, '',
                             data=vendor_data)
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
@@ -184,7 +187,8 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = VendorModule(module_name, path_to_yang, self.parsed_jsons, self.dir_paths, 'master', {}, schema_part,
+        parsed_jsons = LoadFiles('NETWORKROUTER8200', self.test_private_dir, yc_gc.logs_dir)
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, schema_part,
                             data=yang_lib_info)
 
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)

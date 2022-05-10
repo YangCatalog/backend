@@ -51,7 +51,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_hash.return_value = 'master'
-        mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        mock_load_files.return_value = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         path = '{}/test/YangModels/yang/standard/ietf/RFC'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
@@ -99,7 +99,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_hash.return_value = 'master'
-        mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         path = '{}/temp/standard/ietf/RFC/empty'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
@@ -129,7 +129,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_commit_hash.return_value = 'master'
-        mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         xml_path = '{}/test/YangModels/yang/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
@@ -220,7 +220,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
-        mock_load_files.return_value = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        mock_load_files.return_value = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
         xml_path = '{}/test/YangModels/yang/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
         # Load submodule and its config

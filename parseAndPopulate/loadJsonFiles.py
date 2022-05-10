@@ -25,26 +25,29 @@ __license__ = "Apache License, Version 2.0"
 __email__ = "miroslav.kovac@pantheon.tech"
 
 import json
+import typing as t
 
 from utility import log
 
 
 class LoadFiles:
 
-    def __init__(self, private_dir: str, log_directory: str):
+    def __init__(self, mangled_name: t.Optional[str], private_dir: str, log_directory: str):
         """
-        Preset LoadFiles class to load all .json files from private directory.
-        Filenames of json files are stored in json_links file.
+        Preset LoadFiles class to load needed .json files from the private directory.
 
+        :param mangled_name
         :param private_dir      (str) path to the directory with private HTML result files
         :param log_directory:   (str) directory where the log file is saved
         """
         LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
         LOGGER.debug('Loading compilation statuses and results')
-        excluded_names = ['private', 'IETFCiscoAuthorsYANGPageCompilation']
+        LOGGER.debug('FOOBAR The passed mangled name is {}'.format(mangled_name))
 
-        self.names = self.load_names(private_dir, LOGGER)
-        self.names = [name for name in self.names if name not in excluded_names]
+        self.names = ['IETFDraft', 'IETFDraftExample', 'IETFYANGRFC']
+        if mangled_name:
+            self.names.append(mangled_name)
+        self.mangled_name = mangled_name
         self.status = {}
         self.headers = {}
 
@@ -77,16 +80,3 @@ class LoadFiles:
                     results.append(result)
             self.headers[name] = results
         LOGGER.debug('Compilation statuses and results loaded successfully')
-
-    def load_names(self, private_dir: str, LOGGER):
-        """ Load list of names of json files from json_links file.
-        """
-        names = []
-        try:
-            with open('{}/json_links'.format(private_dir), 'r') as f:
-                for line in f:
-                    names.append(line.replace('.json', '').replace('\n', ''))
-        except FileNotFoundError:
-            LOGGER.exception('json_links file was not found')
-
-        return names

@@ -117,7 +117,6 @@ class TestGroupingsClass(unittest.TestCase):
         for sdo in sdos_list:
             key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
             self.assertIn(key, sdo_directory.dumper.yang_modules)
-
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_sdo_directory_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
         """
@@ -135,7 +134,8 @@ class TestGroupingsClass(unittest.TestCase):
 
         sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
-        sdo_directory.parse_and_load(repo)
+        with mock.patch.object(sdo_directory, '_construct_json_name', lambda x, y: 'IETFTEST'):
+            sdo_directory.parse_and_load(repo)
         sdo_directory.dumper.dump_modules(yc_gc.temp_dir)
 
         desired_module_data = self.load_desired_prepare_json_data('git_submodule_huawei')
@@ -342,7 +342,7 @@ class TestGroupingsClass(unittest.TestCase):
         :returns:               Created instance of Modules object of SDO (ietf) module
         :rtype: Modules
         """
-        parsed_jsons = LoadFiles(self.test_private_dir, yc_gc.logs_dir)
+        parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         module_name = path_to_yang.split('/')[-1].split('.yang')[0]
         schema_base = os.path.join(github_raw, 'YangModels/yang/master')
         if '@' in module_name:
