@@ -22,7 +22,8 @@ import os
 
 import utility.log as log
 from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import AuthorizationException, RequestError
+from elasticsearch.exceptions import (AuthorizationException, NotFoundError,
+                                      RequestError)
 from elasticsearch.helpers import parallel_bulk
 from utility.create_config import create_config
 
@@ -92,6 +93,41 @@ class ESManager:
     def get_indices(self) -> list:
         """ Returns a list of existing indices. """
         return list(self.es.indices.get_alias().keys())
+
+    def put_index_mapping(self, index: ESIndices, body: dict) -> dict:
+        """ Update mapping for provided index.
+
+        Arguments:
+            :param index    (ESIndices) Index whose mapping to update
+            :param body     (dict) Mapping definition 
+        """
+        return self.es.indices.put_mapping(index=index.value, body=body, ignore=403)
+
+    def get_index_mapping(self, index: ESIndices) -> dict:
+        """ Get mapping for provided index.
+
+        Argument:
+            :param index    (ESIndices) Index whose mapping to get
+        """
+        mapping = {}
+        try:
+            mapping = self.es.indices.get_mapping(index=index.value)
+        except NotFoundError:
+            self.LOGGER.exception('Index not found')
+        return mapping
+
+    def get_documents_count(self, index: ESIndices) -> int:
+        """ Get number of documents stored in provided index.
+
+        Argument:
+            :param index        (ESIndices) Index in which to search
+        """
+        count = 0
+        try:
+            count = self.es.count(index=index.value)['count']
+        except NotFoundError:
+            self.LOGGER.exception('Index not found')
+        return count
 
     def autocomplete(self, index: ESIndices, keyword: KeywordsNames, searched_term: str) -> list:
         """ Get list of the modules which will be returned as autocomplete
