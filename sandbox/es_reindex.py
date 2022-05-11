@@ -31,7 +31,7 @@ from elasticsearchIndexing.models.es_indices import ESIndices
 from utility.staticVariables import SDOS
 
 
-def _track_progress(es_manager: ESManager, task_id: str):
+def _track_progress(es_manager: ESManager, task_id: str) -> None:
     while True:
         task_info = es_manager.es.tasks.get(task_id=task_id)
         print('{} out of {}'.format(
@@ -65,24 +65,28 @@ def main():
     # ----------------------------------------------------------------------------------------------
     # FILL 'autocomplete' INDEX
     # ----------------------------------------------------------------------------------------------
-    for module in all_es_modules.values():
-        try:
-            name = module['name']
-        except KeyError:
-            name = module['module']
-        document = {
-            'name': name,
-            'revision': module['revision'],
-            'organization': module['organization']
-        }
-        es_manager.delete_from_index(ESIndices.AUTOCOMPLETE, document)
-        index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, document)
-        if index_result['result'] != 'created':
-            print(index_result)
+    autocomplete_count = es_manager.get_documents_count(ESIndices.AUTOCOMPLETE)
+    modules_count = es_manager.get_documents_count(ESIndices.MODULES)
+    if modules_count > autocomplete_count:
+        # If data from 'modules' index are missing in 'autocomplete' index
+        for module in all_es_modules.values():
+            try:
+                name = module['name']
+            except KeyError:
+                name = module['module']
+            document = {
+                'name': name,
+                'revision': module['revision'],
+                'organization': module['organization']
+            }
+            es_manager.delete_from_index(ESIndices.AUTOCOMPLETE, document)
+            index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, document)
+            if index_result['result'] != 'created':
+                print(index_result)
     # ----------------------------------------------------------------------------------------------
     # PUT MAPPING IN 'yindex' INDEX
     # ----------------------------------------------------------------------------------------------
-    yindex_mapping = es_manager.es.indices.get_mapping(index=ESIndices.YINDEX.value)
+    yindex_mapping = es_manager.get_index_mapping(ESIndices.YINDEX)
     sdo_property = None
     try:
         sdo_property = yindex_mapping['yindex']['mappings']['properties']['sdo']
@@ -94,7 +98,7 @@ def main():
                 'sdo': {'type': 'boolean'}
             }
         }
-        put_result = es_manager.es.indices.put_mapping(index=ESIndices.YINDEX.value, body=update_mapping, ignore=403)
+        put_result = es_manager.put_index_mapping(ESIndices.YINDEX, update_mapping)
         print('Put mapping result:\n{}'.format(put_result))
 
         # ----------------------------------------------------------------------------------------------
