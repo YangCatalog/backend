@@ -26,25 +26,32 @@ version 7.10 (done in April 2022).
 
 import time
 
+import utility.log as log
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
+from utility.create_config import create_config
 from utility.staticVariables import SDOS
 
 
 def _track_progress(es_manager: ESManager, task_id: str) -> None:
     while True:
         task_info = es_manager.es.tasks.get(task_id=task_id)
-        print('{} out of {}'.format(
+        LOGGER.info('{} out of {}'.format(
             task_info['task']['status']['updated'],
             task_info['task']['status']['total'])
         )
         if task_info['completed']:
             break
         time.sleep(10)
-    print('Updating by query completed')
+    LOGGER.info('Updating by query completed')
 
 
 def main():
+    config = create_config()
+    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+
+    global LOGGER
+    LOGGER = log.get_logger('es_reindex', '{}/sandbox.log'.format(log_directory))
     # ----------------------------------------------------------------------------------------------
     # INIT ALL INDICES
     # ----------------------------------------------------------------------------------------------
@@ -54,14 +61,14 @@ def main():
             continue
         if not es_manager.index_exists(index):
             create_result = es_manager.create_index(index)
-            print(create_result)
+            LOGGER.info(create_result)
     # ----------------------------------------------------------------------------------------------
     # GET ALL MODULES FROM 'modules' INDEX
     # ----------------------------------------------------------------------------------------------
     all_es_modules = {}
     if es_manager.index_exists(ESIndices.MODULES):
         all_es_modules = es_manager.match_all(ESIndices.MODULES)
-    print('Total number of modules retreived from "modules" index: {}'.format(len(all_es_modules)))
+    LOGGER.info('Total number of modules retreived from "modules" index: {}'.format(len(all_es_modules)))
     # ----------------------------------------------------------------------------------------------
     # FILL 'autocomplete' INDEX
     # ----------------------------------------------------------------------------------------------
@@ -82,7 +89,7 @@ def main():
             es_manager.delete_from_index(ESIndices.AUTOCOMPLETE, document)
             index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, document)
             if index_result['result'] != 'created':
-                print(index_result)
+                LOGGER.info(index_result)
     # ----------------------------------------------------------------------------------------------
     # PUT MAPPING IN 'yindex' INDEX
     # ----------------------------------------------------------------------------------------------
@@ -91,7 +98,7 @@ def main():
     try:
         sdo_property = yindex_mapping['yindex']['mappings']['properties']['sdo']
     except KeyError:
-        print('sdo property not defined yet')
+        LOGGER.info('sdo property not defined yet')
     if not sdo_property:
         update_mapping = {
             'properties': {
@@ -99,7 +106,7 @@ def main():
             }
         }
         put_result = es_manager.put_index_mapping(ESIndices.YINDEX, update_mapping)
-        print('Put mapping result:\n{}'.format(put_result))
+        LOGGER.info('Put mapping result:\n{}'.format(put_result))
 
         # ----------------------------------------------------------------------------------------------
         # SET 'sdo' FIELD FOR NON-SDOS
