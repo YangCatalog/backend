@@ -589,7 +589,7 @@ def run_script_with_args(script):
 @bp.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
     scripts_names = ['populate', 'runCapabilities', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elk_recovery', 'elkFill', 'resolveExpiration', 'reviseSemver']
+                     'recovery', 'elk_recovery', 'elk_fill', 'resolveExpiration', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
 
@@ -609,7 +609,7 @@ def get_module_name(script_name):
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
-    elif script_name in ['recovery', 'elk_recovery', 'elkFill']:
+    elif script_name in ['recovery', 'elk_recovery', 'elk_fill']:
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'

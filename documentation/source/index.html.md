@@ -2784,7 +2784,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
     "statistics",
     "recovery",
     "elk_recovery",
-    "elkFill",
+    "elk_fill",
     "resolveExpiration"
   ],
   "info":"Success"
