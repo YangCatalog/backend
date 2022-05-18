@@ -99,47 +99,20 @@ class ElkSearch:
           "query": {
             "bool": {
               "must": [
-                {
-                  "bool": {
-                    "must": {
-                      "terms": {
-                        "statement": [
-                          "leaf",
-                          "container"
-                        ]
-                      }
-                    }
-                  }
+                "terms": {
+                  "statement": ["leaf", "container"]
                 },
                 {
                   "bool": {
                     "should": [
-                      {
-                        "bool": {
-                          "must": {
-                            "term": {
-                              "argument.lowercase": "foo"
-                            }
-                          }
-                        }
+                      "term": {
+                        "module": "foo"
                       },
-                      {
-                        "bool": {
-                          "must": {
-                            "term": {
-                              "description.lowercase": "foo"
-                            }
-                          }
-                        }
+                      "term": {
+                        "argument.lowercase": "foo"
                       },
-                      {
-                        "bool": {
-                          "must": {
-                            "term": {
-                              "module": "foo"
-                            }
-                          }
-                        }
+                      "term": {
+                        "description.lowercase": "foo"
                       }
                     ]
                   }
@@ -164,7 +137,7 @@ class ElkSearch:
           }
         }
         """
-        self.query['query']['bool']['must'][0]['bool']['must']['terms']['statement'] = self._search_params.schema_types
+        self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
         sensitive = 'lowercase'
         if self._search_params.case_sensitive:
             sensitive = 'sensitive'
@@ -172,18 +145,13 @@ class ElkSearch:
             self._searched_term = self._searched_term.lower()
         search_in = self.query['query']['bool']['must'][1]['bool']['should']
         for searched_field in self._search_params.searched_fields:
-            should_query = \
-                {
-                    'bool': {
-                        'must': {
-                            self._search_params.query_type: {}
-                        }
-                    }
-                }
+            should_query = {
+                self._search_params.query_type: {}
+            }
             if searched_field == 'module':
-                should_query['bool']['must'][self._search_params.query_type][searched_field] = self._searched_term
+                should_query[self._search_params.query_type][searched_field] = self._searched_term
             else:
-                should_query['bool']['must'][self._search_params.query_type][
+                should_query[self._search_params.query_type][
                     '{}.{}'.format(searched_field, sensitive)] = self._searched_term
             search_in.append(should_query)
         self.LOGGER.debug('Constructed query:\n{}'.format(self.query))

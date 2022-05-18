@@ -12,12 +12,8 @@
     "bool": {
       "must": [
         {
-          "bool": {
-            "must": {
-              "terms": {
-                "statement": ""
-              }
-            }
+          "terms": {
+            "statement": ""
           }
         },
         {
