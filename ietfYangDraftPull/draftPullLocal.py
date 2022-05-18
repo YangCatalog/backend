@@ -25,6 +25,7 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import logging
 import os
 import shutil
 import time
@@ -55,7 +56,7 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def run_populate_script(directory: str, notify: bool, LOGGER):
+def run_populate_script(directory: str, notify: bool, LOGGER: logging.Logger) -> bool:
     """ Run populate.py script and return whether execution was successful or not.
 
     Argumets:
@@ -71,7 +72,7 @@ def run_populate_script(directory: str, notify: bool, LOGGER):
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
-        LOGGER.info('Running populate.py script')
+        LOGGER.info('Running populate.py script over {}'.format(directory))
         submodule.main(scriptConf=script_conf)
     except Exception:
         LOGGER.exception('Error occurred while running populate.py script')

@@ -183,10 +183,11 @@ def index_printer(stmt):
     vals['sdo'] = vals['organization'] in SDOS
     vals['properties'] = json.dumps(subs)
 
-    text = '{} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],
-                                            vals['path'], vals['statement'], vals['argument'],
-                                            vals['description'], vals['properties'])
-    vals['sort-hash-id'] = hashlib.sha256(text.encode('utf-8')).hexdigest()
+    # TODO: What is this field used for?
+    # text = '{} {} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],
+    #                                            vals['path'], vals['statement'], vals['argument'],
+    #                                            vals['description'], vals['sdo'], vals['properties'])
+    # vals['sort-hash-id'] = hashlib.sha256(text.encode('utf-8')).hexdigest()
     _values['yindex'].append(vals)
 
 

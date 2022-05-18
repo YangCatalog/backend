@@ -33,7 +33,7 @@ from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
 from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import \
     IndexerPlugin
 
-ES_CHUNK_SIZE = 30
+ES_CHUNK_SIZE = 100
 
 
 def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str,
