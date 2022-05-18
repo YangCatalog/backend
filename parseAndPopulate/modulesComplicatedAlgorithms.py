@@ -36,8 +36,9 @@ from copy import deepcopy
 from datetime import datetime
 
 import requests
+from elasticsearchIndexing.pyang_plugin.json_tree import \
+    emit_tree as emit_json_tree
 from pyang import plugin
-from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from pyang.plugins.tree import emit_tree
 from redisConnections.redisConnection import RedisConnection
 from utility import log, messageFactory
@@ -592,7 +593,7 @@ class ModulesComplicatedAlgorithms:
                         mod_details.append(module_temp)
                 except KeyError as e:
                     LOGGER.error('Existing module {}@{} is missing the {} field'.format(name, revision, e))
-                    if str(e) == 'derived-semantic-version':
+                    if 'derived-semantic-version' in e.args:
                         LOGGER.error('Cannot resolve semver for {}@{}'.format(name, new_revision))
                         continue
 

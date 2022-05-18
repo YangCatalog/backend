@@ -32,7 +32,6 @@ from pyang.yang_parser import YangParser
 
 from utility.create_config import create_config
 
-
 DEFAULT_OPTIONS = {
     'path': [],
     'deviations': [],
@@ -181,7 +180,7 @@ class ParseException(Exception):
             try:
                 with open('{}/unparsable-modules.json'.format(var_path), 'r') as f:
                     modules = json.load(f)
-            except:
+            except (FileNotFoundError, json.decoder.JSONDecodeError):
                 modules = []
             module = path.split('/')[-1]
             if module not in modules:
