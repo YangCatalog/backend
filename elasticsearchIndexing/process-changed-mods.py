@@ -136,7 +136,8 @@ def main():
     es_manager = ESManager()
     for index in ESIndices:
         if not es_manager.index_exists(index):
-            es_manager.create_index(index)
+            create_result = es_manager.create_index(index)
+            LOGGER.info('Index {} created with message:\n{}'.format(index.value, create_result))
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
@@ -177,9 +178,9 @@ def main():
                     'path': module_path
                 }
                 LOGGER.info('yindex on module {}. module {} out of {}'.format(name_revision, x, len(changes_cache)))
-                check_file_availability(module, LOGGER)
 
                 try:
+                    check_file_availability(module, LOGGER)
                     build_indices(es_manager, module, save_file_dir, json_ytree, LOGGER)
                 except Exception:
                     LOGGER.exception('Problem while processing module {}'.format(module_key))
