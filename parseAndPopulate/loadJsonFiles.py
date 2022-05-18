@@ -42,7 +42,6 @@ class LoadFiles:
         """
         LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
         LOGGER.debug('Loading compilation statuses and results')
-        LOGGER.debug('FOOBAR The passed mangled name is {}'.format(mangled_name))
 
         self.names = ['IETFDraft', 'IETFDraftExample', 'IETFYANGRFC']
         if mangled_name:

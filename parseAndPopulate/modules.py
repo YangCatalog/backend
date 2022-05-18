@@ -32,10 +32,10 @@ from datetime import datetime
 
 import statistic.statistics as stats
 from git import InvalidGitRepositoryError
-
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP, github_raw, github_url)
+from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
+                                     github_raw, github_url)
 from utility.util import find_first_file
 
 from parseAndPopulate.dir_paths import DirPaths
@@ -48,11 +48,13 @@ class Submodules:
         self.revision: t.Optional[str] = None
         self.schema: t.Optional[str] = None
 
+
 class Dependency:
     def __init__(self):
         self.name: t.Optional[str] = None
         self.revision: t.Optional[str] = None
         self.schema: t.Optional[str] = None
+
 
 class Implementation:
     def __init__(self):
@@ -79,7 +81,7 @@ class Implementation:
 class Module:
     """This is a class of a single module to parse all the basic metadata we can get out of it."""
 
-    #NOTE: Maybe we should consider passing all or some of the arguments togeather in some sort of structure,
+    # NOTE: Maybe we should consider passing all or some of the arguments togeather in some sort of structure,
     #      as passing this many arguments is ugly and error prone.
     def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths, git_commit_hash: str,
                  yang_modules: dict, schema_base: str, aditional_info: t.Optional[t.Dict[str, str]],
@@ -594,7 +596,7 @@ class Module:
         LOGGER.debug('Resolving prefix')
         return self._resolve_submodule_case('prefix')
 
-    def _resolve_submodule_case(self, field) -> t.Optional[str]:
+    def _resolve_submodule_case(self, field: str) -> t.Optional[str]:
         if self.module_type == 'submodule':
             LOGGER.debug('Getting parent information because file {} is a submodule'.format(self._path))
             if self.belongs_to:
@@ -606,22 +608,26 @@ class Module:
             try:
                 parsed_parent_yang = yangParser.parse(os.path.abspath(yang_file))
                 return parsed_parent_yang.search(field)[0].arg
-            except:
-                return None
+            except IndexError:
+                if field == 'prefix':
+                    return None
+                return MISSING_ELEMENT
         else:
             try:
                 return self._parsed_yang.search(field)[0].arg
-            except:
-                return None
+            except IndexError:
+                if field == 'prefix':
+                    return None
+                return MISSING_ELEMENT
 
     def _parse_status(self) -> t.Tuple[str, t.List[str]]:
         LOGGER.debug('Parsing status of module {}'.format(self._path))
         status = 'unknown'
         ths = []
         for w_rev in [True, False]:
-                status, ths = self._get_module_status(w_rev)
-                if status != 'unknown':
-                    break
+            status, ths = self._get_module_status(w_rev)
+            if status != 'unknown':
+                break
         return status, ths
 
     def _get_module_status(self, with_revision) -> t.Tuple[str, t.List[str]]:
