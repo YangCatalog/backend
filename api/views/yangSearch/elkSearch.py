@@ -67,6 +67,7 @@ class ElkSearch:
         self._remove_columns = list(set(OUTPUT_COLUMNS) - set(self._search_params.output_columns))
         self._row_hashes = []
         self._missing_modules = []
+        self.timeout = False
         log_file_path = os.path.join(logs_dir, 'yang.log')
         self.LOGGER = log.get_logger('yc-elasticsearch', log_file_path)
 
@@ -247,8 +248,9 @@ class ElkSearch:
             elk_response = self._es_manager.generic_search(ESIndices.YINDEX, query_no_agg,
                                                            response_size=RESPONSE_SIZE, use_scroll=True)
         except ConnectionTimeout:
-            self.LOGGER.exception('Failed to connect to Elasticsearch')
+            self.LOGGER.exception('Error while searching in Elasticsearch')
             elk_response['hits'] = {'hits': []}
+            self.timeout = True
         self.LOGGER.debug('search complete with {} hits'.format(len(elk_response['hits']['hits'])))
         self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
@@ -261,8 +263,9 @@ class ElkSearch:
         try:
             elk_response = self._es_manager.scroll(self._current_scroll_id)
         except ConnectionTimeout:
-            self.LOGGER.exception('Failed to connect to Elasticsearch')
+            self.LOGGER.exception('Error while scrolling in Elasticsearch')
             elk_response['hits'] = {'hits': []}
+            self.timeout = True
         self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 
@@ -271,7 +274,7 @@ class ElkSearch:
         try:
             response = self._es_manager.generic_search(ESIndices.YINDEX, self.query)
         except ConnectionTimeout:
-            self.LOGGER.exception('Failed to connect to Elasticsearch')
+            self.LOGGER.exception('Error while resolving aggregations')
         aggregations = response['aggregations']['groupby']['buckets']
         for agg in aggregations:
             self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
