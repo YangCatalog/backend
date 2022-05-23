@@ -30,8 +30,6 @@ from utility.create_config import create_config
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
 
-REQUEST_TIMEOUT = 30
-
 
 class ESManager:
     def __init__(self) -> None:
@@ -41,6 +39,7 @@ class ESManager:
         es_aws = config.get('DB-Section', 'es-aws')
         elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
         self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
+        self.elk_request_timeout = int(config.get('General-Section', 'elk-request-timeout', fallback=60))
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
             'port': config.get('DB-Section', 'es-port', fallback='9200')
@@ -182,11 +181,11 @@ class ESManager:
             except KeyError:
                 pass
 
-        return self.es.index(index=index.value, body=document, request_timeout=REQUEST_TIMEOUT)
+        return self.es.index(index=index.value, body=document, request_timeout=self.elk_request_timeout)
 
     def bulk_modules(self, index: ESIndices, chunk):
         for success, info in parallel_bulk(client=self.es, actions=chunk, index=index.value, thread_count=self.threads,
-                                           request_timeout=REQUEST_TIMEOUT):
+                                           request_timeout=self.elk_request_timeout):
             if not success:
                 self.LOGGER.error('Elasticsearch document failed with info: {}'.format(info))
 
@@ -281,16 +280,16 @@ class ESManager:
 
     def generic_search(self, index: ESIndices, query: dict, response_size: int = 0, use_scroll: bool = False):
         if use_scroll:
-            return self.es.search(index=index.value, body=query, request_timeout=REQUEST_TIMEOUT,
-                                  scroll=u'1m', size=response_size)
-        return self.es.search(index=index.value, body=query, request_timeout=REQUEST_TIMEOUT,
+            return self.es.search(index=index.value, body=query, request_timeout=self.elk_request_timeout,
+                                  scroll=u'10m', size=response_size)
+        return self.es.search(index=index.value, body=query, request_timeout=self.elk_request_timeout,
                               size=response_size)
 
     def clear_scroll(self, scroll_id: str):
         return self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
 
     def scroll(self, scroll_id: str):
-        return self.es.scroll(scroll_id=scroll_id, scroll=u'2m', request_timeout=REQUEST_TIMEOUT)
+        return self.es.scroll(scroll_id=scroll_id, scroll=u'10m', request_timeout=self.elk_request_timeout)
 
     def document_exists(self, index: ESIndices, module: dict) -> bool:
         """ Check whether 'module' already exists in index - if count is greater than 0.

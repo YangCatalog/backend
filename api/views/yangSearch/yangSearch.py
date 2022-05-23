@@ -255,6 +255,7 @@ def search():
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
     response['warning'] = elk_search.alerts()
+    response['timeout'] = elk_search.timeout
     return make_response(jsonify(response), 200)
 
 
