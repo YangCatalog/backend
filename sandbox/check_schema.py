@@ -111,7 +111,7 @@ def __print_patch_response(key: str, response):
 
 if __name__ == '__main__':
     config = create_config()
-    api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
+    api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
     ip = config.get('Web-Section', 'ip', fallback='localhost')
     api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
     is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')

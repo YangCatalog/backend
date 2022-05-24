@@ -57,7 +57,7 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    api_protocol = config.get('General-Section', 'protocol-api')
+    api_protocol = config.get('Web-Section', 'protocol-api')
     api_port = config.get('Web-Section', 'api-port')
     api_host = config.get('Web-Section', 'ip')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')

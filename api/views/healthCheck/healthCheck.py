@@ -143,7 +143,7 @@ def health_check_redis():
 @bp.route('/nginx', methods=['GET'])
 def health_check_nginx():
     service_name = 'NGINX'
-    preffix = '{}://{}'.format(ac.g_protocol_api, ac.w_ip)
+    preffix = '{}://{}'.format(ac.w_protocol_api, ac.w_ip)
     try:
         response = requests.get('{}/nginx-health'.format(preffix), headers=json_headers)
         bp.LOGGER.info('NGINX responded with a code {}'.format(response.status_code))
@@ -166,7 +166,7 @@ def health_check_rabbitmq():
     service_name = 'RabbitMQ'
 
     arguments = ['run_ping', 'ping']
-    preffix = '{}://{}/api/job'.format(ac.g_protocol_api, ac.w_ip)
+    preffix = '{}://{}/api/job'.format(ac.w_protocol_api, ac.w_ip)
     try:
         job_id = ac.sender.send('#'.join(arguments))
         if job_id:
@@ -194,7 +194,7 @@ def health_check_rabbitmq():
 @bp.route('/yangre-admin', methods=['GET'])
 def health_check_yangre_admin():
     service_name = 'yangre'
-    yangre_preffix = '{}://{}/yangre'.format(ac.g_protocol_api, ac.w_ip)
+    yangre_preffix = '{}://{}/yangre'.format(ac.w_protocol_api, ac.w_ip)
 
     pattern = '[0-9]*'
     content = '123456789'
@@ -227,7 +227,7 @@ def health_check_yangre_admin():
 @bp.route('/yang-validator-admin', methods=['GET'])
 def health_check_yang_validator_admin():
     service_name = 'yang-validator'
-    yang_validator_preffix = '{}://{}/yangvalidator'.format(ac.g_protocol_api, ac.w_ip)
+    yang_validator_preffix = '{}://{}/yangvalidator'.format(ac.w_protocol_api, ac.w_ip)
 
     rfc_number = '7223'
     body = json.dumps({'rfc': rfc_number, 'latest': True})
@@ -259,7 +259,7 @@ def health_check_yang_validator_admin():
 @bp.route('/yang-search-admin', methods=['GET'])
 def health_check_yang_search_admin():
     service_name = 'yang-search'
-    yang_search_preffix = '{}://{}/api/search'.format(ac.g_protocol_api, ac.w_ip)
+    yang_search_preffix = '{}://{}/api/search'.format(ac.w_protocol_api, ac.w_ip)
     module_name = 'ietf-syslog,2018-03-15,ietf'
     try:
         response = requests.get('{}/modules/{}'.format(yang_search_preffix, module_name), headers=json_headers)

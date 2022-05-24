@@ -298,7 +298,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    protocol = config.get('General-Section', 'protocol-api')
+    protocol = config.get('Web-Section', 'protocol-api')
     api_ip = config.get('Web-Section', 'ip')
     api_port = config.get('Web-Section', 'api-port')
     config_name = config.get('General-Section', 'repo-config-name')

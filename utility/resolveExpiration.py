@@ -45,7 +45,7 @@ class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         config = create_config()
-        api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
+        api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
         api_port = config.get('Web-Section', 'api-port', fallback=5000)
         api_host = config.get('Web-Section', 'ip', fallback='localhost')
         credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()

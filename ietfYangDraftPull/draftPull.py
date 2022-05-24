@@ -87,7 +87,7 @@ def main(scriptConf=None):
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
-    exceptions = config.get('Directory-Section', 'exceptions')
+    rfc_exceptions = config.get('Directory-Section', 'rfc-exceptions')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
@@ -138,7 +138,7 @@ def main(scriptConf=None):
 
             shutil.rmtree('{}/standard/ietf/RFCtemp'.format(repo.local_dir))
 
-            with open(exceptions, 'r') as exceptions_file:
+            with open(rfc_exceptions, 'r') as exceptions_file:
                 remove_from_new = exceptions_file.read().split('\n')
             new_files = [file_name for file_name in new_files if file_name not in remove_from_new]
 

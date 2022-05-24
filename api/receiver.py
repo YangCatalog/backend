@@ -48,15 +48,15 @@ from distutils.dir_util import copy_tree
 
 import pika
 import requests
-
 import utility.log as log
-from api.status_message import StatusMessage
 from redisConnections.redisConnection import RedisConnection
 from utility import messageFactory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_removal, send_for_es_indexing
+
+from api.status_message import StatusMessage
 
 
 class Receiver:
@@ -236,8 +236,7 @@ class Receiver:
             body_to_send = prepare_for_es_removal(self._yangcatalog_api_prefix, deleted_modules,
                                                   self._save_file_dir, self.LOGGER)
             if body_to_send.get('modules-to-delete'):
-                send_for_es_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
-                                     self._lock_file)
+                send_for_es_indexing(body_to_send, self.LOGGER, self.indexing_paths)
         return StatusMessage.SUCCESS
 
     def iterate_in_depth(self, value: dict, modules_keys: t.Set[str]):
@@ -360,8 +359,7 @@ class Receiver:
                                                   self._save_file_dir, self.LOGGER)
 
             if len(body_to_send) > 0:
-                send_for_es_indexing(body_to_send, self.LOGGER, self._changes_cache_path, self._delete_cache_path,
-                                     self._lock_file)
+                send_for_es_indexing(body_to_send, self.LOGGER, self.indexing_paths)
         if len(modules_not_deleted) == 0:
             return StatusMessage.SUCCESS, ''
         else:
@@ -413,7 +411,7 @@ class Receiver:
         logging.getLogger('pika').setLevel(logging.INFO)
         self._api_ip = config.get('Web-Section', 'ip')
         self._api_port = int(config.get('Web-Section', 'api-port'))
-        self._api_protocol = config.get('General-Section', 'protocol-api')
+        self._api_protocol = config.get('Web-Section', 'protocol-api')
         self._notify_indexing = config.get('General-Section', 'notify-index')
         self._save_file_dir = config.get('Directory-Section', 'save-file-dir')
         self._yang_models = config.get('Directory-Section', 'yang-models-dir')
@@ -422,11 +420,19 @@ class Receiver:
         self._rabbitmq_port = int(config.get('RabbitMQ-Section', 'port', fallback='5672'))
         self._changes_cache_path = config.get('Directory-Section', 'changes-cache')
         self._delete_cache_path = config.get('Directory-Section', 'delete-cache')
+        self._failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
         self._lock_file = config.get('Directory-Section', 'lock')
         rabbitmq_username = config.get('RabbitMQ-Section', 'username', fallback='guest')
-        rabbitmq_password = config.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
+        rabbitmq_password = config.get('Secrets-Section', 'rabbitmq-password', fallback='guest')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
+
+        self.indexing_paths = {
+            'cache_path': self._changes_cache_path,
+            'deletes_path': self._delete_cache_path,
+            'failed_path': self._failed_changes_cache_path,
+            'lock_path': self._lock_file
+        }
 
         self._notify_indexing = self._notify_indexing == 'True'
         separator = ':'
@@ -617,8 +623,7 @@ class Receiver:
     def run_ping(self, message: str) -> StatusMessage:
         if message == 'ping':
             return StatusMessage.SUCCESS
-        else:
-            return StatusMessage.FAIL
+        return StatusMessage.FAIL
 
 
 if __name__ == '__main__':
