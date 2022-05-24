@@ -135,34 +135,31 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cache_path: str,
-                         delete_cache_path: str, lock_file: str):
+def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, paths: dict):
     """
     Creates a json file that will be used for Elasticsearch indexing.
 
     Arguments:
         :param body_to_send:        (dict) body that needs to be indexed
         :param LOGGER:              (logging.Logger) Logger used for logging
-        :param changes_cache_path   (str) path to file containing module to be indexed (can be empty)
-        :param delete_cache_path    (str) path to file containing module to be removed from indexing (can be empty)
-        :param lock_file:           (str) path to file working as a lock file. If exists script has to wait until removed
+        :param paths                (dict) dict containing paths to the necessary files
     """
-    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(changes_cache_path, delete_cache_path))
-    while os.path.exists(lock_file):
+    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(paths['cache_path'], paths['deletes_path']))
+    while os.path.exists(paths['lock_path']):
         time.sleep(10)
     try:
         try:
-            open(lock_file, 'w').close()
+            open(paths['lock_path'], 'w').close()
         except Exception:
-            raise Exception('Failed to obtain lock {}'.format(lock_file))
+            raise Exception('Failed to obtain lock {}'.format(paths['lock_path']))
 
         changes_cache = dict()
         delete_cache = []
-        if os.path.exists(changes_cache_path) and os.path.getsize(changes_cache_path) > 0:
-            with open(changes_cache_path, 'r') as reader:
+        if os.path.exists(paths['cache_path']) and os.path.getsize(paths['cache_path']) > 0:
+            with open(paths['cache_path'], 'r') as reader:
                 changes_cache = json.load(reader)
-        if os.path.exists(delete_cache_path) and os.path.getsize(delete_cache_path) > 0:
-            with open(delete_cache_path, 'r') as reader:
+        if os.path.exists(paths['deletes_path']) and os.path.getsize(paths['deletes_path']) > 0:
+            with open(paths['deletes_path'], 'r') as reader:
                 delete_cache = json.load(reader)
 
         if body_to_send.get('modules-to-index') is None:
@@ -181,19 +178,20 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, changes_cac
             if not exists:
                 delete_cache.append(mname)
 
-        with open(changes_cache_path, 'w') as writer:
+        with open(paths['cache_path'], 'w') as writer:
             json.dump(changes_cache, writer, indent=2)
 
-        with open(delete_cache_path, 'w') as writer:
+        with open(paths['deletes_path'], 'w') as writer:
             json.dump(delete_cache, writer, indent=2)
     except Exception as e:
         LOGGER.exception('Problem while sending modules to indexing')
-        os.unlink(lock_file)
+        os.unlink(paths['lock_path'])
         raise Exception('Caught exception {}'.format(e))
-    os.unlink(lock_file)
+    os.unlink(paths['lock_path'])
 
 
 def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, LOGGER: logging.Logger):
+    redisConnection = RedisConnection()
     for mod_to_delete in modules_to_delete:
         name, revision_organization = mod_to_delete.split('@')
         revision = revision_organization.split('/')[0]
@@ -206,7 +204,6 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
             modules = data['yang-catalog:modules']['module']
             for mod in modules:
                 redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
-                redisConnection = RedisConnection()
                 redisConnection.delete_dependent(redis_key, name)
         if os.path.exists(path_to_delete_local):
             os.remove(path_to_delete_local)

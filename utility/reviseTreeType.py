@@ -45,7 +45,7 @@ class ScriptConfig(BaseScriptConfig):
                'Runs as a daily cronjob.'
         config = create_config()
         super().__init__(help, None, [])
-        self.api_protocol = config.get('General-Section', 'protocol-api', fallback='http')
+        self.api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)

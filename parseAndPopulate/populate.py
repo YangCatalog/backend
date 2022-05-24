@@ -58,7 +58,7 @@ class ScriptConfig(BaseScriptConfig):
     def __init__(self):
         config = create_config()
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        api_protocol = config.get('General-Section', 'protocol-api')
+        api_protocol = config.get('Web-Section', 'protocol-api')
         api_port = config.get('Web-Section', 'api-port')
         api_ip = config.get('Web-Section', 'ip')
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
@@ -153,6 +153,7 @@ class ScriptConfig(BaseScriptConfig):
         self.cache_dir = config.get('Directory-Section', 'cache')
         self.delete_cache_path = config.get('Directory-Section', 'delete-cache')
         self.lock_file = config.get('Directory-Section', 'lock')
+        self.failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
 
 
@@ -269,8 +270,13 @@ def main(scriptConf=None):
         redisConnection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
-        send_for_es_indexing(body_to_send, LOGGER, scriptConf.changes_cache_path, scriptConf.delete_cache_path,
-                             scriptConf.lock_file)
+        indexing_paths = {
+            'cache_path': scriptConf.changes_cache_path,
+            'deletes_path': scriptConf.delete_cache_path,
+            'failed_path': scriptConf.failed_changes_cache_path,
+            'lock_path': scriptConf.lock_file
+        }
+        send_for_es_indexing(body_to_send, LOGGER, indexing_paths)
     if modules:
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
                                                        args=(args.credentials, yangcatalog_api_prefix,))

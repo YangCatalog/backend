@@ -35,7 +35,6 @@ class YangCatalogApiGlobalConfig():
 
     def load_config(self):
         config = create_config()
-        self.search_key = config.get('Secrets-Section', 'update-signature', fallback='')
         self.secret_key = config.get('Secrets-Section', 'flask-secret-key', fallback='S3CR3T!')
         self.nginx_dir = config.get('Directory-Section', 'nginx-conf', fallback='')
         self.result_dir = config.get('Web-Section', 'result-html-dir', fallback='tests/resources/html/results')
@@ -45,7 +44,7 @@ class YangCatalogApiGlobalConfig():
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
         self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='yangcatalog.org')
         self.confdPort = int(config.get('Web-Section', 'confd-port', fallback=8008))
-        self.protocol = config.get('General-Section', 'protocol-confd', fallback='http')
+        self.protocol = config.get('Web-Section', 'protocol-confd', fallback='http')
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='/var/yang/test-requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
@@ -62,7 +61,7 @@ class YangCatalogApiGlobalConfig():
         self.oidc_redirects = config.get('Web-Section', 'redirect-oidc', fallback='').split(' ')
         self.oidc_issuer = config.get('Web-Section', 'issuer', fallback='')
         self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-        self.api_protocol = config.get('General-Section', 'protocol-api', fallback='https')
+        self.api_protocol = config.get('Web-Section', 'protocol-api', fallback='https')
         self.is_prod = config.get('General-Section', 'is-prod', fallback='False')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')

@@ -96,14 +96,13 @@ class MyFlask(Flask):
     def post_config_load(self):
         self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
-        self.config['DB-ES-AWS'] = self.config.db_es_aws == 'True'
         self.config['ES-MANAGER'] = ESManager()
 
         rabbitmq_host = self.config.config_parser.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
         rabbitmq_port = int(self.config.config_parser.get('RabbitMQ-Section', 'port', fallback='5672'))
         rabbitmq_virtual_host = self.config.config_parser.get('RabbitMQ-Section', 'virtual-host', fallback='/')
         rabbitmq_username = self.config.config_parser.get('RabbitMQ-Section', 'username', fallback='guest')
-        rabbitmq_password = self.config.config_parser.get('Secrets-Section', 'rabbitMq-password', fallback='guest')
+        rabbitmq_password = self.config.config_parser.get('Secrets-Section', 'rabbitmq-password', fallback='guest')
         self.config['SENDER'] = Sender(
             self.config.d_logs, self.config.d_temp,
             rabbitmq_host=rabbitmq_host,
@@ -119,7 +118,7 @@ class MyFlask(Flask):
             separator = '/'
             suffix = 'api'
         self.config['YANGCATALOG-API-PREFIX'] = '{}://{}{}{}/' \
-            .format(self.config.g_protocol_api, self.config.w_ip, separator, suffix)
+            .format(self.config.w_protocol_api, self.config.w_ip, separator, suffix)
 
         self.config['G-IS-PROD'] = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(

@@ -40,7 +40,7 @@ class ConfdService:
         config = create_config()
         self.__confd_ip = config.get('Web-Section', 'confd-ip')
         self.__confd_port = config.get('Web-Section', 'confd-port')
-        self.__confd_protocol = config.get('General-Section', 'protocol-confd')
+        self.__confd_protocol = config.get('Web-Section', 'protocol-confd')
         self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
         self.log_directory = config.get('Directory-Section', 'logs')
 
