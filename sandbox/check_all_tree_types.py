@@ -11,30 +11,21 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 from utility.create_config import create_config
 
-if __name__ == '__main__':
+
+def main():
     start = time.time()
     config = create_config()
-    api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
-    ip = config.get('Web-Section', 'ip', fallback='localhost')
-    api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-    is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
     yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
     json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
-    suffix = api_port
-    separator = ':'
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
-    url = '{}search/modules'.format(yangcatalog_api_prefix)
+    url = '{}/search/modules'.format(yangcatalog_api_prefix)
     LOGGER.info('Getting all the modules from: {}'.format(url))
     response = requests.get(url, headers={'Accept': 'application/json'})
 
@@ -54,15 +45,19 @@ if __name__ == '__main__':
 
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
-            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
-                                                                 save_file_dir, direc, batch_modules, yang_models,
-                                                                 temp_dir, json_ytree)
-            complicatedAlgorithms.parse_non_requests()
+            complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
+                                                                  save_file_dir, direc, batch_modules, yang_models,
+                                                                  temp_dir, json_ytree)
+            complicated_algorithms.parse_non_requests()
             sys.setrecursionlimit(recursion_limit)
-            complicatedAlgorithms.populate()
-        except:
+            complicated_algorithms.populate()
+        except Exception:
             LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
 
     end = time.time()
     LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
+
+
+if __name__ == '__main__':
+    main()

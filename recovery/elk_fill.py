@@ -57,21 +57,12 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    api_protocol = config.get('Web-Section', 'protocol-api')
-    api_port = config.get('Web-Section', 'api-port')
-    api_host = config.get('Web-Section', 'ip')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     temp = config.get('Directory-Section', 'temp')
-    is_uwsgi = config.get('General-Section', 'uwsgi')
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    separator = ':'
-    suffix = api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_host, separator, suffix)
     try:
-        response = requests.get('{}search/modules'.format(yangcatalog_api_prefix))
+        response = requests.get('{}/search/modules'.format(yangcatalog_api_prefix))
     except ConnectionError:
         print('Failed to fetch data from {}'.format(yangcatalog_api_prefix))
         sys.exit(1)

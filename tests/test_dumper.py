@@ -36,7 +36,6 @@ class TestDumperClass(unittest.TestCase):
 
         # Declare variables
         self.schema_base = '{}/YangModels/yang/'.format(github_raw)
-        self.yangcatalog_api_prefix = '{}/api/'.format(yc_gc.my_uri)
         self.prepare_output_filename = 'prepare'
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
@@ -67,7 +66,7 @@ class TestDumperClass(unittest.TestCase):
 
         yang = self.declare_sdo_module()
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
         dumper.add_module(yang)
 
         created_key = list(dumper.yang_modules.keys())[0]
@@ -83,7 +82,7 @@ class TestDumperClass(unittest.TestCase):
         """
         yang = self.declare_sdo_module()
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
         dumper.add_module(yang)
         dumper.dump_modules(yc_gc.temp_dir)
 
@@ -128,7 +127,7 @@ class TestDumperClass(unittest.TestCase):
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_version)
         # Dumper object
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
         dumper.add_module(yang)
         dumper.dump_vendors(yc_gc.temp_dir)
 
@@ -155,7 +154,7 @@ class TestDumperClass(unittest.TestCase):
         # Clear dependencies property to test functionality of __get_dependencies() method
         yang.dependencies = []
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
         dumper.add_module(yang)
         dumper.dump_modules(yc_gc.temp_dir)
 
@@ -183,7 +182,7 @@ class TestDumperClass(unittest.TestCase):
             implementation.deviations = []
 
         # Dumper object
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, self.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
         dumper.add_module(yang)
         dumper.dump_vendors(yc_gc.temp_dir)
 

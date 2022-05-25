@@ -96,24 +96,25 @@ def list_yang_modules_recursive(srcdir: str) -> t.List[str]:
     """
     ll = []
     for root, _, files in os.walk(srcdir):
-        for f in files:
-            if f.endswith('.yang'):
-                ll.append(os.path.join(root, f))
+        for file in files:
+            if file.endswith('.yang'):
+                ll.append(os.path.join(root, file))
     return ll
 
 
-def get_total_and_passed(dir: str) -> t.Tuple[int, int]:
+def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
     """Get the number of yang files in a specified directory and the
     number that passed compilation.
-        Arguments:
-            :param path_dir: (str) path to the directory where to search for
-                yang files
-            :return: tuple containing the number of yang files and the number
-                that passed compilation respectively
+    
+    Argument:
+        :param path_dir: (str) path to the directory where to search for
+            yang files
+        :return: tuple containing the number of yang files and the number
+            that passed compilation respectively
     """
     passed = 0
     num_in_catalog = 0
-    yang_modules = list_yang_modules_recursive(dir)
+    yang_modules = list_yang_modules_recursive(directory)
     num_of_modules = len(yang_modules)
     checked = {}
     for i, module_path in enumerate(yang_modules, start=1):
@@ -298,29 +299,20 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    protocol = config.get('Web-Section', 'protocol-api')
-    api_ip = config.get('Web-Section', 'ip')
-    api_port = config.get('Web-Section', 'api-port')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     move_to = '{}/.'.format(config.get('Web-Section', 'public-directory'))
-    is_uwsgi = config.get('General-Section', 'uwsgi')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     private_dir = config.get('Web-Section', 'private-directory')
+    global yangcatalog_api_prefix
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     global LOGGER
     LOGGER = log.get_logger('statistics', '{}/statistics/yang.log'.format(log_directory))
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    else:
-        separator = ':'
-        suffix = api_port
-    global yangcatalog_api_prefix
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(protocol, api_ip, separator, suffix)
     LOGGER.info('Starting statistics')
+    
     repo = None
 
     # Fetch the list of all modules known by YangCatalog
@@ -469,9 +461,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         # Standard separately
         sdo_list = []
 
-        def process_sdo_dir(dir: str, name: str):
-            out = get_output(rootdir=os.path.join(yang_models, dir))
-            process_data(out, sdo_list, os.path.join(yang_models, dir), name)
+        def process_sdo_dir(directory: str, name: str):
+            out = get_output(rootdir=os.path.join(yang_models, directory))
+            process_data(out, sdo_list, os.path.join(yang_models, directory), name)
 
         process_sdo_dir('standard/ietf/RFC', 'IETF RFCs')
         process_sdo_dir('standard/ietf/DRAFT', 'IETF drafts')

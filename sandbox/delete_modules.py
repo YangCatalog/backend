@@ -7,26 +7,16 @@ import os
 import requests
 from utility.create_config import create_config
 
-if __name__ == '__main__':
+
+def main():
     config = create_config()
-    api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
-    ip = config.get('Web-Section', 'ip', fallback='localhost')
-    api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-    is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
-
-    separator = ':'
-    suffix = api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     # Get either all the modules from Yangcatalog, or search for specific modules based on condition
     # Currently set to select all Huawei modules
-    url = '{}search/organization/huawei'.format(yangcatalog_api_prefix)
+    url = '{}/search/organization/huawei'.format(yangcatalog_api_prefix)
     response = requests.get(url, headers={'Accept': 'application/json'})
     modules_list = response.json().get('yang-catalog:modules', {}).get('module', [])
 
@@ -49,8 +39,12 @@ if __name__ == '__main__':
 
     # Send DELETE request to /api/modules
     body = {'input': {'modules': to_delete_list}}
-    url = '{}modules'.format(yangcatalog_api_prefix)
+    url = '{}/modules'.format(yangcatalog_api_prefix)
     response = requests.delete(url, json=body, auth=(credentials[0], credentials[1]))
 
     print('Delete request responded with status code {}'.format(response.status_code))
     print(response.text)
+
+
+if __name__ == '__main__':
+    main()

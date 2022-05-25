@@ -131,7 +131,7 @@ class Receiver:
         vendor, platform, software_version, software_flavor = arguments[3:7]
         # confd_suffix = arguments[-1]
 
-        path = '{}search'.format(self._yangcatalog_api_prefix)
+        path = '{}/search'.format(self._yangcatalog_api_prefix)
         redis_vendor_key = ''
         data_key = 'vendor'
         if vendor != 'None':
@@ -269,7 +269,7 @@ class Receiver:
             :return 'work' string if everything went through fine otherwise send back the reason why
                 it failed.
         """
-        path = self._yangcatalog_api_prefix + 'load-cache'
+        path = '{}/load-cache'.format(self._yangcatalog_api_prefix)
         response = requests.post(path, auth=(credentials[0], credentials[1]), headers=json_headers)
         code = response.status_code
 
@@ -426,6 +426,7 @@ class Receiver:
         rabbitmq_password = config.get('Secrets-Section', 'rabbitmq-password', fallback='guest')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
+        self._yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
         self.indexing_paths = {
             'cache_path': self._changes_cache_path,
@@ -435,12 +436,6 @@ class Receiver:
         }
 
         self._notify_indexing = self._notify_indexing == 'True'
-        separator = ':'
-        suffix = self._api_port
-        if self._is_uwsgi == 'True':
-            separator = '/'
-            suffix = 'api'
-        self._yangcatalog_api_prefix = '{}://{}{}{}/'.format(self._api_protocol, self._api_ip, separator, suffix)
         self._rabbitmq_credentials = pika.PlainCredentials(
             username=rabbitmq_username,
             password=rabbitmq_password)

@@ -261,7 +261,7 @@ class TestResolveExpirationClass(unittest.TestCase):
 
         self.assertIn('help', script_help)
         self.assertIn('options', script_help)
-        self.assertNotEqual(script_help.get('options'), {})
+        self.assertEqual(script_help.get('options'), {})
 
     def test_resolveExpiration_get_args_list(self):
         """ Test whether script default arguments has the correct structure (check only structure not content).
@@ -273,10 +273,7 @@ class TestResolveExpirationClass(unittest.TestCase):
 
         script_args_list = script_conf.get_args_list()
 
-        self.assertNotEqual(script_args_list, {})
-        for key in script_args_list:
-            self.assertIn('type', script_args_list.get(key))
-            self.assertIn('default', script_args_list.get(key))
+        self.assertEqual(script_args_list, {})
 
     ##########################
     ### HELPER DEFINITIONS ###

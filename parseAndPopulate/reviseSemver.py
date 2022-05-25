@@ -4,7 +4,7 @@ then it goes through modules list and get only first revision of each
 unique module.
 Unique modules can be dumped into prepare json and also unique modules
 can be loaded from prepare json file.
-parser_semver() method is the called, which will reevaluate semver for
+parser_semver() method is then called, which will reevaluate semver for
 each module (and all of the revisions).
 Lastly, populate() method will send PATCH request to ConfD and
 cache will be re-loaded using api/load-cache endpoint.
@@ -28,21 +28,16 @@ from parseAndPopulate.modulesComplicatedAlgorithms import \
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
+        help = 'This script gets all the existing modules from Yangcatalog, '\
+            'then it goes through modules list and get only first revision of each '\
+            'unique module. parser_semver() method is then called, which will reevaluate semver for '\
+            'each module (and all of the revisions). '\
+            'Lastly, populate() method will send PATCH request to ConfD and ' \
+            'cache will be re-loaded.'
+
         help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
                ' to confd directory'
-        config = create_config()
         super().__init__(help, None, [])
-
-        self.api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
-        self.ip = config.get('Web-Section', 'ip', fallback='localhost')
-        self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-        self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
-        self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
-        self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-        self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
 
 def get_date(revision: str):
@@ -65,8 +60,7 @@ def get_older_revision(module1: dict, module2: dict):
     date2 = get_date(module2.get('revision'))
     if date1 < date2:
         return module1
-    else:
-        return module2
+    return module2
 
 
 def get_list_of_unique_modules(all_existing_modules: list):
@@ -93,42 +87,33 @@ def get_list_of_unique_modules(all_existing_modules: list):
 
 def dump_to_json(path: str, modules: list):
     # Create prepare.json file for possible future use
-    with open(path, 'w') as f:
-        json.dump({'module': modules}, f)
+    with open(path, 'w') as writer:
+        json.dump({'module': modules}, writer)
 
 
 def load_from_json(path: str):
     # Load dumped data from json file
-    with open(path, 'r') as f:
-        return json.load(f)
+    with open(path, 'r') as reader:
+        return json.load(reader)
 
 
 def main(scriptConf=None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
-    api_protocol = scriptConf.api_protocol
-    ip = scriptConf.ip
-    api_port = scriptConf.api_port
-    is_uwsgi = scriptConf.is_uwsgi
-    temp_dir = scriptConf.temp_dir
-    log_directory = scriptConf.log_directory
-    save_file_dir = scriptConf.save_file_dir
-    yang_models = scriptConf.yang_models
-    credentials = scriptConf.credentials
-    json_ytree = scriptConf.json_ytree
+    config = create_config()
+
+    temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
+    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
+    yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
+    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
+    json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
-    separator = ':'
-    suffix = api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
-    # yangcatalog_api_prefix = 'https://yangcatalog.org/api/'
-    url = '{}search/modules'.format(yangcatalog_api_prefix)
+    url = '{}/search/modules'.format(yangcatalog_api_prefix)
     LOGGER.info('Getting all the modules from: {}'.format(url))
     response = requests.get(url, headers={'Accept': 'application/json'})
 
@@ -156,12 +141,12 @@ def main(scriptConf=None):
             batch_modules = {'module': batch}
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
-            complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
-                                                                 save_file_dir, direc, batch_modules, yang_models,
-                                                                 temp_dir, json_ytree)
-            complicatedAlgorithms.parse_semver()
+            complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
+                                                                  save_file_dir, direc, batch_modules, yang_models,
+                                                                  temp_dir, json_ytree)
+            complicated_algorithms.parse_semver()
             sys.setrecursionlimit(recursion_limit)
-            complicatedAlgorithms.populate()
+            complicated_algorithms.populate()
         except:
             LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue

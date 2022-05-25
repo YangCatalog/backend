@@ -20,8 +20,8 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
-
 import typing as t
+
 import utility.log as log
 
 from parseAndPopulate.modules import Module
@@ -78,7 +78,7 @@ class Dumper:
             self.yang_modules[key].implementations.extend(yang.implementations)
         else:
             if yang.tree is not None:
-                yang.tree = self.yangcatalog_api_prefix + yang.tree
+                yang.tree = '{}/{}'.format(self.yangcatalog_api_prefix, yang.tree)
             self.yang_modules[key] = yang
 
     def dump_modules(self, directory: str):
