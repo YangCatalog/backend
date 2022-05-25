@@ -300,8 +300,7 @@ def trigger_populate():
             app.logger.info('Forking the repo')
             try:
                 populate_path = os.path.join(os.environ['BACKEND'], 'parseAndPopulate/populate.py')
-                arguments = ['python', populate_path, '--api-protocol', ac.w_protocol_api,
-                             '--api-port', ac.w_api_port, '--api-ip', ac.w_ip,
+                arguments = ['python', populate_path,
                              '--result-html-dir', ac.w_result_html_dir,
                              '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1],
                              '--save-file-dir', ac.d_save_file_dir, 'repoLocalDir']

@@ -700,16 +700,22 @@ def create_tree(name: str, revision: str):
     f = io.StringIO()
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
+    context = {
+        'title': 'YANG Tree {}@{}'.format(name, revision)
+    }
     if stdout == '' and len(ctx.errors) != 0:
-        message = 'This yang file contains major errors and therefore tree can not be created.'
-        return create_bootstrap_danger(message)
+        context['message'] = 'This yang file contains major errors and therefore tree can not be created.'
+        return create_bootstrap(context, 'danger.html')
     elif stdout != '' and len(ctx.errors) != 0:
-        message = 'This yang file contains some errors, but tree was created.'
-        return create_bootstrap_warning(stdout, message)
+        context['message'] = 'This yang file contains some errors, but tree was created.'
+        context['text'] = stdout
+        return create_bootstrap(context, 'warning.html')
     elif stdout == '' and len(ctx.errors) == 0:
-        return create_bootstrap_info()
+        context['message'] = 'This yang file does not contain any tree.'
+        return create_bootstrap(context, 'info.html')
     else:
-        return '<html><body><pre>{}</pre></body></html>'.format(stdout)
+        context['text'] = stdout
+        return create_bootstrap(context, 'tree.html')
 
 
 @bp.route('/services/reference/<name>@<revision>.yang', methods=['GET'])
@@ -722,12 +728,15 @@ def create_reference(name: str, revision: str):
         :return preformatted HTML with corresponding data
     """
     path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
+    context = {
+        'title': 'Reference {}@{}'.format(name, revision)
+    }
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_content = escape(f.read())
     except FileNotFoundError:
-        message = 'File {}@{}.yang was not found.'.format(name, revision)
-        return create_bootstrap_danger(message)
+        context['message'] = 'File {}@{}.yang was not found.'.format(name, revision)
+        return create_bootstrap(context, 'danger.html')
 
     return '<html><body><pre>{}</pre></body></html>'.format(yang_file_content)
 
@@ -948,27 +957,9 @@ def catalog_data():
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(json.dumps(catalog_data))
 
 
-def create_bootstrap_info():
-    with open(os.path.join(os.environ['BACKEND'], 'api/template/info.html'), 'r') as f:
-        template = f.read()
-    return template
-
-
-def create_bootstrap_warning(text: str, message: str):
-    app.logger.info('Rendering bootstrap warning data')
-    context = {'warn_text': text, 'warn_message': message}
+def create_bootstrap(context: dict, template: str):
+    app.logger.info('Rendering bootstrap with {} template'.format(template))
     path = os.path.join(os.environ['BACKEND'], 'api/template')
-    filename = 'warning.html'
 
     return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
-                              ).get_template(filename).render(context)
-
-
-def create_bootstrap_danger(message: str):
-    app.logger.info('Rendering bootstrap danger data')
-    context = {'danger_message': message}
-    path = os.path.join(os.environ['BACKEND'], 'api/template')
-    filename = 'danger.html'
-
-    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
-                              ).get_template(filename).render(context)
+                              ).get_template(template).render(context)

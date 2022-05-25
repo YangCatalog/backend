@@ -8,10 +8,11 @@
 api/vendor
 api/standard
 **/*.html
+!statistics/template/stats.html
+!api/template/*.html
 !elasticsearchIndexing/json/**/*
 !api/views/yangSearch/json/*
 /venv
-!statistics/template/stats.html
 yang.egg-info
 /parseAndPopulate/**/*.yang
 /parseAndPopulate/**/*.xml
