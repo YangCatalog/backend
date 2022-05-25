@@ -48,7 +48,7 @@ class MyFlask(Flask):
         self.release_locked = []
         self.permanent_session_lifetime = timedelta(minutes=20)
         self.load_config()
-        self.logger.debug('API initialized at {}'.format(self.config.yangcatalog_api_prefix))
+        self.logger.debug('API initialized at {}'.format(self.config.w_yangcatalog_api_prefix))
         self.logger.debug('Starting api')
         self.secret_key = self.config.s_flask_secret_key
         self.confdService = ConfdService()
@@ -111,14 +111,6 @@ class MyFlask(Flask):
             rabbitmq_username=rabbitmq_username,
             rabbitmq_password=rabbitmq_password
         )
-
-        separator = ':'
-        suffix = self.config.w_api_port
-        if self.config.g_uwsgi == 'True':
-            separator = '/'
-            suffix = 'api'
-        self.config['YANGCATALOG-API-PREFIX'] = '{}://{}{}{}/' \
-            .format(self.config.w_protocol_api, self.config.w_ip, separator, suffix)
 
         self.config['G-IS-PROD'] = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(
@@ -237,8 +229,8 @@ class MyFlask(Flask):
                             'revision': dep['revision']
                         }
                     })
-                    rp = requests.post('{}search-filter'.format(
-                        self.config.yangcatalog_api_prefix), search_filter,
+                    rp = requests.post('{}/search-filter'.format(
+                        self.config.w_yangcatalog_api_prefix), search_filter,
                         headers={
                             'Content-type': 'application/json',
                             'Accept': 'application/json'}
@@ -246,8 +238,8 @@ class MyFlask(Flask):
                     mo = rp.json()['yang-catalog:modules']['module'][0]
                     self.get_dependencies(mo, mods, inset)
                 else:
-                    rp = requests.get('{}search/name/{}'
-                                      .format(self.config.yangcatalog_api_prefix,
+                    rp = requests.get('{}/search/name/{}'
+                                      .format(self.config.w_yangcatalog_api_prefix,
                                               dep['name']))
                     if rp.status_code == 404:
                         continue

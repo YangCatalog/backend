@@ -43,49 +43,33 @@ class ScriptConfig(BaseScriptConfig):
     def __init__(self):
         help = 'Resolve the tree-type for modules that are no longer the latest revision. ' \
                'Runs as a daily cronjob.'
-        config = create_config()
         super().__init__(help, None, [])
-        self.api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
-        self.ip = config.get('Web-Section', 'ip', fallback='localhost')
-        self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-        self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
-        self.temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
-        self.log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-        self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir',
-                                      fallback='/var/yang/nonietf/yangmodels/yang')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
-        self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
 
 
 def main(scriptConf=None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
-    log_directory = scriptConf.log_directory
+    
+    config = create_config()
+    temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
+    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+    save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
+    yang_models = config.get('Directory-Section', 'yang-models-dir',
+                             fallback='/var/yang/nonietf/yangmodels/yang')
+    credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+    json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
+
     LOGGER = log.get_logger('reviseTreeType', '{}/parseAndPopulate.log'.format(log_directory))
     LOGGER.info('Starting Cron job for reviseTreeType')
-    api_protocol = scriptConf.api_protocol
-    ip = scriptConf.ip
-    api_port = scriptConf.api_port
-    is_uwsgi = scriptConf.is_uwsgi
-    separator = ':'
-    suffix = api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
-    credentials = scriptConf.credentials
-    save_file_dir = scriptConf.save_file_dir
     direc = '/var/yang/tmp'
-    yang_models = scriptConf.yang_models
-    temp_dir = scriptConf.temp_dir
-    json_ytree = scriptConf.json_ytree
-    complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                         credentials, save_file_dir,
-                                                         direc, {}, yang_models, temp_dir,
-                                                         json_ytree)
-    response = requests.get('{}search/modules'.format(yangcatalog_api_prefix))
+
+    complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                          credentials, save_file_dir,
+                                                          direc, {}, yang_models, temp_dir,
+                                                          json_ytree)
+    response = requests.get('{}/search/modules'.format(yangcatalog_api_prefix))
     if response.status_code != 200:
         LOGGER.error('Failed to fetch list of modules')
         job_log(start_time, temp_dir, os.path.basename(__file__), error=response.text, status='Fail')
@@ -93,12 +77,13 @@ def main(scriptConf=None):
     modules_revise = []
     modules = response.json()['module']
     for module in modules:
-        if module.get('tree-type') == 'nmda-compatible':
-            if not complicatedAlgorithms.check_if_latest_revision(module):
-                modules_revise.append(module)
+        if module.get('tree-type') != 'nmda-compatible':
+            continue
+        if not complicated_algorithms.check_if_latest_revision(module):
+            modules_revise.append(module)
     LOGGER.info('Resolving tree-types for {} modules'.format(len(modules_revise)))
-    complicatedAlgorithms.resolve_tree_type({'module': modules_revise})
-    complicatedAlgorithms.populate()
+    complicated_algorithms.resolve_tree_type({'module': modules_revise})
+    complicated_algorithms.populate()
     LOGGER.info('Job finished successfully')
     job_log(start_time, temp_dir, os.path.basename(__file__), status='Success')
 

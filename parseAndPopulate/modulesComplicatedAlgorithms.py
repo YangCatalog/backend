@@ -70,7 +70,7 @@ class ModulesComplicatedAlgorithms:
         self._trees = defaultdict(dict)
         self._unavailable_modules = []
         LOGGER.info('get all existing modules')
-        response = requests.get('{}search/modules'.format(self._yangcatalog_api_prefix),
+        response = requests.get('{}/search/modules'.format(self._yangcatalog_api_prefix),
                                 headers=json_headers)
         existing_modules = response.json().get('module', [])
         self._existing_modules_dict = defaultdict(dict)
@@ -106,7 +106,7 @@ class ModulesComplicatedAlgorithms:
         redisConnection.populate_modules(new_modules)
 
         if len(new_modules) > 0:
-            url = '{}load-cache'.format(self._yangcatalog_api_prefix)
+            url = '{}/load-cache'.format(self._yangcatalog_api_prefix)
             response = requests.post(url, None,
                                      auth=(self._credentials[0], self._credentials[1]))
             if response.status_code != 201:

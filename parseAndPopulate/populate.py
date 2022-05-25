@@ -58,9 +58,6 @@ class ScriptConfig(BaseScriptConfig):
     def __init__(self):
         config = create_config()
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
-        api_protocol = config.get('Web-Section', 'protocol-api')
-        api_port = config.get('Web-Section', 'api-port')
-        api_ip = config.get('Web-Section', 'ip')
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
         help = 'Parse hello messages and YANG files to a JSON dictionary. These ' \
@@ -68,25 +65,6 @@ class ScriptConfig(BaseScriptConfig):
                'runs the runCapabilities.py script to create JSON files which are ' \
                'used to populate database.'
         args: t.List[Arg] = [
-            {
-                'flag': '--api-ip',
-                'help': 'Set host address where the API is started. Default: {}'.format(api_ip),
-                'type': str,
-                'default': api_ip
-            },
-            {
-                'flag': '--api-port',
-                'help': 'Set port where the API is started. Default: {}'.format(api_port),
-                'type': int,
-                'default': api_port
-            },
-            {
-                'flag': '--api-protocol',
-                'help': 'Whether API runs on http or https (This will be ignored if we are using uwsgi). '
-                        'Default: {}'.format(api_protocol),
-                'type': str,
-                'default': api_protocol
-            },
             {
                 'flag': '--credentials',
                 'help': 'Set authorization parameters username and password respectively.',
@@ -146,7 +124,6 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
         self.log_directory = config.get('Directory-Section', 'logs')
-        self.is_uwsgi = config.get('General-Section', 'uwsgi')
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.changes_cache_path = config.get('Directory-Section', 'changes-cache')
@@ -155,11 +132,12 @@ class ScriptConfig(BaseScriptConfig):
         self.lock_file = config.get('Directory-Section', 'lock')
         self.failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
+        self.yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
 
 def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: str):
     LOGGER.info('Sending request to reload cache in different thread')
-    url = '{}load-cache'.format(yangcatalog_api_prefix)
+    url = '{}/load-cache'.format(yangcatalog_api_prefix)
     response = requests.post(url, None,
                              auth=(credentials[0], credentials[1]),
                              headers=json_headers)
@@ -184,9 +162,6 @@ def configure_runCapabilities(module: types.ModuleType, args: Namespace, json_di
         ('result_html_dir', args.result_html_dir),
         ('dir', args.dir),
         ('save_file_dir', args.save_file_dir),
-        ('api_ip', args.api_ip),
-        ('api_port', repr(args.api_port)),
-        ('api_protocol', args.api_protocol),
         ('api', args.api),
         ('sdo', args.sdo),
         ('save_file_hash', not args.force_parsing)
@@ -212,20 +187,14 @@ def main(scriptConf=None):
         scriptConf = ScriptConfig()
     args = scriptConf.args
     log_directory = scriptConf.log_directory
-    is_uwsgi = scriptConf.is_uwsgi
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
     cache_dir = scriptConf.cache_dir
     json_ytree = scriptConf.json_ytree
+    yangcatalog_api_prefix = scriptConf.yangcatalog_api_prefix
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
-    separator = ':'
-    suffix = args.api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
     confdService = ConfdService()
     redisConnection = RedisConnection()
     LOGGER.info('Starting the populate script')
@@ -284,16 +253,16 @@ def main(scriptConf=None):
         LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
         recursion_limit = sys.getrecursionlimit()
         sys.setrecursionlimit(50000)
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                             args.credentials, args.save_file_dir, json_dir, None,
-                                                             yang_models, temp_dir, json_ytree)
-        complicatedAlgorithms.parse_non_requests()
+        complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                              args.credentials, args.save_file_dir, json_dir, None,
+                                                              yang_models, temp_dir, json_ytree)
+        complicated_algorithms.parse_non_requests()
         LOGGER.info('Waiting for cache reload to finish')
         process_reload_cache.join()
-        complicatedAlgorithms.parse_requests()
+        complicated_algorithms.parse_requests()
         sys.setrecursionlimit(recursion_limit)
         LOGGER.info('Populating with new data of complicated algorithms')
-        complicatedAlgorithms.populate()
+        complicated_algorithms.populate()
         end = time.time()
         LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
 

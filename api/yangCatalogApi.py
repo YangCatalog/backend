@@ -70,7 +70,7 @@ from api.views.ycSearch.ycSearch import bp as search_bp
 app = MyFlask(__name__)
 ac = app.config
 
-ac['OIDC_REDIRECT_URI'] = os.path.join(ac.yangcatalog_api_prefix, 'admin/ping')
+ac['OIDC_REDIRECT_URI'] = os.path.join(ac.w_yangcatalog_api_prefix, 'admin/ping')
 if ac.g_is_prod:
     ietf_auth.init_app(app)
 

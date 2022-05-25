@@ -111,27 +111,16 @@ def __print_patch_response(key: str, response):
 
 if __name__ == '__main__':
     config = create_config()
-    api_protocol = config.get('Web-Section', 'protocol-api', fallback='http')
-    ip = config.get('Web-Section', 'ip', fallback='localhost')
-    api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-    is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
     confdService = ConfdService()
 
-    separator = ':'
-    suffix = api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, ip, separator, suffix)
-
     # GET all the existing modules of Yangcatalog
-    url = '{}search/modules'.format(yangcatalog_api_prefix)
+    url = '{}/search/modules'.format(yangcatalog_api_prefix)
     response = requests.get(url, headers={'Accept': 'application/json'})
     all_existing_modules = response.json().get('module', [])
     LOGGER.info('{} modules fetched from URL {}'.format(len(all_existing_modules), url))
@@ -187,7 +176,7 @@ if __name__ == '__main__':
 
     # Reload cache after checking each scheme
     if updated_schemas > 0:
-        url = '{}load-cache'.format(yangcatalog_api_prefix)
+        url = '{}/load-cache'.format(yangcatalog_api_prefix)
         response = requests.post(url, None, auth=(credentials[0], credentials[1]))
         LOGGER.info('Cache loaded with status {}'.format(response.status_code))
 
@@ -289,7 +278,7 @@ if __name__ == '__main__':
             __print_patch_response(key, response)
 
     # Reload cache after checking schemas in dependents and submodules
-    url = '{}load-cache'.format(yangcatalog_api_prefix)
+    url = '{}/load-cache'.format(yangcatalog_api_prefix)
     response = requests.post(url, None, auth=(credentials[0], credentials[1]))
     LOGGER.info('Cache loaded with status {}'.format(response.status_code))
 

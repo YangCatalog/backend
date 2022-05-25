@@ -31,13 +31,15 @@ import time
 import typing as t
 
 import utility.log as log
-from parseAndPopulate.dir_paths import DirPaths
-from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import find_files
+
+from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.dumper import Dumper
+from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.groupings import (IanaDirectory, SdoDirectory,
+                                        VendorCapabilities, VendorYangLibrary)
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -90,24 +92,6 @@ class ScriptConfig(BaseScriptConfig):
                 'default': '/var/yang/all_modules'
             },
             {
-                'flag': '--api-protocol',
-                'help': 'Whether api runs on http or https. Default is set to https',
-                'type': str,
-                'default': 'https'
-            },
-            {
-                'flag': '--api-port',
-                'help': 'Set port where the api is started (This will be ignored if we are using uwsgi)',
-                'type': int,
-                'default': 8443
-            },
-            {
-                'flag': '--api-ip',
-                'help': 'Set ip address where the api is started. Default: yangcatalog.org',
-                'type': str,
-                'default': 'yangcatalog.org'
-            },
-            {
                 'flag': '--config-path',
                 'help': 'Set path to config file',
                 'type': str,
@@ -133,15 +117,9 @@ def main(scriptConf=None):
         'result': args.result_html_dir,
         'save': args.save_file_dir
     }
-    LOGGER = log.get_logger('runCapabilities',  '{}/parseAndPopulate.log'.format(dir_paths['log']))
-    is_uwsgi = config.get('General-Section', 'uwsgi', fallback='True')
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    separator = ':'
-    suffix = args.api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(args.api_protocol, args.api_ip, separator, suffix)
+    LOGGER = log.get_logger('runCapabilities', '{}/parseAndPopulate.log'.format(dir_paths['log']))
 
     start = time.time()
     dumper = Dumper(dir_paths['log'], 'prepare', yangcatalog_api_prefix)

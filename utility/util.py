@@ -198,7 +198,7 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
         path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
         data = {'input': {'dependents': [{'name': name}]}}
 
-        response = requests.post('{}search-filter'.format(yc_api_prefix), json=data)
+        response = requests.post('{}/search-filter'.format(yc_api_prefix), json=data)
         if response.status_code == 200:
             data = response.json()
             modules = data['yang-catalog:modules']['module']
@@ -240,7 +240,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     post_body = {}
     load_new_files_to_github = False
     for module in sdos_json.get('module', []):
-        url = '{}search/modules/{},{},{}'.format(yc_api_prefix,
+        url = '{}/search/modules/{},{},{}'.format(yc_api_prefix,
                                                  module['name'], module['revision'], module['organization'])
         response = requests.get(url, headers=json_headers)
         code = response.status_code

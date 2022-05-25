@@ -77,25 +77,16 @@ def main(scriptConf=None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    api_ip = config.get('Web-Section', 'ip')
-    api_port = int(config.get('Web-Section', 'api-port'))
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
-    api_protocol = config.get('Web-Section', 'protocol-api')
-    is_uwsgi = config.get('General-Section', 'uwsgi')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
+    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
+
     LOGGER = log.get_logger('openconfigPullLocal', '{}/jobs/openconfig-pull.log'.format(log_directory))
     LOGGER.info('Starting Cron job openconfig pull request local')
-
-    separator = ':'
-    suffix = api_port
-    if is_uwsgi == 'True':
-        separator = '/'
-        suffix = 'api'
-    yangcatalog_api_prefix = '{}://{}{}{}/'.format(api_protocol, api_ip, separator, suffix)
 
     commit_author = {
         'name': config_name,
@@ -130,7 +121,7 @@ def main(scriptConf=None):
         job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
         raise e
     LOGGER.debug(data)
-    api_path = '{}modules'.format(yangcatalog_api_prefix)
+    api_path = '{}/modules'.format(yangcatalog_api_prefix)
     response = requests.put(api_path, data, auth=(credentials[0], credentials[1]), headers=json_headers)
 
     status_code = response.status_code

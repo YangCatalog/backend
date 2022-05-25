@@ -74,15 +74,11 @@ class YangCatalogApiGlobalConfig():
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
+        self.yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
         self.es_aws = self.es_aws == 'True'
 
         self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
-        separator = ':'
-        suffix = self.api_port
-        if self.is_uwsgi == 'True':
-            separator = '/'
-            suffix = 'api'
-        self.yangcatalog_api_prefix = '{}://{}{}{}/'.format(self.api_protocol, self.ip, separator, suffix)
+
         self.LOGGER.info('yangcatalog configuration reloaded')
         self.redis = redis.Redis(
             host=self.redis_host,
