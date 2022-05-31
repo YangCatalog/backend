@@ -71,6 +71,7 @@ def main(scriptConf=None):
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
+    iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
     is_production = config.get('General-Section', 'is-prod')
     is_production = is_production == 'True'
     LOGGER = log.get_logger('ianaPull', '{}/jobs/iana-pull.log'.format(log_directory))
@@ -90,6 +91,9 @@ def main(scriptConf=None):
         error_message = 'Failed to clone repository {}/{}'.format(username, repo_name)
         job_log(start_time, temp_dir, error=error_message, status='Fail', filename=os.path.basename(__file__))
         sys.exit()
+
+    with open(iana_exceptions, 'r') as exceptions_file:
+        remove_from_new = exceptions_file.read().split('\n')
 
     try:
         iana_temp_path = os.path.join(temp_dir, 'iana')
@@ -117,6 +121,8 @@ def main(scriptConf=None):
                 data[prop] = attributes.text or ''
 
             if data.get('iana') == 'Y' and 'file' in data:
+                if data['file'] in remove_from_new:
+                    continue
                 src = '{}/{}'.format(iana_temp_path, data['file'])
                 dst = '{}/standard/iana/{}'.format(repo.local_dir, data['file'])
                 copy2(src, dst)
@@ -170,7 +176,7 @@ def main(scriptConf=None):
 
     if len(messages) == 0:
         messages = [
-            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)} # pyright: ignore
+            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}  # pyright: ignore
         ]
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
