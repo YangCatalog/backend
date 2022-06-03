@@ -12,6 +12,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
 ENV BACKEND=/backend
+ENV VAR=/var/yang
 
 #Install Cron
 RUN apt-get -y update
@@ -28,6 +29,7 @@ RUN groupadd -g ${YANG_GID} -r yang \
   && useradd --no-log-init -r -g yang -u ${YANG_ID} -d $VIRTUAL_ENV yang \
   && pip install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
+  && chown yang:yang $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
 
 ENV PYTHONPATH="$VIRTUAL_ENV:$VIRTUAL_ENV/bin/python"
@@ -40,8 +42,8 @@ RUN mkdir /var/run/yang
 RUN chown -R yang:yang /var/run/yang
 
 RUN mkdir -p /usr/share/nginx/html/stats
-RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
+RUN chown -R yang:yang /usr/share/nginx
 
 COPY ./backend/requirements.txt .
 RUN pip install -r requirements.txt
@@ -61,14 +63,13 @@ ENV PYANG_PLUGINPATH="/backend/elasticsearchIndexing/pyang_plugin"
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 
-USER ${YANG_ID}:${YANG_GID}
-
 WORKDIR $VIRTUAL_ENV
 
 # Apply cron job
-RUN crontab /etc/cron.d/yang-cron
+RUN crontab -u yang /etc/cron.d/yang-cron && cron
 
-USER root:root
-CMD cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
+USER ${YANG_ID}:${YANG_GID}
+
+CMD service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
 EXPOSE 3031
