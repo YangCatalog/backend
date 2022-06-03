@@ -475,20 +475,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         process_sdo_dir('standard/bbf/standard', 'BBF standard')
         process_sdo_dir('standard/etsi', 'ETSI standard')
 
-        for direc in next(os.walk(os.path.join(yang_models, 'standard/ieee/published')))[1]:
-            ieee_direc = os.path.join(yang_models, 'standard/ieee/published', direc)
-            if os.path.isdir(ieee_direc):
-                process_sdo_dir(os.path.join('standard/ieee/published', direc), 'IEEE {} with par'.format(direc))
-
-        for direc in next(os.walk(os.path.join(yang_models, 'standard/ieee/draft')))[1]:
-            ieee_direc = os.path.join(yang_models, 'standard/ieee/draft', direc)
-            if os.path.isdir(ieee_direc):
-                process_sdo_dir(os.path.join('standard/ieee/draft', direc), 'IEEE draft {} with par'.format(direc))
-
-        for direc in next(os.walk(os.path.join(yang_models, 'experimental/ieee')))[1]:
-            ieee_direc = os.path.join(yang_models, 'experimental/ieee', direc)
-            if os.path.isdir(ieee_direc):
-                process_sdo_dir(os.path.join('experimental/ieee', direc), 'IEEE {} no par'.format(direc))
+        process_sdo_dir('standard/ieee/published', 'IEEE published')
+        process_sdo_dir('standard/ieee/draft', 'IEEE draft')
+        process_sdo_dir('experimental/ieee', 'IEEE experimental')
 
         process_sdo_dir('standard/mef/src/model/standard', 'MEF standard')
         process_sdo_dir('standard/mef/src/model/draft', 'MEF draft')
