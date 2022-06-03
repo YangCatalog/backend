@@ -222,6 +222,8 @@ def resolve_organization(module):
             return 'cisco'
         elif 'ietf' in temp_organization:
             return 'ietf'
+        elif 'ciena' in temp_organization:
+            return 'ciena'
     except:
         pass
     namespace = mod.search_one('namespace')

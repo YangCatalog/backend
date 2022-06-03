@@ -124,9 +124,10 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
             passed += checked[filename]['passed']
             num_in_catalog += checked[filename]['in-catalog']
             continue
-        checked[filename] = {}
-        checked[filename]['passed'] = False
-        checked[filename]['in-catalog'] = False
+        checked[filename] = {
+            'passed': False,
+            'in-catalog': False
+        }
         revision = None
         try:
             parsed_yang = yangParser.parse(os.path.abspath(module_path))
@@ -201,6 +202,8 @@ def resolve_organization(path: str, parsed_yang) -> str:
             organization = 'cisco'
         elif 'ietf' in result:
             organization = 'ietf'
+        elif 'ciena' in result:
+            organization = 'ciena'
     namespace = None
     results = parsed_yang.search('namespace')
     if results:
@@ -312,7 +315,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     global LOGGER
     LOGGER = log.get_logger('statistics', '{}/statistics/yang.log'.format(log_directory))
     LOGGER.info('Starting statistics')
-    
+
     repo = None
 
     # Fetch the list of all modules known by YangCatalog
