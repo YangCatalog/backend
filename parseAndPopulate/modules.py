@@ -574,10 +574,12 @@ class Module:
         LOGGER.debug('Resolving organization')
         try:
             temp_organization = self._parsed_yang.search('organization')[0].arg.lower()
-            if 'cisco' in temp_organization or 'CISCO' in temp_organization:
+            if 'cisco' in temp_organization:
                 return 'cisco'
-            elif 'ietf' in temp_organization or 'IETF' in temp_organization:
+            elif 'ietf' in temp_organization:
                 return 'ietf'
+            elif 'ciena' in temp_organization:
+                return 'ciena'
         except:
             pass
         if namespace:

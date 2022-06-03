@@ -65,7 +65,8 @@ NS_MAP = (
     ('http://www.huawei.com/netconf', 'huawei'),
     ('http://openconfig.net/yang', 'openconfig'),
     ('http://tail-f.com/', 'tail-f'),
-    ('http://yang.juniper.net/', 'juniper')
+    ('http://yang.juniper.net/', 'juniper'),
+    ('http://www.ciena.com/ns/yang/', 'ciena')
 )
 
 github_url = 'https://github.com'
