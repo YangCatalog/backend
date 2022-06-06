@@ -129,14 +129,79 @@ class MessageFactory:
         self.__smtp.sendmail(self.__email_from, send_to, msg.as_string())
         self.__smtp.quit()
 
-    def send_user_reminder_message(self, users_stats):
-        message = ('<DOCTYPE html>\n<html>\n<style>table, th, td {border:1px solid black;}</style><body>\n'
-                   + '{}\n\nTime to review the user profiles: affiliations and capabilities'
-                   '\n\n{}\n</body>\n</html>'
-                   .format(GREETINGS, users_stats))
+    def _html_user_reminder_message(self, users_stats: dict):
+        ret_text = '<h3>approved users</h3>'
 
-        self.__post_to_spark(message)
-        self.__post_to_email(message, subtype='html')
+        ret_text += '<table style="width:100%"><tr>'
+        for header in ['user', 'name', 'surname', 'sdo_rights', 'vendor_rights', 'organization', 'email']:
+            ret_text += '<th>{}</th>'.format(header)
+        ret_text += '</tr>'
+
+        for fields in users_stats['approved']:
+            ret_text += '<tr>'
+            for key in ['username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor', 'models-provider', 'email']:
+                ret_text += '<td>{}</td>'.format(str(fields.get(key)))
+            ret_text += '</tr>'
+        ret_text += '</table><br>'
+
+        ret_text += '<h3>users pending approval</h3>'
+
+        ret_text += '<table style="width:100%"><tr>'
+        for header in ['user', 'name', 'surname', 'organization', 'email']:
+            ret_text += '<th>{}</th>'.format(header)
+        ret_text += '<tr>'
+
+        for fields in users_stats['temp']:
+            ret_text += '<tr>'
+            for key in ['username', 'first-name', 'last-name', 'models-provider', 'email']:
+                ret_text += '<td>{}</td>'.format(str(fields.get(key)))
+            ret_text += '</tr>'
+        ret_text += '</table>'
+
+        return ('<DOCTYPE html>\n<html>\n<style>table, th, td {border:1px solid black;}</style><body>\n'
+                + '{}\n\nTime to review the user profiles: affiliations and capabilities'
+                '\n\n{}\n</body>\n</html>'
+                .format(GREETINGS, ret_text))
+
+    def _markdown_user_reminder_message(self, users_stats: dict):
+        tables_text = 'approved users\n'
+
+        tables_text += '```\n'
+        headers = [('user', 25), ('name', 20), ('surname', 20), ('sdo_rights', 20),
+                   ('vendor_rights', 20), ('organization', 30), ('email', 30)]
+        for header, width in headers:
+            tables_text += header.ljust(width)
+        tables_text += '\n'
+
+        keys = [('username', 25), ('first-name', 20), ('last-name', 20), ('access-rights-sdo', 20),
+                ('access-rights-vendor', 20), ('models-provider', 30), ('email', 30)]
+        for fields in users_stats['approved']:
+            for key, width in keys:
+                tables_text += str(fields.get(key)).ljust(width)
+            tables_text += '\n'
+        tables_text += '```\n'
+
+        tables_text += '\n\nusers pending approval\n'
+
+        tables_text += '```\n'
+        headers = [('user', 25), ('name', 20), ('surname', 20), ('organization', 30), ('email', 30)]
+        for header, width in headers:
+            tables_text += header.ljust(width)
+        tables_text += '\n'
+
+        keys = [('username', 25), ('first-name', 20), ('last-name', 20), ('models-provider', 30), ('email', 30)]
+        for fields in users_stats['temp']:
+            for key, width in keys:
+                tables_text += str(fields.get(key)).ljust(width)
+            tables_text += '\n'
+        tables_text += '```\n'
+
+        return ('{}\n\nTime to review the user profiles: affiliations and capabilities\n\n{}'
+                .format(GREETINGS, tables_text))
+
+    def send_user_reminder_message(self, users_stats):
+        self.__post_to_spark(self._markdown_user_reminder_message(users_stats), markdown=True)
+        self.__post_to_email(self._html_user_reminder_message(users_stats), subtype='html')
 
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
