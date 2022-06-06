@@ -1860,7 +1860,7 @@ are a payload specifying search options and filters.
 
 ## New vendor modules added
 
-This endpoint is used within github. Whenever something is merged to the [YangModles/yang](https://github.com/YangModels/yang) github repository this endpoint is
+This endpoint is used within github. Whenever something is merged to the [YangModels/yang](https://github.com/YangModels/yang) github repository this endpoint is
 triggered and checks if there is an updated platform-metadata.json file which is then used within the [populate.py](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py) script.
 
 ### HTTP Request

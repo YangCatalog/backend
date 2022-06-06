@@ -276,6 +276,8 @@ def trigger_populate():
     repoutil.pull(ac.d_yang_models_dir)
     try:
         assert request.json
+        body = json.loads(request.data)
+        app.logger.info('Body of request:\n{}'.format(json.dumps(body)))
         commits = request.json.get('commits') if request.is_json else None
         paths = set()
         new = []

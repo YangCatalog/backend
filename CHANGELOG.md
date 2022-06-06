@@ -2,6 +2,21 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.3.0 - 2022-06-06
+
+  * Fixed user reminder webex message [#517](https://github.com/YangCatalog/backend/issues/517)
+  * Created iana-exceptions.dat file [#516](https://github.com/YangCatalog/backend/issues/516)
+  * Updated running statistics.py over each ieee directories [#512](https://github.com/YangCatalog/backend/issues/512)
+  * Parsing Ciena modules adjustments [#510](https://github.com/YangCatalog/backend/issues/510)
+  * Page title added to the Bootstrap HTML pages [#507](https://github.com/YangCatalog/backend/issues/507)
+  * Loading yangcatalog-api-prefix from config file [#504](https://github.com/YangCatalog/backend/issues/504)
+  * Various code adjustments after config file update [deployment #135](https://github.com/YangCatalog/deployment/issues/135)
+  * Notification to user if there was timeout during search [#498](https://github.com/YangCatalog/backend/issues/498)
+  * Notification to user if there are many search results [#501](https://github.com/YangCatalog/backend/issues/501)
+  * elk_fill.py script refactored
+  * YANG Search - sort results by SDO first [#332](https://github.com/YangCatalog/backend/issues/332)
+  * Fetching compilation results data more efficiently [#515](https://github.com/YangCatalog/backend/issues/515)
+
 * ##### v5.2.0 - 2022-05-03
 
   * Type checking fixes with pyright [deployment #126](https://github.com/YangCatalog/deployment/issues/126)
