@@ -280,8 +280,8 @@ class Module:
     def _resolve_schema(self, schema_base: str, git_commit_hash: str, submodule_name: t.Optional[str]) -> t.Optional[str]:
         LOGGER.debug('Resolving schema')
         if self.organization == 'etsi':
-            suffix = self._path.split('SOL006')[-1]
-            return 'https://forge.etsi.org/rep/nfv/SOL006/raw/master/{}'.format(suffix)
+            suffix = self._path.split('SOL006-')[-1]
+            return 'https://forge.etsi.org/rep/nfv/SOL006/raw/{}'.format(suffix)
         if not schema_base:
             return None
 
@@ -580,6 +580,8 @@ class Module:
                 return 'ietf'
             elif 'ciena' in temp_organization:
                 return 'ciena'
+            elif 'etsi' in temp_organization:
+                return 'etsi'
         except:
             pass
         if namespace:
