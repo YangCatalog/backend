@@ -204,6 +204,8 @@ def resolve_organization(path: str, parsed_yang) -> str:
             organization = 'ietf'
         elif 'ciena' in result:
             organization = 'ciena'
+        elif 'etsi' in result:
+            organization = 'etsi'
     namespace = None
     results = parsed_yang.search('namespace')
     if results:
