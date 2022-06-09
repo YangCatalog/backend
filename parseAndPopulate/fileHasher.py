@@ -24,6 +24,8 @@ import threading
 import pyang
 from utility import log
 
+BLOCK_SIZE = 65536  # The size of each read from the file
+
 
 class FileHasher:
     def __init__(self, file_name: str, cache_dir: str, is_active: bool, log_directory: str):
@@ -43,7 +45,7 @@ class FileHasher:
         self.files_hashes = self.load_hashed_files_list()
         self.updated_hashes = {}
 
-    def hash_file(self, path: str, additional_data: str = ''):
+    def hash_file(self, path: str, additional_data: str = '') -> str:
         """ Create hash from content of the given file and validators versions.
         Each time either the content of the file or the validator version change,
         the resulting hash will be different.
@@ -54,15 +56,15 @@ class FileHasher:
             :return                 SHA256 hash of the content of the given file
             :rtype                  str
         """
-        BLOCK_SIZE = 65536  # The size of each read from the file
-
         file_hash = hashlib.sha256()
-        with open(path, 'rb') as f:
-            fb = f.read(BLOCK_SIZE)
-            while len(fb) > 0:
-                file_hash.update(fb)
+        try:
+            with open(path, 'rb') as f:
                 fb = f.read(BLOCK_SIZE)
-
+                while len(fb) > 0:
+                    file_hash.update(fb)
+                    fb = f.read(BLOCK_SIZE)
+        except FileNotFoundError:
+            return ''
         file_hash.update(self.validators_versions_bytes)
         if additional_data != '':
             encoded_data = json.dumps(additional_data).encode('utf-8')
@@ -149,6 +151,8 @@ class FileHasher:
         """
         hash_changed = False
         file_hash = self.hash_file(path)
+        if not file_hash:
+            return False
         old_file_hash = self.files_hashes.get(path, None)
         if old_file_hash is None or old_file_hash != file_hash:
             self.updated_hashes[path] = file_hash
@@ -167,6 +171,8 @@ class FileHasher:
         """
         hash_changed = False
         file_hash = self.hash_file(path, platform)
+        if not file_hash:
+            return False
         old_file_hash = self.files_hashes.get(path, {})
         old_file_platform_hash = old_file_hash.get(platform, None)
 
@@ -193,6 +199,8 @@ class FileHasher:
         openconfig_tmp_path = '/'.join(path_splitted)
 
         file_hash = self.hash_file(path)
+        if not file_hash:
+            return False
         old_file_hash = self.files_hashes.get(openconfig_tmp_path, None)
         if old_file_hash is None or old_file_hash != file_hash:
             self.updated_hashes[openconfig_tmp_path] = file_hash
