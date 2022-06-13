@@ -320,7 +320,17 @@ def trigger_populate():
 def get_statistics():
     stats_path = '{}/stats/stats.json'.format(ac.w_private_directory)
     if os.path.exists(stats_path):
-        with open(stats_path, 'r') as f:
-            return f.read()
+        with open(stats_path, 'r') as reader:
+            return reader.read()
     else:
         abort(404, description='Statistics file has not been generated yet')
+
+
+@bp.route('/problematic-drafts', methods=['GET'])
+def get_problematic_drafts():
+    problematic_drafts_path = '{}/drafts/problematic_drafts.json'.format(ac.w_public_directory)
+    if os.path.exists(problematic_drafts_path):
+        with open(problematic_drafts_path, 'r') as reader:
+            return reader.read()
+    else:
+        abort(404, description='Problematic drafts file has not been generated yet')
