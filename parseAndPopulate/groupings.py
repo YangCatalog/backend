@@ -26,10 +26,9 @@ import typing as t
 import unicodedata
 import xml.etree.ElementTree as ET
 
+import utility.log as log
 from git import InvalidGitRepositoryError
 from git.repo import Repo
-
-import utility.log as log
 from utility import repoutil
 from utility.staticVariables import github_raw, github_url
 from utility.util import find_first_file
@@ -99,10 +98,9 @@ class ModuleGrouping:
         """Parse the modules and load the extracted data into the dumper."""
         pass
 
-
     def _construct_json_name(self, schema_base: str, directory: str) -> t.Optional[str]:
         # This function reimplements the name mangling from sdo_analysis/bin/runYANGgenericstats.sh
-        #TODO: Support for repositories that use multiple branches. This includes OpenROADM,
+        # TODO: Support for repositories that use multiple branches. This includes OpenROADM,
         #      and ETSI when cloned independently of YangModels/yang
         alnum: t.Callable[[str], str] = lambda s: ''.join(c for c in s if c.isalnum())
         split_path = os.path.abspath(directory).split('/')
@@ -163,7 +161,7 @@ class ModuleGrouping:
                     version_detail = split_path[1]
                     return 'Juniper{}'.format(alnum(version_detail))
             elif organization == 'huawei':
-                version  = split_path[1]
+                version = split_path[1]
                 return 'NETWORKROUTER{}'.format(alnum(version))
             elif organization == 'ciena':
                 return 'CIENA'
@@ -483,8 +481,10 @@ class VendorGrouping(ModuleGrouping):
                     yang.add_vendor_information(self.platform_data, conformance_type,
                                                 self.capabilities, self.netconf_versions)
                     self.dumper.add_module(yang)
-                    self._parse_imp_inc(yang.submodule, set_of_names, True, schema_base)
-                    self._parse_imp_inc(yang.imports, set_of_names, False, schema_base)
+                    key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
+                    set_of_names.add(yang.name)
+                    self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_base)
+                    self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_base)
                 except FileNotFoundError:
                     LOGGER.warning('File {} not found in the repository'.format(name))
 
