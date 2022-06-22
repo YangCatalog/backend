@@ -99,7 +99,7 @@ def catch_db_error(f):
 @bp.route('/admin/login')
 @ietf_auth.oidc_auth('default')
 def login():
-    return redirect('{}/admin/healthcheck'.format(ac.w_my_uri), code=302)
+    return redirect('{}/admin/healthcheck'.format(ac.w_domain_prefix), code=302)
 
 
 @bp.route('/api/admin/logout', methods=['POST'])

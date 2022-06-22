@@ -42,7 +42,7 @@ class TestDumperClass(unittest.TestCase):
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.platform_name = 'ncs5k'
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.test_private_dir = os.path.join(self.resources_path, 'html/private')        
+        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
         self.dir_paths: DirPaths = {
             'cache': '',
             'json': '',
@@ -66,7 +66,7 @@ class TestDumperClass(unittest.TestCase):
 
         yang = self.declare_sdo_module()
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         dumper.add_module(yang)
 
         created_key = list(dumper.yang_modules.keys())[0]
@@ -82,7 +82,7 @@ class TestDumperClass(unittest.TestCase):
         """
         yang = self.declare_sdo_module()
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         dumper.add_module(yang)
         dumper.dump_modules(yc_gc.temp_dir)
 
@@ -127,7 +127,7 @@ class TestDumperClass(unittest.TestCase):
         yang = self.declare_vendor_module()
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_version)
         # Dumper object
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         dumper.add_module(yang)
         dumper.dump_vendors(yc_gc.temp_dir)
 
@@ -154,7 +154,7 @@ class TestDumperClass(unittest.TestCase):
         # Clear dependencies property to test functionality of __get_dependencies() method
         yang.dependencies = []
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         dumper.add_module(yang)
         dumper.dump_modules(yc_gc.temp_dir)
 
@@ -182,7 +182,7 @@ class TestDumperClass(unittest.TestCase):
             implementation.deviations = []
 
         # Dumper object
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         dumper.add_module(yang)
         dumper.dump_vendors(yc_gc.temp_dir)
 

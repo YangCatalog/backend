@@ -143,9 +143,8 @@ def health_check_redis():
 @bp.route('/nginx', methods=['GET'])
 def health_check_nginx():
     service_name = 'NGINX'
-    preffix = '{}://{}'.format(ac.w_protocol_api, ac.w_ip)
     try:
-        response = requests.get('{}/nginx-health'.format(preffix), headers=json_headers)
+        response = requests.get('{}/nginx-health'.format(ac.w_my_uri), headers=json_headers)
         bp.LOGGER.info('NGINX responded with a code {}'.format(response.status_code))
         response_message = response.json()['info']
         if response.status_code == 200 and response_message == 'Success':
@@ -166,14 +165,14 @@ def health_check_rabbitmq():
     service_name = 'RabbitMQ'
 
     arguments = ['run_ping', 'ping']
-    preffix = '{}://{}/api/job'.format(ac.w_protocol_api, ac.w_ip)
+    prefix = '{}/job'.format(ac.w_yangcatalog_api_prefix)
     try:
         job_id = ac.sender.send('#'.join(arguments))
         if job_id:
             bp.LOGGER.info('Sender successfully connected to RabbitMQ')
         response_type = 'In progress'
         while response_type == 'In progress':
-            response = requests.get('{}/{}'.format(preffix, job_id), headers=json_headers)
+            response = requests.get('{}/{}'.format(prefix, job_id), headers=json_headers)
             response_type = response.json()['info']['result']
             if response.status_code == 200 and response_type == 'Finished successfully':
                 break
@@ -194,13 +193,13 @@ def health_check_rabbitmq():
 @bp.route('/yangre-admin', methods=['GET'])
 def health_check_yangre_admin():
     service_name = 'yangre'
-    yangre_preffix = '{}://{}/yangre'.format(ac.w_protocol_api, ac.w_ip)
+    yangre_prefix = '{}/yangre'.format(ac.w_my_uri)
 
     pattern = '[0-9]*'
     content = '123456789'
     body = json.dumps({'pattern': pattern, 'content': content, 'inverted': False, 'pattern_nb': '1'})
     try:
-        response = requests.post('{}/v1/yangre'.format(yangre_preffix), data=body, headers=json_headers)
+        response = requests.post('{}/v1/yangre'.format(yangre_prefix), data=body, headers=json_headers)
         bp.LOGGER.info('yangre responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             response_message = response.json()
@@ -227,12 +226,12 @@ def health_check_yangre_admin():
 @bp.route('/yang-validator-admin', methods=['GET'])
 def health_check_yang_validator_admin():
     service_name = 'yang-validator'
-    yang_validator_preffix = '{}://{}/yangvalidator'.format(ac.w_protocol_api, ac.w_ip)
+    yang_validator_prefix = '{}/yangvalidator'.format(ac.w_my_uri)
 
     rfc_number = '7223'
     body = json.dumps({'rfc': rfc_number, 'latest': True})
     try:
-        response = requests.post('{}/v2/rfc'.format(yang_validator_preffix), data=body, headers=json_headers)
+        response = requests.post('{}/v2/rfc'.format(yang_validator_prefix), data=body, headers=json_headers)
         bp.LOGGER.info('yang-validator responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             response_message = response.json()
@@ -259,10 +258,10 @@ def health_check_yang_validator_admin():
 @bp.route('/yang-search-admin', methods=['GET'])
 def health_check_yang_search_admin():
     service_name = 'yang-search'
-    yang_search_preffix = '{}://{}/api/search'.format(ac.w_protocol_api, ac.w_ip)
+    yang_search_prefix = '{}/search'.format(ac.w_yangcatalog_api_prefix)
     module_name = 'ietf-syslog,2018-03-15,ietf'
     try:
-        response = requests.get('{}/modules/{}'.format(yang_search_preffix, module_name), headers=json_headers)
+        response = requests.get('{}/modules/{}'.format(yang_search_prefix, module_name), headers=json_headers)
         bp.LOGGER.info('yang-search responded with a code {}'.format(response.status_code))
         if response.status_code == 200:
             response_message = response.json()
@@ -374,7 +373,7 @@ def health_check_yangcatalog():
             ]
 
     for item in urls:
-        url = item.get('url')
+        url = item.get('url', '')
         result = {}
         result['label'] = url
         try:

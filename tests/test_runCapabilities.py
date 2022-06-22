@@ -235,8 +235,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         # Run runCapabilities.py script with corresponding configuration
         submodule.main(scriptConf=script_conf)
 
-        key = lambda x: x.get('name')
-        dumped_module_data = sorted(self.load_dumped_prepare_json_data(), key=key) 
+        def key(x): return x.get('name')
+        dumped_module_data = sorted(self.load_dumped_prepare_json_data(), key=key)
         desired_module_data = sorted(self.load_desired_prepare_json_data('yang_lib_prepare_json'), key=key)
 
         # Compare desired output with output of prepare.json
@@ -316,8 +316,6 @@ class TestRunCapabilitiesClass(unittest.TestCase):
 
         :returns        ScriptConfig with arguments set.
         """
-        script_conf.args.__setattr__('api_protocol', 'http')
-        script_conf.args.__setattr__('api_ip', 'non-existing-site.com')  # requests.get() will fail
         script_conf.args.__setattr__('result_html_dir', yc_gc.result_dir)
         script_conf.args.__setattr__('save_file_dir', yc_gc.save_file_dir)
         script_conf.args.__setattr__('json_dir', yc_gc.temp_dir)

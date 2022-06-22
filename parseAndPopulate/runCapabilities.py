@@ -117,12 +117,11 @@ def main(scriptConf=None):
         'result': args.result_html_dir,
         'save': args.save_file_dir
     }
-    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('runCapabilities', '{}/parseAndPopulate.log'.format(dir_paths['log']))
 
     start = time.time()
-    dumper = Dumper(dir_paths['log'], 'prepare', yangcatalog_api_prefix)
+    dumper = Dumper(dir_paths['log'], 'prepare')
     fileHasher = FileHasher('backend_files_modification_hashes', dir_paths['cache'],
                             args.save_file_hash, dir_paths['log'])
 

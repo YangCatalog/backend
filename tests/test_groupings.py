@@ -75,7 +75,7 @@ class TestGroupingsClass(unittest.TestCase):
         repo = self.get_yangmodels_repository()
         path = '{}/standard/ieee/published/802.3'.format(yc_gc.yang_models)
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
@@ -104,7 +104,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = True
         sdo = True
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
@@ -117,6 +117,7 @@ class TestGroupingsClass(unittest.TestCase):
         for sdo in sdos_list:
             key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
             self.assertIn(key, sdo_directory.dumper.yang_modules)
+
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_sdo_directory_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
         """
@@ -130,7 +131,7 @@ class TestGroupingsClass(unittest.TestCase):
         path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
         repo = self.get_yangmodels_repository()
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
 
@@ -179,7 +180,7 @@ class TestGroupingsClass(unittest.TestCase):
         xml_file = os.path.join(directory, self.hello_message_filename)
         platform_json_path = os.path.join(self.test_repo, 'vendor/cisco/xr/701/platform-metadata.json')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
 
@@ -212,7 +213,7 @@ class TestGroupingsClass(unittest.TestCase):
         directory = os.path.join(self.test_repo, 'vendor/cisco/xr/701')
         xml_file = os.path.join(directory, self.hello_message_filename)
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         # Change to achieve Exception will be raised
         hello_file = fileinput.FileInput(xml_file, inplace=True)
@@ -231,7 +232,7 @@ class TestGroupingsClass(unittest.TestCase):
         xml_file = os.path.join(directory, 'capabilities-ncs5k.xml')
         api = False
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
         vendor_capabilities._parse_platform_metadata()
@@ -252,7 +253,7 @@ class TestGroupingsClass(unittest.TestCase):
         xml_file = os.path.join(directory, 'netconf-capabilities.xml')
         api = False
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
         vendor_capabilities._parse_platform_metadata()
@@ -273,7 +274,7 @@ class TestGroupingsClass(unittest.TestCase):
         xml_file = os.path.join(directory, 'capability-asr1k.xml')
         api = False
 
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
         vendor_capabilities._parse_platform_metadata()
@@ -303,7 +304,7 @@ class TestGroupingsClass(unittest.TestCase):
                                           'vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json')
         platform_name = 'ne5000e'
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename, yc_gc.yangcatalog_api_prefix)
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_yang_lib = VendorYangLibrary(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
 
