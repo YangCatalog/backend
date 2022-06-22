@@ -32,38 +32,36 @@ def get_deviations(deviations):
     if deviations is None:
         return None
     else:
-        return [
-            {'name': dev.name,
-                'revision': dev.revision
-                } for dev in deviations]
+        return [{
+            'name': dev.name,
+            'revision': dev.revision
+        } for dev in deviations]
 
 
 def get_dependencies(dependencies):
-        if dependencies is None:
-            return None
-        else:
-            return [
-                {'name': dep.name,
-                 'revision': dep.revision,
-                 'schema': dep.schema
-                 } for dep in dependencies]
+    if dependencies is None:
+        return None
+    else:
+        return [{
+            'name': dep.name,
+            'revision': dep.revision,
+            'schema': dep.schema
+        } for dep in dependencies]
 
 
 class Dumper:
     """A dumper for yang module metadata."""
-    
-    def __init__(self, log_directory: str, file_name: str, yangcatalog_api_prefix: str):
+
+    def __init__(self, log_directory: str, file_name: str):
         """
         Arguments:
             :param log_directory:           (str) directory where the log file is saved
             :param file_name:               (str) name of the file to which the modules are dumped
-            :param yangcatalog_api_prefix:  (str) yangcatalog api prefix used for making requests
         """
         global LOGGER
         LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
         self.file_name = file_name
         self.yang_modules: t.Dict[str, Module] = {}
-        self.yangcatalog_api_prefix = yangcatalog_api_prefix
 
     def add_module(self, yang: Module):
         """
@@ -77,8 +75,6 @@ class Dumper:
         if key in self.yang_modules:
             self.yang_modules[key].implementations.extend(yang.implementations)
         else:
-            if yang.tree is not None:
-                yang.tree = '{}/{}'.format(self.yangcatalog_api_prefix, yang.tree)
             self.yang_modules[key] = yang
 
     def dump_modules(self, directory: str):

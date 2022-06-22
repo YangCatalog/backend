@@ -42,9 +42,6 @@ class YangCatalogApiGlobalConfig():
         self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
         self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
-        self.confd_ip = config.get('Web-Section', 'confd-ip', fallback='yangcatalog.org')
-        self.confdPort = int(config.get('Web-Section', 'confd-port', fallback=8008))
-        self.protocol = config.get('Web-Section', 'protocol-confd', fallback='http')
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='/var/yang/test-requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
@@ -60,8 +57,6 @@ class YangCatalogApiGlobalConfig():
         self.ip = config.get('Web-Section', 'ip', fallback='localhost')
         self.oidc_redirects = config.get('Web-Section', 'redirect-oidc', fallback='').split(' ')
         self.oidc_issuer = config.get('Web-Section', 'issuer', fallback='')
-        self.api_port = int(config.get('Web-Section', 'api-port', fallback=5000))
-        self.api_protocol = config.get('Web-Section', 'protocol-api', fallback='https')
         self.is_prod = config.get('General-Section', 'is-prod', fallback='False')
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')
@@ -74,7 +69,8 @@ class YangCatalogApiGlobalConfig():
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
-        self.yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
+        self.yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix', fallback='http://localhost/api')
+        self.domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='http://localhost')
         self.es_aws = self.es_aws == 'True'
 
         self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))

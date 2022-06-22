@@ -61,7 +61,7 @@ class MessageFactory:
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')
-        self.__me = config.get('Web-Section', 'my-uri')
+        self.__me = config.get('Web-Section', 'domain-prefix')
 
         self.__api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')

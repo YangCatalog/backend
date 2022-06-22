@@ -104,7 +104,7 @@ class Module:
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
         config = create_config()
-        self._web_uri = config.get('Web-Section', 'my-uri', fallback='https://yangcatalog.org')
+        self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
         self.html_result_dir = dir_paths['result']
         self._jsons = jsons
         self._path = path
@@ -173,9 +173,8 @@ class Module:
 
     def _resolve_tree(self, module_type: t.Optional[str]):
         if module_type == 'module':
-            return 'services/tree/{}@{}.yang'.format(self.name, self.revision)
-        else:
-            return None
+            return '{}/api/services/tree/{}@{}.yang'.format(self._domain_prefix, self.name, self.revision)
+        return None
 
     def _save_file(self, save_file_dir):
         file_with_path = '{}/{}@{}.yang'.format(save_file_dir, self.name, self.revision)
@@ -506,7 +505,7 @@ class Module:
                 f.write(rendered_html)
             os.chmod(file_path, 0o664)
 
-        return '{}/results/{}'.format(self._web_uri, file_url)
+        return '{}/results/{}'.format(self._domain_prefix, file_url)
 
     def _resolve_contact(self) -> t.Optional[str]:
         LOGGER.debug('Resolving contact')
