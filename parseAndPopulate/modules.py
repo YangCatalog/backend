@@ -35,11 +35,12 @@ from git import InvalidGitRepositoryError
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
 from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
-                                     github_raw, github_url)
+                                     github_url)
 from utility.util import find_first_file
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.schema_parts import SchemaParts
 
 
 class Submodules:
@@ -83,9 +84,8 @@ class Module:
 
     # NOTE: Maybe we should consider passing all or some of the arguments togeather in some sort of structure,
     #      as passing this many arguments is ugly and error prone.
-    def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths, git_commit_hash: str,
-                 yang_modules: dict, schema_base: str, aditional_info: t.Optional[t.Dict[str, str]],
-                 submodule_name: t.Optional[str]):
+    def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths,
+                 yang_modules: dict, schema_parts: SchemaParts, aditional_info: t.Optional[t.Dict[str, str]]):
         """
         Initialize and parse everything out of a module.
         Arguments:
@@ -94,12 +94,9 @@ class Module:
             :param jsons:           (obj) LoadFiles class containing all the json
                                     and html files with parsed results
             :param dir_paths:       (dict) paths to various needed directories according to configuration
-            :param git_commit_hash: (str) name of the git commit hash where we can find the module
             :param yang_modules:    (dict) yang modules we've already parsed
-            :param schema_base:     (str) url to a raw module on github up to and not including the
-                                    path of the file in the repo
+            :param schema_parts:    (SchemaParts) Parts of the URL that links to the module in Github
             :param aditional_info:  (dict) some aditional information about module given from client
-            :param submodule_name:  (str) name of the git submodule the yang module belongs to
         """
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
@@ -112,11 +109,11 @@ class Module:
 
         self._parsed_yang = yangParser.parse(self._path)
         self.implementations: t.List[Implementation] = []
-        self._parse_all(name, git_commit_hash, yang_modules, schema_base, dir_paths['save'], aditional_info, submodule_name)
+        self._parse_all(name, yang_modules, schema_parts, dir_paths['save'], aditional_info)
         del self._jsons
 
-    def _parse_all(self, name: str, git_commit_hash: str, yang_modules: dict, schema_base: str,
-                   save_file_dir: str, aditional_info: t.Optional[t.Dict[str, str]] = None, submodule_name: t.Optional[str] = None):
+    def _parse_all(self, name: str, yang_modules: dict, schema_parts: SchemaParts,
+                   save_file_dir: str, aditional_info: t.Optional[t.Dict[str, str]] = None):
         if aditional_info:
             author_email = aditional_info.get('author-email')
             maturity_level = aditional_info.get('maturity-level')
@@ -133,25 +130,28 @@ class Module:
             organization = None
             module_classification = None
             document_name = None
+
         self.name: str = self._parsed_yang.arg or name
         self.revision = self._resolve_revision()
         self.module_type = self._resolve_module_type()
         self.belongs_to = self._resolve_belongs_to(self.module_type)
         self.namespace = self._resolve_namespace()
         self.organization = organization or self._resolve_organization(self.namespace)
+        self._save_file(save_file_dir)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in yang_modules:
             return
-        self.schema = self._resolve_schema(schema_base, git_commit_hash, submodule_name)
+
+        self.schema = self._resolve_schema(schema_parts)
         self.dependencies: t.List[Dependency] = []
         self.submodule: t.List[Submodules] = []
         self._resolve_submodule(self.dependencies, self.submodule)
-        self.json_submodules = json.dumps([{'name': self.submodule[x].name,
-                                            'schema': self.submodule[x].schema,
-                                            'revision': self.submodule[x].revision
-                                            } for x in range(0, len(self.submodule))])
-        self.imports = self._resolve_imports(self.dependencies, git_commit_hash)
-        self._save_file(save_file_dir)
+        self.json_submodules = json.dumps([{
+            'name': self.submodule[x].name,
+            'schema': self.submodule[x].schema,
+            'revision': self.submodule[x].revision
+        } for x in range(0, len(self.submodule))])
+        self.imports = self._resolve_imports(self.dependencies, schema_parts)
         self.generated_from = generated_from or self._resolve_generated_from()
         self.compilation_status, self.compilation_result = \
             self._resolve_compilation_status_and_result(self.generated_from)
@@ -176,7 +176,7 @@ class Module:
             return '{}/api/services/tree/{}@{}.yang'.format(self._domain_prefix, self.name, self.revision)
         return None
 
-    def _save_file(self, save_file_dir):
+    def _save_file(self, save_file_dir: str):
         file_with_path = '{}/{}@{}.yang'.format(save_file_dir, self.name, self.revision)
         try:
             same = filecmp.cmp(self._path, file_with_path)
@@ -194,7 +194,7 @@ class Module:
         yang_file.close()
         return semver
 
-    def _resolve_imports(self, dependencies: t.List[Dependency], git_commit_hash: str) -> list:
+    def _resolve_imports(self, dependencies: t.List[Dependency], schema_parts: SchemaParts) -> list:
         LOGGER.debug('Resolving imports')
         imports = []
         try:
@@ -203,9 +203,13 @@ class Module:
             for chunk in imports:
                 dependency = Dependency()
                 dependency.name = chunk.arg
-                revisions = chunk.search('revision-date')
-                if revisions:
-                    dependency.revision = revisions[0].arg
+
+                try:
+                    parsed_revision = chunk.search('revision-date')[0].arg
+                except IndexError:
+                    parsed_revision = None
+                dependency.revision = parsed_revision
+
                 if dependency.revision:
                     yang_file = self._find_file(dependency.name, dependency.revision)
                 else:
@@ -240,13 +244,14 @@ class Module:
                                         repo_name = repo.get_repo_dir().split('.git')[0]
                                         suffix = suffix.replace('{}/'.format(submodule.name), '')
 
-                                branch = repo.get_commit_hash(suffix, 'main')
+                                new_schema_parts = SchemaParts(repo_owner=owner_name, repo_name=repo_name,
+                                                               commit_hash=repo.get_commit_hash(suffix, 'main'))
 
-                                dependency.schema = os.path.join(github_raw, owner_name, repo_name, branch, suffix)
-                            elif git_commit_hash in yang_file:
+                                dependency.schema = os.path.join(new_schema_parts.schema_base_hash, suffix)
+                            elif schema_parts.commit_hash in yang_file:
                                 if self.schema:
-                                    prefix = self.schema.split('/{}/'.format(git_commit_hash))[0]
-                                    suffix = os.path.abspath(yang_file).split('/{}/'.format(git_commit_hash))[1]
+                                    prefix = self.schema.split('/{}/'.format(schema_parts.commit_hash))[0]
+                                    suffix = os.path.abspath(yang_file).split('/{}/'.format(schema_parts.commit_hash))[1]
                                     dependency.schema = '{}/master/{}'.format(prefix, suffix)
                                 else:
                                     dependency.schema = None
@@ -276,21 +281,21 @@ class Module:
                 revision = '1970-01-01'
         return revision
 
-    def _resolve_schema(self, schema_base: str, git_commit_hash: str, submodule_name: t.Optional[str]) -> t.Optional[str]:
+    def _resolve_schema(self, schema_parts: SchemaParts) -> t.Optional[str]:
         LOGGER.debug('Resolving schema')
         if self.organization == 'etsi':
             suffix = self._path.split('SOL006-')[-1]
             return 'https://forge.etsi.org/rep/nfv/SOL006/raw/{}'.format(suffix)
-        if not schema_base:
+        if not schema_parts.schema_base:
             return None
 
-        schema_base = os.path.join(schema_base, git_commit_hash)
+        schema_base_hash = schema_parts.schema_base_hash
         if 'openconfig/public' in self._path:
             suffix = os.path.abspath(self._path).split('/openconfig/public/')[-1]
-            return os.path.join(schema_base, suffix)
+            return os.path.join(schema_base_hash, suffix)
         if 'draftpulllocal' in self._path:
             suffix = os.path.abspath(self._path).split('draftpulllocal/')[-1]
-            return os.path.join(schema_base, suffix)
+            return os.path.join(schema_base_hash, suffix)
         if 'yangmodels/yang' in self._path:
             suffix = os.path.abspath(self._path).split('/yangmodels/yang/')[-1]
         elif '/tmp/' in self._path:
@@ -299,9 +304,9 @@ class Module:
         else:
             LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
             return
-        if submodule_name:
-            suffix = suffix.replace('{}/'.format(submodule_name), '')
-        return os.path.join(schema_base, suffix)
+        if schema_parts.submodule_name:
+            suffix = suffix.replace('{}/'.format(schema_parts.submodule_name), '')
+        return os.path.join(schema_base_hash, suffix)
 
     def _resolve_maturity_level(self) -> t.Optional[str]:
         LOGGER.debug('Resolving maturity level')
@@ -511,14 +516,14 @@ class Module:
         LOGGER.debug('Resolving contact')
         try:
             return self._parsed_yang.search('contact')[0].arg
-        except:
+        except IndexError:
             return None
 
     def _resolve_description(self):
         LOGGER.debug('Resolving description')
         try:
             return self._parsed_yang.search('description')[0].arg
-        except:
+        except IndexError:
             return None
 
     def _resolve_namespace(self) -> t.Optional[str]:
@@ -741,19 +746,18 @@ class Module:
 
 class SdoModule(Module):
 
-    def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths, git_commit_hash: str,
-                 yang_modules: dict, schema_base: str, aditional_info: t.Optional[t.Dict[str, str]] = None,
-                 submodule_name: t.Optional[str] = None):
-        super().__init__(name, os.path.abspath(path), jsons, dir_paths, git_commit_hash, yang_modules, schema_base,
-                         aditional_info, submodule_name)
+    def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths,
+                 yang_modules: dict, schema_parts: SchemaParts, aditional_info: t.Optional[t.Dict[str, str]] = None):
+        super().__init__(name, os.path.abspath(path), jsons, dir_paths, yang_modules,
+                         schema_parts, aditional_info)
 
 
 class VendorModule(Module):
     """A module with additional vendor information."""
 
-    def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths, git_commit_hash: str,
-                 yang_modules: dict, schema_base: str, aditional_info: t.Optional[t.Dict[str, str]] = None,
-                 submodule_name: t.Optional[str] = None, data: t.Optional[t.Union[str, dict]] = None):
+    def __init__(self, name: str, path: str, jsons: LoadFiles, dir_paths: DirPaths,
+                 yang_modules: dict, schema_parts: SchemaParts, aditional_info: t.Optional[t.Dict[str, str]] = None,
+                 data: t.Optional[t.Union[str, dict]] = None):
         real_path = path
         # these are required for self._find_file() to work
         self.yang_models = dir_paths['yang_models']
@@ -790,8 +794,8 @@ class VendorModule(Module):
             real_path = self._find_file(data['name'], self.revision)
         if not real_path:
             raise FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT), path)
-        super().__init__(name, os.path.abspath(real_path), jsons, dir_paths, git_commit_hash, yang_modules, schema_base,
-                         aditional_info, submodule_name)
+        super().__init__(name, os.path.abspath(real_path), jsons, dir_paths, yang_modules,
+                         schema_parts, aditional_info)
 
     def _resolve_deviations_and_features(self, search_for: str, data: str) -> t.List[str]:
         ret = []

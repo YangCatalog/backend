@@ -26,7 +26,7 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from utility.staticVariables import github_raw
+from parseAndPopulate.schema_parts import SchemaParts
 
 
 class TestDumperClass(unittest.TestCase):
@@ -35,7 +35,7 @@ class TestDumperClass(unittest.TestCase):
         super(TestDumperClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema_base = '{}/YangModels/yang/'.format(github_raw)
+        self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
         self.prepare_output_filename = 'prepare'
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
@@ -207,8 +207,8 @@ class TestDumperClass(unittest.TestCase):
         parsed_jsons = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         path_to_yang = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/standard/ietf/RFC', self.sdo_module_filename)
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {},
-                         self.schema_base)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, {},
+                         self.schema_parts)
 
         return yang
 
@@ -224,7 +224,7 @@ class TestDumperClass(unittest.TestCase):
         module_name = vendor_data.split('&revision')[0]
         module_path = '{}/{}.yang'.format(self.resources_path, module_name)
 
-        yang = VendorModule(module_name, module_path, parsed_jsons, self.dir_paths, 'master', {}, self.schema_base,
+        yang = VendorModule(module_name, module_path, parsed_jsons, self.dir_paths, {}, self.schema_parts,
                             data=vendor_data)
 
         return yang

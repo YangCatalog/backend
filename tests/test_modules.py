@@ -25,7 +25,7 @@ from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from utility.staticVariables import github_raw
+from parseAndPopulate.schema_parts import SchemaParts
 
 
 class TestModulesClass(unittest.TestCase):
@@ -34,7 +34,7 @@ class TestModulesClass(unittest.TestCase):
         super(TestModulesClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema_base = os.path.join(github_raw, 'YangModels/yang/master')
+        self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
         self.sdo_module_name = 'ietf-yang-types'
@@ -55,7 +55,7 @@ class TestModulesClass(unittest.TestCase):
     #########################
     ### TESTS DEFINITIONS ###
     #########################
-    #TODO: we should probably have unit tests for the individual Model._resolve* methods
+    # TODO: we should probably have unit tests for the individual Model._resolve* methods
 
     def test_modules_parse_all_sdo_object(self):
         """
@@ -65,8 +65,8 @@ class TestModulesClass(unittest.TestCase):
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
         parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
-        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {},
-                         self.schema_base)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, {},
+                         self.schema_parts)
 
         self.assertEqual(yang.document_name, 'rfc6991')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -99,8 +99,8 @@ class TestModulesClass(unittest.TestCase):
         }
 
         parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
-        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', keys,
-                         self.schema_base, additional_info)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, keys,
+                         self.schema_parts, additional_info)
 
         self.assertEqual(yang.name, 'ietf-yang-types')
         self.assertEqual(yang.module_type, 'module')
@@ -119,7 +119,7 @@ class TestModulesClass(unittest.TestCase):
         deviation = yang_lib_data.split('&deviations=')[1]
 
         parsed_jsons = LoadFiles('CiscoXR701', self.test_private_dir, yc_gc.logs_dir)
-        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, '',
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, self.schema_parts,
                             data=yang_lib_data)
 
         self.assertEqual(yang.document_name, 'rfc8341')
@@ -149,7 +149,7 @@ class TestModulesClass(unittest.TestCase):
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         parsed_jsons = LoadFiles('CiscoXR701', self.test_private_dir, yc_gc.logs_dir)
-        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, '',
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, self.schema_parts,
                             data=vendor_data)
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
@@ -178,7 +178,6 @@ class TestModulesClass(unittest.TestCase):
             'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
             'revision': '2020-07-01'
         }
-        schema_part = '{}/YangModels/yang/master/'.format(github_raw)
         xml_path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
         module_name = 'huawei-aaa'
         path_to_yang = '{}/vendor/huawei/network-router/8.20.0/ne5000e/{}.yang' \
@@ -188,7 +187,7 @@ class TestModulesClass(unittest.TestCase):
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         parsed_jsons = LoadFiles('NETWORKROUTER8200', self.test_private_dir, yc_gc.logs_dir)
-        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, schema_part,
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, self.schema_parts,
                             data=yang_lib_info)
 
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)

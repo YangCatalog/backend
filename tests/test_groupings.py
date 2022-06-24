@@ -31,8 +31,9 @@ from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
                                         VendorYangLibrary)
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
+from parseAndPopulate.schema_parts import SchemaParts
 from utility import repoutil
-from utility.staticVariables import github_raw, github_url
+from utility.staticVariables import github_url
 
 
 class TestGroupingsClass(unittest.TestCase):
@@ -345,11 +346,10 @@ class TestGroupingsClass(unittest.TestCase):
         """
         parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         module_name = path_to_yang.split('/')[-1].split('.yang')[0]
-        schema_base = os.path.join(github_raw, 'YangModels/yang/master')
         if '@' in module_name:
             module_name = module_name.split('@')[0]
-
-        yang = SdoModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, 'master', {}, schema_base)
+        schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
+        yang = SdoModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, schema_parts)
 
         return yang
 
