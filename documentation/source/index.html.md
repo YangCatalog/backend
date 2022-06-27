@@ -1848,16 +1848,6 @@ fail.
 Authorization is done using HTTP_SIGNATURE from the payload provided
 by travis request
 
-## Yang search and impact analysis tool
-
-This endpoint is used by the yang search and impact analysis tool to
-look through the YANG keyword index for a given search pattern. The arguments
-are a payload specifying search options and filters.
-
-### HTTP Request
-
-`POST https://yangcatalog.org/api/index/search`
-
 ## New vendor modules added
 
 This endpoint is used within github. Whenever something is merged to the [YangModels/yang](https://github.com/YangModels/yang) github repository this endpoint is
@@ -1867,15 +1857,14 @@ triggered and checks if there is an updated platform-metadata.json file which is
 
 `POST https://yangcatalog.org/api/check-platform-metadata`
 
-## Yang search and impact analysis tool
-
-This endpoint is used by the yang search and impact analysis tool to
-look through the YANG keyword index for a given search pattern. The arguments
+## Impact analysis tool
+This endpoint is used by the impact analysis tool, which looks for relations between the various modules - dependents or dependencies. The result is an analysis of the impacts of the module with respect to other modules.
+The arguments
 are a payload specifying search options and filters.
 
 ### HTTP Request
 
-`POST https://yangcatalog.org/api/index/search`
+`POST https://yangcatalog.org/api/yang-search/v2/impact-analysis`
 
 ## Load api cache
 
@@ -2819,75 +2808,51 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
 
 ```json
 {
-  "data":{
-    "api":{
-      "default":false,
-      "type":"bool"
+  "data": {
+    "api": {
+      "default": false,
+      "type": "bool"
     },
-    "api_ip":{
-      "default":"yangcatalog.org",
-      "type":"str"
+    "dir": {
+      "default": "/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
+      "type": "str"
     },
-    "api_port":{
-      "default":"8443",
-      "type":"int"
+    "force_indexing": {
+      "default": false,
+      "type": "bool"
     },
-    "api_protocol":{
-      "default":"https",
-      "type":"str"
+    "force_parsing": {
+      "default": false,
+      "type": "bool"
     },
-    "dir":{
-      "default":"/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
-      "type":"str"
+    "notify_indexing": {
+      "default": false,
+      "type": "bool"
     },
-    "force_indexing":{
-      "default":false,
-      "type":"bool"
+    "result_html_dir": {
+      "default": "/usr/share/nginx/html/results",
+      "type": "str"
     },
-    "ip":{
-      "default":"yc_confd_1",
-      "type":"str"
+    "save_file_dir": {
+      "default": "/var/yang/all_modules",
+      "type": "str"
     },
-    "notify_indexing":{
-      "default":false,
-      "type":"bool"
-    },
-    "port":{
-      "default":"8008",
-      "type":"int"
-    },
-    "protocol":{
-      "default":"http",
-      "type":"str"
-    },
-    "result_html_dir":{
-      "default":"/usr/share/nginx/html/results",
-      "type":"str"
-    },
-    "save_file_dir":{
-      "default":"/var/yang/all_modules",
-      "type":"str"
-    },
-    "sdo":{
-      "default":false,
-      "type":"bool"
+    "sdo": {
+      "default": false,
+      "type": "bool"
     }
   },
-  "help":"Parse hello messages and YANG files to JSON dictionary. These dictionaries are used for populating a yangcatalog. This script runs first a runCapabilities.py script to create a JSON files which are used to populate database.",
-  "options":{
-    "api":"If request came from api",
-    "api_ip":"Set host address where the API is started. Default: yangcatalog.org",
-    "api_port":"Whether API runs on http or https (This will be ignored if we are using uwsgi). Default: https",
-    "api_protocol":"Whether API runs on http or https. Default: https",
-    "dir":"Set dir where to look for hello message xml files or yang files if using \"sdo\" option",
-    "force_indexing":"Force to index files. Works only in notify-indexing is True",
-    "ip":"Set host address where the Confd is started. Default: yc_confd_1",
-    "notify_indexing":"Whether to send files for indexing",
-    "port":"Set port where the Confd is started. Default: 8008",
-    "protocol":"Whether Confd runs on http or https. Default: http",
-    "result_html_dir":"Set dir where to write HTML compilation result files. Default: /usr/share/nginx/html/results",
-    "save_file_dir":"Directory where the yang file will be saved. Default: /var/yang/all_modules",
-    "sdo":"If we are processing sdo or vendor yang modules"
+  "help": "Parse hello messages and YANG files to a JSON dictionary. These dictionaries are used for populating the yangcatalog. This script first runs the runCapabilities.py script to create JSON files which are used to populate database.",
+  "options": {
+    "api": "If request came from api",
+    "credentials": "Set authorization parameters username and password respectively.",
+    "dir": "Set directory where to look for hello message xml files",
+    "force_indexing": "Force indexing files (do not skip indexing for unchanged files).",
+    "force_parsing": "Force parse files (do not skip parsing for unchanged files).",
+    "notify_indexing": "Whether to send files for indexing",
+    "result_html_dir": "Set dir where to write HTML compilation result files. Default: /usr/share/nginx/html/results",
+    "save_file_dir": "Directory where the yang file will be saved. Default: /var/yang/all_modules",
+    "sdo": "If we are processing sdo or vendor yang modules"
   }
 }
 ```
