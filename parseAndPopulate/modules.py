@@ -102,6 +102,7 @@ class Module:
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
         config = create_config()
         self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
+        self._nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
         self.html_result_dir = dir_paths['result']
         self._jsons = jsons
         self._path = path
@@ -196,10 +197,8 @@ class Module:
 
     def _resolve_imports(self, dependencies: t.List[Dependency], schema_parts: SchemaParts) -> list:
         LOGGER.debug('Resolving imports')
-        imports = []
+        imports = self._parsed_yang.search('import')
         try:
-            imports = self._parsed_yang.search('import')
-
             for chunk in imports:
                 dependency = Dependency()
                 dependency.name = chunk.arg
@@ -216,50 +215,58 @@ class Module:
                     yang_file = self._find_file(dependency.name)
                 if yang_file is None:
                     dependency.schema = None
-                else:
-                    try:
-                        if os.path.dirname(yang_file) == os.path.dirname(self._path):
-                            if self.schema:
-                                dependency.schema = '/'.join((*self.schema.split('/')[0:-1], yang_file.split('/')[-1]))
-                            else:
-                                dependency.schema = None
+                    dependencies.append(dependency)
+                    continue
+                try:
+                    if os.path.dirname(yang_file) == os.path.dirname(self._path):
+                        if self.schema:
+                            dependency.schema = '/'.join((*self.schema.split('/')[0:-1], yang_file.split('/')[-1]))
                         else:
-                            if '/yangmodels/yang/' in yang_file:
-                                suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[1]
-                                # First load/clone YangModels/yang repo
-                                owner_name = 'YangModels'
-                                repo_name = 'yang'
-                                repo_url = os.path.join(github_url, owner_name, repo_name)
-                                try:
-                                    repo = repoutil.load(self.yang_models, repo_url)
-                                except InvalidGitRepositoryError:
-                                    repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': self.yang_models})
-                                # Check if repository submodule
-                                for submodule in repo.repo.submodules:
-                                    if submodule.name in suffix:
-                                        repo_url = submodule.url.lower()
-                                        repo_dir = os.path.join(self.yang_models, submodule.name)
-                                        repo = repoutil.load(repo_dir, repo_url)
-                                        owner_name = repo.get_repo_owner()
-                                        repo_name = repo.get_repo_dir().split('.git')[0]
-                                        suffix = suffix.replace('{}/'.format(submodule.name), '')
+                            dependency.schema = None
+                    else:
+                        if '/yangmodels/yang/' in yang_file:
+                            suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[-1]
+                            # Load/clone YangModels/yang repo
+                            repo_owner = 'YangModels'
+                            repo_name = 'yang'
+                            repo_url = os.path.join(github_url, repo_owner, repo_name)
+                            try:
+                                repo = repoutil.load(self.yang_models, repo_url)
+                            except InvalidGitRepositoryError:
+                                repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': self.yang_models})
+                        elif '/openconfig/public/' in yang_file:
+                            suffix = os.path.abspath(yang_file).split('/openconfig/public/')[-1]
+                            # Load/clone openconfig/public repo
+                            repo_owner = 'openconfig'
+                            repo_name = 'public'
+                            repo_url = os.path.join(github_url, repo_owner, repo_name)
+                            repo_dir = os.path.join(self._nonietf_dir, 'openconfig/public')
+                            try:
+                                repo = repoutil.load(repo_dir, repo_url)
+                            except InvalidGitRepositoryError:
+                                repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': repo_dir})
+                        else:
+                            dependency.schema = None
+                            dependencies.append(dependency)
+                            continue
+                        # Check if repository submodule
+                        for submodule in repo.repo.submodules:
+                            if submodule.name in suffix:
+                                repo_url = submodule.url.lower()
+                                repo_dir = os.path.join(self.yang_models, submodule.name)
+                                repo = repoutil.load(repo_dir, repo_url)
+                                repo_owner = repo.get_repo_owner()
+                                repo_name = repo.get_repo_dir().split('.git')[0]
+                                suffix = suffix.replace('{}/'.format(submodule.name), '')
 
-                                new_schema_parts = SchemaParts(repo_owner=owner_name, repo_name=repo_name,
-                                                               commit_hash=repo.get_commit_hash(suffix, 'main'))
-
-                                dependency.schema = os.path.join(new_schema_parts.schema_base_hash, suffix)
-                            elif schema_parts.commit_hash in yang_file:
-                                if self.schema:
-                                    prefix = self.schema.split('/{}/'.format(schema_parts.commit_hash))[0]
-                                    suffix = os.path.abspath(yang_file).split('/{}/'.format(schema_parts.commit_hash))[1]
-                                    dependency.schema = '{}/master/{}'.format(prefix, suffix)
-                                else:
-                                    dependency.schema = None
-                    except:
-                        LOGGER.exception('Unable to resolve schema for {}@{}.yang'
-                                         .format(dependency.name, dependency.revision))
-                        dependency.schema = None
-                        dependencies.append(dependency)
+                        new_schema_parts = SchemaParts(repo_owner=repo_owner, repo_name=repo_name,
+                                                       commit_hash=repo.get_commit_hash(suffix))
+                        dependency.schema = os.path.join(new_schema_parts.schema_base_hash, suffix)
+                except:
+                    LOGGER.exception('Unable to resolve schema for {}@{}.yang'
+                                     .format(dependency.name, dependency.revision))
+                    dependency.schema = None
+                    dependencies.append(dependency)
                 dependencies.append(dependency)
         finally:
             return imports
