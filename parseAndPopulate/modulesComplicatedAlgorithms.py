@@ -733,11 +733,11 @@ class ModulesComplicatedAlgorithms:
         LOGGER.info('Adding existing modules as dependents')
         add_dependents(existing_modules, all_modules_dict)
 
-    def _find_file(self, name: str, revision: str = '*'):
-        yang_name = '{}.yang'.format(name)
-        yang_name_rev = '{}@{}.yang'.format(name, revision)
+    def _find_file(self, name: str, revision: str = '*') -> t.Optional[str]:
+        pattern = '{}.yang'.format(name)
+        pattern_with_revision = '{}@{}.yang'.format(name, revision)
         directory = '/'.join(self._path.split('/')[0:-1])
-        yang_file = find_first_file(directory, yang_name, yang_name_rev, self._yang_models)
+        yang_file = find_first_file(directory, pattern, pattern_with_revision)
 
         return yang_file
 
