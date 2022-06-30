@@ -93,7 +93,6 @@ def main(scriptConf=None):
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     temp_dir = config.get('Directory-Section', 'temp')
     LOGGER = log.get_logger('draftPullLocal', '{}/jobs/draft-pull-local.log'.format(log_directory))
@@ -105,7 +104,7 @@ def main(scriptConf=None):
     repo = None
     try:
         # Clone YangModels/yang repository
-        clone_dir = '{}/draftpulllocal'.format(temp_dir)
+        clone_dir = os.path.join(temp_dir, 'draftpulllocal')
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
         repo = repoutil.ModifiableRepoUtil(
@@ -118,8 +117,8 @@ def main(scriptConf=None):
         LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.local_dir))
 
         response = requests.get(ietf_rfc_url)
-        tgz_path = '{}/rfc.tgz'.format(repo.local_dir)
-        extract_to = '{}/standard/ietf/RFC'.format(repo.local_dir)
+        tgz_path = os.path.join(repo.local_dir, 'rfc.tgz')
+        extract_to = os.path.join(repo.local_dir, 'standard/ietf/RFC')
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
         tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
@@ -144,10 +143,10 @@ def main(scriptConf=None):
                 messages.append(message)
 
         # Experimental modules
-        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.local_dir)
+        experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
 
         LOGGER.info('Updating IETF drafts download links')
-        draftPullUtility.get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
+        draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
         draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
@@ -165,7 +164,7 @@ def main(scriptConf=None):
             messages.append(message)
 
         # IANA modules
-        iana_path = '{}/standard/iana'.format(repo.local_dir)
+        iana_path = os.path.join(repo.local_dir, 'standard/iana')
 
         if os.path.exists(iana_path):
             LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))

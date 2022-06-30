@@ -89,7 +89,6 @@ def main(scriptConf=None):
     temp_dir = config.get('Directory-Section', 'temp')
     rfc_exceptions = config.get('Directory-Section', 'rfc-exceptions')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
-    ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     is_production = config.get('General-Section', 'is-prod')
     is_production = is_production == 'True'
@@ -114,8 +113,8 @@ def main(scriptConf=None):
     try:
         # Get rfc.tgz file
         response = requests.get(ietf_rfc_url)
-        tgz_path = '{}/rfc.tgz'.format(repo.local_dir)
-        extract_to = '{}/standard/ietf/RFCtemp'.format(repo.local_dir)
+        tgz_path = os.path.join(repo.local_dir, 'rfc.tgz')
+        extract_to = os.path.join(repo.local_dir, 'standard/ietf/RFCtemp')
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
         tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
@@ -136,7 +135,7 @@ def main(scriptConf=None):
                 if not same:
                     diff_files.append(file_name)
 
-            shutil.rmtree('{}/standard/ietf/RFCtemp'.format(repo.local_dir))
+            shutil.rmtree(extract_to)
 
             with open(rfc_exceptions, 'r') as exceptions_file:
                 remove_from_new = exceptions_file.read().split('\n')
@@ -149,16 +148,16 @@ def main(scriptConf=None):
                     mf.send_new_rfc_message(new_files, diff_files)
 
         # Experimental draft modules
+        experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
         try:
-            os.makedirs('{}/experimental/ietf-extracted-YANG-modules/'.format(repo.local_dir))
+            os.makedirs(experimental_path)
         except OSError as e:
             # be happy if someone already created the path
             if e.errno != errno.EEXIST:
                 raise
-        experimental_path = '{}/experimental/ietf-extracted-YANG-modules'.format(repo.local_dir)
 
         LOGGER.info('Updating IETF drafts download links')
-        draftPullUtility.get_draft_module_content(ietf_draft_url, experimental_path, LOGGER)
+        draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
         draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
@@ -206,7 +205,7 @@ def main(scriptConf=None):
 
     if len(messages) == 0:
         messages = [
-            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)} # pyright: ignore
+            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}  # pyright: ignore
         ]
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')

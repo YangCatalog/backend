@@ -120,11 +120,11 @@ def main(scriptConf=None):
                 prop = attributes.tag.split(namespace)[-1]
                 data[prop] = attributes.text or ''
 
-            if data.get('iana') == 'Y' and 'file' in data:
+            if data.get('iana') == 'Y' and data.get('file'):
                 if data['file'] in remove_from_new:
                     continue
-                src = '{}/{}'.format(iana_temp_path, data['file'])
-                dst = '{}/standard/iana/{}'.format(repo.local_dir, data['file'])
+                src = os.path.join(iana_temp_path, data['file'])
+                dst = os.path.join(repo.local_dir, 'standard/iana', data['file'])
                 copy2(src, dst)
 
         LOGGER.info('Checking module filenames without revision in {}'.format(iana_standard_path))

@@ -32,6 +32,7 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
+import configparser
 import grp
 import logging
 import os
@@ -43,6 +44,7 @@ from datetime import datetime
 
 import requests
 from git.exc import GitCommandError
+from requests.exceptions import ConnectionError
 from utility import repoutil, yangParser
 from utility.staticVariables import github_url
 
@@ -67,7 +69,7 @@ def get_latest_revision(path: str, LOGGER: logging.Logger):
     return rev
 
 
-def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger):
+def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger) -> None:
     """
     This function checks the format of all the modules filename.
     If it contains module with a filename without revision,
@@ -95,7 +97,7 @@ def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger):
                         os.remove(yang_file_path)
 
 
-def check_early_revisions(directory: str, LOGGER: logging.Logger):
+def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
     """
     This function checks all modules revisions and keeps only
     ones that are the newest. If there are two modules with
@@ -119,7 +121,7 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger):
                     files_to_delete.append(f2)
                     revision = f2.split(module_name)[1].split('.')[0].replace('@', '')
                     if revision == '':
-                        yang_file_path = '{}/{}'.format(directory, f2)
+                        yang_file_path = os.path.join(directory, f2)
                         revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
                         if revision is None:
                             continue
@@ -150,34 +152,38 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger):
         for fi in files_to_delete:
             if 'iana-if-type' in fi:
                 break
-            os.remove('{}/{}'.format(directory, fi))
+            os.remove(os.path.join(directory, fi))
 
 
-def get_draft_module_content(ietf_draft_url: str, experimental_path: str, LOGGER: logging.Logger):
+def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, LOGGER: logging.Logger) -> None:
     """ Loop through download links for each module found in IETFDraft.json and try to get their content.
 
     Aruments:
-        :param ietf_draft_url       (str) URL to private IETFDraft.json file
         :param experimental_path    (str) full path to the directory with cloned experimental modules
+        :param config               (configparser.ConfigParser) instance of ConfigParser class
         :param LOGGER               (logging.Logger) formated logger with the specified name
     """
+    ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
+    my_uri = config.get('Web-Section', 'my-uri')
+    domain_prefix = config.get('Web-Section', 'domain-prefix')
     ietf_draft_json = {}
     response = requests.get(ietf_draft_url)
     if response.status_code == 200:
         ietf_draft_json = response.json()
     for key in ietf_draft_json:
-        with open('{}/{}'.format(experimental_path, key), 'w+') as yang_file:
+        filename = os.path.join(experimental_path, key)
+        with open(filename, 'w+') as yang_file:
             yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
-            yang_download_link = yang_download_link.replace('new.yangcatalog.org', 'yangcatalog.org')
+            yang_download_link = yang_download_link.replace(domain_prefix, my_uri)
             try:
                 yang_raw = requests.get(yang_download_link).text
                 yang_file.write(yang_raw)
-            except Exception:
-                LOGGER.warning('{} - {}'.format(key, yang_download_link))
+            except ConnectionError:
+                LOGGER.error('Unable to retreive content of {} - {}'.format(key, yang_download_link))
                 yang_file.write('')
 
 
-def extract_rfc_tgz(tgz_path: str, extract_to: str, LOGGER: logging.Logger):
+def extract_rfc_tgz(tgz_path: str, extract_to: str, LOGGER: logging.Logger) -> bool:
     """ Extract downloaded rfc.tgz file to directory and remove file.
 
     Arguments:
@@ -200,7 +206,7 @@ def extract_rfc_tgz(tgz_path: str, extract_to: str, LOGGER: logging.Logger):
     return tar_opened
 
 
-def set_permissions(directory: str):
+def set_permissions(directory: str) -> None:
     """ Use chown for all the files and folders recursively in provided directory.
 
     Argument:
