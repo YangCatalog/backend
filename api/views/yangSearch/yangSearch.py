@@ -188,7 +188,7 @@ def impact_analysis():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    bp.LOGGER.info('Running impact analysis with following payload {}'.format(payload))
+    bp.LOGGER.info('Running impact analysis with following payload:\n{}'.format(payload))
     name = payload.get('name')
     revision = payload.get('revision')
     allowed_organizations = payload.get('organizations', [])
@@ -198,20 +198,25 @@ def impact_analysis():
     graph_direction = payload.get('graph-direction', graph_directions)
     for direction in graph_direction:
         if direction not in graph_directions:
-            abort(400, 'only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
+            abort(400, 'Only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
+
     # GET module details
     response = {}
     details = module_details(name, revision, True)
     assert isinstance(details, dict)
+    if 'warning' in details:
+        return jsonify(details)
     searched_module = details['metadata']
     assert isinstance(searched_module, dict)
-    response['name'] = searched_module['name']
-    response['revision'] = searched_module['revision']
-    response['organization'] = searched_module['organization']
-    response['document-name'] = searched_module.get('reference', '')
-    response['maturity-level'] = searched_module.get('maturity-level', '')
-    response['dependents'] = []
-    response['dependencies'] = []
+    response = {
+        'name': searched_module['name'],
+        'revision': searched_module['revision'],
+        'organization': searched_module['organization'],
+        'reference': searched_module.get('reference', ''),
+        'maturity-level': searched_module.get('maturity-level', ''),
+        'dependents': [],
+        'dependencies': []
+    }
     if 'dependents' in graph_directions:
         for dependent in searched_module.get('dependents', []):
             response['dependents'] += filter(None, [get_dependencies_dependents_data(dependent, submodules_allowed,
@@ -224,7 +229,7 @@ def impact_analysis():
                                                                                        allowed_organizations,
                                                                                        rfc_allowed)])
 
-    return make_response(jsonify(response), 200)
+    return jsonify(response)
 
 
 @bp.route('/search', methods=['POST'])
@@ -348,13 +353,18 @@ def module_details_no_revision(module: str):
 
 
 @bp.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: t.Optional[str] = None, warnings=False):
+def module_details(module: str, revision: t.Optional[str] = None, warnings: bool = False):
     """
-    Search for data saved in our datastore (ConfD/Redis) based on specific module with some revision.
-    Revision can be empty called from endpoint /module-details/<module> definition module_details_no_revision.
+    Search for data saved in our datastore (= Redis) based on specific module with some revision.
+    Revision can be empty called from endpoint /module-details/<module> (= module_details_no_revision() method).
+
+    Arguments:
+        :param module           (str) Name of the searched module
+        :param revision         (str) (Optional) Revision of the searched module (can be None)
+        :param warnings         (bool) Whether return with warnings or not
     :return: returns json with yang-catalog saved metdata of a specific module
     """
-    if module == '' or module is None:
+    if not module:
         abort(400, description='No module name provided')
     if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
         abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
@@ -362,23 +372,19 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings=False
     elk_response = get_modules_revision_organization(module, None, warnings)
     if 'warning' in elk_response:
         return elk_response
-    else:
-        revisions, organization = elk_response
+    revisions, organization = elk_response
     if len(revisions) == 0:
         if warnings:
             return {'warning': 'module {} does not exists in API'.format(module)}
-        else:
-            abort(404, description='Provided module does not exist')
+        abort(404, description='Provided module does not exist')
 
-    if revision is None:
-        # get latest revision of provided module
-        revision = revisions[0]
+    # get the latest revision of provided module if revision not defined
+    revision = revisions[0] if not revision else revision
 
-    resp = \
-        {
-            'current-module': '{}@{}.yang'.format(module, revision),
-            'revisions': revisions
-        }
+    response = {
+        'current-module': '{}@{}.yang'.format(module, revision),
+        'revisions': revisions
+    }
 
     # get module from Redis
     module_key = '{}@{}/{}'.format(module, revision, organization)
@@ -386,12 +392,10 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings=False
     if module_data == '{}':
         if warnings:
             return {'warning': 'module {} does not exists in API'.format(module_key)}
-        else:
-            abort(404, description='Provided module does not exist')
-    else:
-        module_data = json.loads(module_data)
-    resp['metadata'] = module_data
-    return resp
+        abort(404, description='Provided module does not exist')
+    module_data = json.loads(module_data)
+    response['metadata'] = module_data
+    return response
 
 
 @bp.route('/yang-catalog-help', methods=['GET'])
@@ -497,9 +501,7 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         bp.LOGGER.exception('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
             return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
-        else:
-            abort(404, 'Failed to get revisions and organization for {} - please use module that exists'
-                  .format(name_rev))
+        abort(404, 'Failed to get revisions and organization for {} - please use module that exists'.format(name_rev))
 
 
 def get_latest_module_revision(module_name: str) -> str:
@@ -703,28 +705,40 @@ def get_type_str(json):
     return type_str
 
 
-def get_dependencies_dependents_data(module_data, submodules_allowed, allowed_organizations, rfc_allowed):
+def get_dependencies_dependents_data(module_data: dict, submodules_allowed: bool,
+                                     allowed_organizations: list, rfc_allowed: bool):
+    """
+    Get data saved in our datastore (= Redis) based on values defined in 'module_data' dict.
+    After getting module detail apply filter which are defined by other method arguments.
+
+    Arguments:
+        :param module_data              (dict) Dictionary with basic module details (name, revision, schema)
+        :param submodules_allowed       (bool) Whether submodules are allowed
+        :param allowed_organizations    (list) List of allowed organizations
+        :param rfc_allowed              (bool) Whether RFCs are allowed
+    """
     module_detail = module_details(module_data['name'], module_data.get('revision'), True)
     assert isinstance(module_detail, dict)
     if 'warning' in module_detail:
         return module_detail
-    else:
-        module_detail = module_detail['metadata']
-        assert isinstance(module_detail, dict)
-    module_type = module_detail.get('module-type', '')
-    if module_type == '':
-        bp.LOGGER.warning('module {}@{} does not container module type'.format(module_detail.get('name'),
-                                                                               module_detail.get('revision')))
+    module_detail = module_detail['metadata']
+    assert isinstance(module_detail, dict)
+    module_type = module_detail.get('module-type')
+    if not module_type:
+        bp.LOGGER.warning('module {}@{} does not contain module-type'.format(module_detail.get('name'),
+                                                                             module_detail.get('revision')))
     if module_type == 'submodule' and not submodules_allowed:
         return None
-    child = {}
-    child['name'] = module_detail['name']
-    child['revision'] = module_detail['revision']
-    child['organization'] = module_detail['organization']
-    if len(allowed_organizations) > 0 and child['organization'] not in allowed_organizations:
+    if len(allowed_organizations) > 0 and module_detail['organization'] not in allowed_organizations:
         return None
-    if not rfc_allowed and module_detail.get('maturity-level', '') == 'ratified':
+    if module_detail.get('maturity-level', '') == 'ratified' and not rfc_allowed:
         return None
-    child['document-name'] = module_detail.get('reference', '')
-    child['maturity-level'] = module_detail.get('maturity-level', '')
+
+    child = {
+        'name': module_detail['name'],
+        'revision': module_detail['revision'],
+        'organization': module_detail['organization'],
+        'reference': module_detail.get('reference', ''),
+        'maturity-level': module_detail.get('maturity-level', '')
+    }
     return child
