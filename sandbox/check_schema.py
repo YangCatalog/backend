@@ -17,11 +17,11 @@ import utility.log as log
 from utility import repoutil, yangParser
 from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.staticVariables import github_raw, github_url
+from utility.staticVariables import GITHUB_RAW, github_url
 
 
 def get_repo_owner_name(schema: str):
-    schema_part = schema.split(github_raw)[1]
+    schema_part = schema.split(GITHUB_RAW)[1]
     repo_owner = schema_part.split('/')[1]
     repo_name = schema_part.split('/')[2]
 

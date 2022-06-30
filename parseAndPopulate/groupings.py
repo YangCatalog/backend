@@ -30,7 +30,7 @@ import utility.log as log
 from git import InvalidGitRepositoryError
 from git.repo import Repo
 from utility import repoutil
-from utility.staticVariables import github_raw, github_url
+from utility.staticVariables import GITHUB_RAW, github_url
 from utility.util import find_first_file
 from utility.yangParser import ParseException
 
@@ -39,6 +39,7 @@ from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
+from parseAndPopulate.schema_parts import SchemaParts
 
 
 class ModuleGrouping:
@@ -66,7 +67,7 @@ class ModuleGrouping:
         self.directory = directory
         self._submodule_map = {}
         for submodule in Repo(dir_paths['yang_models']).submodules:
-            url = submodule.url.replace(github_url, github_raw).removesuffix('.git')
+            url = submodule.url.replace(github_url, GITHUB_RAW).removesuffix('.git')
             self._submodule_map[url] = submodule.path
 
     def _load_yangmodels_repo(self):
@@ -221,12 +222,14 @@ class SdoDirectory(ModuleGrouping):
                 if not should_parse:
                     continue
             name = file_name.split('.')[0].split('@')[0]
-            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+            schema_parts = SchemaParts(
+                repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
+            schema_base = schema_parts.schema_base
             self.parsed_jsons = LoadFiles(self._construct_json_name(schema_base, self.directory),
                                           self.dir_paths['private'], self.dir_paths['log'])
             try:
-                yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, commit_hash, self.dumper.yang_modules,
-                                 schema_base, aditional_info=sdo)
+                yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, self.dumper.yang_modules,
+                                 schema_parts, aditional_info=sdo)
             except ParseException:
                 LOGGER.exception('ParseException while parsing {}'.format(file_name))
                 continue
@@ -242,31 +245,34 @@ class SdoDirectory(ModuleGrouping):
         for root, _, sdos in os.walk(self.directory):
             sdos_count = len(sdos)
             LOGGER.info('Searching {} files from directory {}'.format(sdos_count, root))
+            commit_hash = self.repo.get_commit_hash(root, 'main')
+            schema_parts = SchemaParts(
+                repo_owner=self.repo_owner, repo_name=self.repo_name,
+                commit_hash=commit_hash, submodule_name=submodule_name)
+            schema_base = schema_parts.schema_base
             for i, file_name in enumerate(sdos, start=1):
                 # Process only SDO .yang files
-                if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
-                    path = os.path.join(root, file_name)
-                    should_parse = self.file_hasher.should_parse_sdo_module(path)
-                    if not should_parse:
-                        continue
-                    if '[1]' in file_name:
-                        LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
-                        continue
-                    LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
-                    name = file_name.split('.')[0].split('@')[0]
-                    if commit_hash is None:
-                        commit_hash = self.repo.get_commit_hash(path, 'main')
-                    schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
-                    self.parsed_jsons = \
-                        LoadFiles(self._construct_json_name(schema_base, os.path.join(self.directory, root)),
-                                  self.dir_paths['private'], self.dir_paths['log'])
-                    try:
-                        yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, commit_hash,
-                                         self.dumper.yang_modules, schema_base, submodule_name=submodule_name)
-                    except ParseException:
-                        LOGGER.exception('ParseException while parsing {}'.format(file_name))
-                        continue
-                    self.dumper.add_module(yang)
+                if '.yang' not in file_name and any(word in root for word in ['vendor', 'odp']):
+                    continue
+                path = os.path.join(root, file_name)
+                should_parse = self.file_hasher.should_parse_sdo_module(path)
+                if not should_parse:
+                    continue
+                if '[1]' in file_name:
+                    LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
+                    continue
+                LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
+                name = file_name.split('.')[0].split('@')[0]
+                self.parsed_jsons = \
+                    LoadFiles(self._construct_json_name(schema_base, os.path.join(self.directory, root)),
+                              self.dir_paths['private'], self.dir_paths['log'])
+                try:
+                    yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths,
+                                     self.dumper.yang_modules, schema_parts)
+                except ParseException:
+                    LOGGER.exception('ParseException while parsing {}'.format(file_name))
+                    continue
+                self.dumper.add_module(yang)
 
 
 class IanaDirectory(SdoDirectory):
@@ -283,8 +289,10 @@ class IanaDirectory(SdoDirectory):
         namespace = tag.split('registry')[0]
         modules = self.root.iter('{}record'.format(namespace))
 
-        commit_hash = None
         self._load_yangmodels_repo()
+        commit_hash = self.repo.get_commit_hash(self.directory, 'main')
+        schema_parts = SchemaParts(
+            repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
 
         for yang in modules:
             additional_info = {}
@@ -313,13 +321,10 @@ class IanaDirectory(SdoDirectory):
                 module_name = data['file'].split('.yang')[0]
 
                 LOGGER.info('Parsing module {}'.format(module_name))
-                if commit_hash is None:
-                    commit_hash = self.repo.get_commit_hash(path, 'main')
-                schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
                 self.parsed_jsons = LoadFiles('IANAStandard', self.dir_paths['private'], self.dir_paths['log'])
                 try:
-                    yang = SdoModule(data['name'], path, self.parsed_jsons, self.dir_paths, commit_hash,
-                                     self.dumper.yang_modules, schema_base, additional_info)
+                    yang = SdoModule(data['name'], path, self.parsed_jsons, self.dir_paths,
+                                     self.dumper.yang_modules, schema_parts, additional_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
@@ -440,7 +445,7 @@ class VendorGrouping(ModuleGrouping):
         elif ':capability:' in raw_capability:
             self.capabilities.append(raw_capability.split('?')[0])
 
-    def _parse_imp_inc(self, modules: list, set_of_names: set, is_include: bool, schema_base: str):
+    def _parse_imp_inc(self, modules: list, set_of_names: set, is_include: bool, schema_parts: SchemaParts):
         """
         Parse all yang modules which are either sumodules or imports of a certain module.
         Submodules and import modules are also added to the dumper object.
@@ -450,8 +455,7 @@ class VendorGrouping(ModuleGrouping):
             :param modules          (list) List of modules to check (either submodules or imports of module)
             :param set_of_namea     (set) Set of all the modules parsed out from the capability file
             :param is_include       (bool) Whether module is include or not
-            :param schema_base      (str) url to a raw module on github up to and not including the
-                                    commit hash
+            :param schema_parts     (SchemaParts) Parts of the URL to a raw module on Github
         """
         for module in modules:
             if not is_include:
@@ -472,8 +476,8 @@ class VendorGrouping(ModuleGrouping):
                     return
                 try:
                     try:
-                        yang = VendorModule(name, yang_file, self.parsed_jsons, self.dir_paths, self.commit_hash,
-                                            self.dumper.yang_modules, schema_base, submodule_name=self.submodule_name)
+                        yang = VendorModule(name, yang_file, self.parsed_jsons, self.dir_paths,
+                                            self.dumper.yang_modules, schema_parts)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(name))
                         continue
@@ -482,8 +486,8 @@ class VendorGrouping(ModuleGrouping):
                     self.dumper.add_module(yang)
                     key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
                     set_of_names.add(yang.name)
-                    self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_base)
-                    self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_base)
+                    self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
+                    self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
                 except FileNotFoundError:
                     LOGGER.warning('File {} not found in the repository'.format(name))
 
@@ -517,7 +521,10 @@ class VendorCapabilities(VendorGrouping):
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
         try:
-            schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+            schema_parts = SchemaParts(
+                repo_owner=self.repo_owner, repo_name=self.repo_name,
+                commit_hash=self.commit_hash, submodule_name=self.submodule_name)
+            schema_base = schema_parts.schema_base
         except:
             LOGGER.exception('Missing attribute, likely caused by a broken path in {}/platform-metadata.json'
                              .format(self.directory))
@@ -530,38 +537,38 @@ class VendorCapabilities(VendorGrouping):
         # Parse modules
         for module in modules:
             module.text = module.text or ''
-            if 'module=' in module.text:
-                # Parse name of the module
-                module_and_more = module.text.split('module=')[1]
-                module_name = module_and_more.split('&')[0]
+            if 'module=' not in module.text:
+                continue
+            # Parse name of the module
+            module_and_more = module.text.split('module=')[1]
+            module_name = module_and_more.split('&')[0]
 
-                path = '{}/{}.yang'.format(self.directory, module_name)
-                should_parse = False
-                if os.path.exists(path):
-                    should_parse = self.file_hasher.should_parse_vendor_module(path, platform_name)
-                if not should_parse:
-                    continue
-                LOGGER.info('Parsing module {}'.format(module_name))
+            path = '{}/{}.yang'.format(self.directory, module_name)
+            should_parse = False
+            if os.path.exists(path):
+                should_parse = self.file_hasher.should_parse_vendor_module(path, platform_name)
+            if not should_parse:
+                continue
+            LOGGER.info('Parsing module {}'.format(module_name))
+            try:
                 try:
-                    try:
-                        yang = VendorModule(module_name, path, self.parsed_jsons, self.dir_paths, self.commit_hash,
-                                            self.dumper.yang_modules, schema_base, submodule_name=self.submodule_name,
-                                            data=module_and_more)
-                    except ParseException:
-                        LOGGER.exception('ParseException while parsing {}'.format(module_name))
-                        continue
-                    yang.add_vendor_information(self.platform_data, 'implement',
-                                                self.capabilities, self.netconf_versions)
-                    self.dumper.add_module(yang)
-                    key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
-                    keys.add(key)
-                    set_of_names.add(yang.name)
-                except FileNotFoundError:
-                    LOGGER.warning('File {} not found in the repository'.format(module_name))
+                    yang = VendorModule(module_name, path, self.parsed_jsons, self.dir_paths,
+                                        self.dumper.yang_modules, schema_parts, data=module_and_more)
+                except ParseException:
+                    LOGGER.exception('ParseException while parsing {}'.format(module_name))
+                    continue
+                yang.add_vendor_information(self.platform_data, 'implement',
+                                            self.capabilities, self.netconf_versions)
+                self.dumper.add_module(yang)
+                key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
+                keys.add(key)
+                set_of_names.add(yang.name)
+            except FileNotFoundError:
+                LOGGER.warning('File {} not found in the repository'.format(module_name))
 
         for key in keys:
-            self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_base)
-            self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_base)
+            self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
+            self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
 
 
 class VendorYangLibrary(VendorGrouping):
@@ -579,7 +586,10 @@ class VendorYangLibrary(VendorGrouping):
         modules = self.root[0]
         set_of_names = set()
         keys = set()
-        schema_base = os.path.join(github_raw, self.repo_owner, self.repo_name)
+        schema_parts = SchemaParts(
+            repo_owner=self.repo_owner, repo_name=self.repo_name,
+            commit_hash=self.commit_hash, submodule_name=self.submodule_name)
+        schema_base = schema_parts.schema_base
         self.parsed_jsons = \
             LoadFiles(self._construct_json_name(schema_base, self.directory),
                       self.dir_paths['private'], self.dir_paths['log'])
@@ -617,9 +627,8 @@ class VendorYangLibrary(VendorGrouping):
             LOGGER.info('Starting to parse {}'.format(module_name))
             try:
                 try:
-                    yang = VendorModule(module_name, self.xml_file, self.parsed_jsons, self.dir_paths, self.commit_hash,
-                                        self.dumper.yang_modules, schema_base, submodule_name=self.submodule_name,
-                                        data=yang_lib_info)
+                    yang = VendorModule(module_name, self.xml_file, self.parsed_jsons, self.dir_paths,
+                                        self.dumper.yang_modules, schema_parts, data=yang_lib_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(module_name))
                     continue
@@ -633,5 +642,5 @@ class VendorYangLibrary(VendorGrouping):
                 LOGGER.warning('File {} not found in the repository'.format(module_name))
 
         for key in keys:
-            self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_base)
-            self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_base)
+            self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
+            self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
