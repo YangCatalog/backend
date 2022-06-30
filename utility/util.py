@@ -39,6 +39,7 @@ from pyang.plugins.check_update import check_update
 from redisConnections.redisConnection import RedisConnection
 
 from utility import messageFactory, yangParser
+from utility.create_config import create_config
 from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
 
@@ -58,27 +59,29 @@ def find_files(directory: str, pattern: str):
                 yield root, path
 
 
-def find_first_file(directory: str, pattern: str,
-                    pattern_with_revision: str, yang_models_dir: str = '') -> t.Optional[str]:
+def find_first_file(directory: str, pattern: str, pattern_with_revision: str) -> t.Optional[str]:
     """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
 
     Arguments:
         :param directory                (str) directory where to look for a file
         :param pattern                  (str) name of the yang file
         :param pattern_with_revision    (str) name and revision of the module in format <name>@<revision>
-        :param yang_models_dir          (str) path to the directory where YangModels/yang repo is cloned
         :return                         (str) path to matched file
     """
-    def match_file(directory, pattern) -> t.Optional[str]:
+    def match_file(directory: str, pattern: str) -> t.Optional[str]:
         for root, _, files in os.walk(directory):
             for basename in files:
                 if fnmatch.fnmatch(basename, pattern):
                     return os.path.join(root, basename)
 
-    rfcs_dir = '{}/standard/ietf/RFC'.format(yang_models_dir)
-    standards_dir = '{}/standard'.format(yang_models_dir)
-    experimental_dir = '{}/experimental/ietf-extracted-YANG-modules'.format(yang_models_dir)
-    paths_to_check = [directory, rfcs_dir, standards_dir, experimental_dir, yang_models_dir]
+    config = create_config()
+    yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
+    nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
+    rfcs_dir = os.path.join(yang_models_dir, 'standard/ietf/RFC')
+    standards_dir = os.path.join(yang_models_dir, 'standard')
+    experimental_dir = os.path.join(yang_models_dir, 'experimental/ietf-extracted-YANG-modules')
+    openconfig_dir = os.path.join(nonietf_dir, 'openconfig/public/release/models')
+    paths_to_check = [directory, rfcs_dir, standards_dir, experimental_dir, openconfig_dir, yang_models_dir]
     patterns_order = []
 
     if '*' not in pattern_with_revision:
@@ -89,21 +92,17 @@ def find_first_file(directory: str, pattern: str,
     for path in paths_to_check:
         for pattern in patterns_order:
             filename = match_file(path, pattern)
-            if filename:
-                try:
-                    parsed = yangParser.parse(filename)
-                except:
-                    continue
-                results = parsed.search('revision')
-                if results:
-                    revision = results[0].arg
-                else:
-                    revision = '1970-01-01'
-                if '*' not in pattern_with_revision:
-                    if revision in pattern_with_revision:
-                        return filename
-                else:
+            if not filename:
+                continue
+            try:
+                revision = yangParser.parse(filename).search('revision')[0].arg
+            except IndexError:
+                revision = '1970-01-01'
+            if '*' not in pattern_with_revision:
+                if revision in pattern_with_revision:
                     return filename
+            else:
+                return filename
 
 
 def change_permissions_recursive(path: str):
@@ -241,7 +240,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     load_new_files_to_github = False
     for module in sdos_json.get('module', []):
         url = '{}/search/modules/{},{},{}'.format(yc_api_prefix,
-                                                 module['name'], module['revision'], module['organization'])
+                                                  module['name'], module['revision'], module['organization'])
         response = requests.get(url, headers=json_headers)
         code = response.status_code
 

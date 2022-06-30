@@ -467,8 +467,7 @@ class VendorGrouping(ModuleGrouping):
                 set_of_names.add(name)
                 pattern = '{}.yang'.format(name)
                 pattern_with_revision = '{}@*.yang'.format(name)
-                yang_file = find_first_file(os.path.dirname(self.xml_file), pattern,
-                                            pattern_with_revision, self.dir_paths['yang_models'])
+                yang_file = find_first_file(os.path.dirname(self.xml_file), pattern, pattern_with_revision)
                 if yang_file is None:
                     return
                 try:

@@ -39,7 +39,6 @@ from collections import defaultdict, deque
 from datetime import date
 
 from pyang.statements import Statement
-
 from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -114,11 +113,11 @@ def check_namespace(parsed_module: Statement) -> bool:
         return True
     for ns, _ in NS_MAP:
         if ns in namespace:
-                return True
+            return True
     return False
 
 
-modules_to_check = deque() # used for a breadth first search throught the dependency graph of vendor directories
+modules_to_check = deque()  # used for a breadth first search throught the dependency graph of vendor directories
 
 
 def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: Statement,
@@ -132,7 +131,7 @@ def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: 
         revision = revisions[0].arg if revisions else '*'
         pattern = '{}.yang'.format(name)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        if not find_first_file(directory, pattern, pattern_with_revision, yang_models_dir):
+        if not find_first_file(directory, pattern, pattern_with_revision):
             # TODO: if the matched filename doesn't include the revision, maybe we should check it?
             if revision != '*':
                 missing_modules.add('{}@{}'.format(name, revision))
@@ -184,12 +183,12 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         scriptConf = ScriptConfig()
     args = scriptConf.args
     args.dir = args.dir.rstrip('/')
-    if args.sdo: # sdo directory
+    if args.sdo:  # sdo directory
         for root, _, files in os.walk(args.dir):
             for filename in files:
                 if filename.endswith('.yang'):
                     check(os.path.join(root, filename), root, scriptConf.yang_models, sdo=True)
-    else: # vendor directory
+    else:  # vendor directory
         for root, capabilities in find_files(args.dir, '*capabilit*.xml'):
             files_in_dir = os.listdir(root)
             modules_to_check.clear()

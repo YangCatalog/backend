@@ -735,7 +735,9 @@ class Module:
     def _find_file(self, name: str, revision: str = '*') -> t.Optional[str]:
         pattern = '{}.yang'.format(name)
         pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        yang_file = find_first_file(os.path.dirname(self._path), pattern, pattern_with_revision, self.yang_models)
+        directory = os.path.dirname(self._path)
+        yang_file = find_first_file(directory, pattern, pattern_with_revision)
+
         return yang_file
 
 
