@@ -25,7 +25,6 @@ import json
 import os
 import re
 import shutil
-import sys
 import time
 import typing as t
 from datetime import datetime
@@ -40,6 +39,10 @@ from utility.util import find_first_file
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.resolvers.basic import BasicResolver
+from parseAndPopulate.resolvers.namespace import NamespaceResolver
+from parseAndPopulate.resolvers.organization import OrganizationResolver
+from parseAndPopulate.resolvers.revision import RevisionResolver
 from parseAndPopulate.schema_parts import SchemaParts
 
 
@@ -133,11 +136,20 @@ class Module:
             document_name = None
 
         self.name: str = self._parsed_yang.arg or name
-        self.revision = self._resolve_revision()
+        revision_resolver = RevisionResolver(self._parsed_yang, LOGGER)
+        self.revision = revision_resolver.resolve()
+        name_revision = '{}@{}'.format(self.name, self.revision)
+
+        belongs_to_resolver = BasicResolver(self._parsed_yang, 'belongs_to')
+        self.belongs_to = belongs_to_resolver.resolve()
+
+        namespace_resolver = NamespaceResolver(self._parsed_yang, LOGGER, name_revision, self._path, self.belongs_to)
+        self.namespace = namespace_resolver.resolve()
+
+        organization_resolver = OrganizationResolver(self._parsed_yang, LOGGER, self.namespace)
+        self.organization = organization or organization_resolver.resolve()
+
         self.module_type = self._resolve_module_type()
-        self.belongs_to = self._resolve_belongs_to(self.module_type)
-        self.namespace = self._resolve_namespace()
-        self.organization = organization or self._resolve_organization(self.namespace)
         self._save_file(save_file_dir)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in yang_modules:
@@ -152,7 +164,7 @@ class Module:
             'schema': self.submodule[x].schema,
             'revision': self.submodule[x].revision
         } for x in range(0, len(self.submodule))])
-        self.imports = self._resolve_imports(self.dependencies, schema_parts)
+        self.imports = self._resolve_imports(self.dependencies)
         self.generated_from = generated_from or self._resolve_generated_from()
         self.compilation_status, self.compilation_result = \
             self._resolve_compilation_status_and_result(self.generated_from)
@@ -187,15 +199,23 @@ class Module:
             shutil.copy(self._path, file_with_path)
 
     def _resolve_semver(self):
-        semver = None
-        yang_file = open(self._path, encoding='utf-8')
-        for line in yang_file:
-            if re.search('oc-ext:openconfig-version .*;', line):
-                semver = re.findall('[0-9]+.[0-9]+.[0-9]+', line).pop()
-        yang_file.close()
-        return semver
+        # cisco specific modules - semver defined is inside revision
+        try:
+            parsed_semver = self._parsed_yang.search('revision')[0].search(('cisco-semver', 'module-version'))[0].arg
+            return re.findall('[0-9]+.[0-9]+.[0-9]+', parsed_semver).pop()
+        except IndexError:
+            pass
 
-    def _resolve_imports(self, dependencies: t.List[Dependency], schema_parts: SchemaParts) -> list:
+        # openconfig specific modules
+        try:
+            parsed_semver = self._parsed_yang.search(('oc-ext', 'openconfig-version'))[0].arg
+            return re.findall('[0-9]+.[0-9]+.[0-9]+', parsed_semver).pop()
+        except IndexError:
+            pass
+
+        return None
+
+    def _resolve_imports(self, dependencies: t.List[Dependency]) -> list:
         LOGGER.debug('Resolving imports')
         imports = self._parsed_yang.search('import')
         try:
@@ -213,16 +233,15 @@ class Module:
                     yang_file = self._find_file(dependency.name, dependency.revision)
                 else:
                     yang_file = self._find_file(dependency.name)
-                if yang_file is None:
-                    dependency.schema = None
+                if not yang_file:
+                    LOGGER.error('Import {} can not be found'.format(dependency.name))
                     dependencies.append(dependency)
                     continue
+
                 try:
                     if os.path.dirname(yang_file) == os.path.dirname(self._path):
                         if self.schema:
-                            dependency.schema = '/'.join((*self.schema.split('/')[0:-1], yang_file.split('/')[-1]))
-                        else:
-                            dependency.schema = None
+                            dependency.schema = os.path.join(os.path.dirname(self.schema), os.path.basename(yang_file))
                     else:
                         if '/yangmodels/yang/' in yang_file:
                             suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[-1]
@@ -246,7 +265,6 @@ class Module:
                             except InvalidGitRepositoryError:
                                 repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': repo_dir})
                         else:
-                            dependency.schema = None
                             dependencies.append(dependency)
                             continue
                         # Check if repository submodule
@@ -263,10 +281,8 @@ class Module:
                                                        commit_hash=repo.get_commit_hash(suffix))
                         dependency.schema = os.path.join(new_schema_parts.schema_base_hash, suffix)
                 except:
-                    LOGGER.exception('Unable to resolve schema for {}@{}.yang'
-                                     .format(dependency.name, dependency.revision))
-                    dependency.schema = None
-                    dependencies.append(dependency)
+                    LOGGER.exception('Unable to resolve schema for {}@{}'.format(
+                        dependency.name, dependency.revision))
                 dependencies.append(dependency)
         finally:
             return imports
@@ -277,13 +293,13 @@ class Module:
             revision = self._parsed_yang.search('revision')[0].arg
         except:
             revision = '1970-01-01'
-        rev_parts = revision.split('-')
+        year, month, day = revision.split('-')
         try:
-            revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
+            revision = datetime(int(year), int(month), int(day)).date().isoformat()
         except ValueError:
             try:
-                if int(rev_parts[2]) == 29 and int(rev_parts[1]) == 2:
-                    revision = datetime(int(rev_parts[0]), int(rev_parts[1]), 28).date().isoformat()
+                if int(day) == 29 and int(month) == 2:
+                    revision = datetime(int(year), int(month), 28).date().isoformat()
             except ValueError:
                 revision = '1970-01-01'
         return revision
@@ -537,48 +553,23 @@ class Module:
         LOGGER.debug('Resolving namespace')
         return self._resolve_submodule_case('namespace')
 
-    def _resolve_belongs_to(self, module_type: t.Optional[str]) -> t.Optional[str]:
+    def _resolve_belongs_to(self) -> t.Optional[str]:
         LOGGER.debug('Resolving belongs to')
-        if module_type == 'submodule':
-            try:
-                return self._parsed_yang.search('belongs-to')[0].arg
-            except:
-                return None
-        return None
+        try:
+            return self._parsed_yang.search('belongs-to')[0].arg
+        except IndexError:
+            return None
 
     def _resolve_module_type(self) -> t.Optional[str]:
         LOGGER.debug('Resolving module type')
+        allowed = ['module', 'submodule', None]
         try:
-            with open(self._path, 'r', encoding='utf-8') as file_input:
-                all_lines = file_input.readlines()
-        except:
-            LOGGER.critical(
-                'Could not open a file {}. Maybe a path is set incorrectly'.format(self._path))
-            sys.exit(10)
-        commented_out = False
-        for each_line in all_lines:
-            module_position = each_line.find('module')
-            submodule_position = each_line.find('submodule')
-            cpos = each_line.find('//')
-            if commented_out:
-                mcpos = each_line.find('*/')
-            else:
-                mcpos = each_line.find('/*')
-            if mcpos != -1 and cpos > mcpos:
-                if commented_out:
-                    commented_out = False
-                else:
-                    commented_out = True
-            if submodule_position >= 0 and (
-                    submodule_position < cpos or cpos == -1) and not commented_out:
-                LOGGER.debug(
-                    'Module {} is of type submodule'.format(self._path))
-                return 'submodule'
-            if module_position >= 0 and (
-                    module_position < cpos or cpos == -1) and not commented_out:
-                LOGGER.debug('Module {} is of type module'.format(self._path))
-                return 'module'
-        LOGGER.error('Module {} has wrong format'.format(self._path))
+            module_type = self._parsed_yang.keyword
+            if module_type in allowed:
+                return module_type
+        except AttributeError:
+            LOGGER.exception('Error while resolving module_type')
+
         return None
 
     def _resolve_organization(self, namespace: t.Optional[str]) -> str:
