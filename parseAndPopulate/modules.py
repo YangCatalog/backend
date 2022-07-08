@@ -544,32 +544,6 @@ class Module:
 
         return None
 
-    def _resolve_organization(self, namespace: t.Optional[str]) -> str:
-        LOGGER.debug('Resolving organization')
-        try:
-            temp_organization = self._parsed_yang.search('organization')[0].arg.lower()
-            if 'cisco' in temp_organization:
-                return 'cisco'
-            elif 'ietf' in temp_organization:
-                return 'ietf'
-            elif 'ciena' in temp_organization:
-                return 'ciena'
-            elif 'etsi' in temp_organization:
-                return 'etsi'
-        except:
-            pass
-        if namespace:
-            for ns, org in NS_MAP:
-                if ns in namespace:
-                    return org
-            if 'cisco' in namespace or 'CISCO' in namespace:
-                return 'cisco'
-            elif 'ietf' in namespace or 'IETF' in namespace:
-                return 'ietf'
-            elif 'urn:' in namespace:
-                return namespace.split('urn:')[1].split(':')[0]
-        return 'independent'
-
     def _resolve_prefix(self) -> t.Optional[str]:
         LOGGER.debug('Resolving prefix')
         return self._resolve_submodule_case('prefix')
