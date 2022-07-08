@@ -90,8 +90,8 @@ SDOS = [
     'odp'
 ]
 ORGANIZATIONS = [
-    'ietf', 'ieee', 'etsi', 'bbf', 'openconfig', 'tail-f', 'mef', 'opendaylight',
-    'ciena', 'cisco', 'fujitsu', 'huawei', 'juniper', 'nokia', 'acklio', 'ni'
+    'ietf', 'ieee', 'etsi', 'bbf', 'openconfig', 'tail-f', 'opendaylight',
+    'ciena', 'cisco', 'fujitsu', 'huawei', 'juniper', 'nokia', 'acklio'
 ]
 SCHEMA_TYPES = [
     'typedef',
