@@ -2,6 +2,19 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.4.0 - 2022-07-08
+
+  * lxml package version bumped
+  * Using SchemaParts dataclass for storing schema URL parts [#529](https://github.com/YangCatalog/backend/issues/529)
+  * Various code improvements to the ietfYangDraftPull module
+  * Impact analysis API endpoint source code optimized
+  * Search for import files in openconfig/public repo [#528](https://github.com/YangCatalog/backend/issues/528)
+  * Using IP versus domain name when composing URLs [deployment #141](https://github.com/YangCatalog/deployment/issues/141)
+  * Bugfix: Use correct parsed yang object if yang file already parsed [#521](https://github.com/YangCatalog/backend/issues/521)
+  * Bugfix: Loading Redis from backup
+  * GET api/problematic-drafts API endpoint added [#517](https://github.com/YangCatalog/backend/issues/517)
+  * Bugfix: Trying to hash file content if file does not exist
+
 * ##### v5.3.0 - 2022-06-06
 
   * Fixed user reminder webex message [#517](https://github.com/YangCatalog/backend/issues/517)

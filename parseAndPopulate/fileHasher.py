@@ -195,6 +195,7 @@ class FileHasher:
         hash_changed = False
 
         path_splitted = path.split('/')
+        # Path has following structure: /var/yang/tmp/<number>/openconfig/public/release/<rest_of_path>
         del path_splitted[4]  # remove directory set by number from path
         openconfig_tmp_path = '/'.join(path_splitted)
 

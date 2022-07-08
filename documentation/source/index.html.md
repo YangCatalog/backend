@@ -2768,13 +2768,15 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
     "populate",
     "runCapabilities",
     "draftPull",
+    "ianaPull",
     "draftPullLocal",
     "openconfigPullLocal",
     "statistics",
     "recovery",
     "elk_recovery",
     "elk_fill",
-    "resolveExpiration"
+    "resolveExpiration",
+    "reviseSemver"
   ],
   "info":"Success"
 }

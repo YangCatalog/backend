@@ -105,7 +105,7 @@ def list_yang_modules_recursive(srcdir: str) -> t.List[str]:
 def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
     """Get the number of yang files in a specified directory and the
     number that passed compilation.
-    
+
     Argument:
         :param path_dir: (str) path to the directory where to search for
             yang files
@@ -484,7 +484,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         process_sdo_dir('standard/mef/src/model/standard', 'MEF standard')
         process_sdo_dir('standard/mef/src/model/draft', 'MEF draft')
 
-        # Openconfig is from different repo that s why we need models in github zero
+        # Openconfig is from different repository so we need yang models in Github equal to zero
         LOGGER.info('Cloning the repo')
         repo = repoutil.ModifiableRepoUtil(
             os.path.join(github_url, 'openconfig/public'),
