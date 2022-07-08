@@ -22,6 +22,7 @@ fi
 
 # Prepare files and directory structure for test_groupings.py
 mkdir -p $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC
+touch $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/README.md
 cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC/.
 cp $BACKEND/tests/resources/request-data.json $TMP_DIR/groupings-tests/.
 

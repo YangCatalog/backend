@@ -130,15 +130,15 @@ class TestGroupingsClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
-        repo = self.get_yangmodels_repository()
+        xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_yang_lib = VendorYangLibrary(path, xml_file, dumper, self.fileHasher, api, self.dir_paths)
 
-        with mock.patch.object(sdo_directory, '_construct_json_name', lambda x, y: 'IETFTEST'):
-            sdo_directory.parse_and_load(repo)
-        sdo_directory.dumper.dump_modules(yc_gc.temp_dir)
+        with mock.patch.object(vendor_yang_lib, '_construct_json_name', lambda x, y: 'IETFTEST'):
+            vendor_yang_lib.parse_and_load()
+        vendor_yang_lib.dumper.dump_modules(yc_gc.temp_dir)
 
         desired_module_data = self.load_desired_prepare_json_data('git_submodule_huawei')
         dumped_module_data = self.load_dumped_prepare_json_data()
