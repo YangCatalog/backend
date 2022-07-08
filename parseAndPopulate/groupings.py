@@ -252,7 +252,7 @@ class SdoDirectory(ModuleGrouping):
             schema_base = schema_parts.schema_base
             for i, file_name in enumerate(sdos, start=1):
                 # Process only SDO .yang files
-                if '.yang' not in file_name and any(word in root for word in ['vendor', 'odp']):
+                if '.yang' not in file_name or any(word in root for word in ['vendor', 'odp']):
                     continue
                 path = os.path.join(root, file_name)
                 should_parse = self.file_hasher.should_parse_sdo_module(path)
