@@ -287,23 +287,6 @@ class Module:
         finally:
             return imports
 
-    def _resolve_revision(self) -> str:
-        LOGGER.debug('Resolving revision')
-        try:
-            revision = self._parsed_yang.search('revision')[0].arg
-        except:
-            revision = '1970-01-01'
-        year, month, day = revision.split('-')
-        try:
-            revision = datetime(int(year), int(month), int(day)).date().isoformat()
-        except ValueError:
-            try:
-                if int(day) == 29 and int(month) == 2:
-                    revision = datetime(int(year), int(month), 28).date().isoformat()
-            except ValueError:
-                revision = '1970-01-01'
-        return revision
-
     def _resolve_schema(self, schema_parts: SchemaParts) -> t.Optional[str]:
         LOGGER.debug('Resolving schema')
         if self.organization == 'etsi':
@@ -546,17 +529,6 @@ class Module:
         LOGGER.debug('Resolving description')
         try:
             return self._parsed_yang.search('description')[0].arg
-        except IndexError:
-            return None
-
-    def _resolve_namespace(self) -> t.Optional[str]:
-        LOGGER.debug('Resolving namespace')
-        return self._resolve_submodule_case('namespace')
-
-    def _resolve_belongs_to(self) -> t.Optional[str]:
-        LOGGER.debug('Resolving belongs to')
-        try:
-            return self._parsed_yang.search('belongs-to')[0].arg
         except IndexError:
             return None
 
