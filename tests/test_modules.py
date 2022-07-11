@@ -25,7 +25,7 @@ from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.schema_parts import SchemaParts
+from parseAndPopulate.models.schema_parts import SchemaParts
 
 
 class TestModulesClass(unittest.TestCase):

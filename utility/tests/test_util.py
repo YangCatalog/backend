@@ -25,7 +25,7 @@ from unittest import mock
 
 import utility.util as util
 from api.globalConfig import yc_gc
-from parseAndPopulate.schema_parts import SchemaParts
+from parseAndPopulate.models.schema_parts import SchemaParts
 
 
 class TestUtilClass(unittest.TestCase):
