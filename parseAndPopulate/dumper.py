@@ -116,7 +116,7 @@ class Dumper:
                 'namespace': self.yang_modules[key].namespace,
                 'submodule': json.loads(self.yang_modules[key].json_submodules),
                 'dependencies': get_dependencies(self.yang_modules[key].dependencies),
-                'semantic-version': self.yang_modules[key].semver,
+                'semantic-version': self.yang_modules[key].semantic_version,
                 'derived-semantic-version': None,
                 'implementations': {
                     'implementation': [{

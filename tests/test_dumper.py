@@ -26,7 +26,7 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.schema_parts import SchemaParts
+from parseAndPopulate.models.schema_parts import SchemaParts
 
 
 class TestDumperClass(unittest.TestCase):

@@ -38,8 +38,8 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.schema_parts import SchemaParts
 
 
 class ModuleGrouping:
@@ -97,7 +97,6 @@ class ModuleGrouping:
 
     def parse_and_load(self):
         """Parse the modules and load the extracted data into the dumper."""
-        pass
 
     def _construct_json_name(self, schema_base: str, directory: str) -> t.Optional[str]:
         # This function reimplements the name mangling from sdo_analysis/bin/runYANGgenericstats.sh
@@ -458,12 +457,8 @@ class VendorGrouping(ModuleGrouping):
             :param schema_parts     (SchemaParts) Parts of the URL to a raw module on Github
         """
         for module in modules:
-            if not is_include:
-                name = module.arg
-                conformance_type = 'import'
-            else:
-                name = module.name
-                conformance_type = None
+            name = module.name
+            conformance_type = None if is_include else 'import'
 
             # Skip if name of submodule/import is already in list of module names
             if name not in set_of_names:

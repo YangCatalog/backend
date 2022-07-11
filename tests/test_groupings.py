@@ -31,7 +31,7 @@ from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
                                         VendorYangLibrary)
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
-from parseAndPopulate.schema_parts import SchemaParts
+from parseAndPopulate.models.schema_parts import SchemaParts
 from utility import repoutil
 from utility.staticVariables import github_url
 

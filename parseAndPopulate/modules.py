@@ -27,59 +27,28 @@ import re
 import shutil
 import time
 import typing as t
-from datetime import datetime
 
 import statistic.statistics as stats
-from git import InvalidGitRepositoryError
-from utility import log, repoutil, yangParser
+from utility import log, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
-                                     github_url)
+from utility.staticVariables import IETF_RFC_MAP, MISSING_ELEMENT
 from utility.util import find_first_file
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.models.dependency import Dependency
+from parseAndPopulate.models.implementation import Implementation
+from parseAndPopulate.models.schema_parts import SchemaParts
+from parseAndPopulate.models.submodule import Submodule
 from parseAndPopulate.resolvers.basic import BasicResolver
+from parseAndPopulate.resolvers.imports import ImportsResolver
+from parseAndPopulate.resolvers.module_type import ModuleTypeResolver
 from parseAndPopulate.resolvers.namespace import NamespaceResolver
 from parseAndPopulate.resolvers.organization import OrganizationResolver
 from parseAndPopulate.resolvers.revision import RevisionResolver
-from parseAndPopulate.schema_parts import SchemaParts
-
-
-class Submodules:
-    def __init__(self):
-        self.name: t.Optional[str] = None
-        self.revision: t.Optional[str] = None
-        self.schema: t.Optional[str] = None
-
-
-class Dependency:
-    def __init__(self):
-        self.name: t.Optional[str] = None
-        self.revision: t.Optional[str] = None
-        self.schema: t.Optional[str] = None
-
-
-class Implementation:
-    def __init__(self):
-        self.vendor: t.Optional[str] = None
-        self.platform: t.Optional[str] = None
-        self.software_version: t.Optional[str] = None
-        self.software_flavor: t.Optional[str] = None
-        self.os_version: t.Optional[str] = None
-        self.feature_set: t.Optional[str] = None
-        self.os_type: t.Optional[str] = None
-        self.feature = []
-        self.deviations = []
-        self.conformance_type: t.Optional[str] = None
-        self.capabilities = []
-        self.netconf_versions = []
-
-    class Deviation:
-        def __init__(self):
-            self.name: t.Optional[str] = None
-            self.revision: t.Optional[str] = None
-            self.schema: t.Optional[str] = None
+from parseAndPopulate.resolvers.semantic_version import SemanticVersionResolver
+from parseAndPopulate.resolvers.submodule import SubmoduleResolver
+from parseAndPopulate.resolvers.yang_version import YangVersionResolver
 
 
 class Module:
@@ -149,7 +118,9 @@ class Module:
         organization_resolver = OrganizationResolver(self._parsed_yang, LOGGER, self.namespace)
         self.organization = organization or organization_resolver.resolve()
 
-        self.module_type = self._resolve_module_type()
+        module_type_resolver = ModuleTypeResolver(self._parsed_yang, LOGGER)
+        self.module_type = module_type_resolver.resolve()
+
         self._save_file(save_file_dir)
         key = '{}@{}/{}'.format(self.name, self.revision, self.organization)
         if key in yang_modules:
@@ -157,21 +128,33 @@ class Module:
 
         self.schema = self._resolve_schema(schema_parts)
         self.dependencies: t.List[Dependency] = []
-        self.submodule: t.List[Submodules] = []
-        self._resolve_submodule(self.dependencies, self.submodule)
+        self.submodule: t.List[Submodule] = []
+        submodule_resolver = SubmoduleResolver(self._parsed_yang, LOGGER, self._path, self.schema)
+        self.dependencies, self.submodule = submodule_resolver.resolve()
         self.json_submodules = json.dumps([{
             'name': self.submodule[x].name,
             'schema': self.submodule[x].schema,
             'revision': self.submodule[x].revision
         } for x in range(0, len(self.submodule))])
-        self.imports = self._resolve_imports(self.dependencies)
+        imports_resolver = ImportsResolver(self._parsed_yang, LOGGER, self._path,
+                                           self.schema, self.yang_models, self._nonietf_dir)
+        self.imports = imports_resolver.resolve()
+        self.dependencies.extend(self.imports)
+
+        semantic_version_resolver = SemanticVersionResolver(self._parsed_yang)
+        self.semantic_version = semantic_version_resolver.resolve()
+
+        yang_version_resolver = YangVersionResolver(self._parsed_yang)
+        self.yang_version = yang_version_resolver.resolve()
+
+        self.contact = BasicResolver(self._parsed_yang, 'contact').resolve()
+        self.description = BasicResolver(self._parsed_yang, 'description').resolve()
+
         self.generated_from = generated_from or self._resolve_generated_from()
         self.compilation_status, self.compilation_result = \
             self._resolve_compilation_status_and_result(self.generated_from)
-        self.yang_version = self._resolve_yang_version()
+
         self.prefix = self._resolve_prefix()
-        self.contact = self._resolve_contact()
-        self.description = self._resolve_description()
         if document_name is None and reference is None:
             self.document_name, self.reference = self._parse_document_reference()
         else:
@@ -182,7 +165,6 @@ class Module:
         self.ietf_wg = self._resolve_working_group()
         self.author_email = author_email or self._resolve_author_email()
         self.maturity_level = maturity_level or self._resolve_maturity_level()
-        self.semver = self._resolve_semver()
 
     def _resolve_tree(self, module_type: t.Optional[str]):
         if module_type == 'module':
@@ -214,78 +196,6 @@ class Module:
             pass
 
         return None
-
-    def _resolve_imports(self, dependencies: t.List[Dependency]) -> list:
-        LOGGER.debug('Resolving imports')
-        imports = self._parsed_yang.search('import')
-        try:
-            for chunk in imports:
-                dependency = Dependency()
-                dependency.name = chunk.arg
-
-                try:
-                    parsed_revision = chunk.search('revision-date')[0].arg
-                except IndexError:
-                    parsed_revision = None
-                dependency.revision = parsed_revision
-
-                if dependency.revision:
-                    yang_file = self._find_file(dependency.name, dependency.revision)
-                else:
-                    yang_file = self._find_file(dependency.name)
-                if not yang_file:
-                    LOGGER.error('Import {} can not be found'.format(dependency.name))
-                    dependencies.append(dependency)
-                    continue
-
-                try:
-                    if os.path.dirname(yang_file) == os.path.dirname(self._path):
-                        if self.schema:
-                            dependency.schema = os.path.join(os.path.dirname(self.schema), os.path.basename(yang_file))
-                    else:
-                        if '/yangmodels/yang/' in yang_file:
-                            suffix = os.path.abspath(yang_file).split('/yangmodels/yang/')[-1]
-                            # Load/clone YangModels/yang repo
-                            repo_owner = 'YangModels'
-                            repo_name = 'yang'
-                            repo_url = os.path.join(github_url, repo_owner, repo_name)
-                            try:
-                                repo = repoutil.load(self.yang_models, repo_url)
-                            except InvalidGitRepositoryError:
-                                repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': self.yang_models})
-                        elif '/openconfig/public/' in yang_file:
-                            suffix = os.path.abspath(yang_file).split('/openconfig/public/')[-1]
-                            # Load/clone openconfig/public repo
-                            repo_owner = 'openconfig'
-                            repo_name = 'public'
-                            repo_url = os.path.join(github_url, repo_owner, repo_name)
-                            repo_dir = os.path.join(self._nonietf_dir, 'openconfig/public')
-                            try:
-                                repo = repoutil.load(repo_dir, repo_url)
-                            except InvalidGitRepositoryError:
-                                repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': repo_dir})
-                        else:
-                            dependencies.append(dependency)
-                            continue
-                        # Check if repository submodule
-                        for submodule in repo.repo.submodules:
-                            if submodule.name in suffix:
-                                repo_url = submodule.url.lower()
-                                repo_dir = os.path.join(self.yang_models, submodule.name)
-                                repo = repoutil.load(repo_dir, repo_url)
-                                repo_owner = repo.get_repo_owner()
-                                repo_name = repo.get_repo_dir().split('.git')[0]
-                                suffix = suffix.replace('{}/'.format(submodule.name), '')
-
-                        new_schema_parts = SchemaParts(repo_owner=repo_owner, repo_name=repo_name,
-                                                       commit_hash=repo.get_commit_hash(suffix))
-                        dependency.schema = os.path.join(new_schema_parts.schema_base_hash, suffix)
-                except:
-                    LOGGER.exception('Unable to resolve schema for {}@{}'.format(
-                        dependency.name, dependency.revision))
-                dependencies.append(dependency)
-        finally:
-            return imports
 
     def _resolve_schema(self, schema_parts: SchemaParts) -> t.Optional[str]:
         LOGGER.debug('Resolving schema')
@@ -397,61 +307,6 @@ class Module:
                 pass
         return None
 
-    def _resolve_submodule(self, dependencies: t.List[Dependency], submodule: t.List[Submodules]):
-        LOGGER.debug('Resolving submodules')
-        try:
-            submodules = self._parsed_yang.search('include')
-        except:
-            return
-
-        if len(submodules) == 0:
-            return
-
-        for chunk in submodules:
-            dep = Dependency()
-            sub = Submodules()
-            sub.name = chunk.arg
-
-            if len(chunk.search('revision-date')) > 0:
-                sub.revision = chunk.search('revision-date')[0].arg
-
-            if sub.revision:
-                yang_file = self._find_file(sub.name, sub.revision)
-                dep.revision = sub.revision
-            else:
-                yang_file = self._find_file(sub.name)
-                if yang_file:
-                    try:
-                        sub.revision = \
-                            yangParser.parse(os.path.abspath(yang_file)).search('revision')[0].arg
-                    except:
-                        sub.revision = '1970-01-01'
-                else:
-                    sub.revision = '1970-01-01'
-            if yang_file is None:
-                LOGGER.error('Module can not be found')
-                continue
-            if self.schema:
-                sub_schema = '/'.join((*self.schema.split('/')[0:-1], yang_file.split('/')[-1]))
-            else:
-                sub_schema = None
-            if yang_file:
-                sub.schema = sub_schema
-            dep.name = sub.name
-            dep.schema = sub.schema
-            dependencies.append(dep)
-            submodule.append(sub)
-
-    def _resolve_yang_version(self) -> str:
-        LOGGER.debug('Resolving yang version')
-        try:
-            yang_version = self._parsed_yang.search('yang-version')[0].arg
-        except:
-            yang_version = '1.0'
-        if yang_version == '1':
-            yang_version = '1.0'
-        return yang_version
-
     def _resolve_generated_from(self) -> str:
         LOGGER.debug('Resolving generated from')
         if self.namespace and ':smi' in self.namespace:
@@ -517,32 +372,6 @@ class Module:
             os.chmod(file_path, 0o664)
 
         return '{}/results/{}'.format(self._domain_prefix, file_url)
-
-    def _resolve_contact(self) -> t.Optional[str]:
-        LOGGER.debug('Resolving contact')
-        try:
-            return self._parsed_yang.search('contact')[0].arg
-        except IndexError:
-            return None
-
-    def _resolve_description(self):
-        LOGGER.debug('Resolving description')
-        try:
-            return self._parsed_yang.search('description')[0].arg
-        except IndexError:
-            return None
-
-    def _resolve_module_type(self) -> t.Optional[str]:
-        LOGGER.debug('Resolving module type')
-        allowed = ['module', 'submodule', None]
-        try:
-            module_type = self._parsed_yang.keyword
-            if module_type in allowed:
-                return module_type
-        except AttributeError:
-            LOGGER.exception('Error while resolving module_type')
-
-        return None
 
     def _resolve_prefix(self) -> t.Optional[str]:
         LOGGER.debug('Resolving prefix')
