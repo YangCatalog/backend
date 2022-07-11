@@ -59,13 +59,13 @@ class ImportsResolver(Resolver):
                         new_dependency.schema = os.path.join(os.path.dirname(self.schema), os.path.basename(yang_file))
                 else:
                     if '/yangmodels/yang/' in yang_file:
-                        new_schema_parts, suffix = self._get_yangmodels_schema_parts(yang_file)
+                        new_dependency_schema = self._get_yangmodels_schema_parts(yang_file)
                     elif '/openconfig/public/' in yang_file:
-                        new_schema_parts, suffix = self._get_openconfig_schema_parts(yang_file)
+                        new_dependency_schema = self._get_openconfig_schema_parts(yang_file)
                     else:
                         imports.append(new_dependency)
                         continue
-                    new_dependency.schema = os.path.join(new_schema_parts.schema_base_hash, suffix)
+                    new_dependency.schema = new_dependency_schema
             except Exception:
                 self.logger.exception('Unable to resolve schema for {}@{}'.format(
                     new_dependency.name, new_dependency.revision))
@@ -73,8 +73,8 @@ class ImportsResolver(Resolver):
 
         return imports
 
-    def _get_openconfig_schema_parts(self, yang_file: str) -> t.Tuple[SchemaParts, str]:
-        """ Get SchemaParts object in imported file was found in openconfig/public repository. """
+    def _get_openconfig_schema_parts(self, yang_file: str) -> t.Optional[str]:
+        """ Get SchemaParts object if imported file was found in openconfig/public repository. """
         suffix = os.path.abspath(yang_file).split('/openconfig/public/')[-1]
         # Load/clone openconfig/public repo
         repo_owner = 'openconfig'
@@ -89,10 +89,10 @@ class ImportsResolver(Resolver):
 
         new_schema_parts = SchemaParts(repo_owner=repo_owner, repo_name=repo_name,
                                        commit_hash=repo.get_commit_hash(suffix))
-        return new_schema_parts, suffix
+        return os.path.join(new_schema_parts.schema_base_hash, suffix)
 
-    def _get_yangmodels_schema_parts(self, yang_file: str) -> t.Tuple[SchemaParts, str]:
-        """ Get SchemaParts object in imported file was found in YangModels/yang repository. 
+    def _get_yangmodels_schema_parts(self, yang_file: str) -> t.Optional[str]:
+        """ Get SchemaParts object if imported file was found in YangModels/yang repository. 
         This repository also contains several git submodules, so it is necessary to check 
         whether file is part of submodule or not. 
         """
@@ -119,4 +119,4 @@ class ImportsResolver(Resolver):
 
         new_schema_parts = SchemaParts(repo_owner=repo_owner, repo_name=repo_name,
                                        commit_hash=repo.get_commit_hash(suffix))
-        return new_schema_parts, suffix
+        return os.path.join(new_schema_parts.schema_base_hash, suffix)
