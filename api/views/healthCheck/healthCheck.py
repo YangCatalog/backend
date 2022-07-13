@@ -259,7 +259,7 @@ def health_check_yang_validator_admin():
 def health_check_yang_search_admin():
     service_name = 'yang-search'
     yang_search_prefix = '{}/search'.format(ac.w_yangcatalog_api_prefix)
-    module_name = 'ietf-syslog,2018-03-15,ietf'
+    module_name = 'yang-catalog,2018-04-03,ietf'
     try:
         response = requests.get('{}/modules/{}'.format(yang_search_prefix, module_name), headers=json_headers)
         bp.LOGGER.info('yang-search responded with a code {}'.format(response.status_code))
@@ -398,8 +398,8 @@ def check_cronjobs():
     try:
         with open('{}/cronjob.json'.format(ac.d_temp), 'r') as f:
             file_content = json.load(f)
-    except Exception:
-        return make_response(jsonify({'error': 'Data about cronjobs are not available.'}), 400)
+    except (FileNotFoundError, json.decoder.JSONDecodeError):
+        return make_response(jsonify({'error': 'Data about cronjobs are not available.', 'data': {}}), 200)
     return make_response(jsonify({'data': file_content}), 200)
 
 

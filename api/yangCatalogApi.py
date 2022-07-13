@@ -152,14 +152,6 @@ def catch_all(path):
     return abort(404, description='Path "/{}" does not exist'.format(path))
 
 
-@app.route('/api/yangsuite/<id>', methods=['GET'])
-def yangsuite_redirect(id):
-    local_ip = '127.0.0.1'
-    if ac.g_uwsgi:
-        local_ip = 'ys.{}'.format(ac.w_ip)
-    return redirect('https://{}/yangsuite/ydk/aaa/{}'.format(local_ip, id))
-
-
 @app.route('/api/load-cache', methods=['POST'])
 @auth.auth.login_required
 def load_to_memory():
