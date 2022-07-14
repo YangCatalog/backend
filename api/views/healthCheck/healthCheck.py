@@ -399,7 +399,8 @@ def check_cronjobs():
         with open('{}/cronjob.json'.format(ac.d_temp), 'r') as f:
             file_content = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
-        return make_response(jsonify({'error': 'Data about cronjobs are not available.', 'data': {}}), 200)
+        bp.LOGGER.error('cronjob.json file does not exist')
+        file_content = {}
     return make_response(jsonify({'data': file_content}), 200)
 
 
