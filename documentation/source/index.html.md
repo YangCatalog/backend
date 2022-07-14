@@ -1769,32 +1769,6 @@ This endpoint serves to get a raw yang module in html form
 
 # Internal
 
-## Yangsuite redirect
-
-```python
-import requests
-
-url = 'https://yangcatalog.org/api/yangsuite/<id>'
-requests.get(url, headers={'Accept': 'application/json'})
-```
-
-```shell
-curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
- "https://yangcatalog.org/api/yangsuite/<id>"
-```
-
-> The above command should redirect you to yangsuite's main page
-with predefined yang modules and yangsuite user
-
-This endpoint serves to redirect the user to yangsuite's main page with
-predefined yang modules and yangsuite user. This link is generated
-with every [search for a specific yang module](#get-specific-module) if
-the YANGSUITE header is set to true. That way you'll receive `<id>` together
-with yang module response.
-
-### HTTP Request
-
-`GET https://yangcatalog.org/api/yangsuite/<id>`
 
 ## Trigger ietf pull
 

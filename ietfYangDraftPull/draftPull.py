@@ -137,8 +137,13 @@ def main(scriptConf=None):
 
             shutil.rmtree(extract_to)
 
-            with open(rfc_exceptions, 'r') as exceptions_file:
-                remove_from_new = exceptions_file.read().split('\n')
+            try:
+                with open(rfc_exceptions, 'r') as exceptions_file:
+                    remove_from_new = exceptions_file.read().split('\n')
+            except FileNotFoundError:
+                open(rfc_exceptions, 'w').close()
+                os.chmod(rfc_exceptions, 0o664)
+                remove_from_new = []
             new_files = [file_name for file_name in new_files if file_name not in remove_from_new]
 
             if args.send_message:
