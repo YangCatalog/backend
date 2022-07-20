@@ -1,4 +1,4 @@
-FROM python:3.9
+FROM python:3.9-bullseye
 ARG YANG_ID
 ARG YANG_GID
 ARG CRON_MAIL_TO
