@@ -65,8 +65,7 @@ class TestModulesClass(unittest.TestCase):
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
         parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
-        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, {},
-                         self.schema_parts)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {})
 
         self.assertEqual(yang.document_name, 'rfc6991')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -99,8 +98,7 @@ class TestModulesClass(unittest.TestCase):
         }
 
         parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
-        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, keys,
-                         self.schema_parts, additional_info)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, keys, additional_info)
 
         self.assertEqual(yang.name, 'ietf-yang-types')
         self.assertEqual(yang.module_type, 'module')
@@ -119,8 +117,7 @@ class TestModulesClass(unittest.TestCase):
         deviation = yang_lib_data.split('&deviations=')[1]
 
         parsed_jsons = LoadFiles('CiscoXR701', self.test_private_dir, yc_gc.logs_dir)
-        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, self.schema_parts,
-                            data=yang_lib_data)
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {}, data=yang_lib_data)
 
         self.assertEqual(yang.document_name, 'rfc8341')
         self.assertEqual(yang.generated_from, 'not-applicable')
@@ -149,8 +146,7 @@ class TestModulesClass(unittest.TestCase):
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         parsed_jsons = LoadFiles('CiscoXR701', self.test_private_dir, yc_gc.logs_dir)
-        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, self.schema_parts,
-                            data=vendor_data)
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {}, data=vendor_data)
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 
         self.assertNotEqual(len(yang.implementations), 0)
@@ -187,8 +183,7 @@ class TestModulesClass(unittest.TestCase):
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
         parsed_jsons = LoadFiles('NETWORKROUTER8200', self.test_private_dir, yc_gc.logs_dir)
-        yang = VendorModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, self.schema_parts,
-                            data=yang_lib_info)
+        yang = VendorModule(module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {}, data=yang_lib_info)
 
         yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
 

@@ -41,20 +41,22 @@ jobs:
           container port: 9200
           discovery type: 'single-node'          
 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt && ./setup.py install
+
       - name: Prepare environment
         run: |
           export VAR=/var/yang
           export BACKEND=$PWD
           export PYTHONPATH=$PYTHONPATH:$BACKEND
+          export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           sudo mkdir -p $VAR
           sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
+          ls tests/resources/all_modules
           sed -i "s/yc-redis/localhost/" $BACKEND/tests/resources/test.conf
-
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt && ./setup.py install
 
       - name: Feed Redis
         run: |

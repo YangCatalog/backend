@@ -6,7 +6,7 @@ from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 from utility import yangParser
 from utility.staticVariables import MISSING_ELEMENT
-from utility.util import find_first_file
+from utility.util import get_yang
 
 """ 
 This resolver resolves yang module namespace property.
@@ -37,10 +37,7 @@ class NamespaceResolver(Resolver):
             return MISSING_ELEMENT
 
         self.logger.debug('Getting parent namespace - {} is a submodule'.format(self.name_revision))
-        pattern = '{}.yang'.format(self.belongs_to)
-        pattern_with_revision = '{}@*.yang'.format(self.belongs_to)
-        directory = os.path.dirname(self.path)
-        yang_file = find_first_file(directory, pattern, pattern_with_revision)
+        yang_file = get_yang(self.belongs_to)
         if yang_file is None:
             self.logger.error('Parent module not found - unable to resolve namespace')
             return MISSING_ELEMENT

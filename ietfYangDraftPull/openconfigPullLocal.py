@@ -31,11 +31,10 @@ from glob import glob
 
 import requests
 import utility.log as log
-from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
-from utility.util import job_log
+from utility.util import job_log, resolve_revision
 
 from ietfYangDraftPull import draftPullUtility
 
@@ -52,21 +51,6 @@ class ScriptConfig(BaseScriptConfig):
             'default': os.environ['YANGCATALOG_CONFIG_PATH']
         }]
         super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-def resolve_revision(yang_file: str):
-    """ Search for revision in file "yang_file"
-
-    Argument:
-        :param yang_file    (str) full path to the yang file
-    :return: revision of the yang file
-    """
-    try:
-        parsed_yang = yangParser.parse(os.path.abspath(yang_file))
-        revision = parsed_yang.search('revision')[0].arg
-    except Exception:
-        revision = '1970-01-01'
-    return revision
 
 
 def main(scriptConf=None):

@@ -68,25 +68,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         desired_module_data = self.load_desired_prepare_json_data('dumped_module')
         dumped_module_data = self.load_dumped_prepare_json_data()
 
-        # Compare desired output with output of prepare.json
-        for dumped_module in dumped_module_data:
-            for desired_module in desired_module_data:
-                if desired_module.get('name') == dumped_module.get('name'):
-                    # Compare properties/keys of desired and dumped module data objects
-                    for key in desired_module:
-                        if key == 'yang-tree':
-                            # Compare only URL suffix (exclude domain)
-                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[-1])
-                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[-1])
-                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
-                        elif key == 'compilation-result':
-                            if dumped_module[key] != '' and desired_module[key] != '':
-                                # Compare only URL suffix (exclude domain)
-                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                                self.assertEqual(desired_compilation_result, dumped_compilation_result)
-                        else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+        self.compare_prepare_data(desired_module_data, dumped_module_data)
 
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
@@ -146,25 +128,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         desired_module_data = self.load_desired_prepare_json_data('ncs5k_prepare_json')
         dumped_module_data = self.load_dumped_prepare_json_data()
 
-        # Compare desired output with output of prepare.json
-        for dumped_module in dumped_module_data:
-            for desired_module in desired_module_data:
-                if desired_module.get('name') == dumped_module.get('name'):
-                    # Compare properties/keys of desired and dumped module data objects
-                    for key in desired_module:
-                        if key == 'yang-tree':
-                            # Compare only URL suffix (exclude domain)
-                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[-1])
-                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[-1])
-                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
-                        elif key == 'compilation-result':
-                            if dumped_module[key] != '' and desired_module[key] != '':
-                                # Compare only URL suffix (exclude domain)
-                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                                self.assertEqual(desired_compilation_result, dumped_compilation_result)
-                        else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+        self.compare_prepare_data(desired_module_data, dumped_module_data)
 
         # Load desired normal.json data from .json file
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
@@ -239,28 +203,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         dumped_module_data = sorted(self.load_dumped_prepare_json_data(), key=key)
         desired_module_data = sorted(self.load_desired_prepare_json_data('yang_lib_prepare_json'), key=key)
 
-        # Compare desired output with output of prepare.json
-        self.assertEqual(len(dumped_module_data), len(desired_module_data))
-        for dumped_module, desired_module in zip(dumped_module_data, desired_module_data):
-            # Compare properties/keys of desired and dumped module data objects
-            for key in desired_module:
-                if key == 'yang-tree':
-                    # Compare only URL suffix (exclude domain)
-                    desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[-1])
-                    dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[-1])
-                    self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
-                elif key == 'compilation-result':
-                    if dumped_module[key] != '' and desired_module[key] != '':
-                        # Compare only URL suffix (exclude domain)
-                        desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                        dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                        self.assertEqual(desired_compilation_result, dumped_compilation_result)
-                else:
-                    if isinstance(desired_module[key], list):
-                        for i in desired_module[key]:
-                            self.assertIn(i, dumped_module[key], key)
-                    else:
-                        self.assertEqual(dumped_module[key], desired_module[key])
+        self.compare_prepare_data(desired_module_data, dumped_module_data)
 
         # Load desired normal.json data from .json file
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
@@ -340,6 +283,50 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         dumped_module_data = file_content['module']
         return dumped_module_data
 
+    def compare_prepare_data(self, desired_module_data, dumped_module_data):
+
+        for desired_module in desired_module_data:
+            name = desired_module.get('name')
+            revision = desired_module.get('revision')
+            for dumped_module in dumped_module_data:
+                if name == dumped_module.get('name'):
+                    fail_message = 'mismatch in {}'.format(name)
+                    fail_message = '{} ' + fail_message
+                    # Compare properties/keys of desired and dumped module data objects
+                    for key in desired_module:
+                        if name == 'ietf-yang-library':
+                            # We have multiple slightly different versions of ietf-yang-library
+                            # marked with the same revision
+                            if key in ('description', 'contact'):
+                                continue
+                        if key == 'yang-tree':
+                            # Compare only URL suffix (exclude domain)
+                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[1])
+                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[1])
+                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix,
+                                             fail_message.format('tree suffix'))
+                        elif key == 'compilation-result':
+                            if dumped_module[key] != '' and desired_module[key] != '':
+                                # Compare only URL suffix (exclude domain)
+                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
+                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
+                                self.assertEqual(desired_compilation_result, dumped_compilation_result,
+                                                 fail_message.format('compilation result'))
+                        else:
+                            if isinstance(desired_module[key], list):
+                                # submodules or dependencies
+                                for i in desired_module[key]:
+                                    for j in dumped_module[key]:
+                                        try:
+                                            j.pop('schema')
+                                        except KeyError:
+                                            pass
+                                    self.assertIn(i, dumped_module[key], fail_message.format(key))
+                            else:
+                                self.assertEqual(dumped_module[key], desired_module[key], fail_message.format(key))
+                    break
+            else:
+                self.assertTrue(False, '{}@{} not found in dumped data'.format(name, revision))
 
 if __name__ == '__main__':
     unittest.main()

@@ -26,14 +26,16 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import glob
 import os
+import shutil
 import time
 import typing as t
 
 import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.util import find_files
+from utility.util import find_files, parse_name, parse_revision, strip_comments
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
@@ -125,6 +127,24 @@ def main(scriptConf=None):
     fileHasher = FileHasher('backend_files_modification_hashes', dir_paths['cache'],
                             args.save_file_hash, dir_paths['log'])
 
+    name_rev_to_path = {}
+    path_to_name_rev = {}
+    LOGGER.info('Saving all yang files so the save-file-dir')
+    for yang_file in glob.glob(os.path.join(args.dir, '**/*.yang'), recursive=True):
+        with open(yang_file) as f:
+            text = f.read()
+            text = strip_comments(text)
+            name = parse_name(text)
+            revision = parse_revision(text)
+            save_file_path = os.path.join(dir_paths['save'], '{}@{}.yang'.format(name, revision))
+            # To construct and save a schema url, we need the original path, module name, and revision.
+            # SDO metadata only provides the path, vendor metadata only provides the name and revision.
+            # We need mappings both ways to retrieve the missing data.
+            name_rev_to_path[name, revision] = yang_file
+            path_to_name_rev[yang_file] = name, revision
+            if not os.path.exists(save_file_path):
+                shutil.copy(yang_file, save_file_path)
+
     LOGGER.info('Starting to iterate through files')
     if args.sdo:
         LOGGER.info('Found directory for sdo {}'.format(args.dir))
@@ -133,12 +153,12 @@ def main(scriptConf=None):
         if os.path.isfile(os.path.join(args.dir, 'yang-parameters.xml')):
             LOGGER.info('yang-parameters.xml file found')
 
-            grouping = IanaDirectory(args.dir, dumper, fileHasher, args.api, dir_paths)
+            grouping = IanaDirectory(args.dir, dumper, fileHasher, args.api, dir_paths, path_to_name_rev)
             grouping.parse_and_load()
         else:
             LOGGER.info('Starting to parse files in sdo directory')
 
-            grouping = SdoDirectory(args.dir, dumper, fileHasher, args.api, dir_paths)
+            grouping = SdoDirectory(args.dir, dumper, fileHasher, args.api, dir_paths, path_to_name_rev)
             grouping.parse_and_load()
 
         dumper.dump_modules(dir_paths['json'])
@@ -149,9 +169,9 @@ def main(scriptConf=None):
                 LOGGER.info('Found xml source {}'.format(filename))
 
                 if pattern == '*capabilit*.xml':
-                    grouping = VendorCapabilities(root, filename, dumper, fileHasher, args.api, dir_paths)
+                    grouping = VendorCapabilities(root, filename, dumper, fileHasher, args.api, dir_paths, name_rev_to_path)
                 else:
-                    grouping = VendorYangLibrary(root, filename, dumper, fileHasher, args.api, dir_paths)
+                    grouping = VendorYangLibrary(root, filename, dumper, fileHasher, args.api, dir_paths, name_rev_to_path)
                 try:
                     grouping.parse_and_load()
                 except Exception as e:

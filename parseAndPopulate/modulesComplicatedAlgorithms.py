@@ -45,7 +45,7 @@ from utility import log, messageFactory
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,
-                          find_first_file)
+                          get_yang)
 from utility.yangParser import create_context
 
 
@@ -227,7 +227,7 @@ class ModulesComplicatedAlgorithms:
                 else:
                     name_of_module = output.split('\n')[0].split(': ')[1]
                 name_of_module = name_of_module.split('-state')[0]
-                coresponding_nmda_file = self._find_file(name_of_module)
+                coresponding_nmda_file = get_yang(name_of_module)
                 if coresponding_nmda_file:
                     name = coresponding_nmda_file.split('/')[-1].split('.')[0]
                     revision = name.split('@')[-1]
@@ -572,7 +572,7 @@ class ModulesComplicatedAlgorithms:
                 module_temp['organization'] = new_module['organization']
                 module_temp['compilation'] = new_module.get('compilation-status', 'PENDING')
                 module_temp['date'] = date
-                module_temp['schema'] = new_module['schema']
+                module_temp['schema'] = new_module.get('schema')
                 mod_details: t.List[t.Dict[str, str]] = [module_temp]
 
                 # Loop through all other available revisions of the module
@@ -589,7 +589,7 @@ class ModulesComplicatedAlgorithms:
                         module_temp['compilation'] = mod.get('compilation-status', 'PENDING')
                         module_temp['semver'] = mod['derived-semantic-version']
                         module_temp['organization'] = mod['organization']
-                        module_temp['schema'] = mod['schema']
+                        module_temp['schema'] = mod.get('schema')
                         mod_details.append(module_temp)
                 except KeyError as e:
                     LOGGER.error('Existing module {}@{} is missing the {} field'.format(name, revision, e))
@@ -732,14 +732,6 @@ class ModulesComplicatedAlgorithms:
         add_dependents(all_modules, both_dict)
         LOGGER.info('Adding existing modules as dependents')
         add_dependents(existing_modules, all_modules_dict)
-
-    def _find_file(self, name: str, revision: str = '*') -> t.Optional[str]:
-        pattern = '{}.yang'.format(name)
-        pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        directory = '/'.join(self._path.split('/')[0:-1])
-        yang_file = find_first_file(directory, pattern, pattern_with_revision)
-
-        return yang_file
 
     def _check_schema_file(self, module: dict):
         """ Check if the file exists and if not try to get it from Github.
