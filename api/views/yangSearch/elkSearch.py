@@ -33,6 +33,7 @@ from utility import log
 from utility.staticVariables import OUTPUT_COLUMNS
 
 RESPONSE_SIZE = 2000
+RESERVED_CHARACTERS = ['"', '<']
 
 
 class ElkSearch:
@@ -144,6 +145,8 @@ class ElkSearch:
             sensitive = 'sensitive'
         else:
             self._searched_term = self._searched_term.lower()
+        if self._search_params.query_type == 'regexp':
+            self._searched_term = _escape_reserved_characters(self._searched_term)
         search_in = self.query['query']['bool']['must'][1]['bool']['should']
         for searched_field in self._search_params.searched_fields:
             should_query = {
@@ -287,3 +290,11 @@ class ElkSearch:
             reject.append(module_key)
             return True
         return False
+
+
+def _escape_reserved_characters(term: str) -> str:
+    """ If the number of double quotes is odd, the sequence is not closed, so escaping characters is needed."""
+    for char in RESERVED_CHARACTERS:
+        if term.count(char) % 2 == 1:
+            term = term.replace(char, '\\{}'.format(char))
+    return term
