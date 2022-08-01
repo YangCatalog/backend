@@ -5,6 +5,7 @@ import os
 import threading
 import time
 from datetime import datetime, timedelta
+from urllib.error import URLError
 
 import flask
 import requests
@@ -22,6 +23,8 @@ from utility.redisUsersConnection import RedisUsersConnection
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
+from api.matomo_tracker import (MatomoTrackerData, get_headers_dict,
+                                record_analytic)
 from api.sender import Sender
 
 
@@ -143,8 +146,15 @@ class MyFlask(Flask):
     def preprocess_request(self):
         super().preprocess_request()
         g.special_id = 0
-        if not 'admin' in request.path:
+        if not 'admin/' in request.path or not 'api/job/' in request.path:
             self.logger.info(request.path)
+            client_ip = request.remote_addr
+            data = MatomoTrackerData(self.config.m_matomo_api_url, self.config.m_matomo_site_id)
+            headers_dict = get_headers_dict(request)
+            try:
+                record_analytic(headers_dict, data, client_ip)
+            except URLError:
+                self.logger.error('Unable to record API analytic')
         if 'api/admin' in request.path and not 'api/admin/healthcheck' in request.path and not 'api/admin/ping' in request.path:
             logged_in = UserSession(flask.session, 'default').is_authenticated()
             self.logger.info('User logged in {}'.format(logged_in))
