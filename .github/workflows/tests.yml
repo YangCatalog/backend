@@ -55,7 +55,6 @@ jobs:
           sudo mkdir -p $VAR
           sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
-          ls tests/resources/all_modules
           sed -i "s/yc-redis/localhost/" $BACKEND/tests/resources/test.conf
 
       - name: Feed Redis
