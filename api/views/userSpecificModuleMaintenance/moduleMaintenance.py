@@ -32,7 +32,7 @@ from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
 from utility import repoutil, yangParser
 from utility.messageFactory import MessageFactory
-from utility.staticVariables import NS_MAP, backup_date_format, github_url
+from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
 from werkzeug.exceptions import abort
 
 
@@ -556,7 +556,7 @@ def get_mod_redis(module: dict):
 
 
 def organization_by_namespace(namespace: str):
-    for ns, org in NS_MAP:
+    for ns, org in NAMESPACE_MAP:
         if ns in namespace:
             return org
         else:

@@ -60,7 +60,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version': 1.0.0
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -94,7 +94,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version': 2.0.0
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -128,7 +128,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version': 3.0.0
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -163,7 +163,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version': 4.0.0
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -198,7 +198,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version': 4.1.0
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -233,7 +233,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version': 4.1.1
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -270,7 +270,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         Expected 'derived-semantic-version' order: '1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1'
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
         """
         expected_semver_order = ['1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1']
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']

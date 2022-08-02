@@ -60,7 +60,7 @@ class TestLoadFilesClass(unittest.TestCase):
         - headers and status properties should be empty for this name.
 
         Arguments:
-        :param mock_load_names  (mock.MagicMock) load_names() method is patched, to return name of non-exisiting json
+            :param mock_load_names  (mock.MagicMock) load_names() method is patched, to return name of non-exisiting json
         """
         parsed_jsons = LoadFiles('SuperRandom', self.test_private_dir, yc_gc.logs_dir)
 

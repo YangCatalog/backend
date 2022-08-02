@@ -29,6 +29,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import logging
 import os
 import time
+import typing as t
 from datetime import datetime
 
 import requests
@@ -49,11 +50,11 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, None, None if __name__ == '__main__' else [])
 
 
-def __expired_change(expired_from_module, expired_from_datatracker):
+def __expired_change(expired_from_module: t.Optional[str], expired_from_datatracker: t.Union[str, bool]) -> bool:
     return expired_from_module != expired_from_datatracker
 
 
-def __expires_change(expires_from_module, expires_from_datatracker):
+def __expires_change(expires_from_module: t.Optional[str], expires_from_datatracker: t.Optional[str]) -> bool:
     expires_changed = expires_from_module != expires_from_datatracker
 
     if expires_changed:
@@ -71,11 +72,11 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
                        redis_connection: RedisConnection):
     """Walks through all the modules and updates them if necessary
 
-        Arguments:
-            :param module               (dict) Module with all the metadata
-            :param LOGGER               (logging.Logger) formated logger with the specified name
-            :param datatracker_failures (list) list of url that failed to get data from Datatracker
-            :param redis_connection     (RedisConnection) Connection used to communication with Redis
+    Arguments:
+        :param module               (dict) Module with all the metadata
+        :param LOGGER               (logging.Logger) formated logger with the specified name
+        :param datatracker_failures (list) list of url that failed to get data from Datatracker
+        :param redis_connection     (RedisConnection) Connection used to communication with Redis
     """
     reference = module.get('reference')
     expired = 'not-applicable'

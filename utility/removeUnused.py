@@ -144,6 +144,7 @@ def main():
             return sha1.digest()
 
         def hash_node(path: str) -> bytes:
+            """Hash a file or directory."""
             if os.path.isfile(path):
                 return hash_file(path)
             elif os.path.isdir(path):
@@ -159,10 +160,16 @@ def main():
             else:
                 assert False
 
-        # remove  all files that are same keep the latest one only. Last two months keep all different content json files
-        # other 4 months (6 in total) keep only latest, remove all other files
-        def remove_old_backups(subdir: str):
-            backup_directory = os.path.join(cache_directory, subdir)
+        def remove_old_backups(directory: str):
+            """Deduplicate backups and keep the latest copy only.
+            Keep one backup per month for the last 6 months.
+            For the last 2 month, keep all unique backups.
+            All other files are removed.
+
+            Arguments:
+                :param subdir   (str) Directory to search for backups.
+            """
+            backup_directory = os.path.join(cache_directory, directory)
             list_of_backups = get_list_of_backups(backup_directory)
             backup_name_latest = os.path.join(backup_directory, list_of_backups[-1])
 

@@ -71,12 +71,14 @@ class ScriptConfig(BaseScriptConfig):
 
 
 
-def list_of_yang_modules_in_subdir(srcdir, debug_level):
+def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
     """
     Returns the list of YANG Modules (.yang) in all sub-directories
-    :param srcdir: root directory to search for yang files
-    :param debug_level: If > 0 print some debug statements to the console
-    :return: list of YANG files
+
+    Arguments:
+        :param srcdir:      (str) root directory to search for yang files
+        :param debug_level: (int) If > 0 print some debug statements to the console
+        :return:            (list) list of YANG files
     """
     ll = []
     for root, _, files in os.walk(srcdir):

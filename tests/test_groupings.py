@@ -70,7 +70,7 @@ class TestGroupingsClass(unittest.TestCase):
         from all the .yang files which are located in 'path' directory.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
@@ -97,7 +97,7 @@ class TestGroupingsClass(unittest.TestCase):
         from all modules loaded from request-data.json file.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
@@ -126,7 +126,7 @@ class TestGroupingsClass(unittest.TestCase):
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
 
         Arguments:
-        :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
         path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
@@ -174,7 +174,7 @@ class TestGroupingsClass(unittest.TestCase):
         Parsed modules are dumped to prepare.json file, then loaded and implementation information is chcecked.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
         directory = os.path.join(self.test_repo, 'vendor/cisco/xr/701')
@@ -296,7 +296,7 @@ class TestGroupingsClass(unittest.TestCase):
         Parsed modules are dumped to prepare.json file, then loaded and implementation information is checked.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
         directory = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')

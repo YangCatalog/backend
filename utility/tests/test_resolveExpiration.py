@@ -92,7 +92,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         which are requested in the method.
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
@@ -114,7 +114,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         which are requested in the method.
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_empty_response')
@@ -136,7 +136,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
@@ -158,7 +158,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
@@ -182,9 +182,9 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
 
         Arguments:
-        :param mock_requests_delete     (mock.MagicMock) requests.delete() method is patched - no real request to Redis
-        :param mock_requests_patch      (mock.MagicMock) requests.patch() method is patched - no real request to Redis
-        :param mock_requests_get        (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+            :param mock_requests_delete     (mock.MagicMock) requests.delete() method is patched - no real request to Redis
+            :param mock_requests_patch      (mock.MagicMock) requests.patch() method is patched - no real request to Redis
+            :param mock_requests_get        (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_draft_expire_now_response')
@@ -212,7 +212,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
 
         Arguments:
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
@@ -236,8 +236,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         and the 'datatracker_failures' variable should contain problematic datatracker url
 
         Arguments:
-        :param mock_time_sleep      (mock.MagicMock) time.sleep() method is patched so no need to wait during tests run
-        :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to raise exception
+            :param mock_time_sleep      (mock.MagicMock) time.sleep() method is patched so no need to wait during tests run
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to raise exception
         """
         # Load submodule and its config
         mock_requests_get.side_effect = Exception()

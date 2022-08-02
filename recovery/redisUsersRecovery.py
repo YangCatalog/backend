@@ -12,6 +12,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+"""
+Save or load the users database stored on redis. An automatic backup is made
+before a load is performed.
+"""
+
 __author__ = 'Richard Zilincik'
 __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
@@ -33,8 +38,7 @@ from utility.util import get_list_of_backups, job_log
 class ScriptConfig:
 
     def __init__(self):
-        self.help = 'Save or load the users database stored on redis. An automatic backup is made' \
-                    ' before a load is performed'
+        self.help = __doc__
         config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')

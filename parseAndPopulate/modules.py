@@ -34,7 +34,7 @@ import statistic.statistics as stats
 from git import InvalidGitRepositoryError
 from utility import log, repoutil, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NS_MAP,
+from utility.staticVariables import (IETF_RFC_MAP, MISSING_ELEMENT, NAMESPACE_MAP,
                                      github_url)
 from utility.util import find_first_file
 
@@ -88,6 +88,7 @@ class Module:
                  yang_modules: dict, schema_parts: SchemaParts, aditional_info: t.Optional[t.Dict[str, str]]):
         """
         Initialize and parse everything out of a module.
+
         Arguments:
             :param name:            (str) name of the module (not parsed out of the module)
             :param path:            (str) path to yang file being parsed
@@ -596,7 +597,7 @@ class Module:
         except:
             pass
         if namespace:
-            for ns, org in NS_MAP:
+            for ns, org in NAMESPACE_MAP:
                 if ns in namespace:
                     return org
             if 'cisco' in namespace or 'CISCO' in namespace:

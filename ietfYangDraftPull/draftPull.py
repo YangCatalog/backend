@@ -13,14 +13,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 """
-Cronjob tool that automatically pushes new IETF
-draft yang modules to the Github repository. Old ones
-are removed and naming is corrected to <name>@<revision>.yang.
-New IETF RFC modules are checked too, but they are not automatically added.
-E-mail is sent to yangcatalog admin users if such thing occurs.
-Message about new RFC or DRAFT yang modules is also sent
-to the Cisco Webex Teams, room: YANG Catalog Admin.
+Pull the latest IETF files and add any new IETF draft files to Github.
+Remove old files and and ensure all filenames have a <name>@<revision>.yang format.
+If there are new RFC files, produce an automated message that will be sent to the 
+Cisco Webex Teams and admin emails notifying that these need to be added to 
+the YangModels/yang Github repository manualy. This script runs as a daily cronjob.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -51,10 +50,7 @@ from ietfYangDraftPull import draftPullUtility
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        help = 'Pull the latest IETF files and add any new IETF draft files to Github.' \
-               'If there are new RFC files, produce an automated message that will be sent to the ' \
-               'Cisco Webex Teams and admin emails notifying that these need to be added to ' \
-               'the YangModels/yang Github repository manualy. This script runs as a daily cronjob.'
+        help = __doc__
         args: t.List[Arg] = [
             {
                 'flag': '--config-path',

@@ -14,8 +14,7 @@
 # limitations under the License.
 
 """
-This script will save or load all the records saved in
-Elasticsearch database snapshots.
+Create or restore backups of our Elasticsearch database.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -35,9 +34,7 @@ from utility.staticVariables import backup_date_format
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        help = 'This serves to save or load all information in yangcatalog.org in elk.' \
-               'in case the server will go down and we would lose all the information we' \
-               ' have got. We have two options in here. This runs as a cronjob to create snapshot'
+        help = __doc__
         args: t.List[Arg] = [
             {
                 'flag': '--name_save',

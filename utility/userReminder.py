@@ -5,6 +5,7 @@ from utility.redisUsersConnection import RedisUsersConnection
 
 
 class UserReminder:
+    """Class for sending a message reminding admins to review approved and pending users."""
 
     def __init__(self):
         self._mf = messageFactory.MessageFactory()

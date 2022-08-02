@@ -40,6 +40,10 @@ class Arg(BaseArg, total=False):
 
 
 class BaseScriptConfig:
+    """
+    A class for setting configuration options
+    for scripts which can be run from the admin UI.
+    """
 
     def __init__(self, help: str, args: t.Optional[t.List[Arg]], arglist: t.Optional[t.List[str]]):
         parser = argparse.ArgumentParser(description=help)

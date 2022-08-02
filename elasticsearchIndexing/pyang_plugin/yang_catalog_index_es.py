@@ -21,7 +21,7 @@ from datetime import datetime
 import dateutil.parser
 from pyang import plugin, statements
 from pyang.util import get_latest_revision
-from utility.staticVariables import NS_MAP, SDOS
+from utility.staticVariables import NAMESPACE_MAP, SDOS
 
 _yang_catalog_index_values = []
 _values = {'yindex': []}
@@ -232,7 +232,7 @@ def resolve_organization(module):
     if namespace is None:
         return 'independent'
     namespace = namespace.arg.lower()
-    for ns, org in NS_MAP:
+    for ns, org in NAMESPACE_MAP:
         if ns in namespace:
             return org
     if 'cisco' in namespace:

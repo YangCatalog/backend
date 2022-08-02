@@ -5,7 +5,7 @@ Phase I - Loop through the modules and check whether
 Phase II - Loop through the modules and check whether
            there is a 'master' string in the dependencies, dependents and submodules schemas.
            Store available and unavailable schemas
-           so there will be no need to make a request for each single scheme.
+           so there will be no need to make a request for each single schema.
 Patch request to ConfD request is made for each module that has been modified.
 Also reload-cache is called after each phase.
 Finally, unavailable schemas are dumped into JSON file.
@@ -35,7 +35,14 @@ def get_branch_from_schema(schema: str):
     return branch
 
 
-def get_available_commit_hash(module: dict, commit_hash_list: list):
+def get_available_commit_hash(module: dict, commit_hash_list: list) -> str:
+    """Return the hash of a commit which contains the specified revision of a module.
+    
+    Arguments:
+        :param module               (dict) dictionary with the module's informtaion
+        :param commit_hash_list     (list) a list of commit hashes to try
+        :return                     (str) The first matching commit hash out of the list.
+            If there are no matches, an empty string is returned."""
     name = module.get('name')
     schema = module.get('schema', '')
     revision = module.get('revision')
@@ -63,7 +70,8 @@ def get_available_commit_hash(module: dict, commit_hash_list: list):
     return available_commit_hash
 
 
-def check_schema_availability(module: dict):
+def check_schema_availability(module: dict) -> str:
+    """Check if the module's schema can be retrieved from GitHub."""
     schema = module.get('schema', '')
     repo_owner, repo_name = get_repo_owner_name(schema)
     repo_owner_name = '{}/{}'.format(repo_owner, repo_name)

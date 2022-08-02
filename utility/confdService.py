@@ -13,9 +13,9 @@
 # limitations under the License.
 
 """
-This script contains methods which are used across the application to communicate with ConfD database.
+This script contains methods which are used across the application to communicate with the ConfD database.
 In each script where GET, PATCH, DELETE or HEAD request to the ConfD need to be done, confdService is initialized.
-This eliminates need for setting URL, auth and headers each time.
+This eliminates the need for setting the URL, auth and headers each time.
 """
 
 __author__ = 'Slavomir Mazur'
@@ -75,6 +75,16 @@ class ConfdService:
         return response
 
     def _patch(self, data: list, type: str, log_file: str) -> bool:
+        """Attempts to patch a list of JSON objects to confd in chunks.
+        Fall back to patching one by one on error. Data that causes errors
+        is recorded to a log file along with the errors.
+        
+        Arguments:
+            :param data     (list) List of JSON objects to be patched to confd.
+            :param type     (str) Type of the JSON objects. This should be either "modules" or "vendors"
+            :param log_file (str) Log file to record errors to.
+            :return         (bool) Whether errors were encountered.
+        """
         errors = False
         chunk_size = 500
         failed_data = {}

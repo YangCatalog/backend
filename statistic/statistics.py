@@ -50,7 +50,7 @@ import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import (MISSING_ELEMENT, NS_MAP, github_url,
+from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, github_url,
                                      json_headers)
 from utility.util import find_first_file, job_log
 
@@ -74,11 +74,12 @@ class ScriptConfig(BaseScriptConfig):
 
 def render(tpl_path: str, context: dict) -> str:
     """Render jinja html template
-        Arguments:
-            :param tpl_path: (str) path to a file
-            :param context: (dict) dictionary containing data to render jinja
-                template file
-            :return: string containing rendered html file
+
+    Arguments:
+        :param tpl_path:    (str) path to a file
+        :param context:     (dict) dictionary containing data to render jinja
+            template file
+        :return:            (str) string containing rendered html file
     """
 
     path, filename = os.path.split(tpl_path)
@@ -90,9 +91,10 @@ def render(tpl_path: str, context: dict) -> str:
 def list_yang_modules_recursive(srcdir: str) -> t.List[str]:
     """
     Returns the list of paths of YANG Modules (.yang) in all sub-directories
-        Arguments
-            :param srcdir: (str) root directory to search for yang files
-            :return: list of YANG files
+
+    Arguments
+        :param srcdir:  (str) root directory to search for yang files
+        :return:        (list)list of YANG files
     """
     ll = []
     for root, _, files in os.walk(srcdir):
@@ -170,7 +172,7 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
 
 
 def match_organization(namespace: str, found: t.Optional[str]) -> str:
-    for ns, org in NS_MAP:
+    for ns, org in NAMESPACE_MAP:
         if ns in namespace:
             return org
     if found is None:
@@ -189,10 +191,11 @@ def match_organization(namespace: str, found: t.Optional[str]) -> str:
 def resolve_organization(path: str, parsed_yang) -> str:
     """Parse yang file and resolve organization out of the module. If the module
     is a submodule find it's parent and resolve its organization
-            Arguments:
-                :param path: (str) path to a file to parse and resolve a organization
-                :param parsed_yang (object) pyang parsed yang file object
-                :return: (str) organization the yang file belongs to
+
+    Arguments:
+        :param path:        (str) path to a file to parse and resolve a organization
+        :param parsed_yang  (object) pyang parsed yang file object
+        :return:            (str) organization the yang file belongs to
     """
     organization = None
     results = parsed_yang.search('organization')
@@ -245,12 +248,13 @@ class InfoTable(t.TypedDict):
 
 def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
     """Process all the data out of output from runYANGallstats and Yang files themself
-        Arguments:
-            :param out: (bytes) output from runYANGallstats
-            :param save_list: (list) list to which we are saving all the informations
-            :param path: (str) path to a directory to which we are creating statistics
-            :param name: (str) name of the vendor or organization that we are creating
-                statistics for
+
+    Arguments:
+        :param out:         (bytes) output from runYANGallstats
+        :param save_list:   (list) list to which we are saving all the informations
+        :param path:        (str) path to a directory to which we are creating statistics
+        :param name:        (str) name of the vendor or organization that we are creating
+            statistics for
     """
     LOGGER.info('Getting info from {}'.format(name))
     if name == 'openconfig':

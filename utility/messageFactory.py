@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-MessageFactory class that send a automated messages to
+MessageFactory class that send automated messages to
 specified rooms or people.
 """
 
@@ -46,8 +46,8 @@ class MessageFactory:
     def __init__(self, config_path=os.environ['YANGCATALOG_CONFIG_PATH']):
         """Setup Webex teams rooms and smtp
 
-            Arguments:
-                :param config_path: (str) path to a yangcatalog.conf file
+        Arguments:
+            :param config_path: (str) path to a yangcatalog.conf file
         """
         def list_matching_rooms(a, title_match):
             return [r for r in a.rooms.list() if title_match in r.title]
@@ -89,7 +89,7 @@ class MessageFactory:
         Arguments:
             :param msg          (str) message to send
             :param markdown     (bool) whether to use markdown. Default False
-            :param files        (list) list of paths to files that need to be attache with a message. Default None
+            :param files        (list) list of paths to files that need to be attached with the message. Default None
         """
         msg += '\n\nMessage sent from {}'.format(self.__me)
         if not self.__is_production:
@@ -111,9 +111,11 @@ class MessageFactory:
     def __post_to_email(self, message: str, email_to: list = [], subject: str = '', subtype: str = 'plain'):
         """Send message to an e-mail
 
-            Arguments:
-                :param message      (str) message to send
-                :param email_to     (list) list of emails to send the message to
+        Arguments:
+            :param message      (str) message to send
+            :param email_to     (list) list of emails to send the message to
+            :param subject      (str) subject string
+            :param subtype      (str) MIME text sybtype of the message. Default is "plain".
         """
         send_to = email_to if email_to else self.__email_to
         msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me), _subtype=subtype)
@@ -129,7 +131,12 @@ class MessageFactory:
         self.__smtp.sendmail(self.__email_from, send_to, msg.as_string())
         self.__smtp.quit()
 
-    def _html_user_reminder_message(self, users_stats: dict):
+    def _html_user_reminder_message(self, user_data: dict):
+        """Generate the user reminder message in HTML format
+    
+        Arguments:
+            :param user_data  (dict) dictionary containing the data of approved and pending users
+        """
         ret_text = '<h3>approved users</h3>'
 
         ret_text += '<table style="width:100%"><tr>'
@@ -137,7 +144,7 @@ class MessageFactory:
             ret_text += '<th>{}</th>'.format(header)
         ret_text += '</tr>'
 
-        for fields in users_stats['approved']:
+        for fields in user_data['approved']:
             ret_text += '<tr>'
             for key in ['username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor', 'models-provider', 'email']:
                 ret_text += '<td>{}</td>'.format(str(fields.get(key)))
@@ -151,7 +158,7 @@ class MessageFactory:
             ret_text += '<th>{}</th>'.format(header)
         ret_text += '<tr>'
 
-        for fields in users_stats['temp']:
+        for fields in user_data['temp']:
             ret_text += '<tr>'
             for key in ['username', 'first-name', 'last-name', 'models-provider', 'email']:
                 ret_text += '<td>{}</td>'.format(str(fields.get(key)))
@@ -164,6 +171,11 @@ class MessageFactory:
                 .format(GREETINGS, ret_text))
 
     def _markdown_user_reminder_message(self, users_stats: dict):
+        """Generate the user reminder message in Markdown format
+        
+        Arguments:
+            :param user_data  (dict) dictionary containing the data of approved and pending users
+        """
         tables_text = 'approved users\n'
 
         tables_text += '```\n'
@@ -199,9 +211,15 @@ class MessageFactory:
         return ('{}\n\nTime to review the user profiles: affiliations and capabilities\n\n{}'
                 .format(GREETINGS, tables_text))
 
-    def send_user_reminder_message(self, users_stats):
-        self.__post_to_spark(self._markdown_user_reminder_message(users_stats), markdown=True)
-        self.__post_to_email(self._html_user_reminder_message(users_stats), subtype='html')
+    def send_user_reminder_message(self, user_data):
+        """Send a message with the current data of pending and approved users.
+        Messages are sent to Cisco Webex in markdown format, and e-mails in HTML format.
+        
+        Arguments:
+            :param user_data  (dict) dictionary containing the data of approved and pending users
+        """
+        self.__post_to_spark(self._markdown_user_reminder_message(user_data), markdown=True)
+        self.__post_to_email(self._html_user_reminder_message(user_data), subtype='html')
 
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
@@ -218,23 +236,39 @@ class MessageFactory:
         self.__post_to_email(message)
 
     def send_travis_auth_failed(self):
+        """Send a message to Cisco Webex notifying about failed authorization
+        on the endpoint for Travis jobs.
+        """
         self.LOGGER.info('Sending notification about travis authorization failed')
         message = ('Travis pull job not sent because patch was not sent from'
                    ' travis. Key verification failed')
         self.__post_to_spark(message)
 
-    def send_automated_procedure_failed(self, procedure, file):
+    def send_automated_procedure_failed(self, arguments: list, file: str):
+        """Send a message to Cisco Webex notifying about a failed job started from
+        the admin UI.
+        
+        Arguments:
+            :param arguments    (list) A list of arguments passed to the job.
+            :param file         (str) Path to a file to attatch.
+        """
         self.LOGGER.info('Sending notification about any automated procedure failure')
         message = ('Automated procedure with arguments:\n {} \nfailed with error.'
                    ' Please see attached document'
-                   .format(procedure))
+                   .format(arguments))
         self.__post_to_spark(message, True, files=[file])
 
     def send_removed_temp_diff_files(self):
         # TODO send spark message about removed searched diff files
         pass
 
-    def send_removed_yang_files(self, removed_yang_files):
+    def send_removed_yang_files(self, removed_yang_files: str):
+        """Send a message to Cisco Webex notifying about removed YANG modules.
+        
+        Arguments:
+            :param removed_yang_files   (str) Dumped JSON object containing
+                a list of YANG modules which have been removed.
+        """
         self.LOGGER.info('Sending notification about removed YANG modules')
         message = 'Files have been removed from yangcatalog.org. See attached document'
         text = ('The following files has been removed from https://yangcatalog.org'
@@ -243,7 +277,13 @@ class MessageFactory:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._message_log_file])
 
-    def send_added_new_yang_files(self, added_yang_files):
+    def send_added_new_yang_files(self, added_yang_files: str):
+        """Send a message to Cisco Webex notifying about new YANG modules.
+        
+        Arguments:
+            :param added_yang_files     (str) Dumped JSON object containing
+                a list of new YANG modules.
+        """
         self.LOGGER.info('Sending notification about added yang modules')
         message = 'Files have been added to yangcatalog.org. See attached document'
         text = ('The following files have been added to https://yangcatalog.org'
@@ -253,28 +293,49 @@ class MessageFactory:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._message_log_file])
 
-    def send_new_modified_platform_metadata(self, new_files, modified_files):
+    def send_new_modified_platform_metadata(self, new_files: list, modified_files: list):
+        """Send a message to Cisco Webex notifying about new or modified platform
+        metadata.
+        
+        Arguments:
+            :param new_files        (list) A list of newly added files.
+            :param modified_files   (list) A list of modified files.
+        """
         self.LOGGER.info(
             'Sending notification about new or modified platform metadata')
-        new_files = '\n'.join(new_files)
-        modified_files = '\n'.join(modified_files)
+        new_files_string = '\n'.join(new_files)
+        modified_files_string = '\n'.join(modified_files)
         message = 'Files have been modified in yangcatalog.org. See attached document'
         text = ('There were new or modified platform metadata json files '
                 'added to yangModels/yang repository, that are currently'
                 'being processed in following paths:\n\n'
                 '\n New json files: \n {} \n\n Modified json files:\n{}\n'
-                .format(new_files, modified_files))
+                .format(new_files_string, modified_files_string))
         with open(self._message_log_file, 'w') as f:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._message_log_file])
 
     def send_github_unavailable_schemas(self, modules_list: list):
+        """Send an e-mail message notifying about schemas which could not be fetched
+        from GitHub.
+        
+        Arguments:
+            :param modules_list     (list) A list of modules whose schemas could not
+                be fetched.
+        """
         self.LOGGER.info('Sending notification about unavailable schemas')
         message = ('Following modules could not be retreived from GitHub '
                    'using the schema path:\n{}'.format('\n'.join(modules_list)))
         self.__post_to_email(message, self.__developers_email)
 
     def send_new_user(self, username: str, email: str, motivation: str):
+        """Send an e-mail message notifying about a new user sign up request.
+        
+        Arguments:
+            :param username     (str) Username of the new user.
+            :param email        (str) Email used to register.
+            :param motivation   (str) The user's submitted reason for registering.
+        """
         self.LOGGER.info('Sending notification about new user')
 
         subject = 'Request for access confirmation'
@@ -283,6 +344,12 @@ class MessageFactory:
         self.__post_to_email(msg, subject=subject)
 
     def send_confd_writing_failures(self, type: str, data: dict):
+        """Send an e-mail message notifying about data not accepted by ConfD.
+
+        Arguments:
+            :param type     (str) Type of the data, either 'vendors' or 'modules'
+            :param data     (dict) Dictionary containg the rejected data.
+        """
         subject = 'Following {} failed to write to ConfD'.format(type)
         self.LOGGER.info(subject)
 

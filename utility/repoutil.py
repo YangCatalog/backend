@@ -47,7 +47,7 @@ class RepoUtil:
             :param clone            (bool) Should always be set to True. To load a repository
                                            which has already been cloned, see  the load() function.
             :param clone_options    (dict) May contain the keys local_dir, config_username and config_email
-            :param logger           (logging.Logger)
+            :param logger           (Optional[Logger])
         """
         self.url = repourl
         self.logger = logger
@@ -87,7 +87,7 @@ class RepoUtil:
         parlance, this would be the owner of the repository.
 
         Arguments:
-            :return:
+            :return     (str) GitHub repo owner.
         """
         owner = os.path.basename(os.path.dirname(self.url))
         return owner.split(':')[-1]
@@ -96,6 +96,12 @@ class RepoUtil:
               config_user_email: t.Optional[str] = None):
         """Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
+
+        Arguments:
+            :param local_dir        (Optional[str]) Directory where to clone the repo.
+                By default a new temporary directory is created.
+            :param config_username  (Optional[str]) Username to set in the git config.
+            :param config_email     (Optional[str]) Email to set in the git config.
         """
         if local_dir:
             self.local_dir = local_dir
@@ -118,10 +124,7 @@ class ModifiableRepoUtil(RepoUtil):
         super().__init__(repourl, clone, clone_options, logger)
 
     def add_untracked_remove_deleted(self):
-        """Add untracked files and remove deleted files. This method shouldn't
-        generate any exceptions as we don't allow unexpected
-        operations to be invoked.
-        """
+        """Add untracked files and remove deleted files."""
         self.repo.index.add(self.repo.untracked_files)
         diff = self.repo.index.diff(None)
         for file in diff.iter_change_type('D'):
@@ -143,11 +146,11 @@ class ModifiableRepoUtil(RepoUtil):
 
 def pull(repo_dir: str):
     """
-    Pull all the new files in the master in specified directory.
-    Directory should contain path where .git file is located.
+    Perform a git pull inside the directory.
+    The directory should contain a git repository.
 
     Arguments:
-        :param repo_dir directory where .git file is located
+        :param repo_dir     (str) Directory containing a git repository
     """
     git = Git(repo_dir)
     git.pull()
@@ -158,7 +161,7 @@ def pull(repo_dir: str):
 
 def load(repo_dir: str, repo_url: str) -> RepoUtil:
     """
-    Load git repository from local directory into Python object.
+    Load git repository from a local directory into a Python object.
 
     Arguments:
         :param repo_dir    (str) directory where .git file is located

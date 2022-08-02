@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+
 __author__ = 'Richard Zilincik'
 __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
@@ -27,6 +28,11 @@ from utility.create_config import create_config
 
 
 class RedisUsersConnection:
+    """
+    A class for managing the Redis user database. Used for querying user data,
+    updating user data, creating new users, deleting users, and approving
+    temporary users pending approval.
+    """
 
     _universal_fields = ['username', 'password', 'email', 'models-provider', 'first-name', 'last-name', 'registration-datetime']
     _temp_fields = ['motivation']

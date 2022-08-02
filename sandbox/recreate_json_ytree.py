@@ -1,6 +1,6 @@
 """
 This sandbox script go through all the files found in /var/yang/ytrees directory.
-If size of the file is equal to 0, JSON tree is created using emit_tree plugin.
+If size of the file is not equal to 0, JSON tree is created using emit_tree plugin.
 """
 import argparse
 import glob
@@ -13,7 +13,7 @@ from utility.create_config import create_config
 from utility.yangParser import create_context
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Process changed modules in a git repo')
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--time', type=str,
                         help='Modified time argument to find(1)', required=False)
     parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
