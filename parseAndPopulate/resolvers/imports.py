@@ -9,7 +9,7 @@ from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 from utility import repoutil
 from utility.staticVariables import github_url
-from utility.util import find_first_file
+from utility.util import get_yang
 
 """
 This resolver resolves yang module dependecies property,
@@ -20,11 +20,12 @@ Default value: [] -> no imports
 
 class ImportsResolver(Resolver):
     def __init__(self, parsed_yang: Statement, logger: logging.Logger, path: str, schema: t.Optional[str],
-                 yang_models_dir: str, nonietf_dir: str) -> None:
+                 schemas: dict, yang_models_dir: str, nonietf_dir: str) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
         self.path = path
         self.schema = schema
+        self.schemas = schemas
         self.yang_models_dir = yang_models_dir
         self.nonietf_dir = nonietf_dir
 
@@ -41,31 +42,23 @@ class ImportsResolver(Resolver):
                 parsed_revision = None
             new_dependency.revision = parsed_revision
 
-            pattern = '{}.yang'.format(new_dependency.name)
-            if new_dependency.revision:
-                pattern_with_revision = '{}@{}.yang'.format(new_dependency.name, new_dependency.revision)
-            else:
-                pattern_with_revision = '{}@*.yang'.format(new_dependency.name)
-            directory = os.path.dirname(self.path)
-            yang_file = find_first_file(directory, pattern, pattern_with_revision)
+            yang_file = get_yang(new_dependency.name, new_dependency.revision)
             if not yang_file:
                 self.logger.error('Import {} can not be found'.format(new_dependency.name))
                 imports.append(new_dependency)
                 continue
-
+            # This will match new_dependency.revision unless new_dependency.revision is None
+            revision = new_dependency.revision or yang_file.split('@')[-1].removesuffix('.yang')
             try:
-                if os.path.dirname(yang_file) == os.path.dirname(self.path):
-                    if self.schema:
-                        new_dependency.schema = os.path.join(os.path.dirname(self.schema), os.path.basename(yang_file))
+                name_revision = '{}@{}'.format(new_dependency.name, revision)
+                local_yang_file = os.path.join(os.path.dirname(self.path), '{}.yang'.format(new_dependency.name))
+                if name_revision in self.schemas:
+                    new_dependency.schema = self.schemas[name_revision]
+                elif os.path.exists(local_yang_file) and self.schema:
+                    new_dependency.schema = os.path.join(os.path.dirname(self.schema), os.path.basename(local_yang_file))
                 else:
-                    if '/yangmodels/yang/' in yang_file:
-                        new_dependency_schema = self._get_yangmodels_schema_parts(yang_file)
-                    elif '/openconfig/public/' in yang_file:
-                        new_dependency_schema = self._get_openconfig_schema_parts(yang_file)
-                    else:
-                        imports.append(new_dependency)
-                        continue
-                    new_dependency.schema = new_dependency_schema
+                    imports.append(new_dependency)
+                    continue
             except Exception:
                 self.logger.exception('Unable to resolve schema for {}@{}'.format(
                     new_dependency.name, new_dependency.revision))

@@ -19,10 +19,12 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import fnmatch
+import glob
 import json
 import logging
 import optparse
 import os
+import re
 import stat
 import time
 import typing as t
@@ -38,10 +40,39 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 from redisConnections.redisConnection import RedisConnection
 
-from utility import messageFactory, yangParser
+from utility import messageFactory
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
+
+
+single_line_re = re.compile(r'//.*')
+multi_line_re = re.compile(r'/\*.*?\*/', flags=re.MULTILINE)
+name_re = re.compile(r'(sub)?module[\s\n\r]+"?([\w_\-\.]+)')
+revision_re = re.compile(r'revision[\s\n\r]+"?(\d{4}-\d{2}-\d{2})')
+
+
+def strip_comments(text: str):
+    text = single_line_re.sub('', text)
+    text = multi_line_re.sub('', text)
+    return text
+
+
+def parse_name(text: str):
+    match = name_re.search(text)
+    return match.groups()[1] if match else 'foobar'
+
+
+def parse_revision(text: str):
+    match = revision_re.search(text)
+    return match.groups()[0] if match else '1970-01-01'
+
+
+def resolve_revision(filename: str):
+    with open(filename) as f:
+        text = f.read()
+        text = strip_comments(text)
+        return parse_revision(text)
 
 
 def find_files(directory: str, pattern: str):
@@ -59,50 +90,26 @@ def find_files(directory: str, pattern: str):
                 yield root, path
 
 
-def find_first_file(directory: str, pattern: str, pattern_with_revision: str) -> t.Optional[str]:
-    """ Search for the first file in 'directory' which either match 'pattern' or 'pattern_with_revision' string.
+def get_yang(name: str, revision: t.Optional[str] = None) -> t.Optional[str]:
+    """Get the path to a yang file stored in the save-file-dir.
+    If no revision is specified, the path to the latest revision is returned.
 
     Arguments:
-        :param directory                (str) directory where to look for a file
-        :param pattern                  (str) name of the yang file
-        :param pattern_with_revision    (str) name and revision of the module in format <name>@<revision>
-        :return                         (str) path to matched file
+        :param name         (str) name of the yang module
+        :param revision     (Optional(str)) revision of the yang module
+        :return             (Optional(str)) path to the matched file
     """
-    def match_file(directory: str, pattern: str) -> t.Optional[str]:
-        for root, _, files in os.walk(directory):
-            for basename in files:
-                if fnmatch.fnmatch(basename, pattern):
-                    return os.path.join(root, basename)
 
     config = create_config()
-    yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
-    nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
-    rfcs_dir = os.path.join(yang_models_dir, 'standard/ietf/RFC')
-    standards_dir = os.path.join(yang_models_dir, 'standard')
-    experimental_dir = os.path.join(yang_models_dir, 'experimental/ietf-extracted-YANG-modules')
-    openconfig_dir = os.path.join(nonietf_dir, 'openconfig/public/release/models')
-    paths_to_check = [directory, rfcs_dir, standards_dir, experimental_dir, openconfig_dir, yang_models_dir]
-    patterns_order = []
+    save_file_dir = config.get('Directory-Section', 'save-file-dir')
 
-    if '*' not in pattern_with_revision:
-        patterns_order = [pattern_with_revision, pattern]
-    else:
-        patterns_order = [pattern, pattern_with_revision]
-
-    for path in paths_to_check:
-        for pattern in patterns_order:
-            filename = match_file(path, pattern)
-            if not filename:
-                continue
-            try:
-                revision = yangParser.parse(filename).search('revision')[0].arg
-            except IndexError:
-                revision = '1970-01-01'
-            if '*' not in pattern_with_revision:
-                if revision in pattern_with_revision:
-                    return filename
-            else:
-                return filename
+    if revision:
+        return os.path.join(save_file_dir, '{}@{}.yang'.format(name, revision))
+    files = glob.glob(os.path.join(save_file_dir,'{}@*.yang'.format(name)))
+    if not files:
+        return None
+    filename = max(files)
+    return filename
 
 
 def change_permissions_recursive(path: str):

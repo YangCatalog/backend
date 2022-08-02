@@ -21,6 +21,7 @@ import fileinput
 import json
 import os
 import unittest
+from ast import literal_eval
 from unittest import mock
 
 from api.globalConfig import yc_gc
@@ -31,7 +32,6 @@ from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
                                         VendorYangLibrary)
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
-from parseAndPopulate.models.schema_parts import SchemaParts
 from utility import repoutil
 from utility.staticVariables import github_url
 
@@ -50,7 +50,7 @@ class TestGroupingsClass(unittest.TestCase):
         self.fileHasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
         self.dir_paths: DirPaths = {
             'cache': '',
-            'json': os.path.join(yc_gc.temp_dir, 'groupings-tests'),
+            'json': os.path.join(yc_gc.temp_dir, 'test'),
             'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
             'result': yc_gc.result_dir,
@@ -78,7 +78,8 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
+        path_to_name_rev = self.load_path_to_name_rev('ieee_path_to_name_rev')
+        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths, path_to_name_rev)
 
         sdo_directory.parse_and_load(repo)
 
@@ -101,13 +102,14 @@ class TestGroupingsClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
-        path = os.path.join(yc_gc.temp_dir, 'groupings-tests')
+        path = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/standard')
         api = True
         sdo = True
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths)
+        path_to_name_rev = self.load_path_to_name_rev('rfc_path_to_name_rev')
+        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths, path_to_name_rev)
 
         sdo_directory.parse_and_load(repo)
         with open(os.path.join(self.dir_paths['json'], 'request-data.json'), 'r') as f:
@@ -120,7 +122,7 @@ class TestGroupingsClass(unittest.TestCase):
             self.assertIn(key, sdo_directory.dumper.yang_modules)
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_sdo_directory_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
+    def test_vendor_yang_lib_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
@@ -134,7 +136,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_yang_lib = VendorYangLibrary(path, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_yang_lib = VendorYangLibrary(path, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
 
         with mock.patch.object(vendor_yang_lib, '_construct_json_name', lambda x, y: 'IETFTEST'):
             vendor_yang_lib.parse_and_load()
@@ -144,28 +146,42 @@ class TestGroupingsClass(unittest.TestCase):
         dumped_module_data = self.load_dumped_prepare_json_data()
 
         # Compare desired output with output of prepare.json
-        for dumped_module in dumped_module_data:
-            for desired_module in desired_module_data:
-                if desired_module.get('name') == dumped_module.get('name'):
+        for desired_module in desired_module_data:
+            name = desired_module.get('name')
+            revision = desired_module.get('revision')
+            for dumped_module in dumped_module_data:
+                if name == dumped_module.get('name'):
+                    fail_message = 'mismatch in {}'.format(name)
+                    fail_message = '{} ' + fail_message
                     # Compare properties/keys of desired and dumped module data objects
                     for key in desired_module:
+                        if name == 'ietf-yang-library':
+                            # We have multiple slightly different versions of ietf-yang-library
+                            # marked with the same revision
+                            if key in ('description', 'contact'):
+                                continue
                         if key == 'yang-tree':
                             # Compare only URL suffix (exclude domain)
                             desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[1])
                             dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[1])
-                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
+                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix,
+                                             fail_message.format('tree suffix'))
                         elif key == 'compilation-result':
                             if dumped_module[key] != '' and desired_module[key] != '':
                                 # Compare only URL suffix (exclude domain)
                                 desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
                                 dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                                self.assertEqual(desired_compilation_result, dumped_compilation_result)
+                                self.assertEqual(desired_compilation_result, dumped_compilation_result,
+                                                 fail_message.format('compilation result'))
                         else:
                             if isinstance(desired_module[key], list):
                                 for i in desired_module[key]:
-                                    self.assertIn(i, dumped_module[key])
+                                    self.assertIn(i, dumped_module[key], fail_message.format(key))
                             else:
-                                self.assertEqual(dumped_module[key], desired_module[key])
+                                self.assertEqual(dumped_module[key], desired_module[key], fail_message.format(key))
+                    break
+            else:
+                self.assertTrue(False, '{}@{} not found in dumped data'.format(name, revision))
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
@@ -183,7 +199,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
 
         vendor_capabilities.parse_and_load()
         vendor_capabilities.dumper.dump_modules(yc_gc.temp_dir)
@@ -222,7 +238,7 @@ class TestGroupingsClass(unittest.TestCase):
             print(line.replace('&amp;', '&'), end='')
         hello_file.close()
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
 
         self.assertEqual(vendor_capabilities.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
@@ -235,7 +251,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
         vendor_capabilities._parse_platform_metadata()
 
         platform_data = vendor_capabilities.platform_data
@@ -256,7 +272,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
         vendor_capabilities._parse_platform_metadata()
 
         platform_data = vendor_capabilities.platform_data
@@ -277,7 +293,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
         vendor_capabilities._parse_platform_metadata()
 
         platform_data = vendor_capabilities.platform_data
@@ -307,7 +323,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_yang_lib = VendorYangLibrary(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths)
+        vendor_yang_lib = VendorYangLibrary(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
 
         vendor_yang_lib.parse_and_load()
         vendor_yang_lib.dumper.dump_modules(yc_gc.temp_dir)
@@ -348,8 +364,7 @@ class TestGroupingsClass(unittest.TestCase):
         module_name = path_to_yang.split('/')[-1].split('.yang')[0]
         if '@' in module_name:
             module_name = module_name.split('@')[0]
-        schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
-        yang = SdoModule(module_name, path_to_yang, parsed_jsons, self.dir_paths, {}, schema_parts)
+        yang = SdoModule(module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {})
 
         return yang
 
@@ -389,6 +404,14 @@ class TestGroupingsClass(unittest.TestCase):
             file_content = json.load(f)
             desired_module_data = file_content.get(key, {}).get('module', [])
         return desired_module_data
+    
+    def load_path_to_name_rev(self, key: str):
+        """ Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json.
+        """
+        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
+            file_content = json.load(f)
+            return literal_eval(file_content.get(key, ''))
+
 
     def load_dumped_prepare_json_data(self):
         """ Load module data from dumped prepare.json file

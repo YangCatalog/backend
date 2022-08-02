@@ -7,7 +7,7 @@ from parseAndPopulate.models.submodule import Submodule
 from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 from utility import yangParser
-from utility.util import find_first_file
+from utility.util import get_yang
 
 """
 This resolver resolves yang module submodule (and partly also dependencies) property.
@@ -16,11 +16,13 @@ Default value: [] -> no submodules
 
 
 class SubmoduleResolver(Resolver):
-    def __init__(self, parsed_yang: Statement, logger: logging.Logger, path: str, schema: t.Optional[str]) -> None:
+    def __init__(self, parsed_yang: Statement, logger: logging.Logger,
+                 path: str, schema: t.Optional[str], schemas: dict) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
         self.path = path
         self.schema = schema
+        self.schemas = schemas
         self.property_name = 'submodule'
 
     def resolve(self) -> t.Tuple[list, list]:
@@ -39,24 +41,18 @@ class SubmoduleResolver(Resolver):
                 parsed_revision = None
             new_submodule.revision = new_dependency.revision = parsed_revision
 
-            pattern = '{}.yang'.format(new_submodule.name)
-            if new_submodule.revision:
-                pattern_with_revision = '{}@{}.yang'.format(new_submodule.name, new_submodule.revision)
-            else:
-                pattern_with_revision = '{}@*.yang'.format(new_submodule.name)
-            directory = os.path.dirname(self.path)
-            yang_file = find_first_file(directory, pattern, pattern_with_revision)
+            yang_file = get_yang(new_submodule.name, new_submodule.revision)
             if not yang_file:
                 self.logger.error('Submodule {} can not be found'.format(new_submodule.name))
                 continue
 
-            try:
-                new_submodule.revision = yangParser.parse(yang_file).search('revision')[0].arg
-            except IndexError:
-                new_submodule.revision = '1970-01-01'
-
-            if self.schema:
-                sub_schema = os.path.join(os.path.dirname(self.schema), os.path.basename(yang_file))
+            new_submodule.revision = yang_file.split('@')[-1].removesuffix('.yang')
+            name_revision = '{}@{}'.format(new_submodule.name, new_submodule.revision)
+            local_yang_file = os.path.join(os.path.dirname(self.path), '{}.yang'.format(new_dependency.name))
+            if name_revision in self.schemas:
+                sub_schema = self.schemas[name_revision]
+            elif os.path.exists(local_yang_file) and self.schema:
+                sub_schema = os.path.join(os.path.dirname(self.schema), os.path.basename(local_yang_file))
             else:
                 sub_schema = None
 

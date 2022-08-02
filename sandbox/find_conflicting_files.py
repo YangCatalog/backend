@@ -1,7 +1,7 @@
 import os
 import json
 import filecmp
-from utility import yangParser
+from utility.util import resolve_revision
 
 conflicting = []
 fnames = {}
@@ -10,11 +10,7 @@ for dirname, _, files in os.walk(top):
     dirname = os.path.join(top, dirname)
     for f in files:
         if f.endswith('.yang'):
-            parsed = yangParser.parse(os.path.join(dirname, f))
-            try:
-                revision = parsed.search('revision')[0].arg
-            except:
-                revision = '1970-01-01'
+            revision = resolve_revision(os.path.join(dirname, f))
             if f not in fnames:
                 fnames[f] = {}
             if not revision in fnames[f]:
