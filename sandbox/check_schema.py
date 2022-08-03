@@ -18,6 +18,7 @@ from utility import repoutil, yangParser
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import GITHUB_RAW, github_url
+from utility.util import strip_comments, parse_revision
 
 
 def get_repo_owner_name(schema: str):
@@ -58,7 +59,7 @@ def get_available_commit_hash(module: dict, commit_hash_list: list) -> str:
             if response.status_code == 200:
                 module_text = response.text
                 try:
-                    module_revision = yangParser.parse(module_text).search('revision')[0].arg
+                    module_revision = parse_revision(strip_comments(module_text))
                 except:
                     module_revision = '1970-01-01'
                 key = '{}@{}'.format(name, module_revision)

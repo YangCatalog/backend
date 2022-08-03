@@ -31,6 +31,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'richard.zilincik@pantheon.tech'
 
 
+import glob
 import json
 import os
 import typing as t
@@ -43,7 +44,7 @@ from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import NAMESPACE_MAP
-from utility.util import find_files, find_first_file
+from utility.util import find_files
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -121,26 +122,25 @@ modules_to_check = deque()  # used for a breadth first search throught the depen
 
 
 def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: Statement,
-                       directory: str, yang_models_dir: str) -> t.Tuple[t.Set[str], t.Set[str]]:
+                       directory: str) -> t.Tuple[t.Set[str], t.Set[str]]:
     all_modules: t.Set[str] = set()
     missing_modules: t.Set[str] = set()
     for dependency in parsed_module.search(dep_type):
         name = dependency.arg
         all_modules.add(name)
         revisions = dependency.search('revision-date')
-        revision = revisions[0].arg if revisions else '*'
-        pattern = '{}.yang'.format(name)
-        pattern_with_revision = '{}@{}.yang'.format(name, revision)
-        if not find_first_file(directory, pattern, pattern_with_revision):
+        revision = revisions[0].arg if revisions else None
+        pattern = os.path.join(directory, '{}.yang'.format(name))
+        if not glob.glob(pattern):
             # TODO: if the matched filename doesn't include the revision, maybe we should check it?
-            if revision != '*':
+            if revision is not None:
                 missing_modules.add('{}@{}'.format(name, revision))
             else:
                 missing_modules.add(name)
     return all_modules, missing_modules
 
 
-def check(path: str, directory: str, yang_models_dir: str, sdo: bool):
+def check(path: str, directory: str, sdo: bool):
     try:
         parsed_module = yangParser.parse(path)
     except yangParser.ParseException:
@@ -149,10 +149,10 @@ def check(path: str, directory: str, yang_models_dir: str, sdo: bool):
         missing_revisions.add(path)
     if not check_namespace(parsed_module):
         missing_namespaces.add(path)
-    all_imports, broken_imports = check_dependencies('import', parsed_module, directory, yang_models_dir)
+    all_imports, broken_imports = check_dependencies('import', parsed_module, directory)
     if broken_imports:
         missing_modules[path] |= broken_imports
-    all_includes, broken_includes = check_dependencies('include', parsed_module, directory, yang_models_dir)
+    all_includes, broken_includes = check_dependencies('include', parsed_module, directory)
     if broken_includes:
         missing_submodules[path] |= broken_includes
     if not sdo:
@@ -187,7 +187,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         for root, _, files in os.walk(args.dir):
             for filename in files:
                 if filename.endswith('.yang'):
-                    check(os.path.join(root, filename), root, scriptConf.yang_models, sdo=True)
+                    check(os.path.join(root, filename), root, sdo=True)
     else:  # vendor directory
         for root, capabilities in find_files(args.dir, '*capabilit*.xml'):
             files_in_dir = os.listdir(root)
@@ -204,7 +204,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                     unused_modules[root].remove(module)
             while modules_to_check:
                 filename = '{}.yang'.format(modules_to_check.popleft())
-                check(os.path.join(root, filename), root, scriptConf.yang_models, sdo=False)
+                check(os.path.join(root, filename), root, sdo=False)
 
     report = {
         'missing-revisions': sorted(list(missing_revisions)),

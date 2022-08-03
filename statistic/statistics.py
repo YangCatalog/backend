@@ -52,7 +52,7 @@ from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, github_url,
                                      json_headers)
-from utility.util import find_first_file, job_log
+from utility.util import get_yang, job_log
 
 from statistic import runYANGallstats as all_stats
 
@@ -217,12 +217,8 @@ def resolve_organization(path: str, parsed_yang) -> str:
         results = parsed_yang.search('belongs-to')
         if results:
             belongs_to = results[0].arg
-            pattern = '{}.yang'.format(belongs_to)
-            pattern_with_revision = '{}@*.yang'.format(belongs_to)
             results = None
-            yang_file = find_first_file(os.path.dirname(path), pattern, pattern_with_revision)
-            if yang_file is None:
-                yang_file = find_first_file('/'.join(path.split('/')[:-2]), pattern, pattern_with_revision)
+            yang_file = get_yang(belongs_to)
             if yang_file is not None:
                 try:
                     parsed = yangParser.parse(os.path.abspath(yang_file))

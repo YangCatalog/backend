@@ -15,8 +15,7 @@
 
 """
 This script is run by a cronjob every day and it
-automatically removes unused diff files, yangsuite
-users and correlation ids.
+automatically removes unused diff files and correlation ids.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -63,7 +62,6 @@ def main():
     config = create_config(config_path)
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
-    ys_users = config.get('Directory-Section', 'ys-users')
     cache_directory = config.get('Directory-Section', 'cache')
     es_aws = config.get('DB-Section', 'es-aws')
 
@@ -80,16 +78,6 @@ def main():
                 creation_time = os.path.getctime(os.path.join(temp_dir, dir))
                 if creation_time < cutoff:
                     shutil.rmtree(os.path.join(temp_dir, dir))
-
-        LOGGER.info('Removing old ys temporary users')
-        dirs = os.listdir(ys_users)
-        for dir in dirs:
-            abs = os.path.abspath('{}/{}'.format(ys_users, dir))
-            if not abs.endswith('yangcat') and not abs.endswith('yang'):
-                try:
-                    shutil.rmtree(abs)
-                except Exception:
-                    pass
 
         LOGGER.info('Removing old correlation ids')
         # removing correlation ids from file that are older than a day

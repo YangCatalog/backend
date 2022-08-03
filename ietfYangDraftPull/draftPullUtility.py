@@ -34,6 +34,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import configparser
 import grp
+import json
 import logging
 import os
 import pwd
@@ -168,8 +169,10 @@ def get_draft_module_content(experimental_path: str, config: configparser.Config
     domain_prefix = config.get('Web-Section', 'domain-prefix')
     ietf_draft_json = {}
     response = requests.get(ietf_draft_url)
-    if response.status_code == 200:
+    try:
         ietf_draft_json = response.json()
+    except json.decoder.JSONDecodeError:
+        LOGGER.error('Unable to get content of {} file'.format(os.path.basename(ietf_draft_url)))
     for key in ietf_draft_json:
         filename = os.path.join(experimental_path, key)
         with open(filename, 'w+') as yang_file:

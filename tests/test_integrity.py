@@ -67,27 +67,25 @@ class TestIntegrityClass(unittest.TestCase):
         good = parse(self.module_path('good'))
         assert good
 
-        all_imports, missing_imports = itg.check_dependencies('import', good, self.module_dir, self.yang_models)
+        all_imports, missing_imports = itg.check_dependencies('import', good, self.module_dir)
         self.assertSetEqual(all_imports, {'invalid-revision'})
         self.assertFalse(missing_imports)
 
-        all_includes, missing_includes = itg.check_dependencies('include', good, self.module_dir, self.yang_models)
+        all_includes, missing_includes = itg.check_dependencies('include', good, self.module_dir)
         self.assertSetEqual(all_includes, {'invalid-namespace', 'l1-dependency'})
         self.assertFalse(missing_includes)
 
         missing_import = parse(self.module_path('missing-import'))
         assert missing_import
 
-        all_imports, missing_imports = itg.check_dependencies('import', missing_import,
-                                                              self.module_dir, self.yang_models)
+        all_imports, missing_imports = itg.check_dependencies('import', missing_import, self.module_dir)
         self.assertSetEqual(all_imports, {'nonexistent'})
         self.assertSetEqual(missing_imports, {'nonexistent'})
 
         missing_include = parse(self.module_path('missing-include'))
         assert missing_include
 
-        all_includes, missing_includes = itg.check_dependencies('include', missing_include,
-                                                               self.module_dir, self.yang_models)
+        all_includes, missing_includes = itg.check_dependencies('include', missing_include, self.module_dir)
         self.assertSetEqual(all_includes, {'nonexistent'})
         self.assertSetEqual(missing_includes, {'nonexistent'})
     

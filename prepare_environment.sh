@@ -20,13 +20,15 @@ then
     git submodule update --init vendor/huawei
 fi
 
+TEST_REPO=$TMP_DIR/test/YangModels/yang
+
 # Prepare files and directory structure for test_groupings.py
-mkdir -p $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC
-cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TMP_DIR/groupings-tests/YangModels/yang/standard/ietf/RFC/.
-cp $BACKEND/tests/resources/request-data.json $TMP_DIR/groupings-tests/.
+mkdir -p $TEST_REPO/standard/ietf/RFC
+touch $TEST_REPO/standard/ietf/README.md
+cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-interfaces.yang $TEST_REPO/standard/ietf/RFC/.
+cp $BACKEND/tests/resources/request-data.json $TMP_DIR/test/.
 
 # Create directories which match YangModels/yang/vendor/cisco structure, then copy certain files to these directories
-TEST_REPO=$TMP_DIR/test/YangModels/yang
 mkdir -p $TEST_REPO/vendor/cisco/xr/701/
 mkdir -p $TEST_REPO/vendor/cisco/xr/702/
 mkdir -p $TEST_REPO/vendor/cisco/nx/9.2-1
@@ -63,3 +65,5 @@ cp $YANG_MODELS_DIR/standard/ietf/RFC/ietf-yang-types@2010-09-24.yang $TMP_DIR/u
 # Copy all RFC modules into /var/yang/all_modules directory
 cp $YANG_MODELS_DIR/standard/ietf/RFC/*@*.yang $SAVE_FILE_DIR
 cp $BACKEND/tests/resources/all_modules/* $SAVE_FILE_DIR
+
+(cd $BACKEND; python sandbox/generate_schema_urls.py $TEST_REPO || exit 1)

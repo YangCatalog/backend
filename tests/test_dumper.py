@@ -26,7 +26,7 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.schema_parts import SchemaParts
+from parseAndPopulate.models.schema_parts import SchemaParts
 
 
 class TestDumperClass(unittest.TestCase):
@@ -207,8 +207,7 @@ class TestDumperClass(unittest.TestCase):
         parsed_jsons = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         path_to_yang = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/standard/ietf/RFC', self.sdo_module_filename)
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, self.dir_paths, {},
-                         self.schema_parts)
+        yang = SdoModule(self.sdo_module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {})
 
         return yang
 
@@ -222,10 +221,10 @@ class TestDumperClass(unittest.TestCase):
         parsed_jsons = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         vendor_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = vendor_data.split('&revision')[0]
-        module_path = '{}/{}.yang'.format(self.resources_path, module_name)
+        module_path = \
+            os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/vendor/cisco/xr/701', '{}.yang'.format(module_name))
 
-        yang = VendorModule(module_name, module_path, parsed_jsons, self.dir_paths, {}, self.schema_parts,
-                            data=vendor_data)
+        yang = VendorModule(module_name, module_path, parsed_jsons, {}, self.dir_paths, {}, data=vendor_data)
 
         return yang
 

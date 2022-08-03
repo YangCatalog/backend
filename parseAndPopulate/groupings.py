@@ -31,15 +31,15 @@ from git import InvalidGitRepositoryError
 from git.repo import Repo
 from utility import repoutil
 from utility.staticVariables import GITHUB_RAW, github_url
-from utility.util import find_first_file
+from utility.util import get_yang
 from utility.yangParser import ParseException
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.loadJsonFiles import LoadFiles
+from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.modules import SdoModule, VendorModule
-from parseAndPopulate.schema_parts import SchemaParts
 
 
 class ModuleGrouping:
@@ -69,6 +69,18 @@ class ModuleGrouping:
         for submodule in Repo(dir_paths['yang_models']).submodules:
             url = submodule.url.replace(github_url, GITHUB_RAW).removesuffix('.git')
             self._submodule_map[url] = submodule.path
+        try:
+            with open(os.path.join(dir_paths['cache'], 'schema_dict.json')) as f:
+                self._schemas = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            self._schemas = {}
+
+    def _dump_schema_cache(self):
+        try:
+            with open(os.path.join(self.dir_paths['cache'], 'schema_dict.json'), 'w') as f:
+                json.dump(self._schemas, f)
+        except (FileNotFoundError, PermissionError):
+            LOGGER.error('Could not update the schema url cache')
 
     def _load_yangmodels_repo(self):
         self.repo_owner = 'YangModels'
@@ -97,10 +109,9 @@ class ModuleGrouping:
 
     def parse_and_load(self):
         """Parse the modules and load the extracted data into the dumper."""
-        pass
 
     def _construct_json_name(self, schema_base: str, directory: str) -> t.Optional[str]:
-        # This function reimplements the name mangling from sdo_analysis/bin/runYANGgenericstats.sh
+        # This function reimplements the name mangling from sdo_analysis/bin/run_module_compilation.sh
         # TODO: Support for repositories that use multiple branches. This includes OpenROADM,
         #      and ETSI when cloned independently of YangModels/yang
         alnum: t.Callable[[str], str] = lambda s: ''.join(c for c in s if c.isalnum())
@@ -174,8 +185,47 @@ class ModuleGrouping:
         return None
 
 
+    def _update_schema_urls(self, name: str, revision: str, path: str, schema_parts: SchemaParts):
+        name_revision = '{}@{}'.format(name, revision)
+        if name_revision in self._schemas:
+            return
+        self._schemas[name_revision] = self._construct_schema_url(path, schema_parts)
+
+    def _construct_schema_url(self, path: str, schema_parts: SchemaParts) -> t.Optional[str]:
+        LOGGER.debug('Resolving schema')
+        if 'SOL006-' in path:
+            suffix = path.split('SOL006-')[-1]
+            return 'https://forge.etsi.org/rep/nfv/SOL006/raw/{}'.format(suffix)
+        if not schema_parts.schema_base:
+            return None
+
+        schema_base_hash = schema_parts.schema_base_hash
+        if 'openconfig/public' in path:
+            suffix = os.path.abspath(path).split('/openconfig/public/')[-1]
+            return os.path.join(schema_base_hash, suffix)
+        if 'draftpulllocal' in path:
+            suffix = os.path.abspath(path).split('draftpulllocal/')[-1]
+            return os.path.join(schema_base_hash, suffix)
+        if 'yangmodels/yang' in path:
+            suffix = os.path.abspath(path).split('/yangmodels/yang/')[-1]
+        elif '/tmp/' in path:
+            suffix = os.path.abspath(path).split('/tmp/')[1]
+            suffix = '/'.join(suffix.split('/')[3:])  # remove directory_number/owner/repo prefix
+        else:
+            LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
+            return
+        if schema_parts.submodule_name:
+            suffix = suffix.replace('{}/'.format(schema_parts.submodule_name), '')
+        return os.path.join(schema_base_hash, suffix)
+
+
 class SdoDirectory(ModuleGrouping):
     """Regular SDO directory containing yang modules."""
+
+    def __init__(self, directory: str, dumper: Dumper, file_hasher: FileHasher,
+                 api: bool, dir_paths: DirPaths, path_to_name_rev: dict):
+        self.path_to_name_rev = path_to_name_rev
+        super().__init__(directory, dumper, file_hasher, api, dir_paths)
 
     def parse_and_load(self, repo: t.Optional[repoutil.RepoUtil] = None):
         """
@@ -190,6 +240,7 @@ class SdoDirectory(ModuleGrouping):
             self._parse_and_load_api()
         else:
             self._parse_and_load_not_api()
+        self._dump_schema_cache()
 
     def _parse_and_load_api(self):
         LOGGER.debug('Parsing sdo files sent via API')
@@ -221,15 +272,16 @@ class SdoDirectory(ModuleGrouping):
                 should_parse = self.file_hasher.should_parse_openconfig_module(path)
                 if not should_parse:
                     continue
-            name = file_name.split('.')[0].split('@')[0]
             schema_parts = SchemaParts(
                 repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
             schema_base = schema_parts.schema_base
             self.parsed_jsons = LoadFiles(self._construct_json_name(schema_base, self.directory),
                                           self.dir_paths['private'], self.dir_paths['log'])
+            name, revision = self.path_to_name_rev[path]
+            self._update_schema_urls(name, revision, path, schema_parts)
             try:
-                yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths, self.dumper.yang_modules,
-                                 schema_parts, aditional_info=sdo)
+                yang = SdoModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                                 self.dumper.yang_modules, aditional_info=sdo)
             except ParseException:
                 LOGGER.exception('ParseException while parsing {}'.format(file_name))
                 continue
@@ -252,7 +304,7 @@ class SdoDirectory(ModuleGrouping):
             schema_base = schema_parts.schema_base
             for i, file_name in enumerate(sdos, start=1):
                 # Process only SDO .yang files
-                if '.yang' not in file_name and any(word in root for word in ['vendor', 'odp']):
+                if '.yang' not in file_name or any(word in root for word in ['vendor', 'odp']):
                     continue
                 path = os.path.join(root, file_name)
                 should_parse = self.file_hasher.should_parse_sdo_module(path)
@@ -262,13 +314,14 @@ class SdoDirectory(ModuleGrouping):
                     LOGGER.warning('File {} contains [1] it its file name'.format(file_name))
                     continue
                 LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
-                name = file_name.split('.')[0].split('@')[0]
+                name, revision = self.path_to_name_rev[path]
+                self._update_schema_urls(name, revision, path, schema_parts)
                 self.parsed_jsons = \
                     LoadFiles(self._construct_json_name(schema_base, os.path.join(self.directory, root)),
                               self.dir_paths['private'], self.dir_paths['log'])
                 try:
-                    yang = SdoModule(name, path, self.parsed_jsons, self.dir_paths,
-                                     self.dumper.yang_modules, schema_parts)
+                    yang = SdoModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                                     self.dumper.yang_modules)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(file_name))
                     continue
@@ -279,8 +332,8 @@ class IanaDirectory(SdoDirectory):
     """Directory containing IANA modules."""
 
     def __init__(self, directory: str, dumper: Dumper, file_hasher: FileHasher,
-                 api: bool, dir_paths: DirPaths):
-        super().__init__(directory, dumper, file_hasher, api, dir_paths)
+                 api: bool, dir_paths: DirPaths, path_to_name_rev: dict):
+        super().__init__(directory, dumper, file_hasher, api, dir_paths, path_to_name_rev)
         self.root = ET.parse(os.path.join(directory, 'yang-parameters.xml')).getroot()
 
     def parse_and_load(self):
@@ -294,10 +347,10 @@ class IanaDirectory(SdoDirectory):
         schema_parts = SchemaParts(
             repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
 
-        for yang in modules:
+        for module in modules:
             additional_info = {}
-            data = yang.attrib
-            for attributes in yang:
+            data = module.attrib
+            for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
                 data[prop] = attributes.text if attributes.text else ''
                 if prop == 'xref':
@@ -318,25 +371,28 @@ class IanaDirectory(SdoDirectory):
                 should_parse = self.file_hasher.should_parse_sdo_module(path)
                 if not should_parse:
                     continue
-                module_name = data['file'].split('.yang')[0]
-
-                LOGGER.info('Parsing module {}'.format(module_name))
                 self.parsed_jsons = LoadFiles('IANAStandard', self.dir_paths['private'], self.dir_paths['log'])
+                name, revision = self.path_to_name_rev[path]
+
+                LOGGER.info('Parsing module {}'.format(name))
+                self._update_schema_urls(name, revision, path, schema_parts)
                 try:
-                    yang = SdoModule(data['name'], path, self.parsed_jsons, self.dir_paths,
-                                     self.dumper.yang_modules, schema_parts, additional_info)
+                    yang = SdoModule(data['name'], path, self.parsed_jsons, self._schemas, self.dir_paths,
+                                     self.dumper.yang_modules, additional_info)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(module_name))
+                    LOGGER.exception('ParseException while parsing {}'.format(name))
                     continue
                 self.dumper.add_module(yang)
+        self._dump_schema_cache()
 
 
 class VendorGrouping(ModuleGrouping):
 
     parsed_jsons: LoadFiles
 
-    def __init__(self, directory: str, xml_file: str, dumper: Dumper,
-                 file_hasher: FileHasher, api: bool, dir_paths: DirPaths):
+    def __init__(self, directory: str, xml_file: str, dumper: Dumper, file_hasher: FileHasher,
+                 api: bool, dir_paths: DirPaths, name_rev_to_path: dict):
+        self.name_rev_to_path = name_rev_to_path
         super().__init__(directory, dumper, file_hasher, api, dir_paths)
 
         self.submodule_name = None
@@ -458,26 +514,23 @@ class VendorGrouping(ModuleGrouping):
             :param schema_parts     (SchemaParts) Parts of the URL to a raw module on Github
         """
         for module in modules:
-            if not is_include:
-                name = module.arg
-                conformance_type = 'import'
-            else:
-                name = module.name
-                conformance_type = None
+            name = module.name
+            conformance_type = None if is_include else 'import'
 
             # Skip if name of submodule/import is already in list of module names
             if name not in set_of_names:
                 LOGGER.info('Parsing module {}'.format(name))
-                set_of_names.add(name)
-                pattern = '{}.yang'.format(name)
-                pattern_with_revision = '{}@*.yang'.format(name)
-                yang_file = find_first_file(os.path.dirname(self.xml_file), pattern, pattern_with_revision)
-                if yang_file is None:
+                path = get_yang(name)
+                if path is None:
                     return
+                revision = path.split('@')[-1].removesuffix('.yang')
+                if (name, revision) in self.name_rev_to_path:
+                    path = self.name_rev_to_path[name, revision]
+                self._update_schema_urls(name, revision, path, schema_parts)
                 try:
                     try:
-                        yang = VendorModule(name, yang_file, self.parsed_jsons, self.dir_paths,
-                                            self.dumper.yang_modules, schema_parts)
+                        yang = VendorModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                                            self.dumper.yang_modules)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(name))
                         continue
@@ -541,21 +594,30 @@ class VendorCapabilities(VendorGrouping):
                 continue
             # Parse name of the module
             module_and_more = module.text.split('module=')[1]
-            module_name = module_and_more.split('&')[0]
+            name = module_and_more.split('&')[0]
+            revision = None
+            if 'revision' in module.text:
+                revision_and_more = module.text.split('revision=')[1]
+                revision = revision_and_more.split('&')[0]
 
-            path = '{}/{}.yang'.format(self.directory, module_name)
-            should_parse = False
-            if os.path.exists(path):
-                should_parse = self.file_hasher.should_parse_vendor_module(path, platform_name)
+            path = get_yang(name, revision)
+            if not path:
+                LOGGER.warning('File {} not found in the repository'.format(name))
+                continue
+            should_parse = self.file_hasher.should_parse_vendor_module(path, platform_name)
             if not should_parse:
                 continue
-            LOGGER.info('Parsing module {}'.format(module_name))
+            LOGGER.info('Parsing module {}'.format(name))
+            revision = revision or path.split('@')[-1].removesuffix('.yang')
+            if (name, revision) in self.name_rev_to_path:
+                path = self.name_rev_to_path[name, revision]
+            self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
-                    yang = VendorModule(module_name, path, self.parsed_jsons, self.dir_paths,
-                                        self.dumper.yang_modules, schema_parts, data=module_and_more)
+                    yang = VendorModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                                        self.dumper.yang_modules, data=module_and_more)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(module_name))
+                    LOGGER.exception('ParseException while parsing {}'.format(name))
                     continue
                 yang.add_vendor_information(self.platform_data, 'implement',
                                             self.capabilities, self.netconf_versions)
@@ -564,11 +626,12 @@ class VendorCapabilities(VendorGrouping):
                 keys.add(key)
                 set_of_names.add(yang.name)
             except FileNotFoundError:
-                LOGGER.warning('File {} not found in the repository'.format(module_name))
+                LOGGER.warning('File {} not found in the repository'.format(name))
 
         for key in keys:
             self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
             self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
+        self._dump_schema_cache()
 
 
 class VendorYangLibrary(VendorGrouping):
@@ -596,18 +659,18 @@ class VendorYangLibrary(VendorGrouping):
         for yang in modules:
             if 'module-set-id' in yang.tag:
                 continue
-            module_name = ''
+            name = ''
 
             for mod in yang:
                 if 'name' in mod.tag:
-                    module_name = mod.text
-                    if not module_name:
-                        module_name = ''
+                    name = mod.text
+                    if not name:
+                        name = ''
                     break
 
             yang_lib_info = {}
             yang_lib_info['path'] = self.directory
-            yang_lib_info['name'] = module_name
+            yang_lib_info['name'] = name
             yang_lib_info['features'] = []
             yang_lib_info['deviations'] = []
             conformance_type = None
@@ -624,13 +687,22 @@ class VendorYangLibrary(VendorGrouping):
                     deviation['revision'] = mod[1].text
                     yang_lib_info['deviations'].append(deviation)
 
-            LOGGER.info('Starting to parse {}'.format(module_name))
+            LOGGER.info('Starting to parse {}'.format(name))
+            revision = yang_lib_info.get('revision')
+            path = get_yang(name, revision)
+            if not path:
+                LOGGER.warning('File {} not found in the repository'.format(name))
+                continue
+            revision = revision or path.split('@')[-1].removesuffix('.yang')
+            if (name, revision) in self.name_rev_to_path:
+                path = self.name_rev_to_path[name, revision]
+            self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
-                    yang = VendorModule(module_name, self.xml_file, self.parsed_jsons, self.dir_paths,
-                                        self.dumper.yang_modules, schema_parts, data=yang_lib_info)
+                    yang = VendorModule(name, path, self.parsed_jsons, self._schemas, 
+                                        self.dir_paths, self.dumper.yang_modules, data=yang_lib_info)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(module_name))
+                    LOGGER.exception('ParseException while parsing {}'.format(name))
                     continue
 
                 yang.add_vendor_information(self.platform_data, conformance_type,
@@ -639,8 +711,9 @@ class VendorYangLibrary(VendorGrouping):
                 keys.add('{}@{}/{}'.format(yang.name, yang.revision, yang.organization))
                 set_of_names.add(yang.name)
             except FileNotFoundError:
-                LOGGER.warning('File {} not found in the repository'.format(module_name))
+                LOGGER.warning('File {} not found in the repository'.format(name))
 
         for key in keys:
             self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
             self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
+        self._dump_schema_cache()

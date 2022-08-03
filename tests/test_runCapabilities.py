@@ -20,6 +20,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 import unittest
+import typing as t
 from unittest import mock
 
 from api.globalConfig import yc_gc
@@ -41,7 +42,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
 
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_runCapabilities_parse_and_dump_sdo(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_sdo(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over SDO yang files in directory.
         For testing purposes there is only 1 yang file (ietf-yang-types@2013-07-15.yang) in directory.
         Compare content of prepare.json files.
@@ -68,29 +69,11 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         desired_module_data = self.load_desired_prepare_json_data('dumped_module')
         dumped_module_data = self.load_dumped_prepare_json_data()
 
-        # Compare desired output with output of prepare.json
-        for dumped_module in dumped_module_data:
-            for desired_module in desired_module_data:
-                if desired_module.get('name') == dumped_module.get('name'):
-                    # Compare properties/keys of desired and dumped module data objects
-                    for key in desired_module:
-                        if key == 'yang-tree':
-                            # Compare only URL suffix (exclude domain)
-                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[-1])
-                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[-1])
-                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
-                        elif key == 'compilation-result':
-                            if dumped_module[key] != '' and desired_module[key] != '':
-                                # Compare only URL suffix (exclude domain)
-                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                                self.assertEqual(desired_compilation_result, dumped_compilation_result)
-                        else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+        self.compare_module_data(desired_module_data, dumped_module_data)
 
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_runCapabilities_parse_and_dump_sdo_empty_dir(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_sdo_empty_dir(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over empty directory - no yang files.
         Test whether prepare.json file contain only empty dictionary '{}'.
 
@@ -120,7 +103,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
 
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_runCapabilities_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapabilities.py script over vendor yang files in directory which also contains capability xml file.
         Compare content of normal.json and prepare.json files.
 
@@ -146,25 +129,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         desired_module_data = self.load_desired_prepare_json_data('ncs5k_prepare_json')
         dumped_module_data = self.load_dumped_prepare_json_data()
 
-        # Compare desired output with output of prepare.json
-        for dumped_module in dumped_module_data:
-            for desired_module in desired_module_data:
-                if desired_module.get('name') == dumped_module.get('name'):
-                    # Compare properties/keys of desired and dumped module data objects
-                    for key in desired_module:
-                        if key == 'yang-tree':
-                            # Compare only URL suffix (exclude domain)
-                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[-1])
-                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[-1])
-                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
-                        elif key == 'compilation-result':
-                            if dumped_module[key] != '' and desired_module[key] != '':
-                                # Compare only URL suffix (exclude domain)
-                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                                self.assertEqual(desired_compilation_result, dumped_compilation_result)
-                        else:
-                            self.assertEqual(dumped_module[key], desired_module[key])
+        self.compare_module_data(desired_module_data, dumped_module_data)
 
         # Load desired normal.json data from .json file
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
@@ -180,10 +145,9 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             self.assertNotEqual(len(file_content['vendors']['vendor']), 0)
             dumped_vendor_data = file_content.get('vendors', {}).get('vendor', [])
 
-        for dumped_vendor in dumped_vendor_data:
-            self.assertIn(dumped_vendor, desired_vendor_data)
+        self.compare_vendor_data(desired_vendor_data, dumped_vendor_data)
 
-    def test_runCapabilities_parse_and_dump_vendor_non_existing_xml(self):
+    def test_parse_and_dump_vendor_non_existing_xml(self):
         """ Non-existing path is passed as 'dir' argument to the capability.py script which means
         that no capability xml file is found inside this directory.
         Test whether both prepare.json and normal.json files contain only empty dictionary '{}'.
@@ -213,7 +177,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
 
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_runCapabilities_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
         """ Run runCapability script over yang_lib.xml. Compare content of normal.json and prepare.json files.
 
         Arguments:
@@ -239,28 +203,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         dumped_module_data = sorted(self.load_dumped_prepare_json_data(), key=key)
         desired_module_data = sorted(self.load_desired_prepare_json_data('yang_lib_prepare_json'), key=key)
 
-        # Compare desired output with output of prepare.json
-        self.assertEqual(len(dumped_module_data), len(desired_module_data))
-        for dumped_module, desired_module in zip(dumped_module_data, desired_module_data):
-            # Compare properties/keys of desired and dumped module data objects
-            for key in desired_module:
-                if key == 'yang-tree':
-                    # Compare only URL suffix (exclude domain)
-                    desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[-1])
-                    dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[-1])
-                    self.assertEqual(desired_tree_suffix, dumped_tree_suffix)
-                elif key == 'compilation-result':
-                    if dumped_module[key] != '' and desired_module[key] != '':
-                        # Compare only URL suffix (exclude domain)
-                        desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                        dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                        self.assertEqual(desired_compilation_result, dumped_compilation_result)
-                else:
-                    if isinstance(desired_module[key], list):
-                        for i in desired_module[key]:
-                            self.assertIn(i, dumped_module[key], key)
-                    else:
-                        self.assertEqual(dumped_module[key], desired_module[key])
+        self.compare_module_data(desired_module_data, dumped_module_data)
 
         # Load desired normal.json data from .json file
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
@@ -275,10 +218,9 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             self.assertNotEqual(len(file_content['vendors']['vendor']), 0)
             dumped_vendor_data = file_content['vendors']['vendor']
 
-        for dumped_vendor in dumped_vendor_data:
-            self.assertIn(dumped_vendor, desired_vendor_data)
+        self.compare_vendor_data(desired_vendor_data, dumped_vendor_data)
 
-    def test_runCapabilities_get_help(self):
+    def test_get_help(self):
         """ Test whether script help has the correct structure (check only structure not content).
         """
         # Load submodule and its config
@@ -292,7 +234,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         self.assertIn('options', script_help)
         self.assertNotEqual(script_help.get('options'), {})
 
-    def test_runCapabilities_get_args_list(self):
+    def test_get_args_list(self):
         """ Test whether script default arguments has the correct structure (check only structure not content).
         """
         # Load submodule and its config
@@ -340,6 +282,116 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         dumped_module_data = file_content['module']
         return dumped_module_data
 
+    def compare_module_data(self, desired_module_data, dumped_module_data):
+        for desired_module in desired_module_data:
+            name = desired_module.get('name')
+            revision = desired_module.get('revision')
+            for dumped_module in dumped_module_data:
+                if name == dumped_module.get('name'):
+                    fail_message = 'mismatch in {}'.format(name)
+                    fail_message = '{} ' + fail_message
+                    # Compare properties/keys of desired and dumped module data objects
+                    for key in desired_module:
+                        if name == 'ietf-yang-library':
+                            # We have multiple slightly different versions of ietf-yang-library
+                            # marked with the same revision
+                            if key in ('description', 'contact'):
+                                continue
+                        if key == 'yang-tree':
+                            # Compare only URL suffix (exclude domain)
+                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[1])
+                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[1])
+                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix,
+                                             fail_message.format('tree suffix'))
+                        elif key == 'compilation-result':
+                            if dumped_module[key] != '' and desired_module[key] != '':
+                                # Compare only URL suffix (exclude domain)
+                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
+                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
+                                self.assertEqual(desired_compilation_result, dumped_compilation_result,
+                                                 fail_message.format('compilation result'))
+                        else:
+                            if isinstance(desired_module[key], list):
+                                # submodules or dependencies
+                                for i in desired_module[key]:
+                                    for j in dumped_module[key]:
+                                        try:
+                                            j.pop('schema')
+                                        except KeyError:
+                                            pass
+                                    self.assertIn(i, dumped_module[key], fail_message.format(key))
+                            else:
+                                self.assertEqual(dumped_module[key], desired_module[key], fail_message.format(key))
+                    break
+            else:
+                self.assertTrue(False, '{}@{} not found in dumped data'.format(name, revision))
+
+    def compare_vendor_data(self, desired, dumped):
+        for desired_vendor in desired:
+            self.assertTrue(any(self.compare_vendor(desired_vendor, dumped_vendor) for dumped_vendor in dumped),
+                            'the following vendor (or it\'s "superset"):\n{}\nwas not found in the dumped data:\n{}'
+                            .format(desired_vendor, dumped))
+
+    def compare_list(self, f, desired, dumped) -> bool:
+        for desired_datum in desired:
+            if not any(f(desired_datum, dumped_datum) for dumped_datum in dumped):
+                return False
+        return True
+
+    def compare_vendor(self, desired, dumped) -> bool:
+        try:
+            if desired['name'] != dumped['name']:
+                return False
+            desired_platforms = desired['platforms']['platform']
+            dumped_platforms = dumped['platforms']['platform']
+        except KeyError:
+            return False
+        return self.compare_list(self.compare_platforms, desired_platforms, dumped_platforms)
+
+    def compare_platforms(self, desired, dumped) -> bool:
+        try:
+            if desired['name'] != dumped['name']:
+                return False
+            desired_software_versions = desired['software-versions']['software-version']
+            dumped_software_versions = dumped['software-versions']['software-version']
+        except KeyError:
+            return False
+        return self.compare_list(self.compare_software_versions, desired_software_versions, dumped_software_versions)
+
+    def compare_software_versions(self, desired, dumped) -> bool:
+        try:
+            if desired['name'] != dumped['name']:
+                return False
+            desired_software_flavors = desired['software-flavors']['software-flavor']
+            dumped_software_flavors = dumped['software-flavors']['software-flavor']
+        except KeyError:
+            return False
+        return self.compare_list(self.compare_software_flavors, desired_software_flavors, dumped_software_flavors)
+
+    def compare_software_flavors(self, desired, dumped) -> bool:
+        try:
+            if not (desired['name'] == dumped['name'] and
+                    self.compare_non_recursive(desired['protocols']['protocol'], dumped['protocols']['protocol']) and
+                    self.compare_non_recursive(desired['modules']['module'], dumped['modules']['module'])):
+                return False
+        except KeyError:
+            return False
+        return True
+
+    # used for comparing "modules" and "protocols"
+    def compare_non_recursive(self, desired: t.List[dict], dumped: t.List[dict]) -> bool:
+        """Compare a list of dicts."""
+        return self.compare_list(self.dict_contains, desired, dumped)
+
+    def dict_contains(self, sub: dict, super: dict) -> bool:
+        """Check whether the super dict contains all the keys of the sub dict with idetical values."""
+        for key in sub:
+            try:
+                if sub[key] != super[key]:
+                    return False
+            except KeyError:
+                return False
+        return True
 
 if __name__ == '__main__':
     unittest.main()

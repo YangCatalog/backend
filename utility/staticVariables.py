@@ -62,11 +62,16 @@ IETF_RFC_MAP = {
 
 NAMESPACE_MAP = (
     ('http://cisco.com/', 'cisco'),
+    ('http://www.cisco.com/', 'cisco'),
     ('http://www.huawei.com/netconf', 'huawei'),
     ('http://openconfig.net/yang', 'openconfig'),
     ('http://tail-f.com/', 'tail-f'),
     ('http://yang.juniper.net/', 'juniper'),
-    ('http://www.ciena.com/ns/yang/', 'ciena')
+    ('http://www.ciena.com/ns/yang/', 'ciena'),
+    ('https://www.broadband-forum.org', 'bbf'),
+    ('http://ackl.io/', 'acklio'),
+    ('http://ni.com/ns', 'ni'),
+    ('http://metroethernetforum.org/ns', 'mef')
 )
 
 github_url = 'https://github.com'
@@ -83,6 +88,10 @@ SDOS = [
     'ietf',
     'mef',
     'odp'
+]
+ORGANIZATIONS = [
+    'ietf', 'ieee', 'etsi', 'bbf', 'openconfig', 'tail-f', 'opendaylight',
+    'ciena', 'cisco', 'fujitsu', 'huawei', 'juniper', 'nokia', 'acklio'
 ]
 SCHEMA_TYPES = [
     'typedef',

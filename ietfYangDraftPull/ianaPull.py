@@ -92,8 +92,13 @@ def main(scriptConf=None):
         job_log(start_time, temp_dir, error=error_message, status='Fail', filename=os.path.basename(__file__))
         sys.exit()
 
-    with open(iana_exceptions, 'r') as exceptions_file:
-        remove_from_new = exceptions_file.read().split('\n')
+    try:
+        with open(iana_exceptions, 'r') as exceptions_file:
+            remove_from_new = exceptions_file.read().split('\n')
+    except FileNotFoundError:
+        open(iana_exceptions, 'w').close()
+        os.chmod(iana_exceptions, 0o664)
+        remove_from_new = []
 
     try:
         iana_temp_path = os.path.join(temp_dir, 'iana')
