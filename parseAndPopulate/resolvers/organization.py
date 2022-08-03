@@ -3,7 +3,7 @@ import typing as t
 
 from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
-from utility.staticVariables import NS_MAP, ORGANIZATIONS
+from utility.staticVariables import NAMESPACE_MAP, ORGANIZATIONS
 
 """ 
 This resolver resolves yang module organization property.
@@ -32,7 +32,7 @@ class OrganizationResolver(Resolver):
         if not self.namespace:
             return DEFAULT
 
-        for ns, org in NS_MAP:
+        for ns, org in NAMESPACE_MAP:
             if ns in self.namespace:
                 return org
         if 'cisco' in self.namespace:
