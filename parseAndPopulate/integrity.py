@@ -43,7 +43,7 @@ from pyang.statements import Statement
 from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import NS_MAP
+from utility.staticVariables import NAMESPACE_MAP
 from utility.util import find_files
 
 
@@ -112,7 +112,7 @@ def check_namespace(parsed_module: Statement) -> bool:
         return False
     if 'urn:' in namespace:
         return True
-    for ns, _ in NS_MAP:
+    for ns, _ in NAMESPACE_MAP:
         if ns in namespace:
             return True
     return False

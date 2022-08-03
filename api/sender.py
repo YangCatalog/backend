@@ -68,14 +68,15 @@ class Sender:
         self._response_file = 'correlation_ids'
         self.LOGGER.debug('Sender initialized')
 
-    def get_response(self, correlation_id):
+    def get_response(self, correlation_id: str) -> str:
         """Get response according to job_id. It can be either
         'Failed', 'In progress', 'Finished successfully' or 'does not exist'
-                Arguments:
-                    :param correlation_id: (str) job_id searched between
-                     responses
-                    :return one of the following - 'Failed', 'In progress',
-                        'Finished successfully' or 'Does not exist'
+
+        Arguments:
+            :param correlation_id: (str) job_id searched between
+                responses
+            :return                (str) one of the following - 'Failed', 'In progress',
+                'Finished successfully' or 'Does not exist'
         """
         self.LOGGER.debug('Trying to get response from correlation ids')
 
@@ -88,11 +89,12 @@ class Sender:
 
         return StatusMessage.NONEXISTENT.value
 
-    def send(self, arguments):
+    def send(self, arguments: list) -> str:
         """Send data to receiver queue to process
-                Arguments:
-                    :param arguments: (str) arguments to process in receiver
-                    :return job_id
+
+        Arguments:
+            :param arguments: (str) arguments to process in receiver
+            :return job_id
         """
         self.LOGGER.info('Sending data to queue with arguments: {}'.format(arguments))
         while (True):

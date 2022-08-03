@@ -14,10 +14,10 @@
 # limitations under the License.
 
 """
-This script will save or load all the modules that
-we currently have in our yangcatalog. This script
-should be run every day so we always have backup of
-all the modules
+Backup or restore all yangcatalog data.
+Redis .rdb files are prioritized. JSON dumps are used if .rdb files aren't present.
+Load adittionally makes a PATCH request to write the yang-catalog@2018-04-03 module to ConfD.
+This script runs as a daily cronjob.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -47,12 +47,7 @@ from utility.util import get_list_of_backups, job_log
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        help = 'This serves to save or load all the data in yangcatalog.org to JSON file in' \
-               ' case the server will go down and we would lose all the data we' \
-               ' have got. We have two options in here. Saving create backup of Redis .rdb file and also dumps' \
-               ' data from Redis into JSON file. Load will first load data to Redis either from saved JSON file or' \
-               ' from snapshot of Redis. Then it will make PATCH request to write  yang-catalog@2018-04-03 module' \
-               ' to the ConfD. This runs as a daily cronjob to save latest state of Redis database.'
+        help = __doc__
         config = create_config()
         args: t.List[Arg] = [
             {

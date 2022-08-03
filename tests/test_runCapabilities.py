@@ -48,8 +48,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         Compare content of prepare.json files.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-        :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
@@ -78,8 +78,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         Test whether prepare.json file contain only empty dictionary '{}'.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-        :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
@@ -108,8 +108,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         Compare content of normal.json and prepare.json files.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-        :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_commit_hash.return_value = 'master'
         mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
@@ -181,8 +181,8 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         """ Run runCapability script over yang_lib.xml. Compare content of normal.json and prepare.json files.
 
         Arguments:
-        :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-        :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
+            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
+            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_load_files.return_value = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'

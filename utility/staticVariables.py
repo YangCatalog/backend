@@ -60,7 +60,7 @@ IETF_RFC_MAP = {
     'ietf-yang-types@2013-07-15.yang': 'NETMOD'
 }
 
-NS_MAP = (
+NAMESPACE_MAP = (
     ('http://cisco.com/', 'cisco'),
     ('http://www.cisco.com/', 'cisco'),
     ('http://www.huawei.com/netconf', 'huawei'),

@@ -22,14 +22,15 @@ import logging
 import os
 
 
-def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging.DEBUG):
+def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging.DEBUG) -> logging.Logger:
     """Create formated logger with the specified name and store at path defined by
-        'file_name_path' argument.
-        Arguments:
-            :param name             (str) set name of the logger.
-            :param file_name_path   (str) filename and path where to save logs.
-            :param level            (int) Optional - logging level of this logger.
-            :return a logger with the specified name.
+    'file_name_path' argument.
+
+    Arguments:
+        :param name             (str) set name of the logger.
+        :param file_name_path   (str) filename and path where to save logs.
+        :param level            (int) Optional - logging level of this logger.
+        :return                 (Logger) a logger with the specified name.
     """
     os.makedirs(os.path.dirname(file_name_path), exist_ok=True)
     exists = False

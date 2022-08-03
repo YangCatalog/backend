@@ -14,14 +14,13 @@
 # limitations under the License.
 
 """
-RabbitMQ is needed to be installed for this script to work.
-This script is part of messaging algorithm which works together
+This script is part of a messaging system which works together
 with sender.py. Some API endpoints that take too long to process
 request so sender.py will send a request to process data to this Receiver.
-Once receiver is done with processing data it will send back the
+Once the receiver is done with processing data it will send back the
 response using the message id.
 
-Receiver is used to add, update or remove yang modules and vendors.
+The receiver is used to add, update or remove yang modules and vendors.
 This process take a long time depending on the number
 of the yang modules. This script is also used to automatically
 add or update new IETF and Openconfig modules or run other scripts as subprocesses.
@@ -451,9 +450,10 @@ class Receiver:
         which can be either 'Failed' or 'Finished successfully' with corespondent
         correlation ID. If the request 'Failed' it will sent back also a reason why
         it failed.
-                Arguments:
-                    :param body: (str) String of arguments that need to be processed
-                    separated by '#'.
+
+        Arguments:
+            :param body: (str) String of arguments that need to be processed
+                separated by '#'.
         """
         config_reloaded = False
         status: StatusMessage
@@ -619,7 +619,7 @@ class Receiver:
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
                         help='Set path to config file')
     args, extra_args = parser.parse_known_args()

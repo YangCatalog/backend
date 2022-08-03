@@ -59,6 +59,7 @@ class Module:
                  yang_modules: dict, additional_info: t.Optional[t.Dict[str, str]]):
         """
         Initialize and parse everything out of a module.
+
         Arguments:
             :param name:            (str) name of the module (not parsed out of the module)
             :param path:            (str) path to yang file being parsed

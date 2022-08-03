@@ -205,14 +205,15 @@ def get_organizations():
 
 
 @bp.route('/services/file1=<name1>@<revision1>/check-update-from/file2=<name2>@<revision2>', methods=['GET'])
-def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
+def create_update_from(name1: str, revision1: str, name2: str, revision2: str) -> str:
     """Create output from pyang tool with option --check-update-from for two modules with revisions
-        Arguments:
-            :param name1:            (str) name of the first module
-            :param revision1:        (str) revision of the first module in format YYYY-MM-DD
-            :param name2:            (str) name of the second module
-            :param revision2:        (str) revision of the second module in format YYYY-MM-DD
-            :return preformatted HTML with corresponding data
+
+    Arguments:
+        :param name1:            (str) name of the first module
+        :param revision1:        (str) revision of the first module in format YYYY-MM-DD
+        :param name2:            (str) name of the second module
+        :param revision2:        (str) revision of the second module in format YYYY-MM-DD
+        :return                  (str) preformatted HTML with corresponding data
     """
     new_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
     old_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
@@ -229,17 +230,18 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str):
 
 
 @bp.route('/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2>', methods=['GET'])
-def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
+def create_diff_file(name1: str, revision1: str, name2: str, revision2: str) -> str:
     """Create preformated HTML which contains diff between two yang file.
     Dump content of yang files into tempporary schema-file-diff.txt file.
     Make GET request to URL https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1=<file1>&url2=<file2>'.
     Output of rfcdiff tool then represents response of the method.
-        Arguments:
-            :param name1:            (str) name of the first module
-            :param revision1:        (str) revision of the first module in format YYYY-MM-DD
-            :param name2:            (str) name of the second module
-            :param revision2:        (str) revision of the second module in format YYYY-MM-DD
-            :return preformatted HTML with corresponding data
+
+    Arguments:
+        :param name1:            (str) name of the first module
+        :param revision1:        (str) revision of the first module in format YYYY-MM-DD
+        :param name2:            (str) name of the second module
+        :param revision2:        (str) revision of the second module in format YYYY-MM-DD
+        :return                  (str) preformatted HTML with corresponding data
     """
     schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
     schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
@@ -274,17 +276,18 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str):
 
 
 @bp.route('/services/diff-tree/file1=<name1>@<revision1>/file2=<file2>@<revision2>', methods=['GET'])
-def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str):
+def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str) -> str:
     """Create preformated HTML which contains diff between two yang trees.
     Dump content of yang files into tempporary schema-tree-diff.txt file.
     Make GET request to URL https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1=<file1>&url2=<file2>'.
     Output of rfcdiff tool then represents response of the method.
-        Arguments:
-            :param name1:            (str) name of the first module
-            :param revision1:        (str) revision of the first module in format YYYY-MM-DD
-            :param name2:            (str) name of the second module
-            :param revision2:        (str) revision of the second module in format YYYY-MM-DD
-            :return preformatted HTML with corresponding data
+
+    Arguments:
+        :param name1:            (str) name of the first module
+        :param revision1:        (str) revision of the first module in format YYYY-MM-DD
+        :param name2:            (str) name of the second module
+        :param revision2:        (str) revision of the second module in format YYYY-MM-DD
+        :return                  (str) preformatted HTML with corresponding data
     """
     schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
     schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, file2, revision2)
@@ -504,12 +507,12 @@ def check_semver():
 
 
 @bp.route('/search/vendor/<vendor>', methods=['GET'])
-def search_vendor_statistics(vendor: str):
+def search_vendor_statistics(vendor: str) -> dict:
     """Search for os-types of <vendor> with corresponding os-versions and platforms.
-        Arguments:
-            :param vendor   (str) name of the vendor
-            :return statistics of the vendor's os-types, os-versions and platforms
-            :rtype dict
+
+    Arguments:
+        :param vendor   (str) name of the vendor
+        :return         (dict) statistics of the vendor's os-types, os-versions and platforms
     """
     app.logger.info('Searching for vendors')
     data = vendors_data(False).get('vendor', {})
@@ -546,13 +549,14 @@ def search_vendor_statistics(vendor: str):
 
 
 @bp.route('/search/vendors/<path:value>', methods=['GET'])
-def search_vendors(value: str):
+def search_vendors(value: str) -> dict:
     """Search for a specific vendor, platform, os-type, os-version depending on
     the value sent via API.
-        Arguments:
-            :param value: (str) path that contains one of the @module_keys and
-                ends with /value searched for
-            :return response to the request.
+
+    Arguments:
+        :param value: (str) path that contains one of the @module_keys and
+            ends with /value searched for
+        :return       (dict) response to the request.
     """
     app.logger.info('Searching for specific vendors {}'.format(value))
     vendors_data = get_vendors()
@@ -613,14 +617,15 @@ def search_vendors(value: str):
 
 
 @bp.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])
-def search_module(name: str, revision: str, organization: str):
+def search_module(name: str, revision: str, organization: str) -> dict:
     """Search for a specific module defined with name, revision and organization
-            Arguments:
-                :param name:            (str) name of the module
-                :param revision:        (str) revision of the module in format YYYY-MM-DD
-                :param organization:    (str) organization of the module
-                :return response to the request with job_id that user can use to
-                    see if the job is still on or Failed or Finished successfully
+
+    Arguments:
+        :param name:            (str) name of the module
+        :param revision:        (str) revision of the module in format YYYY-MM-DD
+        :param organization:    (str) organization of the module
+        :return                 (dict) response to the request with job_id that user can use to
+            see if the job is still on or Failed or Finished successfully
     """
     app.logger.info('Searching for module {}, {}, {}'.format(name, revision, organization))
     module_data_redis = app.redisConnection.get_module('{}@{}/{}'.format(name, revision, organization))
@@ -667,13 +672,14 @@ def get_catalog():
 
 
 @bp.route('/services/tree/<name>@<revision>.yang', methods=['GET'])
-def create_tree(name: str, revision: str):
+def create_tree(name: str, revision: str) -> str:
     """
     Return yang tree representation of yang module with corresponding module name and revision.
+
     Arguments:
         :param name     (str) name of the module
         :param revision (str) revision of the module in format YYYY-MM-DD
-        :return preformatted HTML with corresponding data
+        :return         (str) preformatted HTML with corresponding data
     """
     path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
     plugin.plugins = []
@@ -719,13 +725,14 @@ def create_tree(name: str, revision: str):
 
 
 @bp.route('/services/reference/<name>@<revision>.yang', methods=['GET'])
-def create_reference(name: str, revision: str):
+def create_reference(name: str, revision: str) -> str:
     """
     Return reference of yang file with corresponding module name and revision.
+
     Arguments:
         :param name     (str) name of the module
         :param revision (str) revision of the module in format YYYY-MM-DD
-        :return preformatted HTML with corresponding data
+        :return         (str) preformatted HTML with corresponding data
     """
     path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
     context = {
@@ -883,18 +890,20 @@ def search_recursive(output: set, module: dict, leaf: str, resolved: set):
             output.add(meta_data)
 
 
-def process(data, passed_data, value, module, split, count):
+def process(data, passed_data, value, module, split, count) -> bool:
     """Iterates recursively through the data to find only modules
     that are searched for
-            Arguments:
-                :param data: (dict) module that is searched
-                :param passed_data: (list) data that contain value searched
-                    for are saved in this variable
-                :param value: (str) value searched for
-                :param module: (dict) module that is searched
-                :param split: (str) key value that conatins value searched for
-                :param count: (int) if split contains '/' then we need to know
-                    which part of the path are we searching.
+
+    Arguments:
+        :param data:        (dict) module that is searched
+        :param passed_data: (list) data that contain value searched
+            for are saved in this variable
+        :param value:       (str) value searched for
+        :param module:      (dict) module that is searched
+        :param split:       (str) key value that conatins value searched for
+        :param count:       (int) if split contains '/' then we need to know
+            which part of the path are we searching.
+        :return             (bool) whether a match was found
     """
     if isinstance(data, str):
         if data == value:

@@ -76,7 +76,7 @@ def resolve_revision(filename: str):
 
 
 def find_files(directory: str, pattern: str):
-    """Generator that yields files matching a patern
+    """Generator that yields files matching a pattern
 
     Arguments:
         :param directory    directory in which to search
@@ -197,6 +197,17 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, paths: dict
 
 
 def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, LOGGER: logging.Logger):
+    """Makes an API request to identify dependencies of the modules to be deleted.
+    Updates metadata of dependencies in Redis no longer list the modules to be
+    deleted as dependents. Deletes the schema files for modules to be deleted
+    from the disk.
+
+    Arguments:
+        :param yc_api_prefix        (str) prefix for sending request to API
+        :param modules_to_delete    (list) name@revision list of modules to be deleted
+        :param save_file_dir        (str) path to the directory where all the yang files are saved
+        :param LOOGER               (Logger) formated logger with the specified name
+    """
     redisConnection = RedisConnection()
     for mod_to_delete in modules_to_delete:
         name, revision_organization = mod_to_delete.split('@')
@@ -282,12 +293,12 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
     """ Dump job run information into cronjob.json file.
 
     Arguments:
-    :param start_time   (int) Start time of job
-    :param temp_dir     (str) Path to the directory where cronjob.json file will be stored
-    :param filename     (str) Name of python script
-    :param messages     (list) Optional - list of additional messages
-    :param error        (str) Error message - if any error has occured
-    :param status       (str) Status of job run - either 'Fail' or 'Success'
+        :param start_time   (int) Start time of job
+        :param temp_dir     (str) Path to the directory where cronjob.json file will be stored
+        :param filename     (str) Name of python script
+        :param messages     (list) Optional - list of additional messages
+        :param error        (str) Error message - if any error has occured
+        :param status       (str) Status of job run - either 'Fail' or 'Success'
     """
     end_time = int(time.time())
     result = {}
@@ -326,10 +337,9 @@ def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
     """ Fetch content of yang module from Github and store it to the file.
 
     Arguments:
-    :param schema       (str) URL to Github where the content of the module should be stored
-    :param dst_path     (str) Path where the module should be saved
-    :return             Whether the content of the module was obtained or not.
-    :rtype              bool
+        :param schema       (str) URL to Github where the content of the module should be stored
+        :param dst_path     (str) Path where the module should be saved
+        :return             (bool) Whether the content of the module was obtained or not.
     """
     file_exist = False
     try:

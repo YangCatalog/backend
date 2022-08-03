@@ -93,10 +93,11 @@ def make_cache(response, data=None):
     """ THIS METHOD IS DEPRECATED SINCE MOVING DATA FROM CONFD TO REDIS!
     After we delete or add modules we need to reload all the modules to the file
     for quicker search. This module is then loaded to the memory.
+
     Arguments:
         :param response: (str) Contains string 'work' which will be sent back if
             everything went through fine
-        :return 'work' if everything went through fine otherwise send back the reason
+        :return          (str) 'work' if everything went through fine otherwise send back the reason
             why it failed.
     """
     try:
@@ -127,11 +128,12 @@ def make_cache(response, data=None):
 
 def create_response(body, status, headers=None):
     """Creates flask response that can be sent to sender.
-            Arguments:
-                :param body: (Str) Message body of the response
-                :param status: (int) Status code of the response
-                :param headers: (list) List of tuples containing headers information
-                :return: Response that can be returned.
+
+    Arguments:
+        :param body:    (str) Message body of the response
+        :param status:  (int) Status code of the response
+        :param headers: (list) List of tuples containing headers information
+        :return:        (str) Response that can be returned.
     """
     if headers is None:
         headers = []
