@@ -5,7 +5,7 @@ from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 
 """ 
-This resolver resolves yang module revision property.
+This resolver resolves yang module 'revision' property.
 Allowed values must be in date format "YYYY-MM-DD"
 Default value: '1970-01-01'
 """
@@ -31,9 +31,9 @@ class RevisionResolver(Resolver):
     def __init__(self, parsed_yang: Statement, logger: logging.Logger) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
-        self.property_name = 'revision'
 
     def resolve(self) -> str:
+        self.logger.debug('Resolving revision')
         try:
             revision = self.parsed_yang.search('revision')[0].arg
         except IndexError:
