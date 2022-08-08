@@ -333,16 +333,17 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         writer.write(json.dumps(file_content, indent=4))
 
 
-def fetch_module_by_schema(schema: str, dst_path: str) -> bool:
+def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
     """ Fetch content of yang module from Github and store it to the file.
 
     Arguments:
-        :param schema       (str) URL to Github where the content of the module should be stored
+        :param schema       (Optional[str]) URL to Github where the content of the module should be stored
         :param dst_path     (str) Path where the module should be saved
         :return             (bool) Whether the content of the module was obtained or not.
     """
     file_exist = False
     try:
+        assert schema
         yang_file_response = requests.get(schema)
         yang_file_content = yang_file_response.content.decode(encoding='utf-8')
 
