@@ -750,20 +750,20 @@ class ModulesComplicatedAlgorithms:
         LOGGER.info('Adding existing modules as dependents')
         add_dependents(existing_modules, all_modules_dict)
 
-    def _check_schema_file(self, name: str, revision: str, schema: t.Optional[str]):
+    def _check_schema_file(self, name: str, revision: str, schema_url: t.Optional[str]):
         """ Check if the file exists and if not try to get it from Github.
 
-        :param name     (str) Name of the module.
-        :param revision (str) Revision of the module.
-        :param schema   (str) Github url from where the schema can be retrieved.
-        :return         (bool) Whether the content of the module was obtained or not.
+        :param name         (str) Name of the module.
+        :param revision     (str) Revision of the module.
+        :param schema_url   (str) Github url from where the schema can be retrieved.
+        :return             (bool) Whether the content of the module was obtained or not.
         """
         schema = '{}/{}@{}.yang'.format(self._save_file_dir, name, revision)
         result = True
 
         if not os.path.isfile(schema):
             LOGGER.warning('File on path {} not found'.format(schema))
-            result = fetch_module_by_schema(schema, schema)
+            result = fetch_module_by_schema(schema_url, schema)
             if result:
                 LOGGER.info('File content successfully retrieved from GitHub using module schema')
             else:
