@@ -31,22 +31,20 @@ from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 def get_deviations(deviations):
     if deviations is None:
         return None
-    else:
-        return [{
-            'name': dev.name,
-            'revision': dev.revision
-        } for dev in deviations]
+    return [{
+        'name': dev.name,
+        'revision': dev.revision
+    } for dev in deviations]
 
 
 def get_dependencies(dependencies):
     if dependencies is None:
         return None
-    else:
-        return [{
-            'name': dep.name,
-            'revision': dep.revision,
-            'schema': dep.schema
-        } for dep in dependencies]
+    return [{
+        'name': dep.name,
+        'revision': dep.revision,
+        'schema': dep.schema
+    } for dep in dependencies]
 
 
 class Dumper:
@@ -68,7 +66,7 @@ class Dumper:
         Add a module's data to be dumped.
 
         Argument:
-            :param yang     (Modules) Modules object
+            :param yang     (Module) Module object to be dumped
         """
         key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
         LOGGER.debug('Module {} parsed'.format(key))
@@ -114,7 +112,7 @@ class Dumper:
                     'ietf-wg': self.yang_modules[key].ietf_wg
                 },
                 'namespace': self.yang_modules[key].namespace,
-                'submodule': json.loads(self.yang_modules[key].json_submodules),
+                'submodule': get_dependencies(self.yang_modules[key].submodule),
                 'dependencies': get_dependencies(self.yang_modules[key].dependencies),
                 'semantic-version': self.yang_modules[key].semantic_version,
                 'derived-semantic-version': None,

@@ -116,11 +116,11 @@ class ModulesComplicatedAlgorithms:
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
         LOGGER.info('populate with module complicated data. amount of new data is {}'
                     .format(len(new_modules)))
-        confdService = ConfdService()
-        confdService.patch_modules(new_modules)
+        confd_service = ConfdService()
+        confd_service.patch_modules(new_modules)
 
-        redisConnection = RedisConnection()
-        redisConnection.populate_modules(new_modules)
+        redis_connection = RedisConnection()
+        redis_connection.populate_modules(new_modules)
 
         if len(new_modules) > 0:
             url = '{}/load-cache'.format(self._yangcatalog_api_prefix)

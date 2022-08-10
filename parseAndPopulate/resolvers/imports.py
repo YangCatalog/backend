@@ -48,7 +48,7 @@ class ImportsResolver(Resolver):
                 imports.append(new_dependency)
                 continue
             # This will match new_dependency.revision unless new_dependency.revision is None
-            revision = new_dependency.revision or yang_file.split('@')[-1].removesuffix('.yang')
+            revision = new_dependency.revision or yang_file.split('@')[-1].removesuffix('.yang')  # pyright: ignore
             try:
                 name_revision = '{}@{}'.format(new_dependency.name, revision)
                 local_yang_file = os.path.join(os.path.dirname(self.path), '{}.yang'.format(new_dependency.name))

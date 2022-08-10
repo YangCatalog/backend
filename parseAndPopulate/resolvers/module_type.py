@@ -5,7 +5,7 @@ from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 
 """ 
-This resolver resolves yang module module_type property.
+This resolver resolves yang module 'module_type' property.
 Allowed values are: ['module', 'submodule', None]
 Default value: 'module'
 """
@@ -18,9 +18,9 @@ class ModuleTypeResolver(Resolver):
     def __init__(self, parsed_yang: Statement, logger: logging.Logger) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
-        self.property_name = 'module_type'
 
     def resolve(self) -> t.Optional[str]:
+        self.logger.debug('Resolving module type')
         try:
             module_type = self.parsed_yang.keyword
             if module_type in ALLOWED:

@@ -24,8 +24,8 @@ import unittest
 from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.modules import SdoModule, VendorModule
 from parseAndPopulate.models.schema_parts import SchemaParts
+from parseAndPopulate.modules import SdoModule, VendorModule
 
 
 class TestModulesClass(unittest.TestCase):
@@ -57,6 +57,7 @@ class TestModulesClass(unittest.TestCase):
     #########################
     # TODO: we should probably have unit tests for the individual Model._resolve* methods
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     def test_modules_parse_all_sdo_object(self):
         """
         Create modules object from SDO (= ietf) YANG file,
@@ -106,6 +107,7 @@ class TestModulesClass(unittest.TestCase):
         self.assertEqual(yang.revision, '2013-07-15')
         self.assertEqual(yang.namespace, 'urn:ietf:params:xml:ns:yang:ietf-yang-types')
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     def test_modules_parse_all_vendor_object(self):
         """
         Create modules object from vendor YANG file,

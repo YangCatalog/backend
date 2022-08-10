@@ -6,11 +6,10 @@ from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.submodule import Submodule
 from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
-from utility import yangParser
 from utility.util import get_yang
 
 """
-This resolver resolves yang module submodule (and partly also dependencies) property.
+This resolver resolves yang module 'submodule' (and partly also dependencies) property.
 Default value: [] -> no submodules
 """
 
@@ -23,9 +22,9 @@ class SubmoduleResolver(Resolver):
         self.path = path
         self.schema = schema
         self.schemas = schemas
-        self.property_name = 'submodule'
 
     def resolve(self) -> t.Tuple[list, list]:
+        self.logger.debug('Resolving submodules')
         submodules = []
         dependencies = []
         parsed_submodules = self.parsed_yang.search('include')
@@ -46,7 +45,7 @@ class SubmoduleResolver(Resolver):
                 self.logger.error('Submodule {} can not be found'.format(new_submodule.name))
                 continue
 
-            new_submodule.revision = yang_file.split('@')[-1].removesuffix('.yang')
+            new_submodule.revision = yang_file.split('@')[-1].removesuffix('.yang')  # pyright: ignore
             name_revision = '{}@{}'.format(new_submodule.name, new_submodule.revision)
             local_yang_file = os.path.join(os.path.dirname(self.path), '{}.yang'.format(new_dependency.name))
             if name_revision in self.schemas:

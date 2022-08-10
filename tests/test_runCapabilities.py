@@ -19,8 +19,8 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
-import unittest
 import typing as t
+import unittest
 from unittest import mock
 
 from api.globalConfig import yc_gc
@@ -40,6 +40,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
     ### TESTS DEFINITIONS ###
     #########################
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_parse_and_dump_sdo(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
@@ -101,6 +102,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             file_content = json.load(f)
         self.assertEqual(file_content, {})
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
@@ -175,6 +177,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             file_content = json.load(f)
         self.assertEqual(file_content, {})
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
@@ -392,6 +395,7 @@ class TestRunCapabilitiesClass(unittest.TestCase):
             except KeyError:
                 return False
         return True
+
 
 if __name__ == '__main__':
     unittest.main()

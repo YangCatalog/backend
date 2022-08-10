@@ -6,7 +6,7 @@ from pyang.statements import Statement
 from utility.staticVariables import NAMESPACE_MAP, ORGANIZATIONS
 
 """ 
-This resolver resolves yang module organization property.
+This resolver resolves yang module 'organization' property.
 Default value: 'independent'
 """
 
@@ -17,10 +17,10 @@ class OrganizationResolver(Resolver):
     def __init__(self, parsed_yang: Statement, logger: logging.Logger, namespace: t.Optional[str]) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
-        self.property_name = 'organization'
         self.namespace = namespace
 
-    def resolve(self):
+    def resolve(self) -> str:
+        self.logger.debug('Resolving organization')
         try:
             parsed_organization = self.parsed_yang.search('organization')[0].arg.lower()
             for possible_organization in ORGANIZATIONS:
@@ -37,8 +37,8 @@ class OrganizationResolver(Resolver):
                 return org
         if 'cisco' in self.namespace:
             return 'cisco'
-        elif 'ietf' in self.namespace:
+        if 'ietf' in self.namespace:
             return 'ietf'
-        elif 'urn:' in self.namespace:
+        if 'urn:' in self.namespace:
             return self.namespace.split('urn:')[1].split(':')[0]
         return DEFAULT

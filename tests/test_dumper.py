@@ -25,8 +25,8 @@ from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.loadJsonFiles import LoadFiles
-from parseAndPopulate.modules import SdoModule, VendorModule
 from parseAndPopulate.models.schema_parts import SchemaParts
+from parseAndPopulate.modules import SdoModule, VendorModule
 
 
 class TestDumperClass(unittest.TestCase):
@@ -74,6 +74,7 @@ class TestDumperClass(unittest.TestCase):
         self.assertEqual(created_key, desired_key)
         self.assertIn(desired_key, dumper.yang_modules)
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     def test_dumper_dump_modules(self):
         """
         Dumper object is created and one SDO module is added.

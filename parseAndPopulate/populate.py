@@ -195,8 +195,8 @@ def main(scriptConf=None):
     global LOGGER
     LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
 
-    confdService = ConfdService()
-    redisConnection = RedisConnection()
+    confd_service = ConfdService()
+    redis_connection = RedisConnection()
     LOGGER.info('Starting the populate script')
     start = time.time()
     if args.api:
@@ -223,8 +223,8 @@ def main(scriptConf=None):
     with open(os.path.join(json_dir, 'prepare.json')) as data_file:
         data = data_file.read()
     modules = json.loads(data).get('module', [])
-    errors = confdService.patch_modules(modules)
-    redisConnection.populate_modules(modules)
+    errors = confd_service.patch_modules(modules)
+    redis_connection.populate_modules(modules)
 
     # In each json
     if os.path.exists(os.path.join(json_dir, 'normal.json')):
@@ -235,8 +235,8 @@ def main(scriptConf=None):
             except KeyError as e:
                 LOGGER.error('No files were parsed. This probably means the directory is missing capability xml files')
                 raise e
-        errors = errors or confdService.patch_vendors(vendors)
-        redisConnection.populate_implementation(vendors)
+        errors = errors or confd_service.patch_vendors(vendors)
+        redis_connection.populate_implementation(vendors)
     if body_to_send:
         LOGGER.info('Sending files for indexing')
         indexing_paths = {
