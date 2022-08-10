@@ -121,6 +121,7 @@ class TestGroupingsClass(unittest.TestCase):
             key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
             self.assertIn(key, sdo_directory.dumper.yang_modules)
 
+    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_yang_lib_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
         """
@@ -404,14 +405,13 @@ class TestGroupingsClass(unittest.TestCase):
             file_content = json.load(f)
             desired_module_data = file_content.get(key, {}).get('module', [])
         return desired_module_data
-    
+
     def load_path_to_name_rev(self, key: str):
         """ Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json.
         """
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             return literal_eval(file_content.get(key, ''))
-
 
     def load_dumped_prepare_json_data(self):
         """ Load module data from dumped prepare.json file
