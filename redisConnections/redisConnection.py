@@ -26,6 +26,11 @@ import utility.log as log
 from redis import Redis
 from utility.create_config import create_config
 
+DEFAULT_VALUES = {
+    'compilation-status': 'unknown',
+    'compilation-result': ''
+}
+
 
 class RedisConnection:
 
@@ -34,13 +39,14 @@ class RedisConnection:
         config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
         self._redis_host = config.get('DB-Section', 'redis-host')
-        self._redis_port = config.get('DB-Section', 'redis-port')
+        self._redis_port = int(config.get('DB-Section', 'redis-port'))
         if modules_db is None:
             modules_db = config.get('DB-Section', 'redis-modules-db', fallback=1)
         if vendors_db is None:
             vendors_db = config.get('DB-Section', 'redis-vendors-db', fallback=4)
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db) # pyright: ignore
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db) # pyright: ignore
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db)  # pyright: ignore
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db)  # pyright: ignore
+        self.temp_modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=5)
 
         self.LOGGER = log.get_logger('redisModules', os.path.join(self.log_directory, 'redisModulesConnection.log'))
 
@@ -75,7 +81,7 @@ class RedisConnection:
             else:
                 new_value = new_module.get(key)
                 existing_value = existing_module.get(key)
-                if existing_value != new_value and new_value is not None:
+                if existing_value != new_value and new_value is not DEFAULT_VALUES.get(key):
                     existing_module[key] = new_value
 
         return existing_module
@@ -92,10 +98,15 @@ class RedisConnection:
         for new_module in new_modules:
             redis_key = self._create_module_key(new_module)
             redis_module = self.get_module(redis_key)
+            temp_module_data = self.get_temp_module(redis_key)
             if redis_module == '{}':
                 updated_module = new_module
             else:
                 updated_module = self.update_module_properties(new_module, json.loads(redis_module))
+
+            if temp_module_data != '{}':
+                updated_module = self.update_module_properties(json.loads(temp_module_data), updated_module)
+                self.delete_temporary([redis_key])
 
             self.set_redis_module(updated_module, redis_key)
             new_merged_modules[redis_key] = updated_module
@@ -106,6 +117,10 @@ class RedisConnection:
 
     def get_module(self, key: str):
         data = self.modulesDB.get(key)
+        return (data or b'{}').decode('utf-8')
+
+    def get_temp_module(self, key: str):
+        data = self.temp_modulesDB.get(key)
         return (data or b'{}').decode('utf-8')
 
     def set_redis_module(self, module: dict, redis_key: str):
@@ -172,6 +187,9 @@ class RedisConnection:
         result = self.set_redis_module(redis_module, redis_key)
 
         return result
+
+    def delete_temporary(self, modules_keys: list):
+        result = self.temp_modulesDB.delete(*modules_keys)
 
     def _create_module_key(self, module: dict):
         return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))

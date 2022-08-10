@@ -16,12 +16,11 @@ class YangVersionResolver(Resolver):
     def __init__(self, parsed_yang: Statement, logger: logging.Logger) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
-        self.property_name = 'yang_version'
 
     def resolve(self) -> str:
         self.logger.debug('Resolving yang version')
         try:
-            yang_version = self.parsed_yang.search(self.property_name)[0].arg
+            yang_version = self.parsed_yang.search('yang-version')[0].arg
         except IndexError:
             yang_version = DEFAULT
 
