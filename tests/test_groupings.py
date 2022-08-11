@@ -206,7 +206,7 @@ class TestGroupingsClass(unittest.TestCase):
     def test_vendor_yang_lib_parse_and_load(self, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and dumper object values were set correctly
-        from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
+        from all the .yang files specified in the ietf-yang-library.xml file.
 
         Arguments:
             :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
@@ -234,9 +234,9 @@ class TestGroupingsClass(unittest.TestCase):
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
-        """ Test if all the modules from capability file (with their submodules) have correctly set information
-        about implementaton from platform_metadata.json file.
-        Parsed modules are dumped to prepare.json file, then loaded and implementation information is chcecked.
+        """ 
+        Test whether keys were created and dumper object values were set correctly
+        from all the .yang files specified in the capabilities.xml file.
 
         Arguments:
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
