@@ -75,7 +75,6 @@ class TestGroupingsClass(unittest.TestCase):
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        repo = self.get_yangmodels_repository()
         path = self.resource('owner/repo/sdo')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
@@ -86,7 +85,7 @@ class TestGroupingsClass(unittest.TestCase):
         }
 
         sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
-        sdo_directory.parse_and_load(repo)
+        sdo_directory.parse_and_load()
 
         self.assertListEqual(sorted(sdo_directory.dumper.yang_modules),
                              ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'])
@@ -101,7 +100,6 @@ class TestGroupingsClass(unittest.TestCase):
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        repo = self.get_yangmodels_repository()
         api = True
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         path_to_name_rev = {
@@ -111,7 +109,7 @@ class TestGroupingsClass(unittest.TestCase):
         }
 
         sdo_directory = SdoDirectory(self.resources_path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
-        sdo_directory.parse_and_load(repo)
+        sdo_directory.parse_and_load()
 
         self.assertListEqual(sorted(sdo_directory.dumper.yang_modules),
                              ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'])
@@ -352,74 +350,12 @@ class TestGroupingsClass(unittest.TestCase):
     ### HELPER DEFINITIONS ###
     ##########################
 
-    def declare_sdo_module(self, path_to_yang: str):
-        """
-        Initialize Modules object for SDO (ietf) module.
-
-        :param path_to_yang     (str) path to yang file
-        :returns:               Created instance of Modules object of SDO (ietf) module
-        :rtype: Modules
-        """
-        module_name = path_to_yang.split('/')[-1].split('.yang')[0]
-        if '@' in module_name:
-            module_name = module_name.split('@')[0]
-        yang = SdoModule(module_name, path_to_yang, {}, self.dir_paths, {})
-
-        return yang
-
-    def get_yangmodels_repository(self):
-        """ Load existing cloned Github repository from directory instead.
-
-        :returns:       Loaded Github repository
-        :rtype:         repoutil.Repo
-        """
-        repo_url = os.path.join(github_url, 'YangModels', 'yang')
-        repo = repoutil.load(yc_gc.yang_models, repo_url)
-
-        return repo
-
-    def get_platform_data(self, path: str, platform_name: str):
-        """ Load information of given platform from platform-metadata.json
-
-        :param path              (str) Directory where platform-metadata.json file is stored
-        :param platform_name     (str) Name of platform to find
-        :returns:                Platform information loaded from platform-metadata.json
-        :rtype: dict
-        """
-        with open(path, 'r') as f:
-            file_content = json.load(f)
-            platforms = file_content.get('platforms', {}).get('platform', [])
-        platform_data = {}
-        for platform in platforms:
-            if platform.get('name') == platform_name:
-                platform_data = platform
-
-        return platform_data
-
-    def load_desired_prepare_json_data(self, key: str):
-        """ Load desired prepare.json data from parseAndPopulate_tests_data.json file
-        """
-        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
-            file_content = json.load(f)
-            desired_module_data = file_content.get(key, {}).get('module', [])
-        return desired_module_data
-
     def load_path_to_name_rev(self, key: str):
         """ Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json.
         """
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             return literal_eval(file_content.get(key, ''))
-
-    def load_dumped_prepare_json_data(self):
-        """ Load module data from dumped prepare.json file
-        """
-        with open(os.path.join(yc_gc.temp_dir, 'prepare.json'), 'r') as f:
-            file_content = json.load(f)
-            self.assertIn('module', file_content)
-            self.assertNotEqual(len(file_content['module']), 0)
-        dumped_module_data = file_content['module']
-        return dumped_module_data
     
     def resource(self, path: str) -> str:
         return os.path.join(self.resources_path, path)
