@@ -26,7 +26,6 @@ from unittest import mock
 from api.receiver import Receiver
 from api.status_message import StatusMessage
 from ddt import data, ddt
-from parseAndPopulate.loadJsonFiles import LoadFiles
 from redis import Redis
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
@@ -159,10 +158,8 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
-    def test_process_sdo(self, mock_load_files: mock.MagicMock):
-        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.private_dir, self.log_directory)
+    def test_process_sdo(self):
         data = self.test_data.get('request-data-content')
         dst = '{}/YangModels/yang/standard/ietf/RFC'.format(self.direc)
         os.makedirs(dst, exist_ok=True)
@@ -185,9 +182,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(details, '')
         self.assertNotEqual(redis_data, '{}')
 
-    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
-    def test_process_sdo_failed_populate(self, mock_load_files: mock.MagicMock):
-        mock_load_files.side_effect = Exception
+    def test_process_sdo_failed_populate(self):
         arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
                      '--api', '--credentials', *self.credentials]
 
@@ -201,10 +196,8 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
     @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
-    def test_process_vendor(self, mock_load_files: mock.MagicMock):
-        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.private_dir, self.log_directory)
+    def test_process_vendor(self):
         platform = self.test_data.get('capabilities-json-content')
 
         dst = '{}/huawei/yang/network-router/8.20.0/ne5000e'.format(self.direc)
@@ -223,9 +216,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(status, StatusMessage.SUCCESS)
         self.assertEqual(details, '')
 
-    @ mock.patch('parseAndPopulate.groupings.LoadFiles')
-    def test_process_vendor_failed_populate(self, mock_load_files: mock.MagicMock):
-        mock_load_files.side_effect = Exception
+    def test_process_vendor_failed_populate(self):
         arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
                      '--credentials', *self.credentials, 'True']
 

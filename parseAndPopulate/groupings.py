@@ -37,7 +37,6 @@ from utility.yangParser import ParseException
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
-from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.modules import SdoModule, VendorModule
 
@@ -109,81 +108,6 @@ class ModuleGrouping:
 
     def parse_and_load(self):
         """Parse the modules and load the extracted data into the dumper."""
-
-    def _construct_json_name(self, schema_base: str, directory: str) -> t.Optional[str]:
-        # This function reimplements the name mangling from sdo_analysis/bin/run_module_compilation.sh
-        # TODO: Support for repositories that use multiple branches. This includes OpenROADM,
-        #      and ETSI when cloned independently of YangModels/yang
-        alnum: t.Callable[[str], str] = lambda s: ''.join(c for c in s if c.isalnum())
-        split_path = os.path.abspath(directory).split('/')
-        if 'openconfig' in split_path:
-            return 'Openconfig'
-        elif 'OpenNetworkingFoundation' in schema_base or 'onf' in split_path:
-            return 'ONFOpenTransport'
-        elif 'sysrepo' in split_path:
-            if 'internal' in split_path:
-                return 'SysrepoInternal'
-            elif 'applications' in split_path:
-                return 'SysrepoApplication'
-        if 'tmp' in split_path:
-            if schema_base in self._submodule_map:
-                split_path = self._submodule_map[schema_base].split('/') + split_path[4:]
-        else:
-            split_path = split_path[split_path.index('yang', 3) + 1:]
-        module_category, organization, split_path = split_path[0], split_path[1], split_path[2:]
-        if module_category == 'standard':
-            if organization == 'ietf':
-                module_type = split_path[0]
-                if module_type == 'DRAFT':
-                    return 'IETFDraft'
-                elif module_type == 'RFC':
-                    return 'IETFYANGRFC'
-            elif organization == 'etsi':
-                if split_path[0] == 'NFV-SOL006-v2.6.1':
-                    return 'ETSI261'
-                elif split_path[0] == 'NFV-SOL006-v2.7.1':
-                    return 'ETSI271'
-            elif organization == 'bff':
-                return 'BFF'
-            elif organization == 'mef':
-                if 'standard' in split_path[-2:]:
-                    return 'MEFStandard'
-                elif 'draft' in split_path[-2:]:
-                    return 'MEFExperimental'
-            elif organization == 'ieee':
-                module_status = split_path[0]
-                if module_status == 'published':
-                    return 'IEEEStandard'
-                elif module_status == 'draft':
-                    return 'IEEEStandardDraft'
-            elif organization == 'iana':
-                return 'IANAStandard'
-        elif module_category == 'experimental':
-            if organization == 'ieee':
-                return 'IEEEExperimental'
-        elif module_category == 'vendor':
-            if organization == 'cisco':
-                cisco_os, version = split_path[0], split_path[1]
-                return 'Cisco{}{}'.format(cisco_os.upper(), alnum(version))
-            elif organization == 'juniper':
-                version = split_path[0]
-                if version == '14.2':
-                    return 'Juniper142'
-                else:
-                    version_detail = split_path[1]
-                    return 'Juniper{}'.format(alnum(version_detail))
-            elif organization == 'huawei':
-                version = split_path[1]
-                return 'NETWORKROUTER{}'.format(alnum(version))
-            elif organization == 'ciena':
-                return 'CIENA'
-            elif organization == 'fujitsu':
-                return 'Fujitsu{}{}'.format(alnum(split_path[1]), alnum(split_path[2]))
-            elif organization == 'nokia':
-                version = split_path[1].removeprefix('latest_sros_')
-                return 'Nokia{}'.format(alnum(version))
-        return None
-
 
     def _update_schema_urls(self, name: str, revision: str, path: str, schema_parts: SchemaParts):
         name_revision = '{}@{}'.format(name, revision)
@@ -275,12 +199,10 @@ class SdoDirectory(ModuleGrouping):
             schema_parts = SchemaParts(
                 repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
             schema_base = schema_parts.schema_base
-            self.parsed_jsons = LoadFiles(self._construct_json_name(schema_base, self.directory),
-                                          self.dir_paths['private'], self.dir_paths['log'])
             name, revision = self.path_to_name_rev[path]
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
-                yang = SdoModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                yang = SdoModule(name, path, self._schemas, self.dir_paths,
                                  self.dumper.yang_modules, aditional_info=sdo)
             except ParseException:
                 LOGGER.exception('ParseException while parsing {}'.format(file_name))
@@ -316,11 +238,8 @@ class SdoDirectory(ModuleGrouping):
                 LOGGER.info('Parsing {} {} out of {}'.format(file_name, i, sdos_count))
                 name, revision = self.path_to_name_rev[path]
                 self._update_schema_urls(name, revision, path, schema_parts)
-                self.parsed_jsons = \
-                    LoadFiles(self._construct_json_name(schema_base, os.path.join(self.directory, root)),
-                              self.dir_paths['private'], self.dir_paths['log'])
                 try:
-                    yang = SdoModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                    yang = SdoModule(name, path, self._schemas, self.dir_paths,
                                      self.dumper.yang_modules)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(file_name))
@@ -371,13 +290,12 @@ class IanaDirectory(SdoDirectory):
                 should_parse = self.file_hasher.should_parse_sdo_module(path)
                 if not should_parse:
                     continue
-                self.parsed_jsons = LoadFiles('IANAStandard', self.dir_paths['private'], self.dir_paths['log'])
                 name, revision = self.path_to_name_rev[path]
 
                 LOGGER.info('Parsing module {}'.format(name))
                 self._update_schema_urls(name, revision, path, schema_parts)
                 try:
-                    yang = SdoModule(data['name'], path, self.parsed_jsons, self._schemas, self.dir_paths,
+                    yang = SdoModule(data['name'], path, self._schemas, self.dir_paths,
                                      self.dumper.yang_modules, additional_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(name))
@@ -387,8 +305,6 @@ class IanaDirectory(SdoDirectory):
 
 
 class VendorGrouping(ModuleGrouping):
-
-    parsed_jsons: LoadFiles
 
     def __init__(self, directory: str, xml_file: str, dumper: Dumper, file_hasher: FileHasher,
                  api: bool, dir_paths: DirPaths, name_rev_to_path: dict):
@@ -529,7 +445,7 @@ class VendorGrouping(ModuleGrouping):
                 self._update_schema_urls(name, revision, path, schema_parts)
                 try:
                     try:
-                        yang = VendorModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                        yang = VendorModule(name, path, self._schemas, self.dir_paths,
                                             self.dumper.yang_modules)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(name))
@@ -577,14 +493,10 @@ class VendorCapabilities(VendorGrouping):
             schema_parts = SchemaParts(
                 repo_owner=self.repo_owner, repo_name=self.repo_name,
                 commit_hash=self.commit_hash, submodule_name=self.submodule_name)
-            schema_base = schema_parts.schema_base
         except:
             LOGGER.exception('Missing attribute, likely caused by a broken path in {}/platform-metadata.json'
                              .format(self.directory))
             raise
-        self.parsed_jsons = \
-            LoadFiles(self._construct_json_name(schema_base, self.directory),
-                      self.dir_paths['private'], self.dir_paths['log'])
 
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules
@@ -614,7 +526,7 @@ class VendorCapabilities(VendorGrouping):
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
-                    yang = VendorModule(name, path, self.parsed_jsons, self._schemas, self.dir_paths,
+                    yang = VendorModule(name, path, self._schemas, self.dir_paths,
                                         self.dumper.yang_modules, data=module_and_more)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(name))
@@ -652,10 +564,6 @@ class VendorYangLibrary(VendorGrouping):
         schema_parts = SchemaParts(
             repo_owner=self.repo_owner, repo_name=self.repo_name,
             commit_hash=self.commit_hash, submodule_name=self.submodule_name)
-        schema_base = schema_parts.schema_base
-        self.parsed_jsons = \
-            LoadFiles(self._construct_json_name(schema_base, self.directory),
-                      self.dir_paths['private'], self.dir_paths['log'])
         for yang in modules:
             if 'module-set-id' in yang.tag:
                 continue
@@ -699,7 +607,7 @@ class VendorYangLibrary(VendorGrouping):
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
-                    yang = VendorModule(name, path, self.parsed_jsons, self._schemas, 
+                    yang = VendorModule(name, path, self._schemas, 
                                         self.dir_paths, self.dumper.yang_modules, data=yang_lib_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(name))

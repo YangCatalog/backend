@@ -30,7 +30,6 @@ from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
                                         VendorYangLibrary)
-from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.modules import SdoModule
 from utility import repoutil
 from utility.staticVariables import github_url
@@ -361,11 +360,10 @@ class TestGroupingsClass(unittest.TestCase):
         :returns:               Created instance of Modules object of SDO (ietf) module
         :rtype: Modules
         """
-        parsed_jsons = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         module_name = path_to_yang.split('/')[-1].split('.yang')[0]
         if '@' in module_name:
             module_name = module_name.split('@')[0]
-        yang = SdoModule(module_name, path_to_yang, parsed_jsons, {}, self.dir_paths, {})
+        yang = SdoModule(module_name, path_to_yang, {}, self.dir_paths, {})
 
         return yang
 
