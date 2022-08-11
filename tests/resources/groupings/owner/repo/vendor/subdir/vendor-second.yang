@@ -1,0 +1,6 @@
+module vendor-second {
+  revision 2022-08-05;
+  organization "cisco";
+  namespace "testing";
+  prefix "yang";
+}

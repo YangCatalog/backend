@@ -1,0 +1,39 @@
+{
+    "platforms":
+    {
+        "platform": [{
+            "vendor": "cisco",
+            "name": "test-platform",
+            "software-version": "test-version",
+            "software-flavor": "test-flavor",
+            "netconf-capabilities": [
+                "urn:ietf:params:xml:ns:netconf:base:1.0",
+                "urn:ietf:params:netconf:capability:test-capability:1.0"
+            ],
+            "os-type": "test-os",
+            "os-version": "1.0.0",
+            "module-list-file":
+            {
+                "type": "capabilities",
+                "owner": "owner",
+                "repository": "repo",
+                "path": "vendor/ietf-yang-library.xml"
+            }
+        },
+        {
+            "vendor": "cisco",
+            "name": "test-platform",
+            "software-version": "test-version",
+            "software-flavor": "test-flavor",
+            "os-type": "test-os",
+            "os-version": "1.0.0",
+            "module-list-file":
+            {
+                "type": "capabilities",
+                "owner": "owner",
+                "repository": "repo",
+                "path": "vendor/capabilities.xml"
+            }
+        }]
+    }
+}

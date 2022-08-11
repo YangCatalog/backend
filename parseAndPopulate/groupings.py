@@ -136,7 +136,7 @@ class ModuleGrouping:
             suffix = os.path.abspath(path).split('/tmp/')[1]
             suffix = '/'.join(suffix.split('/')[3:])  # remove directory_number/owner/repo prefix
         else:
-            LOGGER.warning('Called by api, files should be copied in a subdirectory of tmp')
+            LOGGER.warning('Cannot resolve schema')
             return
         if schema_parts.submodule_name:
             suffix = suffix.replace('{}/'.format(schema_parts.submodule_name), '')
@@ -205,7 +205,7 @@ class SdoDirectory(ModuleGrouping):
                 yang = SdoModule(name, path, self._schemas, self.dir_paths,
                                  self.dumper.yang_modules, aditional_info=sdo)
             except ParseException:
-                LOGGER.exception('ParseException while parsing {}'.format(file_name))
+                LOGGER.exception('ParseException while parsing {}'.format(path))
                 continue
             self.dumper.add_module(yang)
 
@@ -242,7 +242,7 @@ class SdoDirectory(ModuleGrouping):
                     yang = SdoModule(name, path, self._schemas, self.dir_paths,
                                      self.dumper.yang_modules)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(file_name))
+                    LOGGER.exception('ParseException while parsing {}'.format(path))
                     continue
                 self.dumper.add_module(yang)
 
@@ -298,7 +298,7 @@ class IanaDirectory(SdoDirectory):
                     yang = SdoModule(data['name'], path, self._schemas, self.dir_paths,
                                      self.dumper.yang_modules, additional_info)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(name))
+                    LOGGER.exception('ParseException while parsing {}'.format(path))
                     continue
                 self.dumper.add_module(yang)
         self._dump_schema_cache()
@@ -317,8 +317,6 @@ class VendorGrouping(ModuleGrouping):
         self.netconf_versions = []
         self.platform_data = []
         self.xml_file = xml_file
-        # Split path, so we can get vendor, os-type, os-version
-        self.split = directory.split('/')
         # Get hello message root
         try:
             LOGGER.debug('Checking for xml hello message file')
@@ -356,33 +354,37 @@ class VendorGrouping(ModuleGrouping):
                 for implementation in platforms:
                     self._parse_implementation(implementation)
             else:
-                LOGGER.debug('Setting metadata concerning whole directory')
-                # Solve for os-type
-                base = os.path.basename(self.xml_file).removesuffix('.xml')
-                if 'nx' in self.split:
-                    platform_index = self.split.index('nx')
-                    os_type = 'NX-OS'
-                    platform = base.split('-')[0]
-                elif 'xe' in self.split:
-                    platform_index = self.split.index('xe')
-                    os_type = 'IOS-XE'
-                    platform = base.split('-')[0]
-                elif 'xr' in self.split:
-                    platform_index = self.split.index('xr')
-                    os_type = 'IOS-XR'
-                    platform = base.split('-')[1]
-                else:
-                    platform_index = -3
-                    os_type = 'Unknown'
-                    platform = 'Unknown'
-                self.platform_data.append({
-                    'software-flavor': 'ALL',
-                    'platform': platform,
-                    'software-version': self.split[platform_index + 1],
-                    'os-version': self.split[platform_index + 1],
-                    'feature-set': 'ALL',
-                    'os': os_type,
-                    'vendor': self.split[platform_index - 1]})
+                LOGGER.debug('Deriving platform metadata from paths')
+                self.platform_data.append(self._path_to_platform_data())
+
+    def _path_to_platform_data(self) -> dict:
+        """Try to derive platrom data from the directory path and xml name."""
+        base = os.path.basename(self.xml_file).removesuffix('.xml')
+        base = base.replace('capabilities', '').replace('capability', '').replace('netconf', '').strip('-')
+        platform = base or 'Unknown'
+        split_path = self.directory.split('/')
+        if 'nx' in split_path:
+            platform_index = split_path.index('nx')
+            os_type = 'NX-OS'
+        elif 'xe' in split_path:
+            platform_index = split_path.index('xe')
+            os_type = 'IOS-XE'
+        elif 'xr' in split_path:
+            platform_index = split_path.index('xr')
+            os_type = 'IOS-XR'
+        else:
+            platform_index = -3
+            os_type = 'Unknown'
+            platform = 'Unknown'
+        return {
+            'software-flavor': 'ALL',
+            'platform': platform,
+            'software-version': split_path[platform_index + 1],
+            'os-version': split_path[platform_index + 1],
+            'feature-set': 'ALL',
+            'os': os_type,
+            'vendor': split_path[platform_index - 1]
+        }
 
     def _parse_implementation(self, implementation: dict):
         if implementation['module-list-file']['path'] in self.xml_file:
@@ -448,7 +450,7 @@ class VendorGrouping(ModuleGrouping):
                         yang = VendorModule(name, path, self._schemas, self.dir_paths,
                                             self.dumper.yang_modules)
                     except ParseException:
-                        LOGGER.exception('ParseException while parsing {}'.format(name))
+                        LOGGER.exception('ParseException while parsing {}'.format(path))
                         continue
                     yang.add_vendor_information(self.platform_data, conformance_type,
                                                 self.capabilities, self.netconf_versions)
@@ -529,7 +531,7 @@ class VendorCapabilities(VendorGrouping):
                     yang = VendorModule(name, path, self._schemas, self.dir_paths,
                                         self.dumper.yang_modules, data=module_and_more)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(name))
+                    LOGGER.exception('ParseException while parsing {}'.format(path))
                     continue
                 yang.add_vendor_information(self.platform_data, 'implement',
                                             self.capabilities, self.netconf_versions)
@@ -610,7 +612,7 @@ class VendorYangLibrary(VendorGrouping):
                     yang = VendorModule(name, path, self._schemas, 
                                         self.dir_paths, self.dumper.yang_modules, data=yang_lib_info)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(name))
+                    LOGGER.exception('ParseException while parsing {}'.format(path))
                     continue
 
                 yang.add_vendor_information(self.platform_data, conformance_type,

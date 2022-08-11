@@ -1,0 +1,14 @@
+module vendor-sdo-first-deviations {
+  revision 2022-08-05;
+  organization "cisco";
+  namespace "testing";
+  prefix "yang";
+
+  import first {
+    prefix "fst";
+  }
+
+  deviate /fst:test-leaf {
+    deviate not-supported;
+  }
+}

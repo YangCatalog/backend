@@ -1,0 +1,45 @@
+{
+    "modules": {
+        "module": [
+            {
+                "name": "sdo-first",
+                "revision": "2022-08-05",
+                "organization": "ietf",
+                "maturity-level": "ratified",
+                "module-classification": "unknown",
+                "source-file": {
+                    "repository": "repo",
+                    "owner": "owner",
+                    "path": "sdo/sdo-first.yang",
+                    "commit-hash": "master"
+                }
+            },
+            {
+                "name": "sdo-second",
+                "revision": "2022-08-05",
+                "organization": "ietf",
+                "maturity-level": "ratified",
+                "module-classification": "unknown",
+                "source-file": {
+                    "repository": "repo",
+                    "owner": "owner",
+                    "path": "sdo/sdo-second.yang",
+                    "commit-hash": "master"
+                }
+            },
+            {
+                "name": "sdo-third",
+                "revision": "2022-08-05",
+                "organization": "ietf",
+                "maturity-level": "ratified",
+                "module-classification": "unknown",
+                "source-file": {
+                    "repository": "repo",
+                    "owner": "owner",
+                    "path": "sdo/subdir/sdo-third.yang",
+                    "commit-hash": "master"
+                }
+            }
+        ]
+    }
+}

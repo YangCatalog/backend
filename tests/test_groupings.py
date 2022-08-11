@@ -29,8 +29,9 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.fileHasher import FileHasher
 from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
-                                        VendorYangLibrary)
+                                        VendorGrouping, VendorYangLibrary)
 from parseAndPopulate.modules import SdoModule
+from sandbox import generate_schema_urls
 from utility import repoutil
 from utility.staticVariables import github_url
 
@@ -42,14 +43,12 @@ class TestGroupingsClass(unittest.TestCase):
 
         # Declare variables
         self.prepare_output_filename = 'prepare'
-        self.hello_message_filename = 'capabilities-ncs5k.xml'
-        self.platform_name = 'ncs5k'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings')
         self.test_private_dir = os.path.join(self.resources_path, 'html/private')
-        self.fileHasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
+        self.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
         self.dir_paths: DirPaths = {
             'cache': '',
-            'json': os.path.join(yc_gc.temp_dir, 'test'),
+            'json': self.resources_path,
             'log': yc_gc.logs_dir,
             'private': self.test_private_dir,
             'result': yc_gc.result_dir,
@@ -57,6 +56,10 @@ class TestGroupingsClass(unittest.TestCase):
             'yang_models': yc_gc.yang_models
         }
         self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
+
+    @classmethod
+    def setUpClass(cls):
+        generate_schema_urls.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings'))
 
     #########################
     ### TESTS DEFINITIONS ###
@@ -73,22 +76,20 @@ class TestGroupingsClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
-        path = '{}/standard/ieee/published/802.3'.format(yc_gc.yang_models)
+        path = self.resource('owner/repo/sdo')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        path_to_name_rev = {
+            self.resource('owner/repo/sdo/sdo-first.yang'): ('first', '2022-08-05'),
+            self.resource('owner/repo/sdo/sdo-second.yang'): ('second', '2022-08-05'),
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('third', '2022-08-05')
+        }
 
-        path_to_name_rev = self.load_path_to_name_rev('ieee_path_to_name_rev')
-        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths, path_to_name_rev)
-
+        sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
         sdo_directory.parse_and_load(repo)
 
-        for root, _, sdos in os.walk(path):
-            for file_name in sdos:
-                if '.yang' in file_name and ('vendor' not in root or 'odp' not in root):
-                    path_to_yang = os.path.join(path, file_name)
-                    yang = self.declare_sdo_module(path_to_yang)
-                    key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
-                    self.assertIn(key, sdo_directory.dumper.yang_modules)
+        self.assertListEqual(sorted(sdo_directory.dumper.yang_modules),
+                             ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'])
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_sdo_directory_parse_and_load_api(self, mock_hash: mock.MagicMock):
@@ -101,28 +102,108 @@ class TestGroupingsClass(unittest.TestCase):
         """
         mock_hash.return_value = 'master'
         repo = self.get_yangmodels_repository()
-        path = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang/standard')
         api = True
-        sdo = True
-
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        path_to_name_rev = {
+            self.resource('owner/repo/sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
+            self.resource('owner/repo/sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05')
+        }
 
-        path_to_name_rev = self.load_path_to_name_rev('rfc_path_to_name_rev')
-        sdo_directory = SdoDirectory(path, dumper, self.fileHasher, api, self.dir_paths, path_to_name_rev)
-
+        sdo_directory = SdoDirectory(self.resources_path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
         sdo_directory.parse_and_load(repo)
-        with open(os.path.join(self.dir_paths['json'], 'request-data.json'), 'r') as f:
-            sdos_json = json.load(f)
 
-        sdos_list = sdos_json.get('modules', {}).get('module', [])
-        self.assertNotEqual(len(sdos_list), 0)
-        for sdo in sdos_list:
-            key = '{}@{}/{}'.format(sdo.get('name'), sdo.get('revision'), sdo.get('organization'))
-            self.assertIn(key, sdo_directory.dumper.yang_modules)
+        self.assertListEqual(sorted(sdo_directory.dumper.yang_modules),
+                             ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'])
 
-    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
+    def test_vendor_parse_raw_capability(self):
+        path = self.resource('owner/repo/vendor')
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        xml_file = os.path.join(path, 'ietf-yang-library.xml')
+        api = False
+
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_grouping._parse_raw_capability('urn:ietf:params:xml:ns:netconf:base:1.0')
+
+        self.assertEqual(vendor_grouping.netconf_versions, ['urn:ietf:params:xml:ns:netconf:base:1.0'])
+
+        vendor_grouping._parse_raw_capability('urn:ietf:params:netconf:capability:test-capability:1.0')
+
+        self.assertEqual(vendor_grouping.capabilities, ['urn:ietf:params:netconf:capability:test-capability:1.0'])
+
+    def test_vendor_parse_implementation(self):
+        path = self.resource('owner/repo/vendor')
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        xml_file = os.path.join(path, 'ietf-yang-library.xml')
+        api = False
+        implementation = {
+            'module-list-file': {
+                'path': 'ietf-yang-library.xml',
+                'owner': 'owner',
+                'repository': 'repo',
+                'commit-hash': '0'*64},
+            'software-flavor': 'test-flavor',
+            'name': 'test-platform',
+            'software-version': 'test-version',
+            'vendor': 'cisco',
+            'os-type': 'test-os',
+            'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0']
+        }
+
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_grouping._parse_implementation(implementation)
+
+        self.assertEqual(
+            vendor_grouping.platform_data,
+            [{
+                'software-flavor': 'test-flavor',
+                'platform': 'test-platform',
+                'os-version': 'test-version',
+                'software-version': 'test-version',
+                'feature-set': 'ALL',
+                'vendor': 'cisco',
+                'os': 'test-os'
+            }])
+
+    def test_vendor_parse_platform_metadata(self):
+        path = self.resource('owner/repo/vendor')
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        xml_file = os.path.join(path, 'ietf-yang-library.xml')
+        api = False
+
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        with mock.patch.object(vendor_grouping, '_parse_implementation') as mock_parse_implementation:
+            vendor_grouping._parse_platform_metadata()
+
+        with open(self.resource('owner/repo/vendor/platform-metadata.json')) as f:
+            platform_metadata = json.load(f)
+        implementation = platform_metadata['platforms']['platform'][1]
+        mock_parse_implementation.assert_called_with(implementation)
+
+    def test_vendor_parse_platform_metadata_api(self):
+        path = self.resource('owner/repo/vendor')
+        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        xml_file = os.path.join(path, 'ietf-yang-library.xml')
+        api = True
+        implementation = {
+            'module-list-file': {'path': 'vendor/ietf-yang-library.xml'},
+            'software-flavor': 'test-flavor',
+            'name': 'test-platform',
+            'software-version': 'test-version',
+            'vendor': 'cisco',
+            'os-type': 'test-os',
+            'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0']
+        }
+
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        with mock.patch.object(vendor_grouping, '_parse_implementation') as mock_parse_implementation:
+            with mock.patch('parseAndPopulate.groupings.open', mock.mock_open(read_data=json.dumps(implementation))):
+                vendor_grouping._parse_platform_metadata()
+
+        mock_parse_implementation.assert_called_with(implementation)
+
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_vendor_yang_lib_parse_and_load_submodule(self, mock_hash: mock.MagicMock):
+    def test_vendor_yang_lib_parse_and_load(self, mock_hash: mock.MagicMock):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files which are located in 'path' directory. Created 'path' is submodule of git repository.
@@ -131,57 +212,25 @@ class TestGroupingsClass(unittest.TestCase):
             :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
-        xml_file = os.path.join(path, 'ietf-yang-library.xml')
+        directory = self.resource('owner/repo/vendor')
+        xml_file = os.path.join(directory, 'ietf-yang-library.xml')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_yang_lib = VendorYangLibrary(path, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
+        vendor_yang_lib = VendorYangLibrary(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_yang_lib.parse_and_load()
 
-        with mock.patch.object(vendor_yang_lib, '_construct_json_name', lambda x, y: 'IETFTEST'):
-            vendor_yang_lib.parse_and_load()
-        vendor_yang_lib.dumper.dump_modules(yc_gc.temp_dir)
-
-        desired_module_data = self.load_desired_prepare_json_data('git_submodule_huawei')
-        dumped_module_data = self.load_dumped_prepare_json_data()
-
-        # Compare desired output with output of prepare.json
-        for desired_module in desired_module_data:
-            name = desired_module.get('name')
-            revision = desired_module.get('revision')
-            for dumped_module in dumped_module_data:
-                if name == dumped_module.get('name'):
-                    fail_message = 'mismatch in {}'.format(name)
-                    fail_message = '{} ' + fail_message
-                    # Compare properties/keys of desired and dumped module data objects
-                    for key in desired_module:
-                        if name == 'ietf-yang-library':
-                            # We have multiple slightly different versions of ietf-yang-library
-                            # marked with the same revision
-                            if key in ('description', 'contact'):
-                                continue
-                        if key == 'yang-tree':
-                            # Compare only URL suffix (exclude domain)
-                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[1])
-                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[1])
-                            self.assertEqual(desired_tree_suffix, dumped_tree_suffix,
-                                             fail_message.format('tree suffix'))
-                        elif key == 'compilation-result':
-                            if dumped_module[key] != '' and desired_module[key] != '':
-                                # Compare only URL suffix (exclude domain)
-                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
-                                self.assertEqual(desired_compilation_result, dumped_compilation_result,
-                                                 fail_message.format('compilation result'))
-                        else:
-                            if isinstance(desired_module[key], list):
-                                for i in desired_module[key]:
-                                    self.assertIn(i, dumped_module[key], fail_message.format(key))
-                            else:
-                                self.assertEqual(dumped_module[key], desired_module[key], fail_message.format(key))
-                    break
-            else:
-                self.assertTrue(False, '{}@{} not found in dumped data'.format(name, revision))
+        self.assertEqual(sorted(vendor_yang_lib.dumper.yang_modules),
+                         ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco'])
+        self.assertEqual(vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
+                         'vendor-sdo-first-deviations')
+        self.assertEqual(vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].revision,
+                         '2022-08-05')
+        self.assertEqual(vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].conformance_type,
+                         'implement')
+        self.assertEqual(vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
+                         ['test-feature'])
+        
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
@@ -193,56 +242,40 @@ class TestGroupingsClass(unittest.TestCase):
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
         mock_hash.return_value = 'master'
-        directory = os.path.join(self.test_repo, 'vendor/cisco/xr/701')
-        xml_file = os.path.join(directory, self.hello_message_filename)
-        platform_json_path = os.path.join(self.test_repo, 'vendor/cisco/xr/701/platform-metadata.json')
+        directory = self.resource('owner/repo/vendor')
+        xml_file = os.path.join(directory, 'capabilities.xml')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
-
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
         vendor_capabilities.parse_and_load()
-        vendor_capabilities.dumper.dump_modules(yc_gc.temp_dir)
 
-        dumped_modules_data = self.load_dumped_prepare_json_data()
-        self.assertNotEqual(len(dumped_modules_data), 0)
+        self.assertEqual(sorted(vendor_capabilities.dumper.yang_modules),
+                         ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco'])
+        self.assertEqual(vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
+                         'vendor-sdo-first-deviations')
+        self.assertEqual(vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].revision,
+                         '2022-08-05')
+        self.assertEqual(vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].conformance_type,
+                         'implement')
+        self.assertEqual(vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
+                         ['test-feature'])
 
-        platform_data = self.get_platform_data(platform_json_path, self.platform_name)
-
-        for yang_module in dumped_modules_data:
-            self.assertIn('implementations', yang_module)
-            implementations = yang_module.get('implementations', {}).get('implementation', [])
-            self.assertNotEqual(len(implementations), 0)
-            for implementation in implementations:
-                if implementation.get('platform') == self.platform_name:
-                    self.assertEqual(implementation.get('vendor'), platform_data.get('vendor'))
-                    self.assertEqual(implementation.get('platform'), platform_data.get('name'))
-                    self.assertEqual(implementation.get('software-version'), platform_data.get('software-version'))
-                    self.assertEqual(implementation.get('software-flavor'), platform_data.get('software-flavor'))
-                    self.assertEqual(implementation.get('os-version'), platform_data.get('software-version'))
-                    self.assertEqual(implementation.get('feature-set'), 'ALL')
-                    self.assertEqual(implementation.get('os-type'), platform_data.get('os-type'))
 
     def test_vendor_capabilities_ampersand_exception(self):
         """ Test if ampersand character will be replaced in .xml file if occurs.
         If ampersand character occurs, exception is raised, and character is replaced.
         """
-        directory = os.path.join(self.test_repo, 'vendor/cisco/xr/701')
-        xml_file = os.path.join(directory, self.hello_message_filename)
+        directory = self.resource('owner/repo/vendor')
+        xml_file = os.path.join(directory, 'capabilities-amp.xml')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        # Change to achieve Exception will be raised
-        hello_file = fileinput.FileInput(xml_file, inplace=True)
-        for line in hello_file:
-            print(line.replace('&amp;', '&'), end='')
-        hello_file.close()
-
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
+        vendor_capabilities = VendorGrouping(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
 
         self.assertEqual(vendor_capabilities.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
-    def test_vendor_capabilities_solve_xr_os_type(self):
+    def test_vendor__path_to_platform_data_xr(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
         directory = os.path.join(self.test_repo, 'vendor/cisco/xr/702')
@@ -251,19 +284,22 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
-        vendor_capabilities._parse_platform_metadata()
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        platform_data = vendor_capabilities._path_to_platform_data()
 
-        platform_data = vendor_capabilities.platform_data
-        # Load desired module data from .json file
-        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
-            file_content = json.load(f)
-            desired_platform_data = file_content.get('xr_platform_data', {})
+        self.assertDictEqual(
+            platform_data,
+            {
+                'software-flavor': 'ALL',
+                'platform': 'ncs5k',
+                'software-version': '702',
+                'os-version': '702',
+                'feature-set': 'ALL',
+                'os': 'IOS-XR',
+                'vendor': 'cisco'
+            })
 
-        self.assertNotEqual(len(platform_data), 0)
-        self.assertEqual(desired_platform_data, platform_data[0])
-
-    def test_vendor_capabilities_solve_nx_os_type(self):
+    def test_vendor__path_to_platform_data_nx(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
         directory = os.path.join(self.test_repo, 'vendor/cisco/nx/9.2-1')
@@ -272,19 +308,22 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
-        vendor_capabilities._parse_platform_metadata()
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        platform_data = vendor_capabilities._path_to_platform_data()
 
-        platform_data = vendor_capabilities.platform_data
-        # Load desired module data from .json file
-        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
-            file_content = json.load(f)
-            desired_platform_data = file_content.get('nx_platform_data', {})
+        self.assertEqual(
+            platform_data,
+            {
+                'software-flavor': 'ALL',
+                'platform': 'Unknown',
+                'software-version': '9.2-1',
+                'os-version': '9.2-1',
+                'feature-set': 'ALL',
+                'os': 'NX-OS',
+                'vendor': 'cisco'
+            })
 
-        self.assertNotEqual(len(platform_data), 0)
-        self.assertEqual(desired_platform_data, platform_data[0])
-
-    def test_vendor_capabilities_solve_xe_os_type(self):
+    def test_vendor__path_to_platform_data_xe(self):
         """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
         """
         directory = os.path.join(self.test_repo, 'vendor/cisco/xe/16101')
@@ -293,60 +332,21 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
-        vendor_capabilities._parse_platform_metadata()
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        platform_data = vendor_capabilities._path_to_platform_data()
 
-        platform_data = vendor_capabilities.platform_data
-        # Load desired module data from .json file
-        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
-            file_content = json.load(f)
-            desired_platform_data = file_content.get('xe_platform_data', {})
+        self.assertEqual(
+            platform_data,
+            {
+                'software-flavor': 'ALL',
+                'platform': 'asr1k',
+                'software-version': '16101',
+                'os-version': '16101',
+                'feature-set': 'ALL',
+                'os': 'IOS-XE',
+                'vendor': 'cisco'
+            })
 
-        self.assertNotEqual(len(platform_data), 0)
-        self.assertEqual(desired_platform_data, platform_data[0])
-
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_vendor_yang_lib_parse_and_dump(self, mock_hash: mock.MagicMock):
-        """ Test if all the modules from ietf-yang-library xml file (with their submodules) have correctly set information
-        about implementaton from platform_metadata.json file.
-        Parsed modules are dumped to prepare.json file, then loaded and implementation information is checked.
-
-        Arguments:
-            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-        """
-        mock_hash.return_value = 'master'
-        directory = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e')
-        xml_file = os.path.join(directory, 'ietf-yang-library.xml')
-        platform_json_path = os.path.join(self.test_repo,
-                                          'vendor/huawei/network-router/8.20.0/ne5000e/platform-metadata.json')
-        platform_name = 'ne5000e'
-        api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-
-        vendor_yang_lib = VendorYangLibrary(directory, xml_file, dumper, self.fileHasher, api, self.dir_paths, {})
-
-        vendor_yang_lib.parse_and_load()
-        vendor_yang_lib.dumper.dump_modules(yc_gc.temp_dir)
-
-        dumped_modules_data = self.load_dumped_prepare_json_data()
-
-        platform_data = self.get_platform_data(platform_json_path, platform_name)
-
-        self.assertNotEqual(len(platform_data), 0)
-        self.assertNotEqual(len(dumped_modules_data), 0)
-        for yang_module in dumped_modules_data:
-            self.assertIn('implementations', yang_module)
-            implementations = yang_module.get('implementations', {}).get('implementation', [])
-            self.assertNotEqual(len(implementations), 0)
-            for implementation in implementations:
-                if implementation.get('platform') == platform_name:
-                    self.assertEqual(implementation.get('vendor'), platform_data.get('vendor'))
-                    self.assertEqual(implementation.get('platform'), platform_data.get('name'))
-                    self.assertEqual(implementation.get('software-version'), platform_data.get('software-version'))
-                    self.assertEqual(implementation.get('software-flavor'), platform_data.get('software-flavor'))
-                    self.assertEqual(implementation.get('os-version'), platform_data.get('software-version'))
-                    self.assertEqual(implementation.get('feature-set'), 'ALL')
-                    self.assertEqual(implementation.get('os-type'), platform_data.get('os-type'))
 
     ##########################
     ### HELPER DEFINITIONS ###
@@ -420,6 +420,9 @@ class TestGroupingsClass(unittest.TestCase):
             self.assertNotEqual(len(file_content['module']), 0)
         dumped_module_data = file_content['module']
         return dumped_module_data
+    
+    def resource(self, path: str) -> str:
+        return os.path.join(self.resources_path, path)
 
 
 if __name__ == '__main__':

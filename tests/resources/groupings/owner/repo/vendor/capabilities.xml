@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='ASCII'?>
+<nc:hello xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <nc:capabilities>
+   <nc:capability>module=sdo-first&amp;revision=2022-08-05&amp;deviations=vendor-sdo-first-deviations</nc:capability>
+   <nc:capability>module=vendor-first&amp;revision=2022-08-05&amp;features=test-feature</nc:capability>
+   <nc:capability>module=vendor-second&amp;revision=2022-08-05</nc:capability>
+  </nc:capabilities>
+</nc:hello>
