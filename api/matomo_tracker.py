@@ -35,12 +35,22 @@ def get_headers_dict(req) -> dict:
 def record_analytic(headers: dict, data: MatomoTrackerData, client_ip: t.Optional[str]) -> None:
     """ Send analytics data to Piwik/Matomo """
     # Use "FakeRequest" because we had to serialize the real request
+    if should_skip(headers):
+        return
+
     fake_request = FakeRequest(headers)
 
     piwik_tracker = PiwikTracker(data.site_id, fake_request)
     piwik_tracker.set_api_url(data.site_url)
-    # if data.token:
-    #     piwik_tracker.set_token_auth(data.token)
-    #     piwik_tracker.set_ip(client_ip)
+    if data.token:
+        piwik_tracker.set_token_auth(data.token)
+        piwik_tracker.set_ip(client_ip)
     visited_url = fake_request.META['PATH_INFO'][:1000]
-    piwik_tracker.do_track_page_view(visited_url)
+    piwik_tracker.do_track_page_view('API backend {}'.format(visited_url))
+
+
+def should_skip(headers: dict) -> bool:
+    """ Check whether the request is not just a ping. """
+    return '/api/' not in headers.get('PATH_INFO', '') \
+        or 'api/healthcheck' in headers.get('PATH_INFO', '') \
+        or 'api/admin' in headers.get('PATH_INFO', '')
