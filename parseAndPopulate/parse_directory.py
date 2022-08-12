@@ -27,6 +27,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import glob
+from logging import Logger
 import os
 import shutil
 import time
@@ -39,7 +40,7 @@ from utility.util import find_files, parse_name, parse_revision, strip_comments
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import (IanaDirectory, SdoDirectory,
                                         VendorCapabilities, VendorYangLibrary)
 
@@ -120,23 +121,53 @@ def main(scriptConf=None):
         'save': args.save_file_dir
     }
 
-    LOGGER = log.get_logger('runCapabilities', '{}/parseAndPopulate.log'.format(dir_paths['log']))
+    LOGGER = log.get_logger('parse_directory', '{}/parseAndPopulate.log'.format(dir_paths['log']))
 
     start = time.time()
     dumper = Dumper(dir_paths['log'], 'prepare')
-    fileHasher = FileHasher('backend_files_modification_hashes', dir_paths['cache'],
+    file_hasher = FileHasher('backend_files_modification_hashes', dir_paths['cache'],
                             args.save_file_hash, dir_paths['log'])
 
+    LOGGER.info('Saving all yang files so the save-file-dir')
+    name_rev_to_path, path_to_name_rev = save_files(args.dir, dir_paths['save'])
+    LOGGER.info('Starting to iterate through files')
+    if args.sdo:
+        parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, LOGGER)
+    else:
+        parse_vendor(args.dir, dumper, file_hasher, args.api, dir_paths, name_rev_to_path, LOGGER)
+    dumper.dump_modules(dir_paths['json'])
+    dumper.dump_vendors(dir_paths['json'])
+
+    end = time.time()
+    LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
+
+    # Dump updated hashes into temporary directory
+    if len(file_hasher.updated_hashes) > 0:
+        file_hasher.dump_tmp_hashed_files_list(file_hasher.updated_hashes, dir_paths['json'])
+
+
+def save_files(search_directory: str, save_file_dir: str) -> t.Tuple[t.Dict[str, str], t.Dict[str, str]]:
+    """
+    Copy all found yang files to the save_file_dir.
+    Return dicts with data containing the original locations of the files,
+    which is later needed for parsing.
+
+    Arguments:
+        :param search_directory                         (str) Directory to process
+        :param save_file_dir                            (str) Directory to save yang files to
+        :return (name_rev_to_path, path_to_name_rev)    (Tuple[Dict[str, str], Dict[str, str]])
+            name_rev_to_path: needed by parse_vendor()
+            path_to_name_rev: needed by parse_sdo()
+    """
     name_rev_to_path = {}
     path_to_name_rev = {}
-    LOGGER.info('Saving all yang files so the save-file-dir')
-    for yang_file in glob.glob(os.path.join(args.dir, '**/*.yang'), recursive=True):
+    for yang_file in glob.glob(os.path.join(search_directory, '**/*.yang'), recursive=True):
         with open(yang_file) as f:
             text = f.read()
             text = strip_comments(text)
             name = parse_name(text)
             revision = parse_revision(text)
-            save_file_path = os.path.join(dir_paths['save'], '{}@{}.yang'.format(name, revision))
+            save_file_path = os.path.join(save_file_dir, '{}@{}.yang'.format(name, revision))
             # To construct and save a schema url, we need the original path, module name, and revision.
             # SDO metadata only provides the path, vendor metadata only provides the name and revision.
             # We need mappings both ways to retrieve the missing data.
@@ -144,47 +175,36 @@ def main(scriptConf=None):
             path_to_name_rev[yang_file] = name, revision
             if not os.path.exists(save_file_path):
                 shutil.copy(yang_file, save_file_path)
+    return name_rev_to_path, path_to_name_rev
 
-    LOGGER.info('Starting to iterate through files')
-    if args.sdo:
-        LOGGER.info('Found directory for sdo {}'.format(args.dir))
 
-        # If yang-parameters.xml exists -> parsing IANA-maintained modules
-        if os.path.isfile(os.path.join(args.dir, 'yang-parameters.xml')):
-            LOGGER.info('yang-parameters.xml file found')
-
-            grouping = IanaDirectory(args.dir, dumper, fileHasher, args.api, dir_paths, path_to_name_rev)
-            grouping.parse_and_load()
-        else:
-            LOGGER.info('Starting to parse files in sdo directory')
-
-            grouping = SdoDirectory(args.dir, dumper, fileHasher, args.api, dir_paths, path_to_name_rev)
-            grouping.parse_and_load()
-
-        dumper.dump_modules(dir_paths['json'])
+def parse_sdo(search_directory: str, dumper: Dumper, file_hasher: FileHasher, api: bool,
+              dir_paths: DirPaths, path_to_name_rev: dict, logger: Logger):
+    """Parse all yang modules in an SDO directory."""
+    logger.info('Parsing SDO directory {}'.format(search_directory))
+    if os.path.isfile(os.path.join(search_directory, 'yang-parameters.xml')):
+        logger.info('Found yang-parameters.xml file, parsing IANA directory')
+        grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev)
     else:
-        for pattern in ['*capabilit*.xml', '*ietf-yang-library*.xml']:
-            for root, basename in find_files(args.dir, pattern):
-                filename = os.path.join(root, basename)
-                LOGGER.info('Found xml source {}'.format(filename))
+        grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev)
+    grouping.parse_and_load()
 
-                if pattern == '*capabilit*.xml':
-                    grouping = VendorCapabilities(root, filename, dumper, fileHasher, args.api, dir_paths, name_rev_to_path)
-                else:
-                    grouping = VendorYangLibrary(root, filename, dumper, fileHasher, args.api, dir_paths, name_rev_to_path)
-                try:
-                    grouping.parse_and_load()
-                except Exception as e:
-                    LOGGER.exception('Skipping {}, error while parsing'.format(filename))
-        dumper.dump_modules(dir_paths['json'])
-        dumper.dump_vendors(dir_paths['json'])
 
-    end = time.time()
-    LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
-
-    # Dump updated hashes into temporary directory
-    if len(fileHasher.updated_hashes) > 0:
-        fileHasher.dump_tmp_hashed_files_list(fileHasher.updated_hashes, dir_paths['json'])
+def parse_vendor(search_directory: str, dumper: Dumper, file_hasher: FileHasher, api: bool,
+                 dir_paths: DirPaths, name_rev_to_path: dict, logger: Logger):
+    """Parse all yang modules in a vendor directory."""
+    for pattern in ['*capabilit*.xml', '*ietf-yang-library*.xml']:
+        for root, basename in find_files(search_directory, pattern):
+            filename = os.path.join(root, basename)
+            logger.info('Found xml metadata file {}'.format(filename))
+            if pattern == '*capabilit*.xml':
+                grouping = VendorCapabilities(root, filename, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+            else:
+                grouping = VendorYangLibrary(root, filename, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+            try:
+                grouping.parse_and_load()
+            except Exception:
+                logger.exception('Skipping {}, error while parsing'.format(filename))
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-This script calls runCapabilities.py script with
+This script calls parse_directory.py script with
 option based on whether we are populating SDOs or vendors
 and also whether this script was called via API or directly by
 yangcatalog admin user. Once the metatadata are parsed
@@ -48,7 +48,7 @@ from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
-from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
 
@@ -62,7 +62,7 @@ class ScriptConfig(BaseScriptConfig):
         result_dir = config.get('Web-Section', 'result-html-dir')
         help = 'Parse hello messages and YANG files to a JSON dictionary. These ' \
                'dictionaries are used for populating the yangcatalog. This script first ' \
-               'runs the runCapabilities.py script to create JSON files which are ' \
+               'runs the parse_directory.py script to create JSON files which are ' \
                'used to populate database.'
         args: t.List[Arg] = [
             {
@@ -147,9 +147,9 @@ def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: s
     LOGGER.info('Cache reloaded successfully')
 
 
-def configure_runCapabilities(module: types.ModuleType, args: Namespace, json_dir: str)\
+def configure_parse_directory(module: types.ModuleType, args: Namespace, json_dir: str)\
         -> BaseScriptConfig:
-    """ Set values to ScriptConfig arguments to be able to run runCapabilities script.
+    """ Set values to ScriptConfig arguments to be able to run parse_directory script.
 
     Arguments:
         :param submodule    (obj) submodule object
@@ -204,13 +204,13 @@ def main(scriptConf=None):
     else:
         json_dir = create_dir_name(temp_dir)
         os.makedirs(json_dir)
-    LOGGER.info('Calling runCapabilities script')
+    LOGGER.info('Calling parse_directory script')
     try:
-        runCapabilities = import_module('parseAndPopulate.runCapabilities')
-        script_conf = configure_runCapabilities(runCapabilities, args, json_dir)
-        runCapabilities.main(scriptConf=script_conf)
+        parse_directory = import_module('parseAndPopulate.parse_directory')
+        script_conf = configure_parse_directory(parse_directory, args, json_dir)
+        parse_directory.main(scriptConf=script_conf)
     except Exception as e:
-        LOGGER.exception('runCapabilities error:\n{}'.format(e))
+        LOGGER.exception('parse_directory error:\n{}'.format(e))
         raise e
 
     body_to_send = {}

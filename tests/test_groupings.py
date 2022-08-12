@@ -17,7 +17,6 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
-import fileinput
 import json
 import os
 import unittest
@@ -27,7 +26,7 @@ from unittest import mock
 from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
                                         VendorGrouping, VendorYangLibrary)
 from parseAndPopulate.modules import SdoModule
