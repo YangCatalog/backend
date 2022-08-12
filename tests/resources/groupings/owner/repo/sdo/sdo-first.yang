@@ -1,0 +1,10 @@
+module sdo-first {
+  revision 2022-08-05;
+  organization "ietf";
+  namespace "testing";
+  prefix "yang";
+
+  leaf test-leaf {
+    type string;
+  }
+}

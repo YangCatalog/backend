@@ -29,25 +29,18 @@ def construct_schema_url(repo: Repo, path: str) -> str:
     return os.path.join(repo_base_url, commit_hash, suffix)
 
 
-def main():
+def main(directory: str):
     config = create_config()
     cache_dir = config.get('Directory-Section', 'cache')
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
 
-    argument_parser = argparse.ArgumentParser(description=__doc__)
-    argument_parser.add_argument(
-        'directory',
-        type=str,
-        help='Directory to search for yang files. All yang files must be inside cloned git repositories.'
-    )
-    args = argument_parser.parse_args()
     schema_dict_path = os.path.join(cache_dir, 'schema_dict.json')
     try:
         with open(schema_dict_path) as f:
             schemas = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         schemas = {}
-    for root, _, files in os.walk(args.directory):
+    for root, _, files in os.walk(directory):
         abs_root = os.path.abspath(root)
         try:
             repo = Repo(abs_root, search_parent_directories=True)
@@ -74,4 +67,11 @@ def main():
         json.dump(schemas, f)
 
 if __name__ == '__main__':
-    main()
+    argument_parser = argparse.ArgumentParser(description=__doc__)
+    argument_parser.add_argument(
+        'directory',
+        type=str,
+        help='Directory to search for yang files. All yang files must be inside cloned git repositories.'
+    )
+    args = argument_parser.parse_args()
+    main(args.directory)

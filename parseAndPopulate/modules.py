@@ -29,7 +29,6 @@ from utility.create_config import create_config
 from utility.util import get_yang, resolve_revision
 
 from parseAndPopulate.dir_paths import DirPaths
-from parseAndPopulate.loadJsonFiles import LoadFiles
 from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.submodule import Submodule
@@ -51,7 +50,7 @@ class Module:
 
     # NOTE: Maybe we should consider passing all or some of the arguments togeather in some sort of structure,
     #      as passing this many arguments is ugly and error prone.
-    def __init__(self, name: str, path: str, jsons: LoadFiles, schemas: dict, dir_paths: DirPaths,
+    def __init__(self, name: str, path: str, schemas: dict, dir_paths: DirPaths,
                  yang_modules: dict, additional_info: t.Optional[t.Dict[str, str]]):
         """
         Initialize and parse everything out of a module.
@@ -59,8 +58,6 @@ class Module:
         Arguments:
             :param name:            (str) name of the module (not parsed out of the module)
             :param path:            (str) path to yang file being parsed
-            :param jsons:           (obj) LoadFiles class containing all the json
-                                    and html files with parsed results
             :param dir_paths:       (dict) paths to various needed directories according to configuration
             :param yang_modules:    (dict) yang modules we've already parsed
             :param schema_parts:    (SchemaParts) Parts of the URL that links to the module in Github
@@ -72,7 +69,6 @@ class Module:
         self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
         self._nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
         self.html_result_dir = dir_paths['result']
-        self._jsons = jsons
         self._schemas = schemas
         self._path = path
         self.yang_models_path = dir_paths['yang_models']
@@ -80,7 +76,6 @@ class Module:
         self._parsed_yang = yangParser.parse(self._path)
         self.implementations: t.List[Implementation] = []
         self._parse_all(name, yang_modules, additional_info)
-        del self._jsons
 
     def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[t.Dict[str, str]] = None):
         if not additional_info:
@@ -169,15 +164,15 @@ class Module:
 
 class SdoModule(Module):
 
-    def __init__(self, name: str, path: str, jsons: LoadFiles, schemas: dict, dir_paths: DirPaths,
+    def __init__(self, name: str, path: str, schemas: dict, dir_paths: DirPaths,
                  yang_modules: dict, aditional_info: t.Optional[t.Dict[str, str]] = None):
-        super().__init__(name, os.path.abspath(path), jsons, schemas, dir_paths, yang_modules, aditional_info)
+        super().__init__(name, os.path.abspath(path), schemas, dir_paths, yang_modules, aditional_info)
 
 
 class VendorModule(Module):
     """A module with additional vendor information."""
 
-    def __init__(self, name: str, path: str, jsons: LoadFiles, schemas: dict, dir_paths: DirPaths,
+    def __init__(self, name: str, path: str, schemas: dict, dir_paths: DirPaths,
                  yang_modules: dict, aditional_info: t.Optional[t.Dict[str, str]] = None,
                  data: t.Optional[t.Union[str, dict]] = None):
         # these are required for self._find_file() to work
@@ -202,7 +197,7 @@ class VendorModule(Module):
         elif isinstance(data, dict):  # dict parsed out from a ietf-yang-library file
             self.deviations = data['deviations']
             self.features = data['features']
-        super().__init__(name, path, jsons, schemas, dir_paths, yang_modules, aditional_info)
+        super().__init__(name, path, schemas, dir_paths, yang_modules, aditional_info)
 
     def _resolve_deviations_and_features(self, search_for: str, data: str) -> t.List[str]:
         ret = []

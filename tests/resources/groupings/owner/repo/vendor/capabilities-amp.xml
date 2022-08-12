@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='ASCII'?>
+<nc:hello xmlns:nc="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <nc:capabilities>
+   <nc:capability>module=sdo-first&revision=2022-08-05</nc:capability>
+  </nc:capabilities>
+</nc:hello>

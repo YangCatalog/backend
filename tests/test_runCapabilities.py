@@ -24,7 +24,6 @@ import unittest
 from unittest import mock
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.loadJsonFiles import LoadFiles
 
 
 class TestRunCapabilitiesClass(unittest.TestCase):
@@ -41,19 +40,16 @@ class TestRunCapabilitiesClass(unittest.TestCase):
     #########################
 
     @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
-    @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_parse_and_dump_sdo(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_sdo(self, mock_hash: mock.MagicMock):
         """ Run runCapabilities.py script over SDO yang files in directory.
         For testing purposes there is only 1 yang file (ietf-yang-types@2013-07-15.yang) in directory.
         Compare content of prepare.json files.
 
         Arguments:
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_hash.return_value = 'master'
-        mock_load_files.return_value = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         path = '{}/test/YangModels/yang/standard/ietf/RFC'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
@@ -72,18 +68,15 @@ class TestRunCapabilitiesClass(unittest.TestCase):
 
         self.compare_module_data(desired_module_data, dumped_module_data)
 
-    @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_parse_and_dump_sdo_empty_dir(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_sdo_empty_dir(self, mock_hash: mock.MagicMock):
         """ Run runCapabilities.py script over empty directory - no yang files.
         Test whether prepare.json file contain only empty dictionary '{}'.
 
         Arguments:
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_hash.return_value = 'master'
-        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         path = '{}/temp/standard/ietf/RFC/empty'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
@@ -103,18 +96,15 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         self.assertEqual(file_content, {})
 
     @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
-    @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_vendor(self, mock_commit_hash: mock.MagicMock):
         """ Run runCapabilities.py script over vendor yang files in directory which also contains capability xml file.
         Compare content of normal.json and prepare.json files.
 
         Arguments:
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
         mock_commit_hash.return_value = 'master'
-        mock_load_files.return_value = LoadFiles('IETFYANGRFC', self.test_private_dir, yc_gc.logs_dir)
         xml_path = '{}/test/YangModels/yang/vendor/cisco/xr/701'.format(yc_gc.temp_dir)
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
@@ -178,16 +168,13 @@ class TestRunCapabilitiesClass(unittest.TestCase):
         self.assertEqual(file_content, {})
 
     @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
-    @mock.patch('parseAndPopulate.groupings.LoadFiles')
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock, mock_load_files: mock.MagicMock):
+    def test_parse_and_dump_vendor_yang_lib(self, mock_hash: mock.MagicMock):
         """ Run runCapability script over yang_lib.xml. Compare content of normal.json and prepare.json files.
 
         Arguments:
             :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
-            :param mock_load_files  (mock.MagicMock) LoadFiles is patched to load json files from test directory
         """
-        mock_load_files.return_value = LoadFiles('IETFTEST', self.test_private_dir, yc_gc.logs_dir)
         mock_hash.return_value = 'master'
         xml_path = '{}/test/YangModels/yang/vendor/huawei/network-router/8.20.0/ne5000e'.format(yc_gc.temp_dir)
         # Load submodule and its config

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<data xmlns="urn:ietf:params:xml:ns:netconf:base:1.0">
+  <modules-state xmlns="urn:ietf:params:xml:ns:yang:ietf-yang-library">
+    <module-set-id>2148066159</module-set-id>
+    <module>
+      <name>sdo-first</name>
+      <revision>2022-08-05</revision>
+      <namespace>testing</namespace>
+      <conformance-type>implement</conformance-type>
+      <deviation>
+        <name>vendor-sdo-first-deviations</name>
+        <revision>2022-08-05</revision>
+      </deviation>
+    </module>
+    <module>
+      <name>vendor-first</name>
+      <revision>2022-08-05</revision>
+      <namespace>testing</namespace>
+      <conformance-type>implement</conformance-type>
+      <feature>test-feature</feature>
+    </module>
+    <module>
+      <name>vendor-second</name>
+      <revision>2022-08-05</revision>
+      <namespace>testing</namespace>
+      <conformance-type>implement</conformance-type>
+    </module>
+  </modules-state>
+</data>
