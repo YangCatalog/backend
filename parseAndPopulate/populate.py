@@ -88,7 +88,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--sdo',
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
-                'default': False
+                'default': True
             },
             {
                 'flag': '--notify-indexing',
