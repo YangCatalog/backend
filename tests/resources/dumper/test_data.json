@@ -1,0 +1,90 @@
+{
+    "dumped_module": {
+        "module": [
+            {
+                "name": "sdo-module",
+                "revision": "2022-08-05",
+                "organization": "ietf",
+                "generated-from": "not-applicable",
+                "maturity-level": null,
+                "document-name": null,
+                "reference": null,
+                "module-classification": "unknown",
+                "compilation-status": "unknown",
+                "compilation-result": "",
+                "prefix": "yang",
+                "yang-version": "1.0",
+                "description": null,
+                "contact": null,
+                "module-type": "module",
+                "yang-tree": "http://localhost/api/services/tree/sdo-module@2022-08-05.yang",
+                "ietf": {
+                    "ietf-wg": null
+                },
+                "namespace": "testing"
+            }
+        ]
+    },
+    "dumped_vendor_data": {
+        "vendors": {
+            "vendor": [
+                {
+                    "name": "cisco",
+                    "platforms": {
+                        "platform": [
+                            {
+                                "name": "test-platform",
+                                "software-versions": {
+                                    "software-version": [
+                                        {
+                                            "name": "test-version",
+                                            "software-flavors": {
+                                                "software-flavor": [
+                                                    {
+                                                        "name": "test-flavor",
+                                                        "protocols": {
+                                                            "protocol": [
+                                                                {
+                                                                    "name": "netconf",
+                                                                    "capabilities": [
+                                                                        "urn:ietf:params:netconf:capability:test-capability:1.0"
+                                                                    ],
+                                                                    "protocol-version": [
+                                                                        "urn:ietf:params:xml:ns:netconf:base:1.0"
+                                                                    ]
+                                                                }
+                                                            ]
+                                                        },
+                                                        "modules": {
+                                                            "module": [
+                                                                {
+                                                                    "name": "sdo-module",
+                                                                    "revision": "2022-08-05",
+                                                                    "organization": "ietf",
+                                                                    "os-version": "test-version",
+                                                                    "feature-set": "ALL",
+                                                                    "os-type": "test-os",
+                                                                    "deviation": [
+                                                                        {
+                                                                            "name": "vendor-sdo-module-deviations",
+                                                                            "revision": "1970-01-01"
+                                                                        }
+                                                                    ],
+                                                                    "conformance-type": "implement"
+                                                                }
+                                                            ]
+                                                        }
+                                                    }
+                                                ]
+                                            }
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+    }
+}
