@@ -174,7 +174,6 @@ class TestReceiverClass(TestReceiverBaseClass):
                      '--credentials', *self.credentials]
 
         status, details = self.receiver.process(arguments)
-        original_module_data = data['modules']['module'][0]
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
         redis_data = (redis_module or b'{}').decode('utf-8')
 

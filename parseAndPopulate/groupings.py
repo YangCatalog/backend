@@ -36,7 +36,7 @@ from utility.yangParser import ParseException
 
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.fileHasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.modules import SdoModule, VendorModule
 
@@ -50,7 +50,7 @@ class ModuleGrouping:
         Arguments:
             :param directory            (str) the directory containing the files
             :param dumper               (Dumper) Dumper object
-            :param filehasher           (FileHasher) FileHasher object
+            :param file_hasher          (FileHasher) FileHasher object
             :param api                  (bool) whether the request came from API or not
             :param dir_paths            (DirPaths) paths to various needed directories according to configuration
         """
@@ -223,7 +223,6 @@ class SdoDirectory(ModuleGrouping):
             schema_parts = SchemaParts(
                 repo_owner=self.repo_owner, repo_name=self.repo_name,
                 commit_hash=commit_hash, submodule_name=submodule_name)
-            schema_base = schema_parts.schema_base
             for i, file_name in enumerate(sdos, start=1):
                 # Process only SDO .yang files
                 if '.yang' not in file_name or any(word in root for word in ['vendor', 'odp']):

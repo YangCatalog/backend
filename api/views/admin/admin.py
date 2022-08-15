@@ -588,7 +588,7 @@ def run_script_with_args(script):
 
 @bp.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
-    scripts_names = ['populate', 'runCapabilities', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
+    scripts_names = ['populate', 'parse_directory', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
                      'recovery', 'elk_recovery', 'elk_fill', 'resolveExpiration', 'reviseSemver']
     return {'data': scripts_names, 'info': 'Success'}
 
@@ -605,7 +605,7 @@ def get_disk_usage():
 
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
-    if script_name in ['populate', 'runCapabilities', 'reviseSemver']:
+    if script_name in ['populate', 'parse_directory', 'reviseSemver']:
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
