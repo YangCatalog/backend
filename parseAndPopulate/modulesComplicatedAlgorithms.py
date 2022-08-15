@@ -22,10 +22,10 @@ make sure that metadata that are quickly parsed are already pushed
 into the database and these metadata will get there later.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import io
 import json
@@ -33,8 +33,8 @@ import os
 import typing as t
 from collections import defaultdict
 from copy import deepcopy
-from datetime import datetime
 from dataclasses import dataclass
+from datetime import datetime
 
 import requests
 from elasticsearchIndexing.pyang_plugin.json_tree import \
@@ -48,7 +48,6 @@ from utility.staticVariables import json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,
                           get_yang)
 from utility.yangParser import create_context
-
 
 MAJOR = 0
 MINOR = 1
@@ -676,8 +675,7 @@ class ModulesComplicatedAlgorithms:
                                         if trees_match(new_yang_tree, old_yang_tree):
                                             # yang trees are the same - update only the patch version
                                             update_semver(prev_module_details, module, 2)
-                                            curr_module_details.semver = increment_semver(prev_module_details.semver,
-                                                                                        2)
+                                            curr_module_details.semver = increment_semver(prev_module_details.semver, 2)
                                         else:
                                             # yang trees have changed - update minor version
                                             update_semver(prev_module_details, module, 1)
@@ -693,62 +691,64 @@ class ModulesComplicatedAlgorithms:
 
     def parse_dependents(self):
 
-        def check_latest_revision_and_remove(dependent, dependency):
+        def check_existing_and_remove(dependent: dict, dependency: dict) -> bool:
             for i in range(len(dependency.get('dependents', []))):
                 existing_dependent = dependency['dependents'][i]
-                if existing_dependent['name'] == dependent['name']:
-                    if existing_dependent['revision'] >= dependent['revision']:
-                        return True
-                    else:
-                        dependency['dependents'].pop(i)
-                        break
+                if existing_dependent['name'] != dependent['name']:
+                    continue
+                if existing_dependent.get('revision') == dependent.get('revision'):
+                    return True
+                dependency['dependents'].pop(i)
+                break
             return False
 
-        def add_dependents(dependents: list, dependencies: t.Dict[str, t.Dict[str, dict]]):
-            for dependent in dependents:
-                for dep_filter in dependent.get('dependencies', []):
-                    name = dep_filter['name']
-                    revision = dep_filter.get('revision')
-                    if name in dependencies:
-                        if revision is None:
-                            it = dependencies[name].values()
-                        else:
-                            if revision in dependencies[name]:
-                                it = [dependencies[name][revision]]
-                            else:
-                                it = []
-                        for dependency in it:
-                            revision = dependency['revision']
-                            if revision in self.new_modules[name]:
-                                dependency_copy = self.new_modules[name][revision]
-                            elif revision in self._existing_modules_dict[name]:
-                                dependency_copy = deepcopy(self._existing_modules_dict[name][revision])
-                            else:
-                                dependency_copy = dependency
-                            if not check_latest_revision_and_remove(dependent, dependency_copy):
-                                details = {
-                                    'name': dependent['name'],
-                                    'revision': dependent['revision'],
-                                }
-                                if 'schema' in dependent:
-                                    details['schema'] = dependent['schema']
-                                LOGGER.info('Adding {}@{} as dependent of {}@{}'.format(
-                                    dependent['name'], dependent['revision'], name, revision))
-                                dependency_copy.setdefault('dependents', []).append(details)
-                                self.new_modules[name][revision] = dependency_copy
+        def add_dependents(new_dependents: list, all_dependencies: t.Dict[str, t.Dict[str, dict]]):
+            for new_module in new_dependents:
+                for new_module_dependency in new_module.get('dependencies', []):
+                    dependent_detail = {
+                        'name': new_module.get('name'),
+                        'schema': new_module.get('schema')
+                    }
+                    dependent_name_rev = new_module.get('name')
+                    dependency_name = new_module_dependency['name']
+                    dependency_revision = new_module_dependency.get('revision')
+                    if dependency_name not in all_dependencies:
+                        continue
+                    it = []
+                    if dependency_revision:
+                        if dependency_revision in all_dependencies[dependency_name]:
+                            it = [all_dependencies[dependency_name][dependency_revision]]
+                            dependent_detail['revision'] = new_module['revision']
+                            dependent_name_rev += '@{}'.format(new_module['revision'])
+                    else:
+                        it = all_dependencies[dependency_name].values()
 
-        all_modules = self._all_modules.get('module', [])
-        all_modules_dict = defaultdict(dict)
-        for i in all_modules:
-            all_modules_dict[i['name']][i['revision']] = deepcopy(i)
+                    for dependency in it:
+                        dependency_revision = dependency['revision']
+                        if dependency_revision in self.new_modules[dependency_name]:
+                            dependency_copy = self.new_modules[dependency_name][dependency_revision]
+                        elif dependency_revision in self._existing_modules_dict[dependency_name]:
+                            dependency_copy = deepcopy(self._existing_modules_dict[dependency_name][dependency_revision])
+                        else:
+                            dependency_copy = dependency
+                        if not check_existing_and_remove(dependent_detail, dependency_copy):
+                            LOGGER.info('Adding {} as dependent of {}@{}'.format(
+                                dependent_name_rev, dependency_name, dependency_revision))
+                            dependency_copy.setdefault('dependents', []).append(dependent_detail)
+                            self.new_modules[dependency_name][dependency_revision] = dependency_copy
+
+        new_modules = self._all_modules.get('module', [])
+        new_modules_dict = defaultdict(dict)
+        for i in new_modules:
+            new_modules_dict[i['name']][i['revision']] = deepcopy(i)
         both_dict = deepcopy(self._existing_modules_dict)
-        for name, revisions in all_modules_dict.items():
+        for name, revisions in new_modules_dict.items():
             both_dict[name].update(deepcopy(revisions))
         existing_modules = [revision for name in self._existing_modules_dict.values() for revision in name.values()]
         LOGGER.info('Adding new modules as dependents')
-        add_dependents(all_modules, both_dict)
+        add_dependents(new_modules, both_dict)
         LOGGER.info('Adding existing modules as dependents')
-        add_dependents(existing_modules, all_modules_dict)
+        add_dependents(existing_modules, new_modules_dict)
 
     def _check_schema_file(self, name: str, revision: str, schema_url: t.Optional[str]):
         """ Check if the file exists and if not try to get it from Github.
