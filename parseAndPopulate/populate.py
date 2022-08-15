@@ -227,7 +227,7 @@ def main(scriptConf=None):
     redis_connection.populate_modules(modules)
 
     # In each json
-    if os.path.exists(os.path.join(json_dir, 'normal.json')):
+    if not args.sdo and os.path.exists(os.path.join(json_dir, 'normal.json')):
         LOGGER.info('Starting to add vendors')
         with open(os.path.join(json_dir, 'normal.json')) as data:
             try:
