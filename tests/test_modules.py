@@ -35,8 +35,8 @@ class TestModulesClass(unittest.TestCase):
         # Declare variables
         self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
-        self.sdo_module_filename = 'ietf-yang-types@2013-07-15.yang'
-        self.sdo_module_name = 'ietf-yang-types'
+        self.sdo_module_filename = 'sdo-module@2022-08-05.yang'
+        self.sdo_module_name = 'sdo-module'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.test_private_dir = os.path.join(self.resources_path, 'html/private')
@@ -56,7 +56,6 @@ class TestModulesClass(unittest.TestCase):
     #########################
     # TODO: we should probably have unit tests for the individual Model._resolve* methods
 
-    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     def test_modules_parse_all_sdo_object(self):
         """
         Create modules object from SDO (= ietf) YANG file,
@@ -66,16 +65,13 @@ class TestModulesClass(unittest.TestCase):
 
         yang = SdoModule(self.sdo_module_name, path_to_yang, {}, self.dir_paths, {})
 
-        self.assertEqual(yang.document_name, 'rfc6991')
         self.assertEqual(yang.generated_from, 'not-applicable')
-        self.assertEqual(yang.maturity_level, 'ratified')
         self.assertEqual(yang.module_type, 'module')
-        self.assertEqual(yang.name, 'ietf-yang-types')
-        self.assertEqual(yang.namespace, 'urn:ietf:params:xml:ns:yang:ietf-yang-types')
+        self.assertEqual(yang.name, 'sdo-module')
+        self.assertEqual(yang.namespace, 'testing')
         self.assertEqual(yang.organization, 'ietf')
         self.assertEqual(yang.prefix, 'yang')
-        self.assertEqual(yang.reference, 'https://tools.ietf.org/html/rfc6991')
-        self.assertEqual(yang.revision, '2013-07-15')
+        self.assertEqual(yang.revision, '2022-08-05')
         self.assertEqual(yang.yang_version, '1.0')
 
     def test_modules_parse_all_sdo_object_already_in_keys(self):
@@ -85,7 +81,7 @@ class TestModulesClass(unittest.TestCase):
         Pass keys as an argument so only some properties will be resolved, while other will stay set to None.
         """
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
-        keys = {'ietf-yang-types@2013-07-15/ietf': ''}
+        keys = {'sdo-module@2022-08-05/ietf': ''}
         additional_info = {
             'author-email': 'test@test.test',
             'maturity-level': 'ratified',
@@ -98,35 +94,31 @@ class TestModulesClass(unittest.TestCase):
 
         yang = SdoModule(self.sdo_module_name, path_to_yang, {}, self.dir_paths, keys, additional_info)
 
-        self.assertEqual(yang.name, 'ietf-yang-types')
+        self.assertEqual(yang.name, 'sdo-module')
         self.assertEqual(yang.module_type, 'module')
         self.assertEqual(yang.organization, 'ietf')
-        self.assertEqual(yang.revision, '2013-07-15')
-        self.assertEqual(yang.namespace, 'urn:ietf:params:xml:ns:yang:ietf-yang-types')
+        self.assertEqual(yang.revision, '2022-08-05')
+        self.assertEqual(yang.namespace, 'testing')
 
-    @unittest.skip('https://github.com/YangCatalog/backend/issues/543')
     def test_modules_parse_all_vendor_object(self):
         """
         Create modules object from vendor YANG file,
         and compare object property values.
         """
-        yang_lib_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
-        module_name = yang_lib_data.split('&revision')[0]
-        path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
-        deviation = yang_lib_data.split('&deviations=')[1]
+        yang_lib_data = 'sdo-module&revision=2022-08-05&deviations=vendor-sdo-module-deviations'
+        module_name = 'sdo-module'
+        path_to_yang = os.path.join(yc_gc.save_file_dir, 'sdo-module@2022-08-05.yang')
+        deviation = 'vendor-sdo-module-deviations'
 
         yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=yang_lib_data)
 
-        self.assertEqual(yang.document_name, 'rfc8341')
         self.assertEqual(yang.generated_from, 'not-applicable')
-        self.assertEqual(yang.maturity_level, 'ratified')
         self.assertEqual(yang.module_type, 'module')
         self.assertEqual(yang.name, module_name)
-        self.assertEqual(yang.namespace, 'urn:ietf:params:xml:ns:yang:ietf-netconf-acm')
+        self.assertEqual(yang.namespace, 'testing')
         self.assertEqual(yang.organization, 'ietf')
-        self.assertEqual(yang.prefix, 'nacm')
-        self.assertEqual(yang.reference, 'https://tools.ietf.org/html/rfc8341')
-        self.assertEqual(yang.revision, '2018-02-14')
+        self.assertEqual(yang.prefix, 'yang')
+        self.assertEqual(yang.revision, '2022-08-05')
         self.assertIn(deviation, yang.deviations[0]['name'])
 
     def test_modules_add_vendor_information(self):

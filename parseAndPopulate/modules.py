@@ -73,7 +73,11 @@ class Module:
         self._path = path
         self.yang_models_path = dir_paths['yang_models']
 
-        self._parsed_yang = yangParser.parse(self._path)
+        try:
+            self._parsed_yang = yangParser.parse(self._path)
+        except yangParser.ParseException:
+            LOGGER.exception('Missing yang file {}'.format(self._path))
+            raise
         self.implementations: t.List[Implementation] = []
         self._parse_all(name, yang_modules, additional_info)
 
