@@ -206,7 +206,7 @@ def parse_vendor(search_directory: str, dumper: Dumper, file_hasher: FileHasher,
             try:
                 grouping.parse_and_load()
             except Exception:
-                logger.exception('Skipping {}, error while parsing'.format(filename))
+                logger.exception('Skipping {}, error while parsing'.format(path))
 
 
 if __name__ == '__main__':
