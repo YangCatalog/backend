@@ -358,11 +358,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
                                                              yc_gc.json_ytree)
         complicatedAlgorithms.parse_requests()
         new = complicatedAlgorithms.new_modules
-        self.assertIn({'name': 'n1', 'revision': '1'}, new['e1']['1']['dependents'])
-        self.assertIn({'name': 'n2', 'revision': '1'}, new['e1']['1']['dependents'])
+        self.assertIn({'name': 'n1', 'schema': None}, new['e1']['1']['dependents'])
+        self.assertIn({'name': 'n2', 'schema': None}, new['e1']['1']['dependents'])
         self.assertNotIn('1', new['e2'])
-        self.assertIn({'name': 'n2', 'revision': '1'}, new['n1']['1']['dependents'])
-        self.assertIn({'name': 'e2', 'revision': '1'}, new['n1']['1']['dependents'])
+        self.assertIn({'name': 'n2', 'schema': None}, new['n1']['1']['dependents'])
+        self.assertIn({'name': 'e2', 'schema': None}, new['n1']['1']['dependents'])
         self.assertNotIn('1', new['n2'])
 
     ##########################
