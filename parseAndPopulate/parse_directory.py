@@ -197,16 +197,18 @@ def parse_vendor(search_directory: str, dumper: Dumper, file_hasher: FileHasher,
         for basename in files:
             if fnmatch.fnmatch(basename, '*capabilit*.xml'):
                 path = os.path.join(root, basename)
+                logger.info(f'"{path}" is being processed')
                 grouping = VendorCapabilities(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
             elif fnmatch.fnmatch(basename, '*capabilit*.xml'):
                 path = os.path.join(root, basename)
+                logger.info(f'"{path}" is being processed')
                 grouping = VendorYangLibrary(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
             else:
                 continue
             try:
                 grouping.parse_and_load()
             except Exception:
-                logger.exception('Skipping {}, error while parsing'.format(path))
+                logger.exception(f'Skipping "{path}", error while parsing')
 
 
 if __name__ == '__main__':
