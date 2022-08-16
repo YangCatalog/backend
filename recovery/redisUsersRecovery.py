@@ -28,24 +28,18 @@ import json
 import os
 import time
 
-from redis import Redis
-
 import utility.log as log
+from redis import Redis
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+
 class ScriptConfig:
 
     def __init__(self):
-        self.help = __doc__
-        config = create_config()
-        self.log_directory = config.get('Directory-Section', 'logs')
-        self.temp_dir = config.get('Directory-Section', 'temp')
-        self.cache_directory = config.get('Directory-Section', 'cache')
-        self.redis_host = config.get('DB-Section', 'redis-host')
-        self.redis_port = config.get('DB-Section', 'redis-port')
-        # self.var_yang = config.get('Directory-Section', 'var')
+        self.help = 'Save or load the users database stored on redis. An automatic backup is made' \
+                    ' before a load is performed'
         parser = argparse.ArgumentParser(description=self.help)
         parser.add_argument('--name_save',
                             default=datetime.datetime.utcnow().strftime(backup_date_format),
@@ -81,17 +75,17 @@ def main(scriptConf=None):
     start_time = int(time.time())
     if scriptConf is None:
         scriptConf = ScriptConfig()
-    log_directory = scriptConf.log_directory
-    cache_directory = scriptConf.cache_directory
-    temp_dir = scriptConf.temp_dir
-    redis_host = scriptConf.redis_host
-    redis_port = scriptConf.redis_port
+    config = create_config()
+    log_directory = config.get('Directory-Section', 'logs')
+    temp_dir = config.get('Directory-Section', 'temp')
+    cache_directory = config.get('Directory-Section', 'cache')
+    redis_host = config.get('DB-Section', 'redis-host')
+    redis_port = int(config.get('DB-Section', 'redis-port'))
     args = scriptConf.args
     backups = os.path.join(cache_directory, 'redis-users')
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
     LOGGER.info('Starting {} process of redis users database'.format(args.type))
-
 
     if args.type == 'save':
         data = {}
@@ -144,10 +138,11 @@ def main(scriptConf=None):
                 redis.sadd(key, *value)
             elif isinstance(value, dict):
                 redis.hset(key, mapping=value)
-        
+
         LOGGER.info('Data loaded from {} successfully'.format(file_name))
-    
+
     LOGGER.info('Job finished successfully')
+
 
 if __name__ == '__main__':
     main()
