@@ -42,7 +42,7 @@ from parseAndPopulate.groupings import (IanaDirectory, SdoDirectory,
                                         VendorCapabilities, VendorYangLibrary)
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.util import parse_name, parse_revision, strip_comments
+from utility.util import parse_name, parse_revision, strip_comments, find_files
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -193,22 +193,34 @@ def parse_sdo(search_directory: str, dumper: Dumper, file_hasher: FileHasher, ap
 def parse_vendor(search_directory: str, dumper: Dumper, file_hasher: FileHasher, api: bool,
                  dir_paths: DirPaths, name_rev_to_path: dict, logger: Logger):
     """Parse all yang modules in a vendor directory."""
-    for root, _, files in os.walk(search_directory):
-        for basename in files:
-            if fnmatch.fnmatch(basename, '*capabilit*.xml'):
-                path = os.path.join(root, basename)
-                logger.info(f'"{path}" is being processed')
-                grouping = VendorCapabilities(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
-            elif fnmatch.fnmatch(basename, '*capabilit*.xml'):
-                path = os.path.join(root, basename)
-                logger.info(f'"{path}" is being processed')
-                grouping = VendorYangLibrary(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+    for pattern in ['*capabilit*.xml', '*ietf-yang-library*.xml']:
+        for root, basename in find_files(search_directory, pattern):
+            filename = os.path.join(root, basename)
+            logger.info('Found xml metadata file {}'.format(filename))
+            if pattern == '*capabilit*.xml':
+                grouping = VendorCapabilities(root, filename, dumper, file_hasher, api, dir_paths, name_rev_to_path)
             else:
-                continue
+                grouping = VendorYangLibrary(root, filename, dumper, file_hasher, api, dir_paths, name_rev_to_path)
             try:
                 grouping.parse_and_load()
             except Exception:
-                logger.exception(f'Skipping "{path}", error while parsing')
+                logger.exception('Skipping {}, error while parsing'.format(filename))
+    # for root, _, files in os.walk(search_directory):
+    #     for basename in files:
+    #         if fnmatch.fnmatch(basename, '*capabilit*.xml'):
+    #             path = os.path.join(root, basename)
+    #             logger.info(f'"{path}" is being processed')
+    #             grouping = VendorCapabilities(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+    #         elif fnmatch.fnmatch(basename, '*capabilit*.xml'):
+    #             path = os.path.join(root, basename)
+    #             logger.info(f'"{path}" is being processed')
+    #             grouping = VendorYangLibrary(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+    #         else:
+    #             continue
+    #         try:
+    #             grouping.parse_and_load()
+    #         except Exception:
+    #             logger.exception(f'Skipping "{path}", error while parsing')
 
 
 if __name__ == '__main__':
