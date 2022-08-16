@@ -2,6 +2,16 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.5.0 - 2022-08-16
+
+  * Unit tests covering parse_directory.py (runCapabilities) improved [#543](https://github.com/YangCatalog/backend/issues/543)
+  * Unit tests covering modules.py improved [#543](https://github.com/YangCatalog/backend/issues/543)
+  * Unit tests covering groupings.py improved [#543](https://github.com/YangCatalog/backend/issues/543)
+  * Bugfix: resolving derived-semantic-version in some edge-cases [#548](https://github.com/YangCatalog/backend/issues/548)
+  * schema property creation refactored [#538](https://github.com/YangCatalog/backend/issues/538)
+  * Tracking API access using Matomo [deployment #151](https://github.com/YangCatalog/deployment/issues/151)
+  * resolver classes introduced [#531](https://github.com/YangCatalog/backend/issues/531)
+
 * ##### v5.4.0 - 2022-07-08
 
   * lxml package version bumped

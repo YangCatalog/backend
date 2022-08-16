@@ -1,0 +1,138 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "configurations": [
+    {
+      "name": "Python: Flask API",
+      "type": "python",
+      "request": "launch",
+      "module": "flask",
+      "env": {
+        "FLASK_APP": "${workspaceFolder}/api/yangCatalogApi.py",
+        "FLASK_ENV": "development",
+        "FLASK_DEBUG": "1" // 1 = enable DEBUG mode; 0 = disable DEBUG mode
+      },
+      "justMyCode": false,
+      "args": [
+        "run"
+        // "--no-debugger", // Comment out this line
+        // "--no-reload" // Comment out this line
+      ],
+      "jinja": true
+    },
+    {
+      "name": "populate - RFC",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/parseAndPopulate/populate.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "--sdo",
+        "--dir",
+        "/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
+        "--notify-indexing",
+        "--force-parsing"
+      ]
+    },
+    {
+      "name": "populate - IANA",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/parseAndPopulate/populate.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "--sdo",
+        "--dir",
+        "/var/yang/nonietf/yangmodels/yang/standard/iana",
+        "--notify-indexing",
+        "--force-parsing"
+      ]
+    },
+    {
+      "name": "draftPull",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/ietfYangDraftPull/draftPull.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "draftPullLocal",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/ietfYangDraftPull/draftPullLocal.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "openconfigPullLocal",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/ietfYangDraftPull/openconfigPullLocal.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "statistics",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/statistic/statistics.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}/statistic",
+      "justMyCode": false
+    },
+    {
+      "name": "resolveExpiration",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/utility/resolveExpiration.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "recovery - save",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/recovery/recovery.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "removeUnused",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/utility/removeUnused.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "process-changed-mods",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/elasticsearchIndexing/process-changed-mods.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    },
+    {
+      "name": "receiver",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/api/receiver.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
+    }
+  ]
+}

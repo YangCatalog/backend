@@ -17,9 +17,8 @@ yang.egg-info
 /parseAndPopulate/**/*.yang
 /parseAndPopulate/**/*.xml
 !/parseAndPopulate/template/compilationStatusTemplate.html
-!/parseAndPopulateTest/testJson/prepare.json
 !**/tests/resources/**/*.json
-!/tests/resources/**/*.html
+!**/tests/resources/**/*.html
 !/utility/tests/resources/**/*.json
 !secrets_oidc.json
 # Ignore local versions
@@ -27,6 +26,5 @@ yang-catalog.ini
 yang-catalog.service
 */yang-catalog.ini
 */yang-catalog.service
-/venv/
-/api/test.py
 htmlcov/
+.pytest_cache/*
