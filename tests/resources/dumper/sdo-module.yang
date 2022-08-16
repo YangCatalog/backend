@@ -1,0 +1,6 @@
+module sdo-module {
+  revision 2022-08-05;
+  organization "ietf";
+  namespace "testing";
+  prefix "yang";
+}
