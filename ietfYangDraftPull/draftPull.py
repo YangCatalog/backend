@@ -92,17 +92,17 @@ def main(scriptConf=None):
     LOGGER.info('Starting Cron job IETF pull request')
 
     repo_name = 'yang'
-    repourl = 'https://{}@github.com/{}/{}.git'.format(token, username, repo_name)
+    repourl = f'https://{token}@github.com/{username}/{repo_name}.git'
     commit_author = {
         'name': config_name,
         'email': config_email
     }
 
-    draftPullUtility.update_forked_repository(yang_models, LOGGER)
+    draftPullUtility.update_forked_repository(yang_models, repourl, LOGGER)
     repo = draftPullUtility.clone_forked_repository(repourl, commit_author, LOGGER)
 
     if not repo:
-        error_message = 'Failed to clone repository {}/{}'.format(username, repo_name)
+        error_message = f'Failed to clone repository {username}/{repo_name}'
         job_log(start_time, temp_dir, error=error_message, status='Fail', filename=os.path.basename(__file__))
         sys.exit()
 

@@ -225,30 +225,34 @@ def set_permissions(directory: str) -> None:
             os.chown(os.path.join(root, file), uid, gid)
 
 
-def update_forked_repository(yang_models: str, LOGGER: logging.Logger) -> None:
+def update_forked_repository(yang_models: str, forked_repo_url: str, LOGGER: logging.Logger) -> None:
     """ Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
     Push missing commits to the forked repository if any are missing.
 
     Arguments:
         :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
+        :param forked_repo_url  (str) url to the forked repository
         :param LOGGER           (logging.Logger) formated logger with the specified name
     """
     try:
-        main_repo = repoutil.load(yang_models, '{}/YangModels/yang.git'.format(github_url))
+        main_repo = repoutil.load(yang_models, f'{github_url}/YangModels/yang.git')
         origin = main_repo.repo.remote('origin')
-        fork = main_repo.repo.remote('fork')
+        try:
+            fork = main_repo.repo.remote('fork')
+        except ValueError:
+            fork = main_repo.repo.create_remote('fork', forked_repo_url)
 
         # git fetch --all
         for remote in main_repo.repo.remotes:
             info = remote.fetch('main')[0]
-            LOGGER.info('Remote: {} - Commit: {}'.format(remote.name, info.commit))
+            LOGGER.info(f'Remote: {remote.name} - Commit: {info.commit}')
 
         # git pull origin main
         origin.pull('main')[0]
 
         # git push fork main
         push_info = fork.push('main')[0]
-        LOGGER.info('Push info: {}'.format(push_info.summary))
+        LOGGER.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
             LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
     except GitCommandError:
@@ -269,20 +273,20 @@ def clone_forked_repository(repourl: str, commit_author: dict, LOGGER: logging.L
     repo_name = repourl.split('github.com/')[-1].split('.git')[0]
     while True:
         try:
-            LOGGER.info('Cloning repository from: {}'.format(repourl))
+            LOGGER.info(f'Cloning repository from: {repourl}')
             repo = repoutil.ModifiableRepoUtil(
                 repourl,
                 clone_options={
                     'config_username': commit_author['name'],
                     'config_user_email': commit_author['email']
                 })
-            LOGGER.info('Repository cloned to local directory {}'.format(repo.local_dir))
+            LOGGER.info(f'Repository cloned to local directory {repo.local_dir}')
             break
         except GitCommandError:
             attempts -= 1
-            LOGGER.warning('Unable to clone {} repository - waiting for {} seconds'.format(repo_name, wait_for_seconds))
+            LOGGER.warning(f'Unable to clone {repo_name} repository - waiting for {wait_for_seconds} seconds')
             if attempts == 0:
-                LOGGER.exception('Failed to clone repository {}'.format(repo_name))
+                LOGGER.exception(f'Failed to clone repository {repo_name}')
                 return
             time.sleep(wait_for_seconds)
 
