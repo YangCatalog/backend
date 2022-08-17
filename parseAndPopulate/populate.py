@@ -40,17 +40,16 @@ from argparse import Namespace
 from importlib import import_module
 
 import requests
+
 import utility.log as log
+from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
-
-from parseAndPopulate.file_hasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -76,7 +75,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--dir',
                 'help': 'Set directory where to look for hello message xml files',
                 'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+                'default': '/var/yang/nonietf/yangmodels/yang/vendor/huawei/network-router/8.20.0/atn980b'
             },
             {
                 'flag': '--api',
@@ -179,7 +178,7 @@ def create_dir_name(temp_dir: str) -> str:
         new_dir_name = os.path.join(temp_dir, str(i))
         if not os.path.exists(new_dir_name):
             break
-    return os.path.join(temp_dir, str(i))
+    return new_dir_name
 
 
 def main(scriptConf=None):

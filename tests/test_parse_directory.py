@@ -19,7 +19,6 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import os
 import shutil
-import typing as t
 import unittest
 from unittest import mock
 
