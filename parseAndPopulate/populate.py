@@ -75,7 +75,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--dir',
                 'help': 'Set directory where to look for hello message xml files',
                 'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/iana'
+                'default': '/var/yang/nonietf/yangmodels/yang/vendor/huawei/network-router/8.20.0/atn980b'
             },
             {
                 'flag': '--api',
