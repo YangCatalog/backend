@@ -240,7 +240,11 @@ def update_forked_repository(yang_models: str, forked_repo_url: str, LOGGER: log
         try:
             fork = main_repo.repo.remote('fork')
         except ValueError:
+            git_config_lock_file = os.path.join(yang_models, '.git', 'config.lock')
+            if os.path.exists(git_config_lock_file):
+                os.remove(git_config_lock_file)
             fork = main_repo.repo.create_remote('fork', forked_repo_url)
+            os.mknod(git_config_lock_file)
 
         # git fetch --all
         for remote in main_repo.repo.remotes:
