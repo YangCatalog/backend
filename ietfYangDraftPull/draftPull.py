@@ -150,12 +150,7 @@ def main(scriptConf=None):
 
         # Experimental draft modules
         experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
-        try:
-            os.makedirs(experimental_path)
-        except OSError as e:
-            # be happy if someone already created the path
-            if e.errno != errno.EEXIST:
-                raise
+        os.makedirs(experimental_path, exist_ok=True)
 
         LOGGER.info('Updating IETF drafts download links')
         draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
