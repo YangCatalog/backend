@@ -75,7 +75,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--dir',
                 'help': 'Set directory where to look for hello message xml files',
                 'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+                'default': '/var/yang/nonietf/yangmodels/yang/standard/iana'
             },
             {
                 'flag': '--api',
@@ -87,7 +87,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--sdo',
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
-                'default': True
+                'default': False
             },
             {
                 'flag': '--notify-indexing',
@@ -178,7 +178,7 @@ def create_dir_name(temp_dir: str) -> str:
         new_dir_name = os.path.join(temp_dir, str(i))
         if not os.path.exists(new_dir_name):
             break
-    return os.path.join(temp_dir, str(i))
+    return new_dir_name
 
 
 def main(scriptConf=None):
