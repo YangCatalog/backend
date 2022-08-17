@@ -88,7 +88,7 @@ def main(scriptConf=None):
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     is_production = config.get('General-Section', 'is-prod')
     is_production = is_production == 'True'
-    LOGGER = log.get_logger('draftPull', '{}/jobs/draft-pull.log'.format(log_directory))
+    LOGGER = log.get_logger('draftPull', f'{log_directory}/jobs/draft-pull.log')
     LOGGER.info('Starting Cron job IETF pull request')
 
     repo_name = 'yang'
