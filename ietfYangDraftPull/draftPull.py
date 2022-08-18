@@ -118,7 +118,7 @@ def main(scriptConf=None):
             diff_files = []
             new_files = []
 
-            temp_rfc_yang_files = glob.glob('{}/standard/ietf/RFCtemp/*.yang'.format(repo.local_dir))
+            temp_rfc_yang_files = glob.glob(f'{repo.local_dir}/standard/ietf/RFCtemp/*.yang')
             for temp_rfc_yang_file in temp_rfc_yang_files:
                 file_name = os.path.basename(temp_rfc_yang_file)
                 rfc_yang_file = temp_rfc_yang_file.replace('RFCtemp', 'RFC')
@@ -155,10 +155,10 @@ def main(scriptConf=None):
         LOGGER.info('Updating IETF drafts download links')
         draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
 
-        LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
+        LOGGER.info(f'Checking module filenames without revision in {experimental_path}')
         draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
 
-        LOGGER.info('Checking for early revision in {}'.format(experimental_path))
+        LOGGER.info(f'Checking for early revision in {experimental_path}')
         draftPullUtility.check_early_revisions(experimental_path, LOGGER)
 
         messages = []
@@ -171,17 +171,17 @@ def main(scriptConf=None):
             repo.commit_all('Cronjob - every day pull of ietf draft yang files.')
             LOGGER.info('Pushing files to forked repository')
             commit_hash = repo.repo.head.commit
-            LOGGER.info('Commit hash {}'.format(commit_hash))
+            LOGGER.info(f'Commit hash {commit_hash}')
             with open(commit_dir, 'w+') as f:
-                f.write('{}\n'.format(commit_hash))
+                f.write(f'{commit_hash}\n')
             if is_production:
                 LOGGER.info('Pushing untracked and modified files to remote repository')
                 repo.push()
             else:
                 LOGGER.info('DEV environment - not pushing changes into remote repository')
-                LOGGER.debug('List of all untracked and modified files:\n{}'.format('\n'.join(untracked_files)))
+                LOGGER.debug(f'List of all untracked and modified files:\n{"\n".join(untracked_files)}')
         except GitCommandError as e:
-            message = 'Error while pushing procedure - git command error: \n {} \n git command out: \n {}'.format(e.stderr, e.stdout)
+            message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
             if 'Your branch is up to date' in e.stdout:
                 LOGGER.warning(message)
                 messages = [
@@ -191,8 +191,7 @@ def main(scriptConf=None):
                 LOGGER.exception('Error while pushing procedure - Git command error')
                 raise e
         except Exception as e:
-            LOGGER.exception(
-                'Error while pushing procedure {}'.format(sys.exc_info()[0]))
+            LOGGER.exception(f'Error while pushing procedure {sys.exc_info()[0]}')
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
@@ -201,7 +200,7 @@ def main(scriptConf=None):
 
     if len(messages) == 0:
         messages = [
-            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}  # pyright: ignore
+            {'label': 'Pull request created', 'message': f'True - {commit_hash}'}  # pyright: ignore
         ]
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')

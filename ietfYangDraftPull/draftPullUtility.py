@@ -64,7 +64,7 @@ def get_latest_revision(path: str, LOGGER: logging.Logger):
         assert result
         rev = result.arg
     except Exception:
-        LOGGER.error('Cannot yangParser.parse {}'.format(path))
+        LOGGER.error(f'Cannot yangParser.parse {path}')
         rev = None  # In case of invalid YANG syntax, None is returned
 
     return rev
@@ -82,7 +82,7 @@ def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger) -> None
         :param directory    (str) full path to directory with yang modules
         :param LOGGER       (logging.Logger) formated logger with the specified name
     """
-    LOGGER.debug('Checking revision for directory: {}'.format(directory))
+    LOGGER.debug(f'Checking revision for directory: {directory}')
     for _, _, files in os.walk(directory):
         for basename in files:
             if '@' in basename:
@@ -134,12 +134,12 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                         day = int(revision.split('-')[2])
                     except ValueError:
                         # Revision contained invalid characters
-                        LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
+                        LOGGER.exception(f'Failed to process revision for {f2}: (rev: {revision})')
                         continue
                     try:
                         revisions.append(datetime(year, month, day))
                     except ValueError:
-                        LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
+                        LOGGER.exception('Failed to process revision for {f2}: (rev: {revision})')
                         if month == 2 and day == 29:
                             revisions.append(datetime(year, month, 28))
                         else:
@@ -172,7 +172,7 @@ def get_draft_module_content(experimental_path: str, config: configparser.Config
     try:
         ietf_draft_json = response.json()
     except json.decoder.JSONDecodeError:
-        LOGGER.error('Unable to get content of {} file'.format(os.path.basename(ietf_draft_url)))
+        LOGGER.error(f'Unable to get content of {os.path.basename(ietf_draft_url)} file')
     for key in ietf_draft_json:
         filename = os.path.join(experimental_path, key)
         with open(filename, 'w+') as yang_file:
@@ -182,7 +182,7 @@ def get_draft_module_content(experimental_path: str, config: configparser.Config
                 yang_raw = requests.get(yang_download_link).text
                 yang_file.write(yang_raw)
             except ConnectionError:
-                LOGGER.error('Unable to retreive content of {} - {}'.format(key, yang_download_link))
+                LOGGER.error(f'Unable to retreive content of {key} - {yang_download_link}')
                 yang_file.write('')
 
 

@@ -74,7 +74,7 @@ def main(scriptConf=None):
     iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
     is_production = config.get('General-Section', 'is-prod')
     is_production = is_production == 'True'
-    LOGGER = log.get_logger('ianaPull', '{}/jobs/iana-pull.log'.format(log_directory))
+    LOGGER = log.get_logger('ianaPull', f'{log_directory}/jobs/iana-pull.log')
     LOGGER.info('Starting job to pull IANA-maintained modules')
 
     repo_name = 'yang'
@@ -111,13 +111,13 @@ def main(scriptConf=None):
         if not os.path.exists(iana_standard_path):
             os.makedirs(iana_standard_path)
         xml_path = os.path.join(iana_temp_path, 'yang-parameters.xml')
-        copy2(xml_path, '{}/standard/iana/yang-parameters.xml'.format(repo.local_dir))
+        copy2(xml_path, f'{repo.local_dir}/standard/iana/yang-parameters.xml')
 
         # Parse yang-parameters.xml file
         root = ET.parse(xml_path).getroot()
         tag = root.tag
         namespace = tag.split('registry')[0]
-        modules = root.iter('{}record'.format(namespace))
+        modules = root.iter(f'{namespace}record')
 
         for module in modules:
             data = module.attrib
@@ -132,10 +132,10 @@ def main(scriptConf=None):
                 dst = os.path.join(repo.local_dir, 'standard/iana', data['file'])
                 copy2(src, dst)
 
-        LOGGER.info('Checking module filenames without revision in {}'.format(iana_standard_path))
+        LOGGER.info(f'Checking module filenames without revision in {iana_standard_path}')
         draftPullUtility.check_name_no_revision_exist(iana_standard_path, LOGGER)
 
-        LOGGER.info('Checking for early revision in {}'.format(iana_standard_path))
+        LOGGER.info(f'Checking for early revision in {iana_standard_path}')
         draftPullUtility.check_early_revisions(iana_standard_path, LOGGER)
 
         messages = []
@@ -148,17 +148,17 @@ def main(scriptConf=None):
             repo.commit_all('Cronjob - every day pull of iana yang files')
             LOGGER.info('Pushing files to forked repository')
             commit_hash = repo.repo.head.commit
-            LOGGER.info('Commit hash {}'.format(commit_hash))
+            LOGGER.info(f'Commit hash {commit_hash}')
             with open(commit_dir, 'w+') as f:
-                f.write('{}\n'.format(commit_hash))
+                f.write(f'{commit_hash}\n')
             if is_production:
                 LOGGER.info('Pushing untracked and modified files to remote repository')
                 repo.push()
             else:
                 LOGGER.info('DEV environment - not pushing changes into remote repository')
-                LOGGER.debug('List of all untracked and modified files:\n{}'.format('\n'.join(untracked_files)))
+                LOGGER.debug(f'List of all untracked and modified files:\n{"\n".join(untracked_files)}')
         except GitCommandError as e:
-            message = 'Error while pushing procedure - git command error: \n {} \n git command out: \n {}'.format(e.stderr, e.stdout)
+            message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
             if 'Your branch is up to date' in e.stdout:
                 LOGGER.warning(message)
                 messages = [
@@ -168,8 +168,7 @@ def main(scriptConf=None):
                 LOGGER.exception('Error while pushing procedure - Git command error')
                 raise e
         except Exception as e:
-            LOGGER.exception(
-                'Error while pushing procedure {}'.format(sys.exc_info()[0]))
+            LOGGER.exception(f'Error while pushing procedure {sys.exc_info()[0]}')
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
@@ -181,7 +180,7 @@ def main(scriptConf=None):
 
     if len(messages) == 0:
         messages = [
-            {'label': 'Pull request created', 'message': 'True - {}'.format(commit_hash)}  # pyright: ignore
+            {'label': 'Pull request created', 'message': f'True - {commit_hash}'}  # pyright: ignore
         ]
     job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
     LOGGER.info('Job finished successfully')
