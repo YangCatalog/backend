@@ -152,7 +152,8 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
         for file_to_delete in files_to_delete:
             if 'iana-if-type' in file_to_delete:
                 break
-            os.remove(os.path.join(directory, file_to_delete))
+            if os.path.exists((path := os.path.join(directory, file_to_delete))):
+                os.remove(path)
 
 
 def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, LOGGER: logging.Logger) -> None:
