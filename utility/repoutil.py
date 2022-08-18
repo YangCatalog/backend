@@ -76,10 +76,10 @@ class RepoUtil:
                     if submodule.path in path:
                         return load(os.path.join(self.local_dir, submodule.path), submodule._url) \
                             .get_commit_hash(path, branch)
-            return self.repo.commit('origin/{}'.format(branch)).hexsha
+            return self.repo.commit(f'origin/{branch}').hexsha
         except BadName:
             if self.logger:
-                self.logger.error('Git branch - {} - could not be resolved'.format(branch))
+                self.logger.error(f'Git branch - {branch} - could not be resolved')
             return branch
 
     def get_repo_owner(self) -> str:

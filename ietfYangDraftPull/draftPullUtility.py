@@ -64,7 +64,7 @@ def get_latest_revision(path: str, LOGGER: logging.Logger):
         assert result
         rev = result.arg
     except Exception:
-        LOGGER.error('Cannot yangParser.parse {}'.format(path))
+        LOGGER.error(f'Cannot yangParser.parse {path}')
         rev = None  # In case of invalid YANG syntax, None is returned
 
     return rev
@@ -82,7 +82,7 @@ def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger) -> None
         :param directory    (str) full path to directory with yang modules
         :param LOGGER       (logging.Logger) formated logger with the specified name
     """
-    LOGGER.debug('Checking revision for directory: {}'.format(directory))
+    LOGGER.debug(f'Checking revision for directory: {directory}')
     for _, _, files in os.walk(directory):
         for basename in files:
             if '@' in basename:
@@ -134,12 +134,12 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                         day = int(revision.split('-')[2])
                     except ValueError:
                         # Revision contained invalid characters
-                        LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
+                        LOGGER.exception(f'Failed to process revision for {f2}: (rev: {revision})')
                         continue
                     try:
                         revisions.append(datetime(year, month, day))
                     except ValueError:
-                        LOGGER.exception('Failed to process revision for {}: (rev: {})'.format(f2, revision))
+                        LOGGER.exception('Failed to process revision for {f2}: (rev: {revision})')
                         if month == 2 and day == 29:
                             revisions.append(datetime(year, month, 28))
                         else:
@@ -172,7 +172,7 @@ def get_draft_module_content(experimental_path: str, config: configparser.Config
     try:
         ietf_draft_json = response.json()
     except json.decoder.JSONDecodeError:
-        LOGGER.error('Unable to get content of {} file'.format(os.path.basename(ietf_draft_url)))
+        LOGGER.error(f'Unable to get content of {os.path.basename(ietf_draft_url)} file')
     for key in ietf_draft_json:
         filename = os.path.join(experimental_path, key)
         with open(filename, 'w+') as yang_file:
@@ -182,7 +182,7 @@ def get_draft_module_content(experimental_path: str, config: configparser.Config
                 yang_raw = requests.get(yang_download_link).text
                 yang_file.write(yang_raw)
             except ConnectionError:
-                LOGGER.error('Unable to retreive content of {} - {}'.format(key, yang_download_link))
+                LOGGER.error(f'Unable to retreive content of {key} - {yang_download_link}')
                 yang_file.write('')
 
 
@@ -225,30 +225,38 @@ def set_permissions(directory: str) -> None:
             os.chown(os.path.join(root, file), uid, gid)
 
 
-def update_forked_repository(yang_models: str, LOGGER: logging.Logger) -> None:
+def update_forked_repository(yang_models: str, forked_repo_url: str, LOGGER: logging.Logger) -> None:
     """ Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
     Push missing commits to the forked repository if any are missing.
 
     Arguments:
         :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
+        :param forked_repo_url  (str) url to the forked repository
         :param LOGGER           (logging.Logger) formated logger with the specified name
     """
     try:
-        main_repo = repoutil.load(yang_models, '{}/YangModels/yang.git'.format(github_url))
+        main_repo = repoutil.load(yang_models, f'{github_url}/YangModels/yang.git')
         origin = main_repo.repo.remote('origin')
-        fork = main_repo.repo.remote('fork')
+        try:
+            fork = main_repo.repo.remote('fork')
+        except ValueError:
+            git_config_lock_file = os.path.join(yang_models, '.git', 'config.lock')
+            if os.path.exists(git_config_lock_file):
+                os.remove(git_config_lock_file)
+            fork = main_repo.repo.create_remote('fork', forked_repo_url)
+            os.mknod(git_config_lock_file)
 
         # git fetch --all
         for remote in main_repo.repo.remotes:
             info = remote.fetch('main')[0]
-            LOGGER.info('Remote: {} - Commit: {}'.format(remote.name, info.commit))
+            LOGGER.info(f'Remote: {remote.name} - Commit: {info.commit}')
 
         # git pull origin main
         origin.pull('main')[0]
 
         # git push fork main
         push_info = fork.push('main')[0]
-        LOGGER.info('Push info: {}'.format(push_info.summary))
+        LOGGER.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
             LOGGER.warning('yang-catalog/yang repo might not be up-to-date')
     except GitCommandError:
@@ -269,20 +277,20 @@ def clone_forked_repository(repourl: str, commit_author: dict, LOGGER: logging.L
     repo_name = repourl.split('github.com/')[-1].split('.git')[0]
     while True:
         try:
-            LOGGER.info('Cloning repository from: {}'.format(repourl))
+            LOGGER.info(f'Cloning repository from: {repourl}')
             repo = repoutil.ModifiableRepoUtil(
                 repourl,
                 clone_options={
                     'config_username': commit_author['name'],
                     'config_user_email': commit_author['email']
                 })
-            LOGGER.info('Repository cloned to local directory {}'.format(repo.local_dir))
+            LOGGER.info(f'Repository cloned to local directory {repo.local_dir}')
             break
         except GitCommandError:
             attempts -= 1
-            LOGGER.warning('Unable to clone {} repository - waiting for {} seconds'.format(repo_name, wait_for_seconds))
+            LOGGER.warning(f'Unable to clone {repo_name} repository - waiting for {wait_for_seconds} seconds')
             if attempts == 0:
-                LOGGER.exception('Failed to clone repository {}'.format(repo_name))
+                LOGGER.exception(f'Failed to clone repository {repo_name}')
                 return
             time.sleep(wait_for_seconds)
 
