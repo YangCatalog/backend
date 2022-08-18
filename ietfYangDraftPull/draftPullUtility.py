@@ -108,52 +108,51 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
         :param directory    (str) full path to directory with yang modules
         :param LOGGER       (logging.Logger) formated logger with the specified name
     """
-    for f in os.listdir(directory):
-        # Extract the YANG module name from the filename
-        module_name = f.split('.yang')[0].split('@')[0]   # Beware of some invalid file names such as '@2015-03-09.yang'
+    get_module_name = lambda filename: filename.split('.yang')[0].split('@')[0]
+    is_revision_part_valid = lambda revision_part: revision_part.startswith('.') or revision_part.startswith('@')
+    for filename in (filenames := os.listdir(directory)):
+        module_name = get_module_name(filename)  # Beware of some invalid file names such as '@2015-03-09.yang'
         if module_name == '':
             continue
         files_to_delete = []
         revisions = []
-        for f2 in os.listdir(directory):
-            # Same module name ?
-            if f2.split('.yang')[0].split('@')[0] == module_name:
-                if f2.split(module_name)[1].startswith('.') or f2.split(module_name)[1].startswith('@'):
-                    files_to_delete.append(f2)
-                    revision = f2.split(module_name)[1].split('.')[0].replace('@', '')
-                    if revision == '':
-                        yang_file_path = os.path.join(directory, f2)
-                        revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
-                        if revision is None:
-                            continue
-
-                    # Basic date extraction can fail if there are alphanumeric characters in the revision filename part
-                    try:
-                        year = int(revision.split('-')[0])
-                        month = int(revision.split('-')[1])
-                        day = int(revision.split('-')[2])
-                    except ValueError:
-                        # Revision contained invalid characters
-                        LOGGER.exception(f'Failed to process revision for {f2}: (rev: {revision})')
-                        continue
-                    try:
-                        revisions.append(datetime(year, month, day))
-                    except ValueError:
-                        LOGGER.exception(f'Failed to process revision for {f2}: (rev: {revision})')
-                        if month == 2 and day == 29:
-                            revisions.append(datetime(year, month, 28))
-                        else:
-                            continue
-        # Single revision...
-        if len(revisions) == 0:
+        for nested_filename in filenames:
+            if get_module_name(nested_filename) != module_name:
+                continue
+            nested_filename_revision_part = nested_filename.split(module_name)[1]
+            if not is_revision_part_valid(nested_filename_revision_part):
+                continue
+            files_to_delete.append(nested_filename)
+            revision = nested_filename_revision_part.split('.')[0].replace('@', '')
+            if revision == '':
+                yang_file_path = os.path.join(directory, nested_filename)
+                revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
+                if revision is None:
+                    continue
+            try:
+                revision_date = revision.split('-')
+                year = int(revision_date[0])
+                month = int(revision_date[1])
+                day = int(revision_date[2])
+            except ValueError:
+                # Revision filename contained invalid characters such as alphanumeric characters
+                LOGGER.exception(f'Failed to process revision for {nested_filename}: (rev: {revision})')
+                continue
+            try:
+                revisions.append(datetime(year, month, day))
+            except ValueError:
+                LOGGER.exception(f'Failed to process revision for {nested_filename}: (rev: {revision})')
+                if month == 2 and day == 29:
+                    revisions.append(datetime(year, month, 28))
+        if len(revisions) == 0:  # Single revision...
             continue
         # Keep the latest (max) revision and delete the rest
         latest = revisions.index(max(revisions))
         files_to_delete.remove(files_to_delete[latest])
-        for fi in files_to_delete:
-            if 'iana-if-type' in fi:
+        for file_to_delete in files_to_delete:
+            if 'iana-if-type' in file_to_delete:
                 break
-            os.remove(os.path.join(directory, fi))
+            os.remove(os.path.join(directory, file_to_delete))
 
 
 def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, LOGGER: logging.Logger) -> None:
