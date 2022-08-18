@@ -156,7 +156,8 @@ def main(scriptConf=None):
                 repo.push()
             else:
                 LOGGER.info('DEV environment - not pushing changes into remote repository')
-                LOGGER.debug(f'List of all untracked and modified files:\n{"\n".join(untracked_files)}')
+                untracked_files_list = '\n'.join(untracked_files)
+                LOGGER.debug(f'List of all untracked and modified files:\n{untracked_files_list}')
         except GitCommandError as e:
             message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
             if 'Your branch is up to date' in e.stdout:

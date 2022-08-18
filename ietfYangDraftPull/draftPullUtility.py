@@ -139,7 +139,7 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                     try:
                         revisions.append(datetime(year, month, day))
                     except ValueError:
-                        LOGGER.exception('Failed to process revision for {f2}: (rev: {revision})')
+                        LOGGER.exception(f'Failed to process revision for {f2}: (rev: {revision})')
                         if month == 2 and day == 29:
                             revisions.append(datetime(year, month, 28))
                         else:
