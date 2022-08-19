@@ -129,21 +129,13 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                 revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
                 if revision is None:
                     continue
-            try:
-                revision_date = revision.split('-')
-                year = int(revision_date[0])
-                month = int(revision_date[1])
-                day = int(revision_date[2])
-            except ValueError:
-                # Revision filename contained invalid characters such as alphanumeric characters
-                LOGGER.exception(f'Failed to process revision for {nested_filename}: (rev: {revision})')
+            revision = convert_revision_to_datetime(revision)
+            if revision:
+                revisions.append(revision)
                 continue
-            try:
-                revisions.append(datetime(year, month, day))
-            except ValueError:
-                LOGGER.exception(f'Failed to process revision for {nested_filename}: (rev: {revision})')
-                if month == 2 and day == 29:
-                    revisions.append(datetime(year, month, 28))
+            # Probably revision filename contained invalid characters such as alphanumeric characters
+            LOGGER.exception(f'Failed to process revision for {nested_filename}: (rev: {revision})')
+            revisions.append(revision)
         if len(revisions) == 0:  # Single revision...
             continue
         # Keep the latest (max) revision and delete the rest
@@ -154,6 +146,28 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                 break
             if os.path.exists((path := os.path.join(directory, file_to_delete))):
                 os.remove(path)
+                
+                
+def convert_revision_to_datetime(revision: str) -> t.Optional[datetime]:
+    """
+    This function tries to convert revision to a datetime object,
+    in case of any exception returns None.
+
+    Arguments:
+        :param revision (str) yang module revision, looks like "2015-03-09"
+    """
+    try:
+        revision_date = revision.split('-')
+        year = int(revision_date[0])
+        month = int(revision_date[1])
+        day = int(revision_date[2])
+    except ValueError:
+        return
+    try:
+        return datetime(year, month, day)
+    except ValueError:
+        if month == 2 and day == 29:
+            return datetime(year, month, 28)
 
 
 def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, LOGGER: logging.Logger) -> None:
