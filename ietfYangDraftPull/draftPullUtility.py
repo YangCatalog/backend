@@ -108,7 +108,6 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
         :param directory    (str) full path to directory with yang modules
         :param LOGGER       (logging.Logger) formated logger with the specified name
     """
-    is_revision_part_valid = lambda revision_part: revision_part.startswith('.') or revision_part.startswith('@')
     for filename in (filenames := os.listdir(directory)):
         module_name = get_module_name(filename)  # Beware of some invalid file names such as '@2015-03-09.yang'
         if module_name == '':
@@ -149,6 +148,10 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                 
 def get_module_name(filename: str) -> str:
     return filename.split('.yang')[0].split('@')[0]
+
+
+def is_revision_part_valid(revision_part: str) -> str:
+    return revision_part.startswith('.') or revision_part.startswith('@')
                 
                 
 def convert_revision_to_datetime(revision: str) -> t.Optional[datetime]:
