@@ -4,6 +4,13 @@ from dataclasses import dataclass
 from piwikapi.tests.request import FakeRequest
 from piwikapi.tracking import PiwikTracker
 
+DO_NOT_TRACK_PATHS = [
+    '/api/job/',
+    '/api/yang-search/v2/completions',
+    '/api/healthcheck',
+    '/api/admin'
+]
+
 
 @dataclass
 class MatomoTrackerData:
@@ -51,6 +58,9 @@ def record_analytic(headers: dict, data: MatomoTrackerData, client_ip: t.Optiona
 
 def should_skip(headers: dict) -> bool:
     """ Check whether the request is not just a ping. """
-    return '/api/' not in headers.get('PATH_INFO', '') \
-        or 'api/healthcheck' in headers.get('PATH_INFO', '') \
-        or 'api/admin' in headers.get('PATH_INFO', '')
+    if '/api/' not in headers.get('PATH_INFO', ''):
+        return True
+    for path in DO_NOT_TRACK_PATHS:
+        if path in headers.get('PATH_INFO', ''):
+            return True
+    return False
