@@ -44,11 +44,10 @@ class RedisUsersConnection:
         self._redis_port = config.get('DB-Section', 'redis-port')
         if db is None:
             db = config.get('DB-Section', 'redis-users-db', fallback=2)
-        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db) # pyright: ignore
+        self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)  # pyright: ignore
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.LOGGER = log.get_logger('redisUsersConnection', '{}/redisUsersConnection.log'.format(self.log_directory))
-
 
     def username_exists(self, username: str) -> bool:
         return self.redis.hexists('usernames', username)
@@ -117,6 +116,11 @@ class RedisUsersConnection:
     def get_all_fields(self, id: t.Union[str, int]) -> dict:
         r = {}
         for field in self._universal_fields:
+            # Remove milliseconds - should be after '.'
+            if field == 'registration-datetime':
+                raw_date = self.get_field(id, field).split('.')[0]
+                r[field] = raw_date
+                continue
             r[field] = self.get_field(id, field)
         if self.is_temp(id):
             for field in self._temp_fields:
