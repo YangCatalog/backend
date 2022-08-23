@@ -40,6 +40,8 @@ from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.util import job_log
 
+current_file_basename = os.path.basename(__file__)
+
 
 class ScriptConfig(BaseScriptConfig):
 
@@ -90,7 +92,7 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
         if ref.isdigit():
             ref = reference.split('/')[-2]
             rev = reference.split('/')[-1]
-        url = ('https://datatracker.ietf.org/api/v1/doc/document/?name={}&states__type=draft&states__slug__in=active,RFC&format=json'.format(ref))
+        url = f'https://datatracker.ietf.org/api/v1/doc/document/?name={ref}&states__type=draft&states__slug__in=active,RFC&format=json'
         retry = 6
         while True:
             try:
@@ -98,10 +100,10 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
                 break
             except Exception as e:
                 retry -= 1
-                LOGGER.warning('Failed to fetch file content of {}'.format(ref))
+                LOGGER.warning(f'Failed to fetch file content of {ref}')
                 time.sleep(10)
                 if retry == 0:
-                    LOGGER.error('Failed to fetch file content of {} for 6 times in a row - SKIPPING.'.format(ref))
+                    LOGGER.error(f'Failed to fetch file content of {ref} for 6 times in a row - SKIPPING.')
                     LOGGER.error(e)
                     datatracker_failures.append(url)
                     return None
@@ -129,9 +131,12 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
     expires_changed = __expires_change(module.get('expires'), expires)
 
     if expires_changed or expired_changed:
-        yang_name_rev = '{}@{}'.format(module['name'], module['revision'])
-        LOGGER.info('Module {} changing expiration\nFROM: expires: {} expired: {}\nTO: expires: {} expired: {}'
-                    .format(yang_name_rev, module.get('expires'), module.get('expired'), expires, expired))
+        yang_name_rev = f'{module["name"]}@{module["revision"]}'
+        LOGGER.info(
+            f'Module {yang_name_rev} changing expiration\n'
+            f'FROM: expires: {module.get("expires")} expired: {module.get("expired")}\n'
+            f'TO: expires: {expires} expired: {expired}'
+        )
 
         if expires is not None:
             module['expires'] = expires
@@ -144,9 +149,9 @@ def resolve_expiration(module: dict, LOGGER: logging.Logger, datatracker_failure
             module.pop('expires', None)
 
             if result:
-                LOGGER.info('expires property removed from {}'.format(yang_name_rev))
+                LOGGER.info(f'expires property removed from {yang_name_rev}')
             else:
-                LOGGER.error('Error while removing expires property from {}'.format(yang_name_rev))
+                LOGGER.error(f'Error while removing expires property from {yang_name_rev}')
         return True
     else:
         return False
@@ -163,7 +168,8 @@ def main(scriptConf=None):
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('resolveExpiration', '{}/jobs/resolveExpiration.log'.format(log_directory))
+    LOGGER = log.get_logger('resolveExpiration', f'{log_directory}/jobs/resolveExpiration.log')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
     revision_updated_modules = 0
     datatracker_failures = []
@@ -171,21 +177,17 @@ def main(scriptConf=None):
     redis_connection = RedisConnection()
     LOGGER.info('Starting Cron job resolve modules expiration')
     try:
-        LOGGER.info('Requesting all the modules from {}'.format(yangcatalog_api_prefix))
+        LOGGER.info(f'Requesting all the modules from {yangcatalog_api_prefix}')
         updated = False
 
-        response = requests.get('{}/search/modules'.format(yangcatalog_api_prefix))
+        response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
         if response.status_code < 200 or response.status_code > 299:
-            LOGGER.error('Request on path {} failed with {}'
-                         .format(yangcatalog_api_prefix, response.text))
+            LOGGER.error(f'Request on path {yangcatalog_api_prefix} failed with {response.text}')
         else:
-            LOGGER.debug('{} modules fetched from {} successfully'
-                         .format(len(response.json().get('module', [])), yangcatalog_api_prefix))
+            LOGGER.debug(f'{len(response.json().get("module", []))} modules fetched from {yangcatalog_api_prefix} successfully')
         modules = response.json().get('module', [])
-        i = 1
-        for module in modules:
-            LOGGER.debug('{} out of {}'.format(i, len(modules)))
-            i += 1
+        for i, module in enumerate(modules, 1):
+            LOGGER.debug(f'{i} out of {len(modules)}')
             ret = resolve_expiration(module, LOGGER, datatracker_failures, redis_connection)
             if ret:
                 revision_updated_modules += 1
@@ -193,21 +195,21 @@ def main(scriptConf=None):
                 updated = ret
         if updated:
             redis_connection.populate_modules(modules)
-            url = ('{}/load-cache'.format(yangcatalog_api_prefix))
+            url = f'{yangcatalog_api_prefix}/load-cache'
             response = requests.post(url, None, auth=(credentials[0], credentials[1]))
-            LOGGER.info('Cache loaded with status {}'.format(response.status_code))
+            LOGGER.info(f'Cache loaded with status {response.status_code}')
     except Exception as e:
         LOGGER.exception('Exception found while running resolveExpiration script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
         raise e
     if len(datatracker_failures) > 0:
-        LOGGER.debug('Following references failed to get from the datatracker:\n {}'
-                     .format('\n'.join(datatracker_failures)))
+        datatracker_failures_to_write = '\n'.join(datatracker_failures)
+        LOGGER.debug(f'Following references failed to get from the datatracker:\n{datatracker_failures_to_write}')
     messages = [
         {'label': 'Modules with changed revison', 'message': revision_updated_modules},
         {'label': 'Datatracker modules failures', 'message': len(datatracker_failures)}
     ]
-    job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
+    job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

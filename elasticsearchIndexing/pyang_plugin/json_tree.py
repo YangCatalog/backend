@@ -75,9 +75,7 @@ def emit_tree(modules, fd, ctx):
                     hasattr(augment.i_target_node, 'i_module')
                 except:
                     continue
-                aug = {}
-                aug['augment_children'] = []
-                aug['augment_path'] = augment.arg
+                aug = {'augment_children': [], 'augment_path': augment.arg}
                 if (hasattr(augment.i_target_node, 'i_module') and
                         augment.i_target_node.i_module not in modules + mods):
                     aug['augment_children'].extend(get_children(
@@ -224,29 +222,24 @@ def typestring(node):
 
     def get_nontypedefstring(node):
         s = {}
-        found = False
         t = node.search_one('type')
         if t is not None:
             s['type'] = t.arg
             if t.arg == 'enumeration':
-                found = True
                 s['enumeration'] = []
                 for enums in t.substmts:
                     s['enumeration'].append(enums.arg)
             elif t.arg == 'leafref':
-                found = True
                 p = t.search_one('path')
                 if p is not None:
                     s['path'] = p.arg
 
             elif t.arg == 'identityref':
-                found = True
                 b = t.search_one('base')
                 if b is not None:
                     s['base'] = b.arg
 
             elif t.arg == 'union':
-                found = True
                 uniontypes = t.search('type')
                 s['union'] = [uniontypes[0].arg]
                 for uniontype in uniontypes[1:]:
@@ -254,16 +247,13 @@ def typestring(node):
 
             typerange = t.search_one('range')
             if typerange is not None:
-                found = True
                 s['type_range'] = typerange.arg
             length = t.search_one('length')
             if length is not None:
-                found = True
                 s['length'] = length.arg
 
             pattern = t.search_one('pattern')
             if pattern is not None:
-                found = True
                 s['pattern'] = json_escape(pattern.arg)
         return s
 

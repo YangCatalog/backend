@@ -43,6 +43,8 @@ from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+current_file_basename = os.path.basename(__file__)
+
 
 class ScriptConfig(BaseScriptConfig):
 
@@ -100,15 +102,16 @@ def main(scriptConf=None):
     redis_json_backup = os.path.join(cache_directory, 'redis-json')
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
-    LOGGER.info('Starting {} process of Redis database'.format(args.type))
+    LOGGER.info(f'Starting {args.type} process of Redis database')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
     if 'save' == args.type:
         # Redis dump.rdb file backup
-        redis_backup_file = '{}/redis/dump.rdb'.format(var_yang)
+        redis_backup_file = f'{var_yang}/redis/dump.rdb'
         if not os.path.exists(redis_backups):
             os.mkdir(redis_backups)
         if os.path.exists(redis_backup_file):
-            redis_copy_file = os.path.join(redis_backups, '{}.rdb.gz'.format(args.name_save))
+            redis_copy_file = os.path.join(redis_backups, f'{args.name_save}.rdb.gz')
             with gzip.open(redis_copy_file, 'w') as save_file:
                 with open(redis_backup_file, 'rb') as original:
                     save_file.write(original.read())
@@ -142,8 +145,7 @@ def main(scriptConf=None):
             {'label': 'Saved vendors', 'message': num_of_vendors}
         ]
         LOGGER.info('Save completed successfully')
-        filename = '{} - save'.format(os.path.basename(__file__).split('.py')[0])
-        job_log(start_time, temp_dir, messages=messages, status='Success', filename=filename)
+        job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
     else:
         file_name = ''
         if args.name_load:
@@ -169,13 +171,13 @@ def main(scriptConf=None):
             else:
                 if file_name.endswith('.gz'):
                     with gzip.open(file_name, 'r') as file_load:
-                        LOGGER.info('Loading file {}'.format(file_load.name))
+                        LOGGER.info(f'Loading file {file_load.name}')
                         catalog_data = json.loads(file_load.read().decode())
                         modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
                         vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
                 elif file_name.endswith('.json'):
                     with open(file_name, 'r') as file_load:
-                        LOGGER.info('Loading file {}'.format(file_load.name))
+                        LOGGER.info(f'Loading file {file_load.name}')
                         catalog_data = json.load(file_load)
                         modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
                         vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
@@ -191,7 +193,7 @@ def main(scriptConf=None):
         tries = 4
         try:
             response = confdService.head_confd()
-            LOGGER.info('Status code for HEAD request {} '.format(response.status_code))
+            LOGGER.info(f'Status code for HEAD request {response.status_code} ')
             if response.status_code == 200:
                 yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
                 error = feed_confd_modules([json.loads(yang_catalog_module)], confdService)

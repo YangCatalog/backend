@@ -36,6 +36,8 @@ from utility import confdService
 from utility.create_config import create_config
 from utility.util import job_log
 
+current_file_basename = os.path.basename(__file__)
+
 if __name__ == '__main__':
     start_time = int(time.time())
     config = create_config()
@@ -46,13 +48,14 @@ if __name__ == '__main__':
     LOGGER = log.get_logger('healthcheck', os.path.join(logs_dir, 'healthcheck.log'))
     messages = []
     letters = string.ascii_letters
-    suffix = ''.join(random.choice(letters) for i in range(6))
-    check_module_name = 'confd-full-check-{}'.format(suffix)
+    suffix = ''.join(random.choice(letters) for _ in range(6))
+    check_module_name = f'confd-full-check-{suffix}'
     confdService = confdService.ConfdService()
     confdService.delete_modules()
     confdService.delete_vendors()
 
     LOGGER.info('Running confdFullCheck')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
     try:
         redisConnection = RedisConnection()
         yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
@@ -68,57 +71,53 @@ if __name__ == '__main__':
         module['name'] = check_module_name
 
         # PATCH
-        result = {}
-        result['label'] = 'PATCH {}@2018-04-03'.format(check_module_name)
+        result = {'label': f'PATCH {check_module_name}@2018-04-03'}
         errors = confdService.patch_modules([module])
 
         if not errors:
             result['message'] = 'OK'
         else:
-            LOGGER.info('Cannot add {}@2018-04-03 module to ConfD'.format(check_module_name))
+            LOGGER.info(f'Cannot add {check_module_name}@2018-04-03 module to ConfD')
             result['message'] = 'NOT OK'
         messages.append(result)
 
         # GET 2
-        result = {}
-        result['label'] = 'GET {}@2018-04-03'.format(check_module_name)
-        new_module_key = '{},2018-04-03,ietf'.format(check_module_name)
+        result = {'label': f'GET {check_module_name}@2018-04-03'}
+        new_module_key = f'{check_module_name},2018-04-03,ietf'
         response = confdService.get_module(new_module_key)
 
         if response.status_code == 200:
-            result['message'] = '{} OK'.format(response.status_code)
+            result['message'] = f'{response.status_code} OK'
         else:
-            LOGGER.info('Cannot get {}@2018-04-03 module from ConfD'.format(check_module_name))
-            result['message'] = '{} NOT OK'.format(response.status_code)
+            LOGGER.info(f'Cannot get {check_module_name}@2018-04-03 module from ConfD')
+            result['message'] = f'{response.status_code} NOT OK'
         messages.append(result)
 
         # DELETE
-        result = {}
-        result['label'] = 'DELETE {}@2018-04-03'.format(check_module_name)
+        result = {'label': f'DELETE {response.status_code}@2018-04-03'}
         response = confdService.delete_module(new_module_key)
 
         if response.status_code == 204:
-            result['message'] = '{} OK'.format(response.status_code)
+            result['message'] = f'{response.status_code} OK'
         else:
-            LOGGER.info('Cannot delete {}@2018-04-03 module from ConfD'.format(check_module_name))
-            result['message'] = '{} NOT OK'.format(response.status_code)
+            LOGGER.info(f'Cannot delete {check_module_name}@2018-04-03 module from ConfD')
+            result['message'] = f'{response.status_code} NOT OK'
         messages.append(result)
 
         # GET 3
         # NOTE: Module should already be removed - 404 status code is expected
-        result = {}
-        result['label'] = 'GET 2 {}@2018-04-03'.format(check_module_name)
+        result = {'label': f'GET 2 {check_module_name}@2018-04-03'}
         response = confdService.get_module(new_module_key)
 
         if response.status_code == 404:
-            result['message'] = '{} OK'.format(response.status_code)
+            result['message'] = f'{response.status_code} OK'
         else:
-            LOGGER.info('Module {}@2018-04-03 already in ConfD'.format(check_module_name))
-            result['message'] = '{} NOT OK'.format(response.status_code)
+            LOGGER.info(f'Module {check_module_name}@2018-04-03 already in ConfD')
+            result['message'] = f'{response.status_code} NOT OK'
         messages.append(result)
 
-        job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
 
     except Exception as e:
         LOGGER.exception(e)
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)

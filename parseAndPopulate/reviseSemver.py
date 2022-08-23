@@ -21,8 +21,9 @@ from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.util import job_log
 
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+
+current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -111,19 +112,20 @@ def main(scriptConf=None):
     json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
+    LOGGER = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
-    url = '{}/search/modules'.format(yangcatalog_api_prefix)
-    LOGGER.info('Getting all the modules from: {}'.format(url))
+    url = f'{yangcatalog_api_prefix}/search/modules'
+    LOGGER.info(f'Getting all the modules from: {url}')
     response = requests.get(url, headers={'Accept': 'application/json'})
 
     all_existing_modules = response.json().get('module', [])
 
     global path
-    path = '{}/semver_prepare.json'.format(temp_dir)
+    path = f'{temp_dir}/semver_prepare.json'
 
     all_modules = get_list_of_unique_modules(all_existing_modules)
-    LOGGER.info('Number of unique modules: {}'.format(len(all_modules['module'])))
+    LOGGER.info(f'Number of unique modules: {len(all_modules["module"])}')
 
     # Uncomment the next line to read data from the file semver_prepare.json
     # all_modules = load_from_json(path)
@@ -136,7 +138,7 @@ def main(scriptConf=None):
     chunks = (num_of_modules - 1) // chunk_size + 1
     for i in range(chunks):
         try:
-            LOGGER.info('Proccesing chunk {} out of {}'.format(i, chunks))
+            LOGGER.info(f'Proccesing chunk {i} out of {chunks}')
             batch = all_modules['module'][i * chunk_size:(i + 1) * chunk_size]
             batch_modules = {'module': batch}
             recursion_limit = sys.getrecursionlimit()
@@ -151,13 +153,10 @@ def main(scriptConf=None):
             LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
 
-    messages = [
-        {'label': 'Number of modules checked', 'message': num_of_modules}
-    ]
+    messages = [{'label': 'Number of modules checked', 'message': num_of_modules}]
     end = time.time()
-    LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start_time)))
-    filename = os.path.basename(__file__).split('.py')[0]
-    job_log(start_time, temp_dir, filename, messages=messages, status='Success')
+    LOGGER.info(f'Populate took {int(end - start_time)} seconds with the main and complicated algorithm')
+    job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

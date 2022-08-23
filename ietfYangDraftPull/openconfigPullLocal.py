@@ -38,6 +38,8 @@ from utility.util import job_log, resolve_revision
 
 from ietfYangDraftPull import draftPullUtility
 
+current_file_basename = os.path.basename(__file__)
+
 
 class ScriptConfig(BaseScriptConfig):
 
@@ -69,8 +71,9 @@ def main(scriptConf=None):
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('openconfigPullLocal', '{}/jobs/openconfig-pull.log'.format(log_directory))
+    LOGGER = log.get_logger('openconfigPullLocal', f'{log_directory}/jobs/openconfig-pull.log')
     LOGGER.info('Starting Cron job openconfig pull request local')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
     commit_author = {
         'name': config_name,
@@ -80,12 +83,12 @@ def main(scriptConf=None):
     assert repo
     modules = []
     try:
-        yang_files = glob('{}/release/models/**/*.yang'.format(repo.local_dir), recursive=True)
+        yang_files = glob(f'{repo.local_dir}/release/models/**/*.yang', recursive=True)
         for yang_file in yang_files:
             basename = os.path.basename(yang_file)
             name = basename.split('.')[0].split('@')[0]
             revision = resolve_revision(yang_file)
-            path = yang_file.split('{}/'.format(repo.local_dir))[-1]
+            path = yang_file.split(f'{repo.local_dir}/')[-1]
             module = {
                 'generated-from': 'not-applicable',
                 'module-classification': 'unknown',
@@ -102,23 +105,23 @@ def main(scriptConf=None):
         data = json.dumps({'modules': {'module': modules}})
     except Exception as e:
         LOGGER.exception('Exception found while running openconfigPullLocal script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
         raise e
     LOGGER.debug(data)
-    api_path = '{}/modules'.format(yangcatalog_api_prefix)
+    api_path = f'{yangcatalog_api_prefix}/modules'
     response = requests.put(api_path, data, auth=(credentials[0], credentials[1]), headers=json_headers)
 
     status_code = response.status_code
     payload = json.loads(response.text)
     if status_code < 200 or status_code > 299:
-        e = 'PUT /api/modules responsed with status code {}'.format(status_code)
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        e = f'PUT /api/modules responsed with status code {status_code}'
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
         LOGGER.info('Job finished, but an error occured while sending PUT to /api/modules')
     else:
         messages = [
             {'label': 'Job ID', 'message': payload['job-id']}
         ]
-        job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
         LOGGER.info('Job finished successfully')
 
 

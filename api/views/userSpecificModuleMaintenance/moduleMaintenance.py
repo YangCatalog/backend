@@ -128,9 +128,8 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     for mod in input_modules:
         # Check if the module is already in Redis
         read = get_mod_redis(mod)
-        if read == {}:
-            if accessRigths != '/':
-                unavailable_modules.append(mod)
+        if read == {} and accessRigths != '/':
+            unavailable_modules.append(mod)
             continue
 
         if read.get('organization') != accessRigths and accessRigths != '/':

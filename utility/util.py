@@ -301,12 +301,7 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
         :param status       (str) Status of job run - either 'Fail' or 'Success'
     """
     end_time = int(time.time())
-    result = {}
-    result['start'] = start_time
-    result['end'] = end_time
-    result['status'] = status
-    result['error'] = error
-    result['messages'] = messages
+    result = {'start': start_time, 'end': end_time, 'status': status, 'error': error, 'messages': messages}
 
     try:
         with open('{}/cronjob.json'.format(temp_dir), 'r') as reader:

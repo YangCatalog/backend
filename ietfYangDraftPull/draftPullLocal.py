@@ -41,6 +41,8 @@ from utility.util import job_log
 
 from ietfYangDraftPull import draftPullUtility
 
+current_file_basename = os.path.basename(__file__)
+
 
 class ScriptConfig(BaseScriptConfig):
 
@@ -72,7 +74,7 @@ def run_populate_script(directory: str, notify: bool, LOGGER: logging.Logger) ->
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
-        LOGGER.info('Running populate.py script over {}'.format(directory))
+        LOGGER.info(f'Running populate.py script over {directory}')
         submodule.main(scriptConf=script_conf)
     except Exception:
         LOGGER.exception('Error occurred while running populate.py script')
@@ -95,8 +97,9 @@ def main(scriptConf=None):
     log_directory = config.get('Directory-Section', 'logs')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     temp_dir = config.get('Directory-Section', 'temp')
-    LOGGER = log.get_logger('draftPullLocal', '{}/jobs/draft-pull-local.log'.format(log_directory))
+    LOGGER = log.get_logger('draftPullLocal', f'{log_directory}/jobs/draft-pull-local.log')
     LOGGER.info('Starting cron job IETF pull request local')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
     messages = []
     notify_indexing = notify_indexing == 'True'
@@ -114,7 +117,7 @@ def main(scriptConf=None):
                 'config_user_email': config_email,
                 'local_dir': clone_dir
             })
-        LOGGER.info('YangModels/yang repo cloned to local directory {}'.format(repo.local_dir))
+        LOGGER.info(f'YangModels/yang repo cloned to local directory {repo.local_dir}')
 
         response = requests.get(ietf_rfc_url)
         tgz_path = os.path.join(repo.local_dir, 'rfc.tgz')
@@ -125,12 +128,12 @@ def main(scriptConf=None):
 
         if tar_opened:
             # Standard RFC modules
-            direc = '{}/standard/ietf/RFC'.format(repo.local_dir)
+            direc = f'{repo.local_dir}/standard/ietf/RFC'
 
-            LOGGER.info('Checking module filenames without revision in {}'.format(direc))
+            LOGGER.info(f'Checking module filenames without revision in {direc}')
             draftPullUtility.check_name_no_revision_exist(direc, LOGGER)
 
-            LOGGER.info('Checking for early revision in {}'.format(direc))
+            LOGGER.info(f'Checking for early revision in {direc}')
             draftPullUtility.check_early_revisions(direc, LOGGER)
 
             execution_result = run_populate_script(direc, notify_indexing, LOGGER)
@@ -148,10 +151,10 @@ def main(scriptConf=None):
         LOGGER.info('Updating IETF drafts download links')
         draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
 
-        LOGGER.info('Checking module filenames without revision in {}'.format(experimental_path))
+        LOGGER.info(f'Checking module filenames without revision in {experimental_path}')
         draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
 
-        LOGGER.info('Checking for early revision in {}'.format(experimental_path))
+        LOGGER.info(f'Checking for early revision in {experimental_path}')
         draftPullUtility.check_early_revisions(experimental_path, LOGGER)
 
         execution_result = run_populate_script(experimental_path, notify_indexing, LOGGER)
@@ -167,10 +170,10 @@ def main(scriptConf=None):
         iana_path = os.path.join(repo.local_dir, 'standard/iana')
 
         if os.path.exists(iana_path):
-            LOGGER.info('Checking module filenames without revision in {}'.format(iana_path))
+            LOGGER.info(f'Checking module filenames without revision in {iana_path}')
             draftPullUtility.check_name_no_revision_exist(iana_path, LOGGER)
 
-            LOGGER.info('Checking for early revision in {}'.format(iana_path))
+            LOGGER.info(f'Checking for early revision in {iana_path}')
             draftPullUtility.check_early_revisions(iana_path, LOGGER)
 
             execution_result = run_populate_script(iana_path, notify_indexing, LOGGER)
@@ -184,13 +187,13 @@ def main(scriptConf=None):
 
     except Exception as e:
         LOGGER.exception('Exception found while running draftPullLocal script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
         raise e
     if not populate_error:
         LOGGER.info('Job finished successfully')
     else:
         LOGGER.info('Job finished, but errors found while calling populate script')
-    job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
+    job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
 
 
 if __name__ == '__main__':

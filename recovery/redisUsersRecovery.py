@@ -34,6 +34,8 @@ from utility.create_config import create_config
 from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+current_file_basename = os.path.basename(__file__)
+
 
 class ScriptConfig:
 
@@ -62,12 +64,14 @@ class ScriptConfig:
         return args_dict
 
     def get_help(self):
-        ret = {}
-        ret['help'] = self.help
-        ret['options'] = {}
-        ret['options']['type'] = 'Set whether you want to save a file or load a file. Default is save'
-        ret['options']['name_load'] = 'Set name of the file to load. Default will take a last saved file'
-        ret['options']['name_save'] = 'Set name of the file to save. Default name is date and time in UTC'
+        ret = {
+            'help': self.help,
+            'options': {
+                'type': 'Set whether you want to save a file or load a file. Default is save',
+                'name_load': 'Set name of the file to load. Default will take a last saved file',
+                'name_save': 'Set name of the file to save. Default name is date and time in UTC',
+            }
+        }
         return ret
 
 
@@ -85,7 +89,8 @@ def main(scriptConf=None):
     backups = os.path.join(cache_directory, 'redis-users')
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
-    LOGGER.info('Starting {} process of redis users database'.format(args.type))
+    LOGGER.info(f'Starting {args.type} process of redis users database')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
     if args.type == 'save':
         data = {}
@@ -115,13 +120,12 @@ def main(scriptConf=None):
         args.name_save += '.json'
         with open(os.path.join(backups, args.name_save), 'w') as f:
             json.dump(data, f)
-        LOGGER.info('Data saved to {} successfully'.format(args.name_save))
-        filename = '{} - save'.format(os.path.basename(__file__).split('.py')[0])
-        job_log(start_time, temp_dir, filename, status='Success')
+        LOGGER.info(f'Data saved to {args.name_save} successfully')
+        job_log(start_time, temp_dir, current_file_basename, status='Success')
 
     elif args.type == 'load':
         if args.name_load:
-            file_name = '{}.json'.format(os.path.join(backups, args.name_load))
+            file_name = f'{os.path.join(backups, args.name_load)}.json'
         else:
             list_of_backups = get_list_of_backups(backups)
             file_name = os.path.join(backups, list_of_backups[-1])
@@ -139,7 +143,7 @@ def main(scriptConf=None):
             elif isinstance(value, dict):
                 redis.hset(key, mapping=value)
 
-        LOGGER.info('Data loaded from {} successfully'.format(file_name))
+        LOGGER.info(f'Data loaded from {file_name} successfully')
 
     LOGGER.info('Job finished successfully')
 

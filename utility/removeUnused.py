@@ -40,6 +40,8 @@ from utility.util import get_list_of_backups, job_log
 DAY = 86400
 BLOCK_SIZE = 65536
 
+current_file_basename = os.path.basename(__file__)
+
 
 def represents_int(s):
     try:
@@ -68,6 +70,7 @@ def main():
     log_file_path = os.path.join(log_directory, 'jobs', 'removeUnused.log')
     LOGGER = log.get_logger('removeUnused', log_file_path)
     LOGGER.info('Starting Cron job remove unused files')
+    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
 
     current_time = time.time()
     cutoff = current_time - DAY
@@ -82,13 +85,14 @@ def main():
         LOGGER.info('Removing old correlation ids')
         # removing correlation ids from file that are older than a day
         # Be lenient to missing files
+        correlation_ids_file_path = os.path.join(temp_dir, 'correlation_ids')
         try:
-            filename = open('{}/correlation_ids'.format(temp_dir), 'r')
+            filename = open(correlation_ids_file_path, 'r')
             lines = filename.readlines()
             filename.close()
         except IOError:
             lines = []
-        with open('{}/correlation_ids'.format(temp_dir), 'w') as filename:
+        with open(correlation_ids_file_path, 'w') as filename:
             for line in lines:
                 line_datetime = line.split(' -')[0]
                 t = dt.strptime(line_datetime, '%a %b %d %H:%M:%S %Y')
@@ -107,7 +111,7 @@ def main():
                     try:
                         shutil.rmtree(os.path.join(yang_validator_cache, dir))
                     except PermissionError:
-                        LOGGER.exception('Problem while deleting {}'.format(dir))
+                        LOGGER.exception(f'Problem while deleting {dir}')
                         continue
 
         if es_aws != 'True':
@@ -205,9 +209,9 @@ def main():
         remove_old_backups('confd')
     except Exception as e:
         LOGGER.exception('Exception found while running removeUnused script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
         raise e
-    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    job_log(start_time, temp_dir, status='Success', filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 
