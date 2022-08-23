@@ -33,6 +33,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
 import configparser
+from dataclasses import replace
 import grp
 import json
 import logging
@@ -109,16 +110,16 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
         :param LOGGER       (logging.Logger) formated logger with the specified name
     """
     for filename in (filenames := os.listdir(directory)):
-        module_name = get_module_name(filename)  # Beware of some invalid file names such as '@2015-03-09.yang'
+        module_name = _get_module_name(filename)  # Beware of some invalid file names such as '@2015-03-09.yang'
         if module_name == '':
             continue
         files_to_delete = []
         revisions = []
         for nested_filename in filenames:
-            if get_module_name(nested_filename) != module_name:
+            if _get_module_name(nested_filename) != module_name:
                 continue
             nested_filename_revision_part = nested_filename.split(module_name)[1]
-            if not is_revision_part_valid(nested_filename_revision_part):
+            if not _is_revision_part_valid(nested_filename_revision_part):
                 continue
             files_to_delete.append(nested_filename)
             revision = nested_filename_revision_part.split('.')[0].replace('@', '')
@@ -146,11 +147,11 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                 os.remove(path)
                 
                 
-def get_module_name(filename: str) -> str:
+def _get_module_name(filename: str) -> str:
     return filename.split('.yang')[0].split('@')[0]
 
 
-def is_revision_part_valid(revision_part: str) -> str:
+def _is_revision_part_valid(revision_part: str) -> bool:
     return revision_part.startswith('.') or revision_part.startswith('@')
                 
                 
