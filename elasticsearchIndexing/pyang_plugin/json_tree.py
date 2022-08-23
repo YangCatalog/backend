@@ -226,24 +226,17 @@ def typestring(node):
         if t is not None:
             s['type'] = t.arg
             if t.arg == 'enumeration':
-                s['enumeration'] = []
-                for enums in t.substmts:
-                    s['enumeration'].append(enums.arg)
-            elif t.arg == 'leafref':
-                p = t.search_one('path')
-                if p is not None:
-                    s['path'] = p.arg
+                s['enumeration'] = [enums.arg for enums in t.substmts]
 
-            elif t.arg == 'identityref':
-                b = t.search_one('base')
-                if b is not None:
-                    s['base'] = b.arg
+            elif t.arg == 'leafref' and (p := t.search_one('path')) is not None:
+                s['path'] = p.arg
+
+            elif t.arg == 'identityref' and (b := t.search_one('base')) is not None:
+                s['base'] = b.arg
 
             elif t.arg == 'union':
                 uniontypes = t.search('type')
-                s['union'] = [uniontypes[0].arg]
-                for uniontype in uniontypes[1:]:
-                    s['union'].append(uniontype.arg)
+                s['union'] = [uniontype.arg for uniontype in uniontypes]
 
             typerange = t.search_one('range')
             if typerange is not None:
