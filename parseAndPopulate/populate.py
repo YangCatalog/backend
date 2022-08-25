@@ -118,6 +118,12 @@ class ScriptConfig(BaseScriptConfig):
                 'help': 'Force indexing files (do not skip indexing for unchanged files).',
                 'action': 'store_true',
                 'default': False
+            },
+            {
+                'flag': '--simple',
+                'help': 'Skip running time-consuming complicated resolvers.',
+                'action': 'store_true',
+                'default': False
             }
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
@@ -214,7 +220,6 @@ def main(scriptConf=None):
 
     body_to_send = {}
     if args.notify_indexing:
-        LOGGER.info('Sending files for indexing')
         body_to_send = prepare_for_es_indexing(yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
                                                LOGGER, args.save_file_dir, force_indexing=args.force_indexing)
 
@@ -249,19 +254,23 @@ def main(scriptConf=None):
         process_reload_cache = multiprocessing.Process(target=reload_cache_in_parallel,
                                                        args=(args.credentials, yangcatalog_api_prefix,))
         process_reload_cache.start()
-        LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
-        recursion_limit = sys.getrecursionlimit()
-        sys.setrecursionlimit(50000)
-        complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                              args.credentials, args.save_file_dir, json_dir, None,
-                                                              yang_models, temp_dir, json_ytree)
-        complicated_algorithms.parse_non_requests()
-        LOGGER.info('Waiting for cache reload to finish')
-        process_reload_cache.join()
-        complicated_algorithms.parse_requests()
-        sys.setrecursionlimit(recursion_limit)
-        LOGGER.info('Populating with new data of complicated algorithms')
-        complicated_algorithms.populate()
+        if not args.simple:
+            LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
+            recursion_limit = sys.getrecursionlimit()
+            sys.setrecursionlimit(50000)
+            complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
+                                                                args.credentials, args.save_file_dir, json_dir, None,
+                                                                yang_models, temp_dir, json_ytree)
+            complicated_algorithms.parse_non_requests()
+            LOGGER.info('Waiting for cache reload to finish')
+            process_reload_cache.join()
+            complicated_algorithms.parse_requests()
+            sys.setrecursionlimit(recursion_limit)
+            LOGGER.info('Populating with new data of complicated algorithms')
+            complicated_algorithms.populate()
+        else:
+            LOGGER.info('Waiting for cache reload to finish')
+            process_reload_cache.join()
         end = time.time()
         LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
 
