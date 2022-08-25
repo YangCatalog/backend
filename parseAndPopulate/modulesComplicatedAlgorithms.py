@@ -37,17 +37,16 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import requests
-from backend.utility import message_factory
-from elasticsearchIndexing.pyang_plugin.json_tree import \
-    emit_tree as emit_json_tree
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
 from redisConnections.redisConnection import RedisConnection
-from utility import log
+from utility import log, message_factory
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
-from utility.util import (context_check_update_from, fetch_module_by_schema,
-                          get_yang)
+from utility.util import (
+    context_check_update_from, fetch_module_by_schema, get_yang
+)
 from utility.yangParser import create_context
 
 MAJOR = 0

@@ -40,11 +40,10 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 from redisConnections.redisConnection import RedisConnection
 
-from backend.utility import message_factory
+from utility import message_factory
 from utility.create_config import create_config
 from utility.staticVariables import backup_date_format, json_headers
 from utility.yangParser import create_context
-
 
 single_line_re = re.compile(r'//.*')
 multi_line_re = re.compile(r'/\*.*?\*/', flags=re.MULTILINE)

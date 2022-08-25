@@ -27,7 +27,6 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import errno
 import filecmp
 import glob
 import os
@@ -39,7 +38,7 @@ import typing as t
 import requests
 import utility.log as log
 from git.exc import GitCommandError
-from backend.utility import message_factory
+from utility import message_factory
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import job_log

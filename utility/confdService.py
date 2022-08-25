@@ -30,7 +30,7 @@ import os
 import requests
 
 import utility.log as log
-from backend.utility import message_factory
+from utility import message_factory
 from utility.create_config import create_config
 from utility.staticVariables import confd_headers
 

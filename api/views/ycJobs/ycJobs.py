@@ -23,10 +23,9 @@ import os
 import requests
 from api.authentication.auth import auth, check_authorized
 from api.my_flask import app
-from backend.utility import message_factory
 from flask.blueprints import Blueprint
 from flask.globals import request
-from utility import repoutil
+from utility import message_factory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
 from werkzeug.exceptions import abort

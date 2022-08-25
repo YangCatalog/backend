@@ -49,7 +49,7 @@ import pika
 import requests
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from backend.utility import message_factory
+from utility import message_factory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers

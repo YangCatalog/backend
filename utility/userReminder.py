@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from backend.utility import message_factory
+from utility import message_factory
 from utility.redisUsersConnection import RedisUsersConnection
 
 
