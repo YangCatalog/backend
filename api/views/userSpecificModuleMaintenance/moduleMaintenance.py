@@ -31,7 +31,7 @@ from flask.globals import request
 from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
 from utility import repoutil, yangParser
-from utility.messageFactory import MessageFactory
+from backend.utility.message_factory import MessageFactory
 from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
 from werkzeug.exceptions import abort
 

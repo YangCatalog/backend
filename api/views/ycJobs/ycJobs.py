@@ -23,9 +23,10 @@ import os
 import requests
 from api.authentication.auth import auth, check_authorized
 from api.my_flask import app
+from backend.utility import message_factory
 from flask.blueprints import Blueprint
 from flask.globals import request
-from utility import messageFactory, repoutil
+from utility import repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
 from werkzeug.exceptions import abort
@@ -180,7 +181,7 @@ def check_local():
         app.logger.info('Authorization successful')
     except:
         app.logger.exception('Authorization failed. Request did not come from Travis')
-        mf = messageFactory.MessageFactory()
+        mf = message_factory.MessageFactory()
         mf.send_travis_auth_failed()
         abort(401)
 
@@ -297,7 +298,7 @@ def trigger_populate():
                             paths.add('/'.join(m.split('/')[:-1]))
                             mod.append('/'.join(m.split('/')[:-1]))
         if len(paths) > 0:
-            mf = messageFactory.MessageFactory()
+            mf = message_factory.MessageFactory()
             mf.send_new_modified_platform_metadata(new, mod)
             app.logger.info('Forking the repo')
             try:

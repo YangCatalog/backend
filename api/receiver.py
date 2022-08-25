@@ -49,7 +49,7 @@ import pika
 import requests
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from utility import messageFactory
+from backend.utility import message_factory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
@@ -491,7 +491,7 @@ class Receiver:
                     status = StatusMessage.SUCCESS
                 except subprocess.CalledProcessError as e:
                     status = StatusMessage.FAIL
-                    mf = messageFactory.MessageFactory()
+                    mf = message_factory.MessageFactory()
                     mf.send_automated_procedure_failed(arguments, self.temp_dir + '/log_no_sdo_api.txt')
                     self.LOGGER.error(
                         'check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(

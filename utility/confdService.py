@@ -30,7 +30,7 @@ import os
 import requests
 
 import utility.log as log
-from utility import messageFactory
+from backend.utility import message_factory
 from utility.create_config import create_config
 from utility.staticVariables import confd_headers
 
@@ -123,7 +123,7 @@ class ConfdService:
                                     self.LOGGER.exception('No test in response')
                                 f.write('{} {} error: {}\n'.format(datum['name'], platform_name, response.text))
         if failed_data:
-            mf = messageFactory.MessageFactory()
+            mf = message_factory.MessageFactory()
             mf.send_confd_writing_failures(type, failed_data)
         return errors
 

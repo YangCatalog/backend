@@ -27,6 +27,7 @@ import json
 import os
 import smtplib
 import sys
+import typing as t
 from email.mime.text import MIMEText
 
 from ciscosparkapi import CiscoSparkAPI
@@ -49,39 +50,41 @@ class MessageFactory:
         Arguments:
             :param config_path: (str) path to a yangcatalog.conf file
         """
-        def list_matching_rooms(a, title_match):
+        def list_matching_rooms(a, title_match: str) -> list:
             return [r for r in a.rooms.list() if title_match in r.title]
 
         config = create_config(config_path)
         log_directory = config.get('Directory-Section', 'logs')
         token = config.get('Secrets-Section', 'webex-access-token')
         self.__email_from = config.get('Message-Section', 'email-from')
-        self.__is_production = config.get('General-Section', 'is-prod')
-        self.__is_production = self.__is_production == 'True'
+        self.__is_production = config.get('General-Section', 'is-prod') == 'True'
         self.__email_to = config.get('Message-Section', 'email-to').split()
         self.__developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')
         self.__me = config.get('Web-Section', 'domain-prefix')
-
-        self.__api = CiscoSparkAPI(access_token=token)
-        rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
-        self.__me = self.__me.split('/')[-1]
-        self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
+        
         self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
         self.LOGGER.info('Initialising Message Factory')
 
+        self.__api = CiscoSparkAPI(access_token=token)
+        rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
+        self.__validate_rooms_count(rooms)
+        # Ok, we should have just one room if we get here
+        self.__room = rooms[0]
+
+        self.__smtp = smtplib.SMTP('localhost')
+        self.__me = self.__me.split('/')[-1]
+        self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
+        
+    def __validate_rooms_count(self, rooms: list):
         if len(rooms) == 0:
             self.LOGGER.error('Need at least one room')
             sys.exit(1)
         if len(rooms) != 1:
             self.LOGGER.error('Too many rooms! Refine the name:')
             for r in rooms:
-                self.LOGGER.info('{}'.format(r.title))
+                self.LOGGER.info(f'{r.title}')
             sys.exit(1)
-
-        # Ok, we should have just one room if we get here
-        self.__room = rooms[0]
-        self.__smtp = smtplib.SMTP('localhost')
 
     def __post_to_spark(self, msg: str, markdown: bool = False, files: list = []):
         """Send message to a spark room
@@ -91,10 +94,9 @@ class MessageFactory:
             :param markdown     (bool) whether to use markdown. Default False
             :param files        (list) list of paths to files that need to be attached with the message. Default None
         """
-        msg += '\n\nMessage sent from {}'.format(self.__me)
+        msg += f'\n\nMessage sent from {self.__me}'
         if not self.__is_production:
-            self.LOGGER.info('You are in local env. Skip sending message to cisco webex teams. The message was\n{}'
-                             .format(msg))
+            self.LOGGER.info(f'You are in local env. Skip sending message to cisco webex teams. The message was\n{msg}')
             if files:
                 for f in files:
                     os.remove(f)
@@ -108,7 +110,7 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message: str, email_to: list = [], subject: str = '', subtype: str = 'plain'):
+    def __post_to_email(self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain'):
         """Send message to an e-mail
 
         Arguments:
@@ -118,14 +120,13 @@ class MessageFactory:
             :param subtype      (str) MIME text sybtype of the message. Default is "plain".
         """
         send_to = email_to if email_to else self.__email_to
-        msg = MIMEText(message + '\n\nMessage sent from {}'.format(self.__me), _subtype=subtype)
+        msg = MIMEText(message + f'\n\nMessage sent from {self.__me}', _subtype=subtype)
         msg['Subject'] = subject if subject else 'Automatic generated message - RFC IETF'
         msg['From'] = self.__email_from
         msg['To'] = ', '.join(send_to)
 
         if not self.__is_production:
-            self.LOGGER.info('You are in local env. Skip sending message to emails. The message format was {}'
-                             .format(msg))
+            self.LOGGER.info(f'You are in local env. Skip sending message to emails. The message format was {msg}')
             self.__smtp.quit()
             return
         self.__smtp.sendmail(self.__email_from, send_to, msg.as_string())
@@ -141,13 +142,13 @@ class MessageFactory:
 
         ret_text += '<table style="width:100%"><tr>'
         for header in ['user', 'name', 'surname', 'sdo_rights', 'vendor_rights', 'organization', 'email']:
-            ret_text += '<th>{}</th>'.format(header)
+            ret_text += f'<th>{header}</th>'
         ret_text += '</tr>'
 
         for fields in user_data['approved']:
             ret_text += '<tr>'
             for key in ['username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor', 'models-provider', 'email']:
-                ret_text += '<td>{}</td>'.format(str(fields.get(key)))
+                ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
         ret_text += '</table><br>'
 
@@ -155,20 +156,21 @@ class MessageFactory:
 
         ret_text += '<table style="width:100%"><tr>'
         for header in ['user', 'name', 'surname', 'organization', 'email']:
-            ret_text += '<th>{}</th>'.format(header)
+            ret_text += f'<th>{header}</th>'
         ret_text += '<tr>'
 
         for fields in user_data['temp']:
             ret_text += '<tr>'
             for key in ['username', 'first-name', 'last-name', 'models-provider', 'email']:
-                ret_text += '<td>{}</td>'.format(str(fields.get(key)))
+                ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
         ret_text += '</table>'
 
-        return ('<DOCTYPE html>\n<html>\n<style>table, th, td {border:1px solid black;}</style><body>\n'
-                + '{}\n\nTime to review the user profiles: affiliations and capabilities'
-                '\n\n{}\n</body>\n</html>'
-                .format(GREETINGS, ret_text))
+        return (
+            '<DOCTYPE html>\n<html>\n<style>table, th, td {border:1px solid black;}</style><body>\n'
+            f'{GREETINGS}\n\nTime to review the user profiles: affiliations and capabilities'
+            f'\n\n{ret_text}\n</body>\n</html>'
+        )
 
     def _markdown_user_reminder_message(self, users_stats: dict):
         """Generate the user reminder message in Markdown format
@@ -208,8 +210,7 @@ class MessageFactory:
             tables_text += '\n'
         tables_text += '```\n'
 
-        return ('{}\n\nTime to review the user profiles: affiliations and capabilities\n\n{}'
-                .format(GREETINGS, tables_text))
+        return f'{GREETINGS}\n\nTime to review the user profiles: affiliations and capabilities\n\n{tables_text}'
 
     def send_user_reminder_message(self, user_data):
         """Send a message with the current data of pending and approved users.
@@ -225,12 +226,12 @@ class MessageFactory:
         self.LOGGER.info('Sending notification about new IETF RFC modules')
         new_files = '\n'.join(new_files)
         diff_files = '\n'.join(diff_files)
-        message = ('{}\n\nSome of the files are different'
-                   ' in https://yangcatalog.org/private/IETFYANGRFC.json against'
-                   ' yangModels/yang repository\n\n'
-                   'Files that are missing in yangModels/yang repository: \n{} \n\n '
-                   'Files that are different than in yangModels repository: \n{} '
-                   .format(GREETINGS, new_files, diff_files))
+        message = (
+            f'{GREETINGS}\n\nSome of the files are different in '
+            'https://yangcatalog.org/private/IETFYANGRFC.json against yangModels/yang repository\n\n'
+            f'Files that are missing in yangModels/yang repository: \n{new_files} \n\n '
+            f'Files that are different than in yangModels repository: \n{diff_files}'
+        )
 
         self.__post_to_spark(message)
         self.__post_to_email(message)
@@ -253,9 +254,9 @@ class MessageFactory:
             :param file         (str) Path to a file to attatch.
         """
         self.LOGGER.info('Sending notification about any automated procedure failure')
-        message = ('Automated procedure with arguments:\n {} \nfailed with error.'
-                   ' Please see attached document'
-                   .format(arguments))
+        message = (
+            f'Automated procedure with arguments:\n {arguments} \nfailed with error. Please see attached document'
+        )
         self.__post_to_spark(message, True, files=[file])
 
     def send_removed_temp_diff_files(self):
@@ -271,8 +272,7 @@ class MessageFactory:
         """
         self.LOGGER.info('Sending notification about removed YANG modules')
         message = 'Files have been removed from yangcatalog.org. See attached document'
-        text = ('The following files has been removed from https://yangcatalog.org'
-                ' using the API: \n{}\n'.format(removed_yang_files))
+        text = f'The following files has been removed from https://yangcatalog.org using the API: \n{removed_yang_files}\n'
         with open(self._message_log_file, 'w') as f:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._message_log_file])
@@ -286,9 +286,10 @@ class MessageFactory:
         """
         self.LOGGER.info('Sending notification about added yang modules')
         message = 'Files have been added to yangcatalog.org. See attached document'
-        text = ('The following files have been added to https://yangcatalog.org'
-                ' using the API as new modules or old modules with new '
-                'revision: \n{}\n'.format(added_yang_files))
+        text = (
+            'The following files have been added to https://yangcatalog.org'
+            f' using the API as new modules or old modules with new revision: \n{added_yang_files}\n'
+        )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._message_log_file])
@@ -306,11 +307,12 @@ class MessageFactory:
         new_files_string = '\n'.join(new_files)
         modified_files_string = '\n'.join(modified_files)
         message = 'Files have been modified in yangcatalog.org. See attached document'
-        text = ('There were new or modified platform metadata json files '
-                'added to yangModels/yang repository, that are currently'
-                'being processed in following paths:\n\n'
-                '\n New json files: \n {} \n\n Modified json files:\n{}\n'
-                .format(new_files_string, modified_files_string))
+        text = (
+            'There were new or modified platform metadata json files '
+            'added to yangModels/yang repository, that are currently'
+            'being processed in following paths:\n\n'
+            f'\n New json files: \n {new_files_string} \n\n Modified json files:\n{modified_files_string}\n'
+        )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
         self.__post_to_spark(message, True, files=[self._message_log_file])
@@ -324,8 +326,7 @@ class MessageFactory:
                 be fetched.
         """
         self.LOGGER.info('Sending notification about unavailable schemas')
-        message = ('Following modules could not be retreived from GitHub '
-                   'using the schema path:\n{}'.format('\n'.join(modules_list)))
+        message = f'Following modules could not be retreived from GitHub using the schema path:\n{modules_list}'
         self.__post_to_email(message, self.__developers_email)
 
     def send_new_user(self, username: str, email: str, motivation: str):
@@ -339,8 +340,11 @@ class MessageFactory:
         self.LOGGER.info('Sending notification about new user')
 
         subject = 'Request for access confirmation'
-        msg = 'User {} with email {} is requesting access.\nMotivation: {}\nPlease go to https://yangcatalog.org/admin/users-management ' \
-              'and approve or reject this request in Users tab.'.format(username, email, motivation)
+        msg = (
+            f'User {username} with email {email} is requesting access.\nMotivation: {motivation}\n'
+            'Please go to https://yangcatalog.org/admin/users-management '
+            'and approve or reject this request in Users tab.'
+        )
         self.__post_to_email(msg, subject=subject)
 
     def send_confd_writing_failures(self, type: str, data: dict):
@@ -350,12 +354,27 @@ class MessageFactory:
             :param type     (str) Type of the data, either 'vendors' or 'modules'
             :param data     (dict) Dictionary containg the rejected data.
         """
-        subject = 'Following {} failed to write to ConfD'.format(type)
+        subject = f'Following {type} failed to write to ConfD'
         self.LOGGER.info(subject)
 
-        message = '{}\n\n'.format(subject)
+        message = f'{subject}\n\n'
         for key, error in data.items():
-            message += '\n{}:\n'.format(key)
-            message += json.dumps(error, indent=2)
+            message += f'\n{key}:\n{json.dumps(error, indent=2)}'
+
+        self.__post_to_email(message, email_to=self.__developers_email, subject=subject)
+        
+    def send_populate_script_api_triggered(self, type: str, data: dict):
+        """Send an e-mail message notifying that populate.py script has been triggered by api call.
+
+        Arguments:
+            :param type     (str) Type of the data, either 'vendors' or 'modules'
+            :param data     (dict) Dictionary containg the rejected data.
+        """
+        subject = f'populate.py script has been triggered by api call'
+        self.LOGGER.info(subject)
+
+        message = f'{subject}\n\n'
+        for key, error in data.items():
+            message += f'\n{key}:\n{json.dumps(error, indent=2)}'
 
         self.__post_to_email(message, email_to=self.__developers_email, subject=subject)

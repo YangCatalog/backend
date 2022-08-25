@@ -37,12 +37,13 @@ from dataclasses import dataclass
 from datetime import datetime
 
 import requests
+from backend.utility import message_factory
 from elasticsearchIndexing.pyang_plugin.json_tree import \
     emit_tree as emit_json_tree
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
 from redisConnections.redisConnection import RedisConnection
-from utility import log, messageFactory
+from utility import log
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
 from utility.util import (context_check_update_from, fetch_module_by_schema,
@@ -686,7 +687,7 @@ class ModulesComplicatedAlgorithms:
                                     curr_module_details.semver = increment_semver(prev_module_details.semver, 0)
 
         if len(self._unavailable_modules) != 0:
-            mf = messageFactory.MessageFactory()
+            mf = message_factory.MessageFactory()
             mf.send_github_unavailable_schemas(self._unavailable_modules)
 
     def parse_dependents(self):
