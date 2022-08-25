@@ -36,12 +36,12 @@ import time
 import typing as t
 
 import requests
-from backend.utility.staticVariables import JobLogStatuses
 import utility.log as log
 from git.exc import GitCommandError
 from utility import messageFactory
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 from ietfYangDraftPull import draftPullUtility

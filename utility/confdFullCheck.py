@@ -28,13 +28,13 @@ import os
 import random
 import string
 import time
-from backend.utility.staticVariables import JobLogStatuses
 
 from redisConnections.redisConnection import RedisConnection
 
 import utility.log as log
 from utility import confdService
 from utility.create_config import create_config
+from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)

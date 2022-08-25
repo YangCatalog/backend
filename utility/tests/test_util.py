@@ -22,11 +22,11 @@ import os
 import time
 import unittest
 from unittest import mock
-from backend.utility.staticVariables import JobLogStatuses
 
 import utility.util as util
 from api.globalConfig import yc_gc
 from parseAndPopulate.models.schema_parts import SchemaParts
+from utility.staticVariables import JobLogStatuses
 
 
 class TestUtilClass(unittest.TestCase):
