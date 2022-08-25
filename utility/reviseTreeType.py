@@ -29,12 +29,12 @@ import os
 import time
 
 import requests
-from backend.utility.staticVariables import JobLogStatuses
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
+from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
