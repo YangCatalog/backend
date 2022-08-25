@@ -66,13 +66,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         modules[0].pop('derived-semantic-version')
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:1])
+        existing_modules = {'module': deepcopy(modules[:1])}
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[0]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,
@@ -100,13 +98,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         modules[1].pop('derived-semantic-version')
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:2])
+        existing_modules = {'module': deepcopy(modules[:2])}
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[1]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,
@@ -134,13 +130,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         modules[2].pop('derived-semantic-version')
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:3])
+        existing_modules = {'module': deepcopy(modules[:3])}
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[2]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,
@@ -169,13 +163,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         modules[3].pop('derived-semantic-version')
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:4])
+        existing_modules = {'module': deepcopy(modules[:4])}
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[3]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,
@@ -204,13 +196,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         modules[4].pop('derived-semantic-version')
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:5])
+        existing_modules = {'module': deepcopy(modules[:5])}
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[4]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,
@@ -239,13 +229,11 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = sorted(modules, key=lambda k: k['revision'])
         # List od modules returned from patched /api/search/modules GET request
         modules[5].pop('derived-semantic-version')
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:6])
+        existing_modules = {'module': deepcopy(modules[:6])}
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[5]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,
@@ -276,14 +264,12 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List of modules returned from patched /api/search/modules GET request
-        existing_modules = {}
-        existing_modules['module'] = deepcopy(modules[:4] + modules[5:])
+        existing_modules = {'module': deepcopy(modules[:4] + modules[5:])}
 
         mock_requests_get.return_value.json.return_value = existing_modules
 
         module_to_parse = modules[4]
-        all_modules = {}
-        all_modules['module'] = [module_to_parse]
+        all_modules = {'module': [module_to_parse]}
 
         complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
                                                              yc_gc.credentials, self.save_file_dir,

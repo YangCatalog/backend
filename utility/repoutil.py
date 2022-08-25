@@ -74,8 +74,10 @@ class RepoUtil:
                 for submodule in self.repo.submodules:
                     assert isinstance(submodule.path, str)
                     if submodule.path in path:
-                        return load(os.path.join(self.local_dir, submodule.path), submodule._url) \
-                            .get_commit_hash(path, branch)
+                        return load(
+                                os.path.join(self.local_dir, submodule.path),
+                                submodule._url
+                            ).get_commit_hash(path, branch)
             return self.repo.commit(f'origin/{branch}').hexsha
         except BadName:
             if self.logger:

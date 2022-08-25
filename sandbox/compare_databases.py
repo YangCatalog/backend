@@ -119,11 +119,12 @@ def main():
     LOGGER.info('Number of modules in Elasticsearch: {}'.format(len(all_es_modules)))
     LOGGER.info('Number of ES modules missing in Redis: {}'.format(len(redis_missing_modules)))
 
-    result = {}
-    result['es_missing_modules_list'] = es_missing_modules
-    result['redis_missing_modules_list'] = redis_missing_modules
-    result['incorrect_format_modules_list'] = incorrect_format_modules
-    result['modules_to_index'] = modules_to_index_dict
+    result = {
+        'es_missing_modules_list': es_missing_modules,
+        'redis_missing_modules_list': redis_missing_modules,
+        'incorrect_format_modules_list': incorrect_format_modules,
+        'modules_to_index': modules_to_index_dict
+    }
     with open('{}/compared_databases.json'.format(temp_dir), 'w') as writer:
         json.dump(result, writer)
     LOGGER.info('Job finished successfully')

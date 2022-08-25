@@ -27,7 +27,6 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import errno
 import filecmp
 import glob
 import os
@@ -42,9 +41,12 @@ from git.exc import GitCommandError
 from utility import messageFactory
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 from ietfYangDraftPull import draftPullUtility
+
+current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -90,6 +92,7 @@ def main(scriptConf=None):
     is_production = is_production == 'True'
     LOGGER = log.get_logger('draftPull', f'{log_directory}/jobs/draft-pull.log')
     LOGGER.info('Starting Cron job IETF pull request')
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo_name = 'yang'
     repourl = f'https://{token}@github.com/{username}/{repo_name}.git'
@@ -103,7 +106,7 @@ def main(scriptConf=None):
 
     if not repo:
         error_message = f'Failed to clone repository {username}/{repo_name}'
-        job_log(start_time, temp_dir, error=error_message, status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=error_message, status=JobLogStatuses.FAIL, filename=current_file_basename)
         sys.exit()
 
     try:
@@ -196,14 +199,14 @@ def main(scriptConf=None):
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         LOGGER.exception('Exception found while running draftPull script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
 
     if len(messages) == 0:
         messages = [
             {'label': 'Pull request created', 'message': f'True - {commit_hash}'}  # pyright: ignore
         ]
-    job_log(start_time, temp_dir, messages=messages, status='Success', filename=os.path.basename(__file__))
+    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

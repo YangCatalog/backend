@@ -1,3 +1,5 @@
+from enum import Enum
+
 # ConfD requests headers
 confd_header_str = 'application/yang-data+json'
 confd_content_type = {'Content-type': confd_header_str}
@@ -162,3 +164,9 @@ MODULE_PROPERTIES_ORDER = {
     'os-type': 7,
     'conformance-type': 8
 }
+
+
+class JobLogStatuses(str, Enum):
+    SUCCESS = 'Success'
+    IN_PROGRESS = 'In Progress'
+    FAIL = 'Fail'
