@@ -23,10 +23,11 @@ def main():
     to_delete_list = []
     for module in modules_list:
         key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
-        to_delete_module = {}
-        to_delete_module['name'] = module.get('name')
-        to_delete_module['revision'] = module.get('revision')
-        to_delete_module['organization'] = module.get('organization')
+        to_delete_module = {
+            'name': module.get('name'),
+            'revision': module.get('revision'),
+            'organization': module.get('organization')
+        }
         to_delete_list.append(to_delete_module)
 
         # Delete yang file from /all_modules directory

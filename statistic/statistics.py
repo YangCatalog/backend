@@ -50,11 +50,13 @@ import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, github_url,
+from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url,
                                      json_headers)
 from utility.util import get_yang, job_log
 
 from statistic import runYANGallstats as all_stats
+
+current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -121,7 +123,7 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
     checked = {}
     for i, module_path in enumerate(yang_modules, start=1):
         filename = os.path.basename(module_path)
-        LOGGER.debug('{} out of {}: {}'.format(i, num_of_modules, filename))
+        LOGGER.debug(f'{i} out of {num_of_modules}: {filename}')
         if filename in checked.keys():
             passed += checked[filename]['passed']
             num_in_catalog += checked[filename]['in-catalog']
@@ -156,9 +158,9 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
                         passed += 1
                     num_in_catalog += 1
             else:
-                LOGGER.error('Could not make request on path {}'.format(path))
+                LOGGER.error(f'Could not make request on path {path}')
         else:
-            mod = '{}@{}_{}'.format(name, revision, organization)
+            mod = f'{name}@{revision}_{organization}'
             data = all_modules_data_unique.get(mod)
             if data is not None:
                 if 'passed' == data.get('compilation-status'):
@@ -167,7 +169,7 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
                 checked[filename]['in-catalog'] = True
                 num_in_catalog += 1
             else:
-                LOGGER.error('module {} does not exist'.format(mod))
+                LOGGER.error(f'module {mod} does not exist')
     return num_in_catalog, passed
 
 
@@ -252,14 +254,14 @@ def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
         :param name:        (str) name of the vendor or organization that we are creating
             statistics for
     """
-    LOGGER.info('Getting info from {}'.format(name))
+    LOGGER.info(f'Getting info from {name}')
     if name == 'openconfig':
         modules = 0
     else:
-        modules = int(out.split('{} : '.format(path))[1].splitlines()[0])
+        modules = int(out.split(f'{path} : ')[1].splitlines()[0])
     num_in_catalog, passed = get_total_and_passed(path)
-    extra = '0.0 %' if modules == 0 else '{} %'.format(repr(round((num_in_catalog / modules) * 100, 2)))
-    compiled = '0.0 %' if num_in_catalog == 0 else '{} %'.format(repr(round((passed / num_in_catalog) * 100, 2)))
+    extra = '0.0 %' if modules == 0 else f'{repr(round((num_in_catalog / modules) * 100, 2))} %'
+    compiled = '0.0 %' if num_in_catalog == 0 else f'{repr(round((passed / num_in_catalog) * 100, 2))} %'
     info_table: InfoTable = {
         'name': name,
         'num_github': modules,
@@ -292,7 +294,7 @@ def solve_platforms(path: str) -> set:
                 for js_obj in js_objs:
                     platforms.add(js_obj['name'])
             except json.decoder.JSONDecodeError as e:
-                LOGGER.error('File {} has an invalid JSON layout, skipping it ({})'.format(match, e))
+                LOGGER.error(f'File {match} has an invalid JSON layout, skipping it ({e})')
     return platforms
 
 
@@ -306,7 +308,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     config = create_config(config_path)
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
-    move_to = '{}/.'.format(config.get('Web-Section', 'public-directory'))
+    move_to = f'{config.get("Web-Section", "public-directory")}/.'
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
@@ -315,8 +317,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     global LOGGER
-    LOGGER = log.get_logger('statistics', '{}/statistics/yang.log'.format(log_directory))
+    LOGGER = log.get_logger('statistics', f'{log_directory}/statistics/yang.log')
     LOGGER.info('Starting statistics')
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo = None
 
@@ -325,20 +328,20 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     try:
         response = requests.get(url, headers=json_headers)
         if response.status_code != 200:
-            LOGGER.error('Cannot access {}, response code: {}'.format(url, response.status_code))
+            LOGGER.error(f'Cannot access {log_directory}, response code: {response.status_code}')
             sys.exit(1)
         else:
             all_modules_data = response.json()
     except requests.exceptions.RequestException as e:
-        LOGGER.error('Cannot access {}, response code: {}\nRetrying in 120s'.format(url, e.response))
+        LOGGER.error(f'Cannot access {url}, response code: {e.response}\nRetrying in 120s')
         time.sleep(120)
         response = requests.get(url, headers=json_headers)
         if response.status_code != 200:
-            LOGGER.error('Cannot access {}, response code: {}'.format(url, response.status_code))
+            LOGGER.error(f'Cannot access {url}, response code: {response.status_code}')
             sys.exit(1)
         else:
             all_modules_data = response.json()
-            LOGGER.error('Success after retry on {}'.format(url))
+            LOGGER.error(f'Success after retry on {url}')
 
     vendor_data = {}
     for module in all_modules_data['module']:
@@ -364,13 +367,13 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
             platform_values = []
             json_output = {}
             for version in versions:
-                path = '{}/vendor/cisco/{}/{}/platform-metadata.json'.format(yang_models, os_type, version)
+                path = f'{yang_models}/vendor/cisco/{os_type}/{version}/platform-metadata.json'
                 try:
                     with open(path, 'r') as f:
                         data = json.load(f)
                         metadata_platforms = data['platforms']['platform']
                 except Exception:
-                    LOGGER.exception('Problem with opening {}'.format(path))
+                    LOGGER.exception(f'Problem with opening {path}')
                     metadata_platforms = []
                 values = [version]
                 json_output[version] = {}
@@ -385,14 +388,14 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                     for metadata_platform in metadata_platforms:
                         if (metadata_platform['name'] == module_platform and
                                 metadata_platform['software-version'] == version):
-                            values.append('<i class="fa fa-check"></i>/{}'.format(exist))
+                            values.append(f'<i class="fa fa-check"></i>/{exist}')
                             json_output[version][module_platform] = {
                                 'yangcatalog': True,
                                 'github': exist_json
                             }
                             break
                     else:
-                        values.append('<i class="fa fa-times"></i>/{}'.format(exist))
+                        values.append(f'<i class="fa fa-times"></i>/{exist}')
                         json_output[version][module_platform] = {
                             'yangcatalog': False,
                             'github': exist_json
@@ -406,9 +409,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
             ('nx', 'NX-OS')
         )
 
-        platforms = {}
-        for os_type, _ in os_types:
-            platforms[os_type] = solve_platforms('{}/vendor/cisco/{}'.format(yang_models, os_type))
+        platforms = {
+            os_type: solve_platforms(f'{yang_models}/vendor/cisco/{os_type}') for os_type, _ in os_types
+        }
 
         versions = {}
         for os_type, _ in os_types:
@@ -419,8 +422,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         values = {}
         json_output = {}
         for os_type, name in os_types:
-            values[os_type], json_output[os_type] = process_platforms(versions[os_type], platforms[os_type],
-                                                                      os_type, name)
+            values[os_type], json_output[os_type] = process_platforms(
+                versions[os_type], platforms[os_type], os_type, name
+            )
 
         global all_modules_data_unique
         all_modules_data_unique = {}
@@ -428,7 +432,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
             name = mod['name']
             revision = mod['revision']
             org = mod['organization']
-            all_modules_data_unique['{}@{}_{}'.format(name, revision, org)] = mod
+            all_modules_data_unique[f'{name}@{revision}_{org}'] = mod
         all_modules_data = len(all_modules_data['module'])
 
         # Vendors separately
@@ -449,19 +453,19 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         for direc in next(os.walk(os.path.join(yang_models, 'vendor')))[1]:
             vendor_direc = os.path.join(yang_models, 'vendor', direc)
             if os.path.isdir(vendor_direc):
-                LOGGER.info('Running runYANGallstats.py for directory {}'.format(vendor_direc))
+                LOGGER.info(f'Running runYANGallstats.py for directory {vendor_direc}')
                 out = get_output(rootdir=vendor_direc)
                 process_data(out, vendor_list, vendor_direc, direc)
 
         # Vendors all together
         out = get_output(rootdir=os.path.join(yang_models, 'vendor'))
-        vendor_modules = out.split('{}/vendor : '.format(yang_models))[1].splitlines()[0]
-        vendor_modules_ndp = out.split('{}/vendor (duplicates removed): '.format(yang_models))[1].splitlines()[0]
+        vendor_modules = out.split(f'{yang_models}/vendor : ')[1].splitlines()[0]
+        vendor_modules_ndp = out.split(f'{yang_models}/vendor (duplicates removed): ')[1].splitlines()[0]
 
         # Standard all together
         out = get_output(rootdir=os.path.join(yang_models, 'standard'))
-        standard_modules = out.split('{}/standard : '.format(yang_models))[1].splitlines()[0]
-        standard_modules_ndp = out.split('{}/standard (duplicates removed): '.format(yang_models))[1].splitlines()[0]
+        standard_modules = out.split(f'{yang_models}/standard : ')[1].splitlines()[0]
+        standard_modules_ndp = out.split(f'{yang_models}/standard (duplicates removed): ')[1].splitlines()[0]
 
         # Standard separately
         sdo_list = []
@@ -512,7 +516,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                    'nx_values': values['nx'],
                    'current_date': time.strftime('%d/%m/%y')}
         LOGGER.info('Rendering data')
-        with open('{}/stats/stats.json'.format(private_dir), 'w') as f:
+        with open(f'{private_dir}/stats/stats.json', 'w') as f:
             for sdo in sdo_list:
                 sdo['percentage_compile'] = float(sdo['percentage_compile'].split(' ')[0])
                 sdo['percentage_extra'] = float(sdo['percentage_extra'].split(' ')[0])
@@ -545,12 +549,12 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
             shutil.move(file_from, resolved_path_file_to)
         end_time = int(time.time())
         total_time = end_time - start_time
-        LOGGER.info('Final time in seconds to produce statistics {}'.format(total_time))
+        LOGGER.info(f'Final time in seconds to produce statistics {total_time}')
     except Exception as e:
         LOGGER.exception('Exception found while running statistics script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=os.path.basename(__file__))
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise Exception(e)
-    job_log(start_time, temp_dir, status='Success', filename=os.path.basename(__file__))
+    job_log(start_time, temp_dir, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

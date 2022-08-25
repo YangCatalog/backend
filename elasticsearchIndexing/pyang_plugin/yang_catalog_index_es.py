@@ -172,17 +172,17 @@ def index_printer(stmt):
                 a = index_escape_json(a)
             subs.append(
                 {k: {'value': a, 'has_children': has_children, 'children': []}})
-    vals = {}
-    vals['module'] = module.arg
-    vals['revision'] = revision
-    vals['organization'] = resolve_organization(module)
-    vals['path'] = path
-    vals['statement'] = skey
-    vals['argument'] = stmt.arg
-    vals['description'] = dstr
+    vals = {
+        'module': module.arg,
+        'revision': revision,
+        'organization': resolve_organization(module),
+        'path': path,
+        'statement': skey,
+        'argument': stmt.arg,
+        'description': dstr,
+        'properties': json.dumps(subs),
+    }
     vals['sdo'] = vals['organization'] in SDOS
-    vals['properties'] = json.dumps(subs)
-
     # TODO: What is this field used for?
     # text = '{} {} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],
     #                                            vals['path'], vals['statement'], vals['argument'],
