@@ -40,16 +40,17 @@ from argparse import Namespace
 from importlib import import_module
 
 import requests
-
 import utility.log as log
-from parseAndPopulate.file_hasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.message_factory import MessageFactory
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
+
+from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -97,13 +98,13 @@ class ScriptConfig(BaseScriptConfig):
             },
             {
                 'flag': '--result-html-dir',
-                'help': 'Set dir where to write HTML compilation result files. Default: {}'.format(result_dir),
+                'help': f'Set dir where to write HTML compilation result files. Default: {result_dir}',
                 'type': str,
                 'default': result_dir
             },
             {
                 'flag': '--save-file-dir',
-                'help': 'Directory where the yang file will be saved. Default: {}'.format(save_file_dir),
+                'help': f'Directory where the yang file will be saved. Default: {save_file_dir}',
                 'type': str,
                 'default': save_file_dir
             },
@@ -142,13 +143,12 @@ class ScriptConfig(BaseScriptConfig):
 
 def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: str):
     LOGGER.info('Sending request to reload cache in different thread')
-    url = '{}/load-cache'.format(yangcatalog_api_prefix)
-    response = requests.post(url, None,
-                             auth=(credentials[0], credentials[1]),
-                             headers=json_headers)
+    url = f'{yangcatalog_api_prefix}/load-cache'
+    response = requests.post(url, None, auth=(credentials[0], credentials[1]), headers=json_headers)
     if response.status_code != 201:
-        LOGGER.warning('Could not send a load-cache request. Status code {}. message {}'
-                       .format(response.status_code, response.text))
+        LOGGER.warning(
+            f'Could not send a load-cache request. Status code {response.status_code}. message {response.text}'
+        )
     LOGGER.info('Cache reloaded successfully')
 
 
@@ -187,10 +187,13 @@ def create_dir_name(temp_dir: str) -> str:
     return new_dir_name
 
 
-def main(scriptConf=None):
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
+def main(
+    scriptConf: BaseScriptConfig = ScriptConfig(),
+    message_factory: MessageFactory = MessageFactory(),
+):
     args = scriptConf.args
+    if args.api:
+        message_factory.send_populate_script_triggered_by_api(args._get_kwargs())
     log_directory = scriptConf.log_directory
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
@@ -198,7 +201,7 @@ def main(scriptConf=None):
     json_ytree = scriptConf.json_ytree
     yangcatalog_api_prefix = scriptConf.yangcatalog_api_prefix
     global LOGGER
-    LOGGER = log.get_logger('populate', '{}/parseAndPopulate.log'.format(log_directory))
+    LOGGER = log.get_logger('populate', f'{log_directory}/parseAndPopulate.log')
 
     confd_service = ConfdService()
     redis_connection = RedisConnection()
@@ -215,13 +218,15 @@ def main(scriptConf=None):
         script_conf = configure_parse_directory(parse_directory, args, json_dir)
         parse_directory.main(scriptConf=script_conf)
     except Exception as e:
-        LOGGER.exception('parse_directory error:\n{}'.format(e))
+        LOGGER.exception(f'parse_directory error:\n{e}')
         raise e
 
     body_to_send = {}
     if args.notify_indexing:
-        body_to_send = prepare_for_es_indexing(yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
-                                               LOGGER, args.save_file_dir, force_indexing=args.force_indexing)
+        body_to_send = prepare_for_es_indexing(
+            yangcatalog_api_prefix, os.path.join(json_dir, 'prepare.json'),
+            LOGGER, args.save_file_dir, force_indexing=args.force_indexing
+        )
 
     LOGGER.info('Populating yang catalog with data. Starting to add modules')
     with open(os.path.join(json_dir, 'prepare.json')) as data_file:
@@ -258,9 +263,10 @@ def main(scriptConf=None):
             LOGGER.info('Running ModulesComplicatedAlgorithms from populate.py script')
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
-            complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                                args.credentials, args.save_file_dir, json_dir, None,
-                                                                yang_models, temp_dir, json_ytree)
+            complicated_algorithms = ModulesComplicatedAlgorithms(
+                log_directory, yangcatalog_api_prefix, args.credentials, args.save_file_dir,
+                json_dir, None, yang_models, temp_dir, json_ytree
+            )
             complicated_algorithms.parse_non_requests()
             LOGGER.info('Waiting for cache reload to finish')
             process_reload_cache.join()
@@ -272,7 +278,7 @@ def main(scriptConf=None):
             LOGGER.info('Waiting for cache reload to finish')
             process_reload_cache.join()
         end = time.time()
-        LOGGER.info('Populate took {} seconds with the main and complicated algorithm'.format(int(end - start)))
+        LOGGER.info(f'Populate took {int(end - start)} seconds with the main and complicated algorithm')
 
         # Keep new hashes only if the ConfD was patched successfully
         if not errors:

@@ -363,18 +363,17 @@ class MessageFactory:
 
         self.__post_to_email(message, email_to=self.__developers_email, subject=subject)
         
-    def send_populate_script_api_triggered(self, type: str, data: dict):
+    def send_populate_script_triggered_by_api(self, args: list[tuple[str, t.Any]]):
         """Send an e-mail message notifying that populate.py script has been triggered by api call.
 
         Arguments:
-            :param type     (str) Type of the data, either 'vendors' or 'modules'
-            :param data     (dict) Dictionary containg the rejected data.
+            :param type  (list[tuple[str, t.Any]]) list of all arguments populate.py script was called with
         """
         subject = f'populate.py script has been triggered by api call'
-        self.LOGGER.info(subject)
+        self.LOGGER.info(f'Sending notification: {subject}')
 
-        message = f'{subject}\n\n'
-        for key, error in data.items():
-            message += f'\n{key}:\n{json.dumps(error, indent=2)}'
+        message = f'{subject}, args:\n\n'
+        for arg_name, arg_value in args:
+            message += f'\n{arg_name}:\n{arg_value}'
 
         self.__post_to_email(message, email_to=self.__developers_email, subject=subject)
