@@ -40,7 +40,7 @@ from requests import ConnectionError
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -103,7 +103,7 @@ def main(scriptConf=None):
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
     LOGGER.info(f'Starting {args.type} process of Redis database')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     if 'save' == args.type:
         # Redis dump.rdb file backup
@@ -145,7 +145,7 @@ def main(scriptConf=None):
             {'label': 'Saved vendors', 'message': num_of_vendors}
         ]
         LOGGER.info('Save completed successfully')
-        job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
+        job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     else:
         file_name = ''
         if args.name_load:
@@ -168,21 +168,20 @@ def main(scriptConf=None):
                     catalog_data = json.load(file_load)
                     modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', [])
                     vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+            elif file_name.endswith('.gz'):
+                with gzip.open(file_name, 'r') as file_load:
+                    LOGGER.info(f'Loading file {file_load.name}')
+                    catalog_data = json.loads(file_load.read().decode())
+                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
+                    vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+            elif file_name.endswith('.json'):
+                with open(file_name, 'r') as file_load:
+                    LOGGER.info(f'Loading file {file_load.name}')
+                    catalog_data = json.load(file_load)
+                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
+                    vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
             else:
-                if file_name.endswith('.gz'):
-                    with gzip.open(file_name, 'r') as file_load:
-                        LOGGER.info(f'Loading file {file_load.name}')
-                        catalog_data = json.loads(file_load.read().decode())
-                        modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
-                        vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-                elif file_name.endswith('.json'):
-                    with open(file_name, 'r') as file_load:
-                        LOGGER.info(f'Loading file {file_load.name}')
-                        catalog_data = json.load(file_load)
-                        modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
-                        vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-                else:
-                    print('unable to load modules - ending')
+                LOGGER.info('Unable to load modules - ending')
 
             redisConnection.populate_modules(modules)
             redisConnection.populate_implementation(vendors)

@@ -16,6 +16,7 @@ import time
 from datetime import datetime
 
 import requests
+from backend.utility.staticVariables import JobLogStatuses
 import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
@@ -113,7 +114,7 @@ def main(scriptConf=None):
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     url = f'{yangcatalog_api_prefix}/search/modules'
     LOGGER.info(f'Getting all the modules from: {url}')
@@ -156,7 +157,7 @@ def main(scriptConf=None):
     messages = [{'label': 'Number of modules checked', 'message': num_of_modules}]
     end = time.time()
     LOGGER.info(f'Populate took {int(end - start_time)} seconds with the main and complicated algorithm')
-    job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
+    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

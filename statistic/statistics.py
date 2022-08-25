@@ -50,7 +50,7 @@ import utility.log as log
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, github_url,
+from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url,
                                      json_headers)
 from utility.util import get_yang, job_log
 
@@ -319,7 +319,7 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
     global LOGGER
     LOGGER = log.get_logger('statistics', f'{log_directory}/statistics/yang.log')
     LOGGER.info('Starting statistics')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo = None
 
@@ -552,9 +552,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         LOGGER.info(f'Final time in seconds to produce statistics {total_time}')
     except Exception as e:
         LOGGER.exception('Exception found while running statistics script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise Exception(e)
-    job_log(start_time, temp_dir, status='Success', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

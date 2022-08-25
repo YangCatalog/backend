@@ -36,7 +36,7 @@ import utility.log as log
 from utility import repoutil
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import github_url
+from utility.staticVariables import JobLogStatuses, github_url
 from utility.util import job_log
 
 from ietfYangDraftPull import draftPullUtility
@@ -99,7 +99,7 @@ def main(scriptConf=None):
     temp_dir = config.get('Directory-Section', 'temp')
     LOGGER = log.get_logger('draftPullLocal', f'{log_directory}/jobs/draft-pull-local.log')
     LOGGER.info('Starting cron job IETF pull request local')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     messages = []
     notify_indexing = notify_indexing == 'True'
@@ -187,13 +187,13 @@ def main(scriptConf=None):
 
     except Exception as e:
         LOGGER.exception('Exception found while running draftPullLocal script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     if not populate_error:
         LOGGER.info('Job finished successfully')
     else:
         LOGGER.info('Job finished, but errors found while calling populate script')
-    job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
+    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
 
 
 if __name__ == '__main__':

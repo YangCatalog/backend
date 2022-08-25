@@ -29,6 +29,7 @@ import os
 import time
 
 import requests
+from backend.utility.staticVariables import JobLogStatuses
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 import utility.log as log
@@ -63,7 +64,7 @@ def main(scriptConf=None):
 
     LOGGER = log.get_logger('reviseTreeType', f'{log_directory}/parseAndPopulate.log')
     LOGGER.info('Starting Cron job for reviseTreeType')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
     direc = '/var/yang/tmp'
 
     complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
@@ -73,7 +74,7 @@ def main(scriptConf=None):
     response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
     if response.status_code != 200:
         LOGGER.error('Failed to fetch list of modules')
-        job_log(start_time, temp_dir, current_file_basename, error=response.text, status='Fail')
+        job_log(start_time, temp_dir, current_file_basename, error=response.text, status=JobLogStatuses.FAIL)
         return
     modules_revise = []
     modules = response.json()['module']
@@ -86,7 +87,7 @@ def main(scriptConf=None):
     complicated_algorithms.resolve_tree_type({'module': modules_revise})
     complicated_algorithms.populate()
     LOGGER.info('Job finished successfully')
-    job_log(start_time, temp_dir, current_file_basename, status='Success')
+    job_log(start_time, temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
 
 
 if __name__ == '__main__':

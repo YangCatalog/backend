@@ -42,7 +42,7 @@ from redisConnections.redisConnection import RedisConnection
 
 from utility import messageFactory
 from utility.create_config import create_config
-from utility.staticVariables import backup_date_format, json_headers
+from utility.staticVariables import JobLogStatuses, backup_date_format, json_headers
 from utility.yangParser import create_context
 
 
@@ -289,7 +289,14 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     return post_body
 
 
-def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], error: str = '', status: str = ''):
+def job_log(
+    start_time: int,
+    temp_dir: str,
+    filename: str,
+    status: JobLogStatuses,
+    messages: t.Union[tuple, list] = (),
+    error: str = '',
+):
     """ Dump job run information into cronjob.json file.
 
     Arguments:
@@ -312,7 +319,7 @@ def job_log(start_time: int, temp_dir: str, filename: str, messages: list = [], 
     filename = filename.split('.py')[0]
     last_successfull = None
     # If successfull rewrite, otherwise use last_successfull value from JSON
-    if status == 'Success':
+    if status == JobLogStatuses.SUCCESS:
         last_successfull = end_time
     else:
         try:

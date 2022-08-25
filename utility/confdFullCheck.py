@@ -28,6 +28,7 @@ import os
 import random
 import string
 import time
+from backend.utility.staticVariables import JobLogStatuses
 
 from redisConnections.redisConnection import RedisConnection
 
@@ -55,7 +56,7 @@ if __name__ == '__main__':
     confdService.delete_vendors()
 
     LOGGER.info('Running confdFullCheck')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
     try:
         redisConnection = RedisConnection()
         yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
@@ -116,8 +117,8 @@ if __name__ == '__main__':
             result['message'] = f'{response.status_code} NOT OK'
         messages.append(result)
 
-        job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
+        job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
 
     except Exception as e:
         LOGGER.exception(e)
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)

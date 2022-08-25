@@ -33,6 +33,7 @@ import typing as t
 from datetime import datetime
 
 import requests
+from backend.utility.staticVariables import JobLogStatuses
 from redisConnections.redisConnection import RedisConnection
 
 import utility.log as log
@@ -169,7 +170,7 @@ def main(scriptConf=None):
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('resolveExpiration', f'{log_directory}/jobs/resolveExpiration.log')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     revision_updated_modules = 0
     datatracker_failures = []
@@ -200,7 +201,7 @@ def main(scriptConf=None):
             LOGGER.info(f'Cache loaded with status {response.status_code}')
     except Exception as e:
         LOGGER.exception('Exception found while running resolveExpiration script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     if len(datatracker_failures) > 0:
         datatracker_failures_to_write = '\n'.join(datatracker_failures)
@@ -209,7 +210,7 @@ def main(scriptConf=None):
         {'label': 'Modules with changed revison', 'message': revision_updated_modules},
         {'label': 'Datatracker modules failures', 'message': len(datatracker_failures)}
     ]
-    job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
+    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     LOGGER.info('Job finished successfully')
 
 

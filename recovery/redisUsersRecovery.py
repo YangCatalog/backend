@@ -31,7 +31,7 @@ import time
 import utility.log as log
 from redis import Redis
 from utility.create_config import create_config
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -90,7 +90,7 @@ def main(scriptConf=None):
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
     LOGGER.info(f'Starting {args.type} process of redis users database')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     if args.type == 'save':
         data = {}
@@ -121,7 +121,7 @@ def main(scriptConf=None):
         with open(os.path.join(backups, args.name_save), 'w') as f:
             json.dump(data, f)
         LOGGER.info(f'Data saved to {args.name_save} successfully')
-        job_log(start_time, temp_dir, current_file_basename, status='Success')
+        job_log(start_time, temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
 
     elif args.type == 'load':
         if args.name_load:

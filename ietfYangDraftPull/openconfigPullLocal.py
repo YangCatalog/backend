@@ -33,7 +33,7 @@ import requests
 import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import json_headers
+from utility.staticVariables import JobLogStatuses, json_headers
 from utility.util import job_log, resolve_revision
 
 from ietfYangDraftPull import draftPullUtility
@@ -73,7 +73,7 @@ def main(scriptConf=None):
 
     LOGGER = log.get_logger('openconfigPullLocal', f'{log_directory}/jobs/openconfig-pull.log')
     LOGGER.info('Starting Cron job openconfig pull request local')
-    job_log(start_time, temp_dir, status='In Progress', filename=current_file_basename)
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     commit_author = {
         'name': config_name,
@@ -105,7 +105,7 @@ def main(scriptConf=None):
         data = json.dumps({'modules': {'module': modules}})
     except Exception as e:
         LOGGER.exception('Exception found while running openconfigPullLocal script')
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     LOGGER.debug(data)
     api_path = f'{yangcatalog_api_prefix}/modules'
@@ -115,13 +115,13 @@ def main(scriptConf=None):
     payload = json.loads(response.text)
     if status_code < 200 or status_code > 299:
         e = f'PUT /api/modules responsed with status code {status_code}'
-        job_log(start_time, temp_dir, error=str(e), status='Fail', filename=current_file_basename)
+        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         LOGGER.info('Job finished, but an error occured while sending PUT to /api/modules')
     else:
         messages = [
             {'label': 'Job ID', 'message': payload['job-id']}
         ]
-        job_log(start_time, temp_dir, messages=messages, status='Success', filename=current_file_basename)
+        job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
         LOGGER.info('Job finished successfully')
 
 
