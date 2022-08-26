@@ -259,7 +259,8 @@ class RedisConnection:
                     data = self.vendorsDB.get(key)
                     redis_vendors_raw = (data or b'{}').decode('utf-8')
                     redis_vendor_data = json.loads(redis_vendors_raw)
-                    vendor_name, platform_name, software_version_name, software_flavor_name = unquote(key).split('/')
+                    vendor_name, platform_name, software_version_name, software_flavor_name = \
+                        (unquote(part) for part in key.split('/'))
                     # Build up an object from bottom
                     software_flavor = {'name': software_flavor_name, **redis_vendor_data}
                     software_version = {'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}}

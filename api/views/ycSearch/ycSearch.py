@@ -558,62 +558,30 @@ def search_vendors(value: str) -> dict:
             ends with /value searched for
         :return       (dict) response to the request.
     """
-    app.logger.info('Searching for specific vendors {}'.format(value))
+    original_value = value
+    app.logger.info('Searching for specific vendors {}'.format(original_value))
     vendors_data = get_vendors()
 
-    if 'vendor/' in value:
-        found = False
-        vendor_name = value.split('vendor/')[-1].split('/')[0]
-        for vendor in vendors_data['vendor']:
-            if vendor['name'] == vendor_name:
-                vendors_data = vendor
-                found = True
-        if found == False:
-            abort(404, description='No vendors found on path {}'.format(value))
-    else:
+    value = '/vendors/{}'.format(value).rstrip('/')
+    part_names = ['vendor', 'platform', 'software-version', 'software-flavor']
+    parts = {}
+    for part_name in part_names[::-1]:
+        value, _, parts[part_name] = value.partition('/{}s/{}/'.format(part_name, part_name))
+    if not parts['vendor']:
         return vendors_data
-
-    if 'platform/' in value:
-        found = False
-        platform_name = value.split('platform/')[-1].split('/')[0]
-        for platform in vendors_data.get('platforms', {}).get('platform', []):
-            if platform['name'] == platform_name:
-                vendors_data = platform
-                found = True
-        if found == False:
-            abort(404, description='No platform found on path {}'.format(value))
-    else:
-        vendors_data = {'yang-catalog:vendor': [vendors_data]}
-        return vendors_data
-
-    if 'software-version/' in value:
-        found = False
-        software_version_name = value.split('software-version/')[-1].split('/')[0]
-        for software_version in vendors_data.get('software-versions', {}).get('software-version', []):
-            if software_version['name'] == software_version_name:
-                vendors_data = software_version
-                found = True
-        if found == False:
-            abort(404, description='No software-version found on path {}'.format(value))
-    else:
-        vendors_data = {'yang-catalog:platform': [vendors_data]}
-        return vendors_data
-
-    if 'software-flavor/' in value:
-        found = False
-        software_flavor_name = value.split('software-flavor/')[-1].split('/')[0]
-        for software_flavor in vendors_data.get('software-flavors', {}).get('software-flavor', []):
-            if software_flavor['name'] == software_flavor_name:
-                vendors_data = software_flavor
-                found = True
-        if found == False:
-            abort(404, description='No software-flavor found on path {}'.format(value))
+    vendors_data = {'vendors': vendors_data}
+    previous_part_name = ''
+    for part_name in part_names:
+        if not (part := parts[part_name]):
+            break
+        previous_part_name = part_name
+        for chunk in vendors_data['{}s'.format(part_name)][part_name]:
+            if chunk['name'] == part:
+                vendors_data = chunk
+                break
         else:
-            vendors_data = {'yang-catalog:software-flavor': [vendors_data]}
-            return vendors_data
-    else:
-        vendors_data = {'yang-catalog:software-version': [vendors_data]}
-        return vendors_data
+            abort(404, description='No {}s found on path {}'.format(part_name, original_value))
+    return {'yang-catalog:{}'.format(previous_part_name): [vendors_data]}
 
 
 @bp.route('/search/modules/<name>,<revision>,<organization>', methods=['GET'])

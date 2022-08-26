@@ -179,22 +179,20 @@ def delete_vendor(value: str):
     rights = accessRigths.split('/')
     rights += [None] * (4 - len(rights))
 
-    confd_suffix = 'vendors/{}'.format(value)
+    path = '/vendors/{}'.format(value)
 
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     params = []
-    for param_name in param_names:
-        if '/{}/'.format(param_name) in confd_suffix:
-            params.append(confd_suffix.split('/{}/'.format(param_name))[1].split('/')[0])
-        else:
-            params.append('None')
-        confd_suffix = confd_suffix.replace('/{}/'.format(param_name), '/{}='.format(param_name))
+    for param_name in param_names[::-1]:
+        path, _, param = path.partition('/{}s/{}/'.format(param_name, param_name))
+        params.append(param or 'None')
+    params = params[::-1]
 
     for param_name, param, right in zip(param_names, params, rights):
         if right and param != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params, confd_suffix]
+    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params]
     job_id = ac.sender.send('#'.join(arguments))
 
     app.logger.info('Running deletion of vendors metadata with job_id {}'.format(job_id))

@@ -775,9 +775,9 @@ This endpoint serves to get a specific module's metadata
 
 ### URL Parameters
 
-| Parameter  | Description                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------- |
-| path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules) |
+| Parameter  | Description                                                                                                      |
+| ---------- | ---------------------------------------------------------------------------------------------------------------- |
+| path:value | Path to a vendor, platform, software-version or software-flavor (example: vendor/cisco/platforms/platform/ncs5k) |
 
 ## Get organization platform list
 

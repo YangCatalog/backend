@@ -361,22 +361,17 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
         indexing_mock.return_value = {}
         vendor, platform, software_version, software_flavor = params
 
-        confd_suffix = ''
         deleted_vendor_branch = ''
         if vendor != 'None':
-            confd_suffix += 'vendors/vendor/{}'.format(vendor)
             deleted_vendor_branch += '{}/'.format(vendor)
         if platform != 'None':
-            confd_suffix += '/platforms/platform/{}'.format(platform)
             deleted_vendor_branch += '{}/'.format(platform)
         if software_version != 'None':
-            confd_suffix += '/software-versions/software-version/{}'.format(software_version)
             deleted_vendor_branch += '{}/'.format(software_version)
         if software_flavor != 'None':
-            confd_suffix += '/software-flavors/software-flavor/{}'.format(software_flavor)
             deleted_vendor_branch += software_flavor
 
-        arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor, confd_suffix]
+        arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor]
         status = self.receiver.process_vendor_deletion(arguments)
         self.redisConnection.reload_vendors_cache()
         self.redisConnection.reload_modules_cache()
