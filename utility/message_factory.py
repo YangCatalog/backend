@@ -30,7 +30,7 @@ import sys
 import typing as t
 from email.mime.text import MIMEText
 
-from ciscosparkapi import CiscoSparkAPI
+from webexteamssdk import WebexTeamsAPI
 
 import utility.log as log
 from utility.create_config import create_config
@@ -50,7 +50,7 @@ class MessageFactory:
         Arguments:
             :param config_path: (str) path to a yangcatalog.conf file
         """
-        def list_matching_rooms(a: CiscoSparkAPI, title_match: str) -> list:
+        def list_matching_rooms(a: WebexTeamsAPI, title_match: str) -> list:
             return [r for r in a.rooms.list() if title_match in r.title]
 
         config = create_config(config_path)
@@ -66,7 +66,7 @@ class MessageFactory:
         self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
         self.LOGGER.info('Initialising Message Factory')
 
-        self.__api = CiscoSparkAPI(access_token=token)
+        self.__api = WebexTeamsAPI(access_token=token)
         rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
         self.__validate_rooms_count(rooms)
         # Ok, we should have just one room if we get here
