@@ -48,7 +48,7 @@ from distutils.dir_util import copy_tree
 import pika
 import requests
 import utility.log as log
-from redisConnections.redisConnection import RedisConnection
+from redisConnections.redisConnection import RedisConnection, key_quote
 from utility import messageFactory
 from utility.confdService import ConfdService
 from utility.create_config import create_config
@@ -127,27 +127,21 @@ class Receiver:
             :return (__response_type) one of the response types which
                 is either 'Finished successfully' or 'In progress'
         """
-        vendor, platform, software_version, software_flavor = arguments[3:7]
-        # confd_suffix = arguments[-1]
+        vendor, platform, software_version, software_flavor = arguments[3:]
 
-        path = '{}/search'.format(self._yangcatalog_api_prefix)
         redis_vendor_key = ''
         data_key = 'vendor'
         if vendor != 'None':
-            path += '/vendors/vendor/{}'.format(vendor)
-            redis_vendor_key += vendor
+            redis_vendor_key += key_quote(vendor)
             data_key = 'yang-catalog:vendor'
         if platform != 'None':
-            path += '/platforms/platform/{}'.format(platform)
-            redis_vendor_key += '/{}'.format(platform)
+            redis_vendor_key += '/{}'.format(key_quote(platform))
             data_key = 'yang-catalog:platform'
         if software_version != 'None':
-            path += '/software-versions/software-version/{}'.format(software_version)
-            redis_vendor_key += '/{}'.format(software_version)
+            redis_vendor_key += '/{}'.format(key_quote(software_version))
             data_key = 'yang-catalog:software-version'
         if software_flavor != 'None':
-            path += '/software-flavors/software-flavor/{}'.format(software_flavor)
-            redis_vendor_key += '/{}'.format(software_flavor)
+            redis_vendor_key += '/{}'.format(key_quote(software_flavor))
             data_key = 'yang-catalog:software-flavor'
 
         redis_vendor_data = self.redisConnection.create_vendors_data_dict(redis_vendor_key)
@@ -228,7 +222,6 @@ class Receiver:
                             self.redisConnection.delete_dependent(mod_key_redis, dep['name'])
 
         # Delete vendor branch from Redis
-        redis_vendor_key = redis_vendor_key.replace(' ', '#')
         response = self.redisConnection.delete_vendor(redis_vendor_key)
 
         if self._notify_indexing:

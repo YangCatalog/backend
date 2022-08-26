@@ -912,8 +912,8 @@ keyword
 ### URL Parameters
 
 | Parameter  | Description                                                                                                    |
-| ---------- | -------------------------------------------------------------------------------------------------------------- |
-| path:value | Path to a specific vendor module to search for (example: cisco/xe/1632 would search for 1632 xe cisco modules) |
+| ---------- | ------------------------------------------------------------------ |
+| path:value | A node/value pair for one of the leaf nodes of the module subtree. |
 
 ### Query Parameters
 

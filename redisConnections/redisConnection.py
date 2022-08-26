@@ -21,6 +21,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 import typing as t
+from urllib.parse import quote, unquote
 
 import utility.log as log
 from redis import Redis
@@ -195,8 +196,9 @@ class RedisConnection:
         return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
 
     def create_implementation_key(self, impl: dict):
-        return '{}/{}/{}/{}'.format(impl['vendor'].replace(' ', '#'), impl['platform'].replace(' ', '#'),
-                                    impl['software-version'].replace(' ', '#'), impl['software-flavor'].replace(' ', '#'))
+        quoted = [key_quote(i) for i in
+                  [impl['vendor'], impl['platform'], impl['software-version'], impl['software-flavor']]]
+        return '/'.join(quoted)
 
     # VENDORS DATABASE COMMUNICATION ###
     def get_all_vendors(self):
@@ -217,14 +219,16 @@ class RedisConnection:
         """
         data = {}
         for implementation in new_implemenetation:
-            vendor_name = implementation.get('name').replace(' ', '#')
-            for platform in implementation.get('platforms').get('platform'):
-                platform_name = platform.get('name').replace(' ', '#')
-                for software_version in platform.get('software-versions').get('software-version'):
-                    software_version_name = software_version.get('name').replace(' ', '#')
-                    for software_flavor in software_version.get('software-flavors').get('software-flavor'):
-                        software_flavor_name = software_flavor.get('name').replace(' ', '#')
-                        key = '{}/{}/{}/{}'.format(vendor_name, platform_name, software_version_name, software_flavor_name)
+            vendor_name = implementation['name']
+            for platform in implementation['platforms']['platform']:
+                platform_name = platform['name']
+                for software_version in platform['software-versions']['software-version']:
+                    software_version_name = software_version['name']
+                    for software_flavor in software_version['software-flavors']['software-flavor']:
+                        software_flavor_name = software_flavor['name']
+                        quoted = [key_quote(i) for i in
+                                  [vendor_name, platform_name, software_version_name, software_flavor_name]]
+                        key = '/'.join(quoted)
                         if not data.get(key):
                             data[key] = {'protocols': software_flavor.get('protocols', {})}
                         if not 'modules' in data[key]:
@@ -246,7 +250,7 @@ class RedisConnection:
 
         self.vendorsDB.set('vendors-data', json.dumps({'vendor': vendors_data}))
 
-    def create_vendors_data_dict(self, searched_key: str = ''):
+    def create_vendors_data_dict(self, searched_key: str = '') -> list:
         vendors_data = {'yang-catalog:vendor': []}
         for vendor_key in self.vendorsDB.scan_iter():
             key = vendor_key.decode('utf-8')
@@ -255,7 +259,7 @@ class RedisConnection:
                     data = self.vendorsDB.get(key)
                     redis_vendors_raw = (data or b'{}').decode('utf-8')
                     redis_vendor_data = json.loads(redis_vendors_raw)
-                    vendor_name, platform_name, software_version_name, software_flavor_name = key.replace('#', ' ').split('/')
+                    vendor_name, platform_name, software_version_name, software_flavor_name = unquote(key).split('/')
                     # Build up an object from bottom
                     software_flavor = {'name': software_flavor_name, **redis_vendor_data}
                     software_version = {'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}}
@@ -304,3 +308,7 @@ class RedisConnection:
                 else:
                     old_data[name] = new_data[name]
             old[data_type] = list(old_data.values())
+
+
+def key_quote(key: str) -> str:
+    return quote(key, safe='')
