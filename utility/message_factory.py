@@ -50,7 +50,7 @@ class MessageFactory:
         Arguments:
             :param config_path: (str) path to a yangcatalog.conf file
         """
-        def list_matching_rooms(a, title_match: str) -> list:
+        def list_matching_rooms(a: CiscoSparkAPI, title_match: str) -> list:
             return [r for r in a.rooms.list() if title_match in r.title]
 
         config = create_config(config_path)
@@ -86,8 +86,8 @@ class MessageFactory:
                 self.LOGGER.info(f'{r.title}')
             sys.exit(1)
 
-    def __post_to_spark(self, msg: str, markdown: bool = False, files: list = []):
-        """Send message to a spark room
+    def __post_to_webex(self, msg: str, markdown: bool = False, files: list = []):
+        """Send message to a webex room
 
         Arguments:
             :param msg          (str) message to send
@@ -219,7 +219,7 @@ class MessageFactory:
         Arguments:
             :param user_data  (dict) dictionary containing the data of approved and pending users
         """
-        self.__post_to_spark(self._markdown_user_reminder_message(user_data), markdown=True)
+        self.__post_to_webex(self._markdown_user_reminder_message(user_data), markdown=True)
         self.__post_to_email(self._html_user_reminder_message(user_data), subtype='html')
 
     def send_new_rfc_message(self, new_files, diff_files):
@@ -233,7 +233,7 @@ class MessageFactory:
             f'Files that are different than in yangModels repository: \n{diff_files}'
         )
 
-        self.__post_to_spark(message)
+        self.__post_to_webex(message)
         self.__post_to_email(message)
 
     def send_travis_auth_failed(self):
@@ -243,7 +243,7 @@ class MessageFactory:
         self.LOGGER.info('Sending notification about travis authorization failed')
         message = ('Travis pull job not sent because patch was not sent from'
                    ' travis. Key verification failed')
-        self.__post_to_spark(message)
+        self.__post_to_webex(message)
 
     def send_automated_procedure_failed(self, arguments: list, file: str):
         """Send a message to Cisco Webex notifying about a failed job started from
@@ -257,10 +257,10 @@ class MessageFactory:
         message = (
             f'Automated procedure with arguments:\n {arguments} \nfailed with error. Please see attached document'
         )
-        self.__post_to_spark(message, True, files=[file])
+        self.__post_to_webex(message, True, files=[file])
 
     def send_removed_temp_diff_files(self):
-        # TODO send spark message about removed searched diff files
+        # TODO send webex message about removed searched diff files
         pass
 
     def send_removed_yang_files(self, removed_yang_files: str):
@@ -275,7 +275,7 @@ class MessageFactory:
         text = f'The following files has been removed from https://yangcatalog.org using the API: \n{removed_yang_files}\n'
         with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=[self._message_log_file])
+        self.__post_to_webex(message, True, files=[self._message_log_file])
 
     def send_added_new_yang_files(self, added_yang_files: str):
         """Send a message to Cisco Webex notifying about new YANG modules.
@@ -292,7 +292,7 @@ class MessageFactory:
         )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=[self._message_log_file])
+        self.__post_to_webex(message, True, files=[self._message_log_file])
 
     def send_new_modified_platform_metadata(self, new_files: list, modified_files: list):
         """Send a message to Cisco Webex notifying about new or modified platform
@@ -315,7 +315,7 @@ class MessageFactory:
         )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_spark(message, True, files=[self._message_log_file])
+        self.__post_to_webex(message, True, files=[self._message_log_file])
 
     def send_github_unavailable_schemas(self, modules_list: list):
         """Send an e-mail message notifying about schemas which could not be fetched
