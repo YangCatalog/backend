@@ -56,27 +56,27 @@ class MessageFactory:
         config = create_config(config_path)
         log_directory = config.get('Directory-Section', 'logs')
         token = config.get('Secrets-Section', 'webex-access-token')
-        self.__email_from = config.get('Message-Section', 'email-from')
-        self.__is_production = config.get('General-Section', 'is-prod') == 'True'
-        self.__email_to = config.get('Message-Section', 'email-to').split()
-        self.__developers_email = config.get('Message-Section', 'developers-email').split()
+        self._email_from = config.get('Message-Section', 'email-from')
+        self._is_production = config.get('General-Section', 'is-prod') == 'True'
+        self._email_to = config.get('Message-Section', 'email-to').split()
+        self._developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')
-        self.__me = config.get('Web-Section', 'domain-prefix')
+        self._me = config.get('Web-Section', 'domain-prefix')
         
         self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
         self.LOGGER.info('Initialising Message Factory')
 
-        self.__api = WebexTeamsAPI(access_token=token)
-        rooms = list_matching_rooms(self.__api, 'YANG Catalog admin')
-        self.__validate_rooms_count(rooms)
+        self._api = WebexTeamsAPI(access_token=token)
+        rooms = list_matching_rooms(self._api, 'YANG Catalog admin')
+        self._validate_rooms_count(rooms)
         # Ok, we should have just one room if we get here
-        self.__room = rooms[0]
+        self._room = rooms[0]
 
-        self.__smtp = smtplib.SMTP('localhost')
-        self.__me = self.__me.split('/')[-1]
+        self._smtp = smtplib.SMTP('localhost')
+        self._me = self._me.split('/')[-1]
         self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
         
-    def __validate_rooms_count(self, rooms: list):
+    def _validate_rooms_count(self, rooms: list):
         if len(rooms) == 0:
             self.LOGGER.error('Need at least one room')
             sys.exit(1)
@@ -86,7 +86,7 @@ class MessageFactory:
                 self.LOGGER.info(f'{r.title}')
             sys.exit(1)
 
-    def __post_to_webex(self, msg: str, markdown: bool = False, files: t.Union[list, tuple] = ()):
+    def _post_to_webex(self, msg: str, markdown: bool = False, files: t.Union[list, tuple] = ()):
         """Send message to a webex room
 
         Arguments:
@@ -94,23 +94,23 @@ class MessageFactory:
             :param markdown     (bool) whether to use markdown. Default False
             :param files        (list) list of paths to files that need to be attached with the message. Default None
         """
-        msg += f'\n\nMessage sent from {self.__me}'
-        if not self.__is_production:
+        msg += f'\n\nMessage sent from {self._me}'
+        if not self._is_production:
             self.LOGGER.info(f'You are in local env. Skip sending message to cisco webex teams. The message was\n{msg}')
             if files:
                 for f in files:
                     os.remove(f)
             return
         if markdown:
-            self.__api.messages.create(self.__room.id, markdown=msg, files=files or None)
+            self._api.messages.create(self._room.id, markdown=msg, files=files or None)
         else:
-            self.__api.messages.create(self.__room.id, text=msg, files=files or None)
+            self._api.messages.create(self._room.id, text=msg, files=files or None)
 
         if files:
             for f in files:
                 os.remove(f)
 
-    def __post_to_email(self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain'):
+    def _post_to_email(self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain'):
         """Send message to an e-mail
 
         Arguments:
@@ -119,18 +119,18 @@ class MessageFactory:
             :param subject      (str) subject string
             :param subtype      (str) MIME text sybtype of the message. Default is "plain".
         """
-        send_to = email_to if email_to else self.__email_to
-        msg = MIMEText(message + f'\n\nMessage sent from {self.__me}', _subtype=subtype)
+        send_to = email_to if email_to else self._email_to
+        msg = MIMEText(message + f'\n\nMessage sent from {self._me}', _subtype=subtype)
         msg['Subject'] = subject if subject else 'Automatic generated message - RFC IETF'
-        msg['From'] = self.__email_from
+        msg['From'] = self._email_from
         msg['To'] = ', '.join(send_to)
 
-        if not self.__is_production:
+        if not self._is_production:
             self.LOGGER.info(f'You are in local env. Skip sending message to emails. The message format was {msg}')
-            self.__smtp.quit()
+            self._smtp.quit()
             return
-        self.__smtp.sendmail(self.__email_from, send_to, msg.as_string())
-        self.__smtp.quit()
+        self._smtp.sendmail(self._email_from, send_to, msg.as_string())
+        self._smtp.quit()
 
     def _html_user_reminder_message(self, user_data: dict):
         """Generate the user reminder message in HTML format
@@ -219,8 +219,8 @@ class MessageFactory:
         Arguments:
             :param user_data  (dict) dictionary containing the data of approved and pending users
         """
-        self.__post_to_webex(self._markdown_user_reminder_message(user_data), markdown=True)
-        self.__post_to_email(self._html_user_reminder_message(user_data), subtype='html')
+        self._post_to_webex(self._markdown_user_reminder_message(user_data), markdown=True)
+        self._post_to_email(self._html_user_reminder_message(user_data), subtype='html')
 
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
@@ -233,8 +233,8 @@ class MessageFactory:
             f'Files that are different than in yangModels repository: \n{diff_files}'
         )
 
-        self.__post_to_webex(message)
-        self.__post_to_email(message)
+        self._post_to_webex(message)
+        self._post_to_email(message)
 
     def send_travis_auth_failed(self):
         """Send a message to Cisco Webex notifying about failed authorization
@@ -243,7 +243,7 @@ class MessageFactory:
         self.LOGGER.info('Sending notification about travis authorization failed')
         message = ('Travis pull job not sent because patch was not sent from'
                    ' travis. Key verification failed')
-        self.__post_to_webex(message)
+        self._post_to_webex(message)
 
     def send_automated_procedure_failed(self, arguments: list, file: str):
         """Send a message to Cisco Webex notifying about a failed job started from
@@ -257,7 +257,7 @@ class MessageFactory:
         message = (
             f'Automated procedure with arguments:\n {arguments} \nfailed with error. Please see attached document'
         )
-        self.__post_to_webex(message, True, files=[file])
+        self._post_to_webex(message, True, files=[file])
 
     def send_removed_temp_diff_files(self):
         # TODO send webex message about removed searched diff files
@@ -275,7 +275,7 @@ class MessageFactory:
         text = f'The following files has been removed from https://yangcatalog.org using the API: \n{removed_yang_files}\n'
         with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_webex(message, True, files=[self._message_log_file])
+        self._post_to_webex(message, True, files=[self._message_log_file])
 
     def send_added_new_yang_files(self, added_yang_files: str):
         """Send a message to Cisco Webex notifying about new YANG modules.
@@ -292,7 +292,7 @@ class MessageFactory:
         )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_webex(message, True, files=[self._message_log_file])
+        self._post_to_webex(message, True, files=[self._message_log_file])
 
     def send_new_modified_platform_metadata(self, new_files: list, modified_files: list):
         """Send a message to Cisco Webex notifying about new or modified platform
@@ -315,7 +315,7 @@ class MessageFactory:
         )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
-        self.__post_to_webex(message, True, files=[self._message_log_file])
+        self._post_to_webex(message, True, files=[self._message_log_file])
 
     def send_github_unavailable_schemas(self, modules_list: list):
         """Send an e-mail message notifying about schemas which could not be fetched
@@ -327,7 +327,7 @@ class MessageFactory:
         """
         self.LOGGER.info('Sending notification about unavailable schemas')
         message = f'Following modules could not be retreived from GitHub using the schema path:\n{modules_list}'
-        self.__post_to_email(message, self.__developers_email)
+        self._post_to_email(message, self._developers_email)
 
     def send_new_user(self, username: str, email: str, motivation: str):
         """Send an e-mail message notifying about a new user sign up request.
@@ -345,7 +345,7 @@ class MessageFactory:
             'Please go to https://yangcatalog.org/admin/users-management '
             'and approve or reject this request in Users tab.'
         )
-        self.__post_to_email(msg, subject=subject)
+        self._post_to_email(msg, subject=subject)
 
     def send_confd_writing_failures(self, type: str, data: dict):
         """Send an e-mail message notifying about data not accepted by ConfD.
@@ -361,7 +361,7 @@ class MessageFactory:
         for key, error in data.items():
             message += f'\n{key}:\n{json.dumps(error, indent=2)}'
 
-        self.__post_to_email(message, email_to=self.__developers_email, subject=subject)
+        self._post_to_email(message, email_to=self._developers_email, subject=subject)
         
     def send_populate_script_triggered_by_api(self, args: list[tuple[str, t.Any]]):
         """Send an e-mail message notifying that populate.py script has been triggered by api call.
@@ -376,4 +376,4 @@ class MessageFactory:
         for arg_name, arg_value in args:
             message += f'\n{arg_name}:\n{arg_value}'
 
-        self.__post_to_email(message, email_to=self.__developers_email, subject=subject)
+        self._post_to_webex(message, markdown=True)
