@@ -86,7 +86,7 @@ class MessageFactory:
                 self.LOGGER.info(f'{r.title}')
             sys.exit(1)
 
-    def __post_to_webex(self, msg: str, markdown: bool = False, files: list = []):
+    def __post_to_webex(self, msg: str, markdown: bool = False, files: t.Union[list, tuple] = ()):
         """Send message to a webex room
 
         Arguments:
