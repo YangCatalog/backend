@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from utility import messageFactory
+from utility import message_factory
 from utility.redisUsersConnection import RedisUsersConnection
 
 
@@ -8,7 +8,7 @@ class UserReminder:
     """Class for sending a message reminding admins to review approved and pending users."""
 
     def __init__(self):
-        self._mf = messageFactory.MessageFactory()
+        self._mf = message_factory.MessageFactory()
         self.month = datetime.now().date().month
         self.day = datetime.now().date().day
         self.users = RedisUsersConnection()

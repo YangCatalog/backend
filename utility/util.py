@@ -40,11 +40,10 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 from redisConnections.redisConnection import RedisConnection
 
-from utility import messageFactory
+from utility import message_factory
 from utility.create_config import create_config
 from utility.staticVariables import JobLogStatuses, backup_date_format, json_headers
 from utility.yangParser import create_context
-
 
 single_line_re = re.compile(r'//.*')
 multi_line_re = re.compile(r'/\*.*?\*/', flags=re.MULTILINE)
@@ -229,7 +228,7 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
     if modules_to_delete:
         post_body = {'modules-to-delete': modules_to_delete}
         LOGGER.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))
-        mf = messageFactory.MessageFactory()
+        mf = message_factory.MessageFactory()
         mf.send_removed_yang_files(json.dumps(post_body, indent=4))
 
     return post_body
@@ -249,7 +248,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
         :param force_indexing       (bool) Whether or not we should force indexing even if module exists in cache.
     """
-    mf = messageFactory.MessageFactory()
+    mf = message_factory.MessageFactory()
     es_manager = ESManager()
     with open(modules_to_index, 'r') as reader:
         sdos_json = json.load(reader)

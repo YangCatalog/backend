@@ -38,7 +38,7 @@ import typing as t
 import requests
 import utility.log as log
 from git.exc import GitCommandError
-from utility import messageFactory
+from utility import message_factory
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
@@ -148,7 +148,7 @@ def main(scriptConf=None):
             if args.send_message:
                 if new_files or diff_files:
                     LOGGER.info('new or modified RFC files found. Sending an E-mail')
-                    mf = messageFactory.MessageFactory()
+                    mf = message_factory.MessageFactory()
                     mf.send_new_rfc_message(new_files, diff_files)
 
         # Experimental draft modules
