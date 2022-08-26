@@ -34,6 +34,7 @@ import multiprocessing
 import os
 import sys
 import time
+from tkinter.messagebox import NO
 import types
 import typing as t
 from argparse import Namespace
@@ -189,11 +190,11 @@ def create_dir_name(temp_dir: str) -> str:
 
 def main(
     scriptConf: BaseScriptConfig = ScriptConfig(),
-    message_factory: MessageFactory = MessageFactory(),
+    message_factory: t.Optional[MessageFactory] = None,
 ):
     args = scriptConf.args
     if args.api:
-        message_factory.send_populate_script_triggered_by_api(args._get_kwargs())
+        send_notification_about_running_script_by_api(args, message_factory)
     log_directory = scriptConf.log_directory
     yang_models = scriptConf.yang_models
     temp_dir = scriptConf.temp_dir
@@ -289,6 +290,16 @@ def main(
                 fileHasher.merge_and_dump_hashed_files_list(updated_hashes)
 
     LOGGER.info('Populate script finished successfully')
+    
+    
+def send_notification_about_running_script_by_api(
+    args: Namespace,
+    message_factory: MessageFactory = MessageFactory(),
+):
+    args_dict = dict(args.__dict__)
+    # Hide password from credentials argument
+    args_dict['credentials'] = args_dict['credentials'][0]
+    message_factory.send_populate_script_triggered_by_api(list(args_dict.items()))
 
 
 if __name__ == '__main__':
