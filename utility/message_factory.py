@@ -28,6 +28,7 @@ import os
 import smtplib
 import sys
 import typing as t
+import typing as t
 from email.mime.text import MIMEText
 
 from webexteamssdk import WebexTeamsAPI
@@ -67,6 +68,17 @@ class MessageFactory:
         self.LOGGER.info('Initialising Message Factory')
 
         self._api = WebexTeamsAPI(access_token=token)
+        rooms = list_matching_rooms(self._api, 'YANG Catalog admin')
+        self._validate_rooms_count(rooms)
+        # Ok, we should have just one room if we get here
+        self._room = rooms[0]
+
+        self._smtp = smtplib.SMTP('localhost')
+        self._me = self._me.split('/')[-1]
+        self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
+        
+    def _validate_rooms_count(self, rooms: list):
+        self._api = CiscoSparkAPI(access_token=token)
         rooms = list_matching_rooms(self._api, 'YANG Catalog admin')
         self._validate_rooms_count(rooms)
         # Ok, we should have just one room if we get here
