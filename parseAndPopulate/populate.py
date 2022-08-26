@@ -194,6 +194,7 @@ def main(
 ):
     args = scriptConf.args
     if args.api:
+        message_factory = message_factory if message_factory else MessageFactory()
         send_notification_about_running_script_by_api(args, message_factory)
     log_directory = scriptConf.log_directory
     yang_models = scriptConf.yang_models
