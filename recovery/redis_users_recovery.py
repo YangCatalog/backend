@@ -72,6 +72,7 @@ class ScriptConfig(BaseScriptConfig):
         
 class RedisUsersRecovery:
     def __init__(self, script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
+        self.start_time = None
         self.args = script_conf.args
         self.config = config
         self.log_directory = config.get('Directory-Section', 'logs')
@@ -84,15 +85,15 @@ class RedisUsersRecovery:
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
         
     def start_recovering(self):
-        start_time = int(time.time())
+        self.start_time = int(time.time())
         self.logger.info(f'Starting {self.args.type} process of redis users database')
-        job_log(start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
+        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
         if self.args.type == 'save':
             self.backup_data_from_redis()
         elif self.args.type == 'load':
             self.load_data_from_backup_to_redis()
         self.logger.info(f'{self.args.type} process of redis users database finished successfully')
-        job_log(start_time, self.temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
+        job_log(self.start_time, self.temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
     
     def backup_data_from_redis(self):
         data = {}
@@ -102,18 +103,17 @@ class RedisUsersRecovery:
             for key in keys:
                 key_type = self.redis.type(key).decode()
                 if key_type == 'string':
-                    value = self.redis.get(key)
-                    value = value.decode()
+                    value = value if (value := self.redis.get(key)) is None else value.decode()
                 elif key_type == 'set':
                     value = [member.decode() for member in self.redis.smembers(key)]
                 elif key_type == 'hash':
                     hash_table = self.redis.hgetall(key)
                     value = {hash_key.decode(): hash_table[hash_key].decode() for hash_key in hash_table}
                 else:
-                    self.logger.exception(
+                    exception = ValueError(
                         f'Key of unknown type ({key_type}) was found while saving data from redis'
                     )
-                    assert False
+                    self.log_and_raise_exception(exception)
                 data[key.decode()] = value
             if cursor == 0:
                 break
@@ -144,6 +144,15 @@ class RedisUsersRecovery:
                 self.redis.hset(key, mapping=value)
 
         self.logger.info(f'Data loaded from {file_name} successfully')
+        
+    def log_and_raise_exception(self, exception: Exception):
+        exception_message = str(exception)
+        self.logger.exception(exception_message)
+        job_log(
+            self.start_time, self.temp_dir, current_file_basename,
+            status=JobLogStatuses.FAIL, error=exception_message,
+        )
+        raise exception
 
 
 def main(script_conf: BaseScriptConfig = ScriptConfig()):
