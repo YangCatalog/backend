@@ -135,7 +135,7 @@ class MyFlask(Flask):
                 self.release_locked.append(g.special_id)
                 self.response_waiting = response
                 self.waiting_for_reload = False
-        except Exception:
+        except AttributeError:
             pass
         return response
 
