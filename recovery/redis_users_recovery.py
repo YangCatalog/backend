@@ -102,18 +102,26 @@ class RedisUsersRecovery:
             cursor, keys = self.redis.scan(cursor)
             for key in keys:
                 key_type = self.redis.type(key).decode()
-                if key_type == 'string':
-                    value = value if (value := self.redis.get(key)) is None else value.decode()
-                elif key_type == 'set':
-                    value = [member.decode() for member in self.redis.smembers(key)]
-                elif key_type == 'hash':
-                    hash_table = self.redis.hgetall(key)
-                    value = {hash_key.decode(): hash_table[hash_key].decode() for hash_key in hash_table}
-                else:
-                    exception = ValueError(
-                        f'Key of unknown type ({key_type}) was found while saving data from redis'
+                try:
+                    if key_type == 'string':
+                        value = value if (value := self.redis.get(key)) is None else value.decode()
+                    elif key_type == 'set':
+                        value = [member.decode() for member in self.redis.smembers(key)]
+                    elif key_type == 'hash':
+                        hash_table = self.redis.hgetall(key)
+                        value = {hash_key.decode(): hash_table[hash_key].decode() for hash_key in hash_table}
+                    else:
+                        raise ValueError(
+                            f'Key of unknown type ({key_type}) was found while saving data from redis'
+                        )
+                except ValueError as e:
+                    exception_message = str(e)
+                    self.logger.exception(exception_message)
+                    job_log(
+                        self.start_time, self.temp_dir, current_file_basename,
+                        status=JobLogStatuses.FAIL, error=exception_message,
                     )
-                    self.log_and_raise_exception(exception)
+                    raise e
                 data[key.decode()] = value
             if cursor == 0:
                 break
@@ -144,15 +152,6 @@ class RedisUsersRecovery:
                 self.redis.hset(key, mapping=value)
 
         self.logger.info(f'Data loaded from {file_name} successfully')
-        
-    def log_and_raise_exception(self, exception: Exception):
-        exception_message = str(exception)
-        self.logger.exception(exception_message)
-        job_log(
-            self.start_time, self.temp_dir, current_file_basename,
-            status=JobLogStatuses.FAIL, error=exception_message,
-        )
-        raise exception
 
 
 def main(script_conf: BaseScriptConfig = ScriptConfig()):
