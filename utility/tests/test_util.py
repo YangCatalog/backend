@@ -26,6 +26,7 @@ from unittest import mock
 import utility.util as util
 from api.globalConfig import yc_gc
 from parseAndPopulate.models.schema_parts import SchemaParts
+from utility.staticVariables import JobLogStatuses
 
 
 class TestUtilClass(unittest.TestCase):
@@ -61,7 +62,7 @@ class TestUtilClass(unittest.TestCase):
         Check if structure is correct.
         """
         start_time = int(time.time())
-        util.job_log(start_time, yc_gc.temp_dir, status='Success', filename=self.filename)
+        util.job_log(start_time, yc_gc.temp_dir, status=JobLogStatuses.SUCCESS, filename=self.filename)
         file_content = self.load_cronjobs_json()
 
         job_log = file_content.get(self.filename, {})
@@ -79,7 +80,7 @@ class TestUtilClass(unittest.TestCase):
         Check if structure is correct.
         """
         start_time = int(time.time())
-        util.job_log(start_time, yc_gc.temp_dir, error='Error occured', status='Fail', filename=self.filename)
+        util.job_log(start_time, yc_gc.temp_dir, error='Error occured', status=JobLogStatuses.FAIL, filename=self.filename)
         file_content = self.load_cronjobs_json()
 
         job_log = file_content.get(self.filename, {})
@@ -100,7 +101,7 @@ class TestUtilClass(unittest.TestCase):
         messages = [
             {'label': 'Message label', 'message': 'Message text'}
         ]
-        util.job_log(start_time, yc_gc.temp_dir, messages=messages, status='Success', filename=self.filename)
+        util.job_log(start_time, yc_gc.temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=self.filename)
         file_content = self.load_cronjobs_json()
 
         job_log = file_content.get(self.filename, {})

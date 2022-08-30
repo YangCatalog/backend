@@ -30,9 +30,7 @@ def get_headers_dict(req) -> dict:
         'PATH_INFO',
         'QUERY_STRING',
     ]
-    data = {
-        'HTTPS': req.is_secure
-    }
+    data = {'HTTPS': req.is_secure}
     for key in keys_to_serialize:
         if key in req.headers.environ:
             data[key] = req.headers.environ[key]
@@ -60,7 +58,10 @@ def should_skip(headers: dict) -> bool:
     """ Check whether the request is not just a ping. """
     if '/api/' not in headers.get('PATH_INFO', ''):
         return True
+    path_info = headers.get('PATH_INFO', '')
+    if not path_info:
+        return False
     for path in DO_NOT_TRACK_PATHS:
-        if path in headers.get('PATH_INFO', ''):
+        if path in path_info:
             return True
     return False

@@ -577,11 +577,7 @@ class VendorYangLibrary(VendorGrouping):
                         name = ''
                     break
 
-            yang_lib_info = {}
-            yang_lib_info['path'] = self.directory
-            yang_lib_info['name'] = name
-            yang_lib_info['features'] = []
-            yang_lib_info['deviations'] = []
+            yang_lib_info = {'path': self.directory, 'name': name, 'features': [], 'deviations': []}
             conformance_type = None
             for mod in yang:
                 if 'revision' in mod.tag:

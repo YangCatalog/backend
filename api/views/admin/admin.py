@@ -596,10 +596,7 @@ def get_script_names():
 @bp.route('/api/admin/disk-usage', methods=['GET'])
 def get_disk_usage():
     total, used, free = shutil.disk_usage('/')
-    usage = {}
-    usage['total'] = total
-    usage['used'] = used
-    usage['free'] = free
+    usage = {'total': total, 'used': used, 'free': free}
     return {'data': usage, 'info': 'Success'}
 
 

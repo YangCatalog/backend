@@ -33,7 +33,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
 import configparser
-from dataclasses import replace
 import grp
 import json
 import logging
@@ -86,17 +85,19 @@ def check_name_no_revision_exist(directory: str, LOGGER: logging.Logger) -> None
     LOGGER.debug(f'Checking revision for directory: {directory}')
     for _, _, files in os.walk(directory):
         for basename in files:
-            if '@' in basename:
-                yang_file_name = basename.split('@')[0] + '.yang'
-                revision = basename.split('@')[1].split('.')[0]
-                yang_file_path = os.path.join(directory, yang_file_name)
-                exists = os.path.exists(yang_file_path)
-                if exists:
-                    compared_revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
-                    if compared_revision is None:
-                        continue
-                    if revision == compared_revision:
-                        os.remove(yang_file_path)
+            if '@' not in basename:
+                continue
+            yang_file_name = basename.split('@')[0] + '.yang'
+            revision = basename.split('@')[1].split('.')[0]
+            yang_file_path = os.path.join(directory, yang_file_name)
+            exists = os.path.exists(yang_file_path)
+            if not exists:
+                continue
+            compared_revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
+            if compared_revision is None:
+                continue
+            if revision == compared_revision:
+                os.remove(yang_file_path)
 
 
 def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:

@@ -374,8 +374,7 @@ def health_check_yangcatalog():
 
     for item in urls:
         url = item.get('url', '')
-        result = {}
-        result['label'] = url
+        result = {'label': url}
         try:
             response = requests.get(url, verify=item.get('verify', True))
             status_code = response.status_code
