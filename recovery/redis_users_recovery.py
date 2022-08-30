@@ -115,11 +115,10 @@ class RedisUsersRecovery:
                             f'Key of unknown type ({key_type}) was found while saving data from redis'
                         )
                 except ValueError as e:
-                    exception_message = str(e)
-                    self.logger.exception(exception_message)
+                    self.logger.exception()
                     job_log(
                         self.start_time, self.temp_dir, current_file_basename,
-                        status=JobLogStatuses.FAIL, error=exception_message,
+                        status=JobLogStatuses.FAIL, error=str(e),
                     )
                     raise e
                 data[key.decode()] = value
