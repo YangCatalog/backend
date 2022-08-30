@@ -226,7 +226,7 @@ def resolve_organization(module):
             return 'ciena'
         elif 'etsi' in temp_organization:
             return 'etsi'
-    except:
+    except (IndexError, AttributeError):
         pass
     namespace = mod.search_one('namespace')
     if namespace is None:

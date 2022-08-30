@@ -320,7 +320,7 @@ class VendorGrouping(ModuleGrouping):
         try:
             LOGGER.debug('Checking for xml hello message file')
             self.root = ET.parse(xml_file).getroot()
-        except:
+        except Exception:
             # try to change & to &amp
             hello_file = fileinput.FileInput(xml_file, inplace=True)
             for line in hello_file:
@@ -490,14 +490,10 @@ class VendorCapabilities(VendorGrouping):
                 self._parse_raw_capability(module.text)
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
-        try:
-            schema_parts = SchemaParts(
-                repo_owner=self.repo_owner, repo_name=self.repo_name,
-                commit_hash=self.commit_hash, submodule_name=self.submodule_name)
-        except:
-            LOGGER.exception('Missing attribute, likely caused by a broken path in {}/platform-metadata.json'
-                             .format(self.directory))
-            raise
+        schema_parts = SchemaParts(
+            repo_owner=self.repo_owner, repo_name=self.repo_name,
+            commit_hash=self.commit_hash, submodule_name=self.submodule_name
+        )
 
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules

@@ -73,7 +73,7 @@ def emit_tree(modules, fd, ctx):
             for augment in m.search('augment'):
                 try:
                     hasattr(augment.i_target_node, 'i_module')
-                except:
+                except AttributeError:
                     continue
                 aug = {'augment_children': [], 'augment_path': augment.arg}
                 if (hasattr(augment.i_target_node, 'i_module') and

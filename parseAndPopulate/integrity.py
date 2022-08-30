@@ -86,27 +86,26 @@ unused_modules: t.Dict[str, t.Set[str]] = defaultdict(set)
 def check_revision(parsed_module: Statement) -> bool:
     try:
         revision = parsed_module.search('revision')[0].arg
-    except:
+    except (IndexError, AttributeError):
         return False
     revision_parts = [int(i) for i in revision.split('-')]
     try:
         date(*revision_parts)
-    except:
+    except ValueError:
         if revision_parts[1:] == [2, 29]:
             revision_parts[2] = 28
             try:
                 date(*revision_parts)
-            except:
+            except ValueError:
                 return False
-        else:
-            return False
+        return False
     return True
 
 
 def check_namespace(parsed_module: Statement) -> bool:
     try:
         namespace = parsed_module.search('namespace')[0].arg
-    except:
+    except (IndexError, AttributeError):
         return False
     if 'urn:cisco' in namespace:
         return False

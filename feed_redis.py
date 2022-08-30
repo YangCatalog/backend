@@ -31,7 +31,7 @@ from utility.create_config import create_config
 # NOTE: ideally, this should run after we have verified that RedisConnections actually works,
 #       i.e. after test_redisModulesConnection has run. I'm not sure if there's a sensible way to do this though.
 def create_module_key(module: dict):
-    return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
+    return f'{module.get("name")}@{module.get("revision")}/{module.get("organization")}'
 
 
 def load_catalog_data():
@@ -42,11 +42,11 @@ def load_catalog_data():
     redisConnection = RedisConnection()
     resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
     try:
-        print('Loading cache file from path {}'.format(resources_path))
+        print(f'Loading cache file from path {resources_path}')
         with open(os.path.join(resources_path, 'cache_data.json'), 'r') as file_load:
             catalog_data = json.load(file_load, object_pairs_hook=OrderedDict)
             print('Content of cache file loaded successfully.')
-    except:
+    except (FileNotFoundError, json.JSONDecodeError):
         print('Failed to load data from .json file')
         sys.exit(1)
 
@@ -68,10 +68,10 @@ def load_catalog_data():
     # Fill Redis db=1 with modules data
     modules_data = {create_module_key(module): module for module in modules.get('module', [])}
     redisConnection.set_redis_module(modules_data, 'modules-data')
-    print('{} modules set in Redis.'.format(len(modules.get('module', []))))
+    print(f'{len(modules.get("module", []))} modules set in Redis.')
     redisConnection.populate_implementation(vendors.get('vendor', []))
     redisConnection.reload_vendors_cache()
-    print('{} vendors set in Redis.'.format(len(vendors.get('vendor', []))))
+    print(f'{len(vendors.get("vendor", []))} vendors set in Redis.')
 
 
 def main():

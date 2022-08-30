@@ -693,7 +693,7 @@ def create_tree(name: str, revision: str) -> str:
     try:
         with open(path_to_yang, 'r') as f:
             a = ctx.add_module(path_to_yang, f.read())
-    except:
+    except FileNotFoundError:
         abort(400, description='File {} was not found'.format(path_to_yang))
     if ctx.opts.tree_path is not None:
         path = ctx.opts.tree_path.split('/')
