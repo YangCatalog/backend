@@ -490,10 +490,12 @@ class VendorCapabilities(VendorGrouping):
                 self._parse_raw_capability(module.text)
             modules = self.root.iter('{}capability'.format(tag.split('hello')[0]))
 
-        schema_parts = SchemaParts(
-            repo_owner=self.repo_owner, repo_name=self.repo_name,
-            commit_hash=self.commit_hash, submodule_name=self.submodule_name
-        )
+        try:
+            schema_parts = SchemaParts(
+                repo_owner=self.repo_owner, repo_name=self.repo_name,
+                commit_hash=self.commit_hash, submodule_name=self.submodule_name)
+        except AttributeError:
+            LOGGER.exception(f'Missing attribute, likely caused by a broken path in {self.directory}/platform-metadata.json')
 
         platform_name = self.platform_data[0].get('platform', '')
         # Parse modules

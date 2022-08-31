@@ -634,7 +634,7 @@ class ModulesComplicatedAlgorithms:
                                 trees = get_trees(new_module_details, newest_existing_module_details)
                                 # if schemas do not exist, trees will be None
                                 if not trees:
-                                    pass
+                                    continue
                                 new_yang_tree, old_yang_tree = trees
                                 if trees_match(new_yang_tree, old_yang_tree):
                                     # yang trees are the same - update only the patch version
@@ -672,7 +672,7 @@ class ModulesComplicatedAlgorithms:
                                     trees = get_trees(curr_module_details, prev_module_details)
                                     # if schemas do not exist, trees will be None
                                     if not trees:
-                                        pass
+                                        continue
                                     new_yang_tree, old_yang_tree = trees
                                     if trees_match(new_yang_tree, old_yang_tree):
                                         # yang trees are the same - update only the patch version
