@@ -206,7 +206,7 @@ class TestApiInternalClass(unittest.TestCase):
         patcher = mock.patch('builtins.open')
         mock_open = patcher.start()
         self.addCleanup(patcher.stop)
-        mock_open.side_effect = Exception
+        mock_open.side_effect = FileNotFoundError
         body = content.get('check_local')
 
         result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
