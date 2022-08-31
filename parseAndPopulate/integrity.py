@@ -96,6 +96,7 @@ def check_revision(parsed_module: Statement) -> bool:
             revision_parts[2] = 28
             try:
                 date(*revision_parts)
+                return True
             except ValueError:
                 return False
         return False
