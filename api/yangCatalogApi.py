@@ -39,10 +39,7 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-import collections
-import json
 import os
-import sys
 import time
 import uuid
 from threading import Lock
@@ -53,7 +50,6 @@ from flask.json import jsonify
 from flask.wrappers import Response
 from flask_cors import CORS
 from werkzeug.exceptions import abort
-from werkzeug.utils import redirect
 
 import api.authentication.auth as auth
 from api.my_flask import MyFlask
@@ -87,43 +83,6 @@ CORS(app, supports_credentials=True)
 # csrf = CSRFProtect(application)
 # monitor(application)              # to monitor requests using prometheus
 lock_for_load = Lock()
-
-
-def make_cache(response, data=None):
-    """ THIS METHOD IS DEPRECATED SINCE MOVING DATA FROM CONFD TO REDIS!
-    After we delete or add modules we need to reload all the modules to the file
-    for quicker search. This module is then loaded to the memory.
-
-    Arguments:
-        :param response: (str) Contains string 'work' which will be sent back if
-            everything went through fine
-        :return          (str) 'work' if everything went through fine otherwise send back the reason
-            why it failed.
-    """
-    try:
-        if data is None:
-            data = ''
-            while data is None or len(data) == 0 or data == 'None':
-                app.logger.debug('Loading data from ConfD')
-                try:
-                    data = app.confdService.get_catalog_data().json()
-                    data = json.dumps(data)
-                    app.logger.debug('Data loaded and parsed to json from ConfD successfully')
-                except ValueError as e:
-                    app.logger.warning('not valid json returned')
-                    data = ''
-                except Exception:
-                    app.logger.warning('exception during loading data from ConfD')
-                    data = None
-                if data is None or len(data) == 0 or data == 'None' or data == '':
-                    secs = 30
-                    app.logger.info('ConfD not started or does not contain any data. Waiting for {} secs before reloading'.format(secs))
-                    time.sleep(secs)
-    except Exception:
-        e = sys.exc_info()[0]
-        app.logger.exception('Could not load json to cache. Error: {}'.format(e))
-        return 'Server error - downloading cache', None
-    return response, data
 
 
 def create_response(body, status, headers=None):
@@ -199,44 +158,8 @@ def load():
         app.logger.info('Application not locked for reload')
         app.redisConnection.reload_modules_cache()
         app.redisConnection.reload_vendors_cache()
-        # load_uwsgi_cache()
         app.logger.info('Cache loaded successfully')
         app.loading = False
-
-
-def load_uwsgi_cache():
-    """ THIS METHOD IS DEPRECATED SINCE MOVING DATA FROM CONFD TO REDIS!
-    This method loads modules-data and vendors-data from ConfD and then set individual modules as keys
-    into Redis database db=0.
-    This method is no longer used since modules are now kept in Redis db=1.
-    """
-    response = 'work'
-    response, data = make_cache(response)
-    assert data, response
-    cat = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)['yang-catalog:catalog']
-    modules = cat['modules']
-    vendors = cat.get('vendors', {})
-
-    ac.redis.set('modules-data', json.dumps(modules))
-    ac.redis.set('vendors-data', json.dumps(vendors))
-    if len(modules) != 0:
-        existing_keys = ['modules-data', 'vendors-data', 'all-catalog-data']
-        # recreate keys to redis if there are any
-        for _, mod in enumerate(modules['module']):
-            key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
-            existing_keys.append(key)
-            value = json.dumps(mod)
-            ac.redis.set(key, value)
-        list_to_delete_keys_from_redis = []
-        for key in ac.redis.scan_iter():
-            if key.decode('utf-8') not in existing_keys:
-                list_to_delete_keys_from_redis.append(key)
-        if len(list_to_delete_keys_from_redis) != 0:
-            ac.redis.delete(*list_to_delete_keys_from_redis)
-
-    if response != 'work':
-        app.logger.error('Could not load or create cache')
-        sys.exit(500)
 
 
 def load_app_first_time():

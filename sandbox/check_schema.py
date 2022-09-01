@@ -14,11 +14,11 @@ import json
 
 import requests
 import utility.log as log
-from utility import repoutil, yangParser
+from utility import repoutil
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import GITHUB_RAW, github_url
-from utility.util import strip_comments, parse_revision
+from utility.util import parse_revision, strip_comments
 
 
 def get_repo_owner_name(schema: str):

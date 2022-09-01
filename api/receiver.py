@@ -128,7 +128,6 @@ class Receiver:
                 is either 'Finished successfully' or 'In progress'
         """
         vendor, platform, software_version, software_flavor = arguments[3:7]
-        # confd_suffix = arguments[-1]
 
         path = '{}/search'.format(self._yangcatalog_api_prefix)
         redis_vendor_key = ''
@@ -277,9 +276,9 @@ class Receiver:
         return response
 
     def process_module_deletion(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
-        """Deleting one or more modules. It sends the delete request to ConfD to delete module on
-        given path. This will delete whole module in modules branch of the
-        yang-catalog:yang module. It will also call indexing script to update searching.
+        """Deleting one or more modules. It deletes mpdules of given path from Redis.
+        This will delete whole module in modules branch of the yang-catalog:yang module.
+        It will also call indexing script to update searching.
 
         Argument:
             :param arguments    (list) list of arguments sent from API sender

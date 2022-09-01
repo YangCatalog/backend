@@ -474,7 +474,7 @@ def get_job(job_id: str):
 
 
 def authorize_for_vendors(request, body: dict):
-    """Authorize the sender whether he has the rights to send data via API to ConfD.
+    """Authorize the sender whether he has the rights to send data via API to Redis.
 
     Arguments:
         :param body     (dict) body of the send request
@@ -505,7 +505,7 @@ def authorize_for_vendors(request, body: dict):
 
 
 def authorize_for_sdos(request, organizations_sent: str, organization_parsed: str):
-    """Authorize the sender whether he has the rights to send data via API to ConfD.
+    """Authorize the sender whether he has the rights to send data via API to Redis.
 
     Arguments:
         :param request              (request) Request sent to API
