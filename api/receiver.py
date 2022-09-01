@@ -276,7 +276,7 @@ class Receiver:
         return response
 
     def process_module_deletion(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
-        """Deleting one or more modules. It deletes mpdules of given path from Redis.
+        """Deleting one or more modules. It deletes modules of given path from Redis.
         This will delete whole module in modules branch of the yang-catalog:yang module.
         It will also call indexing script to update searching.
 
