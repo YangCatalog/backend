@@ -51,28 +51,32 @@ class ScriptConfig(BaseScriptConfig):
     def __init__(self):
         help = __doc__
         config = create_config()
+        mutually_exclusive_args: tuple[tuple[Arg]] = (
+            (
+                {
+                    'flag': '--name_save',
+                    'help': 'Set name of the file to save. Default name is date and time in UTC',
+                    'type': str,
+                    'default': datetime.datetime.utcnow().strftime(backup_date_format)
+                },
+                {
+                    'flag': '--name_load',
+                    'help': 'Set name of the file to load. Default will take a last saved file',
+                    'type': str,
+                    'default': ''
+                },
+            ),
+        )
         args: t.List[Arg] = [
-            {
-                'flag': '--name_save',
-                'help': 'Set name of the file to save. Default name is date and time in UTC',
-                'type': str,
-                'default': datetime.datetime.utcnow().strftime(backup_date_format)
-            },
-            {
-                'flag': '--name_load',
-                'help': 'Set name of the file to load. Default will take a last saved file',
-                'type': str,
-                'default': ''
-            },
             {
                 'flag': '--type',
                 'help': 'Set whether you want to save a file or load a file. Default is save',
                 'type': str,
                 'choices': ['save', 'load'],
                 'default': 'save'
-            }
+            },
         ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args=mutually_exclusive_args)
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
