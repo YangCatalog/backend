@@ -50,7 +50,6 @@ import requests
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from utility import message_factory
-from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_removal, send_for_es_indexing
@@ -65,7 +64,6 @@ class Receiver:
         self.load_config()
         self.channel = None
         self.connection = None
-        self.confdService = ConfdService()
         self.redisConnection = RedisConnection()
         self.LOGGER.info('Receiver started')
 
@@ -81,7 +79,7 @@ class Receiver:
     def process(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
         """Process modules. Calls populate.py script which will parse the modules
         on the given path given by "dir" param. Populate script will also send the
-        request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
+        request to populate Redis running on given IP and port. It will also copy all the modules to
         parent directory of this project /api/sdo and finally also call indexing script to update searching.
 
         Arguments:
