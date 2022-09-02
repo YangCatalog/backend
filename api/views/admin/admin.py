@@ -612,8 +612,7 @@ def get_module_name(script_name):
         return 'statistic'
     elif script_name == 'resolveExpiration':
         return 'utility'
-    else:
-        return None
+    return None
 
 
 def hash_pw(password):

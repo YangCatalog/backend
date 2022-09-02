@@ -35,7 +35,23 @@ class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         help = __doc__
-        args: t.List[Arg] = [
+        mutually_exclusive_args: tuple[tuple[Arg]] = (
+            (
+                {
+                    'flag': '--save',
+                    'help': 'Set whether you want to create snapshot. Default is True',
+                    'action': 'store_true',
+                    'default': True
+                },
+                {
+                    'flag': '--load',
+                    'help': 'Set whether you want to load from snapshot. Default is False',
+                    'action': 'store_true',
+                    'default': False
+                },  
+            ),
+        )
+        args: list[Arg] = [
             {
                 'flag': '--name_save',
                 'help': 'Set name of the file to save. Default name is date and time in UTC',
@@ -47,18 +63,6 @@ class ScriptConfig(BaseScriptConfig):
                 'help': 'Set name of the file to load. Default will take a last saved file',
                 'type': str,
                 'default': ''
-            },
-            {
-                'flag': '--save',
-                'help': 'Set whether you want to create snapshot. Default is True',
-                'action': 'store_true',
-                'default': True
-            },
-            {
-                'flag': '--load',
-                'help': 'Set whether you want to load from snapshot. Default is False',
-                'action': 'store_true',
-                'default': False
             },
             {
                 'flag': '--latest',
@@ -73,7 +77,7 @@ class ScriptConfig(BaseScriptConfig):
                 'default': True
             }
         ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args=mutually_exclusive_args)
 
 
 def main(scriptConf=None):
