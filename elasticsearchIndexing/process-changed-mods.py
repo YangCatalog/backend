@@ -92,7 +92,6 @@ class ProcessChangedMods:
         repoutil.pull(self.yang_models)
         
         self._initialize_es_manager()
-        self._create_non_existent_es_indecies()
 
         logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
@@ -121,8 +120,6 @@ class ProcessChangedMods:
             
     def _initialize_es_manager(self):
         self.es_manager = ESManager()
-        
-    def _create_non_existent_es_indecies(self):
         self.logger.info('Trying to initialize Elasticsearch indices')
         for index in ESIndices:
             if self.es_manager.index_exists(index):
