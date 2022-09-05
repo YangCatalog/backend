@@ -48,8 +48,10 @@ from utility.util import parse_name, parse_revision, strip_comments, find_files
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
-        help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
-               ' to ConfD/Redis database.'
+        help = (
+            'Parse modules on given directory and generate json with module metadata '
+            'that can be populated to Redis database.'
+        )
         args: t.List[Arg] = [
             {
                 'flag': '--dir',
@@ -78,7 +80,7 @@ class ScriptConfig(BaseScriptConfig):
             },
             {
                 'flag': '--json-dir',
-                'help': 'Directory where json files to populate ConfD/Redis will be stored',
+                'help': 'Directory where json files to populate Redis will be stored',
                 'type': str,
                 'default': '/var/yang/tmp/'
             },

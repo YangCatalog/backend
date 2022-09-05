@@ -46,38 +46,6 @@ class MockModulesComplicatedAlgorithms:
         pass
 
 
-class MockConfdService:
-    def patch_modules(self, new_data: str):
-        r = mock.MagicMock()
-        r.status_code = 201
-        return r
-
-    def patch_vendors(self, new_data: str):
-        r = mock.MagicMock()
-        r.status_code = 201
-        return r
-
-    def delete_dependent(self, module_key: str, dependent: str):
-        r = mock.MagicMock()
-        r.status_code = 204
-        return r
-
-    def delete_module(self, module_key: str):
-        r = mock.MagicMock()
-        r.status_code = 204
-        return r
-
-    def delete_vendor(self, confd_suffix: str):
-        r = mock.MagicMock()
-        r.status_code = 204
-        return r
-
-    def delete_implementation(self, module_key: str, implementation_key: str):
-        r = mock.MagicMock()
-        r.status_code = 204
-        return r
-
-
 class MockRepoUtil:
     localdir = 'test'
 
@@ -110,7 +78,6 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
         self.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
         self.receiver.redisConnection = self.redisConnection
-        self.receiver.confdService = MockConfdService()  # pyright: ignore
         self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
         self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
         self.huawei_dir = f'{self.yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
@@ -126,11 +93,6 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.mock_redis_modules = self.redis_modules_patcher.start()
         self.addCleanup(self.redis_modules_patcher.stop)
         self.mock_redis_modules.return_value = self.redisConnection
-
-        self.confd_patcher = mock.patch('utility.confdService.ConfdService')
-        self.mock_confd_service = self.confd_patcher.start()
-        self.addCleanup(self.confd_patcher.stop)
-        self.mock_confd_service.side_effect = MockConfdService
 
     def tearDown(self):
         self.modulesDB.flushdb()
@@ -377,22 +339,17 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
         indexing_mock.return_value = {}
         vendor, platform, software_version, software_flavor = params
 
-        confd_suffix = ''
         deleted_vendor_branch = ''
         if vendor != 'None':
-            confd_suffix += f'vendors/vendor/{vendor}'
             deleted_vendor_branch += f'{vendor}/'
         if platform != 'None':
-            confd_suffix += f'/platforms/platform/{platform}'
             deleted_vendor_branch += f'{platform}/'
         if software_version != 'None':
-            confd_suffix += f'/software-versions/software-version/{software_version}'
             deleted_vendor_branch += f'{software_version}/'
         if software_flavor != 'None':
-            confd_suffix += f'/software-flavors/software-flavor/{software_flavor}'
             deleted_vendor_branch += software_flavor
 
-        arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor, confd_suffix]
+        arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor]
         status = self.receiver.process_vendor_deletion(arguments)
         self.redisConnection.reload_vendors_cache()
         self.redisConnection.reload_modules_cache()
