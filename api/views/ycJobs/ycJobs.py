@@ -100,7 +100,7 @@ def check_github():
                     if commit_sha in line:
                         verify_commit = True
                         break
-        except:
+        except FileNotFoundError:
             abort(404)
 
     github_repos_url = '{}/repos'.format(github_api)
@@ -178,7 +178,7 @@ def check_local():
     try:
         check_authorized(request.headers['SIGNATURE'], request.form['payload'])
         app.logger.info('Authorization successful')
-    except:
+    except Exception:
         app.logger.exception('Authorization failed. Request did not come from Travis')
         mf = message_factory.MessageFactory()
         mf.send_travis_auth_failed()
@@ -199,7 +199,7 @@ def check_local():
                 if commit_sha in line:
                     verify_commit = True
                     break
-    except:
+    except FileNotFoundError:
         abort(404)
 
     token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
@@ -308,7 +308,7 @@ def trigger_populate():
                              '--save-file-dir', ac.d_save_file_dir, 'repoLocalDir']
                 arguments = arguments + list(paths) + [ac.d_yang_models_dir, 'github']
                 ac.sender.send('#'.join(arguments))
-            except:
+            except Exception:
                 app.logger.exception('Could not populate after git push')
     except Exception as e:
         app.logger.error('Automated github webhook failure - {}'.format(e))

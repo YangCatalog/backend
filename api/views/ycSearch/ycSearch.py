@@ -85,7 +85,7 @@ def search(value: str):
         if key == module_key:
             data = modules_data().get('module')
             if data is None:
-                abort(404, description='No module found in ConfD database')
+                abort(404, description='No module found in Redis database')
             passed_data = []
             for module in data:
                 count = -1
@@ -122,7 +122,7 @@ def rpc_search_get_one(leaf: str):
     modules = data['yang-catalog:modules']['module']
 
     if len(modules) == 0:
-        abort(404, description='No module found in ConfD database')
+        abort(404, description='No module found in Redis database')
     output = set()
     resolved = set()
     for module in modules:
@@ -648,7 +648,7 @@ def get_modules():
 
 @bp.route('/search/vendors', methods=['GET'])
 def get_vendors():
-    """Search for all the vendors populated in ConfD
+    """Search for all the vendors populated in Redis
         :return response to the request with all the vendors
     """
     app.logger.info('Searching for vendors')
@@ -660,7 +660,7 @@ def get_vendors():
 
 @bp.route('/search/catalog', methods=['GET'])
 def get_catalog():
-    """Search for a all the data populated in Redis/ConfD
+    """Search for a all the data populated in Redis
         :return response to the request with all the data (modules and vendors)
     """
     app.logger.info('Searching for catalog data')
@@ -693,7 +693,7 @@ def create_tree(name: str, revision: str) -> str:
     try:
         with open(path_to_yang, 'r') as f:
             a = ctx.add_module(path_to_yang, f.read())
-    except:
+    except FileNotFoundError:
         abort(400, description='File {} was not found'.format(path_to_yang))
     if ctx.opts.tree_path is not None:
         path = ctx.opts.tree_path.split('/')

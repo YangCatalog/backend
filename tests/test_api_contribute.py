@@ -30,9 +30,8 @@ import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
 from api.globalConfig import yc_gc
 from api.views.admin.admin import hash_pw
 from api.yangCatalogApi import app
-from git import GitCommandError
 from redis import RedisError
-from utility.redisUsersConnection import RedisUsersConnection
+from redisConnections.redis_users_connection import RedisUsersConnection
 
 
 class MockRepoUtil:
