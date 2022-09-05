@@ -36,6 +36,7 @@ __email__ = "miroslav.kovac@pantheon.tech"
 
 import datetime
 import logging
+import os
 import time
 import uuid
 
@@ -80,7 +81,7 @@ class Sender:
         """
         self.LOGGER.debug('Trying to get response from correlation ids')
 
-        f = open('{}/{}'.format(self._temp_dir, self._response_file), 'r')
+        f = open(os.path.join(self._temp_dir, self._response_file), 'r')
         lines = f.readlines()
         f.close()
         for line in lines:
@@ -96,15 +97,17 @@ class Sender:
             :param arguments: (str) arguments to process in receiver
             :return job_id
         """
-        self.LOGGER.info('Sending data to queue with arguments: {}'.format(arguments))
-        while (True):
+        self.LOGGER.info(f'Sending data to queue with arguments: {arguments}')
+        while True:
             try:
                 connection = pika.BlockingConnection(
                     pika.ConnectionParameters(
                         host=self._rabbitmq_host,
                         port=self._rabbitmq_port,
                         virtual_host=self._rabbitmq_virtual_host,
-                        credentials=self._credentials))
+                        credentials=self._credentials
+                    )
+                )
                 channel = connection.channel()
                 channel.queue_declare(queue='module_queue')
                 break
@@ -112,16 +115,12 @@ class Sender:
                 self.LOGGER.debug('Cannot connect to rabbitMQ, trying after a sleep')
                 time.sleep(3)
         corr_id = str(uuid.uuid4())
-        channel.basic_publish(exchange='',
-                                   routing_key='module_queue',
-                                   body=str(arguments),
-                                   properties=pika.BasicProperties(
-                                       correlation_id=corr_id,
-                                   )
-                              )
-        with open('{}/{}'.format(self._temp_dir, self._response_file), 'a') as f:
-            line = '{} -- {} - {}\n'.format(datetime.datetime.now().ctime(),
-                                            corr_id, StatusMessage.IN_PROGRESS.value)
+        channel.basic_publish(
+            exchange='', routing_key='module_queue', body=str(arguments),
+            properties=pika.BasicProperties(correlation_id=corr_id),
+        )
+        with open(os.path.join(self._temp_dir, self._response_file), 'a') as f:
+            line = f'{datetime.datetime.now().ctime()} -- {corr_id} - {StatusMessage.IN_PROGRESS}\n'
             f.write(line)
         connection.close()
         return corr_id

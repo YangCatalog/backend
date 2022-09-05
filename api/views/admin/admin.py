@@ -177,12 +177,12 @@ def get_var_yang_directory_structure(direc):
             file_structure['size'] = file_stat.st_size
             try:
                 file_structure['group'] = grp.getgrgid(file_stat.st_gid).gr_name
-            except:
+            except (KeyError, TypeError, AttributeError):
                 file_structure['group'] = file_stat.st_gid
 
             try:
                 file_structure['user'] = pwd.getpwuid(file_stat.st_uid).pw_name
-            except:
+            except Exception:
                 file_structure['user'] = file_stat.st_uid
             file_structure['permissions'] = oct(stat.S_IMODE(os.lstat(f'{path}/{f}').st_mode))
             file_structure['modification'] = int(file_stat.st_mtime)
@@ -194,12 +194,12 @@ def get_var_yang_directory_structure(direc):
             dir_stat = p.stat()
             try:
                 dir_structure['group'] = grp.getgrgid(dir_stat.st_gid).gr_name
-            except:
+            except (KeyError, TypeError, AttributeError):
                 dir_structure['group'] = dir_stat.st_gid
 
             try:
                 dir_structure['user'] = pwd.getpwuid(dir_stat.st_uid).pw_name
-            except:
+            except Exception:
                 dir_structure['user'] = dir_stat.st_uid
             dir_structure['size'] = dir_size
             dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat(f'{path}/{directory}').st_mode))
@@ -258,12 +258,12 @@ def update_yangcatalog_config():
     try:
         app.load_config()
         resp['api'] = 'data loaded successfully'
-    except:
+    except Exception:
         resp['api'] = 'error loading data'
     try:
         ac.sender.send('reload_config')
         resp['receiver'] = 'data loaded successfully'
-    except:
+    except Exception:
         resp['receiver'] = 'error loading data'
     response = {'info': resp,
                 'new-data': body['data']}
@@ -321,7 +321,7 @@ def find_timestamp(file, date_regex, time_regex):
                 d = re.findall(date_regex, line)[0][0]
                 t = re.findall(time_regex, line)[0]
                 return datetime.strptime(f'{d} {t}', '%Y-%m-%d %H:%M:%S').timestamp()
-            except Exception:
+            except (IndexError, ValueError):
                 pass
 
 
@@ -353,7 +353,7 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
                         t = re.findall(time_regex, line)[0]
                         line_beginning = f'{d} {t}'
                         line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
-                    except:
+                    except (IndexError, ValueError):
                         # ignore and accept
                         pass
                     if line_timestamp is None or not line.startswith(line_beginning):

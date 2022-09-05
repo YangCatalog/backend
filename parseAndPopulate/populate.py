@@ -306,5 +306,5 @@ def send_notification_about_running_script_by_api(
 if __name__ == '__main__':
     try:
         main()
-    except:
+    except Exception:
         exit(1)
