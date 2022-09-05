@@ -220,12 +220,12 @@ class Receiver:
             for existing_module in all_modules.values():
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
-                    for dep in dependents:
-                        if dep['name'] == name and dep['revision'] == revision:
+                    for dependent in dependents:
+                        if dependent['name'] == name and dependent.get('revision') == revision:
                             mod_key_redis = '{}@{}/{}'.format(existing_module['name'], existing_module['revision'],
                                                               existing_module['organization'])
                             # Delete module's dependent from Redis
-                            self.redisConnection.delete_dependent(mod_key_redis, dep['name'])
+                            self.redisConnection.delete_dependent(mod_key_redis, dependent['name'])
 
         # Delete vendor branch from Redis
         redis_vendor_key = redis_vendor_key.replace(' ', '#')
