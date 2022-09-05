@@ -113,8 +113,8 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.receiver.confdService = MockConfdService()  # pyright: ignore
         self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
         self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
-        self.huawei_dir = '{}/vendor/huawei/network-router/8.20.0/ne5000e'.format(self.yang_models)
-        self.direc = '{}/receiver_test'.format(self.temp_dir)
+        self.huawei_dir = f'{self.yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
+        self.direc = f'{self.temp_dir}/receiver_test'
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         self.private_dir = os.path.join(self.resources_path, 'html/private')
 
@@ -156,22 +156,26 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         self.assertEqual(status, StatusMessage.FAIL)
 
-    @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
-    @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
+    @mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
+    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo(self):
         data = self.test_data.get('request-data-content')
-        dst = '{}/YangModels/yang/standard/ietf/RFC'.format(self.direc)
+        dst = os.path.join(self.direc, 'YangModels', 'yang', 'standard', 'ietf', 'RFC')
         os.makedirs(dst, exist_ok=True)
 
-        RFC_dir = '{}/yangmodels/yang/standard/ietf/RFC'.format(self.nonietf_dir)
-        shutil.copy('{}/ietf-yang-types@2010-09-24.yang'.format(RFC_dir),
-                    '{}/ietf-yang-types@2010-09-24.yang'.format(dst))
-        with open('{}/request-data.json'.format(self.direc), 'w') as f:
+        RFC_dir = os.path.join(self.nonietf_dir, 'yangmodels', 'yang', 'standard', 'ietf', 'RFC')
+        shutil.copy(
+            os.path.join(RFC_dir, 'ietf-yang-types@2010-09-24.yang'),
+            os.path.join(dst, 'ietf-yang-types@2010-09-24.yang'),
+        )
+        with open(os.path.join(self.direc, 'request-data.json'), 'w') as f:
             json.dump(data, f)
 
-        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api',
-                     '--credentials', *self.credentials]
+        arguments = [
+            'POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials
+        ]
 
         status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
@@ -181,9 +185,11 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(details, '')
         self.assertNotEqual(redis_data, '{}')
 
+    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo_failed_populate(self):
-        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc,
-                     '--api', '--credentials', *self.credentials]
+        arguments = [
+            'POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials
+        ]
 
         status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
@@ -193,38 +199,48 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(details, 'Server error while running populate script')
         self.assertEqual(redis_data, '{}')
 
-    @ mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
-    @ mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @ mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
+    @mock.patch('parseAndPopulate.populate.reload_cache_in_parallel', MockRepoUtil)
+    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_vendor(self):
         platform = self.test_data.get('capabilities-json-content')
 
-        dst = '{}/huawei/yang/network-router/8.20.0/ne5000e'.format(self.direc)
+        dst = os.path.join(self.direc, 'huawei', 'yang', 'network-router', '8.20.0', 'ne5000e')
         os.makedirs(dst, exist_ok=True)
 
-        shutil.copy('{}/huawei-dsa.yang'.format(self.huawei_dir), '{}/huawei-dsa.yang'.format(dst))
-        shutil.copy('{}/capabilities.xml'.format(self.huawei_dir), '{}/capabilities.xml'.format(dst))
-        with open('{}/capabilities.json'.format(dst), 'w') as f:
+        shutil.copy(
+            os.path.join(self.huawei_dir, 'huawei-dsa.yang'),
+            os.path.join(dst, 'huawei-dsa.yang'),
+        )
+        shutil.copy(
+            os.path.join(self.huawei_dir, 'capabilities.xml'),
+            os.path.join(dst, 'capabilities.xml'),
+        )
+        with open(os.path.join(dst, 'capabilities.json'), 'w') as f:
             json.dump(platform, f)
 
-        arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
-                     '--credentials', *self.credentials, 'True']
+        arguments = [
+            'POPULATE-VENDORS', '--dir', self.direc, '--api', '--credentials', *self.credentials, 'True'
+        ]
 
         status, details = self.receiver.process(arguments)
 
         self.assertEqual(status, StatusMessage.SUCCESS)
         self.assertEqual(details, '')
 
+    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_vendor_failed_populate(self):
-        arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api',
-                     '--credentials', *self.credentials, 'True']
+        arguments = [
+            'POPULATE-VENDORS', '--dir', self.direc, '--api', '--credentials', *self.credentials, 'True',
+        ]
 
         status, details = self.receiver.process(arguments)
 
         self.assertEqual(status, StatusMessage.FAIL)
         self.assertEqual(details, 'Server error while running populate script')
 
-    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -249,10 +265,10 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(details, '')
         self.assertNotIn(deleted_module_key, all_modules)
         for module in all_modules.values():
-            dependents_list = ['{}@{}'.format(dep['name'], dep.get('revision')) for dep in module.get('dependents', [])]
+            dependents_list = [f'{dep["name"]}@{dep.get("revision")}' for dep in module.get('dependents', [])]
             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
 
-    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_cannot_delete(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -277,7 +293,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(details, 'modules-not-deleted:yang-submodule,2020-02-01,ietf')
         self.assertIn(deleted_module_key, all_modules)
 
-    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_module_and_its_dependent(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -309,11 +325,11 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertNotIn('yang-module@2020-01-01/ietf', all_modules)
 
         for module in all_modules.values():
-            dependents_list = ['{}@{}'.format(dep['name'], dep.get('revision')) for dep in module.get('dependents', [])]
+            dependents_list = [f'{dep["name"]}@{dep.get("revision")}' for dep in module.get('dependents', [])]
             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
             self.assertNotIn('yang-module@2020-01-01/ietf', dependents_list)
 
-    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_empty_list_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -325,7 +341,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(status, StatusMessage.SUCCESS)
         self.assertEqual(details, '')
 
-    @ mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_incorrect_arguments_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
         self.redisConnection.populate_modules(module_to_populate)
@@ -356,7 +372,7 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
         ('fujitsu', 'None', 'None', 'None'),
         ('huawei', 'ne5000e', 'None', 'None')
     )
-    @ mock.patch('api.receiver.prepare_for_es_removal')
+    @mock.patch('api.receiver.prepare_for_es_removal')
     def test_process_vendor_deletion(self, params, indexing_mock: mock.MagicMock):
         indexing_mock.return_value = {}
         vendor, platform, software_version, software_flavor = params
@@ -364,16 +380,16 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
         confd_suffix = ''
         deleted_vendor_branch = ''
         if vendor != 'None':
-            confd_suffix += 'vendors/vendor/{}'.format(vendor)
-            deleted_vendor_branch += '{}/'.format(vendor)
+            confd_suffix += f'vendors/vendor/{vendor}'
+            deleted_vendor_branch += f'{vendor}/'
         if platform != 'None':
-            confd_suffix += '/platforms/platform/{}'.format(platform)
-            deleted_vendor_branch += '{}/'.format(platform)
+            confd_suffix += f'/platforms/platform/{platform}'
+            deleted_vendor_branch += f'{platform}/'
         if software_version != 'None':
-            confd_suffix += '/software-versions/software-version/{}'.format(software_version)
-            deleted_vendor_branch += '{}/'.format(software_version)
+            confd_suffix += f'/software-versions/software-version/{software_version}'
+            deleted_vendor_branch += f'{software_version}/'
         if software_flavor != 'None':
-            confd_suffix += '/software-flavors/software-flavor/{}'.format(software_flavor)
+            confd_suffix += f'/software-flavors/software-flavor/{software_flavor}'
             deleted_vendor_branch += software_flavor
 
         arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor, confd_suffix]

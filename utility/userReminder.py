@@ -1,7 +1,8 @@
 from datetime import datetime
 
+from redisConnections.redis_users_connection import RedisUsersConnection
+
 from utility import message_factory
-from utility.redisUsersConnection import RedisUsersConnection
 
 
 class UserReminder:

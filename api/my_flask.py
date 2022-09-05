@@ -17,9 +17,9 @@ from flask.globals import g, request
 from flask.logging import default_handler
 from flask_pyoidc.user_session import UserSession
 from redis import Redis
+from redisConnections.redis_users_connection import RedisUsersConnection
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
-from utility.redisUsersConnection import RedisUsersConnection
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
