@@ -26,12 +26,11 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from redis import RedisError
-from werkzeug.exceptions import HTTPException
-
 import api.views.admin.admin as admin
 from api.yangCatalogApi import app
-from utility.redisUsersConnection import RedisUsersConnection
+from redis import RedisError
+from redisConnections.redis_users_connection import RedisUsersConnection
+from werkzeug.exceptions import HTTPException
 
 ac = app.config
 
