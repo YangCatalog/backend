@@ -214,14 +214,14 @@ class TestApiInternalClass(unittest.TestCase):
 
         self.assertEqual(result.status_code, 404)
 
-    @mock.patch('utility.messageFactory.MessageFactory', mock.MagicMock())
+    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock())
     def test_get_local_not_authorized(self):
         result = self.client.post('api/checkComplete', data={'payload': json.dumps({'type': 'test'})})
 
         self.assertEqual(result.status_code, 401)
 
     @mock.patch.object(ac.sender, 'send', mock.MagicMock())
-    @mock.patch('utility.messageFactory.MessageFactory')
+    @mock.patch('utility.message_factory.MessageFactory')
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate(self, mock_message_factory: mock.MagicMock):
         body = {
@@ -243,7 +243,7 @@ class TestApiInternalClass(unittest.TestCase):
         )
 
     @mock.patch.object(ac.sender, 'send', mock.MagicMock())
-    @mock.patch('utility.messageFactory.MessageFactory', mock.MagicMock())
+    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock())
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate_empty(self):
         result = self.client.post('api/check-platform-metadata')
