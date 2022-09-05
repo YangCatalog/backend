@@ -35,8 +35,8 @@ class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         help = __doc__
-        mutually_exclusive_args: tuple[tuple[Arg]] = (
-            (
+        mutually_exclusive_args: list[list[Arg]] = [
+            [
                 {
                     'flag': '--save',
                     'help': 'Set whether you want to create snapshot. Default is True',
@@ -49,8 +49,8 @@ class ScriptConfig(BaseScriptConfig):
                     'action': 'store_true',
                     'default': False
                 },  
-            ),
-        )
+            ],
+        ]
         args: list[Arg] = [
             {
                 'flag': '--name_save',

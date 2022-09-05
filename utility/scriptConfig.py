@@ -18,8 +18,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'richard.zilincik@pantheon.tech'
 
 import argparse
-from ast import arg
-from turtle import st
 import typing as t
 
 
@@ -52,7 +50,7 @@ class BaseScriptConfig:
         help: str,
         args: t.Optional[list[Arg]],
         arglist: t.Optional[list[str]],
-        mutually_exclusive_args: t.Optional[tuple[tuple[Arg]]] = None,
+        mutually_exclusive_args: t.Optional[list[list[Arg]]] = None,
     ):
         self.parser = argparse.ArgumentParser(description=help)
         self.help: Help = {'help': help, 'options': {}}
@@ -65,14 +63,14 @@ class BaseScriptConfig:
         self.args = self.parser.parse_args(arglist)
         self.defaults = [self.parser.get_default(key) for key in self.args.__dict__.keys()]
         
-    def _add_mutually_exclusive_args(self, mutually_exclusive_args: tuple[tuple[Arg]]):
+    def _add_mutually_exclusive_args(self, mutually_exclusive_args: list[list[Arg]]):
         for mutually_exclusive_args_list in mutually_exclusive_args:
             group = self.parser.add_mutually_exclusive_group()
             for arg in mutually_exclusive_args_list:
                 flag = arg.pop('flag')
-                group.add_argument(flag, **arg)
+                argument = group.add_argument(flag, **arg)
                 self.mutually_exclusive_arg_flags.add(flag)
-                self._add_argument_to_args_dict(flag, arg)
+                self._add_argument_to_args_dict(argument.dest, arg)
             group_arg_names = tuple(map(lambda arg: arg.dest, group._group_actions))
             for arg_name in group_arg_names:
                 self._update_argument_in_args_dict(
@@ -88,11 +86,10 @@ class BaseScriptConfig:
             flag = arg.pop('flag')
             if flag in self.mutually_exclusive_arg_flags:
                 continue
-            self.parser.add_argument(flag, **arg)
-            self._add_argument_to_args_dict(flag, arg)
+            argument = self.parser.add_argument(flag, **arg)
+            self._add_argument_to_args_dict(argument.dest, arg)
         
-    def _add_argument_to_args_dict(self, flag: str, arg: Arg):
-        arg_name = flag.lstrip('-').replace('-', '_')
+    def _add_argument_to_args_dict(self, arg_name: str, arg: Arg):
         # some args with the 'store_true' action do not specify a type
         # NOTE: maybe we should just specify it everywhere?
         self.args_dict[arg_name] = {'type': type(arg['default']).__name__, 'default': arg['default']}
