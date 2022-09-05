@@ -54,31 +54,28 @@ class ScriptConfig(BaseScriptConfig):
         mutually_exclusive_args: list[list[Arg]] = [
             [
                 {
-                    'flag': '--name_save',
-                    'help': 'Set name of the file to save. Default name is date and time in UTC',
-                    'type': str,
-                    'default': datetime.datetime.utcnow().strftime(backup_date_format)
+                    'flag': '--save',
+                    'help': 'Set true if you want to backup data',
+                    'action': 'store_true',
+                    'default': True,
                 },
                 {
-                    'flag': '--name_load',
-                    'help': 'Set name of the file to load. Default will take a last saved file',
-                    'type': str,
-                    'default': ''
+                    'flag': '--load',
+                    'help': 'Set true if you want to load data from backup to the database',
+                    'action': 'store_true',
+                    'default': False,
                 },
             ],
         ]
         args: t.List[Arg] = [
             {
-                'flag': '--type',
-                'help': 'Set whether you want to save a file or load a file. Default is save',
+                'flag': '--file',
+                'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
                 'type': str,
-                'choices': ['save', 'load'],
-                'default': 'save'
+                'default': datetime.datetime.utcnow().strftime(backup_date_format)
             },
         ]
-        super().__init__(
-            help, args, None if __name__ == '__main__' else [], mutually_exclusive_args=mutually_exclusive_args,
-        )
+        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
@@ -108,16 +105,17 @@ def main(scriptConf=None):
     redis_json_backup = os.path.join(cache_directory, 'redis-json')
 
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
-    LOGGER.info(f'Starting {args.type} process of Redis database')
+    process_type = 'save' if args.save else 'load'
+    LOGGER.info(f'Starting {process_type} process of Redis database')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
-    if 'save' == args.type:
+    if args.save:
         # Redis dump.rdb file backup
         redis_backup_file = f'{var_yang}/redis/dump.rdb'
         if not os.path.exists(redis_backups):
             os.mkdir(redis_backups)
         if os.path.exists(redis_backup_file):
-            redis_copy_file = os.path.join(redis_backups, f'{args.name_save}.rdb.gz')
+            redis_copy_file = os.path.join(redis_backups, f'{args.file}.rdb.gz')
             with gzip.open(redis_copy_file, 'w') as save_file:
                 with open(redis_backup_file, 'rb') as original:
                     save_file.write(original.read())
@@ -152,10 +150,9 @@ def main(scriptConf=None):
         ]
         LOGGER.info('Save completed successfully')
         job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
-    else:
-        file_name = ''
-        if args.name_load:
-            file_name = os.path.join(confd_backups, args.name_load)
+    elif args.load:
+        if args.file:
+            file_name = os.path.join(confd_backups, args.file)
         else:
             list_of_backups = get_list_of_backups(confd_backups)
             file_name = os.path.join(confd_backups, list_of_backups[-1])

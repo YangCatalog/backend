@@ -584,7 +584,7 @@ def run_script_with_args(script):
 def get_script_names():
     scripts_names = (
         'populate', 'parse_directory', 'draftPull', 'ianaPull', 'draftPullLocal',
-        'openconfigPullLocal', 'statistics', 'recovery', 'elk_recovery', 'elk_fill',
+        'openconfigPullLocal', 'statistics', 'recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery',
         'resolveExpiration', 'reviseSemver'
     )
     return {'data': scripts_names, 'info': 'Success'}
@@ -603,7 +603,7 @@ def get_module_name(script_name):
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
-    elif script_name in ['recovery', 'elk_recovery', 'elk_fill']:
+    elif script_name in ['recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery']:
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'

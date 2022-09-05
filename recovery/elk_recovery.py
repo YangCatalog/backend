@@ -53,16 +53,10 @@ class ScriptConfig(BaseScriptConfig):
         ]
         args: list[Arg] = [
             {
-                'flag': '--name_save',
-                'help': 'Set name of the file to save. Default name is date and time in UTC',
+                'flag': '--file',
+                'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
                 'type': str,
                 'default': datetime.datetime.utcnow().strftime(backup_date_format).lower()
-            },
-            {
-                'flag': '--name_load',
-                'help': 'Set name of the file to load. Default will take a last saved file',
-                'type': str,
-                'default': ''
             },
             {
                 'flag': '--latest',
@@ -77,7 +71,7 @@ class ScriptConfig(BaseScriptConfig):
                 'default': True
             }
         ]
-        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args=mutually_exclusive_args)
+        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
 
 def main(scriptConf=None):
@@ -93,18 +87,18 @@ def main(scriptConf=None):
     es_snapshots_manager.create_snapshot_repository(args.compress)
 
     if save:
-        es_snapshots_manager.create_snapshot(args.name_save)
+        es_snapshots_manager.create_snapshot(args.file)
     else:
-        if not args.latest:
-            snapshot_name = args.name_load
-
-        sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
-        if not sorted_snapshots:
-            print('There are no snapshots to restore')
-            sys.exit(1)
-        snapshot_name = sorted_snapshots[-1]['snapshot']
+        if args.latest:
+            snapshot_name = args.file
+        else:
+            sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
+            if not sorted_snapshots:
+                print('There are no snapshots to restore')
+                sys.exit(1)
+            snapshot_name = sorted_snapshots[-1]['snapshot']
         restore_result = es_snapshots_manager.restore_snapshot(snapshot_name)
-        print('Restore result:\n{}'.format(restore_result))
+        print(f'Restore result:\n{restore_result}')
 
 
 if __name__ == '__main__':
