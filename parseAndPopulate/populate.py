@@ -34,14 +34,16 @@ import multiprocessing
 import os
 import sys
 import time
-from tkinter.messagebox import NO
 import types
 import typing as t
 from argparse import Namespace
 from importlib import import_module
 
 import requests
+
 import utility.log as log
+from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
@@ -49,9 +51,6 @@ from utility.message_factory import MessageFactory
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
-
-from parseAndPopulate.file_hasher import FileHasher
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -61,10 +60,12 @@ class ScriptConfig(BaseScriptConfig):
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
-        help = 'Parse hello messages and YANG files to a JSON dictionary. These ' \
-               'dictionaries are used for populating the yangcatalog. This script first ' \
-               'runs the parse_directory.py script to create JSON files which are ' \
-               'used to populate database.'
+        help = (
+            'Parse hello messages and YANG files to a JSON dictionary. These '
+           'dictionaries are used for populating the yangcatalog. This script first '
+           'runs the parse_directory.py script to create JSON files which are '
+           'used to populate database.'
+        )
         args: t.List[Arg] = [
             {
                 'flag': '--credentials',
@@ -153,8 +154,7 @@ def reload_cache_in_parallel(credentials: t.List[str], yangcatalog_api_prefix: s
     LOGGER.info('Cache reloaded successfully')
 
 
-def configure_parse_directory(module: types.ModuleType, args: Namespace, json_dir: str)\
-        -> BaseScriptConfig:
+def configure_parse_directory(module: types.ModuleType, args: Namespace, json_dir: str) -> BaseScriptConfig:
     """ Set values to ScriptConfig arguments to be able to run parse_directory script.
 
     Arguments:
