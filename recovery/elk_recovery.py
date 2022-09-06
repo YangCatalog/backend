@@ -35,36 +35,32 @@ class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         help = __doc__
-        args: t.List[Arg] = [
+        mutually_exclusive_args: list[list[Arg]] = [
+            [
+                {
+                    'flag': '--save',
+                    'help': 'Set whether you want to create snapshot.',
+                    'action': 'store_true',
+                    'default': False
+                },
+                {
+                    'flag': '--load',
+                    'help': 'Set whether you want to load from snapshot.',
+                    'action': 'store_true',
+                    'default': False
+                },  
+            ],
+        ]
+        args: list[Arg] = [
             {
-                'flag': '--name_save',
-                'help': 'Set name of the file to save. Default name is date and time in UTC',
-                'type': str,
-                'default': datetime.datetime.utcnow().strftime(backup_date_format).lower()
-            },
-            {
-                'flag': '--name_load',
-                'help': 'Set name of the file to load. Default will take a last saved file',
+                'flag': '--file',
+                'help': (
+                    'Set name of the file to save data to/load data from. Default name is empty. '
+                    'If name is empty: load operation will use the last backup file, '
+                    'save operation will use date and time in UTC.'
+                ),
                 'type': str,
                 'default': ''
-            },
-            {
-                'flag': '--save',
-                'help': 'Set whether you want to create snapshot. Default is True',
-                'action': 'store_true',
-                'default': True
-            },
-            {
-                'flag': '--load',
-                'help': 'Set whether you want to load from snapshot. Default is False',
-                'action': 'store_true',
-                'default': False
-            },
-            {
-                'flag': '--latest',
-                'help': 'Set whether to load the latest snapshot',
-                'action': 'store_true',
-                'default': True
             },
             {
                 'flag': '--compress',
@@ -73,34 +69,29 @@ class ScriptConfig(BaseScriptConfig):
                 'default': True
             }
         ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
 
-def main(scriptConf=None):
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
-
-    save = args.save
-    if args.load:
-        save = False
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
+    args = script_conf.args
 
     es_snapshots_manager = ESSnapshotsManager()
     es_snapshots_manager.create_snapshot_repository(args.compress)
 
-    if save:
-        es_snapshots_manager.create_snapshot(args.name_save)
-    else:
-        if not args.latest:
-            snapshot_name = args.name_load
-
-        sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
-        if not sorted_snapshots:
-            print('There are no snapshots to restore')
-            sys.exit(1)
-        snapshot_name = sorted_snapshots[-1]['snapshot']
+    if args.save:
+        args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
+        es_snapshots_manager.create_snapshot(args.file)
+    elif args.load:
+        if args.file:
+            snapshot_name = args.file
+        else:
+            sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
+            if not sorted_snapshots:
+                print('There are no snapshots to restore')
+                sys.exit(1)
+            snapshot_name = sorted_snapshots[-1]['snapshot']
         restore_result = es_snapshots_manager.restore_snapshot(snapshot_name)
-        print('Restore result:\n{}'.format(restore_result))
+        print(f'Restore result:\n{restore_result}')
 
 
 if __name__ == '__main__':
