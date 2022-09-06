@@ -15,7 +15,7 @@
 from enum import Enum
 
 
-class StatusMessage(Enum):
+class StatusMessage(str, Enum):
     FAIL = 'Failed'
     SUCCESS = 'Finished successfully'
     IN_PROGRESS = 'In progress'

@@ -275,7 +275,7 @@ class ModulesComplicatedAlgorithms:
                             emit_tree(ctx, [a], f, ctx.opts.tree_depth,
                                       ctx.opts.tree_line_length, path)
                             stdout = f.getvalue()
-                        except:
+                        except Exception:
                             stdout = ''
 
                         pyang_list_of_rows = stdout.split('\n')[2:]
@@ -413,7 +413,7 @@ class ModulesComplicatedAlgorithms:
                               ctx.opts.tree_line_length, path)
                     stdout = f.getvalue()
                     self._trees[name][revision] = stdout
-                except:
+                except Exception:
                     module['tree-type'] = 'not-applicable'
                     LOGGER.exception('not-applicable tree created')
                     continue
@@ -537,7 +537,7 @@ class ModulesComplicatedAlgorithms:
                             new_yang_tree = f.getvalue()
                             with open(new_tree_path, 'w') as f:
                                 f.write(new_yang_tree)
-                        except:
+                        except Exception:
                             new_yang_tree = ''
                         try:
                             f = io.StringIO()
@@ -545,7 +545,7 @@ class ModulesComplicatedAlgorithms:
                             old_yang_tree = f.getvalue()
                             with open(old_tree_path, 'w') as f:
                                 f.write(old_yang_tree)
-                        except:
+                        except Exception:
                             old_yang_tree = '2'
                     return (new_yang_tree, old_yang_tree)
                 else:
@@ -633,15 +633,16 @@ class ModulesComplicatedAlgorithms:
                             try:
                                 trees = get_trees(new_module_details, newest_existing_module_details)
                                 # if schemas do not exist, trees will be None
-                                if trees:
-                                    new_yang_tree, old_yang_tree = trees
-                                    if trees_match(new_yang_tree, old_yang_tree):
-                                        # yang trees are the same - update only the patch version
-                                        update_semver(newest_existing_module_details, new_module, PATCH)
-                                    else:
-                                        # yang trees have changed - update minor version
-                                        update_semver(newest_existing_module_details, new_module, MINOR)
-                            except:
+                                if not trees:
+                                    continue
+                                new_yang_tree, old_yang_tree = trees
+                                if trees_match(new_yang_tree, old_yang_tree):
+                                    # yang trees are the same - update only the patch version
+                                    update_semver(newest_existing_module_details, new_module, PATCH)
+                                else:
+                                    # yang trees have changed - update minor version
+                                    update_semver(newest_existing_module_details, new_module, MINOR)
+                            except Exception:
                                 # pyang found an error - update major version
                                 update_semver(newest_existing_module_details, new_module, MAJOR)
                 # semvers for all revisions need to be recalculated
@@ -670,17 +671,18 @@ class ModulesComplicatedAlgorithms:
                                 try:
                                     trees = get_trees(curr_module_details, prev_module_details)
                                     # if schemas do not exist, trees will be None
-                                    if trees:
-                                        new_yang_tree, old_yang_tree = trees
-                                        if trees_match(new_yang_tree, old_yang_tree):
-                                            # yang trees are the same - update only the patch version
-                                            update_semver(prev_module_details, module, 2)
-                                            curr_module_details.semver = increment_semver(prev_module_details.semver, 2)
-                                        else:
-                                            # yang trees have changed - update minor version
-                                            update_semver(prev_module_details, module, 1)
-                                            curr_module_details.semver = increment_semver(prev_module_details.semver, 1)
-                                except:
+                                    if not trees:
+                                        continue
+                                    new_yang_tree, old_yang_tree = trees
+                                    if trees_match(new_yang_tree, old_yang_tree):
+                                        # yang trees are the same - update only the patch version
+                                        update_semver(prev_module_details, module, 2)
+                                        curr_module_details.semver = increment_semver(prev_module_details.semver, 2)
+                                    else:
+                                        # yang trees have changed - update minor version
+                                        update_semver(prev_module_details, module, 1)
+                                        curr_module_details.semver = increment_semver(prev_module_details.semver, 1)
+                                except Exception:
                                     # pyang found an error - update major version
                                     update_semver(prev_module_details, module, 0)
                                     curr_module_details.semver = increment_semver(prev_module_details.semver, 0)

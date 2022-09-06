@@ -145,13 +145,15 @@ def main(scriptConf=None):
             batch_modules = {'module': batch}
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
-            complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix, credentials,
-                                                                  save_file_dir, direc, batch_modules, yang_models,
-                                                                  temp_dir, json_ytree)
+            complicated_algorithms = ModulesComplicatedAlgorithms(
+                log_directory, yangcatalog_api_prefix, credentials,
+                save_file_dir, direc, batch_modules, yang_models,
+                temp_dir, json_ytree,
+            )
             complicated_algorithms.parse_semver()
             sys.setrecursionlimit(recursion_limit)
             complicated_algorithms.populate()
-        except:
+        except Exception:
             LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
 

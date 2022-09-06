@@ -50,7 +50,6 @@ import requests
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection, key_quote
 from utility import message_factory
-from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_removal, send_for_es_indexing
@@ -65,7 +64,6 @@ class Receiver:
         self.load_config()
         self.channel = None
         self.connection = None
-        self.confdService = ConfdService()
         self.redisConnection = RedisConnection()
         self.LOGGER.info('Receiver started')
 
@@ -81,7 +79,7 @@ class Receiver:
     def process(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
         """Process modules. Calls populate.py script which will parse the modules
         on the given path given by "dir" param. Populate script will also send the
-        request to populate ConfD/Redis running on given IP and port. It will also copy all the modules to
+        request to populate Redis running on given IP and port. It will also copy all the modules to
         parent directory of this project /api/sdo and finally also call indexing script to update searching.
 
         Arguments:
@@ -214,12 +212,12 @@ class Receiver:
             for existing_module in all_modules.values():
                 if existing_module.get('dependents') is not None:
                     dependents = existing_module['dependents']
-                    for dep in dependents:
-                        if dep['name'] == name and dep['revision'] == revision:
+                    for dependent in dependents:
+                        if dependent['name'] == name and dependent.get('revision') == revision:
                             mod_key_redis = '{}@{}/{}'.format(existing_module['name'], existing_module['revision'],
                                                               existing_module['organization'])
                             # Delete module's dependent from Redis
-                            self.redisConnection.delete_dependent(mod_key_redis, dep['name'])
+                            self.redisConnection.delete_dependent(mod_key_redis, dependent['name'])
 
         # Delete vendor branch from Redis
         response = self.redisConnection.delete_vendor(redis_vendor_key)
@@ -270,9 +268,9 @@ class Receiver:
         return response
 
     def process_module_deletion(self, arguments: t.List[str]) -> t.Tuple[StatusMessage, str]:
-        """Deleting one or more modules. It sends the delete request to ConfD to delete module on
-        given path. This will delete whole module in modules branch of the
-        yang-catalog:yang module. It will also call indexing script to update searching.
+        """Deleting one or more modules. It deletes modules of given path from Redis.
+        This will delete whole module in modules branch of the yang-catalog:yang module.
+        It will also call indexing script to update searching.
 
         Argument:
             :param arguments    (list) list of arguments sent from API sender
