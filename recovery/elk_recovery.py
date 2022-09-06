@@ -89,7 +89,7 @@ def main(scriptConf=None):
     if save:
         es_snapshots_manager.create_snapshot(args.file)
     else:
-        if args.latest:
+        if not args.latest:
             snapshot_name = args.file
         else:
             sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
