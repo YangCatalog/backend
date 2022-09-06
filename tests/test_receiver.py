@@ -46,6 +46,38 @@ class MockModulesComplicatedAlgorithms:
         pass
 
 
+class MockConfdService:
+    def patch_modules(self, new_data: str):
+        r = mock.MagicMock()
+        r.status_code = 201
+        return r
+
+    def patch_vendors(self, new_data: str):
+        r = mock.MagicMock()
+        r.status_code = 201
+        return r
+
+    def delete_dependent(self, module_key: str, dependent: str):
+        r = mock.MagicMock()
+        r.status_code = 204
+        return r
+
+    def delete_module(self, module_key: str):
+        r = mock.MagicMock()
+        r.status_code = 204
+        return r
+
+    def delete_vendor(self, confd_suffix: str):
+        r = mock.MagicMock()
+        r.status_code = 204
+        return r
+
+    def delete_implementation(self, module_key: str, implementation_key: str):
+        r = mock.MagicMock()
+        r.status_code = 204
+        return r
+
+
 class MockRepoUtil:
     localdir = 'test'
 
@@ -93,6 +125,11 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.mock_redis_modules = self.redis_modules_patcher.start()
         self.addCleanup(self.redis_modules_patcher.stop)
         self.mock_redis_modules.return_value = self.redisConnection
+
+        self.confd_patcher = mock.patch('utility.confdService.ConfdService')
+        self.mock_confd_service = self.confd_patcher.start()
+        self.addCleanup(self.confd_patcher.stop)
+        self.mock_confd_service.side_effect = MockConfdService
 
     def tearDown(self):
         self.modulesDB.flushdb()
