@@ -54,15 +54,13 @@ class ScriptConfig(BaseScriptConfig):
         args: list[Arg] = [
             {
                 'flag': '--file',
-                'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
+                'help': (
+                    'Set name of the file to save data to/load data from. Default name is empty. '
+                    'If name is empty: load operation will use the last backup file, '
+                    'save operation will use date and time in UTC.'
+                ),
                 'type': str,
                 'default': ''
-            },
-            {
-                'flag': '--latest',
-                'help': 'Set whether to load the latest snapshot',
-                'action': 'store_true',
-                'default': True
             },
             {
                 'flag': '--compress',
@@ -90,7 +88,7 @@ def main(scriptConf=None):
         args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
         es_snapshots_manager.create_snapshot(args.file)
     else:
-        if not args.latest:
+        if args.file:
             snapshot_name = args.file
         else:
             sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()

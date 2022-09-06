@@ -70,7 +70,11 @@ class ScriptConfig(BaseScriptConfig):
         args: t.List[Arg] = [
             {
                 'flag': '--file',
-                'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
+                'help': (
+                    'Set name of the file to save data to/load data from. Default name is empty. '
+                    'If name is empty: load operation will use the last backup file, '
+                    'save operation will use date and time in UTC.'
+                ),
                 'type': str,
                 'default': ''
             },
