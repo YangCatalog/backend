@@ -52,7 +52,7 @@ class ScriptConfig(BaseScriptConfig):
                     'flag': '--save',
                     'help': 'Set true if you want to backup data',
                     'action': 'store_true',
-                    'default': True,
+                    'default': False,
                 },
                 {
                     'flag': '--load',
@@ -67,7 +67,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--file',
                 'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
                 'type': str,
-                'default': datetime.datetime.utcnow().strftime(backup_date_format),
+                'default': '',
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
@@ -128,6 +128,7 @@ class RedisUsersRecovery:
             if cursor == 0:
                 break
         os.makedirs(self.backups, exist_ok=True)
+        self.args.file = self.args.file or datetime.datetime.utcnow().strftime(backup_date_format)
         self.args.file = f'{self.args.file}.json'
         with open(os.path.join(self.backups, self.args.file), 'w') as f:
             json.dump(data, f)

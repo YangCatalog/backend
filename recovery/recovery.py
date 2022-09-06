@@ -57,7 +57,7 @@ class ScriptConfig(BaseScriptConfig):
                     'flag': '--save',
                     'help': 'Set true if you want to backup data',
                     'action': 'store_true',
-                    'default': True,
+                    'default': False,
                 },
                 {
                     'flag': '--load',
@@ -72,7 +72,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--file',
                 'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
                 'type': str,
-                'default': datetime.datetime.utcnow().strftime(backup_date_format)
+                'default': ''
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
@@ -108,8 +108,9 @@ def main(scriptConf=None):
     process_type = 'save' if args.save else 'load'
     LOGGER.info(f'Starting {process_type} process of Redis database')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
-
+    job_log_messages = []
     if args.save:
+        args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
         # Redis dump.rdb file backup
         redis_backup_file = f'{var_yang}/redis/dump.rdb'
         if not os.path.exists(redis_backups):
@@ -144,12 +145,11 @@ def main(scriptConf=None):
 
         num_of_modules = len(redis_modules)
         num_of_vendors = len(redis_vendors.get('vendor', []))
-        messages = [
+        job_log_messages = [
             {'label': 'Saved modules', 'message': num_of_modules},
             {'label': 'Saved vendors', 'message': num_of_vendors}
         ]
         LOGGER.info('Save completed successfully')
-        job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     elif args.load:
         if args.file:
             file_name = os.path.join(confd_backups, args.file)
@@ -191,6 +191,10 @@ def main(scriptConf=None):
             redisConnection.reload_modules_cache()
             redisConnection.reload_vendors_cache()
             LOGGER.info('All the modules data set to Redis successfully')
+            job_log_messages.extend([
+                {'label': 'Loaded modules', 'message': len(modules)},
+                {'label': 'Loaded vendors', 'message': len(vendors)}
+            ])
 
         tries = 4
         try:
@@ -209,6 +213,9 @@ def main(scriptConf=None):
             tries -= 1
             sleep(60)
 
+    job_log(
+        start_time, temp_dir, messages=job_log_messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename,
+    )
     LOGGER.info('Job finished successfully')
 
 

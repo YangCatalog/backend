@@ -41,7 +41,7 @@ class ScriptConfig(BaseScriptConfig):
                     'flag': '--save',
                     'help': 'Set whether you want to create snapshot. Default is True',
                     'action': 'store_true',
-                    'default': True
+                    'default': False
                 },
                 {
                     'flag': '--load',
@@ -56,7 +56,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--file',
                 'help': 'Set name of the file to save data to/load data from. Default name is date and time in UTC',
                 'type': str,
-                'default': datetime.datetime.utcnow().strftime(backup_date_format).lower()
+                'default': ''
             },
             {
                 'flag': '--latest',
@@ -87,6 +87,7 @@ def main(scriptConf=None):
     es_snapshots_manager.create_snapshot_repository(args.compress)
 
     if save:
+        args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
         es_snapshots_manager.create_snapshot(args.file)
     else:
         if not args.latest:
