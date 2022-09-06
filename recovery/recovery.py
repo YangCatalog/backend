@@ -16,7 +16,7 @@
 """
 Backup or restore all yangcatalog data.
 Redis .rdb files are prioritized. JSON dumps are used if .rdb files aren't present.
-Load adittionally makes a PATCH request to write the yang-catalog@2018-04-03 module to ConfD.
+Load additionally makes a PATCH request to write the yang-catalog@2018-04-03 module to ConfD.
 This script runs as a daily cronjob.
 """
 
@@ -89,28 +89,26 @@ class ScriptConfig(BaseScriptConfig):
         self.var_yang = config.get('Directory-Section', 'var')
 
 
-def feed_confd_modules(modules: list, confdService: ConfdService):
-    return confdService.patch_modules(modules)
+def feed_confd_modules(modules: list, confd_service: ConfdService) -> bool:
+    return confd_service.patch_modules(modules)
 
 
-def main(scriptConf=None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
-    cache_directory = scriptConf.cache_directory
-    log_directory = scriptConf.log_directory
-    temp_dir = scriptConf.temp_dir
-    var_yang = scriptConf.var_yang
-    confdService = ConfdService()
+    args = script_conf.args
+    cache_directory = script_conf.cache_directory
+    log_directory = script_conf.log_directory
+    temp_dir = script_conf.temp_dir
+    var_yang = script_conf.var_yang
+    confd_service = ConfdService()
 
     confd_backups = os.path.join(cache_directory, 'confd')
     redis_backups = os.path.join(cache_directory, 'redis')
     redis_json_backup = os.path.join(cache_directory, 'redis-json')
 
-    LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
+    logger = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
     process_type = 'save' if args.save else 'load'
-    LOGGER.info(f'Starting {process_type} process of Redis database')
+    logger.info(f'Starting {process_type} process of Redis database')
     job_log_filename = 'recovery - save' if args.save else current_file_basename
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=job_log_filename)
     job_log_messages = []
@@ -125,14 +123,14 @@ def main(scriptConf=None):
             with gzip.open(redis_copy_file, 'w') as save_file:
                 with open(redis_backup_file, 'rb') as original:
                     save_file.write(original.read())
-            LOGGER.info('Backup of Redis dump.rdb file created')
+            logger.info('Backup of Redis dump.rdb file created')
         else:
-            LOGGER.warning('Redis dump.rdb file does not exists')
+            logger.warning('Redis dump.rdb file does not exists')
 
         # Backup content of Redis into JSON file
-        redisConnection = RedisConnection()
-        redis_modules_raw = redisConnection.get_all_modules()
-        redis_vendors_raw = redisConnection.get_all_vendors()
+        redis_connection = RedisConnection()
+        redis_modules_raw = redis_connection.get_all_modules()
+        redis_vendors_raw = redis_connection.get_all_vendors()
         redis_modules_dict = json.loads(redis_modules_raw)
         redis_modules = [i for i in redis_modules_dict.values()]
         redis_vendors = json.loads(redis_vendors_raw)
@@ -154,7 +152,7 @@ def main(scriptConf=None):
             {'label': 'Saved modules', 'message': num_of_modules},
             {'label': 'Saved vendors', 'message': num_of_vendors}
         ]
-        LOGGER.info('Save completed successfully')
+        logger.info('Save completed successfully')
     elif args.load:
         if args.file:
             file_name = os.path.join(confd_backups, args.file)
@@ -162,9 +160,9 @@ def main(scriptConf=None):
             list_of_backups = get_list_of_backups(confd_backups)
             file_name = os.path.join(confd_backups, list_of_backups[-1])
 
-        redisConnection = RedisConnection()
-        redis_modules = redisConnection.get_all_modules()
-        yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
+        redis_connection = RedisConnection()
+        redis_modules = redis_connection.get_all_modules()
+        yang_catalog_module = redis_connection.get_module('yang-catalog@2018-04-03/ietf')
 
         if '{}' in (redis_modules, yang_catalog_module):
             # RDB not exists - load from JSON
@@ -178,24 +176,24 @@ def main(scriptConf=None):
                     vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
             elif file_name.endswith('.gz'):
                 with gzip.open(file_name, 'r') as file_load:
-                    LOGGER.info(f'Loading file {file_load.name}')
+                    logger.info(f'Loading file {file_load.name}')
                     catalog_data = json.loads(file_load.read().decode())
                     modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
                     vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
             elif file_name.endswith('.json'):
                 with open(file_name, 'r') as file_load:
-                    LOGGER.info(f'Loading file {file_load.name}')
+                    logger.info(f'Loading file {file_load.name}')
                     catalog_data = json.load(file_load)
                     modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
                     vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
             else:
-                LOGGER.info('Unable to load modules - ending')
+                logger.info('Unable to load modules - ending')
 
-            redisConnection.populate_modules(modules)
-            redisConnection.populate_implementation(vendors)
-            redisConnection.reload_modules_cache()
-            redisConnection.reload_vendors_cache()
-            LOGGER.info('All the modules data set to Redis successfully')
+            redis_connection.populate_modules(modules)
+            redis_connection.populate_implementation(vendors)
+            redis_connection.reload_modules_cache()
+            redis_connection.reload_vendors_cache()
+            logger.info('All the modules data set to Redis successfully')
             job_log_messages.extend([
                 {'label': 'Loaded modules', 'message': len(modules)},
                 {'label': 'Loaded vendors', 'message': len(vendors)}
@@ -203,23 +201,23 @@ def main(scriptConf=None):
 
         tries = 4
         try:
-            response = confdService.head_confd()
-            LOGGER.info(f'Status code for HEAD request {response.status_code} ')
+            response = confd_service.head_confd()
+            logger.info(f'Status code for HEAD request {response.status_code} ')
             if response.status_code == 200:
-                yang_catalog_module = redisConnection.get_module('yang-catalog@2018-04-03/ietf')
-                error = feed_confd_modules([json.loads(yang_catalog_module)], confdService)
+                yang_catalog_module = redis_connection.get_module('yang-catalog@2018-04-03/ietf')
+                error = feed_confd_modules([json.loads(yang_catalog_module)], confd_service)
                 if error:
-                    LOGGER.error('Error occurred while patching yang-catalog@2018-04-03/ietf module')
+                    logger.error('Error occurred while patching yang-catalog@2018-04-03/ietf module')
                 else:
-                    LOGGER.info('yang-catalog@2018-04-03/ietf patched successfully')
+                    logger.info('yang-catalog@2018-04-03/ietf patched successfully')
         except ConnectionError:
             if tries == 0:
-                LOGGER.exception('Unable to connect to ConfD for over 5 minutes')
+                logger.exception('Unable to connect to ConfD for over 5 minutes')
             tries -= 1
             sleep(60)
 
     job_log(start_time, temp_dir, messages=job_log_messages, status=JobLogStatuses.SUCCESS, filename=job_log_filename)
-    LOGGER.info('Job finished successfully')
+    logger.info('Job finished successfully')
 
 
 if __name__ == '__main__':

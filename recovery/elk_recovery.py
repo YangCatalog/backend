@@ -72,22 +72,16 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
 
-def main(scriptConf=None):
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
-
-    save = args.save
-    if args.load:
-        save = False
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
+    args = script_conf.args
 
     es_snapshots_manager = ESSnapshotsManager()
     es_snapshots_manager.create_snapshot_repository(args.compress)
 
-    if save:
+    if args.save:
         args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
         es_snapshots_manager.create_snapshot(args.file)
-    else:
+    elif args.load:
         if args.file:
             snapshot_name = args.file
         else:
