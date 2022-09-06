@@ -39,13 +39,13 @@ class ScriptConfig(BaseScriptConfig):
             [
                 {
                     'flag': '--save',
-                    'help': 'Set whether you want to create snapshot. Default is True',
+                    'help': 'Set whether you want to create snapshot.',
                     'action': 'store_true',
                     'default': False
                 },
                 {
                     'flag': '--load',
-                    'help': 'Set whether you want to load from snapshot. Default is False',
+                    'help': 'Set whether you want to load from snapshot.',
                     'action': 'store_true',
                     'default': False
                 },  

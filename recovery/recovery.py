@@ -111,7 +111,8 @@ def main(scriptConf=None):
     LOGGER = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
     process_type = 'save' if args.save else 'load'
     LOGGER.info(f'Starting {process_type} process of Redis database')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
+    job_log_filename = 'recovery - save' if args.save else current_file_basename
+    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=job_log_filename)
     job_log_messages = []
     if args.save:
         args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
@@ -217,9 +218,7 @@ def main(scriptConf=None):
             tries -= 1
             sleep(60)
 
-    job_log(
-        start_time, temp_dir, messages=job_log_messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename,
-    )
+    job_log(start_time, temp_dir, messages=job_log_messages, status=JobLogStatuses.SUCCESS, filename=job_log_filename)
     LOGGER.info('Job finished successfully')
 
 
