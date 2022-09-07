@@ -32,12 +32,14 @@ import json
 import os
 import time
 import typing as t
+from argparse import Namespace
 from configparser import ConfigParser
 from time import sleep
 
+from requests import ConnectionError
+
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from requests import ConnectionError
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -83,12 +85,14 @@ class ScriptConfig(BaseScriptConfig):
 
 
 class Recovery:
-    def __init__(self, script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
+    def __init__(self, args: Namespace, config: ConfigParser = create_config()):
         self.start_time = None
         self.job_log_messages = []
+        self.job_log_filename = current_file_basename
         self.yang_catalog_module_name = 'yang-catalog@2018-04-03/ietf'
+        self.process_type = ''
 
-        self.args = script_conf.args
+        self.args = args
         self.config = config
         self.log_directory = self.config.get('Directory-Section', 'logs')
         self.temp_dir = self.config.get('Directory-Section', 'temp')
@@ -106,21 +110,27 @@ class Recovery:
 
     def start_process(self):
         self.start_time = int(time.time())
-        process_type = 'save' if self.args.save else 'load'
-        self.logger.info(f'Starting {process_type} process of Redis database')
-        job_log_filename = 'recovery - save' if self.args.save else current_file_basename
-        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=job_log_filename)
-        if self.args.save:
-            self.backup_data_from_db()
-        elif self.args.load:
-            self.load_data_from_backup_to_db()
-        self.logger.info(f'{process_type} process of Redis database finished successfully')
+        self.logger.info(f'Starting {self.process_type} process of Redis database')
+        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=self.job_log_filename)
+        self._start_process()
+        self.logger.info(f'{self.process_type} process of Redis database finished successfully')
         job_log(
             self.start_time, self.temp_dir, messages=self.job_log_messages, status=JobLogStatuses.SUCCESS,
-            filename=job_log_filename,
+            filename=self.job_log_filename,
         )
 
-    def backup_data_from_db(self):
+    def _start_process(self):
+        """Main logic of the script"""
+        raise NotImplementedError
+
+
+class BackupDatabaseData(Recovery):
+    def __init__(self, args: Namespace, config: ConfigParser = create_config()):
+        super().__init__(args, config)
+        self.job_log_filename = 'recovery - save'
+        self.process_type = 'save'
+
+    def _start_process(self):
         self.args.file = self.args.file or datetime.datetime.utcnow().strftime(backup_date_format)
         os.makedirs(self.redis_backups, exist_ok=True)
         self._backup_redis_rdb_file()
@@ -162,7 +172,15 @@ class Recovery:
             {'label': 'Saved vendors', 'message': len(redis_vendors.get('vendor', []))}
         ])
 
-    def load_data_from_backup_to_db(self):
+
+class LoadDataFromBackupToDatabase(Recovery):
+    def __init__(self, args: Namespace, config: ConfigParser = create_config()):
+        super().__init__(args, config)
+        self.process_type = 'load'
+        self.confd_service = ConfdService()
+        self.confd_backups = os.path.join(self.cache_directory, 'confd')
+
+    def _start_process(self):
         if self.args.file:
             self.args.file = os.path.join(self.confd_backups, self.args.file)
         else:
@@ -232,8 +250,12 @@ class Recovery:
             sleep(60)
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
-    Recovery(script_conf).start_process()
+def main(script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
+    args = script_conf.args
+    if args.save:
+        BackupDatabaseData(args, config).start_process()
+    elif args.load:
+        LoadDataFromBackupToDatabase(args, config).start_process()
 
 
 if __name__ == '__main__':
