@@ -150,8 +150,10 @@ class MessageFactory:
 
         for fields in user_data['approved']:
             ret_text += '<tr>'
-            for key in ['username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor',
-                        'models-provider', 'email']:
+            for key in [
+                'username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor',
+                'models-provider', 'email',
+            ]:
                 ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
         ret_text += '</table><br>'
