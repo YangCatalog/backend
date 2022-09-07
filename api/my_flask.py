@@ -17,9 +17,9 @@ from flask.globals import g, request
 from flask.logging import default_handler
 from flask_pyoidc.user_session import UserSession
 from redis import Redis
+from redisConnections.redis_users_connection import RedisUsersConnection
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
-from utility.redisUsersConnection import RedisUsersConnection
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
@@ -84,16 +84,13 @@ class MyFlask(Flask):
         self.logger.removeHandler(default_handler)
         file_name_path = '{}/yang.log'.format(self.config.d_logs)
         os.makedirs(os.path.dirname(file_name_path), exist_ok=True)
-        exists = False
-        if os.path.isfile(file_name_path):
-            exists = True
         FORMAT = '%(asctime)-15s %(levelname)-8s %(filename)s api => %(message)s - %(lineno)d'
         DATEFMT = '%Y-%m-%d %H:%M:%S'
         handler = logging.FileHandler(file_name_path)
         handler.setFormatter(logging.Formatter(FORMAT, DATEFMT))
         self.logger.setLevel(logging.DEBUG)
         self.logger.addHandler(handler)
-        if not exists:
+        if not os.path.isfile(file_name_path):
             os.chmod(file_name_path, 0o664)
 
     def post_config_load(self):
@@ -134,12 +131,11 @@ class MyFlask(Flask):
         self.create_response_only_latest_revision(response)
 
         try:
-            if g.special_id != 0:
-                if g.special_id not in self.release_locked:
-                    self.release_locked.append(g.special_id)
-                    self.response_waiting = response
-                    self.waiting_for_reload = False
-        except:
+            if g.special_id != 0 and g.special_id not in self.release_locked:
+                self.release_locked.append(g.special_id)
+                self.response_waiting = response
+                self.waiting_for_reload = False
+        except AttributeError:
             pass
         return response
 

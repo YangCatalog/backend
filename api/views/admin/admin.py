@@ -40,8 +40,9 @@ from flask.globals import request
 from flask.json import jsonify
 from flask_cors import CORS
 from flask_pyoidc import OIDCAuthentication
-from flask_pyoidc.provider_configuration import (ClientMetadata,
-                                                 ProviderConfiguration)
+from flask_pyoidc.provider_configuration import (
+    ClientMetadata, ProviderConfiguration
+)
 from flask_pyoidc.user_session import UserSession
 from redis import RedisError
 from utility.create_config import create_config
@@ -61,11 +62,7 @@ ietf_auth = OIDCAuthentication({'default': provider_config})
 
 
 class YangCatalogAdminBlueprint(Blueprint):
-
-    def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
-                 url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
-        super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
-                         url_defaults, root_path)
+    pass
 
 
 bp = YangCatalogAdminBlueprint('admin', __name__)
@@ -85,7 +82,7 @@ def catch_db_error(f):
         try:
             return f(*args, **kwargs)
         except RedisError as err:
-            app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
+            app.logger.error(f'Cannot connect to database. Redis error: {err}')
             return ({'error': 'Server problem connecting to database'}, 500)
 
     return df
@@ -99,7 +96,7 @@ def catch_db_error(f):
 @bp.route('/admin/login')
 @ietf_auth.oidc_auth('default')
 def login():
-    return redirect('{}/admin/healthcheck'.format(ac.w_domain_prefix), code=302)
+    return redirect(f'{ac.w_domain_prefix}/admin/healthcheck', code=302)
 
 
 @bp.route('/api/admin/logout', methods=['POST'])
@@ -111,7 +108,7 @@ def logout():
 
 @bp.route('/api/admin/ping')
 def ping():
-    app.logger.info('ping {}'.format(UserSession(flask.session, 'default').is_authenticated()))
+    app.logger.info(f'ping {UserSession(flask.session, "default").is_authenticated()}')
     return {'info': 'Success'}
 
 
@@ -122,50 +119,48 @@ def check():
 
 @bp.route('/api/admin/directory-structure/read/<path:direc>', methods=['GET'])
 def read_admin_file(direc):
-    app.logger.info('Reading admin file {}'.format(direc))
-    if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
-        with open('{}/{}'.format(ac.d_var, direc), 'r') as f:
-            processed_file = f.read()
-        response = {'info': 'Success',
-                    'data': processed_file}
-        return response
-    else:
-        abort(400, description='error - file does not exist')
+    app.logger.info(f'Reading admin file {direc}')
+    admin_file_path = os.path.join(ac.d_var, direc)
+    if not os.path.isfile(admin_file_path):
+         abort(400, description='error - file does not exist')
+    with open(admin_file_path, 'r') as f:
+        processed_file = f.read()
+    response = {'info': 'Success', 'data': processed_file}
+    return response
 
 
 @bp.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['DELETE'])
 @bp.route('/api/admin/directory-structure/<path:direc>', methods=['DELETE'])
 def delete_admin_file(direc):
-    app.logger.info('Deleting admin file {}'.format(direc))
-    if os.path.exists('{}/{}'.format(ac.d_var, direc)):
-        if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
-            os.unlink('{}/{}'.format(ac.d_var, direc))
-        else:
-            shutil.rmtree('{}/{}'.format(ac.d_var, direc))
-        response = {'info': 'Success',
-                    'data': 'directory of file {} removed succesfully'.format('{}/{}'.format(ac.d_var, direc))}
-        return response
-    else:
+    app.logger.info(f'Deleting admin file {direc}')
+    admin_file_path = os.path.join(ac.d_var, direc)
+    if not os.path.exists(admin_file_path):
         abort(400, description='error - file or folder does not exist')
+    if os.path.isfile(admin_file_path):
+        os.unlink(admin_file_path)
+    else:
+        shutil.rmtree(admin_file_path)
+    response = {
+        'info': 'Success',
+        'data': f'directory of file {admin_file_path} removed succesfully'
+    }
+    return response
 
 
 @bp.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
-    app.logger.info('Updating file on path {}'.format(direc))
-
+    app.logger.info(f'Updating file on path {direc}')
     body = get_input(request.json)
     if 'data' not in body:
         abort(400, description='"data" must be specified')
     data = body['data']
-
-    if os.path.isfile('{}/{}'.format(ac.d_var, direc)):
-        with open('{}/{}'.format(ac.d_var, direc), 'w') as f:
-            f.write(data)
-        response = {'info': 'Success',
-                    'data': data}
-        return response
-    else:
+    admin_file_path = os.path.join(ac.d_var, direc)
+    if not os.path.isfile(admin_file_path):
         abort(400, description='error - file does not exist')
+    with open(admin_file_path, 'w') as f:
+        f.write(data)
+    response = {'info': 'Success', 'data': data}
+    return response
 
 
 @bp.route('/api/admin/directory-structure', defaults={'direc': ''}, methods=['GET'])
@@ -178,68 +173,65 @@ def get_var_yang_directory_structure(direc):
         structure['name'] = os.path.basename(root)
         for f in files:
             file_structure = {'name': f}
-            file_stat = Path('{}/{}'.format(path, f)).stat()
+            file_stat = Path(f'{path}/{f}').stat()
             file_structure['size'] = file_stat.st_size
             try:
                 file_structure['group'] = grp.getgrgid(file_stat.st_gid).gr_name
-            except:
+            except (KeyError, TypeError, AttributeError):
                 file_structure['group'] = file_stat.st_gid
 
             try:
                 file_structure['user'] = pwd.getpwuid(file_stat.st_uid).pw_name
-            except:
+            except Exception:
                 file_structure['user'] = file_stat.st_uid
-            file_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, f)).st_mode))
+            file_structure['permissions'] = oct(stat.S_IMODE(os.lstat(f'{path}/{f}').st_mode))
             file_structure['modification'] = int(file_stat.st_mtime)
             structure['files'].append(file_structure)
         for directory in dirs:
             dir_structure = {'name': directory}
-            p = Path('{}/{}'.format(path, directory))
+            p = Path(f'{path}/{directory}')
             dir_size = sum(f.stat().st_size for f in p.glob('**/*') if f.is_file())
             dir_stat = p.stat()
             try:
                 dir_structure['group'] = grp.getgrgid(dir_stat.st_gid).gr_name
-            except:
+            except (KeyError, TypeError, AttributeError):
                 dir_structure['group'] = dir_stat.st_gid
 
             try:
                 dir_structure['user'] = pwd.getpwuid(dir_stat.st_uid).pw_name
-            except:
+            except Exception:
                 dir_structure['user'] = dir_stat.st_uid
             dir_structure['size'] = dir_size
-            dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat('{}/{}'.format(path, directory)).st_mode))
+            dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat(f'{path}/{directory}').st_mode))
             dir_structure['modification'] = int(dir_stat.st_mtime)
             structure['folders'].append(dir_structure)
         return structure
 
     app.logger.info('Getting directory structure')
 
-    ret = walk_through_dir('/var/yang/{}'.format(direc))
-    response = {'info': 'Success',
-                'data': ret}
+    ret = walk_through_dir(os.path.join('var', 'yang', direc))
+    response = {'info': 'Success', 'data': ret}
     return response
 
 
 @bp.route('/api/admin/yangcatalog-nginx', methods=['GET'])
 def read_yangcatalog_nginx_files():
     app.logger.info('Getting list of nginx files')
-    files = os.listdir('{}/sites-enabled'.format(ac.d_nginx_conf))
+    files = os.listdir(os.path.join(ac.d_nginx_conf, 'sites-enabled'))
     files_final = ['sites-enabled/' + sub for sub in files]
     files_final.append('nginx.conf')
-    files = os.listdir('{}/conf.d'.format(ac.d_nginx_conf))
+    files = os.listdir(os.path.join(ac.d_nginx_conf, 'conf.d'))
     files_final.extend(['conf.d/' + sub for sub in files])
-    response = {'info': 'Success',
-                'data': files_final}
+    response = {'info': 'Success', 'data': files_final}
     return response
 
 
 @bp.route('/api/admin/yangcatalog-nginx/<path:nginx_file>', methods=['GET'])
 def read_yangcatalog_nginx(nginx_file):
-    app.logger.info('Reading nginx file {}'.format(nginx_file))
-    with open('{}/{}'.format(ac.d_nginx_conf, nginx_file), 'r') as f:
+    app.logger.info(f'Reading nginx file {nginx_file}')
+    with open(os.path.join(ac.d_nginx_conf, nginx_file), 'r') as f:
         nginx_config = f.read()
-    response = {'info': 'Success',
-                'data': nginx_config}
+    response = {'info': 'Success', 'data': nginx_config}
     return response
 
 
@@ -249,8 +241,7 @@ def read_yangcatalog_config():
 
     with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'r') as f:
         yangcatalog_config = f.read()
-    response = {'info': 'Success',
-                'data': yangcatalog_config}
+    response = {'info': 'Success', 'data': yangcatalog_config}
     return response
 
 
@@ -267,12 +258,12 @@ def update_yangcatalog_config():
     try:
         app.load_config()
         resp['api'] = 'data loaded successfully'
-    except:
+    except Exception:
         resp['api'] = 'error loading data'
     try:
         ac.sender.send('reload_config')
         resp['receiver'] = 'data loaded successfully'
-    except:
+    except Exception:
         resp['receiver'] = 'error loading data'
     response = {'info': resp,
                 'new-data': body['data']}
@@ -301,7 +292,7 @@ def get_log_files():
 
 
 def find_files(directory, pattern):
-    root, dirs, files = next(os.walk(directory))
+    root, _, files = next(os.walk(directory))
     for basename in files:
         if fnmatch.fnmatch(basename, pattern):
             filename = os.path.join(root, basename)
@@ -310,16 +301,17 @@ def find_files(directory, pattern):
 
 def filter_from_date(file_names, from_timestamp):
     if from_timestamp is None:
-        return ['{}/{}.log'.format(ac.d_logs, file_name) for file_name in file_names]
-    else:
-        r = []
-        for file_name in file_names:
-            files = find_files('{}/{}'.format(ac.d_logs, os.path.dirname(file_name)),
-                               '{}.log*'.format(os.path.basename(file_name)))
-            for f in files:
-                if os.path.getmtime(f) >= from_timestamp:
-                    r.append(f)
-        return r
+        return [f'{ac.d_logs}/{file_name}.log' for file_name in file_names]
+    r = []
+    for file_name in file_names:
+        files = find_files(
+            os.path.join(ac.d_logs, os.path.dirname(file_name)),
+            f'{os.path.basename(file_name)}.log*'
+        )
+        for f in files:
+            if os.path.getmtime(f) >= from_timestamp:
+                r.append(f)
+    return r
 
 
 def find_timestamp(file, date_regex, time_regex):
@@ -328,8 +320,8 @@ def find_timestamp(file, date_regex, time_regex):
             try:
                 d = re.findall(date_regex, line)[0][0]
                 t = re.findall(time_regex, line)[0]
-                return datetime.strptime('{} {}'.format(d, t), '%Y-%m-%d %H:%M:%S').timestamp()
-            except:
+                return datetime.strptime(f'{d} {t}', '%Y-%m-%d %H:%M:%S').timestamp()
+            except (IndexError, ValueError):
                 pass
 
 
@@ -339,7 +331,7 @@ def determine_formatting(log_files, date_regex, time_regex):
             file_stream = f.read()
             level_regex = r'[A-Z]{4,10}'
             two_words_regex = r'(\s*(\S*)\s*){2}'
-            line_regex = '({} {}[ ]{}{}[=][>])'.format(date_regex, time_regex, level_regex, two_words_regex)
+            line_regex = f'({date_regex} {time_regex}[ ]{level_regex}{two_words_regex}[=][>])'
             hits = re.findall(line_regex, file_stream)
             if len(hits) <= 1 and file_stream:
                 return False
@@ -359,13 +351,13 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
                     try:
                         d = re.findall(date_regex, line)[0][0]
                         t = re.findall(time_regex, line)[0]
-                        line_beginning = '{} {}'.format(d, t)
+                        line_beginning = f'{d} {t}'
                         line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
-                    except:
+                    except (IndexError, ValueError):
                         # ignore and accept
                         pass
                     if line_timestamp is None or not line.startswith(line_beginning):
-                        whole_line = '{}{}'.format(line, whole_line)
+                        whole_line = f'{line}{whole_line}'
                         continue
                     if not from_timestamp <= line_timestamp <= to_timestamp:
                         whole_line = ''
@@ -379,25 +371,25 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
                     level_formats = ['']
                     if level != '':
                         level_formats = [
-                            ' {} '.format(level), '<{}>'.format(level),
-                            '[{}]'.format(level).lower(), '{}:'.format(level)]
+                            f' {level} ', '<{level}>',
+                            f'[{level}]'.lower(), f'{level}:']
                     if match_whole_words:
                         if searched_string != '':
-                            searched_string = ' {} '.format(searched_string)
+                            searched_string = f' {searched_string} '
                     for level_format in level_formats:
                         if level_format in line:
                             if match_case and searched_string in line:
                                 if filter_out is not None and filter_out in line:
                                     whole_line = ''
                                     continue
-                                send_out.append('{}{}'.format(line, whole_line).rstrip())
+                                send_out.append(f'{line}{whole_line}'.rstrip())
                             elif not match_case and searched_string.lower() in line.lower():
                                 if filter_out is not None and filter_out.lower() in line.lower():
                                     whole_line = ''
                                     continue
-                                send_out.append('{}{}'.format(line, whole_line).rstrip())
+                                send_out.append(f'{line}{whole_line}'.rstrip())
                 else:
-                    send_out.append('{}{}'.format(line, whole_line).rstrip())
+                    send_out.append(f'{line}{whole_line}'.rstrip())
                 whole_line = ''
     return send_out
 
@@ -421,7 +413,7 @@ def get_logs():
     if from_date_timestamp is None:
         from_date_timestamp = find_timestamp(log_files[0], date_regex, time_regex)
 
-    app.logger.debug('Searching for logs from timestamp: {}'.format(str(from_date_timestamp)))
+    app.logger.debug(f'Searching for logs from timestamp: {str(from_date_timestamp)}')
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
@@ -470,7 +462,7 @@ def move_user():
 @catch_db_error
 def create_user(status):
     if status not in ['temp', 'approved']:
-        return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
+        return ({'error': f'invalid status "{status}", use only "temp" or "approved" allowed'}, 400)
     body = get_input(request.json)
     username = body.get('username')
     password = body.get('password')
@@ -479,9 +471,13 @@ def create_user(status):
     email = body.get('email')
     motivation = body.get('motivation', '')
     if not all((body, username, first_name, last_name, email, password)):
-        abort(400, description='username - {}, firstname - {}, last-name - {},'
-                               ' email - {} and password - {} must be specified'
-                               .format(username, first_name, last_name, email, password))
+        abort(
+            400,
+            description=(
+                f'username - {username}, firstname - {first_name}, last-name - {last_name}, '
+                f'email - {email} and password - {password} must be specified'
+            )
+        )
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
@@ -501,10 +497,8 @@ def create_user(status):
     elif status == 'approved':
         fields['access_rights_sdo'] = sdo_access
         fields['access_rights_vendor'] = vendor_access
-    id = users.create(temp=True if status == 'temp' else False, **fields)
-    response = {'info': 'data successfully added to database',
-                'data': body,
-                'id': id}
+    id = users.create(temp=status == 'temp', **fields)
+    response = {'info': 'data successfully added to database', 'data': body, 'id': id}
     return (response, 201)
 
 
@@ -512,20 +506,20 @@ def create_user(status):
 @catch_db_error
 def delete_user(status, id):
     if status not in ['temp', 'approved']:
-        return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
+        return ({'error': f'invalid status "{status}", use only "temp" or "approved" allowed'}, 400)
     if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
-        abort(404, description='id {} not found with status {}'.format(id, status))
+        abort(404, description=f'id {id} not found with status {status}')
     users.delete(id, temp=True if status == 'temp' else False)
-    return {'info': 'id {} deleted successfully'.format(id)}
+    return {'info': f'id {id} deleted successfully'}
 
 
 @bp.route('/api/admin/users/<status>/id/<id>', methods=['PUT'])
 @catch_db_error
 def update_user(status, id):
     if status not in ['temp', 'approved']:
-        return ({'error': 'invalid status "{}", use only "temp" or "approved" allowed'.format(status)}, 400)
+        return ({'error': f'invalid status "{status}", use only "temp" or "approved" allowed'}, 400)
     if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
-        abort(404, description='id {} not found with status {}'.format(id, status))
+        abort(404, description=f'id {id} not found with status {status}')
     body = get_input(request.json)
     if not 'username' in body or not 'email' in body:
         abort(400, description='username and email must be specified')
@@ -540,15 +534,15 @@ def update_user(status, id):
     if status == 'approved':
         get_set('access-rights-sdo')
         get_set('access-rights-vendor')
-    app.logger.info('Record with ID {} with status {} updated successfully'.format(id, status))
-    return {'info': 'ID {} updated successfully'.format(id)}
+    app.logger.info(f'Record with ID {id} with status {status} updated successfully')
+    return {'info': f'ID {id} updated successfully'}
 
 
 @bp.route('/api/admin/users/<status>', methods=['GET'])
 @catch_db_error
 def get_users(status):
     ids = users.get_all(status)
-    app.logger.info('Fetching {} users from redis'.format(len(ids)))
+    app.logger.info(f'Fetching {len(ids)} users from redis')
     ret = [users.get_all_fields(id) for id in ids]
     for user, id in zip(ret, ids):
         user.update(id=id)
@@ -559,7 +553,7 @@ def get_users(status):
 def get_script_details(script):
     module_name = get_module_name(script)
     if module_name is None:
-        abort(400, description='"{}" is not valid script name'.format(script))
+        abort(400, description=f'"{script}" is not valid script name')
 
     module = __import__(module_name, fromlist=[script])
     submodule = getattr(module, script)
@@ -576,7 +570,7 @@ def get_script_details(script):
 def run_script_with_args(script):
     module_name = get_module_name(script)
     if module_name is None:
-        abort(400, description='"{}" is not valid script name'.format(script))
+        abort(400, description=f'"{script}" is not valid script name')
 
     body = get_input(request.json)
 
@@ -588,8 +582,11 @@ def run_script_with_args(script):
 
 @bp.route('/api/admin/scripts', methods=['GET'])
 def get_script_names():
-    scripts_names = ['populate', 'parse_directory', 'draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal', 'statistics',
-                     'recovery', 'elk_recovery', 'elk_fill', 'resolveExpiration', 'reviseSemver']
+    scripts_names = (
+        'populate', 'parse_directory', 'draftPull', 'ianaPull', 'draftPullLocal',
+        'openconfigPullLocal', 'statistics', 'recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery',
+        'resolveExpiration', 'reviseSemver'
+    )
     return {'data': scripts_names, 'info': 'Success'}
 
 
@@ -606,14 +603,13 @@ def get_module_name(script_name):
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
-    elif script_name in ['recovery', 'elk_recovery', 'elk_fill']:
+    elif script_name in ['recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery']:
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'
     elif script_name == 'resolveExpiration':
         return 'utility'
-    else:
-        return None
+    return None
 
 
 def hash_pw(password):

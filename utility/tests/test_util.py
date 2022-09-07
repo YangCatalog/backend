@@ -215,7 +215,7 @@ class TestUtilClass(unittest.TestCase):
         try:
             with open('{}/cronjob.json'.format(yc_gc.temp_dir), 'r') as f:
                 file_content = json.load(f)
-        except:
+        except (FileNotFoundError, json.JSONDecodeError):
             file_content = {}
 
         return file_content

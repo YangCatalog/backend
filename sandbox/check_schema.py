@@ -14,11 +14,11 @@ import json
 
 import requests
 import utility.log as log
-from utility import repoutil, yangParser
+from utility import repoutil
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import GITHUB_RAW, github_url
-from utility.util import strip_comments, parse_revision
+from utility.util import parse_revision, strip_comments
 
 
 def get_repo_owner_name(schema: str):
@@ -53,20 +53,19 @@ def get_available_commit_hash(module: dict, commit_hash_list: list) -> str:
     available_commit_hash = ''
     for commit_hash in commit_hash_list:
         new_schema = schema.replace(branch, commit_hash)
-        if new_schema not in requests_done:
-            requests_done.append(new_schema)
-            response = requests.get(new_schema)
-            if response.status_code == 200:
-                module_text = response.text
-                try:
-                    module_revision = parse_revision(strip_comments(module_text))
-                except:
-                    module_revision = '1970-01-01'
-                key = '{}@{}'.format(name, module_revision)
-                available_schemas[key] = new_schema
-                if revision == module_revision:
-                    available_commit_hash = commit_hash
-                    break
+        if new_schema in requests_done:
+            continue
+        requests_done.append(new_schema)
+        response = requests.get(new_schema)
+        if response.status_code != 200:
+            continue
+        module_text = response.text
+        module_revision = parse_revision(strip_comments(module_text))
+        key = '{}@{}'.format(name, module_revision)
+        available_schemas[key] = new_schema
+        if revision == module_revision:
+            available_commit_hash = commit_hash
+            break
 
     return available_commit_hash
 
@@ -178,7 +177,7 @@ if __name__ == '__main__':
                 response = confdService.patch_module(module)
 
                 __print_patch_response(key, response)
-        except:
+        except Exception:
             LOGGER.exception('Problem with module {}'.format(key))
             unavailable_schemas[key] = schema
             continue
@@ -243,7 +242,7 @@ if __name__ == '__main__':
                     new_schema = dependent_schema.replace('/{}/'.format(available_commit_hash), '/{}/'.format(schema_available))
                     dependent['schema'] = new_schema
                     updated = True
-            except:
+            except Exception:
                 unavailable_schemas[dependent_key] = dependent_schema
                 LOGGER.exception('Error occured while processing dependent {}'.format(dependent_key))
                 continue
@@ -273,7 +272,7 @@ if __name__ == '__main__':
                     new_schema = submodule_schema.replace('/{}/'.format(available_commit_hash), '/{}/'.format(schema_available))
                     submodule['schema'] = new_schema
                     updated = True
-            except:
+            except Exception:
                 unavailable_schemas[submodule_key] = submodule_schema
                 LOGGER.exception('Error occured while processing submodule {}'.format(submodule_key))
                 continue

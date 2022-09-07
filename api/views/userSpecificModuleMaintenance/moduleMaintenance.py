@@ -32,7 +32,8 @@ from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
-from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
+from utility.staticVariables import (NAMESPACE_MAP, backup_date_format,
+                                     github_url)
 from werkzeug.exceptions import abort
 
 
@@ -178,22 +179,20 @@ def delete_vendor(value: str):
     rights = accessRigths.split('/')
     rights += [None] * (4 - len(rights))
 
-    confd_suffix = 'vendors/{}'.format(value)
+    path = '/vendors/{}'.format(value)
 
     param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
     params = []
-    for param_name in param_names:
-        if '/{}/'.format(param_name) in confd_suffix:
-            params.append(confd_suffix.split('/{}/'.format(param_name))[1].split('/')[0])
-        else:
-            params.append('None')
-        confd_suffix = confd_suffix.replace('/{}/'.format(param_name), '/{}='.format(param_name))
+    for param_name in param_names[::-1]:
+        path, _, param = path.partition('/{}s/{}/'.format(param_name, param_name))
+        params.append(param or 'None')
+    params = params[::-1]
 
     for param_name, param, right in zip(param_names, params, rights):
         if right and param != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params, confd_suffix]
+    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params]
     job_id = ac.sender.send('#'.join(arguments))
 
     app.logger.info('Running deletion of vendors metadata with job_id {}'.format(job_id))
@@ -308,15 +307,15 @@ def add_modules():
 
         organization_parsed = ''
         try:
-            namespace = yangParser.parse(os.path.abspath('{}/{}'.format(save_to, os.path.basename(module_path)))) \
-                .search('namespace')[0].arg
+            path_to_parse = os.path.abspath(os.path.join(save_to, os.path.basename(module_path)))
+            namespace = yangParser.parse(path_to_parse).search('namespace')[0].arg
             organization_parsed = organization_by_namespace(namespace)
-        except:
+        except (yangParser.ParseException, IndexError, AttributeError):
             while True:
                 try:
-                    belongs_to = yangParser.parse(os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))) \
-                        .search('belongs-to')[0].arg
-                except:
+                    path_to_parse = os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))
+                    belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
+                except (yangParser.ParseException, IndexError, AttributeError):
                     break
                 namespace = yangParser.parse(
                     os.path.abspath('{}/{}/{}.yang'.format(repos[repo_url].local_dir,
@@ -474,7 +473,7 @@ def get_job(job_id: str):
 
 
 def authorize_for_vendors(request, body: dict):
-    """Authorize the sender whether he has the rights to send data via API to ConfD.
+    """Authorize the sender whether he has the rights to send data via API to Redis.
 
     Arguments:
         :param body     (dict) body of the send request
@@ -505,7 +504,7 @@ def authorize_for_vendors(request, body: dict):
 
 
 def authorize_for_sdos(request, organizations_sent: str, organization_parsed: str):
-    """Authorize the sender whether he has the rights to send data via API to ConfD.
+    """Authorize the sender whether he has the rights to send data via API to Redis.
 
     Arguments:
         :param request              (request) Request sent to API

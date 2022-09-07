@@ -194,7 +194,7 @@ class VendorModule(Module):
                 else:
                     try:
                         deviation['revision'] = resolve_revision(os.path.abspath(yang_file))
-                    except:
+                    except FileNotFoundError:
                         deviation['revision'] = '1970-01-01'
                 self.deviations.append(deviation)
 
