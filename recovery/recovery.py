@@ -102,8 +102,6 @@ class Recovery:
         self.var_yang = self.config.get('Directory-Section', 'var')
 
         self.redis_connection = RedisConnection()
-        self.confd_service = ConfdService()
-        self.confd_backups = os.path.join(self.cache_directory, 'confd')
         self.redis_backups = os.path.join(self.cache_directory, 'redis')
         self.redis_json_backup = os.path.join(self.cache_directory, 'redis-json')
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
