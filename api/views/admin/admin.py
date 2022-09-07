@@ -209,7 +209,7 @@ def get_var_yang_directory_structure(direc):
 
     app.logger.info('Getting directory structure')
 
-    ret = walk_through_dir(os.path.join('var', 'yang', direc))
+    ret = walk_through_dir(os.path.join('/var/yang', direc))
     response = {'info': 'Success', 'data': ret}
     return response
 
