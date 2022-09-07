@@ -49,8 +49,8 @@ class ScriptConfig(BaseScriptConfig):
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
-        
-        
+
+
 class ProcessChangedMods:
     def __init__(self, script_config: BaseScriptConfig):
         self.args = script_config.args
@@ -69,7 +69,7 @@ class ProcessChangedMods:
             'process_changed_mods',
             os.path.join(self.log_directory, 'process-changed-mods.log'),
         )
-    
+
     def start_processing_changed_mods(self):
         self.logger.info('Starting process-changed-mods.py script')
 
@@ -81,19 +81,14 @@ class ProcessChangedMods:
 
         self.changes_cache = self._load_changes_cache(self.changes_cache_path)
         self.delete_cache = self._load_delete_cache(self.delete_cache_path)
-        
+
         if not self.changes_cache and not self.delete_cache:
             self.logger.info('No new modules are added or removed. Exiting script!!!')
             os.unlink(self.lock_file)
             os.unlink(self.lock_file_cron)
             sys.exit()
 
-        self.logger.info('Pulling latest YangModels/yang repository')
-        repoutil.pull(self.yang_models)
-        
         self._initialize_es_manager()
-
-        logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
         self.logger.info('Running cache files backup')
         self._backup_cache_files(self.delete_cache_path)
@@ -107,7 +102,7 @@ class ProcessChangedMods:
 
         os.unlink(self.lock_file_cron)
         self.logger.info('Job finished successfully')
-        
+
     def _create_lock_files(self):
         try:
             open(self.lock_file, 'w').close()
@@ -117,7 +112,7 @@ class ProcessChangedMods:
             os.unlink(self.lock_file_cron)
             self.logger.error('Temporary lock file could not be created although it is not locked')
             sys.exit()
-            
+
     def _initialize_es_manager(self):
         self.es_manager = ESManager()
         self.logger.info('Trying to initialize Elasticsearch indices')
@@ -126,7 +121,8 @@ class ProcessChangedMods:
                 continue
             create_result = self.es_manager.create_index(index)
             self.logger.info(f'Index {index.value} created with message:\n{create_result}')
-                
+        logging.getLogger('elasticsearch').setLevel(logging.ERROR)
+
     def _delete_modules_from_es(self):
         for module in self.delete_cache:
             name, rev_org = module.split('@')
@@ -139,7 +135,7 @@ class ProcessChangedMods:
                 'organization': organization,
             }
             self.es_manager.delete_from_indices(module)
-            
+
     def _change_modules_in_es(self):
         recursion_limit = sys.getrecursionlimit()
         sys.setrecursionlimit(50000)
@@ -156,7 +152,9 @@ class ProcessChangedMods:
                     'organization': organization,
                     'path': module_path
                 }
-                self.logger.info(f'yindex on module {name_revision}. module {module_count} out of {len(self.changes_cache)}')
+                self.logger.info(
+                    f'yindex on module {name_revision}. module {module_count} out of {len(self.changes_cache)}'
+                )
 
                 try:
                     self._check_file_availability(module)
@@ -180,7 +178,7 @@ class ProcessChangedMods:
             sys.exit()
 
         sys.setrecursionlimit(recursion_limit)
-        
+
     def _load_changes_cache(self, changes_cache_path: str):
         changes_cache = {}
 
@@ -192,7 +190,6 @@ class ProcessChangedMods:
                 json.dump({}, writer)
 
         return changes_cache
-
 
     def _load_delete_cache(self, delete_cache_path: str):
         delete_cache = []
@@ -206,7 +203,6 @@ class ProcessChangedMods:
 
         return delete_cache
 
-
     def _backup_cache_files(self, cache_path: str):
         shutil.copyfile(cache_path, f'{cache_path}.bak')
         empty = {}
@@ -215,11 +211,9 @@ class ProcessChangedMods:
         with open(cache_path, 'w') as writer:
             json.dump(empty, writer)
 
-
     def _check_file_availability(self, module: dict):
         if os.path.isfile(module['path']):
             return
-        result = False
         url = (
             'https://yangcatalog.org/api/search/modules/'
             f'{module["name"]},{module["revision"]},{module["organization"]}'
