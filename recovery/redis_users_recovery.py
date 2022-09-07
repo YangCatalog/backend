@@ -82,11 +82,11 @@ class RedisUsersRecovery:
         self.start_time = None
         self.args = script_conf.args
         self.config = config
-        self.log_directory = config.get('Directory-Section', 'logs')
-        self.temp_dir = config.get('Directory-Section', 'temp')
-        self.cache_directory = config.get('Directory-Section', 'cache')
-        self.redis_host = config.get('DB-Section', 'redis-host')
-        self.redis_port = int(config.get('DB-Section', 'redis-port'))
+        self.log_directory = self.config.get('Directory-Section', 'logs')
+        self.temp_dir = self.config.get('Directory-Section', 'temp')
+        self.cache_directory = self.config.get('Directory-Section', 'cache')
+        self.redis_host = self.config.get('DB-Section', 'redis-host')
+        self.redis_port = int(self.config.get('DB-Section', 'redis-port'))
         self.backups = os.path.join(self.cache_directory, 'redis-users')
         self.redis = Redis(host=self.redis_host, port=self.redis_port, db=2)
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
