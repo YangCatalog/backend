@@ -112,8 +112,9 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def _post_to_email(self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '',
-                       subtype: str = 'plain'):
+    def _post_to_email(
+            self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain',
+    ):
         """Send message to an e-mail
 
         Arguments:
