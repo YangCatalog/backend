@@ -370,7 +370,7 @@ class MessageFactory:
 
         self._post_to_email(message, email_to=self._developers_email, subject=subject)
 
-    def send_populate_script_triggered_by_api(self, args: t.Iterable[str, t.Any]):
+    def send_populate_script_triggered_by_api(self, args: t.Iterable[tuple[str, t.Any]]):
         """Send a webex message notifying that populate.py script has been triggered by an api call.
 
         Arguments:
