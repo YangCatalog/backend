@@ -157,7 +157,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @mock.patch('parseAndPopulate.populate.Populate._reload_cache_in_parallel', MockRepoUtil)
+    @mock.patch('parseAndPopulate.populate.Populate._reload_cache_in_parallel', mock.MagicMock)
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo(self):
         data = self.test_data.get('request-data-content')
@@ -200,7 +200,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
-    @mock.patch('parseAndPopulate.populate.Populate._reload_cache_in_parallel', MockRepoUtil)
+    @mock.patch('parseAndPopulate.populate.Populate._reload_cache_in_parallel', mock.MagicMock)
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_vendor(self):
         platform = self.test_data.get('capabilities-json-content')
