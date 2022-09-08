@@ -55,7 +55,7 @@ from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
 class ScriptConfig(BaseScriptConfig):
 
-    def __init__(self, config: ConfigParser):
+    def __init__(self, config: ConfigParser = create_config()):
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
