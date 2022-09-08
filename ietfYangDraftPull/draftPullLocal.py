@@ -75,7 +75,7 @@ def run_populate_script(directory: str, notify: bool, LOGGER: logging.Logger) ->
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
         LOGGER.info(f'Running populate.py script over {directory}')
-        submodule.main(scriptConf=script_conf)
+        submodule.main(script_conf=script_conf)
     except Exception:
         LOGGER.exception('Error occurred while running populate.py script')
         successful = False

@@ -107,7 +107,7 @@ class Receiver:
         self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
             script_conf.args.__dict__))
         try:
-            submodule.main(scriptConf=script_conf)
+            submodule.main(script_conf=script_conf)
         except Exception:
             self.LOGGER.exception('Problem while running populate script')
             return StatusMessage.FAIL, 'Server error while running populate script'
