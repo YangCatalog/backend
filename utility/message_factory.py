@@ -369,11 +369,11 @@ class MessageFactory:
 
         self._post_to_email(message, email_to=self._developers_email, subject=subject)
 
-    def send_populate_script_triggered_by_api(self, args: list[tuple[str, t.Any]]):
+    def send_populate_script_triggered_by_api(self, args: t.Iterable[str, t.Any]):
         """Send a webex message notifying that populate.py script has been triggered by an api call.
 
         Arguments:
-            :param args  (list[tuple[str, t.Any]]) list of all arguments populate.py script was called with
+            :param args  (t.Iterable[str, t.Any]) list of all arguments populate.py script was called with
         """
         subject = 'populate.py script has been triggered by an api call'
         self.LOGGER.info(f'Sending notification: {subject}')
