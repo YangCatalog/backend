@@ -379,22 +379,10 @@ class MessageFactory:
         subject = 'populate.py script has been triggered by an api call'
         self.LOGGER.info(f'Sending notification: {subject}')
 
-        wide_columns_arg_names = {'result_html_dir', 'save_file_dir'}
-
-        def _get_column_width(arg_name: str) -> int:
-            if arg_name == 'dir':
-                return 60
-            elif arg_name in wide_columns_arg_names:
-                return 40
-            return 20
-
         table_text = f'{subject}, args:\n'
         table_text += '```\n'
-        for arg_name, _ in args:
-            table_text += arg_name.ljust(_get_column_width(arg_name))
-        table_text += '\n'
         for arg_name, arg_value in args:
-            table_text += f'{arg_value}'.ljust(_get_column_width(arg_name))
+            table_text += f'{arg_name.ljust(20)}| {arg_value}\n'
         table_text += '\n```\n'
 
         self._post_to_webex(table_text, markdown=True)
