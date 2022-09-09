@@ -300,7 +300,7 @@ def send_notification_about_running_script_by_api(
     args_dict = dict(args.__dict__)
     # Hide password from credentials argument
     args_dict['credentials'] = args_dict['credentials'][0]
-    message_factory.send_populate_script_triggered_by_api(list(args_dict.items()))
+    message_factory.send_populate_script_triggered_by_api(args_dict.items())
 
 
 if __name__ == '__main__':

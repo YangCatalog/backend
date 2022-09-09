@@ -51,6 +51,7 @@ class MessageFactory:
         Arguments:
             :param config_path: (str) path to a yangcatalog.conf file
         """
+
         def list_matching_rooms(a: WebexTeamsAPI, title_match: str) -> list:
             return [r for r in a.rooms.list() if title_match in r.title]
 
@@ -63,7 +64,7 @@ class MessageFactory:
         self._developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')
         self._me = config.get('Web-Section', 'domain-prefix')
-        
+
         self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
         self.LOGGER.info('Initialising Message Factory')
 
@@ -76,7 +77,7 @@ class MessageFactory:
         self._smtp = smtplib.SMTP('localhost')
         self._me = self._me.split('/')[-1]
         self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
-        
+
     def _validate_rooms_count(self, rooms: list):
         if len(rooms) == 0:
             self.LOGGER.error('Need at least one room')
@@ -111,7 +112,9 @@ class MessageFactory:
             for f in files:
                 os.remove(f)
 
-    def _post_to_email(self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain'):
+    def _post_to_email(
+            self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain',
+    ):
         """Send message to an e-mail
 
         Arguments:
@@ -148,7 +151,10 @@ class MessageFactory:
 
         for fields in user_data['approved']:
             ret_text += '<tr>'
-            for key in ['username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor', 'models-provider', 'email']:
+            for key in [
+                'username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor',
+                'models-provider', 'email',
+            ]:
                 ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
         ret_text += '</table><br>'
@@ -363,18 +369,20 @@ class MessageFactory:
             message += f'\n{key}:\n{json.dumps(error, indent=2)}'
 
         self._post_to_email(message, email_to=self._developers_email, subject=subject)
-        
-    def send_populate_script_triggered_by_api(self, args: list[tuple[str, t.Any]]):
-        """Send an e-mail message notifying that populate.py script has been triggered by api call.
+
+    def send_populate_script_triggered_by_api(self, args: t.Iterable[tuple[str, t.Any]]):
+        """Send a webex message notifying that populate.py script has been triggered by an api call.
 
         Arguments:
-            :param type  (list[tuple[str, t.Any]]) list of all arguments populate.py script was called with
+            :param args  (t.Iterable[str, t.Any]) list of all arguments populate.py script was called with
         """
-        subject = f'populate.py script has been triggered by api call'
+        subject = 'populate.py script has been triggered by an api call'
         self.LOGGER.info(f'Sending notification: {subject}')
 
-        message = f'{subject}, args:\n\n'
+        table_text = f'{subject}, args:\n'
+        table_text += '```\n'
         for arg_name, arg_value in args:
-            message += f'\n{arg_name}:\n{arg_value}'
+            table_text += f'{arg_name.ljust(20)}| {arg_value}\n'
+        table_text += '\n```\n'
 
-        self._post_to_webex(message, markdown=True)
+        self._post_to_webex(table_text, markdown=True)
