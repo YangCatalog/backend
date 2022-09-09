@@ -35,6 +35,7 @@ import os
 import sys
 import time
 import typing as t
+import uuid
 from argparse import Namespace
 from configparser import ConfigParser
 from importlib import import_module
@@ -211,13 +212,7 @@ class Populate:
         if self.args.api:
             self.json_dir = self.args.dir
         else:
-            i = 0
-            while True:
-                i += 1
-                new_dir_name = os.path.join(self.temp_dir, str(i))
-                if os.path.exists(new_dir_name):
-                    continue
-            self.json_dir = new_dir_name
+            self.json_dir = os.path.join(self.temp_dir, uuid.uuid4().hex)
             os.makedirs(self.json_dir, exist_ok=True)
 
     def _run_parse_directory_script(self):
