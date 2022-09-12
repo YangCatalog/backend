@@ -38,11 +38,11 @@ import typing as t
 import uuid
 from argparse import Namespace
 from configparser import ConfigParser
-from importlib import import_module
 
 import requests
 
 import utility.log as log
+from parseAndPopulate import parse_directory
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from redisConnections.redisConnection import RedisConnection
@@ -218,7 +218,6 @@ class Populate:
     def _run_parse_directory_script(self):
         self.logger.info('Calling parse_directory script')
         try:
-            parse_directory = import_module('parseAndPopulate.parse_directory')
             script_conf = parse_directory.ScriptConfig()
             options = (
                 ('json_dir', self.json_dir),
