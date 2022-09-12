@@ -41,12 +41,12 @@ import pwd
 import tarfile
 import time
 import typing as t
-from datetime import datetime
 
 import requests
 from git.exc import GitCommandError
 from requests.exceptions import ConnectionError
 from utility import repoutil, yangParser
+from utility.util import revision_to_date
 from utility.staticVariables import github_url
 
 
@@ -129,7 +129,7 @@ def check_early_revisions(directory: str, LOGGER: logging.Logger) -> None:
                 revision = get_latest_revision(os.path.abspath(yang_file_path), LOGGER)
                 if revision is None:
                     continue
-            revision = convert_revision_to_datetime(revision)
+            revision = revision_to_date(revision)
             if revision:
                 revisions.append(revision)
                 continue
@@ -154,28 +154,6 @@ def _get_module_name(filename: str) -> str:
 
 def _is_revision_part_valid(revision_part: str) -> bool:
     return revision_part.startswith('.') or revision_part.startswith('@')
-                
-                
-def convert_revision_to_datetime(revision: str) -> t.Optional[datetime]:
-    """
-    This function tries to convert revision to a datetime object,
-    in case of any exception returns None.
-
-    Arguments:
-        :param revision (str) yang module revision, looks like "2015-03-09"
-    """
-    try:
-        revision_date = revision.split('-')
-        year = int(revision_date[0])
-        month = int(revision_date[1])
-        day = int(revision_date[2])
-    except ValueError:
-        return
-    try:
-        return datetime(year, month, day)
-    except ValueError:
-        if month == 2 and day == 29:
-            return datetime(year, month, 28)
 
 
 def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, LOGGER: logging.Logger) -> None:
