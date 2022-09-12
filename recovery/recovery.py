@@ -26,7 +26,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 
-import datetime
 import gzip
 import json
 import os
@@ -34,13 +33,10 @@ import time
 import typing as t
 from argparse import Namespace
 from configparser import ConfigParser
-from time import sleep
-
-from requests import ConnectionError
+from datetime import datetime
 
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
@@ -74,18 +70,32 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--file',
                 'help': (
                     'Set name of the file to save data to/load data from. Default name is empty. '
-                    'If name is empty: load operation will use the last backup file, '
+                    'If name is empty: load operation will use the last available backup file (rdb or json), '
                     'save operation will use date and time in UTC.'
                 ),
                 'type': str,
                 'default': ''
+            },
+            {
+                'flag': '--rdb_file',
+                'help': (
+                    'Set name of the file to save data from redis database rdb file to. '
+                    'Default name is current UTC datetime.'
+                ),
+                'type': str,
+                'default': datetime.utcnow().strftime(backup_date_format)
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
 
 class Recovery:
-    def __init__(self, args: Namespace, config: ConfigParser = create_config()):
+    def __init__(
+            self,
+            args: Namespace,
+            config: ConfigParser = create_config(),
+            redis_connection: RedisConnection = RedisConnection()
+    ):
         self.start_time = None
         self.job_log_messages = []
         self.job_log_filename = current_file_basename
@@ -101,7 +111,7 @@ class Recovery:
         self.redis_port = self.config.get('DB-Section', 'redis-port')
         self.var_yang = self.config.get('Directory-Section', 'var')
 
-        self.redis_connection = RedisConnection()
+        self.redis_connection = redis_connection
         self.redis_backups = os.path.join(self.cache_directory, 'redis')
         self.redis_json_backup = os.path.join(self.cache_directory, 'redis-json')
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
@@ -129,7 +139,7 @@ class BackupDatabaseData(Recovery):
         self.process_type = 'save'
 
     def _start_process(self):
-        self.args.file = self.args.file or datetime.datetime.utcnow().strftime(backup_date_format)
+        self.args.file = self.args.file or datetime.utcnow().strftime(backup_date_format)
         os.makedirs(self.redis_backups, exist_ok=True)
         self._backup_redis_rdb_file()
         self._backup_redis_modules()
@@ -139,7 +149,7 @@ class BackupDatabaseData(Recovery):
         # Redis dump.rdb file backup
         redis_rdb_file = os.path.join(self.var_yang, 'redis', 'dump.rdb')
         if os.path.exists(redis_rdb_file):
-            redis_copy_file = os.path.join(self.redis_backups, f'{self.args.file}.rdb.gz')
+            redis_copy_file = os.path.join(self.redis_backups, f'{self.args.rdb_file}.rdb.gz')
             with gzip.open(redis_copy_file, 'w') as save_file:
                 with open(redis_rdb_file, 'rb') as original:
                     save_file.write(original.read())
@@ -156,7 +166,7 @@ class BackupDatabaseData(Recovery):
         redis_vendors = json.loads(redis_vendors_raw)
 
         os.makedirs(self.redis_json_backup, exist_ok=True)
-        with open(os.path.join(self.redis_json_backup, 'backup.json'), 'w') as f:
+        with open(os.path.join(self.redis_json_backup, f'{self.args.file}.json'), 'w') as f:
             data = {
                 'yang-catalog:catalog': {
                     'modules': redis_modules,
@@ -175,24 +185,21 @@ class LoadDataFromBackupToDatabase(Recovery):
     def __init__(self, args: Namespace, config: ConfigParser = create_config()):
         super().__init__(args, config)
         self.process_type = 'load'
-        self.confd_service = ConfdService()
-        self.confd_backups = os.path.join(self.cache_directory, 'confd')
 
     def _start_process(self):
         if self.args.file:
-            self.args.file = os.path.join(self.confd_backups, self.args.file)
+            self.args.file = os.path.join(self.redis_json_backup, self.args.file)
         else:
-            list_of_backups = get_list_of_backups(self.confd_backups)
-            self.args.file = os.path.join(self.confd_backups, list_of_backups[-1])
+            list_of_backups = get_list_of_backups(self.redis_json_backup)
+            self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
         redis_modules = self.redis_connection.get_all_modules()
         yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)
         if '{}' in (redis_modules, yang_catalog_module):
-            self._populate_data_from_redis_json_backup_to_redis()
-        self._load_data_from_backup_to_confd()
+            self._populate_data_from_redis_backup_to_redis()
 
-    def _populate_data_from_redis_json_backup_to_redis(self):
+    def _populate_data_from_redis_backup_to_redis(self):
         # RDB not exists - load from JSON
-        modules, vendors = self._load_data_from_redis_json_backup()
+        modules, vendors = self._load_data_from_redis_backup()
         if modules or vendors:
             self.redis_connection.populate_modules(modules)
             self.redis_connection.populate_implementation(vendors)
@@ -204,16 +211,10 @@ class LoadDataFromBackupToDatabase(Recovery):
             {'label': 'Loaded vendors', 'message': len(vendors)}
         ])
 
-    def _load_data_from_redis_json_backup(self) -> tuple[list, list]:
-        backup_path = os.path.join(self.redis_json_backup, 'backup.json')
+    def _load_data_from_redis_backup(self) -> tuple[list, list]:
         modules = []
         vendors = []
-        if os.path.exists(backup_path):
-            with open(backup_path, 'r') as file_load:
-                catalog_data = json.load(file_load)
-                modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', [])
-                vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-        elif self.args.file.endswith('.gz'):
+        if self.args.file.endswith('.gz'):
             with gzip.open(self.args.file, 'r') as file_load:
                 self.logger.info(f'Loading file {file_load.name}')
                 catalog_data = json.loads(file_load.read().decode())
@@ -228,24 +229,6 @@ class LoadDataFromBackupToDatabase(Recovery):
         else:
             self.logger.info('Unable to load modules - ending')
         return modules, vendors
-
-    def _load_data_from_backup_to_confd(self):
-        tries = 4
-        try:
-            response = self.confd_service.head_confd()
-            self.logger.info(f'Status code for HEAD request {response.status_code} ')
-            if response.status_code == 200:
-                yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)
-                error = self.confd_service.patch_modules([json.loads(yang_catalog_module)])
-                if error:
-                    self.logger.error(f'Error occurred while patching {self.yang_catalog_module_name} module')
-                else:
-                    self.logger.info(f'{self.yang_catalog_module_name} patched successfully')
-        except ConnectionError:
-            if tries == 0:
-                self.logger.exception('Unable to connect to ConfD for over 5 minutes')
-            tries -= 1
-            sleep(60)
 
 
 def main(script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
