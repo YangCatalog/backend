@@ -34,7 +34,7 @@ import typing as t
 from collections import defaultdict
 from copy import deepcopy
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date
 
 import requests
 from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
@@ -45,7 +45,7 @@ from utility import log, message_factory
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
 from utility.util import (
-    context_check_update_from, fetch_module_by_schema, get_yang
+    context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
 )
 from utility.yangParser import create_context
 
@@ -53,43 +53,78 @@ MAJOR = 0
 MINOR = 1
 PATCH = 2
 
+class ModuleMetadata(dict):
+    """Module metadata as it can be found in the models subtree of yangcatalog."""
+    pass
+
 
 @dataclass
-class ModuleDetails:
+class ModuleSemverMetadata:
+    """A reduced set of module metadata relevant to deriving the semantic version of modules."""
     name: str
     revision: str
     organization: str
     compilation: str
     schema: t.Optional[str]
     semver: str
-    datetime: datetime
+    date: date
+
+
+@dataclass
+class DependentMetadata(t.TypedDict):
+    """Metadata stored for dependent modules."""
+    name: str
+    revision: t.Optional[str]
+    schema: t.Optional[str]
+
+
+@dataclass
+class DependencyMetadata(t.TypedDict):
+    """Metadata stored for dependent modules."""
+    name: str
+    revision: t.Optional[str]
+    schema: t.Optional[str]
+
+
+NameRevisionModuleTable = dict[str, dict[str, ModuleMetadata]]
 
 
 class ModulesComplicatedAlgorithms:
 
-    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
+    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list[str], save_file_dir: str,
                  direc: str, all_modules: t.Optional[dict], yang_models_dir: str, temp_dir: str, json_ytree: str):
+        """
+        Arguments:
+            :param log_directory            (str) Directory where logs will be stored.
+            :param yangcatalog_api_prefix   (str) URL of yangcatalog's api.
+            :param credentials              (list[str]) Credentials of a registered yangcatalog user.
+            :param save_file_dir            (str) Directory where all yang models are collected.
+            :param direc                    (str) Directory where to loook for a prepare.json file.
+            :param all_modules              (Optional[dict]) The module subtree of yangcatalog.
+            :param yang_models_dir          (str) Directory to be added to pyangs parsing context.
+            :param temp_dir                 (str) Yangcatalog's temp directory.
+            :param json_ytree               (str) Directory where json ytrees are stored.
+        """
         global LOGGER
         LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
         if all_modules is None:
             with open('{}/prepare.json'.format(direc), 'r') as f:
-                self._all_modules = json.load(f)
-        else:
-            self._all_modules = all_modules
+                all_modules = json.load(f)
+        self._all_modules: list[ModuleMetadata] = all_modules.get('module', []) # pyright: ignore
         self._yangcatalog_api_prefix = yangcatalog_api_prefix
-        self.new_modules = defaultdict(dict)
+        self.new_modules: NameRevisionModuleTable = defaultdict(dict)
         self._credentials = credentials
         self._save_file_dir = save_file_dir
         self._yang_models = yang_models_dir
         self.temp_dir = temp_dir
         self.json_ytree = json_ytree
-        self._trees = defaultdict(dict)
+        self._trees: dict[str, dict[str, str]] = defaultdict(dict)
         self._unavailable_modules = []
         LOGGER.info('get all existing modules')
         response = requests.get('{}/search/modules'.format(self._yangcatalog_api_prefix),
                                 headers=json_headers)
         existing_modules = response.json().get('module', [])
-        self._existing_modules_dict = defaultdict(dict)
+        self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}
         for module in existing_modules:
             # Store latest revision of each module - used in resolving tree-type
@@ -99,7 +134,7 @@ class ModulesComplicatedAlgorithms:
             else:
                 self._latest_revisions[module['name']] = max(module['revision'], latest_revision)
 
-            self._existing_modules_dict[module['name']][module['revision']] = module
+            self._existing_modules[module['name']][module['revision']] = module
 
     def parse_non_requests(self):
         LOGGER.info('parsing tree types')
@@ -131,7 +166,7 @@ class ModulesComplicatedAlgorithms:
             else:
                 LOGGER.info('load-cache responded with status code {}'.format(response.status_code))
 
-    def resolve_tree_type(self, all_modules):
+    def resolve_tree_type(self, all_modules: list[ModuleMetadata]):
         def is_openconfig(rows, output):
             count_config = output.count('+-- config')
             count_state = output.count('+-- state')
@@ -174,8 +209,7 @@ class ModulesComplicatedAlgorithms:
                             return False
                         duplicate = \
                             rows[x].replace('+--rw', '+--ro').split('+--')[1]
-                        if duplicate.replace(' ', '') not in output.replace(' ',
-                                                                            ''):
+                        if duplicate.replace(' ', '') not in output.replace(' ', ''):
                             return False
                         skip.append(x)
                 if '+--ro' in row and row_number != 0 and row_number not in skip and '[' not in row and \
@@ -358,7 +392,7 @@ class ModulesComplicatedAlgorithms:
             else:
                 return True
 
-        for x, module in enumerate(all_modules.get('module', []), start=1):
+        for x, module in enumerate(all_modules, start=1):
             name = module['name']
             revision = module['revision']
             name_revision = '{}@{}'.format(name, revision)
@@ -369,7 +403,7 @@ class ModulesComplicatedAlgorithms:
                 LOGGER.error('Skipping module: {}'.format(name_revision))
                 continue
             LOGGER.info(
-                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules['module'])))
+                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules)))
             if revision in self._trees[name]:
                 stdout = self._trees[name][revision]
             else:
@@ -439,10 +473,10 @@ class ModulesComplicatedAlgorithms:
                 else:
                     module['tree-type'] = 'unclassified'
             LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
-            if (revision not in self._existing_modules_dict[name] or
-                    self._existing_modules_dict[name][revision].get('tree-type') != module['tree-type']):
+            if (revision not in self._existing_modules[name] or
+                    self._existing_modules[name][revision].get('tree-type') != module['tree-type']):
                 LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
-                    self._existing_modules_dict[name].get(revision, {}).get('tree-type'), module['tree-type'],
+                    self._existing_modules[name].get(revision, {}).get('tree-type'), module['tree-type'],
                     module['name'], module['revision']))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
@@ -450,21 +484,6 @@ class ModulesComplicatedAlgorithms:
                     self.new_modules[name][revision]['tree-type'] = module['tree-type']
 
     def parse_semver(self):
-        def get_revision_datetime(module: dict) -> datetime:
-            """Get the revision of a module as a datetime object."""
-            rev = module['revision'].split('-')
-            try:
-                date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
-            except Exception:
-                LOGGER.error('Failed to process revision for {}: (rev: {})'.format(module['name'], rev))
-                try:
-                    if int(rev[1]) == 2 and int(rev[2]) == 29:
-                        date = datetime(int(rev[0]), int(rev[1]), 28)
-                    else:
-                        date = datetime(1970, 1, 1)
-                except Exception:
-                    date = datetime(1970, 1, 1)
-            return date
 
         def increment_semver(old: str, significance: int) -> str:
             """Increment a semver string at the specified position."""
@@ -474,9 +493,9 @@ class ModulesComplicatedAlgorithms:
             versions[significance + 1:] = [0] * len(versions[significance + 1:])
             return '{}.{}.{}'.format(*versions)
 
-        def update_semver(old_details: ModuleDetails, new_module: dict, significance: int):
+        def update_semver(old_semver_data: ModuleSemverMetadata, new_module: ModuleMetadata, significance: int):
             """Increment a module's semver at the specified position."""
-            upgraded_version = increment_semver(old_details.semver, significance)
+            upgraded_version = increment_semver(old_semver_data.semver, significance)
             new_module['derived-semantic-version'] = upgraded_version
             add_to_new_modules(new_module)
 
@@ -494,7 +513,7 @@ class ModulesComplicatedAlgorithms:
             else:
                 assert False
 
-        def get_trees(new: ModuleDetails, old: ModuleDetails) -> t.Optional[t.Tuple[str, str]]:
+        def get_trees(new: ModuleSemverMetadata, old: ModuleSemverMetadata) -> t.Optional[t.Tuple[str, str]]:
             new_name_revision = '{}@{}'.format(new.name, new.revision)
             old_name_revision = '{}@{}'.format(old.name, old.revision)
             new_schema = '{}/{}.yang'.format(self._save_file_dir, new_name_revision)
@@ -551,214 +570,241 @@ class ModulesComplicatedAlgorithms:
                 else:
                     raise Exception
 
-        def add_to_new_modules(new_module: dict):
+        def add_to_new_modules(new_module: ModuleMetadata):
             name = new_module['name']
             revision = new_module['revision']
-            if (revision not in self._existing_modules_dict[name] or
-                    self._existing_modules_dict[name][revision].get('derived-semantic-version') != new_module['derived-semantic-version']):
+            if (revision not in self._existing_modules[name] or
+                    self._existing_modules[name][revision].get('derived-semantic-version') != new_module['derived-semantic-version']):
                 LOGGER.info('semver {} vs {} for module {}@{}'.format(
-                    self._existing_modules_dict[name].get(revision, {}).get('derived-semantic-version'),
+                    self._existing_modules[name].get(revision, {}).get('derived-semantic-version'),
                     new_module['derived-semantic-version'], name, revision))
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = new_module
                 else:
                     self.new_modules[name][revision]['derived-semantic-version'] = new_module['derived-semantic-version']
 
-        for z, new_module in enumerate(self._all_modules.get('module', []), start=1):
+        for z, new_module in enumerate(self._all_modules, start=1):
             name = new_module['name']
             new_revision = new_module['revision']
             name_revision = '{}@{}'.format(name, new_revision)
             all_module_revisions = {}
             # Get all other available revisions of the module
-            for m in self._existing_modules_dict[new_module['name']].values():
+            for m in self._existing_modules[new_module['name']].values():
                 if m['revision'] != new_module['revision']:
                     all_module_revisions[m['revision']] = deepcopy(m)
 
             LOGGER.info(
-                'Searching semver for {}. {} out of {}'.format(name_revision, z, len(self._all_modules['module'])))
+                'Searching semver for {}. {} out of {}'.format(name_revision, z, len(self._all_modules)))
             if len(all_module_revisions) == 0:
                 # If there is no other revision for this module
                 new_module['derived-semantic-version'] = '1.0.0'
                 add_to_new_modules(new_module)
             else:
                 # If there is at least one revision for this module
-                new_datetime = get_revision_datetime(new_module)
-                module_details = [ModuleDetails(
+                new_date = revision_to_date(new_module['revision'])
+                semver_data = [ModuleSemverMetadata(
                     name=name,
                     revision=new_revision,
                     organization=new_module['organization'],
                     compilation=new_module.get('compilation-status', 'PENDING'),
                     schema=new_module.get('schema'),
                     semver='',
-                    datetime=new_datetime
+                    date=new_date
                 )]
 
                 # Loop through all other available revisions of the module
                 try:
                     for module in [revision for revision in all_module_revisions.values()]:
                         try:
-                            module_details.append(ModuleDetails(
+                            semver_data.append(ModuleSemverMetadata(
                                 name=name,
                                 revision=module['revision'],
                                 organization=module['organization'],
                                 compilation=module.get('compilation-status', 'PENDING'),
                                 schema=module.get('schema'),
                                 semver=module.get('derived-semantic-version', ''),
-                                datetime=get_revision_datetime(module)
+                                date=revision_to_date(module['revision'])
                             ))
                         except KeyError as e:
                             LOGGER.exception('Existing module {}@{} is missing the {} field'.format(name, module['revision']))
                             raise
                 except KeyError:
                     continue
-                missing_semver = not all(revision.semver for revision in module_details)
+                missing_semver = not all(revision.semver for revision in semver_data)
 
                 all_module_revisions[new_revision] = new_module
-                module_details = sorted(module_details, key=lambda x: x.datetime)
+                semver_data = sorted(semver_data, key=lambda x: x.date)
                 # if the revision we are adding is the latest one yet
-                if not missing_semver and module_details[-1].datetime == new_datetime:
-                    new_module_details = module_details[-1]
-                    newest_existing_module_details = module_details[-2]
-                    if new_module_details.compilation != 'passed':
-                        versions = newest_existing_module_details.semver.split('.')
+                if not missing_semver and semver_data[-1].date == new_date:
+                    new_module_semver_data = semver_data[-1]
+                    newest_existing_module_semver_data = semver_data[-2]
+                    if new_module_semver_data.compilation != 'passed':
+                        versions = newest_existing_module_semver_data.semver.split('.')
                         major_ver = int(versions[0])
                         major_ver += 1
                         upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
                         new_module['derived-semantic-version'] = upgraded_version
                         add_to_new_modules(new_module)
                     else:
-                        if newest_existing_module_details.compilation != 'passed':
-                            update_semver(newest_existing_module_details, new_module, MAJOR)
+                        if newest_existing_module_semver_data.compilation != 'passed':
+                            update_semver(newest_existing_module_semver_data, new_module, MAJOR)
                         else:
                             try:
-                                trees = get_trees(new_module_details, newest_existing_module_details)
+                                trees = get_trees(new_module_semver_data, newest_existing_module_semver_data)
                                 # if schemas do not exist, trees will be None
                                 if not trees:
                                     continue
                                 new_yang_tree, old_yang_tree = trees
                                 if trees_match(new_yang_tree, old_yang_tree):
                                     # yang trees are the same - update only the patch version
-                                    update_semver(newest_existing_module_details, new_module, PATCH)
+                                    update_semver(newest_existing_module_semver_data, new_module, PATCH)
                                 else:
                                     # yang trees have changed - update minor version
-                                    update_semver(newest_existing_module_details, new_module, MINOR)
+                                    update_semver(newest_existing_module_semver_data, new_module, MINOR)
                             except Exception:
                                 # pyang found an error - update major version
-                                update_semver(newest_existing_module_details, new_module, MAJOR)
+                                update_semver(newest_existing_module_semver_data, new_module, MAJOR)
                 # semvers for all revisions need to be recalculated
                 else:
-                    oldest_module_details = module_details[0]
-                    name = oldest_module_details.name
-                    revision = oldest_module_details.revision
-                    oldest_module_details.semver = '1.0.0'
+                    oldest_module_semver_data = semver_data[0]
+                    name = oldest_module_semver_data.name
+                    revision = oldest_module_semver_data.revision
+                    oldest_module_semver_data.semver = '1.0.0'
                     response = all_module_revisions[revision]
                     response['derived-semantic-version'] = '1.0.0'
                     add_to_new_modules(response)
 
-                    for prev_module_details, curr_module_details in zip(module_details, module_details[1:]):
-                        revision = curr_module_details.revision
+                    for prev_module_semver_data, curr_module_semver_data in zip(semver_data, semver_data[1:]):
+                        revision = curr_module_semver_data.revision
                         module = all_module_revisions[revision]
-                        if curr_module_details.compilation != 'passed':
-                            update_semver(prev_module_details, module, 0)
-                            curr_module_details.semver = increment_semver(prev_module_details.semver, 0)
+                        if curr_module_semver_data.compilation != 'passed':
+                            update_semver(prev_module_semver_data, module, 0)
+                            curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 0)
                         else:
                             # If the previous revision has the compilation status 'passed'
-                            if prev_module_details.compilation != 'passed':
-                                update_semver(prev_module_details, module, 0)
-                                curr_module_details.semver = increment_semver(prev_module_details.semver, 0)
+                            if prev_module_semver_data.compilation != 'passed':
+                                update_semver(prev_module_semver_data, module, 0)
+                                curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 0)
                             else:
                                 # Both actual and previous revisions have the compilation status 'passed'
                                 try:
-                                    trees = get_trees(curr_module_details, prev_module_details)
+                                    trees = get_trees(curr_module_semver_data, prev_module_semver_data)
                                     # if schemas do not exist, trees will be None
                                     if not trees:
                                         continue
                                     new_yang_tree, old_yang_tree = trees
                                     if trees_match(new_yang_tree, old_yang_tree):
                                         # yang trees are the same - update only the patch version
-                                        update_semver(prev_module_details, module, 2)
-                                        curr_module_details.semver = increment_semver(prev_module_details.semver, 2)
+                                        update_semver(prev_module_semver_data, module, 2)
+                                        curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 2)
                                     else:
                                         # yang trees have changed - update minor version
-                                        update_semver(prev_module_details, module, 1)
-                                        curr_module_details.semver = increment_semver(prev_module_details.semver, 1)
+                                        update_semver(prev_module_semver_data, module, 1)
+                                        curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 1)
                                 except Exception:
                                     # pyang found an error - update major version
-                                    update_semver(prev_module_details, module, 0)
-                                    curr_module_details.semver = increment_semver(prev_module_details.semver, 0)
+                                    update_semver(prev_module_semver_data, module, 0)
+                                    curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 0)
 
         if len(self._unavailable_modules) != 0:
             mf = message_factory.MessageFactory()
             mf.send_github_unavailable_schemas(self._unavailable_modules)
 
     def parse_dependents(self):
+        """
+        Add new modules as dependents to existing modules that depend on them.
+        Add existing modules as dependants to new modules that depend on them.
+        """
 
-        def check_existing_and_remove(dependent: dict, dependency: dict) -> bool:
-            for i in range(len(dependency.get('dependents', []))):
-                existing_dependent = dependency['dependents'][i]
-                if existing_dependent['name'] != dependent['name']:
-                    continue
-                if existing_dependent.get('revision') == dependent.get('revision'):
-                    return True
-                dependency['dependents'].pop(i)
-                break
-            return False
+        def dependent_index(name: str, dependents: list) -> t.Optional[int]:
+            for i, dependent in enumerate(dependents):
+                if dependent['name'] == name:
+                    return i
+            return None
 
-        def add_dependents(new_dependents: list, all_dependencies: t.Dict[str, t.Dict[str, dict]]):
-            for new_module in new_dependents:
-                for new_module_dependency in new_module.get('dependencies', []):
-                    dependent_detail = {
-                        'name': new_module.get('name'),
-                        'schema': new_module.get('schema')
-                    }
-                    dependent_name_rev = new_module.get('name')
-                    dependency_name = new_module_dependency['name']
-                    dependency_revision = new_module_dependency.get('revision')
-                    if dependency_name not in all_dependencies:
+
+        def update_dependent(dependent: DependentMetadata, dependency: ModuleMetadata):
+            """
+            Check is the correct name and revision are already listed as a dependent to the dependency.
+            If already present, return True. If a dependency with the same name, but different revision
+            is listed, it is removed from the list of dependents.
+            """
+            existing_dependent_list: list[DependentMetadata] = dependency.get('dependents', [])
+            index = dependent_index(dependent['name'], existing_dependent_list)
+            if index is not None:
+                if (existing_revision := existing_dependent_list[index].get('revision')):
+                    new_revision = dependent['revision']
+                    assert new_revision, 'We created this and took the revision from the full ModuleMetadata.'
+                    if revision_to_date(existing_revision) >= revision_to_date(new_revision):
+                        return
+                LOGGER.info('Adding {}@{} as dependent of {}@{}'.format(
+                    dependent['name'],
+                    dependent['revision'],
+                    dependency['name'],
+                    dependency['revision']
+                ))
+                existing_dependent_list.pop(index)
+            dependency.setdefault('dependents', []).append(dependent)
+            self.new_modules[dependency['name']][dependency['revision']] = dependency
+
+
+        def add_dependents(dependents: list[ModuleMetadata], possible_dependencies: NameRevisionModuleTable):
+            """
+            Adds and updates modules in the dependents list as dependents to modules in the dependencies list.
+            """
+            for dependent_full in dependents:
+                dependent_partial: DependentMetadata = {
+                    'name': dependent_full['name'],
+                    'revision': dependent_full['revision'],
+                    'schema': dependent_full.get('schema')
+                }
+                for dependency_partial in dependent_full.get('dependencies', []):
+                    dependency_partial: DependencyMetadata
+                    dependency_name = dependency_partial['name']
+                    dependency_specified_revision = dependency_partial.get('revision')
+                    if dependency_name not in possible_dependencies:
                         continue
-                    it = []
-                    if dependency_revision:
-                        if dependency_revision in all_dependencies[dependency_name]:
-                            it = [all_dependencies[dependency_name][dependency_revision]]
-                            dependent_detail['revision'] = new_module['revision']
-                            dependent_name_rev += '@{}'.format(new_module['revision'])
+                    dependencies_to_check = []
+                    if dependency_specified_revision:
+                        if dependency_specified_revision in possible_dependencies[dependency_name]:
+                            dependencies_to_check = [possible_dependencies[dependency_name][dependency_specified_revision]]
                     else:
-                        it = all_dependencies[dependency_name].values()
+                        # if no revision was specified for a dependency, the module should accept every revision
+                        # therefore it should be listed as a dependent for every revision
+                        dependencies_to_check = possible_dependencies[dependency_name].values()
 
-                    for dependency in it:
-                        dependency_revision = dependency['revision']
-                        if dependency_revision in self.new_modules[dependency_name]:
-                            dependency_copy = self.new_modules[dependency_name][dependency_revision]
-                        elif dependency_revision in self._existing_modules_dict[dependency_name]:
-                            dependency_copy = deepcopy(self._existing_modules_dict[dependency_name][dependency_revision])
-                        else:
-                            dependency_copy = dependency
-                        if not check_existing_and_remove(dependent_detail, dependency_copy):
-                            LOGGER.info('Adding {} as dependent of {}@{}'.format(
-                                dependent_name_rev, dependency_name, dependency_revision))
-                            dependency_copy.setdefault('dependents', []).append(dependent_detail)
-                            self.new_modules[dependency_name][dependency_revision] = dependency_copy
+                    for dependency_full in dependencies_to_check:
+                        dependency_found_revision = dependency_full['revision']
+                        # if this module has already been processed, the metadata could have been modified
+                        # use up to date metadata if available
+                        if dependency_found_revision in self.new_modules[dependency_name]:
+                            dependency_full = self.new_modules[dependency_name][dependency_found_revision]
+                        elif dependency_found_revision in self._existing_modules[dependency_name]:
+                            dependency_full = deepcopy(self._existing_modules[dependency_name][dependency_found_revision])
 
-        new_modules = self._all_modules.get('module', [])
-        new_modules_dict = defaultdict(dict)
+                        update_dependent(dependent_partial, dependency_full)
+
+        new_modules = self._all_modules
+        new_modules_dict: NameRevisionModuleTable = defaultdict(dict)
         for i in new_modules:
             new_modules_dict[i['name']][i['revision']] = deepcopy(i)
-        both_dict = deepcopy(self._existing_modules_dict)
+        both_dict = deepcopy(self._existing_modules)
         for name, revisions in new_modules_dict.items():
             both_dict[name].update(deepcopy(revisions))
-        existing_modules = [revision for name in self._existing_modules_dict.values() for revision in name.values()]
+        existing_modules = [revision for name in self._existing_modules.values() for revision in name.values()]
         LOGGER.info('Adding new modules as dependents')
-        add_dependents(new_modules, both_dict)
+        add_dependents(new_modules, both_dict) # New modules can be dependents both to existing modules, and other new modules
         LOGGER.info('Adding existing modules as dependents')
-        add_dependents(existing_modules, new_modules_dict)
+        add_dependents(existing_modules, new_modules_dict) # Existing modules have already been added as dependents to other existing modules
 
     def _check_schema_file(self, name: str, revision: str, schema_url: t.Optional[str]):
         """ Check if the file exists and if not try to get it from Github.
 
-        :param name         (str) Name of the module.
-        :param revision     (str) Revision of the module.
-        :param schema_url   (str) Github url from where the schema can be retrieved.
-        :return             (bool) Whether the content of the module was obtained or not.
+        Arguments:
+            :param name         (str) Name of the module.
+            :param revision     (str) Revision of the module.
+            :param schema_url   (str) Github url from where the schema can be retrieved.
+            :return             (bool) Whether the content of the module was obtained or not.
         """
         schema = '{}/{}@{}.yang'.format(self._save_file_dir, name, revision)
         result = True
@@ -775,10 +821,10 @@ class ModulesComplicatedAlgorithms:
 
         return result
 
-    def check_if_latest_revision(self, module: dict):
+    def check_if_latest_revision(self, module: ModuleMetadata):
         """ Check if the parsed module is the latest revision.
 
-        Argument:
-            :param module   (dict) Details of currently parsed module
+        Arguments:
+            :param module   (ModuleMetadata) Metadata of the currently parsed module
         """
         return module.get('revision', '') >= self._latest_revisions.get(module['name'], '')

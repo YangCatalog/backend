@@ -29,7 +29,7 @@ import stat
 import time
 import typing as t
 import warnings
-from datetime import datetime
+from datetime import date, datetime
 
 import dateutil.parser
 import requests
@@ -435,8 +435,12 @@ def validate_revision(revision: str) -> str:
     try:
         dateutil.parser.parse(revision)
         year, month, day = map(int, revision.split('-'))
-        revision = datetime(year, month, day).date().isoformat()
+        revision = date(year, month, day).isoformat()
     except (ValueError, dateutil.parser.ParserError):
         revision = '1970-01-01'
 
     return revision
+
+
+def revision_to_date(revision: str) -> date:
+    return date.fromisoformat(validate_revision(revision))

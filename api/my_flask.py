@@ -4,7 +4,7 @@ import logging
 import os
 import threading
 import time
-from datetime import datetime, timedelta
+from datetime import timedelta
 from urllib.error import URLError
 
 import flask
@@ -20,6 +20,7 @@ from redis import Redis
 from redisConnections.redis_users_connection import RedisUsersConnection
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
+from utility.util import revision_to_date
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
@@ -185,22 +186,8 @@ class MyFlask(Flask):
                                 if temp_module['name'] == name:
                                     revisions = []
                                     mod['index'] = i
-                                    year = int(temp_module['revision'].split('-')[0])
-                                    month = int(temp_module['revision'].split('-')[1])
-                                    day = int(temp_module['revision'].split('-')[2])
-                                    try:
-                                        revisions.append(datetime(year, month, day))
-                                    except ValueError:
-                                        if day == 29 and month == 2:
-                                            revisions.append(datetime(year, month, 28))
-                                    year = int(mod['revision'].split('-')[0])
-                                    month = int(mod['revision'].split('-')[1])
-                                    day = int(mod['revision'].split('-')[2])
-                                    try:
-                                        revisions.append(datetime(year, month, day))
-                                    except ValueError:
-                                        if day == 29 and month == 2:
-                                            revisions.append(datetime(year, month, 28))
+                                    revisions.append(revision_to_date(temp_module['revision']))
+                                    revisions.append(revision_to_date(mod['revision']))
                                     latest = revisions.index(max(revisions))
                                     if latest == 0:
                                         modules_to_remove.append(mod['index'])
@@ -250,13 +237,7 @@ class MyFlask(Flask):
                     if rp.status_code == 404:
                         continue
                     mo = rp.json()['yang-catalog:modules']['module']
-                    revisions = []
-                    for m in mo:
-                        revision = m['revision']
-                        year = int(revision.split('-')[0])
-                        month = int(revision.split('-')[1])
-                        day = int(revision.split('-')[2])
-                        revisions.append(datetime(year, month, day))
+                    revisions = [revision_to_date(m['revision']) for m in mo]
                     latest = revisions.index(max(revisions))
                     inset.add(dep['name'])
                     mods.add('{}@{}.yang'.format(dep['name'],
