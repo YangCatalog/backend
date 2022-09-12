@@ -29,6 +29,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import gzip
 import json
 import os
+import sys
 import time
 import typing as t
 from argparse import Namespace
@@ -191,6 +192,14 @@ class LoadDataFromBackupToDatabase(Recovery):
             self.args.file = os.path.join(self.redis_json_backup, f'{self.args.file}.json')
         else:
             list_of_backups = get_list_of_backups(self.redis_json_backup)
+            if not list_of_backups:
+                error_message = 'Didn\'t find any backups, finishing execution of the script'
+                self.logger.error(error_message)
+                job_log(
+                    self.start_time, self.temp_dir, status=JobLogStatuses.FAIL,
+                    error=error_message, filename=self.job_log_filename,
+                )
+                sys.exit()
             self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
         redis_modules = self.redis_connection.get_all_modules()
         yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)
