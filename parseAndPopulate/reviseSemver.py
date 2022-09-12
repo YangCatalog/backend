@@ -13,14 +13,13 @@ import json
 import os
 import sys
 import time
-from datetime import datetime
 
 import requests
 import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
-from utility.util import job_log
+from utility.util import job_log, revision_to_date
 
 from parseAndPopulate.modulesComplicatedAlgorithms import \
     ModulesComplicatedAlgorithms
@@ -43,24 +42,11 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, None, [])
 
 
-def get_date(revision: str):
-    rev = revision.split('-')
-    try:
-        date = datetime(int(rev[0]), int(rev[1]), int(rev[2]))
-    except Exception:
-        try:
-            if int(rev[1]) == 2 and int(rev[2]) == 29:
-                date = datetime(int(rev[0]), int(rev[1]), 28)
-            else:
-                date = datetime(1970, 1, 1)
-        except Exception:
-            date = datetime(1970, 1, 1)
-    return date
 
 
 def get_older_revision(module1: dict, module2: dict):
-    date1 = get_date(module1.get('revision'))
-    date2 = get_date(module2.get('revision'))
+    date1 = revision_to_date(module1['revision'])
+    date2 = revision_to_date(module2['revision'])
     if date1 < date2:
         return module1
     return module2
