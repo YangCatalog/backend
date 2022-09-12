@@ -69,8 +69,8 @@ class ScriptConfig(BaseScriptConfig):
             {
                 'flag': '--file',
                 'help': (
-                    'Set name of the file to save data to/load data from. Default name is empty. '
-                    'If name is empty: load operation will use the last available backup file (rdb or json), '
+                    'Set name of the file (without file format) to save data to/load data from. Default name is empty. '
+                    'If name is empty: load operation will use the last available json backup file, '
                     'save operation will use date and time in UTC.'
                 ),
                 'type': str,
@@ -188,7 +188,7 @@ class LoadDataFromBackupToDatabase(Recovery):
 
     def _start_process(self):
         if self.args.file:
-            self.args.file = os.path.join(self.redis_json_backup, self.args.file)
+            self.args.file = os.path.join(self.redis_json_backup, f'{self.args.file}.json')
         else:
             list_of_backups = get_list_of_backups(self.redis_json_backup)
             self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
@@ -214,13 +214,7 @@ class LoadDataFromBackupToDatabase(Recovery):
     def _load_data_from_redis_backup(self) -> tuple[list, list]:
         modules = []
         vendors = []
-        if self.args.file.endswith('.gz'):
-            with gzip.open(self.args.file, 'r') as file_load:
-                self.logger.info(f'Loading file {file_load.name}')
-                catalog_data = json.loads(file_load.read().decode())
-                modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
-                vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-        elif self.args.file.endswith('.json'):
+        if self.args.file.endswith('.json'):
             with open(self.args.file, 'r') as file_load:
                 self.logger.info(f'Loading file {file_load.name}')
                 catalog_data = json.load(file_load)
