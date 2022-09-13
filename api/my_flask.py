@@ -18,8 +18,7 @@ from redis import Redis
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
-from api.matomo_tracker import (MatomoTrackerData, get_headers_dict,
-                                record_analytic)
+from api.matomo_tracker import MatomoTrackerData, get_headers_dict, record_analytic
 from api.sender import Sender
 from elasticsearchIndexing.es_manager import ESManager
 from redisConnections.redisConnection import RedisConnection
