@@ -11,7 +11,7 @@ import flask
 import requests
 from flask.app import Flask
 from flask.config import Config
-from flask.globals import g, request
+from flask.globals import g, request, current_app as app
 from flask.logging import default_handler
 from flask_pyoidc.user_session import UserSession
 from redis import Redis
