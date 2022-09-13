@@ -81,7 +81,6 @@ class RedisUsersRecovery:
     def __init__(self, script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
         self.start_time = None
         self.args = script_conf.args
-        self.config = config
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')

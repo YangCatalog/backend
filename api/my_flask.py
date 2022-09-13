@@ -9,24 +9,22 @@ from urllib.error import URLError
 
 import flask
 import requests
-from elasticsearchIndexing.es_manager import ESManager
 from flask.app import Flask
 from flask.config import Config
-from flask.globals import current_app as app
-from flask.globals import g, request
+from flask.globals import g, request, current_app as app
 from flask.logging import default_handler
 from flask_pyoidc.user_session import UserSession
 from redis import Redis
-from redisConnections.redis_users_connection import RedisUsersConnection
-from redisConnections.redisConnection import RedisConnection
-from utility.confdService import ConfdService
-from utility.util import revision_to_date
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
-from api.matomo_tracker import (MatomoTrackerData, get_headers_dict,
-                                record_analytic)
+from api.matomo_tracker import MatomoTrackerData, get_headers_dict, record_analytic
 from api.sender import Sender
+from elasticsearchIndexing.es_manager import ESManager
+from redisConnections.redisConnection import RedisConnection
+from redisConnections.redis_users_connection import RedisUsersConnection
+from utility.confdService import ConfdService
+from utility.util import revision_to_date
 
 
 class MyFlask(Flask):
@@ -65,8 +63,7 @@ class MyFlask(Flask):
         self.post_config_load()
 
     def config_reader(self, file):
-        parser = configparser.ConfigParser()
-        parser._interpolation = configparser.ExtendedInterpolation()  # pyright: ignore
+        parser = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation())
         parser.read(file.name)
         mapping = {}
         for section in parser.sections():

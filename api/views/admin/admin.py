@@ -18,11 +18,9 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import fnmatch
-import grp
 import gzip
 import hashlib
 import json
-import math
 import os
 import pwd
 import re
@@ -34,20 +32,21 @@ from functools import wraps
 from pathlib import Path
 
 import flask
-from api.my_flask import app
+import grp
+import math
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.json import jsonify
 from flask_cors import CORS
 from flask_pyoidc import OIDCAuthentication
-from flask_pyoidc.provider_configuration import (
-    ClientMetadata, ProviderConfiguration
-)
+from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
 from flask_pyoidc.user_session import UserSession
 from redis import RedisError
-from utility.create_config import create_config
 from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
+
+from api.my_flask import app
+from utility.create_config import create_config
 
 config = create_config()
 client_id = config.get('Secrets-Section', 'client-id')
