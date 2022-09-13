@@ -104,13 +104,12 @@ class Recovery:
         self.process_type = ''
 
         self.args = args
-        self.config = config
-        self.log_directory = self.config.get('Directory-Section', 'logs')
-        self.temp_dir = self.config.get('Directory-Section', 'temp')
-        self.cache_directory = self.config.get('Directory-Section', 'cache')
-        self.redis_host = self.config.get('DB-Section', 'redis-host')
-        self.redis_port = self.config.get('DB-Section', 'redis-port')
-        self.var_yang = self.config.get('Directory-Section', 'var')
+        self.log_directory = config.get('Directory-Section', 'logs')
+        self.temp_dir = config.get('Directory-Section', 'temp')
+        self.cache_directory = config.get('Directory-Section', 'cache')
+        self.redis_host = config.get('DB-Section', 'redis-host')
+        self.redis_port = config.get('DB-Section', 'redis-port')
+        self.var_yang = config.get('Directory-Section', 'var')
 
         self.redis_connection = redis_connection
         self.redis_backups = os.path.join(self.cache_directory, 'redis')
