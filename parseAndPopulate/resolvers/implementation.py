@@ -15,7 +15,7 @@ class ImplementationResolver(Resolver):
             conformance_type:    (str) string representing conformance type of module
             capabilities:        (list) list of netconf capabilities loaded from platform_metadata.json
             netconf_versions:    (list) list of netconf versions loaded from platform-metadata.json
-        
+
         Other parameters:
             features:            (list) list of features from initializations data for VendorModule
             deviations:          (list) list of deviations from initializations data for VendorModule
