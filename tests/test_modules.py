@@ -135,9 +135,11 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=vendor_data)
-        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
-
+        vendor_info = {"platform_data": platform_data, "conformance_type": 'implement',
+                       "capabilities": netconf_capabilities, "netconf_versions": netconf_versions}
+        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, 
+                            vendor_info=vendor_info, data=vendor_data)
+        
         self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
         for implementation, platform in zip(yang.implementations, platform_data):
@@ -171,9 +173,10 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=yang_lib_info)
-
-        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
+        vendor_info = {"platform_data": platform_data, "conformance_type": 'implement',
+                       "capabilities": netconf_capabilities, "netconf_versions": netconf_versions}
+        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, 
+                            vendor_info=vendor_info, data=yang_lib_info)
 
         self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)

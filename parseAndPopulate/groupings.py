@@ -446,13 +446,14 @@ class VendorGrouping(ModuleGrouping):
                 self._update_schema_urls(name, revision, path, schema_parts)
                 try:
                     try:
+                        vendor_info = {"platform_data": self.platform_data, "conformance_type": conformance_type,
+                                       "capabilities": self.capabilities, "netconf_versions": self.netconf_versions}
                         yang = VendorModule(name, path, self._schemas, self.dir_paths,
-                                            self.dumper.yang_modules)
+                                            self.dumper.yang_modules, vendor_info)
                     except ParseException:
                         LOGGER.exception('ParseException while parsing {}'.format(path))
                         continue
-                    yang.add_vendor_information(self.platform_data, conformance_type,
-                                                self.capabilities, self.netconf_versions)
+
                     self.dumper.add_module(yang)
                     key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
                     set_of_names.add(yang.name)
@@ -525,13 +526,14 @@ class VendorCapabilities(VendorGrouping):
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
+                    vendor_info = {"platform_data": self.platform_data, "conformance_type": "implement",
+                                   "capabilities": self.capabilities, "netconf_versions": self.netconf_versions}
                     yang = VendorModule(name, path, self._schemas, self.dir_paths,
-                                        self.dumper.yang_modules, data=module_and_more)
+                                        self.dumper.yang_modules, vendor_info, data=module_and_more)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(path))
                     continue
-                yang.add_vendor_information(self.platform_data, 'implement',
-                                            self.capabilities, self.netconf_versions)
+
                 self.dumper.add_module(yang)
                 key = '{}@{}/{}'.format(yang.name, yang.revision, yang.organization)
                 keys.add(key)
@@ -602,14 +604,15 @@ class VendorYangLibrary(VendorGrouping):
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
+                    vendor_info = {"platform_data": self.platform_data, "conformance_type": conformance_type,
+                                   "capabilities": self.capabilities, "netconf_versions": self.netconf_versions}
                     yang = VendorModule(name, path, self._schemas, 
-                                        self.dir_paths, self.dumper.yang_modules, data=yang_lib_info)
+                                        self.dir_paths, self.dumper.yang_modules, 
+                                        vendor_info, data=yang_lib_info)
                 except ParseException:
                     LOGGER.exception('ParseException while parsing {}'.format(path))
                     continue
 
-                yang.add_vendor_information(self.platform_data, conformance_type,
-                                            self.capabilities, self.netconf_versions)
                 self.dumper.add_module(yang)
                 keys.add('{}@{}/{}'.format(yang.name, yang.revision, yang.organization))
                 set_of_names.add(yang.name)

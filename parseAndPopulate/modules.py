@@ -43,6 +43,7 @@ from parseAndPopulate.resolvers.revision import RevisionResolver
 from parseAndPopulate.resolvers.semantic_version import SemanticVersionResolver
 from parseAndPopulate.resolvers.submodule import SubmoduleResolver
 from parseAndPopulate.resolvers.yang_version import YangVersionResolver
+from parseAndPopulate.resolvers.implementation import ImplementationResolver
 
 
 class Module:
@@ -62,6 +63,7 @@ class Module:
             :param yang_modules:    (dict) yang modules we've already parsed
             :param schema_parts:    (SchemaParts) Parts of the URL that links to the module in Github
             :param aditional_info:  (dict) some aditional information about module given from client
+            :param vendor_info:     (dict) optional dict with additional vendor information
         """
         global LOGGER
         LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
@@ -177,8 +179,22 @@ class VendorModule(Module):
     """A module with additional vendor information."""
 
     def __init__(self, name: str, path: str, schemas: dict, dir_paths: DirPaths,
-                 yang_modules: dict, aditional_info: t.Optional[t.Dict[str, str]] = None,
-                 data: t.Optional[t.Union[str, dict]] = None):
+                 yang_modules: dict, vendor_info: t.Optional[dict] = None, 
+                 aditional_info: t.Optional[t.Dict[str, str]] = None, data: t.Optional[t.Union[str, dict]] = None):
+        """
+        Initialize and parse everything out of a vendor module and 
+        add information from platform-metadata json files provided with Cisco modules.
+
+        Arguments:
+            :param name:                (str) name of the module (not parsed out of the module)
+            :param path:                (str) path to yang file being parsed
+            :param dir_paths:           (dict) paths to various needed directories according to configuration
+            :param yang_modules:        (dict) yang modules we've already parsed
+            :param schema_parts:        (SchemaParts) Parts of the URL that links to the module in Github
+            :param aditional_info:      (dict) some aditional information about module given from client
+            :param vendor_info:         (dict) dict with additional vendor information
+        """
+
         # these are required for self._find_file() to work
         self.yang_models = dir_paths['yang_models']
         self.features = []
@@ -203,6 +219,10 @@ class VendorModule(Module):
             self.features = data['features']
         super().__init__(name, path, schemas, dir_paths, yang_modules, aditional_info)
 
+        if vendor_info is not None:
+            implementation_resolver = ImplementationResolver(vendor_info, self.features, self.deviations)
+            self.implementations += implementation_resolver.resolve()
+
     def _resolve_deviations_and_features(self, search_for: str, data: str) -> t.List[str]:
         ret = []
         if search_for in data:
@@ -210,36 +230,3 @@ class VendorModule(Module):
             devs_or_features = devs_or_features.split('&')[0]
             ret = devs_or_features.split(',')
         return ret
-
-    def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
-                               capabilities: list, netconf_versions: list):
-        """
-        Add information from platform-metadata json files provided with Cisco modules.
-
-        Arguments:
-            :param platform_data:       (list) list of platform_data loaded from platform_metadata.json
-            :param conformance_type:    (str) string representing conformance type of module
-            :param capabilities:        (list) list of netconf capabilities loaded from platform_metadata.json
-            :param netconf_versions:    (list) list of netconf versions loaded from platform-metadata.json
-        """
-        for data in platform_data:
-            implementation = Implementation()
-            implementation.vendor = data['vendor']
-            implementation.platform = data['platform']
-            implementation.software_version = data['software-version']
-            implementation.software_flavor = data['software-flavor']
-            implementation.os_version = data['os-version']
-            implementation.feature_set = data['feature-set']
-            implementation.os_type = data['os']
-            implementation.feature = self.features
-            implementation.capabilities = capabilities
-            implementation.netconf_versions = netconf_versions
-
-            for deviation in self.deviations:
-                dev = implementation.Deviation()
-                dev.name = deviation['name']
-                dev.revision = deviation['revision']
-                implementation.deviations.append(dev)
-
-            implementation.conformance_type = conformance_type
-            self.implementations.append(implementation)
