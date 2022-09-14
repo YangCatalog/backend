@@ -1,10 +1,10 @@
-YANGCATALOG
-===========
+# YANG Catalog
+## Overview
+This repository contains YANG Catalog's [REST API](https://yangcatalog.org/doc) and the bulk of it's internal infrastructure for processing YANG modules and extracting their properties. It also serves information to YANG Catalog's [frontend](https://github.com/YangCatalog/yangcatalog-ui) and implements the functionality of the [Admin UI](https://github.com/YangCatalog/admin_ui).
 
-You can find the official yangcatalog website [here](https://yangcatalog.org).
-
+## YANG Module Processing
 The scripts in this repository serve as a backend to add, update, remove and manage
-yang module files in yangcatalog. It is composed of:
+YANG module files in yangcatalog. It is composed of:
 * scripts that run every day as a cron job,
 * an API which lets users add, remove or find the modules they expect
 * scripts that parse and populate the yangcatalog database.
@@ -14,7 +14,7 @@ repository. That repository contains all the modules
 structered by vendors (Cisco, Huawei and others) and SDOs
 (IETF, IEEE, MEF, BBF and others).
 
-#### Parse and Populate
+### Parse and Populate
 
 The most important module in this repository is called ParsedAndPopulate.
 This module contains parsing scripts to parse all the modules of a given
@@ -35,7 +35,7 @@ To find all the modules with missing or wrong revisions, namespaces, imports,
 includes or modules that according to the capability.xml file should be in
 the folder but are missing, we can use the integrity script.
 
-#### API
+## API
 
 The API module runs as a UWSGI emperor vassal (using the `yang-catalog.ini` file)
 and contains several endpoints. Most
@@ -70,7 +70,7 @@ ConfD requests. During loading of the UWSGI, the cache is pre-populated by
 issueing one ConfD request per module; during this initial load time, the API
 will probably time-out and the NGINX server will return a 50x error.
 
-#### Jobs
+### Jobs
 
 There are several cron jobs that run every day.
 * Statistics job under statistic module which goes through all the
