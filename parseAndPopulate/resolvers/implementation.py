@@ -20,10 +20,10 @@ class ImplementationResolver(Resolver):
             features:            (list) list of features from initializations data for VendorModule
             deviations:          (list) list of deviations from initializations data for VendorModule
         """
-        platform_data = self.vendor_info["platform_data"]
-        conformance_type = self.vendor_info["conformance_type"]
-        capabilities = self.vendor_info["capabilities"]
-        netconf_versions = self.vendor_info["netconf_versions"]
+        platform_data = self.vendor_info['platform_data']
+        conformance_type = self.vendor_info['conformance_type']
+        capabilities = self.vendor_info['capabilities']
+        netconf_versions = self.vendor_info['netconf_versions']
 
         implementations = []
         for data in platform_data:
