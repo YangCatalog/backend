@@ -28,7 +28,6 @@ import os
 import smtplib
 import sys
 import typing as t
-import typing as t
 from email.mime.text import MIMEText
 
 from webexteamssdk import WebexTeamsAPI
@@ -45,7 +44,7 @@ class MessageFactory:
        a message to a group of admin e-mails
     """
 
-    def __init__(self, config_path=os.environ['YANGCATALOG_CONFIG_PATH']):
+    def __init__(self, config_path: str = os.environ['YANGCATALOG_CONFIG_PATH']):
         """Setup Webex teams rooms and smtp
 
         Arguments:
@@ -63,7 +62,8 @@ class MessageFactory:
         self._email_to = config.get('Message-Section', 'email-to').split()
         self._developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')
-        self._me = config.get('Web-Section', 'domain-prefix')
+        self._domain_prefix = config.get('Web-Section', 'domain-prefix')
+        self._me = self._domain_prefix.split('/')[-1]
 
         self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
         self.LOGGER.info('Initialising Message Factory')
@@ -75,7 +75,6 @@ class MessageFactory:
         self._room = rooms[0]
 
         self._smtp = smtplib.SMTP('localhost')
-        self._me = self._me.split('/')[-1]
         self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
 
     def _validate_rooms_count(self, rooms: list):
@@ -124,8 +123,9 @@ class MessageFactory:
             :param subtype      (str) MIME text sybtype of the message. Default is "plain".
         """
         send_to = email_to if email_to else self._email_to
-        msg = MIMEText(message + f'\n\nMessage sent from {self._me}', _subtype=subtype)
-        msg['Subject'] = subject if subject else 'Automatic generated message - RFC IETF'
+        newline_character = '<br>' if subtype == 'html' else '\n'
+        msg = MIMEText(f'{message}{newline_character}{newline_character}Message sent from {self._me}', _subtype=subtype)
+        msg['Subject'] = subject or 'Automatic generated message - RFC IETF'
         msg['From'] = self._email_from
         msg['To'] = ', '.join(send_to)
 
@@ -183,7 +183,7 @@ class MessageFactory:
         """Generate the user reminder message in Markdown format
         
         Arguments:
-            :param user_data  (dict) dictionary containing the data of approved and pending users
+            :param users_stats  (dict) dictionary containing the data of approved and pending users
         """
         tables_text = 'approved users\n'
 

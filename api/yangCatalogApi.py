@@ -57,8 +57,8 @@ from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import ietf_auth
 from api.views.errorHandlers.errorHandler import bp as error_handling_bp
 from api.views.healthCheck.healthCheck import bp as healthcheck_bp
-from api.views.userSpecificModuleMaintenance.moduleMaintenance import \
-    bp as user_maintenance_bp
+from api.views.notifications.notifications import bp as notifications_bp
+from api.views.userSpecificModuleMaintenance.moduleMaintenance import bp as user_maintenance_bp
 from api.views.yangSearch.yangSearch import bp as yang_search_bp
 from api.views.ycJobs.ycJobs import bp as jobs_bp
 from api.views.ycSearch.ycSearch import bp as search_bp
@@ -78,6 +78,7 @@ app.register_blueprint(jobs_bp, url_prefix='/api')
 app.register_blueprint(search_bp, url_prefix='/api')
 app.register_blueprint(healthcheck_bp, url_prefix='/api/admin/healthcheck')
 app.register_blueprint(yang_search_bp, url_prefix='/api/yang-search/v2')
+app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
 CORS(app, supports_credentials=True)
 # csrf = CSRFProtect(application)

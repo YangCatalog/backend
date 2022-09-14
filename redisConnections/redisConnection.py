@@ -17,7 +17,6 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
-
 import json
 import os
 import typing as t
@@ -35,8 +34,11 @@ DEFAULT_VALUES = {
 
 class RedisConnection:
 
-    def __init__(self, modules_db: t.Optional[t.Union[int, str]] = None,
-                 vendors_db: t.Optional[t.Union[int, str]] = None):
+    def __init__(
+            self,
+            modules_db: t.Optional[t.Union[int, str]] = None,
+            vendors_db: t.Optional[t.Union[int, str]] = None,
+    ):
         config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
         self._redis_host = config.get('DB-Section', 'redis-host')
@@ -263,7 +265,9 @@ class RedisConnection:
                         (unquote(part) for part in key.split('/'))
                     # Build up an object from bottom
                     software_flavor = {'name': software_flavor_name, **redis_vendor_data}
-                    software_version = {'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}}
+                    software_version = {
+                        'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}
+                    }
                     platform = {'name': platform_name, 'software-versions': {'software-version': [software_version]}}
                     vendor = {'name': vendor_name, 'platforms': {'platform': [platform]}}
                     new_data = {'yang-catalog:vendor': [vendor]}
