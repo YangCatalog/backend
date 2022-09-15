@@ -43,6 +43,7 @@ from parseAndPopulate.resolvers.revision import RevisionResolver
 from parseAndPopulate.resolvers.semantic_version import SemanticVersionResolver
 from parseAndPopulate.resolvers.submodule import SubmoduleResolver
 from parseAndPopulate.resolvers.yang_version import YangVersionResolver
+from parseAndPopulate.resolvers.implementations import ImplementationResolver
 
 
 class Module:
@@ -62,12 +63,16 @@ class Module:
             :param yang_modules:    (dict) yang modules we've already parsed
             :param schema_parts:    (SchemaParts) Parts of the URL that links to the module in Github
             :param aditional_info:  (dict) some aditional information about module given from client
+            :param vendor_info:     (dict) optional dict with additional vendor information
         """
         global LOGGER
-        LOGGER = log.get_logger('modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
+        LOGGER = log.get_logger(
+            'modules', '{}/parseAndPopulate.log'.format(dir_paths['log']))
         config = create_config()
-        self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
-        self._nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
+        self._domain_prefix = config.get(
+            'Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
+        self._nonietf_dir = config.get(
+            'Directory-Section', 'non-ietf-directory')
         self.html_result_dir = dir_paths['result']
         self._schemas = schemas
         self._path = path
@@ -88,7 +93,8 @@ class Module:
         self.maturity_level = additional_info.get('maturity-level')
         self.reference = additional_info.get('reference')
         self.document_name = additional_info.get('document-name')
-        self.module_classification = additional_info.get('module-classification', 'unknown')
+        self.module_classification = additional_info.get(
+            'module-classification', 'unknown')
         generated_from = additional_info.get('generated-from')
         organization = additional_info.get('organization')
         self.compilation_status = 'unknown'
@@ -103,10 +109,12 @@ class Module:
         belongs_to_resolver = BasicResolver(self._parsed_yang, 'belongs_to')
         self.belongs_to = belongs_to_resolver.resolve()
 
-        namespace_resolver = NamespaceResolver(self._parsed_yang, LOGGER, name_revision, self.belongs_to)
+        namespace_resolver = NamespaceResolver(
+            self._parsed_yang, LOGGER, name_revision, self.belongs_to)
         self.namespace = namespace_resolver.resolve()
 
-        organization_resolver = OrganizationResolver(self._parsed_yang, LOGGER, self.namespace)
+        organization_resolver = OrganizationResolver(
+            self._parsed_yang, LOGGER, self.namespace)
         self.organization = organization or organization_resolver.resolve()
 
         module_type_resolver = ModuleTypeResolver(self._parsed_yang, LOGGER)
@@ -120,7 +128,8 @@ class Module:
 
         self.dependencies: t.List[Dependency] = []
         self.submodule: t.List[Submodule] = []
-        submodule_resolver = SubmoduleResolver(self._parsed_yang, LOGGER, self._path, self.schema, self._schemas)
+        submodule_resolver = SubmoduleResolver(
+            self._parsed_yang, LOGGER, self._path, self.schema, self._schemas)
         self.dependencies, self.submodule = submodule_resolver.resolve()
 
         imports_resolver = ImportsResolver(self._parsed_yang, LOGGER, self._path,
@@ -128,19 +137,23 @@ class Module:
         self.imports = imports_resolver.resolve()
         self.dependencies.extend(self.imports)
 
-        semantic_version_resolver = SemanticVersionResolver(self._parsed_yang, LOGGER)
+        semantic_version_resolver = SemanticVersionResolver(
+            self._parsed_yang, LOGGER)
         self.semantic_version = semantic_version_resolver.resolve()
 
         yang_version_resolver = YangVersionResolver(self._parsed_yang, LOGGER)
         self.yang_version = yang_version_resolver.resolve()
 
         self.contact = BasicResolver(self._parsed_yang, 'contact').resolve()
-        self.description = BasicResolver(self._parsed_yang, 'description').resolve()
+        self.description = BasicResolver(
+            self._parsed_yang, 'description').resolve()
 
-        generated_from_resolver = GeneratedFromResolver(LOGGER, self.name, self.namespace)
+        generated_from_resolver = GeneratedFromResolver(
+            LOGGER, self.name, self.namespace)
         self.generated_from = generated_from or generated_from_resolver.resolve()
 
-        prefix_resolver = PrefixResolver(self._parsed_yang, LOGGER, name_revision, self.belongs_to)
+        prefix_resolver = PrefixResolver(
+            self._parsed_yang, LOGGER, name_revision, self.belongs_to)
         self.prefix = prefix_resolver.resolve()
 
         self.tree = self._resolve_tree(self.module_type)
@@ -151,7 +164,8 @@ class Module:
         return None
 
     def _save_file(self, save_file_dir: str):
-        file_with_path = '{}/{}@{}.yang'.format(save_file_dir, self.name, self.revision)
+        file_with_path = '{}/{}@{}.yang'.format(
+            save_file_dir, self.name, self.revision)
         try:
             same = filecmp.cmp(self._path, file_with_path)
             if not same:
@@ -163,29 +177,47 @@ class Module:
         try:
             return self._schemas[name_revision]
         except KeyError:
-            LOGGER.warning('Schema URL for {}@{} has not been resolved'.format(self.name, self.revision))
+            LOGGER.warning(
+                'Schema URL for {}@{} has not been resolved'.format(self.name, self.revision))
 
 
 class SdoModule(Module):
 
     def __init__(self, name: str, path: str, schemas: dict, dir_paths: DirPaths,
                  yang_modules: dict, aditional_info: t.Optional[t.Dict[str, str]] = None):
-        super().__init__(name, os.path.abspath(path), schemas, dir_paths, yang_modules, aditional_info)
+        super().__init__(name, os.path.abspath(path), schemas,
+                         dir_paths, yang_modules, aditional_info)
 
 
 class VendorModule(Module):
     """A module with additional vendor information."""
 
     def __init__(self, name: str, path: str, schemas: dict, dir_paths: DirPaths,
-                 yang_modules: dict, aditional_info: t.Optional[t.Dict[str, str]] = None,
-                 data: t.Optional[t.Union[str, dict]] = None):
+                 yang_modules: dict, vendor_info: t.Optional[dict] = None,
+                 aditional_info: t.Optional[t.Dict[str, str]] = None, data: t.Optional[t.Union[str, dict]] = None):
+        """
+        Initialize and parse everything out of a vendor module and 
+        add information from platform-metadata json files provided with Cisco modules.
+
+        Arguments:
+            :param name:                (str) name of the module (not parsed out of the module)
+            :param path:                (str) path to yang file being parsed
+            :param dir_paths:           (dict) paths to various needed directories according to configuration
+            :param yang_modules:        (dict) yang modules we've already parsed
+            :param schema_parts:        (SchemaParts) Parts of the URL that links to the module in Github
+            :param aditional_info:      (dict) some aditional information about module given from client
+            :param vendor_info:         (dict) dict with additional vendor information
+        """
+
         # these are required for self._find_file() to work
         self.yang_models = dir_paths['yang_models']
         self.features = []
         self.deviations = []
         if isinstance(data, str):  # string from a capabilities file
-            self.features = self._resolve_deviations_and_features('features=', data)
-            deviation_names = self._resolve_deviations_and_features('deviations=', data)
+            self.features = self._resolve_deviations_and_features(
+                'features=', data)
+            deviation_names = self._resolve_deviations_and_features(
+                'deviations=', data)
             for deviation_name in deviation_names:
                 deviation = {'name': deviation_name}
                 yang_file = get_yang(deviation_name)
@@ -193,7 +225,8 @@ class VendorModule(Module):
                     deviation['revision'] = '1970-01-01'
                 else:
                     try:
-                        deviation['revision'] = resolve_revision(os.path.abspath(yang_file))
+                        deviation['revision'] = resolve_revision(
+                            os.path.abspath(yang_file))
                     except FileNotFoundError:
                         deviation['revision'] = '1970-01-01'
                 self.deviations.append(deviation)
@@ -203,6 +236,11 @@ class VendorModule(Module):
             self.features = data['features']
         super().__init__(name, path, schemas, dir_paths, yang_modules, aditional_info)
 
+        if vendor_info is not None:
+            implementation_resolver = ImplementationResolver(
+                vendor_info, self.features, self.deviations)
+            self.implementations += implementation_resolver.resolve()
+
     def _resolve_deviations_and_features(self, search_for: str, data: str) -> t.List[str]:
         ret = []
         if search_for in data:
@@ -210,36 +248,3 @@ class VendorModule(Module):
             devs_or_features = devs_or_features.split('&')[0]
             ret = devs_or_features.split(',')
         return ret
-
-    def add_vendor_information(self, platform_data: list, conformance_type: t.Optional[str],
-                               capabilities: list, netconf_versions: list):
-        """
-        Add information from platform-metadata json files provided with Cisco modules.
-
-        Arguments:
-            :param platform_data:       (list) list of platform_data loaded from platform_metadata.json
-            :param conformance_type:    (str) string representing conformance type of module
-            :param capabilities:        (list) list of netconf capabilities loaded from platform_metadata.json
-            :param netconf_versions:    (list) list of netconf versions loaded from platform-metadata.json
-        """
-        for data in platform_data:
-            implementation = Implementation()
-            implementation.vendor = data['vendor']
-            implementation.platform = data['platform']
-            implementation.software_version = data['software-version']
-            implementation.software_flavor = data['software-flavor']
-            implementation.os_version = data['os-version']
-            implementation.feature_set = data['feature-set']
-            implementation.os_type = data['os']
-            implementation.feature = self.features
-            implementation.capabilities = capabilities
-            implementation.netconf_versions = netconf_versions
-
-            for deviation in self.deviations:
-                dev = implementation.Deviation()
-                dev.name = deviation['name']
-                dev.revision = deviation['revision']
-                implementation.deviations.append(dev)
-
-            implementation.conformance_type = conformance_type
-            self.implementations.append(implementation)

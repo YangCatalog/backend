@@ -33,13 +33,16 @@ class TestModulesClass(unittest.TestCase):
         super(TestModulesClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
+        self.schema_parts = SchemaParts(
+            repo_owner='YangModels', repo_name='yang', commit_hash='master')
         self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
         self.sdo_module_filename = 'sdo-module@2022-08-05.yang'
         self.sdo_module_name = 'sdo-module'
         self.hello_message_filename = 'capabilities-ncs5k.xml'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
+        self.resources_path = os.path.join(
+            os.environ['BACKEND'], 'tests/resources')
+        self.test_private_dir = os.path.join(
+            self.resources_path, 'html/private')
         self.dir_paths: DirPaths = {
             'cache': '',
             'json': '',
@@ -61,9 +64,11 @@ class TestModulesClass(unittest.TestCase):
         Create modules object from SDO (= ietf) YANG file,
         and compare object property values.
         """
-        path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
+        path_to_yang = os.path.join(
+            yc_gc.save_file_dir, self.sdo_module_filename)
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, {}, self.dir_paths, {})
+        yang = SdoModule(self.sdo_module_name, path_to_yang,
+                         {}, self.dir_paths, {})
 
         self.assertEqual(yang.generated_from, 'not-applicable')
         self.assertEqual(yang.module_type, 'module')
@@ -80,7 +85,8 @@ class TestModulesClass(unittest.TestCase):
         and compare object property values.
         Pass keys as an argument so only some properties will be resolved, while other will stay set to None.
         """
-        path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
+        path_to_yang = os.path.join(
+            yc_gc.save_file_dir, self.sdo_module_filename)
         keys = {'sdo-module@2022-08-05/ietf': ''}
         additional_info = {
             'author-email': 'test@test.test',
@@ -92,7 +98,8 @@ class TestModulesClass(unittest.TestCase):
             'module-classification': 'testing'
         }
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, {}, self.dir_paths, keys, additional_info)
+        yang = SdoModule(self.sdo_module_name, path_to_yang,
+                         {}, self.dir_paths, keys, additional_info)
 
         self.assertEqual(yang.name, 'sdo-module')
         self.assertEqual(yang.module_type, 'module')
@@ -107,10 +114,12 @@ class TestModulesClass(unittest.TestCase):
         """
         yang_lib_data = 'sdo-module&revision=2022-08-05&deviations=vendor-sdo-module-deviations'
         module_name = 'sdo-module'
-        path_to_yang = os.path.join(yc_gc.save_file_dir, 'sdo-module@2022-08-05.yang')
+        path_to_yang = os.path.join(
+            yc_gc.save_file_dir, 'sdo-module@2022-08-05.yang')
         deviation = 'vendor-sdo-module-deviations'
 
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=yang_lib_data)
+        yang = VendorModule(module_name, path_to_yang, {},
+                            self.dir_paths, {}, data=yang_lib_data)
 
         self.assertEqual(yang.generated_from, 'not-applicable')
         self.assertEqual(yang.module_type, 'module')
@@ -127,27 +136,35 @@ class TestModulesClass(unittest.TestCase):
         Vendor information are then added using add_vendor_information() method and object values are compared
         with data from platform-metadata.json.
         """
-        xml_path = os.path.join(self.test_repo, 'vendor/cisco/xr/701', self.hello_message_filename)
+        xml_path = os.path.join(
+            self.test_repo, 'vendor/cisco/xr/701', self.hello_message_filename)
         vendor_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = vendor_data.split('&revision')[0]
-        path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
+        path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(
+            self.test_repo, module_name)
         platform_name = 'ncs5k'
 
-        platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
+        platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(
+            xml_path, platform_name)
 
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=vendor_data)
-        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
+        vendor_info = {'platform_data': platform_data, 'conformance_type': 'implement',
+                       'capabilities': netconf_capabilities, 'netconf_versions': netconf_versions}
+        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {},
+                            vendor_info=vendor_info, data=vendor_data)
 
         self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
         for implementation, platform in zip(yang.implementations, platform_data):
-            self.assertEqual(implementation.feature_set, platform['feature-set'])
+            self.assertEqual(implementation.feature_set,
+                             platform['feature-set'])
             self.assertEqual(implementation.netconf_versions, netconf_versions)
             self.assertEqual(implementation.os_type, platform['os'])
             self.assertEqual(implementation.os_version, platform['os-version'])
             self.assertEqual(implementation.platform, platform['platform'])
-            self.assertEqual(implementation.software_flavor, platform['software-flavor'])
-            self.assertEqual(implementation.software_version, platform['software-version'])
+            self.assertEqual(implementation.software_flavor,
+                             platform['software-flavor'])
+            self.assertEqual(implementation.software_version,
+                             platform['software-version'])
             self.assertEqual(implementation.vendor, platform['vendor'])
 
     def test_modules_add_vendor_information_is_yang_lib(self):
@@ -163,28 +180,34 @@ class TestModulesClass(unittest.TestCase):
             'deviations': [{'name': 'huawei-aaa-deviations-NE-X1X2', 'revision': '2019-04-23'}],
             'revision': '2020-07-01'
         }
-        xml_path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
+        xml_path = os.path.join(
+            self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
         module_name = 'huawei-aaa'
         path_to_yang = '{}/vendor/huawei/network-router/8.20.0/ne5000e/{}.yang' \
             .format(self.test_repo, module_name)
         platform_name = 'ne5000e'
 
-        platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
+        platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(
+            xml_path, platform_name)
 
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=yang_lib_info)
-
-        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_versions)
+        vendor_info = {'platform_data': platform_data, 'conformance_type': 'implement',
+                       'capabilities': netconf_capabilities, 'netconf_versions': netconf_versions}
+        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {},
+                            vendor_info=vendor_info, data=yang_lib_info)
 
         self.assertNotEqual(len(yang.implementations), 0)
         self.assertNotEqual(len(platform_data), 0)
         for implementation, platform in zip(yang.implementations, platform_data):
-            self.assertEqual(implementation.feature_set, platform['feature-set'])
+            self.assertEqual(implementation.feature_set,
+                             platform['feature-set'])
             self.assertEqual(implementation.netconf_versions, netconf_versions)
             self.assertEqual(implementation.os_type, platform['os'])
             self.assertEqual(implementation.os_version, platform['os-version'])
             self.assertEqual(implementation.platform, platform['platform'])
-            self.assertEqual(implementation.software_flavor, platform['software-flavor'])
-            self.assertEqual(implementation.software_version, platform['software-version'])
+            self.assertEqual(implementation.software_flavor,
+                             platform['software-flavor'])
+            self.assertEqual(implementation.software_version,
+                             platform['software-version'])
             self.assertEqual(implementation.vendor, platform['vendor'])
 
     ##########################
