@@ -21,18 +21,11 @@ __email__ = 'richard.zilncik@pantheon.tech'
 import datetime
 import typing as t
 from configparser import ConfigParser
-from enum import Enum
 
 from redis import Redis
 
 import utility.log as log
 from utility.create_config import create_config
-
-
-class EmailsUnsubscribingTypes(str, Enum):
-    """Enum that contains names of sets with emails unsubscribed from specific types of emails"""
-    ALL = 'unsubscribed_from_all_emails'
-    DRAFTS = 'unsubscribed_from_draft_emails'
 
 
 class RedisUsersConnection:
@@ -118,20 +111,8 @@ class RedisUsersConnection:
         self.redis.delete(f'{id}:"motivation"')
         self.redis.sadd('approved', id)
 
-    def unsubscribe_from_emails(self, email_type: EmailsUnsubscribingTypes, *emails: str):
-        self.logger.info(f'Unsubscribing {emails} from "{email_type}" emails')
-        self.redis.sadd(email_type, *emails)
-
-    def cancel_unsubscribing_from_emails(self, email_type: EmailsUnsubscribingTypes, *emails: str):
-        self.logger.info(f'Cancelling {emails} unsubscribing of "{email_type}" emails')
-        self.redis.srem(email_type, *emails)
-
-    def get_all_unsubscribed_emails(self, email_type: EmailsUnsubscribingTypes) -> list[str]:
-        """Returns the list of all emails which are unsubscribed from particular email notifications"""
-        return [email.decode() for email in self.redis.smembers(email_type)]
-
     def get_all(self, status: str) -> list[str]:
-        return [id.decode() for id in self.redis.smembers(status)]
+        return list(map(lambda id: id.decode(), self.redis.smembers(status)))
 
     def get_all_fields(self, id: t.Union[str, int]) -> dict:
         r = {}

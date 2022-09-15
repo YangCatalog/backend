@@ -22,6 +22,7 @@ from api.matomo_tracker import MatomoTrackerData, get_headers_dict, record_analy
 from api.sender import Sender
 from elasticsearchIndexing.es_manager import ESManager
 from redisConnections.redisConnection import RedisConnection
+from redisConnections.redis_user_notifications_connection import RedisUserNotificationsConnection
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.confdService import ConfdService
 from utility.util import revision_to_date
@@ -116,6 +117,7 @@ class MyFlask(Flask):
             port=self.config.db_redis_port
         )
         self.config['REDIS-USERS'] = RedisUsersConnection()
+        self.config['REDIS-USER-NOTIFICATIONS'] = RedisUserNotificationsConnection()
         auth.users = self.config.redis_users
         self.check_wait_redis_connected()
 
