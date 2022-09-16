@@ -17,7 +17,8 @@ def set_config():
     user_notifications = app_config.redis_user_notifications
 
 
-@bp.route('/unsubscribe_from_draft_errors_emails/<path:draft_name>/<path:email>', methods=['GET'])
-def unsubscribe_from_emails(draft_name: str, email: str):
-    user_notifications.unsubscribe_from_draft_errors_emails(draft_name, email)
+@bp.route('/unsubscribe_from_emails/<path:emails_type>/<path:email>', methods=['GET'])
+def unsubscribe_from_emails(emails_type: str, email: str):
+    user_notifications.unsubscribe_from_emails(emails_type, email)
+    # TODO: return a jinja template instead of a pure json response
     return make_response(jsonify({'status': 'success'}), 200)

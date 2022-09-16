@@ -24,9 +24,10 @@ class RedisUserNotificationsConnection:
             'redis_user_notifications_connection', f'{self.log_directory}/redis_user_notification_connection.log'
         )
 
-    def unsubscribe_from_draft_errors_emails(self, draft_name_without_revision: str, *emails: str):
-        self.logger.info(f'Unsubscribing {emails} from draft errors emails of "{draft_name_without_revision}"')
-        self.redis.sadd(draft_name_without_revision, *emails)
+    def unsubscribe_from_emails(self, emails_type: str, *emails: str):
+        """"Unsubscribes a list of emails from an exact emails type"""
+        self.logger.info(f'Unsubscribing {emails} from emails "{emails_type}"')
+        self.redis.sadd(emails_type, *emails)
 
-    def get_emails_unsubscribed_from_draft_errors_emails(self, draft_name_without_revision: str) -> list[str]:
-        return list(map(lambda email: email.decode(), self.redis.smembers(draft_name_without_revision)))
+    def get_unsubscribed_emails(self, emails_type: str) -> list[str]:
+        return list(map(lambda email: email.decode(), self.redis.smembers(emails_type)))

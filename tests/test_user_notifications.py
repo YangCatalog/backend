@@ -18,33 +18,17 @@ class TestUserNotificationsClass(unittest.TestCase):
         super().tearDown()
         self.redis_user_notifications_db.flushdb()
 
-    def test_unsubscription_from_draft_notifications(self):
-        draft_name_without_revision = 'test-draft-name'
+    def test_unsubscription_from_emails(self):
+        email_type = 'test-email-type'
         email = 'test@example.com'
-        self.redis_user_notifications_connection.unsubscribe_from_draft_errors_emails(
-            draft_name_without_revision, email
-        )
-        self.assertListEqual(
-            self.redis_user_notifications_connection.get_emails_unsubscribed_from_draft_errors_emails(
-                draft_name_without_revision
-            ),
-            [email]
-        )
+        self.redis_user_notifications_connection.unsubscribe_from_emails(email_type, email)
+        self.assertListEqual(self.redis_user_notifications_connection.get_unsubscribed_emails(email_type), [email])
 
-    def test_unsubscription_from_draft_notifications_via_api(self):
-        draft_name_without_revision = 'test-draft-name'
+    def test_unsubscription_from_emails_via_api(self):
+        email_type = 'test-email-type'
         email = 'test@example.com'
         mock.patch('api.views.notifications.notifications.user_notifications', self.redis_user_notifications_connection)
-        self.redis_user_notifications_connection.unsubscribe_from_draft_errors_emails(
-            draft_name_without_revision, email
-        )
-        response = self.client.get(
-            f'api/notifications/unsubscribe_from_draft_errors_emails/{draft_name_without_revision}/{email}'
-        )
+        self.redis_user_notifications_connection.unsubscribe_from_emails(email_type, email)
+        response = self.client.get(f'api/notifications/unsubscribe_from_emails/{email_type}/{email}')
         self.assertEqual(response.status_code, 200)
-        self.assertListEqual(
-            self.redis_user_notifications_connection.get_emails_unsubscribed_from_draft_errors_emails(
-                draft_name_without_revision
-            ),
-            [email]
-        )
+        self.assertListEqual(self.redis_user_notifications_connection.get_unsubscribed_emails(email_type), [email])
