@@ -79,7 +79,7 @@ class ElkSearch:
         """
         alerts = []
         for missing in self._missing_modules:
-            alerts.append('Module {} metadata does not exist in yangcatalog'.format(missing))
+            alerts.append(f'Module {missing} metadata does not exist in yangcatalog')
         return alerts
 
     def construct_query(self):
@@ -155,10 +155,9 @@ class ElkSearch:
             if searched_field == 'module':
                 should_query[self._search_params.query_type][searched_field] = self._searched_term
             else:
-                should_query[self._search_params.query_type][
-                    '{}.{}'.format(searched_field, sensitive)] = self._searched_term
+                should_query[self._search_params.query_type][f'{searched_field}.{sensitive}'] = self._searched_term
             search_in.append(should_query)
-        self.LOGGER.debug('Constructed query:\n{}'.format(self.query))
+        self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
     def search(self):
         """
@@ -197,7 +196,7 @@ class ElkSearch:
         process_scroll_search = gevent.spawn(self._continue_scrolling, secondary_hits)
         for hit in hits:
             row = ResponseRow(elastic_hit=hit['_source'])
-            module_key = '{}@{}/{}'.format(row.module_name, row.revision, row.organization)
+            module_key = f'{row.module_name}@{row.revision}/{row.organization}'
             if module_key in reject:
                 continue
 
@@ -209,7 +208,7 @@ class ElkSearch:
             module_data = self._redis_connection.get_module(module_key)
             module_data = json.loads(module_data)
             if not module_data:
-                self.LOGGER.error('Failed to get module from Redis, but found in Elasticsearch: {}'.format(module_key))
+                self.LOGGER.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
                 reject.append(module_key)
                 self._missing_modules.append(module_key)
                 continue
@@ -229,14 +228,15 @@ class ElkSearch:
                 row_hash = row.get_row_hash_by_columns()
                 if row_hash in self._row_hashes:
                     self.LOGGER.info(
-                        'Trimmed output row {} already exists in response rows - cutting this one out'
-                        .format(row.output_row))
+                        f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out'
+                    )
                     continue
                 self._row_hashes.append(row_hash)
             response_rows.append(row.output_row)
             if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
-                self.LOGGER.debug('ElkSearch finished with len {} and scroll id {}'
-                                  .format(len(response_rows), self._current_scroll_id))
+                self.LOGGER.debug(
+                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}'
+                )
                 process_scroll_search.kill()
                 return response_rows
 
@@ -254,7 +254,7 @@ class ElkSearch:
             self.LOGGER.exception('Error while searching in Elasticsearch')
             elk_response['hits'] = {'hits': []}
             self.timeout = True
-        self.LOGGER.debug('search complete with {} hits'.format(len(elk_response['hits']['hits'])))
+        self.LOGGER.debug(f'search complete with {len(elk_response["hits"]["hits"])} hits')
         self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 
@@ -296,5 +296,5 @@ def _escape_reserved_characters(term: str) -> str:
     """ If the number of double quotes is odd, the sequence is not closed, so escaping characters is needed."""
     for char in RESERVED_CHARACTERS:
         if term.count(char) % 2 == 1:
-            term = term.replace(char, '\\{}'.format(char))
+            term = term.replace(char, f'\\{char}')
     return term
