@@ -523,69 +523,69 @@ class VendorCapabilities(VendorGrouping):
                 modules = self.root.iter(
                     '{}capability'.format(tag.split('hello')[0]))
 
+        try:
+            schema_parts = SchemaParts(
+                repo_owner=self.repo_owner, repo_name=self.repo_name,
+                commit_hash=self.commit_hash, submodule_name=self.submodule_name)
+        except AttributeError:
+            LOGGER.exception(
+                f'Missing attribute, likely caused by a broken path in {self.directory}/platform-metadata.json')
+
+        platform_name = self.platform_data[0].get('platform', '')
+        # Parse modules
+        for module in modules:
+            module.text = module.text or ''
+            if 'module=' not in module.text:
+                continue
+            # Parse name of the module
+            module_and_more = module.text.split('module=')[1]
+            name = module_and_more.split('&')[0]
+            revision = None
+            if 'revision' in module.text:
+                revision_and_more = module.text.split('revision=')[1]
+                revision = revision_and_more.split('&')[0]
+
+            path = get_yang(name, revision)
+            if not path:
+                LOGGER.warning(
+                    'File {} not found in the repository'.format(name))
+                continue
+            should_parse = self.file_hasher.should_parse_vendor_module(
+                path, platform_name)
+            if not should_parse:
+                continue
+            LOGGER.info('Parsing module {}'.format(name))
+            revision = revision or path.split(
+                '@')[-1].removesuffix('.yang')
+            if (name, revision) in self.name_rev_to_path:
+                path = self.name_rev_to_path[name, revision]
+            self._update_schema_urls(name, revision, path, schema_parts)
             try:
-                schema_parts = SchemaParts(
-                    repo_owner=self.repo_owner, repo_name=self.repo_name,
-                    commit_hash=self.commit_hash, submodule_name=self.submodule_name)
-            except AttributeError:
-                LOGGER.exception(
-                    f'Missing attribute, likely caused by a broken path in {self.directory}/platform-metadata.json')
-
-            platform_name = self.platform_data[0].get('platform', '')
-            # Parse modules
-            for module in modules:
-                module.text = module.text or ''
-                if 'module=' not in module.text:
-                    continue
-                # Parse name of the module
-                module_and_more = module.text.split('module=')[1]
-                name = module_and_more.split('&')[0]
-                revision = None
-                if 'revision' in module.text:
-                    revision_and_more = module.text.split('revision=')[1]
-                    revision = revision_and_more.split('&')[0]
-
-                path = get_yang(name, revision)
-                if not path:
-                    LOGGER.warning(
-                        'File {} not found in the repository'.format(name))
-                    continue
-                should_parse = self.file_hasher.should_parse_vendor_module(
-                    path, platform_name)
-                if not should_parse:
-                    continue
-                LOGGER.info('Parsing module {}'.format(name))
-                revision = revision or path.split(
-                    '@')[-1].removesuffix('.yang')
-                if (name, revision) in self.name_rev_to_path:
-                    path = self.name_rev_to_path[name, revision]
-                self._update_schema_urls(name, revision, path, schema_parts)
                 try:
-                    try:
-                        vendor_info = {'platform_data': self.platform_data, 'conformance_type': "implement",
-                                       'capabilities': self.capabilities, 'netconf_versions': self.netconf_versions}
-                        yang = VendorModule(name, path, self._schemas, self.dir_paths,
-                                            self.dumper.yang_modules, vendor_info, data=module_and_more)
-                    except ParseException:
-                        LOGGER.exception(
-                            'ParseException while parsing {}'.format(path))
-                        continue
+                    vendor_info = {'platform_data': self.platform_data, 'conformance_type': "implement",
+                                    'capabilities': self.capabilities, 'netconf_versions': self.netconf_versions}
+                    yang = VendorModule(name, path, self._schemas, self.dir_paths,
+                                        self.dumper.yang_modules, vendor_info, data=module_and_more)
+                except ParseException:
+                    LOGGER.exception(
+                        'ParseException while parsing {}'.format(path))
+                    continue
 
-                    self.dumper.add_module(yang)
-                    key = '{}@{}/{}'.format(yang.name,
-                                            yang.revision, yang.organization)
-                    keys.add(key)
-                    set_of_names.add(yang.name)
-                except FileNotFoundError:
-                    LOGGER.warning(
-                        'File {} not found in the repository'.format(name))
+                self.dumper.add_module(yang)
+                key = '{}@{}/{}'.format(yang.name,
+                                        yang.revision, yang.organization)
+                keys.add(key)
+                set_of_names.add(yang.name)
+            except FileNotFoundError:
+                LOGGER.warning(
+                    'File {} not found in the repository'.format(name))
 
-            for key in keys:
-                self._parse_imp_inc(
-                    self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
-                self._parse_imp_inc(
-                    self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
-            self._dump_schema_cache()
+        for key in keys:
+            self._parse_imp_inc(
+                self.dumper.yang_modules[key].submodule, set_of_names, True, schema_parts)
+            self._parse_imp_inc(
+                self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
+        self._dump_schema_cache()
 
 
 class VendorYangLibrary(VendorGrouping):
