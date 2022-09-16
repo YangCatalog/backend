@@ -2749,7 +2749,7 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
     "recovery",
     "elk_recovery",
     "elk_fill",
-    "resolveExpiration",
+    "resolve_expiration",
     "reviseSemver"
   ],
   "info":"Success"
@@ -3159,7 +3159,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
       "start": 1599579002,
       "status": "Fail"
     },
-    "resolveExpiration": {
+    "resolve_expiration": {
       "end": 1599625957,
       "error": "",
       "last_successfull": 1599625957,
