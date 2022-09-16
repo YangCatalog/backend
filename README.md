@@ -76,26 +76,29 @@ There are several cron jobs that run every day.
 * Statistics job under statistic module which goes through all the
 modules that are in yangcatalog and generates an HTML file which has
 information about what vendors' and SDOs' modules we have and the number of
-modules that we have.
+modules that we have. - [statistics](https://github.com/YangCatalog/backend/blob/master/statistic/statistics.py)
 * Resolve expiration job that checks all the IETF draft modules
-and their expiration dates and updates its metadata accordingly.
+and their expiration dates and updates its metadata accordingly. - 
+[resolveExpiration](https://github.com/YangCatalog/backend/blob/master/utility/resolveExpiration.py)
 * Remove unused job that removes data on the server that are not used
-anymore.
+anymore. - [removeUnused](https://github.com/YangCatalog/backend/blob/master/utility/removeUnused.py)
 * User reminder script that will be triggered twice a year to show us what
-users we have in our database.
+users we have in our database. - [userReminder](https://github.com/YangCatalog/backend/blob/master/utility/userReminder.py)
 * In the ietfYangDraftPull directory there are three jobs.
-1. DraftPull.py adds new modules
-to the YangModels/yang repository if there are any new modules.
-2. DraftPullLocall.py
-goes through all ietf drafts and rfcs and populates yangcatalog if there
+1. draftPull.py adds new modules
+to the YangModels/yang repository if there are any new modules. [draftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPull.py)
+2. draftPullLocal.py
+goes through all ietf drafts and rfcs and populates yangcatalog if there - [draftPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPullLocal.py)
 are any new modules.
-3. OpenconfigPullLocall.py populates all the
-new openconfig yang modules from their own repository to yangcatalog.
+3. openconfigPullLocal.py populates all the
+new openconfig yang modules from their own repository to yangcatalog. - [openconfigPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/openconfigPullLocal.py)
+4. ianaPull.py - rsyncs and populates new modules from IANA - [ianaPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/ianaPull)
 * Recovery script which pulls all the data from confd and creates a json
 file which is saved on the server as a backup. If we loose all the data for
 some reason we can use this script to upload it back with no loss of
-data.
-
+data. - [recovery](https://github.com/YangCatalog/backend/blob/master/recovery/recovery.py)
+* reviseTreeType.py reevaluates the tree type for modules that were previously of type nmda-compatible. - [reviseTreeType](https://github.com/YangCatalog/backend/blob/master/utility/reviseTreeType.py)
+* reviseSemver.py reevaluates the derived semantic versions of modules. [reviseSemver](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/reviseSemver.py)
 ### Messaging
 
 Yang admin users are informed about every new module added to the yangcatalog
