@@ -92,7 +92,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), False)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_expired_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that has already expired. Also check values of module properties,
@@ -118,7 +118,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_expired_initial_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that has only initial draft. Also check values of module properties,
@@ -144,7 +144,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_active_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that is still active.
@@ -170,7 +170,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), False)
         self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_draft_expired_last_rev(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that expired and next revision is RFC (= this revision is last rev of draft).
@@ -196,9 +196,9 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
-    @mock.patch('utility.resolveExpiration.requests.patch')
-    @mock.patch('utility.resolveExpiration.requests.delete')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.patch')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.delete')
     def test_resolveExpiration_draft_expire(self, mock_requests_delete: mock.MagicMock, mock_requests_patch: mock.MagicMock, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that will expire now. Module should expire and expiraton date should be removed.
@@ -232,7 +232,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(len(self.datatracker_failures), 0)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_active_draft_set_expires(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that is still active, but expires property was not set.
@@ -259,8 +259,8 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expired'), False)
         self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
 
-    @mock.patch('utility.resolveExpiration.requests.get')
-    @mock.patch('utility.resolveExpiration.time.sleep')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.time.sleep')
     def test_resolveExpiration_datatracker_raise_exception(self, mock_time_sleep: mock.MagicMock, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method if the datatracker is unavailable
         and raising exception while trying to make GET request. Method should return 'None'
