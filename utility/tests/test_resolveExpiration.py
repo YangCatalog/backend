@@ -44,7 +44,7 @@ from parseAndPopulate.resolvers.expiration import ExpirationResolver
 class TestResolveExpirationClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestResolveExpirationClass, self).__init__(*args, **kwargs)
-        self.module_name = 'utility'
+        self.module_name = 'parseAndPopulate'
         self.script_name = 'resolve_expiration'
         self.resources_path = os.path.join(
             os.environ['BACKEND'], 'utility/tests/resources')
