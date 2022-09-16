@@ -20,6 +20,7 @@ __email__ = 'richard.zilncik@pantheon.tech'
 
 import datetime
 import typing as t
+from configparser import ConfigParser
 
 from redis import Redis
 
@@ -34,20 +35,20 @@ class RedisUsersConnection:
     temporary users pending approval.
     """
 
-    _universal_fields = ['username', 'password', 'email', 'models-provider', 'first-name', 'last-name', 'registration-datetime']
+    _universal_fields = [
+        'username', 'password', 'email', 'models-provider', 'first-name', 'last-name', 'registration-datetime',
+    ]
     _temp_fields = ['motivation']
     _appr_fields = ['access-rights-sdo', 'access-rights-vendor']
 
-    def __init__(self, db: t.Optional[t.Union[int, str]] = None):
-        config = create_config()
+    def __init__(self, db: t.Optional[t.Union[int, str]] = None, config: ConfigParser = create_config()):
         self._redis_host = config.get('DB-Section', 'redis-host')
-        self._redis_port = config.get('DB-Section', 'redis-port')
-        if db is None:
-            db = config.get('DB-Section', 'redis-users-db', fallback=2)
+        self._redis_port = int(config.get('DB-Section', 'redis-port'))
+        db = db if db is not None else config.get('DB-Section', 'redis-users-db', fallback=2)
         self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)  # pyright: ignore
 
         self.log_directory = config.get('Directory-Section', 'logs')
-        self.LOGGER = log.get_logger('redis_users_connection', f'{self.log_directory}/redis_users_connection.log')
+        self.logger = log.get_logger('redis_users_connection', f'{self.log_directory}/redis_users_connection.log')
 
     def username_exists(self, username: str) -> bool:
         return self.redis.hexists('usernames', username)
@@ -73,7 +74,7 @@ class RedisUsersConnection:
         return (r or b'').decode()
 
     def create(self, temp: bool, **kwargs) -> int:
-        self.LOGGER.info('Creating new user')
+        self.logger.info('Creating new user')
         id = self.redis.incr('new-id')
         self.redis.hset('usernames', kwargs['username'], id)
         if 'registration_datetime' not in kwargs:
@@ -90,7 +91,7 @@ class RedisUsersConnection:
         return id
 
     def delete(self, id: t.Union[str, int], temp: bool):
-        self.LOGGER.info(f'Deleting user with id {id}')
+        self.logger.info(f'Deleting user with id {id}')
         self.redis.hdel('usernames', self.get_field(id, 'username'))
         for field in self._universal_fields:
             self.delete_field(id, field)
@@ -103,15 +104,15 @@ class RedisUsersConnection:
                 self.delete_field(id, field)
 
     def approve(self, id: t.Union[str, int], access_rights_sdo: str, access_rights_vendor: str):
-        self.LOGGER.info(f'Approving user with id {id}')
+        self.logger.info(f'Approving user with id {id}')
         self.redis.srem('temp', id)
         self.set_field(id, 'access-rights-sdo', access_rights_sdo)
         self.set_field(id, 'access-rights-vendor', access_rights_vendor)
         self.redis.delete(f'{id}:"motivation"')
         self.redis.sadd('approved', id)
 
-    def get_all(self, status) -> list:
-        return [id.decode() for id in self.redis.smembers(status)]
+    def get_all(self, status: str) -> list[str]:
+        return list(map(lambda id: id.decode(), self.redis.smembers(status)))
 
     def get_all_fields(self, id: t.Union[str, int]) -> dict:
         r = {}
