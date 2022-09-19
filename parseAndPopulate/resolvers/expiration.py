@@ -23,6 +23,7 @@ class ExpirationResolver(Resolver):
         self.logger = logger
         self.datatracker_failures = datatracker_failures
         self.redis_connection = redis_connection
+        self.__datatracker_url = 'https://datatracker.ietf.org/api/v1/doc/document/?name={}&states__type=draft&states__slug__in=active,RFC&format=json'
 
     def resolve(self) -> t.Optional[bool]:
         reference = self.module.get('reference')
@@ -37,7 +38,7 @@ class ExpirationResolver(Resolver):
             if ref.isdigit():
                 ref = reference.split('/')[-2]
                 rev = reference.split('/')[-1]
-            url = f'https://datatracker.ietf.org/api/v1/doc/document/?name={ref}&states__type=draft&states__slug__in=active,RFC&format=json'
+            url = self.__datatracker_url.format(ref)
             retry = 6
             while True:
                 try:
@@ -58,54 +59,48 @@ class ExpirationResolver(Resolver):
             if response.status_code == 200:
                 data = response.json()
                 objs = data.get('objects', [])
+
+                expired = True
+                expires = None
                 if len(objs) == 1:
                     if rev == objs[0].get('rev'):
                         rfc = objs[0].get('rfc')
                         if rfc is None:
                             expires = objs[0]['expires']
                             expired = False
-                        else:
-                            expired = True
-                            expires = None
-                    else:
-                        expired = True
-                        expires = None
-                else:
-                    expired = True
-                    expires = None
 
         expired_changed = self.__expired_change(
             self.module.get('expired'), expired)
         expires_changed = self.__expires_change(
             self.module.get('expires'), expires)
 
-        if expires_changed or expired_changed:
-            yang_name_rev = f'{self.module["name"]}@{self.module["revision"]}'
-            self.logger.info(
-                f'Module {yang_name_rev} changing expiration\n'
-                f'FROM: expires: {self.module.get("expires")} expired: {self.module.get("expired")}\n'
-                f'TO: expires: {expires} expired: {expired}'
-            )
-
-            if expires is not None:
-                self.module['expires'] = expires
-            self.module['expired'] = expired
-
-            if expires is None and self.module.get('expires') is not None:
-                # If the 'expires' property no longer contains a value,
-                # delete request need to be done to the Redis to the 'expires' property
-                result = self.redis_connection.delete_expires(self.module)
-                self.module.pop('expires', None)
-
-                if result:
-                    self.logger.info(
-                        f'expires property removed from {yang_name_rev}')
-                else:
-                    self.logger.error(
-                        f'Error while removing expires property from {yang_name_rev}')
-            return True
-        else:
+        if not expires_changed and not expired_changed:  # nothing changed
             return False
+
+        yang_name_rev = f'{self.module["name"]}@{self.module["revision"]}'
+        self.logger.info(
+            f'Module {yang_name_rev} changing expiration\n'
+            f'FROM: expires: {self.module.get("expires")} expired: {self.module.get("expired")}\n'
+            f'TO: expires: {expires} expired: {expired}'
+        )
+
+        if expires is not None:
+            self.module['expires'] = expires
+        self.module['expired'] = expired
+
+        if expires is None and self.module.get('expires') is not None:
+            # If the 'expires' property no longer contains a value,
+            # delete request need to be done to the Redis to the 'expires' property
+            result = self.redis_connection.delete_expires(self.module)
+            self.module.pop('expires', None)
+
+            if result:
+                self.logger.info(
+                    f'expires property removed from {yang_name_rev}')
+            else:
+                self.logger.error(
+                    f'Error while removing expires property from {yang_name_rev}')
+        return True
 
     def __expires_change(self, expires_from_module: t.Optional[str], expires_from_datatracker: t.Optional[str]) -> bool:
         expires_changed = expires_from_module != expires_from_datatracker
