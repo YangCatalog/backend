@@ -1,27 +1,25 @@
 import os
+from utility.create_config import create_config
 from redisConnections.redis_users_connection import RedisUsersConnection
 
 
-if __name__ == '__main__':
+def main():
     users = RedisUsersConnection()
 
     admin_id = users.id_by_username('admin')
     if admin_id != b'':
-        print("Admin user already exists.")
+        print('Admin user already exists.')
         exit(0)
 
     # Getting confd-credentials from yangcatalog config
-    confd_creds = None
-    with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'r') as f:
-        for line in f.readlines():
-            if 'confd-credentials' in line:
-                confd_creds = line.removeprefix(
-                    'confd-credentials=').strip('" \n')
+    config = create_config()
+    credentials = config.get('Secrets-Section', 'confd-credentials',
+                             fallback='user password')
 
-    if confd_creds is None:
+    if credentials == "user password":
         raise ValueError('couldnt find confd-credentials in given config file')
 
-    username, password = confd_creds.split()
+    username, password = credentials.strip('"').split()
 
     # Creating approved admin user
     user_id = users.create(False, username=username, password=password,
@@ -30,3 +28,7 @@ if __name__ == '__main__':
 
     print(f'Created user with id={user_id}')
     print(users.get_all_fields(user_id))
+
+
+if __name__ == '__main__':
+    main()
