@@ -90,10 +90,10 @@
       "justMyCode": false
     },
     {
-      "name": "resolveExpiration",
+      "name": "resolve_expiration",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/utility/resolveExpiration.py",
+      "program": "${workspaceFolder}/parseAndPopulate/resolve_expiration.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false
