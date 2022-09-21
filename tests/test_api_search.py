@@ -341,11 +341,13 @@ class TestApiSearchClass(unittest.TestCase):
 
     def test_get_organizations(self):
         """Test if json payload has correct form (should not contain empty 'contributors' list)
+
+        WARNING: if you change this test, make sure the endpoint stays compatible with ycclient
+        https://github.com/YangCatalog/backend/issues/551
         """
         result = self.client.get('api/contributors')
         payload = json.loads(result.data)
         contributors_list = payload.get('contributors')
-        # TODO: Maybe compare list of contributors with static array of contributors
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.content_type, 'application/json')
@@ -357,6 +359,9 @@ class TestApiSearchClass(unittest.TestCase):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from modules_data() method.
         This should result into empty 'contributors' list.
+
+        WARNING: if you change this test, make sure the endpoint stays compatible with ycclient
+        https://github.com/YangCatalog/backend/issues/551
         """
         mock_redis_get.return_value = None
         result = self.client.get('api/contributors')
@@ -818,6 +823,9 @@ class TestApiSearchClass(unittest.TestCase):
 
     def test_search_module(self):
         """Compare response payload with content of 'yang-catalog@2018-04-03.json' file from resources.
+
+        WARNING: if you change this test, make sure the endpoint stays compatible with ycclient
+        https://github.com/YangCatalog/backend/issues/551
         """
         name = 'yang-catalog'
         revision = '2018-04-03'
@@ -837,6 +845,9 @@ class TestApiSearchClass(unittest.TestCase):
 
     def test_search_module_not_found(self):
         """Test if responded with code 400 if module not found.
+
+        WARNING: if you change this test, make sure the endpoint stays compatible with ycclient
+        https://github.com/YangCatalog/backend/issues/551
         """
         name = 'yang-catalog'
         revision = '2018-01-01'
