@@ -35,10 +35,12 @@ class TestDumperClass(unittest.TestCase):
         super(TestDumperClass, self).__init__(*args, **kwargs)
 
         # Declare variables
-        self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
+        self.schema_parts = SchemaParts(
+            repo_owner='YangModels', repo_name='yang', commit_hash='master')
         self.prepare_output_filename = 'prepare'
         self.platform_name = 'test-platform'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/dumper')
+        self.resources_path = os.path.join(
+            os.environ['BACKEND'], 'tests/resources/dumper')
         self.dir_paths: DirPaths = {
             'cache': '',
             'json': '',
@@ -110,10 +112,12 @@ class TestDumperClass(unittest.TestCase):
             'os': 'test-os'
         }]
         netconf_version = ['urn:ietf:params:xml:ns:netconf:base:1.0']
-        netconf_capabilities = ['urn:ietf:params:netconf:capability:test-capability:1.0']
+        netconf_capabilities = [
+            'urn:ietf:params:netconf:capability:test-capability:1.0']
         # Modules object
-        yang = self.declare_vendor_module()
-        yang.add_vendor_information(platform_data, 'implement', netconf_capabilities, netconf_version)
+        vendor_info = {'platform_data': platform_data, 'conformance_type': 'implement',
+                       'capabilities': netconf_capabilities, 'netconf_versions': netconf_version}
+        yang = self.declare_vendor_module(vendor_info=vendor_info)
         # Dumper object
         dumper = du.Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         dumper.add_module(yang)
@@ -127,7 +131,8 @@ class TestDumperClass(unittest.TestCase):
         # Load vendor module data from normal.json file
         os.path.join(yc_gc.temp_dir, 'normal.json')
         with open(os.path.join(yc_gc.temp_dir, 'normal.json'), 'r') as f:
-            dumped_vendor_data = json.load(f).get('vendors', {}).get('vendor', [])
+            dumped_vendor_data = json.load(f).get(
+                'vendors', {}).get('vendor', [])
 
         self.compare_vendor_data(desired_vendor_data, dumped_vendor_data)
 
@@ -148,7 +153,7 @@ class TestDumperClass(unittest.TestCase):
 
         return yang
 
-    def declare_vendor_module(self):
+    def declare_vendor_module(self, vendor_info: t.Optional[dict] = None):
         """
         Initialize Modules object for vendor (Cisco) module.
 
@@ -158,8 +163,8 @@ class TestDumperClass(unittest.TestCase):
         vendor_data = 'sdo-module&revision=2022-08-05&deviations=vendor-sdo-module-deviations'
         module_name = vendor_data.split('&revision')[0]
         path_to_yang = self.resource('sdo-module.yang')
-
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=vendor_data)
+        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {},
+                            vendor_info=vendor_info, data=vendor_data)
 
         return yang
 
@@ -180,15 +185,19 @@ class TestDumperClass(unittest.TestCase):
                                 continue
                         if key == 'yang-tree':
                             # Compare only URL suffix (exclude domain)
-                            desired_tree_suffix = '/api{}'.format(desired_module[key].split('/api')[1])
-                            dumped_tree_suffix = '/api{}'.format(dumped_module[key].split('/api')[1])
+                            desired_tree_suffix = '/api{}'.format(
+                                desired_module[key].split('/api')[1])
+                            dumped_tree_suffix = '/api{}'.format(
+                                dumped_module[key].split('/api')[1])
                             self.assertEqual(desired_tree_suffix, dumped_tree_suffix,
                                              fail_message.format('tree suffix'))
                         elif key == 'compilation-result':
                             if dumped_module[key] != '' and desired_module[key] != '':
                                 # Compare only URL suffix (exclude domain)
-                                desired_compilation_result = '/results{}'.format(desired_module[key].split('/results')[-1])
-                                dumped_compilation_result = '/results{}'.format(dumped_module[key].split('/results')[-1])
+                                desired_compilation_result = '/results{}'.format(
+                                    desired_module[key].split('/results')[-1])
+                                dumped_compilation_result = '/results{}'.format(
+                                    dumped_module[key].split('/results')[-1])
                                 self.assertEqual(desired_compilation_result, dumped_compilation_result,
                                                  fail_message.format('compilation result'))
                         else:
@@ -200,12 +209,15 @@ class TestDumperClass(unittest.TestCase):
                                             j.pop('schema')
                                         except KeyError:
                                             pass
-                                    self.assertIn(i, dumped_module[key], fail_message.format(key))
+                                    self.assertIn(
+                                        i, dumped_module[key], fail_message.format(key))
                             else:
-                                self.assertEqual(dumped_module[key], desired_module[key], fail_message.format(key))
+                                self.assertEqual(
+                                    dumped_module[key], desired_module[key], fail_message.format(key))
                     break
             else:
-                self.assertTrue(False, '{}@{} not found in dumped data'.format(name, revision))
+                self.assertTrue(
+                    False, '{}@{} not found in dumped data'.format(name, revision))
 
     def compare_vendor_data(self, desired, dumped):
         for desired_vendor in desired:

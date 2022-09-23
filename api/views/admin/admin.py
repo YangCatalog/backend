@@ -18,11 +18,9 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import fnmatch
-import grp
 import gzip
 import hashlib
 import json
-import math
 import os
 import pwd
 import re
@@ -34,20 +32,21 @@ from functools import wraps
 from pathlib import Path
 
 import flask
-from api.my_flask import app
+import grp
+import math
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.json import jsonify
 from flask_cors import CORS
 from flask_pyoidc import OIDCAuthentication
-from flask_pyoidc.provider_configuration import (
-    ClientMetadata, ProviderConfiguration
-)
+from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
 from flask_pyoidc.user_session import UserSession
 from redis import RedisError
-from utility.create_config import create_config
 from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
+
+from api.my_flask import app
+from utility.create_config import create_config
 
 config = create_config()
 client_id = config.get('Secrets-Section', 'client-id')
@@ -56,8 +55,10 @@ redirect_uris = config.get('Web-Section', 'redirect-oidc').split()
 issuer = config.get('Web-Section', 'issuer')
 my_uri = config.get('Web-Section', 'my-uri')
 
-client_metadata = ClientMetadata(client_id=client_id, client_secret=client_secret, redirect_uris=redirect_uris)
-provider_config = ProviderConfiguration(issuer=issuer, client_metadata=client_metadata)
+client_metadata = ClientMetadata(
+    client_id=client_id, client_secret=client_secret, redirect_uris=redirect_uris)
+provider_config = ProviderConfiguration(
+    issuer=issuer, client_metadata=client_metadata)
 ietf_auth = OIDCAuthentication({'default': provider_config})
 
 
@@ -108,7 +109,8 @@ def logout():
 
 @bp.route('/api/admin/ping')
 def ping():
-    app.logger.info(f'ping {UserSession(flask.session, "default").is_authenticated()}')
+    app.logger.info(
+        f'ping {UserSession(flask.session, "default").is_authenticated()}')
     return {'info': 'Success'}
 
 
@@ -122,7 +124,7 @@ def read_admin_file(direc):
     app.logger.info(f'Reading admin file {direc}')
     admin_file_path = os.path.join(ac.d_var, direc)
     if not os.path.isfile(admin_file_path):
-         abort(400, description='error - file does not exist')
+        abort(400, description='error - file does not exist')
     with open(admin_file_path, 'r') as f:
         processed_file = f.read()
     response = {'info': 'Success', 'data': processed_file}
@@ -176,7 +178,8 @@ def get_var_yang_directory_structure(direc):
             file_stat = Path(f'{path}/{f}').stat()
             file_structure['size'] = file_stat.st_size
             try:
-                file_structure['group'] = grp.getgrgid(file_stat.st_gid).gr_name
+                file_structure['group'] = grp.getgrgid(
+                    file_stat.st_gid).gr_name
             except (KeyError, TypeError, AttributeError):
                 file_structure['group'] = file_stat.st_gid
 
@@ -184,13 +187,15 @@ def get_var_yang_directory_structure(direc):
                 file_structure['user'] = pwd.getpwuid(file_stat.st_uid).pw_name
             except Exception:
                 file_structure['user'] = file_stat.st_uid
-            file_structure['permissions'] = oct(stat.S_IMODE(os.lstat(f'{path}/{f}').st_mode))
+            file_structure['permissions'] = oct(
+                stat.S_IMODE(os.lstat(f'{path}/{f}').st_mode))
             file_structure['modification'] = int(file_stat.st_mtime)
             structure['files'].append(file_structure)
         for directory in dirs:
             dir_structure = {'name': directory}
             p = Path(f'{path}/{directory}')
-            dir_size = sum(f.stat().st_size for f in p.glob('**/*') if f.is_file())
+            dir_size = sum(f.stat().st_size for f in p.glob(
+                '**/*') if f.is_file())
             dir_stat = p.stat()
             try:
                 dir_structure['group'] = grp.getgrgid(dir_stat.st_gid).gr_name
@@ -202,14 +207,15 @@ def get_var_yang_directory_structure(direc):
             except Exception:
                 dir_structure['user'] = dir_stat.st_uid
             dir_structure['size'] = dir_size
-            dir_structure['permissions'] = oct(stat.S_IMODE(os.lstat(f'{path}/{directory}').st_mode))
+            dir_structure['permissions'] = oct(
+                stat.S_IMODE(os.lstat(f'{path}/{directory}').st_mode))
             dir_structure['modification'] = int(dir_stat.st_mtime)
             structure['folders'].append(dir_structure)
         return structure
 
     app.logger.info('Getting directory structure')
 
-    ret = walk_through_dir(os.path.join('var', 'yang', direc))
+    ret = walk_through_dir(os.path.join('/var/yang', direc))
     response = {'info': 'Success', 'data': ret}
     return response
 
@@ -352,7 +358,8 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
                         d = re.findall(date_regex, line)[0][0]
                         t = re.findall(time_regex, line)[0]
                         line_beginning = f'{d} {t}'
-                        line_timestamp = datetime.strptime(line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
+                        line_timestamp = datetime.strptime(
+                            line_beginning, '%Y-%m-%d %H:%M:%S').timestamp()
                     except (IndexError, ValueError):
                         # ignore and accept
                         pass
@@ -411,9 +418,11 @@ def get_logs():
 
     # Try to find a timestamp in a log file using regex
     if from_date_timestamp is None:
-        from_date_timestamp = find_timestamp(log_files[0], date_regex, time_regex)
+        from_date_timestamp = find_timestamp(
+            log_files[0], date_regex, time_regex)
 
-    app.logger.debug(f'Searching for logs from timestamp: {str(from_date_timestamp)}')
+    app.logger.debug(
+        f'Searching for logs from timestamp: {str(from_date_timestamp)}')
     if to_date_timestamp is None:
         to_date_timestamp = datetime.now().timestamp()
 
@@ -450,7 +459,8 @@ def move_user():
     if id is None:
         abort(400, description='id of a user is missing')
     if sdo_access == '' and vendor_access == '':
-        abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
+        abort(
+            400, description='access-rights-sdo OR access-rights-vendor must be specified')
 
     users.approve(id, sdo_access, vendor_access)
     response = {'info': 'user successfully approved',
@@ -483,7 +493,8 @@ def create_user(status):
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
     if status == 'approved' and not (sdo_access or vendor_access):
-        abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
+        abort(
+            400, description='access-rights-sdo OR access-rights-vendor must be specified')
     fields = {
         'username': username,
         'password': hashed_password,
@@ -498,7 +509,8 @@ def create_user(status):
         fields['access_rights_sdo'] = sdo_access
         fields['access_rights_vendor'] = vendor_access
     id = users.create(temp=status == 'temp', **fields)
-    response = {'info': 'data successfully added to database', 'data': body, 'id': id}
+    response = {'info': 'data successfully added to database',
+                'data': body, 'id': id}
     return (response, 201)
 
 
@@ -534,7 +546,8 @@ def update_user(status, id):
     if status == 'approved':
         get_set('access-rights-sdo')
         get_set('access-rights-vendor')
-    app.logger.info(f'Record with ID {id} with status {status} updated successfully')
+    app.logger.info(
+        f'Record with ID {id} with status {status} updated successfully')
     return {'info': f'ID {id} updated successfully'}
 
 
@@ -585,7 +598,7 @@ def get_script_names():
     scripts_names = (
         'populate', 'parse_directory', 'draftPull', 'ianaPull', 'draftPullLocal',
         'openconfigPullLocal', 'statistics', 'recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery',
-        'resolveExpiration', 'reviseSemver'
+        'resolve_expiration', 'reviseSemver'
     )
     return {'data': scripts_names, 'info': 'Success'}
 
@@ -599,7 +612,7 @@ def get_disk_usage():
 
 ### HELPER DEFINITIONS ###
 def get_module_name(script_name):
-    if script_name in ['populate', 'parse_directory', 'reviseSemver']:
+    if script_name in ['populate', 'parse_directory', 'reviseSemver', 'resolve_expiration']:
         return 'parseAndPopulate'
     elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
         return 'ietfYangDraftPull'
@@ -607,8 +620,6 @@ def get_module_name(script_name):
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'
-    elif script_name == 'resolveExpiration':
-        return 'utility'
     return None
 
 

@@ -157,8 +157,8 @@ class ESManager:
             :param index        (ESIndices) Target index from which to delete module
             :param document     (dict) Document to delete
         """
+        self.LOGGER.info(f'Deleting module: "{module}" from index: "{index}"')
         delete_module_query = self._get_name_revision_query(index, module)
-
         return self.es.delete_by_query(index=index.value, body=delete_module_query, conflicts='proceed')
 
     def delete_from_indices(self, module: dict):

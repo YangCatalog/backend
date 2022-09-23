@@ -1,10 +1,10 @@
-YANGCATALOG
-===========
+# YANG Catalog
+## Overview
+This repository contains YANG Catalog's [REST API](https://yangcatalog.org/doc) and the bulk of it's internal infrastructure for processing YANG modules and extracting their properties. It also serves information to YANG Catalog's [frontend](https://github.com/YangCatalog/yangcatalog-ui) and implements the functionality of the [Admin UI](https://github.com/YangCatalog/admin_ui).
 
-You can find the official yangcatalog website [here](https://yangcatalog.org).
-
+## YANG Module Processing
 The scripts in this repository serve as a backend to add, update, remove and manage
-yang module files in yangcatalog. It is composed of:
+YANG module files in yangcatalog. It is composed of:
 * scripts that run every day as a cron job,
 * an API which lets users add, remove or find the modules they expect
 * scripts that parse and populate the yangcatalog database.
@@ -14,7 +14,7 @@ repository. That repository contains all the modules
 structered by vendors (Cisco, Huawei and others) and SDOs
 (IETF, IEEE, MEF, BBF and others).
 
-#### Parse and Populate
+### Parse and Populate
 
 The most important module in this repository is called ParsedAndPopulate.
 This module contains parsing scripts to parse all the modules of a given
@@ -35,7 +35,7 @@ To find all the modules with missing or wrong revisions, namespaces, imports,
 includes or modules that according to the capability.xml file should be in
 the folder but are missing, we can use the integrity script.
 
-#### API
+## API
 
 The API module runs as a UWSGI emperor vassal (using the `yang-catalog.ini` file)
 and contains several endpoints. Most
@@ -70,32 +70,33 @@ ConfD requests. During loading of the UWSGI, the cache is pre-populated by
 issueing one ConfD request per module; during this initial load time, the API
 will probably time-out and the NGINX server will return a 50x error.
 
-#### Jobs
+### Jobs
 
 There are several cron jobs that run every day.
-* Statistics job under statistic module which goes through all the
+* [statistics](https://github.com/YangCatalog/backend/blob/master/statistic/statistics.py) job which goes through all the
 modules that are in yangcatalog and generates an HTML file which has
 information about what vendors' and SDOs' modules we have and the number of
 modules that we have.
-* Resolve expiration job that checks all the IETF draft modules
+* [resolveExpiration](https://github.com/YangCatalog/backend/blob/master/utility/resolveExpiration.py) job that checks all the IETF draft modules
 and their expiration dates and updates its metadata accordingly.
-* Remove unused job that removes data on the server that are not used
+* [removeUnused](https://github.com/YangCatalog/backend/blob/master/utility/removeUnused.py) job that removes data on the server that are not used
 anymore.
-* User reminder script that will be triggered twice a year to show us what
+* [userReminder](https://github.com/YangCatalog/backend/blob/master/utility/userReminder.py) script that will be triggered twice a year to show us what
 users we have in our database.
-* In the ietfYangDraftPull directory there are three jobs.
-1. DraftPull.py adds new modules
-to the YangModels/yang repository if there are any new modules.
-2. DraftPullLocall.py
-goes through all ietf drafts and rfcs and populates yangcatalog if there
-are any new modules.
-3. OpenconfigPullLocall.py populates all the
-new openconfig yang modules from their own repository to yangcatalog.
-* Recovery script which pulls all the data from confd and creates a json
+* In the ietfYangDraftPull directory there are four jobs.
+    1. [draftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPull.py) adds new modules
+    to the YangModels/yang repository if there are any new modules. 
+    2. [draftPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPullLocal.py)
+    goes through all ietf drafts and rfcs and populates yangcatalog.
+    3. [openconfigPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/openconfigPullLocal.py) populates all the
+    new openconfig yang modules from their own repository to yangcatalog.
+    4. [ianaPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/ianaPull) rsyncs and populates new modules from IANA.
+* [recovery](https://github.com/YangCatalog/backend/blob/master/recovery/recovery.py) script which pulls all the data from confd and creates a json
 file which is saved on the server as a backup. If we loose all the data for
 some reason we can use this script to upload it back with no loss of
 data.
-
+* [reviseTreeType](https://github.com/YangCatalog/backend/blob/master/utility/reviseTreeType.py) reevaluates the tree type for modules that were previously of type nmda-compatible.
+* [reviseSemver](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/reviseSemver.py) reevaluates the derived semantic versions of modules.
 ### Messaging
 
 Yang admin users are informed about every new module added to the yangcatalog

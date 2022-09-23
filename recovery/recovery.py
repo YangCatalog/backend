@@ -26,18 +26,18 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 
-import datetime
 import gzip
 import json
 import os
+import sys
 import time
 import typing as t
-from time import sleep
+from argparse import Namespace
+from configparser import ConfigParser
+from datetime import datetime
 
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from requests import ConnectionError
-from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
@@ -50,7 +50,6 @@ class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
         help = __doc__
-        config = create_config()
         mutually_exclusive_args: list[list[Arg]] = [
             [
                 {
@@ -71,16 +70,40 @@ class ScriptConfig(BaseScriptConfig):
             {
                 'flag': '--file',
                 'help': (
-                    'Set name of the file to save data to/load data from. Default name is empty. '
-                    'If name is empty: load operation will use the last backup file, '
+                    'Set name of the file (without file format) to save data to/load data from. Default name is empty. '
+                    'If name is empty: load operation will use the last available json backup file, '
                     'save operation will use date and time in UTC.'
                 ),
                 'type': str,
                 'default': ''
             },
+            {
+                'flag': '--rdb_file',
+                'help': (
+                    'Set name of the file to save data from redis database rdb file to. '
+                    'Default name is current UTC datetime.'
+                ),
+                'type': str,
+                'default': datetime.utcnow().strftime(backup_date_format)
+            },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
+
+class Recovery:
+    def __init__(
+            self,
+            args: Namespace,
+            config: ConfigParser = create_config(),
+            redis_connection: RedisConnection = RedisConnection()
+    ):
+        self.start_time = None
+        self.job_log_messages = []
+        self.job_log_filename = current_file_basename
+        self.yang_catalog_module_name = 'yang-catalog@2018-04-03/ietf'
+        self.process_type = ''
+
+        self.args = args
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
         self.cache_directory = config.get('Directory-Section', 'cache')
@@ -88,56 +111,62 @@ class ScriptConfig(BaseScriptConfig):
         self.redis_port = config.get('DB-Section', 'redis-port')
         self.var_yang = config.get('Directory-Section', 'var')
 
+        self.redis_connection = redis_connection
+        self.redis_backups = os.path.join(self.cache_directory, 'redis')
+        self.redis_json_backup = os.path.join(self.cache_directory, 'redis-json')
+        self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
-def feed_confd_modules(modules: list, confd_service: ConfdService) -> bool:
-    return confd_service.patch_modules(modules)
+    def start_process(self):
+        self.start_time = int(time.time())
+        self.logger.info(f'Starting {self.process_type} process of Redis database')
+        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=self.job_log_filename)
+        self._start_process()
+        self.logger.info(f'{self.process_type} process of Redis database finished successfully')
+        job_log(
+            self.start_time, self.temp_dir, messages=self.job_log_messages, status=JobLogStatuses.SUCCESS,
+            filename=self.job_log_filename,
+        )
+
+    def _start_process(self):
+        """Main logic of the script"""
+        raise NotImplementedError
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
-    start_time = int(time.time())
-    args = script_conf.args
-    cache_directory = script_conf.cache_directory
-    log_directory = script_conf.log_directory
-    temp_dir = script_conf.temp_dir
-    var_yang = script_conf.var_yang
-    confd_service = ConfdService()
+class BackupDatabaseData(Recovery):
+    def __init__(self, args: Namespace, config: ConfigParser = create_config()):
+        super().__init__(args, config)
+        self.job_log_filename = 'recovery - save'
+        self.process_type = 'save'
 
-    confd_backups = os.path.join(cache_directory, 'confd')
-    redis_backups = os.path.join(cache_directory, 'redis')
-    redis_json_backup = os.path.join(cache_directory, 'redis-json')
+    def _start_process(self):
+        self.args.file = self.args.file or datetime.utcnow().strftime(backup_date_format)
+        os.makedirs(self.redis_backups, exist_ok=True)
+        self._backup_redis_rdb_file()
+        self._backup_redis_modules()
+        self.logger.info('Save completed successfully')
 
-    logger = log.get_logger('recovery', os.path.join(log_directory, 'yang.log'))
-    process_type = 'save' if args.save else 'load'
-    logger.info(f'Starting {process_type} process of Redis database')
-    job_log_filename = 'recovery - save' if args.save else current_file_basename
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=job_log_filename)
-    job_log_messages = []
-    if args.save:
-        args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
+    def _backup_redis_rdb_file(self):
         # Redis dump.rdb file backup
-        redis_backup_file = f'{var_yang}/redis/dump.rdb'
-        if not os.path.exists(redis_backups):
-            os.mkdir(redis_backups)
-        if os.path.exists(redis_backup_file):
-            redis_copy_file = os.path.join(redis_backups, f'{args.file}.rdb.gz')
+        redis_rdb_file = os.path.join(self.var_yang, 'redis', 'dump.rdb')
+        if os.path.exists(redis_rdb_file):
+            redis_copy_file = os.path.join(self.redis_backups, f'{self.args.rdb_file}.rdb.gz')
             with gzip.open(redis_copy_file, 'w') as save_file:
-                with open(redis_backup_file, 'rb') as original:
+                with open(redis_rdb_file, 'rb') as original:
                     save_file.write(original.read())
-            logger.info('Backup of Redis dump.rdb file created')
-        else:
-            logger.warning('Redis dump.rdb file does not exists')
+            self.logger.info('Backup of Redis dump.rdb file created')
+            return
+        self.logger.warning('Redis dump.rdb file does not exists')
 
+    def _backup_redis_modules(self):
         # Backup content of Redis into JSON file
-        redis_connection = RedisConnection()
-        redis_modules_raw = redis_connection.get_all_modules()
-        redis_vendors_raw = redis_connection.get_all_vendors()
+        redis_modules_raw = self.redis_connection.get_all_modules()
+        redis_vendors_raw = self.redis_connection.get_all_vendors()
         redis_modules_dict = json.loads(redis_modules_raw)
-        redis_modules = [i for i in redis_modules_dict.values()]
+        redis_modules = [module for module in redis_modules_dict.values()]
         redis_vendors = json.loads(redis_vendors_raw)
 
-        if not os.path.exists(redis_json_backup):
-            os.mkdir(redis_json_backup)
-        with open(os.path.join(redis_json_backup, 'backup.json'), 'w') as f:
+        os.makedirs(self.redis_json_backup, exist_ok=True)
+        with open(os.path.join(self.redis_json_backup, f'{self.args.file}.json'), 'w') as f:
             data = {
                 'yang-catalog:catalog': {
                     'modules': redis_modules,
@@ -146,78 +175,70 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
             }
             json.dump(data, f)
 
-        num_of_modules = len(redis_modules)
-        num_of_vendors = len(redis_vendors.get('vendor', []))
-        job_log_messages = [
-            {'label': 'Saved modules', 'message': num_of_modules},
-            {'label': 'Saved vendors', 'message': num_of_vendors}
-        ]
-        logger.info('Save completed successfully')
-    elif args.load:
-        if args.file:
-            file_name = os.path.join(confd_backups, args.file)
+        self.job_log_messages.extend([
+            {'label': 'Saved modules', 'message': len(redis_modules)},
+            {'label': 'Saved vendors', 'message': len(redis_vendors.get('vendor', []))}
+        ])
+
+
+class LoadDataFromBackupToDatabase(Recovery):
+    def __init__(self, args: Namespace, config: ConfigParser = create_config()):
+        super().__init__(args, config)
+        self.process_type = 'load'
+
+    def _start_process(self):
+        if self.args.file:
+            self.args.file = os.path.join(self.redis_json_backup, f'{self.args.file}.json')
         else:
-            list_of_backups = get_list_of_backups(confd_backups)
-            file_name = os.path.join(confd_backups, list_of_backups[-1])
-
-        redis_connection = RedisConnection()
-        redis_modules = redis_connection.get_all_modules()
-        yang_catalog_module = redis_connection.get_module('yang-catalog@2018-04-03/ietf')
-
+            list_of_backups = get_list_of_backups(self.redis_json_backup)
+            if not list_of_backups:
+                error_message = 'Didn\'t find any backups, finishing execution of the script'
+                self.logger.error(error_message)
+                job_log(
+                    self.start_time, self.temp_dir, status=JobLogStatuses.FAIL,
+                    error=error_message, filename=self.job_log_filename,
+                )
+                sys.exit()
+            self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
+        redis_modules = self.redis_connection.get_all_modules()
+        yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)
         if '{}' in (redis_modules, yang_catalog_module):
-            # RDB not exists - load from JSON
-            backup_path = os.path.join(redis_json_backup, 'backup.json')
-            modules = []
-            vendors = []
-            if os.path.exists(backup_path):
-                with open(backup_path, 'r') as file_load:
-                    catalog_data = json.load(file_load)
-                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', [])
-                    vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-            elif file_name.endswith('.gz'):
-                with gzip.open(file_name, 'r') as file_load:
-                    logger.info(f'Loading file {file_load.name}')
-                    catalog_data = json.loads(file_load.read().decode())
-                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
-                    vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-            elif file_name.endswith('.json'):
-                with open(file_name, 'r') as file_load:
-                    logger.info(f'Loading file {file_load.name}')
-                    catalog_data = json.load(file_load)
-                    modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
-                    vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
-            else:
-                logger.info('Unable to load modules - ending')
+            self._populate_data_from_redis_backup_to_redis()
 
-            redis_connection.populate_modules(modules)
-            redis_connection.populate_implementation(vendors)
-            redis_connection.reload_modules_cache()
-            redis_connection.reload_vendors_cache()
-            logger.info('All the modules data set to Redis successfully')
-            job_log_messages.extend([
-                {'label': 'Loaded modules', 'message': len(modules)},
-                {'label': 'Loaded vendors', 'message': len(vendors)}
-            ])
+    def _populate_data_from_redis_backup_to_redis(self):
+        # RDB not exists - load from JSON
+        modules, vendors = self._load_data_from_redis_backup()
+        if modules or vendors:
+            self.redis_connection.populate_modules(modules)
+            self.redis_connection.populate_implementation(vendors)
+            self.redis_connection.reload_modules_cache()
+            self.redis_connection.reload_vendors_cache()
+            self.logger.info('All the modules data set to Redis successfully')
+        self.job_log_messages.extend([
+            {'label': 'Loaded modules', 'message': len(modules)},
+            {'label': 'Loaded vendors', 'message': len(vendors)}
+        ])
 
-        tries = 4
-        try:
-            response = confd_service.head_confd()
-            logger.info(f'Status code for HEAD request {response.status_code} ')
-            if response.status_code == 200:
-                yang_catalog_module = redis_connection.get_module('yang-catalog@2018-04-03/ietf')
-                error = feed_confd_modules([json.loads(yang_catalog_module)], confd_service)
-                if error:
-                    logger.error('Error occurred while patching yang-catalog@2018-04-03/ietf module')
-                else:
-                    logger.info('yang-catalog@2018-04-03/ietf patched successfully')
-        except ConnectionError:
-            if tries == 0:
-                logger.exception('Unable to connect to ConfD for over 5 minutes')
-            tries -= 1
-            sleep(60)
+    def _load_data_from_redis_backup(self) -> tuple[list, list]:
+        modules = []
+        vendors = []
+        if self.args.file.endswith('.json'):
+            with open(self.args.file, 'r') as file_load:
+                self.logger.info(f'Loading file {file_load.name}')
+                catalog_data = json.load(file_load)
+                modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
+                vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+        else:
+            self.logger.info('Unable to load modules - ending')
+        return modules, vendors
 
-    job_log(start_time, temp_dir, messages=job_log_messages, status=JobLogStatuses.SUCCESS, filename=job_log_filename)
-    logger.info('Job finished successfully')
+
+def main(script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
+    args = script_conf.args
+    if args.save:
+        BackupDatabaseData(args, config).start_process()
+    elif args.load:
+        LoadDataFromBackupToDatabase(args, config).start_process()
 
 
 if __name__ == '__main__':

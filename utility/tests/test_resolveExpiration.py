@@ -38,17 +38,19 @@ from unittest import mock
 
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from utility.resolveExpiration import resolve_expiration
+from parseAndPopulate.resolvers.expiration import ExpirationResolver
 
 
 class TestResolveExpirationClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestResolveExpirationClass, self).__init__(*args, **kwargs)
-        self.module_name = 'utility'
-        self.script_name = 'resolveExpiration'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+        self.module_name = 'parseAndPopulate'
+        self.script_name = 'resolve_expiration'
+        self.resources_path = os.path.join(
+            os.environ['BACKEND'], 'utility/tests/resources')
         self.datatracker_failures = []
-        self.LOGGER = log.get_logger('resolveExpiration', '/var/yang/logs/jobs/resolveExpiration.log')
+        self.LOGGER = log.get_logger(
+            'resolve_expiration', '/var/yang/logs/jobs/resolve_expiration.log')
         self.redisConnection = RedisConnection()
 
     #########################
@@ -61,7 +63,9 @@ class TestResolveExpirationClass(unittest.TestCase):
         which are requested in the method.
         """
         module = self.load_from_json('dhcp-client@2014-12-18-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, False)
         # Check the relevant properties values
@@ -76,16 +80,19 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
         """
         module = self.load_from_json('iana-if-type@2014-05-08-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, False)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'ratified')
-        self.assertEqual(module.get('reference'), 'https://tools.ietf.org/html/rfc7224')
+        self.assertEqual(module.get('reference'),
+                         'https://tools.ietf.org/html/rfc7224')
         self.assertEqual(module.get('expired'), False)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_expired_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that has already expired. Also check values of module properties,
@@ -95,19 +102,23 @@ class TestResolveExpirationClass(unittest.TestCase):
             :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
-        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
+        mock_requests_get.return_value.json.return_value = self.load_from_json(
+            'datatracker_expired_draft_response')
 
         module = self.load_from_json('iana-if-type@2011-03-30-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, False)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'adopted')
-        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-iana-if-type/00')
+        self.assertEqual(module.get(
+            'reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-iana-if-type/00')
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_expired_initial_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that has only initial draft. Also check values of module properties,
@@ -117,19 +128,23 @@ class TestResolveExpirationClass(unittest.TestCase):
             :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
-        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_empty_response')
+        mock_requests_get.return_value.json.return_value = self.load_from_json(
+            'datatracker_empty_response')
 
         module = self.load_from_json('ietf-alarms@2015-05-04-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, False)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'initial')
-        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-vallin-alarm-yang-module/00')
+        self.assertEqual(module.get(
+            'reference'), 'https://datatracker.ietf.org/doc/draft-vallin-alarm-yang-module/00')
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_active_draft(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that is still active.
@@ -139,19 +154,23 @@ class TestResolveExpirationClass(unittest.TestCase):
             :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
-        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
+        mock_requests_get.return_value.json.return_value = self.load_from_json(
+            'datatracker_active_draft_response')
 
         module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, False)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'adopted')
-        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05')
+        self.assertEqual(module.get(
+            'reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05')
         self.assertEqual(module.get('expired'), False)
         self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_draft_expired_last_rev(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that expired and next revision is RFC (= this revision is last rev of draft).
@@ -161,21 +180,25 @@ class TestResolveExpirationClass(unittest.TestCase):
             :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
-        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
+        mock_requests_get.return_value.json.return_value = self.load_from_json(
+            'datatracker_expired_draft_response')
 
         module = self.load_from_json('iana-if-type@2014-01-15-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, False)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'adopted')
-        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-iana-if-type/10')
+        self.assertEqual(module.get(
+            'reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-iana-if-type/10')
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(module.get('expires'), None)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
-    @mock.patch('utility.resolveExpiration.requests.patch')
-    @mock.patch('utility.resolveExpiration.requests.delete')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.patch')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.delete')
     def test_resolveExpiration_draft_expire(self, mock_requests_delete: mock.MagicMock, mock_requests_patch: mock.MagicMock, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that will expire now. Module should expire and expiraton date should be removed.
@@ -187,7 +210,8 @@ class TestResolveExpirationClass(unittest.TestCase):
             :param mock_requests_get        (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
-        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_draft_expire_now_response')
+        mock_requests_get.return_value.json.return_value = self.load_from_json(
+            'datatracker_draft_expire_now_response')
 
         mock_requests_patch.return_value.status_code = 200
         mock_requests_patch.return_value.text = ''
@@ -196,16 +220,19 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_delete.return_value.text = ''
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, True)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'adopted')
-        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/04')
+        self.assertEqual(module.get(
+            'reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/04')
         self.assertEqual(module.get('expired'), True)
         self.assertEqual(len(self.datatracker_failures), 0)
 
-    @mock.patch('utility.resolveExpiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
     def test_resolveExpiration_active_draft_set_expires(self, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method for the module
         draft that is still active, but expires property was not set.
@@ -215,21 +242,25 @@ class TestResolveExpirationClass(unittest.TestCase):
             :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return expected value from datatracker
         """
         mock_requests_get.return_value.status_code = 200
-        mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
+        mock_requests_get.return_value.json.return_value = self.load_from_json(
+            'datatracker_active_draft_response')
 
         module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
         del module['expires']
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, True)
         # Check the relevant properties values
         self.assertEqual(module.get('maturity-level'), 'adopted')
-        self.assertEqual(module.get('reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05')
+        self.assertEqual(module.get(
+            'reference'), 'https://datatracker.ietf.org/doc/draft-ietf-netmod-rfc6991-bis/05')
         self.assertEqual(module.get('expired'), False)
         self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
 
-    @mock.patch('utility.resolveExpiration.requests.get')
-    @mock.patch('utility.resolveExpiration.time.sleep')
+    @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
+    @mock.patch('parseAndPopulate.resolve_expiration.time.sleep')
     def test_resolveExpiration_datatracker_raise_exception(self, mock_time_sleep: mock.MagicMock, mock_requests_get: mock.MagicMock):
         """ Check result of the resolveExpiration method if the datatracker is unavailable
         and raising exception while trying to make GET request. Method should return 'None'
@@ -244,7 +275,9 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_time_sleep.return_value = None
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        result = resolve_expiration(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(
+            module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        result = exp_res.resolve()
 
         self.assertEqual(result, None)
         self.assertNotEqual(len(self.datatracker_failures), 0)

@@ -14,8 +14,7 @@
 # limitations under the License.
 
 """
-This script is run by a cronjob every day and it
-automatically removes unused diff files and correlation ids.
+This script is run by a cronjob every day, and it automatically removes unused diff files and correlation ids.
 """
 
 __author__ = 'Miroslav Kovac'

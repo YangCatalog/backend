@@ -107,7 +107,7 @@ class Receiver:
         self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
             script_conf.args.__dict__))
         try:
-            submodule.main(scriptConf=script_conf)
+            submodule.main(script_conf=script_conf)
         except Exception:
             self.LOGGER.exception('Problem while running populate script')
             return StatusMessage.FAIL, 'Server error while running populate script'
@@ -492,27 +492,19 @@ class Receiver:
                     self.LOGGER.error('check log_trigger.txt failed to process github message with error {}'.format(
                         sys.exc_info()[0]))
             else:
-                direc = ''
                 if arguments[0] == 'DELETE-VENDORS':
                     status = self.process_vendor_deletion(arguments)
                     credentials = arguments[1:3]
                 elif arguments[0] == 'DELETE-MODULES':
                     status, details = self.process_module_deletion(arguments)
                     credentials = arguments[1:3]
-                elif arguments[0] == 'POPULATE-MODULES':
+                elif arguments[0] in ('POPULATE-MODULES', 'POPULATE-VENDORS'):
                     status, details = self.process(arguments)
                     i = arguments.index('--credentials')
                     credentials = arguments[i+1:i+3]
                     i = arguments.index('--dir')
-                    direc = arguments[i+1]
-                    shutil.rmtree(direc)
-                elif arguments[0] == 'POPULATE-VENDORS':
-                    status, details = self.process(arguments)
-                    i = arguments.index('--credentials')
-                    credentials = arguments[i+1:i+3]
-                    i = arguments.index('--dir')
-                    direc = arguments[i+1]
-                    shutil.rmtree(direc)
+                    directory = arguments[i+1]
+                    shutil.rmtree(directory)
                 else:
                     assert False, 'Invalid request type'
 
@@ -592,12 +584,12 @@ class Receiver:
             script_args_list = script_conf.get_args_list()
 
             for key in body_input:
-                if (key != 'credentials' and body_input[key] != script_args_list[key]['default']):
+                if key != 'credentials' and body_input[key] != script_args_list[key]['default']:
                     script_conf.args.__setattr__(key, body_input[key])
 
             self.LOGGER.info('Runnning {}.py script with following configuration:\n{}'.format(
                 script_name, script_conf.args.__dict__))
-            submodule.main(scriptConf=script_conf)
+            submodule.main(script_conf=script_conf)
             return StatusMessage.SUCCESS
         except Exception:
             self.LOGGER.exception('Server error while running {} script'.format(script_name))
