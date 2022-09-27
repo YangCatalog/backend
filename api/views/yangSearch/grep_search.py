@@ -49,36 +49,43 @@ class GrepSearch:
 
     def _get_matching_module_names(self, organizations: list[str], search_string: str) -> tuple[str]:
         """
-        Performs a native grep search of modules in self.all_modules_directory.
+        Performs a native pcregrep search of modules in self.all_modules_directory.
         Returns a list of all module names that satisfy the search.
 
         Arguments:
             :param organizations    (list[str]) list of organizations of modules which to search for
             :param search_string    (str) actual search string, can include wildcards
-            :param inverted_search  (bool) use inverted search in grep, "-v" flag
         """
         final_grep_search = ''
         for organization in organizations:
             final_grep_search = (
                 f'{final_grep_search}organization ".*{organization}.*"|namespace "urn:{organization}.*";|'
+                f'organization\n.*".*{organization}.*"|'
             )
         final_grep_search = f'\'{final_grep_search}{search_string}\''
         module_names = set()
+        module_names_match_organization = set()
+        lost_module_names = set()
         try:
             grep_result = subprocess.check_output(
-                f'grep -ri -E {final_grep_search} {self.all_modules_directory}',
+                f'pcregrep -Mrie {final_grep_search} {self.all_modules_directory.rstrip("/")}',
                 shell=True
             )
             for result in grep_result.decode().split('\n'):
-                if not result:
+                if not result or not result.startswith(self.all_modules_directory):
                     continue
                 matching_string = result.split('.yang:')[1].lstrip().rstrip()
-                if matching_string.startswith('organization "') or matching_string.startswith('namespace "urn:'):
-                    continue
                 module_name = result.split(self.all_modules_directory)[1].split('.yang')[0]
-                module_names.add(module_name)
+                if matching_string.startswith('organization "') or matching_string.startswith('namespace "urn:'):
+                    module_names_match_organization.add(module_name)
+                    continue
+                if module_name in module_names_match_organization:
+                    module_names.add(module_name)
+                    continue
+                lost_module_names.add(module_name)
         except subprocess.CalledProcessError:
             raise ValueError('Invalid search input')
+        module_names |= lost_module_names & module_names_match_organization
         return tuple(module_names)
 
     def _search_modules_in_database(self, module_names: tuple[str]) -> list[dict]:

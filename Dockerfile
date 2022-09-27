@@ -20,7 +20,7 @@ RUN apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
     apt-get -y install postfix rsyslog systemd
-RUN apt-get -y autoremove
+RUN apt-get -y autoremove && apt-get update -y && apt-get install -y pcregrep
 
 COPY ./resources/main.cf /etc/postfix/main.cf
 
