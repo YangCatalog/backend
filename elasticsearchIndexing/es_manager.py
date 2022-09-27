@@ -280,16 +280,18 @@ class ESManager:
         return hits
 
     def generic_search(
-            self, index: ESIndices, query: dict, response_size: t.Optional[int] = 0, use_scroll: bool = False
+            self,
+            index: t.Union[ESIndices, str],
+            query: dict,
+            response_size: t.Optional[int] = 0,
+            use_scroll: bool = False
     ):
+        index = index if isinstance(index, str) else index.value
         if use_scroll:
             return self.es.search(
-                index=index.value, body=query, request_timeout=self.elk_request_timeout,
-                scroll=u'10m', size=response_size
+                index=index, body=query, request_timeout=self.elk_request_timeout, scroll=u'10m', size=response_size
             )
-        return self.es.search(
-            index=index.value, body=query, request_timeout=self.elk_request_timeout, size=response_size
-        )
+        return self.es.search(index=index, body=query, request_timeout=self.elk_request_timeout, size=response_size)
 
     def clear_scroll(self, scroll_id: str):
         return self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))

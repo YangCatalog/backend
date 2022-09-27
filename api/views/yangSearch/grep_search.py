@@ -21,6 +21,7 @@ class GrepSearch:
             self,
             config: ConfigParser = create_config(),
             es_manager: ESManager = ESManager(),
+            modules_es_index: ESIndices = ESIndices.YINDEX,
             redis_connection: RedisConnection = RedisConnection(),
     ):
         all_modules_directory = config.get('Directory-Section', 'save-file-dir')
@@ -36,6 +37,7 @@ class GrepSearch:
         log_file_path = os.path.join(config.get('Directory-Section', 'logs'), 'yang.log')
         self.logger = log.get_logger('yc-elasticsearch', log_file_path)
 
+        self.modules_es_index = modules_es_index
         self._es_manager = es_manager
         self._redis_connection = redis_connection
 
@@ -93,7 +95,7 @@ class GrepSearch:
                 {'term': {'revision': validate_revision(revision)}}
             ]
             es_response = self._es_manager.generic_search(
-                index=ESIndices.YINDEX, query=self.query, response_size=None
+                index=self.modules_es_index, query=self.query, response_size=None
             )['hits']['hits']
             for result in es_response:
                 response.append(self._create_response_row_for_module(result['_source']))

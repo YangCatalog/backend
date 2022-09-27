@@ -79,7 +79,7 @@ def grep_search():
         abort(400, description='Search cannot be empty')
     try:
         response = GrepSearch(
-            ac.config_parser, ac.es_manager, app.redisConnection
+            config=ac.config_parser, es_manager=ac.es_manager, redis_connection=app.redisConnection
         ).search(organizations, search_string, inverted_search)
         return make_response(jsonify(response))
     except ValueError as e:
