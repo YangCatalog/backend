@@ -78,9 +78,9 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         path_to_name_rev = {
-            self.resource('owner/repo/sdo/sdo-first.yang'): ('first', '2022-08-05'),
-            self.resource('owner/repo/sdo/sdo-second.yang'): ('second', '2022-08-05'),
-            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('third', '2022-08-05')
+            self.resource('owner/repo/sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
+            self.resource('owner/repo/sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05')
         }
 
         sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
