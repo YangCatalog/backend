@@ -19,6 +19,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import hashlib
 import json
+import os
 import threading
 
 import pyang
@@ -30,6 +31,13 @@ BLOCK_SIZE = 65536  # The size of each read from the file
 class FileHasher:
     def __init__(self, file_name: str, cache_dir: str, is_active: bool, log_directory: str):
         """
+        The format of the cache file is:
+        {
+            path: {
+                hash: [implementations]
+            }
+        }
+
         Arguments:
             :param file_name        (str) name of the file to which the modules hashes are dumped
             :param cache_dir        (str) directory where json file with hashes is saved
@@ -38,21 +46,20 @@ class FileHasher:
         """
         self.file_name = file_name
         self.cache_dir = cache_dir
-        self.is_active = is_active
-        self.LOGGER = log.get_logger(__name__, '{}/parseAndPopulate.log'.format(log_directory))
+        self.disabled = not is_active
+        self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
         self.lock = threading.Lock()
         self.validators_versions_bytes = self.get_versions()
         self.files_hashes = self.load_hashed_files_list()
         self.updated_hashes = {}
 
-    def hash_file(self, path: str, additional_data: str = '') -> str:
+    def hash_file(self, path: str) -> str:
         """ Create hash from content of the given file and validators versions.
         Each time either the content of the file or the validator version change,
         the resulting hash will be different.
 
         Arguments:
             :param path             (str) Full path to the file to be hashed
-            :param additional_data  (str) Additional data to be included in the hashing process (e.g., platform name)
             :return                 SHA256 hash of the content of the given file
             :rtype                  str
         """
@@ -66,9 +73,6 @@ class FileHasher:
         except FileNotFoundError:
             return ''
         file_hash.update(self.validators_versions_bytes)
-        if additional_data != '':
-            encoded_data = json.dumps(additional_data).encode('utf-8')
-            file_hash.update(encoded_data)
 
         return file_hash.hexdigest()
 
@@ -80,21 +84,21 @@ class FileHasher:
             :param path  (str) Optional - Full path to the json file with dumped files hashes
         """
         if path == '':
-            path = '{}/{}.json'.format(self.cache_dir, self.file_name)
+            path = f'{self.cache_dir}/{self.file_name}.json'
 
         self.lock.acquire()
         try:
             with open(path, 'r') as f:
                 hashed_files_list = json.load(f)
-                self.LOGGER.info('Dictionary of {} hashes loaded successfully'.format(len(hashed_files_list)))
+                self.LOGGER.info(f'Dictionary of {len(hashed_files_list)} hashes loaded successfully')
         except FileNotFoundError:
-            self.LOGGER.error('{} file was not found'.format(path))
+            self.LOGGER.error(f'{path} file was not found')
             hashed_files_list = {}
         self.lock.release()
 
         return hashed_files_list
 
-    def merge_and_dump_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
+    def merge_and_dump_hashed_files_list(self, new_hashes: dict, dst_dir: str = ''):
         """ Dumped updated list of files content hashes into .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
@@ -107,18 +111,22 @@ class FileHasher:
         # Load existing hashes, merge with new one, then dump all to the .json file
         self.lock.acquire()
         try:
-            with open('{}/{}.json'.format(dst_dir, self.file_name), 'r') as f:
-                hashes_in_file = json.load(f)
+            with open(f'{dst_dir}/{self.file_name}.json', 'r') as f:
+                old_hashes = json.load(f)
         except FileNotFoundError:
-            self.LOGGER.error('{}.json file was not found'.format(self.file_name))
-            hashes_in_file = {}
+            self.LOGGER.error(f'{self.file_name}.json file was not found')
+            old_hashes = {}
 
-        merged_files_hashes = {**hashes_in_file, **files_hashes}
+        merged_hashes = old_hashes
+        for path in new_hashes:
+            file_path_cache = merged_hashes.setdefault(path, {}) # get per path cache
+            for hash in new_hashes[path]:
+                implementations = file_path_cache.setdefault(hash, []) # get per hash cache
+                implementations.extend(new_hashes[path][hash])
 
-        with open('{}/{}.json'.format(dst_dir, self.file_name), 'w') as f:
-            json.dump(merged_files_hashes, f, indent=2, sort_keys=True)
-            self.LOGGER.info('Dictionary of {} hashes successfully dumped into .json file'
-                             .format(len(merged_files_hashes)))
+        with open(f'{dst_dir}/{self.file_name}.json', 'w') as f:
+            json.dump(merged_hashes, f, indent=2, sort_keys=True)
+            self.LOGGER.info(f'Dictionary of {len(merged_hashes)} hashes successfully dumped into .json file')
         self.lock.release()
 
     def dump_tmp_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
@@ -130,9 +138,9 @@ class FileHasher:
         """
         dst_dir = self.cache_dir if dst_dir == '' else dst_dir
 
-        with open('{}/temp_hashes.json'.format(dst_dir), 'w') as f:
+        with open(os.path.join(dst_dir, 'temp_hashes.json'), 'w') as f:
             json.dump(files_hashes, f, indent=2, sort_keys=True)
-            self.LOGGER.info('{} hashes dumped into temp_hashes.json file'.format(len(files_hashes)))
+            self.LOGGER.info(f'{len(files_hashes)} hashes dumped into temp_hashes.json file')
 
     def get_versions(self):
         """ Return encoded validators versions dictionary.
@@ -149,62 +157,34 @@ class FileHasher:
             :param path     (str) Full path to the file to be hashed
             :rtype           bool
         """
-        hash_changed = False
         file_hash = self.hash_file(path)
         if not file_hash:
             return False
-        old_file_hash = self.files_hashes.get(path, None)
-        if old_file_hash is None or old_file_hash != file_hash:
-            self.updated_hashes[path] = file_hash
-            hash_changed = True
+        hashes = self.files_hashes.get(path, {})
+        if file_hash not in hashes:
+            self.updated_hashes.setdefault(path, {})[file_hash] = [] # empty implementations
+            return True
 
-        return True if not self.is_active else hash_changed
+        return self.disabled
 
-    def should_parse_vendor_module(self, path: str, platform: str) -> bool:
+    def should_parse_vendor_module(self, path: str, implementation_keys: list[str]) -> bool:
         """ Decide whether vendor module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Arguments:
-            :param path        (str) Full path to the file to be hashed
-            :param platform    (str) Name of the platform
-            :rtype              bool
+            :param path             (str) Full path to the file to be hashed
+            :param platform         (str) Name of the platform
+            :param software_version (str) Software version
+            :rtype                  (bool)
         """
-        hash_changed = False
-        file_hash = self.hash_file(path, platform)
-        if not file_hash:
-            return False
-        old_file_hash = self.files_hashes.get(path, {})
-        old_file_platform_hash = old_file_hash.get(platform, None)
-
-        if old_file_platform_hash is None or old_file_platform_hash != file_hash:
-            if self.updated_hashes.get(path) is None:
-                self.updated_hashes[path] = {}
-            self.updated_hashes[path][platform] = file_hash
-            hash_changed = True
-
-        return True if not self.is_active else hash_changed
-
-    def should_parse_openconfig_module(self, path: str) -> bool:
-        """ Decide whether Openconfig module sent via API at the given path should be parsed or not.
-        Check whether file content hash has changed and keep it for the future use.
-
-        Argument:
-            :param path     (str) Full path to the file to be hashed
-            :rtype           bool
-        """
-        hash_changed = False
-
-        path_splitted = path.split('/')
-        # Path has following structure: /var/yang/tmp/<number>/openconfig/public/release/<rest_of_path>
-        del path_splitted[4]  # remove directory set by number from path
-        openconfig_tmp_path = '/'.join(path_splitted)
-
+        new_implementation = False
         file_hash = self.hash_file(path)
         if not file_hash:
             return False
-        old_file_hash = self.files_hashes.get(openconfig_tmp_path, None)
-        if old_file_hash is None or old_file_hash != file_hash:
-            self.updated_hashes[openconfig_tmp_path] = file_hash
-            hash_changed = True
 
-        return True if not self.is_active else hash_changed
+        existing_keys = self.files_hashes.get(path, {}).get(file_hash, [])
+        for implementation_key in implementation_keys:
+            if implementation_key not in existing_keys:
+                self.updated_hashes.setdefault(path, {}).setdefault(file_hash, []).append(implementation_key)
+                new_implementation = True
+        return new_implementation or self.disabled
