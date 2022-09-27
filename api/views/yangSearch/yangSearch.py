@@ -74,10 +74,13 @@ def grep_search():
     body = request.json
     organizations: list[str] = body.get('organizations')
     search_string: str = body.get('search')
+    inverted_search: bool = body.get('inverted_search', False)
     if not search_string:
         abort(400, description='Search cannot be empty')
     try:
-        response = GrepSearch(ac.config_parser, ac.es_manager, app.redisConnection).search(organizations, search_string)
+        response = GrepSearch(
+            ac.config_parser, ac.es_manager, app.redisConnection
+        ).search(organizations, search_string, inverted_search)
         return make_response(jsonify(response))
     except ValueError as e:
         abort(400, description=str(e))
