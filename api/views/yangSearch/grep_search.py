@@ -43,16 +43,11 @@ class GrepSearch:
 
         self._processed_modules = {}
 
-    def search(self, organizations: list[str], search_string: str, inverted_search: bool = False) -> list[dict]:
-        module_names = self._get_matching_module_names(organizations, search_string, inverted_search)
+    def search(self, organizations: list[str], search_string: str) -> list[dict]:
+        module_names = self._get_matching_module_names(organizations, search_string)
         return self._search_modules_in_database(module_names)
 
-    def _get_matching_module_names(
-            self,
-            organizations: list[str],
-            search_string: str,
-            inverted_search: bool
-    ) -> tuple[str]:
+    def _get_matching_module_names(self, organizations: list[str], search_string: str) -> tuple[str]:
         """
         Performs a native grep search of modules in self.all_modules_directory.
         Returns a list of all module names that satisfy the search.
@@ -71,7 +66,7 @@ class GrepSearch:
         module_names = set()
         try:
             grep_result = subprocess.check_output(
-                f'grep -ri{"v" if inverted_search else ""} -E {final_grep_search} {self.all_modules_directory}',
+                f'grep -ri -E {final_grep_search} {self.all_modules_directory}',
                 shell=True
             )
             for result in grep_result.decode().split('\n'):
