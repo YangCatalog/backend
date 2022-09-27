@@ -23,21 +23,22 @@ import re
 import typing as t
 from logging import Logger
 
-import utility.log as log
-from api.my_flask import app
-from api.views.yangSearch.elkSearch import ElkSearch
-from api.views.yangSearch.search_params import SearchParams
-from elasticsearchIndexing.models.es_indices import ESIndices
-from elasticsearchIndexing.models.keywords_names import KeywordsNames
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.helpers import make_response
 from flask.json import jsonify
 from pyang import plugin
-from utility.staticVariables import (MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS,
-                                     SCHEMA_TYPES)
-from utility.yangParser import create_context
 from werkzeug.exceptions import abort
+
+import utility.log as log
+from api.my_flask import app
+from api.views.yangSearch.elkSearch import ElkSearch
+from api.views.yangSearch.grep_search import GrepSearch
+from api.views.yangSearch.search_params import SearchParams
+from elasticsearchIndexing.models.es_indices import ESIndices
+from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from utility.staticVariables import MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS, SCHEMA_TYPES
+from utility.yangParser import create_context
 
 
 class YangSearch(Blueprint):
@@ -64,6 +65,22 @@ def set_config():
     ac = app.config
 
 # ROUTE ENDPOINT DEFINITIONS
+
+
+@bp.route('/grep_search', methods=['POST'])
+def grep_search():
+    if not request.json:
+        abort(400, description='No input data')
+    body = request.json
+    organizations: list[str] = body.get('organizations')
+    search_string: str = body.get('search')
+    if not search_string:
+        abort(400, description='Search cannot be empty')
+    try:
+        response = GrepSearch(ac.config_parser, ac.es_manager, app.redisConnection).search(organizations, search_string)
+        return make_response(jsonify(response))
+    except ValueError as e:
+        abort(400, description=str(e))
 
 
 @bp.route('/tree/<module_name>', methods=['GET'])

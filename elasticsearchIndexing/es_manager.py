@@ -19,20 +19,21 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
+import typing as t
 
-import utility.log as log
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import (AuthorizationException, NotFoundError,
                                       RequestError)
 from elasticsearch.helpers import parallel_bulk
-from utility.create_config import create_config
 
+import utility.log as log
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from utility.create_config import create_config
 
 
 class ESManager:
-    def __init__(self) -> None:
+    def __init__(self):
         config = create_config()
         self.threads = int(config.get('General-Section', 'threads'))
         log_directory = config.get('Directory-Section', 'logs')
@@ -278,12 +279,17 @@ class ESManager:
 
         return hits
 
-    def generic_search(self, index: ESIndices, query: dict, response_size: int = 0, use_scroll: bool = False):
+    def generic_search(
+            self, index: ESIndices, query: dict, response_size: t.Optional[int] = 0, use_scroll: bool = False
+    ):
         if use_scroll:
-            return self.es.search(index=index.value, body=query, request_timeout=self.elk_request_timeout,
-                                  scroll=u'10m', size=response_size)
-        return self.es.search(index=index.value, body=query, request_timeout=self.elk_request_timeout,
-                              size=response_size)
+            return self.es.search(
+                index=index.value, body=query, request_timeout=self.elk_request_timeout,
+                scroll=u'10m', size=response_size
+            )
+        return self.es.search(
+            index=index.value, body=query, request_timeout=self.elk_request_timeout, size=response_size
+        )
 
     def clear_scroll(self, scroll_id: str):
         return self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))
