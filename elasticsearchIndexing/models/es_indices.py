@@ -6,3 +6,4 @@ class ESIndices(Enum):
     MODULES = 'modules'
     AUTOCOMPLETE = 'autocomplete'
     TEST = 'test'
+    TEST_SEARCH = 'test_search'

@@ -42,7 +42,7 @@ class TestESManagerClass(unittest.TestCase):
         self.test_index = ESIndices.TEST
         self.resources_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/tests/resources')
         self.test_data = self._load_test_data()
-        self.es_manager = ESManager()
+        self.es_manager = ESManager(self.es)
         self.ietf_rip_module = {
             'name': 'ietf-rip',
             'revision': '2020-02-20',

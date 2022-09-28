@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import typing as t
 from configparser import ConfigParser
 
 from api.views.yangSearch.response_row import ResponseRow
@@ -44,57 +45,50 @@ class GrepSearch:
         self._processed_modules = {}
 
     def search(self, organizations: list[str], search_string: str) -> list[dict]:
-        module_names = self._get_matching_module_names(organizations, search_string)
-        return self._search_modules_in_database(module_names)
+        module_names = self._get_matching_module_names(search_string)
+        if not module_names:
+            return []
+        return self._search_modules_in_database(organizations, module_names)
 
-    def _get_matching_module_names(self, organizations: list[str], search_string: str) -> tuple[str]:
+    def _get_matching_module_names(self, search_string: str) -> t.Optional[tuple[str]]:
         """
         Performs a native pcregrep search of modules in self.all_modules_directory.
         Returns a list of all module names that satisfy the search.
 
         Arguments:
-            :param organizations    (list[str]) list of organizations of modules which to search for
             :param search_string    (str) actual search string, can include wildcards
         """
-        final_grep_search = ''
-        for organization in organizations:
-            final_grep_search = (
-                f'{final_grep_search}organization ".*{organization}.*"|namespace "urn:{organization}.*";|'
-                f'organization\n.*".*{organization}.*"|'
-            )
-        final_grep_search = f'\'{final_grep_search}{search_string}\''
         module_names = set()
-        module_names_match_organization = set()
-        lost_module_names = set()
         try:
             grep_result = subprocess.check_output(
-                f'pcregrep -Mrie {final_grep_search} {self.all_modules_directory.rstrip("/")}',
+                f'pcregrep -Mrie \'{search_string}\' {self.all_modules_directory.rstrip("/")}',
                 shell=True
             )
             for result in grep_result.decode().split('\n'):
                 if not result or not result.startswith(self.all_modules_directory):
                     continue
-                matching_string = result.split('.yang:')[1].lstrip().rstrip()
                 module_name = result.split(self.all_modules_directory)[1].split('.yang')[0]
-                if matching_string.startswith('organization "') or matching_string.startswith('namespace "urn:'):
-                    module_names_match_organization.add(module_name)
-                    continue
-                if module_name in module_names_match_organization:
-                    module_names.add(module_name)
-                    continue
-                lost_module_names.add(module_name)
-        except subprocess.CalledProcessError:
+                module_names.add(module_name)
+        except subprocess.CalledProcessError as e:
+            if not e.output:
+                self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
+                return
             raise ValueError('Invalid search input')
-        module_names |= lost_module_names & module_names_match_organization
         return tuple(module_names)
 
-    def _search_modules_in_database(self, module_names: tuple[str]) -> list[dict]:
+    def _search_modules_in_database(self, organizations: list[str], module_names: tuple[str]) -> list[dict]:
         response = []
+        should_query = {
+            'bool': {
+                'should': [{'term': {'organization': organization}} for organization in organizations]
+            }
+        }
         for module_name in module_names:
             name, revision = module_name.split('@')
             self.query['query']['bool']['must'] = [
                 {'term': {'module': name}},
-                {'term': {'revision': validate_revision(revision)}}
+                {'term': {'revision': validate_revision(revision)}},
+                should_query,
             ]
             es_response = self._es_manager.generic_search(
                 index=self.modules_es_index, query=self.query, response_size=None
