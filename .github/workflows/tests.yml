@@ -48,7 +48,6 @@ jobs:
 
       - name: Prepare environment
         run: |
-          apt-get update -y
           apt-get install -y pcregrep
           export VAR=/var/yang
           export BACKEND=$PWD
