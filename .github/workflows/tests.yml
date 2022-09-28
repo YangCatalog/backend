@@ -56,6 +56,8 @@ jobs:
           sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
           sed -i "s/yc-redis/localhost/" $BACKEND/tests/resources/test.conf
+          apt-get update -y
+          apt-get install -y pcregrep
 
       - name: Feed Redis
         run: |
