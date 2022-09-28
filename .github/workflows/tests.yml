@@ -47,7 +47,9 @@ jobs:
           pip install -r requirements.txt && ./setup.py install
 
       - name: Prepare environment
+        options: --user root
         run: |
+          apt-get update -y
           apt-get install -y pcregrep
           export VAR=/var/yang
           export BACKEND=$PWD
