@@ -300,7 +300,7 @@ def get_services_list(keyword: str, pattern: str):
             ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
     if keyword == 'draft':
         result = ac.es_manager.autocomplete(
-            ESIndices.AUTOCOMPLETE, KeywordsNames.DRAFT, pattern)
+            ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
 
     return make_response(jsonify(result), 200)
 

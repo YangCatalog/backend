@@ -51,10 +51,16 @@ def main():
         draft = {'draft': draft_name}
 
         LOGGER.info('yindex on draft {}. module {} out of {}'.format(
-            draft_name, i, len(drafts)))
+            draft_name, i+1, len(drafts)))
 
         try:
-            es_manager.index_module(ESIndices.DRAFTS, draft)
+            if not es_manager.document_exists(ESIndices.DRAFTS, draft):
+                # Add draft to index only if it is not already there
+                es_manager.index_module(ESIndices.DRAFTS, draft)
+                LOGGER.info('added {} to index'.format(draft_name))
+            else:
+                LOGGER.info(
+                    'skipping - {} is already in index'.format(draft_name))
         except Exception:
             LOGGER.exception(
                 'Problem while processing draft {}'.format(draft_name))

@@ -37,15 +37,18 @@ class ESManager:
         self.threads = int(config.get('General-Section', 'threads'))
         log_directory = config.get('Directory-Section', 'logs')
         es_aws = config.get('DB-Section', 'es-aws')
-        elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
+        elk_credentials = config.get(
+            'Secrets-Section', 'elk-secret').strip('"').split(' ')
         self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
-        self.elk_request_timeout = int(config.get('General-Section', 'elk-request-timeout', fallback=60))
+        self.elk_request_timeout = int(config.get(
+            'General-Section', 'elk-request-timeout', fallback=60))
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
             'port': config.get('DB-Section', 'es-port', fallback='9200')
         }
         if es_aws == 'True':
-            self.es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
+            self.es = Elasticsearch(hosts=[es_host_config], http_auth=(
+                elk_credentials[0], elk_credentials[1]), scheme='https')
         else:
             self.es = Elasticsearch(hosts=[es_host_config])
         log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
@@ -66,19 +69,24 @@ class ESManager:
         """
         index_name = index.value
         index_json_name = f'initialize_{index_name}_index.json'
-        index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
+        index_json_path = os.path.join(
+            os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
             index_config = json.load(reader)
 
         create_result = None
         try:
-            create_result = self.es.indices.create(index=index_name, body=index_config, ignore=400)
+            create_result = self.es.indices.create(
+                index=index_name, body=index_config, ignore=400)
         except AuthorizationException:
             # https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
             self.LOGGER.exception('Problem with index creation')
-            read_only_query = {'index': {'blocks': {'read_only_allow_delete': 'false'}}}
-            self.es.indices.put_settings(index=index_name, body=read_only_query)
-            create_result = self.es.indices.create(index=index_name, body=index_config, ignore=400)
+            read_only_query = {'index': {'blocks': {
+                'read_only_allow_delete': 'false'}}}
+            self.es.indices.put_settings(
+                index=index_name, body=read_only_query)
+            create_result = self.es.indices.create(
+                index=index_name, body=index_config, ignore=400)
         return create_result
 
     def index_exists(self, index: ESIndices) -> bool:
@@ -137,12 +145,15 @@ class ESManager:
             :param keyword          (KeywordsNames)
             :param searched_term    (str) String entered by the user
         """
-        autocomplete_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/completion.json')
+        autocomplete_json_path = os.path.join(
+            os.environ['BACKEND'], 'elasticsearchIndexing/json/completion.json')
         with open(autocomplete_json_path, encoding='utf-8') as reader:
             autocomplete_query = json.load(reader)
 
-        autocomplete_query['query']['bool']['must'][0]['term'] = {keyword.value: searched_term.lower()}
-        autocomplete_query['aggs']['groupby_module']['terms']['field'] = f'{keyword.value}.keyword'
+        autocomplete_query['query']['bool']['must'][0]['term'] = {
+            keyword.value: searched_term.lower()}
+        autocomplete_query['aggs']['groupby_module'][
+            'terms']['field'] = f'{keyword.value}.keyword'
         rows = self.es.search(index=index.value, body=autocomplete_query)
         hits = rows['aggregations']['groupby_module']['buckets']
 
@@ -187,7 +198,8 @@ class ESManager:
         for success, info in parallel_bulk(client=self.es, actions=chunk, index=index.value, thread_count=self.threads,
                                            request_timeout=self.elk_request_timeout):
             if not success:
-                self.LOGGER.error('Elasticsearch document failed with info: {}'.format(info))
+                self.LOGGER.error(
+                    'Elasticsearch document failed with info: {}'.format(info))
 
     def match_all(self, index: ESIndices) -> dict:
         """ Return the dictionary of all modules that are in the index.
@@ -204,7 +216,8 @@ class ESManager:
                     name = hit['_source']['name']
                 except KeyError:
                     name = hit['_source']['module']
-                new_path = '/var/yang/all_modules/{}@{}.yang'.format(name, revision)
+                new_path = '/var/yang/all_modules/{}@{}.yang'.format(
+                    name, revision)
                 if not os.path.exists(new_path):
                     self.LOGGER.error('{} does not exists'.format(new_path))
 
@@ -219,7 +232,8 @@ class ESManager:
             }
         }
         total_index_docs = 0
-        es_result = self.es.search(index=index.value, body=match_all_query, scroll=u'1m', size=250)
+        es_result = self.es.search(
+            index=index.value, body=match_all_query, scroll=u'1m', size=250)
         scroll_id = es_result.get('_scroll_id')
         hits = es_result['hits']['hits']
         _store_hits(hits, all_results)
@@ -239,12 +253,14 @@ class ESManager:
     def get_module_by_name_revision(self, index: ESIndices, module: dict) -> list:
         get_module_query = self._get_name_revision_query(index, module)
 
-        es_result = self.es.search(index=index.value, body=get_module_query, size=1000)
+        es_result = self.es.search(
+            index=index.value, body=get_module_query, size=1000)
 
         return es_result['hits']['hits']
 
     def get_sorted_module_revisions(self, index: ESIndices, name: str):
-        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/sorted_name_rev_query.json')
+        query_path = os.path.join(
+            os.environ['BACKEND'], 'elasticsearchIndexing/json/sorted_name_rev_query.json')
         with open(query_path, encoding='utf-8') as reader:
             sorted_name_rev_query = json.load(reader)
 
@@ -260,21 +276,24 @@ class ESManager:
             sorted_name_rev_query['query']['bool']['must'][0]['match_phrase']['name.keyword']['query'] = name
 
         try:
-            es_result = self.es.search(index=index.value, body=sorted_name_rev_query)
+            es_result = self.es.search(
+                index=index.value, body=sorted_name_rev_query)
         except RequestError:
             return []
 
         return es_result['hits']['hits']
 
     def get_node(self, module: dict) -> dict:
-        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/show_node.json')
+        query_path = os.path.join(
+            os.environ['BACKEND'], 'elasticsearchIndexing/json/show_node.json')
         with open(query_path, encoding='utf-8') as reader:
             show_node_query = json.load(reader)
 
         show_node_query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = module['name']
         show_node_query['query']['bool']['must'][1]['match_phrase']['path']['query'] = module['path']
         show_node_query['query']['bool']['must'][2]['match_phrase']['revision']['query'] = module['revision']
-        hits = self.es.search(index=ESIndices.YINDEX.value, body=show_node_query)
+        hits = self.es.search(
+            index=ESIndices.YINDEX.value, body=show_node_query)
 
         return hits
 
@@ -298,10 +317,13 @@ class ESManager:
             :param index        (ESIndices) Index in which to search
             :param module       (dict) Document to search
         """
-        get_module_query = self._get_name_revision_query(index, module)
+        if index == ESIndices.DRAFTS:
+            get_query = self._get_draft_query(index, module)
+        else:
+            get_query = self._get_name_revision_query(index, module)
 
         try:
-            es_count = self.es.count(index=index.value, body=get_module_query)
+            es_count = self.es.count(index=index.value, body=get_query)
         except RequestError:
             return False
 
@@ -310,7 +332,8 @@ class ESManager:
     ### HELPER METHODS ###
 
     def _get_name_revision_query(self, index: ESIndices, module: dict) -> dict:
-        module_search_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/module_search.json')
+        module_search_path = os.path.join(
+            os.environ['BACKEND'], 'elasticsearchIndexing/json/module_search.json')
         with open(module_search_path, encoding='utf-8') as reader:
             name_revision_query = json.load(reader)
 
@@ -327,3 +350,12 @@ class ESManager:
         name_revision_query['query']['bool']['must'][1]['match_phrase']['revision']['query'] = module['revision']
 
         return name_revision_query
+
+    def _get_draft_query(self, index: ESIndices, draft: dict) -> dict:
+        draft_search_path = os.path.join(
+            os.environ['BACKEND'], 'elasticsearchIndexing/json/draft_search.json')
+        with open(draft_search_path, encoding='utf-8') as reader:
+            draft_query = json.load(reader)
+
+        draft_query['query']['bool']['must'][0]['match_phrase']['draft']['query'] = draft['draft']
+        return draft_query
