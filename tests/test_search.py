@@ -103,3 +103,9 @@ class TestSearchClass(unittest.TestCase):
         search = 'namespace'
         search_result = self.grep_search.search(organizations, search, inverted_search=True)
         self.assertEqual(search_result, [])
+
+    def test_empty_case_sensitive_grep_search(self):
+        organizations = []
+        search = 'Namespace ".*";'
+        search_result = self.grep_search.search(organizations, search, case_sensitive=True)
+        self.assertEqual(search_result, [])

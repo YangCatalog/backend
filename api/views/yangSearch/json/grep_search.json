@@ -1,14 +1,9 @@
 {
     "query": {
         "bool": {
-            "must": [
-                {
-                    "bool": {
-                        "should": [
-                        ]
-                    }
-                }
-            ]
+            "must": [],
+            "should": [],
+            "minimum_should_match" : 1
         }
     }
 }

@@ -99,17 +99,14 @@ class GrepSearch:
 
     def _search_modules_in_database(self, organizations: list[str], module_names_with_format: tuple[str]) -> list[dict]:
         response = []
-        should_query = {
-            'bool': {
-                'should': [{'term': {'organization': organization}} for organization in organizations]
-            }
-        }
+        self.query['query']['bool']['should'] = [
+            {'term': {'organization': organization}} for organization in organizations
+        ]
         for module_name in module_names_with_format:
             name, revision = module_name.split('.yang')[0].split('@')
             self.query['query']['bool']['must'] = [
                 {'term': {'module': name}},
                 {'term': {'revision': validate_revision(revision)}},
-                should_query,
             ]
             es_response = self._es_manager.generic_search(
                 index=self.modules_es_index, query=self.query, response_size=None
