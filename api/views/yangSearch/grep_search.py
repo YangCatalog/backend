@@ -72,7 +72,6 @@ class GrepSearch:
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
                 self.logger.info(f'All the modules satisfy the inverted search')
-                pass
             elif not e.output:
                 self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
                 return

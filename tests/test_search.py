@@ -74,8 +74,32 @@ class TestSearchClass(unittest.TestCase):
         self.assertIn('yang-catalog@2017-09-26', modules_from_complicated_search_result)
         self.assertIn('yang-catalog@2018-04-03', modules_from_complicated_search_result)
 
-    def test_empty_search(self):
+    def test_empty_grep_search(self):
         organizations = []
         search = 'non_existent_search_term1|non_existent_search_term2|non_existent_search_term3'
         search_result = self.grep_search.search(organizations, search)
+        self.assertEqual(search_result, [])
+
+    def test_inverted_grep_search(self):
+        organizations = ['cisco']
+        simple_search = 'organization'
+        simple_search_result = self.grep_search.search(organizations, simple_search, inverted_search=True)
+        self.assertEqual(simple_search_result, [])
+        organizations = ['ietf']
+        complicated_search = (
+            'identity restconf {\n.*base protocol;|typedef email-address {\n.*type string {|'
+            'typedef email-address {\n.*type string {\n.*pattern "'
+        )
+        complicated_search_result = self.grep_search.search(organizations, complicated_search, inverted_search=True)
+        self.assertNotEqual(complicated_search_result, [])
+        modules_from_complicated_search_result = [
+            f'{module_data["module-name"]}@{module_data["revision"]}' for module_data in complicated_search_result
+        ]
+        self.assertNotIn('yang-catalog@2017-09-26', modules_from_complicated_search_result)
+        self.assertNotIn('yang-catalog@2018-04-03', modules_from_complicated_search_result)
+
+    def test_empty_inverted_grep_search(self):
+        organizations = []
+        search = 'namespace'
+        search_result = self.grep_search.search(organizations, search, inverted_search=True)
         self.assertEqual(search_result, [])
