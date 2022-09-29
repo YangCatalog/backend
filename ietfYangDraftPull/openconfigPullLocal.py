@@ -55,11 +55,9 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def main(scriptConf=None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
+    args = script_conf.args
 
     config_path = args.config_path
     config = create_config(config_path)

@@ -23,7 +23,6 @@ __copyright__ = 'Copyright(c) 2018, Cisco Systems, Inc., Copyright The IETF Trus
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'bclaise@cisco.com'
 
-
 import os
 import typing as t
 
@@ -70,7 +69,6 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-
 def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
     """
     Returns the list of YANG Modules (.yang) in all sub-directories
@@ -89,9 +87,8 @@ def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
                 ll.append(os.path.join(root, f))
     return ll
 
-def main(script_conf=None):
-    if script_conf is None:
-        script_conf = ScriptConfig()
+
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     args = script_conf.args
 
     # equivalent shell commands (without the de-duplication function)
@@ -129,7 +126,7 @@ def main(script_conf=None):
         yang_list = temp_list
 
     print('--------------------------')
-    print('Number of YANG data models in {} : {}'.format(args.rootdir, len(yang_list)))
+    print(f'Number of YANG data models in {args.rootdir} : {len(yang_list)}')
 
     # Remove duplicates and count the YANG modules
     if args.removedup:
@@ -138,11 +135,11 @@ def main(script_conf=None):
         for yang_file in yang_list:
             yang_file_without_path = os.path.basename(yang_file)
             if args.debug > 0:
-                print('yang_list_removed_dup content: {}'.format(yang_file_without_path))
+                print(f'yang_list_removed_dup content: {yang_file_without_path}')
             if yang_file_without_path not in yang_list_removed_dup:
                 yang_list_removed_dup.append(yang_file_without_path)
                 YANG_module_count_removed_dup += 1
-        print('Number of YANG data models in {} (duplicates removed): {}'.format( args.rootdir, YANG_module_count_removed_dup))
+        print(f'Number of YANG data models in {args.rootdir} (duplicates removed): {YANG_module_count_removed_dup}')
         if args.debug > 0:
             print('yang_list_removed_dup content: ')
             print(yang_list_removed_dup)
@@ -156,7 +153,11 @@ def main(script_conf=None):
             if args.excludekeyword not in yang_file_without_path:
                 yang_list_removed_dup_removed_keyword.append(yang_file_without_path)
                 YANG_module_count_removed_dup_removed_keyword += 1
-        print('Number of YANG data models in {} (without the keyword {}):{}'.format(args.rootdir, args.excludekeyword, YANG_module_count_removed_dup_removed_keyword))
+        print(
+            f'Number of YANG data models in {args.rootdir} (without the keyword {args.excludekeyword}):'
+            f'{YANG_module_count_removed_dup_removed_keyword}'
+        )
+
 
 if __name__ == '__main__':
     main()

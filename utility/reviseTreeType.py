@@ -27,11 +27,12 @@ __email__ = 'richard.zilincik@pantheon.tech'
 
 import os
 import time
+import typing as t
 
 import requests
-from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 import utility.log as log
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
@@ -47,10 +48,8 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, None, [])
 
 
-def main(scriptConf=None):
+def main(script_conf: t.Optional[BaseScriptConfig] = None):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
     
     config = create_config()
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
