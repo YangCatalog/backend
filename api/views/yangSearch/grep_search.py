@@ -44,13 +44,13 @@ class GrepSearch:
 
         self._processed_modules = {}
 
-    def search(self, organizations: list[str], search_string: str) -> list[dict]:
-        module_names = self._get_matching_module_names(search_string)
+    def search(self, organizations: list[str], search_string: str, inverted_search: bool = False) -> list[dict]:
+        module_names = self._get_matching_module_names(search_string, inverted_search)
         if not module_names:
             return []
         return self._search_modules_in_database(organizations, module_names)
 
-    def _get_matching_module_names(self, search_string: str) -> t.Optional[tuple[str]]:
+    def _get_matching_module_names(self, search_string: str, inverted_search: bool) -> t.Optional[tuple[str]]:
         """
         Performs a native pcregrep search of modules in self.all_modules_directory.
         Returns a list of all module names that satisfy the search.
@@ -58,33 +58,40 @@ class GrepSearch:
         Arguments:
             :param search_string    (str) actual search string, can include wildcards
         """
-        module_names = set()
+        module_names_with_format = set()
         try:
-            grep_result = subprocess.check_output(
+            pcregrep_result = subprocess.check_output(
                 f'pcregrep -Mrie \'{search_string}\' {self.all_modules_directory.rstrip("/")}',
                 shell=True
             )
-            for result in grep_result.decode().split('\n'):
+            for result in pcregrep_result.decode().split('\n'):
                 if not result or not result.startswith(self.all_modules_directory):
                     continue
-                module_name = result.split(self.all_modules_directory)[1].split('.yang')[0]
-                module_names.add(module_name)
+                module_name_with_format = result.split(self.all_modules_directory)[1].split(':')[0]
+                module_names_with_format.add(module_name_with_format)
         except subprocess.CalledProcessError as e:
-            if not e.output:
+            if not e.output and inverted_search:
+                self.logger.info(f'All the modules satisfy the inverted search')
+                pass
+            elif not e.output:
                 self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
                 return
-            raise ValueError('Invalid search input')
-        return tuple(module_names)
+            else:
+                raise ValueError('Invalid search input')
+        if inverted_search:
+            all_module_names_with_format = set(os.listdir(self.all_modules_directory))
+            module_names_with_format = all_module_names_with_format - module_names_with_format
+        return tuple(module_names_with_format)
 
-    def _search_modules_in_database(self, organizations: list[str], module_names: tuple[str]) -> list[dict]:
+    def _search_modules_in_database(self, organizations: list[str], module_names_with_format: tuple[str]) -> list[dict]:
         response = []
         should_query = {
             'bool': {
                 'should': [{'term': {'organization': organization}} for organization in organizations]
             }
         }
-        for module_name in module_names:
-            name, revision = module_name.split('@')
+        for module_name in module_names_with_format:
+            name, revision = module_name.split('.yang')[0].split('@')
             self.query['query']['bool']['must'] = [
                 {'term': {'module': name}},
                 {'term': {'revision': validate_revision(revision)}},
