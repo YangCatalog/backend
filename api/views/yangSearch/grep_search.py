@@ -57,6 +57,8 @@ class GrepSearch:
 
         Arguments:
             :param search_string    (str) actual search string, can include wildcards
+            :param inverted_search  (bool) indicates if the result must contain all modules satisfying the search or
+            all the modules not satisfying the search
         """
         module_names_with_format = set()
         try:
