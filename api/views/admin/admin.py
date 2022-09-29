@@ -533,7 +533,7 @@ def update_user(status, id):
     if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
         abort(404, description=f'id {id} not found with status {status}')
     body = get_input(request.json)
-    if not 'username' in body or not 'email' in body:
+    if 'username' not in body or 'email' not in body:
         abort(400, description='username and email must be specified')
 
     def get_set(field):
@@ -590,7 +590,7 @@ def run_script_with_args(script):
     arguments = ['run_script', module_name, script, json.dumps(body)]
     job_id = ac.sender.send('#'.join(arguments))
 
-    return ({'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202)
+    return {'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202
 
 
 @bp.route('/api/admin/scripts', methods=['GET'])

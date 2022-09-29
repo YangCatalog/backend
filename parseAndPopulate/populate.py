@@ -230,7 +230,7 @@ class Populate:
             )
             for attr, value in options:
                 setattr(script_conf.args, attr, value)
-            parse_directory.main(scriptConf=script_conf)
+            parse_directory.main(script_conf=script_conf)
         except Exception as e:
             self.logger.exception(f'parse_directory error:\n{e}')
             raise e

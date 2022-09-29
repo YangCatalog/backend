@@ -83,11 +83,9 @@ def run_populate_script(directory: str, notify: bool, LOGGER: logging.Logger) ->
     return successful
 
 
-def main(scriptConf=None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
+    args = script_conf.args
 
     config_path = args.config_path
     config = create_config(config_path)

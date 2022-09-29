@@ -40,6 +40,7 @@ from collections import defaultdict, deque
 from datetime import date
 
 from pyang.statements import Statement
+
 from utility import yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -178,10 +179,8 @@ def capabilities_to_modules(capabilities: str) -> t.List[str]:
     return modules
 
 
-def main(scriptConf: t.Optional[ScriptConfig] = None):
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
+    args = script_conf.args
     args.dir = args.dir.rstrip('/')
     if args.sdo:  # sdo directory
         for root, _, files in os.walk(args.dir):
