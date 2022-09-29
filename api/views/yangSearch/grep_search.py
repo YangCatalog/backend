@@ -31,7 +31,7 @@ class GrepSearch:
             all_modules_directory.endswith('/') else
             f'{all_modules_directory}/'
         )
-        query_path = os.path.join(os.environ['BACKEND'], 'api/views/yangSearch/json/grep_search.json')
+        query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
         with open(query_path) as query_file:
             self.query = json.load(query_file)
 
