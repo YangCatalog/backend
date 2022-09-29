@@ -14,13 +14,13 @@ ENV VIRTUAL_ENV=/backend
 ENV BACKEND=/backend
 
 #Install Cron
-RUN apt-get -y update
-RUN apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim
+RUN apt-get -y update && apt-get install -y pcregrep \
+  && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
     apt-get -y install postfix rsyslog systemd
-RUN apt-get -y autoremove && apt-get update -y && apt-get install -y pcregrep
+RUN apt-get -y autoremove
 
 COPY ./resources/main.cf /etc/postfix/main.cf
 

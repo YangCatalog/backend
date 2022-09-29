@@ -44,13 +44,24 @@ class GrepSearch:
 
         self._processed_modules = {}
 
-    def search(self, organizations: list[str], search_string: str, inverted_search: bool = False) -> list[dict]:
+    def search(
+            self,
+            organizations: list[str],
+            search_string: str,
+            inverted_search: bool = False,
+            case_sensitive: bool = False,
+    ) -> list[dict]:
         module_names = self._get_matching_module_names(search_string, inverted_search)
         if not module_names:
             return []
         return self._search_modules_in_database(organizations, module_names)
 
-    def _get_matching_module_names(self, search_string: str, inverted_search: bool) -> t.Optional[tuple[str]]:
+    def _get_matching_module_names(
+            self,
+            search_string: str,
+            inverted_search: bool,
+            case_sensitive: bool,
+    ) -> t.Optional[tuple[str]]:
         """
         Performs a native pcregrep search of modules in self.all_modules_directory.
         Returns a list of all module names that satisfy the search.
@@ -59,15 +70,17 @@ class GrepSearch:
             :param search_string    (str) actual search string, can include wildcards
             :param inverted_search  (bool) indicates if the result must contain all modules satisfying the search or
             all the modules not satisfying the search
+            :param case_sensitive   (bool) indicates if the search must be case-sensitive or not
         """
         module_names_with_format = set()
+        pcregrep_shell_command = f'pcregrep -{"" if case_sensitive else "i"}lrMe'
         try:
             pcregrep_result = subprocess.check_output(
-                f'pcregrep -Mrie \'{search_string}\' {self.all_modules_directory.rstrip("/")}',
+                f'{pcregrep_shell_command} \'{search_string}\' {self.all_modules_directory.rstrip("/")}',
                 shell=True
             )
             for result in pcregrep_result.decode().split('\n'):
-                if not result or not result.startswith(self.all_modules_directory):
+                if not result:
                     continue
                 module_name_with_format = result.split(self.all_modules_directory)[1].split(':')[0]
                 module_names_with_format.add(module_name_with_format)

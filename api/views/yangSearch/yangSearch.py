@@ -72,15 +72,16 @@ def grep_search():
     if not request.json:
         abort(400, description='No input data')
     body = request.json
-    organizations: list[str] = body.get('organizations')
+    organizations: list[str] = body.get('organizations', [])
     search_string: str = body.get('search')
     inverted_search: bool = body.get('inverted_search', False)
+    case_sensitive: bool = body.get('case_sensitive', False)
     if not search_string:
         abort(400, description='Search cannot be empty')
     try:
         response = GrepSearch(
             config=ac.config_parser, es_manager=ac.es_manager, redis_connection=app.redisConnection
-        ).search(organizations, search_string, inverted_search)
+        ).search(organizations, search_string, inverted_search, case_sensitive)
         return make_response(jsonify(response))
     except ValueError as e:
         abort(400, description=str(e))
