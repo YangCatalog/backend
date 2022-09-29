@@ -202,16 +202,18 @@ class SdoDirectory(ModuleGrouping):
                 LOGGER.warning(
                     'File {} contains [1] it its file name'.format(file_name))
                 continue
+            name, revision = self.path_to_name_rev[path]
             # Openconfig modules are sent via API daily; see openconfigPullLocal.py script
             if '/openconfig/public/' in path:
-                should_parse = self.file_hasher.should_parse_openconfig_module(
-                    path)
+                all_modules_path = get_yang(name, revision)
+                if not all_modules_path:
+                    LOGGER.warning('File {} not found in the repository'.format(name))
+                    continue
+                should_parse = self.file_hasher.should_parse_sdo_module(all_modules_path)
                 if not should_parse:
                     continue
             schema_parts = SchemaParts(
                 repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
-            schema_base = schema_parts.schema_base
-            name, revision = self.path_to_name_rev[path]
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 yang = SdoModule(name, path, self._schemas, self.dir_paths,
@@ -242,7 +244,13 @@ class SdoDirectory(ModuleGrouping):
                 if '.yang' not in file_name or any(word in root for word in ['vendor', 'odp']):
                     continue
                 path = os.path.join(root, file_name)
-                should_parse = self.file_hasher.should_parse_sdo_module(path)
+                name, revision = self.path_to_name_rev[path]
+                all_modules_path = get_yang(name, revision)
+                if not all_modules_path:
+                    LOGGER.warning(
+                        'File {} not found in the repository'.format(name))
+                    continue
+                should_parse = self.file_hasher.should_parse_sdo_module(all_modules_path)
                 if not should_parse:
                     continue
                 if '[1]' in file_name:
@@ -251,7 +259,6 @@ class SdoDirectory(ModuleGrouping):
                     continue
                 LOGGER.info('Parsing {} {} out of {}'.format(
                     file_name, i, sdos_count))
-                name, revision = self.path_to_name_rev[path]
                 self._update_schema_urls(name, revision, path, schema_parts)
                 try:
                     yang = SdoModule(name, path, self._schemas, self.dir_paths,
@@ -309,10 +316,15 @@ class IanaDirectory(SdoDirectory):
 
             if data.get('iana') == 'Y' and data.get('file'):
                 path = os.path.join(self.directory, data['file'])
-                should_parse = self.file_hasher.should_parse_sdo_module(path)
+                name, revision = self.path_to_name_rev[path]
+                all_modules_path = get_yang(name, revision)
+                if not all_modules_path:
+                    LOGGER.warning(
+                        'File {} not found in the repository'.format(name))
+                    continue
+                should_parse = self.file_hasher.should_parse_sdo_module(all_modules_path)
                 if not should_parse:
                     continue
-                name, revision = self.path_to_name_rev[path]
 
                 LOGGER.info('Parsing module {}'.format(name))
                 self._update_schema_urls(name, revision, path, schema_parts)
@@ -531,7 +543,7 @@ class VendorCapabilities(VendorGrouping):
             LOGGER.exception(
                 f'Missing attribute, likely caused by a broken path in {self.directory}/platform-metadata.json')
 
-        platform_name = self.platform_data[0].get('platform', '')
+        implementation_keys = [f"{data['platform']}/{data['software-version']}" for data in self.platform_data]
         # Parse modules
         for module in modules:
             module.text = module.text or ''
@@ -550,19 +562,17 @@ class VendorCapabilities(VendorGrouping):
                 LOGGER.warning(
                     'File {} not found in the repository'.format(name))
                 continue
-            should_parse = self.file_hasher.should_parse_vendor_module(
-                path, platform_name)
+            should_parse = self.file_hasher.should_parse_vendor_module(path, implementation_keys)
             if not should_parse:
                 continue
             LOGGER.info('Parsing module {}'.format(name))
-            revision = revision or path.split(
-                '@')[-1].removesuffix('.yang')
+            revision = revision or path.split('@')[-1].removesuffix('.yang')
             if (name, revision) in self.name_rev_to_path:
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 try:
-                    vendor_info = {'platform_data': self.platform_data, 'conformance_type': "implement",
+                    vendor_info = {'platform_data': self.platform_data, 'conformance_type': 'implement',
                                     'capabilities': self.capabilities, 'netconf_versions': self.netconf_versions}
                     yang = VendorModule(name, path, self._schemas, self.dir_paths,
                                         self.dumper.yang_modules, vendor_info, data=module_and_more)
