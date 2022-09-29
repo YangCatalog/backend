@@ -13,7 +13,6 @@ import json
 import os
 import sys
 import time
-import typing as t
 
 import requests
 
@@ -86,7 +85,7 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-def main(script_conf: t.Optional[BaseScriptConfig] = None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
     config = create_config()
 

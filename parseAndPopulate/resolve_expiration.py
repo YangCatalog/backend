@@ -27,7 +27,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import os
 import time
-import typing as t
 
 import requests
 
@@ -51,7 +50,7 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, None, None if __name__ == '__main__' else [])
 
 
-def main(script_conf: t.Optional[BaseScriptConfig] = None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
 
     config = create_config()
