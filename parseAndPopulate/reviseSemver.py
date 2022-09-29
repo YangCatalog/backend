@@ -15,14 +15,13 @@ import sys
 import time
 
 import requests
+
 import utility.log as log
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log, revision_to_date
-
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
 
 current_file_basename = os.path.basename(__file__)
 
@@ -86,10 +85,8 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-def main(scriptConf=None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
     config = create_config()
 
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')

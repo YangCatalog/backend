@@ -25,23 +25,18 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-
-import logging
 import os
 import time
-import typing as t
-from datetime import datetime
 
 import requests
-from redisConnections.redisConnection import RedisConnection
 
 import utility.log as log
+from parseAndPopulate.resolvers.expiration import ExpirationResolver
+from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
-
-from parseAndPopulate.resolvers.expiration import ExpirationResolver
 
 current_file_basename = os.path.basename(__file__)
 
@@ -55,10 +50,8 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, None, None if __name__ == '__main__' else [])
 
 
-def main(scriptConf=None):
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
 
     config = create_config()
     credentials = config.get('Secrets-Section', 'confd-credentials',
@@ -70,8 +63,7 @@ def main(scriptConf=None):
     yangcatalog_api_prefix = config.get(
         'Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('resolve_expiration',
-                            f'{log_directory}/jobs/resolve_expiration.log')
+    LOGGER = log.get_logger('resolve_expiration', f'{log_directory}/jobs/resolve_expiration.log')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS,
             filename=current_file_basename)
 

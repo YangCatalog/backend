@@ -30,6 +30,7 @@ import typing as t
 
 import requests
 from requests.exceptions import ConnectionError
+
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 
@@ -50,10 +51,8 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def main(scriptConf=None):
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
+def main(script_conf: BaseScriptConfig = ScriptConfig()):
+    args = script_conf.args
 
     config_path = args.config_path
     config = create_config(config_path)

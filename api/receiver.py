@@ -371,7 +371,7 @@ class Receiver:
 
             self.LOGGER.info('Runnning draftPullLocal.py script')
             try:
-                submodule.main(scriptConf=script_conf)
+                submodule.main(script_conf=script_conf)
             except Exception:
                 self.LOGGER.exception('Problem while running draftPullLocal script')
                 return StatusMessage.FAIL, 'Server error while running draftPullLocal script'
@@ -383,7 +383,7 @@ class Receiver:
 
             self.LOGGER.info('Runnning openconfigPullLocal.py script')
             try:
-                submodule.main(scriptConf=script_conf)
+                submodule.main(script_conf=script_conf)
             except Exception:
                 self.LOGGER.exception('Problem while running openconfigPullLocal script')
                 return StatusMessage.FAIL, 'Server error while running openconfigPullLocal script'
