@@ -84,7 +84,7 @@ def main(scriptConf=None):
         if not complicated_algorithms.check_if_latest_revision(module):
             modules_revise.append(module)
     LOGGER.info(f'Resolving tree-types for {len(modules_revise)} modules')
-    complicated_algorithms.resolve_tree_type({'module': modules_revise})
+    complicated_algorithms.resolve_tree_type(modules_revise)
     complicated_algorithms.populate()
     LOGGER.info('Job finished successfully')
     job_log(start_time, temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
