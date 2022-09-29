@@ -51,7 +51,7 @@ class GrepSearch:
             inverted_search: bool = False,
             case_sensitive: bool = False,
     ) -> list[dict]:
-        module_names = self._get_matching_module_names(search_string, inverted_search)
+        module_names = self._get_matching_module_names(search_string, inverted_search, case_sensitive)
         if not module_names:
             return []
         return self._search_modules_in_database(organizations, module_names)
