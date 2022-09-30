@@ -82,7 +82,7 @@ class GrepSearch:
             for result in pcregrep_result.decode().split('\n'):
                 if not result:
                     continue
-                module_name_with_format = result.split(self.all_modules_directory)[1].split(':')[0]
+                module_name_with_format = result.split(self.all_modules_directory)[1]
                 module_names_with_format.add(module_name_with_format)
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
