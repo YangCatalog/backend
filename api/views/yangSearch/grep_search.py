@@ -25,12 +25,7 @@ class GrepSearch:
             modules_es_index: ESIndices = ESIndices.YINDEX,
             redis_connection: RedisConnection = RedisConnection(),
     ):
-        all_modules_directory = config.get('Directory-Section', 'save-file-dir')
-        self.all_modules_directory = (
-            all_modules_directory if
-            all_modules_directory.endswith('/') else
-            f'{all_modules_directory}/'
-        )
+        self.all_modules_directory = config.get('Directory-Section', 'save-file-dir')
         query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
         with open(query_path) as query_file:
             self.query = json.load(query_file)
@@ -82,7 +77,7 @@ class GrepSearch:
             for result in pcregrep_result.decode().split('\n'):
                 if not result:
                     continue
-                module_name_with_format = result.split(self.all_modules_directory)[1]
+                module_name_with_format = result.split(self.all_modules_directory)[1].lstrip('/')
                 module_names_with_format.add(module_name_with_format)
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
