@@ -52,7 +52,7 @@ class ESManager:
         else:
             self.es = Elasticsearch(hosts=[es_host_config])
         log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
-        self.LOGGER = log.get_logger('es-manager', log_file_path)
+        self.logger = log.get_logger('es-manager', log_file_path)
 
     def ping(self) -> bool:
         return self.es.ping()
@@ -80,7 +80,7 @@ class ESManager:
                 index=index_name, body=index_config, ignore=400)
         except AuthorizationException:
             # https://discuss.elastic.co/t/forbidden-12-index-read-only-allow-delete-api/110282/4
-            self.LOGGER.exception('Problem with index creation')
+            self.logger.exception('Problem with index creation')
             read_only_query = {'index': {'blocks': {
                 'read_only_allow_delete': 'false'}}}
             self.es.indices.put_settings(
@@ -120,7 +120,7 @@ class ESManager:
         try:
             mapping = self.es.indices.get_mapping(index=index.value)
         except NotFoundError:
-            self.LOGGER.exception('Index not found')
+            self.logger.exception('Index not found')
         return mapping
 
     def get_documents_count(self, index: ESIndices) -> int:
@@ -133,7 +133,7 @@ class ESManager:
         try:
             count = self.es.count(index=index.value)['count']
         except NotFoundError:
-            self.LOGGER.exception('Index not found')
+            self.logger.exception('Index not found')
         return count
 
     def autocomplete(self, index: ESIndices, keyword: KeywordsNames, searched_term: str) -> list:
@@ -168,7 +168,7 @@ class ESManager:
             :param index        (ESIndices) Target index from which to delete module
             :param document     (dict) Document to delete
         """
-        self.LOGGER.info(f'Deleting module: "{module}" from index: "{index}"')
+        self.logger.info(f'Deleting module: "{module}" from index: "{index}"')
         delete_module_query = self._get_name_revision_query(index, module)
         return self.es.delete_by_query(index=index.value, body=delete_module_query, conflicts='proceed')
 
@@ -198,8 +198,8 @@ class ESManager:
         for success, info in parallel_bulk(client=self.es, actions=chunk, index=index.value, thread_count=self.threads,
                                            request_timeout=self.elk_request_timeout):
             if not success:
-                self.LOGGER.error(
-                    'Elasticsearch document failed with info: {}'.format(info))
+                self.logger.error(
+                    f'Elasticsearch document failed with info: {info}')
 
     def match_all(self, index: ESIndices) -> dict:
         """ Return the dictionary of all modules that are in the index.
@@ -216,12 +216,11 @@ class ESManager:
                     name = hit['_source']['name']
                 except KeyError:
                     name = hit['_source']['module']
-                new_path = '/var/yang/all_modules/{}@{}.yang'.format(
-                    name, revision)
+                new_path = f'/var/yang/all_modules/{name}@{revision}.yang'
                 if not os.path.exists(new_path):
-                    self.LOGGER.error('{} does not exists'.format(new_path))
+                    self.logger.error(f'{new_path} does not exists')
 
-                key = '{}@{}/{}'.format(name, revision, organization)
+                key = f'{name}@{revision}/{organization}'
                 if key not in all_results:
                     all_results[key] = hit['_source']
 
