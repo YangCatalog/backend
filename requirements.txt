@@ -10,7 +10,6 @@ pika==1.2.0
 prometheus-client==0.10.1
 Crypto==1.4.1
 pycryptodome==3.14.1
-joblib==1.2.0
 python-dateutil==2.8.1
 elasticsearch==7.10.1
 Flask==2.0.0
