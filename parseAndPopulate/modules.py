@@ -262,7 +262,7 @@ class VendorModule(Module):
         return ret
 
 
-class VendorModuleFromRedis(VendorModule):
+class VendorModuleFromDB(VendorModule):
     def __init__(
             self,
             name: str,

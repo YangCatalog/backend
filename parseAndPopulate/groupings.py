@@ -35,7 +35,7 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.models.schema_parts import SchemaParts
-from parseAndPopulate.modules import SdoModule, VendorModule, VendorModuleFromRedis
+from parseAndPopulate.modules import SdoModule, VendorModule, VendorModuleFromDB
 from redisConnections.redisConnection import RedisConnection
 from utility import repoutil
 from utility.create_config import create_config
@@ -512,7 +512,7 @@ class VendorGrouping(ModuleGrouping):
                 try:
                     yang = vendor_module_class(
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules, vendor_info,
-                        config=self.config,
+                        config=self.config, redis_connection=self.redis_connection,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
@@ -531,7 +531,7 @@ class VendorGrouping(ModuleGrouping):
             return
         vendor_module_class = VendorModule
         if module_hash_info.file_hash_exists and module_hash_info.new_implementations_detected:
-            vendor_module_class = VendorModuleFromRedis
+            vendor_module_class = VendorModuleFromDB
         return vendor_module_class
 
 
@@ -606,7 +606,7 @@ class VendorCapabilities(VendorGrouping):
                 try:
                     yang = vendor_module_class(
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
-                        vendor_info, data=module_and_more, config=self.config,
+                        vendor_info, data=module_and_more, config=self.config, redis_connection=self.redis_connection,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
@@ -686,7 +686,7 @@ class VendorYangLibrary(VendorGrouping):
                 try:
                     yang = vendor_module_class(
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
-                        vendor_info, data=yang_lib_info, config=self.config,
+                        vendor_info, data=yang_lib_info, config=self.config, redis_connection=self.redis_connection,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
