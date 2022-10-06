@@ -20,6 +20,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import json
 import os
 import typing as t
+from configparser import ConfigParser
 from urllib.parse import quote, unquote
 
 import utility.log as log
@@ -38,8 +39,8 @@ class RedisConnection:
             self,
             modules_db: t.Optional[t.Union[int, str]] = None,
             vendors_db: t.Optional[t.Union[int, str]] = None,
+            config: ConfigParser = create_config(),
     ):
-        config = create_config()
         self.log_directory = config.get('Directory-Section', 'logs')
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = int(config.get('DB-Section', 'redis-port'))
@@ -56,6 +57,7 @@ class RedisConnection:
     ### MODULES DATABASE COMMUNICATION ###
     def update_module_properties(self, new_module: dict, existing_module: dict):
         keys = {**new_module, **existing_module}.keys()
+        dependencies_keys = ('dependents', 'dependencies')
         for key in keys:
             if key == 'implementations':
                 new_impls = new_module.get('implementations', {}).get('implementation', [])
@@ -66,9 +68,9 @@ class RedisConnection:
                     if new_impl_name not in existing_impls_names:
                         existing_impls.append(new_impl)
                         existing_impls_names.append(new_impl_name)
-            elif key in ['dependents', 'dependencies']:
+            elif key in dependencies_keys:
                 new_prop_list = new_module.get(key, [])
-                existing_prop_list = existing_module.get(key, [])
+                existing_prop_list = existing_module.get(key)
                 if not existing_prop_list:
                     existing_module[key] = new_prop_list
                     continue
@@ -89,15 +91,13 @@ class RedisConnection:
 
         return existing_module
 
-    def populate_modules(self, new_modules: list):
+    def populate_modules(self, new_modules: list[dict]):
         """ Merge new data of each module in 'new_modules' list with existing data already stored in Redis.
         Set updated data to Redis under created key in format: <name>@<revision>/<organization>
 
         Argument:
             :param new_modules  (list) list of modules which need to be stored into Redis cache
         """
-        new_merged_modules = {}
-
         for new_module in new_modules:
             redis_key = self._create_module_key(new_module)
             redis_module = self.get_module(redis_key)
@@ -112,7 +112,6 @@ class RedisConnection:
                 self.delete_temporary([redis_key])
 
             self.set_redis_module(updated_module, redis_key)
-            new_merged_modules[redis_key] = updated_module
 
     def get_all_modules(self):
         data = self.modulesDB.get('modules-data')
@@ -129,9 +128,9 @@ class RedisConnection:
     def set_redis_module(self, module: dict, redis_key: str):
         result = self.modulesDB.set(redis_key, json.dumps(module))
         if result:
-            self.LOGGER.info('{} key updated'.format(redis_key))
+            self.LOGGER.info(f'{redis_key} key updated')
         else:
-            self.LOGGER.exception('Problem while setting {}'.format(redis_key))
+            self.LOGGER.exception(f'Problem while setting {redis_key}')
 
         return result
 
@@ -182,7 +181,6 @@ class RedisConnection:
         return result
 
     def delete_expires(self, module: dict):
-        result = False
         redis_key = self._create_module_key(module)
         redis_module_raw = self.get_module(redis_key)
         redis_module = json.loads(redis_module_raw)
@@ -195,7 +193,7 @@ class RedisConnection:
         result = self.temp_modulesDB.delete(*modules_keys)
 
     def _create_module_key(self, module: dict):
-        return '{}@{}/{}'.format(module.get('name'), module.get('revision'), module.get('organization'))
+        return f'{module.get("name")}@{module.get("revision")}/{module.get("organization")}'
 
     def create_implementation_key(self, impl: dict):
         quoted = [key_quote(i) for i in

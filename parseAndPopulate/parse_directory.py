@@ -32,6 +32,7 @@ import os
 import shutil
 import time
 import typing as t
+from configparser import ConfigParser
 from logging import Logger
 
 import utility.log as log
@@ -40,6 +41,7 @@ from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import (IanaDirectory, SdoDirectory,
                                         VendorCapabilities, VendorYangLibrary)
+from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import parse_name, parse_revision, strip_comments, find_files
@@ -121,32 +123,40 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         'save': args.save_file_dir
     }
 
-    LOGGER = log.get_logger('parse_directory', '{}/parseAndPopulate.log'.format(dir_paths['log']))
+    logger = log.get_logger('parse_directory', f'{dir_paths["log"]}/parseAndPopulate.log')
+
+    redis_connection = RedisConnection(config=config)
 
     start = time.time()
     dumper = Dumper(dir_paths['log'], 'prepare')
-    file_hasher = FileHasher('backend_files_modification_hashes', dir_paths['cache'],
-                            args.save_file_hash, dir_paths['log'])
+    file_hasher = FileHasher(
+        'backend_files_modification_hashes', dir_paths['cache'], args.save_file_hash, dir_paths['log']
+    )
 
-    LOGGER.info('Saving all yang files so the save-file-dir')
+    logger.info('Saving all yang files so the save-file-dir')
     name_rev_to_path, path_to_name_rev = save_files(args.dir, dir_paths['save'])
-    LOGGER.info('Starting to iterate through files')
+    logger.info('Starting to iterate through files')
     if args.sdo:
-        parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, LOGGER)
+        parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, logger, config=config)
     else:
-        parse_vendor(args.dir, dumper, file_hasher, args.api, dir_paths, name_rev_to_path, LOGGER)
+        parse_vendor(
+            args.dir, dumper, file_hasher, args.api, dir_paths, name_rev_to_path, logger,
+            config=config, redis_connection=redis_connection
+        )
     dumper.dump_modules(dir_paths['json'])
     dumper.dump_vendors(dir_paths['json'])
 
     end = time.time()
-    LOGGER.info('Time taken to parse all the files {} seconds'.format(int(end - start)))
+    logger.info(f'Time taken to parse all the files {int(end - start)} seconds')
 
     # Dump updated hashes into temporary directory
     if len(file_hasher.updated_hashes) > 0:
         file_hasher.dump_tmp_hashed_files_list(file_hasher.updated_hashes, dir_paths['json'])
 
 
-def save_files(search_directory: str, save_file_dir: str) -> t.Tuple[t.Dict[str, str], t.Dict[str, str]]:
+def save_files(
+        search_directory: str, save_file_dir: str
+) -> tuple[dict[tuple[str, str], str], dict[str, tuple[str, str]]]:
     """
     Copy all found yang files to the save_file_dir.
     Return dicts with data containing the original locations of the files,
@@ -167,7 +177,7 @@ def save_files(search_directory: str, save_file_dir: str) -> t.Tuple[t.Dict[str,
             text = strip_comments(text)
             name = parse_name(text)
             revision = parse_revision(text)
-            save_file_path = os.path.join(save_file_dir, '{}@{}.yang'.format(name, revision))
+            save_file_path = os.path.join(save_file_dir, f'{name}@{revision}.yang')
             # To construct and save a schema url, we need the original path, module name, and revision.
             # SDO metadata only provides the path, vendor metadata only provides the name and revision.
             # We need mappings both ways to retrieve the missing data.
@@ -178,31 +188,55 @@ def save_files(search_directory: str, save_file_dir: str) -> t.Tuple[t.Dict[str,
     return name_rev_to_path, path_to_name_rev
 
 
-def parse_sdo(search_directory: str, dumper: Dumper, file_hasher: FileHasher, api: bool,
-              dir_paths: DirPaths, path_to_name_rev: dict, logger: Logger):
+def parse_sdo(
+        search_directory: str,
+        dumper: Dumper,
+        file_hasher: FileHasher,
+        api: bool,
+        dir_paths: DirPaths,
+        path_to_name_rev: dict,
+        logger: Logger,
+        config: ConfigParser = create_config(),
+):
     """Parse all yang modules in an SDO directory."""
-    logger.info('Parsing SDO directory {}'.format(search_directory))
+    logger.info(f'Parsing SDO directory {search_directory}')
     if os.path.isfile(os.path.join(search_directory, 'yang-parameters.xml')):
         logger.info('Found yang-parameters.xml file, parsing IANA directory')
-        grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev)
+        grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
     else:
-        grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev)
+        grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
     grouping.parse_and_load()
 
 
-def parse_vendor(search_directory: str, dumper: Dumper, file_hasher: FileHasher, api: bool,
-                 dir_paths: DirPaths, name_rev_to_path: dict, logger: Logger):
+def parse_vendor(
+        search_directory: str,
+        dumper: Dumper,
+        file_hasher: FileHasher,
+        api: bool,
+        dir_paths: DirPaths,
+        name_rev_to_path: dict,
+        logger: Logger,
+        config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None
+):
     """Parse all yang modules in a vendor directory."""
+    redis_connection = redis_connection or RedisConnection(config=config)
     for root, _, files in os.walk(search_directory):
         for basename in files:
             if fnmatch.fnmatch(basename, '*capabilit*.xml'):
                 path = os.path.join(root, basename)
                 logger.info(f'Found xml metadata file "{path}"')
-                grouping = VendorCapabilities(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+                grouping = VendorCapabilities(
+                    root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path, config=config,
+                    redis_connection=redis_connection,
+                )
             elif fnmatch.fnmatch(basename, '*ietf-yang-library*.xml'):
                 path = os.path.join(root, basename)
                 logger.info(f'Found xml metadata file "{path}"')
-                grouping = VendorYangLibrary(root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path)
+                grouping = VendorYangLibrary(
+                    root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path, config=config,
+                    redis_connection=redis_connection,
+                )
             else:
                 continue
             try:

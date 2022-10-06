@@ -104,7 +104,7 @@ def get_yang(name: str, revision: t.Optional[str] = None) -> t.Optional[str]:
 
     if revision:
         return os.path.join(save_file_dir, '{}@{}.yang'.format(name, revision))
-    files = glob.glob(os.path.join(save_file_dir,'{}@*.yang'.format(name)))
+    files = glob.glob(os.path.join(save_file_dir, '{}@*.yang'.format(name)))
     if not files:
         return None
     filename = max(files)
@@ -289,12 +289,12 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
 
 
 def job_log(
-    start_time: int,
-    temp_dir: str,
-    filename: str,
-    status: JobLogStatuses,
-    messages: t.Union[tuple, list] = (),
-    error: str = '',
+        start_time: int,
+        temp_dir: str,
+        filename: str,
+        status: JobLogStatuses,
+        messages: t.Union[tuple, list] = (),
+        error: str = '',
 ):
     """ Dump job run information into cronjob.json file.
 
