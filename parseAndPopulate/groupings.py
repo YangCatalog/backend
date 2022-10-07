@@ -193,8 +193,9 @@ class SdoDirectory(ModuleGrouping):
         sdos_count = len(sdos_list)
         for i, sdo in enumerate(sdos_list, start=1):
             # remove diacritics
-            file_name = unicodedata.normalize('NFKD', os.path.basename(sdo['source-file']['path'])) \
-                .encode('ascii', 'ignore').decode()
+            file_name = unicodedata.normalize(
+                'NFKD', os.path.basename(sdo['source-file']['path'])
+            ).encode('ascii', 'ignore').decode()
             self.logger.info(f'Parsing {file_name} {i} out of {sdos_count}')
             self.repo_owner = sdo['source-file']['owner']
             repo_file_path = sdo['source-file']['path']
@@ -212,7 +213,7 @@ class SdoDirectory(ModuleGrouping):
             name, revision = self.path_to_name_rev[path]
             # Openconfig modules are sent via API daily; see openconfigPullLocal.py script
             if '/openconfig/public/' in path:
-                all_modules_path = get_yang(name, revision)
+                all_modules_path = get_yang(name, revision, config=self.config)
                 if not all_modules_path:
                     self.logger.warning(f'File {name} not found in the repository')
                     continue
@@ -251,7 +252,7 @@ class SdoDirectory(ModuleGrouping):
                     continue
                 path = os.path.join(root, file_name)
                 name, revision = self.path_to_name_rev[path]
-                all_modules_path = get_yang(name, revision)
+                all_modules_path = get_yang(name, revision, config=self.config)
                 if not all_modules_path:
                     self.logger.warning(f'File {name} not found in the repository')
                     continue
@@ -322,7 +323,7 @@ class IanaDirectory(SdoDirectory):
             if data.get('iana') == 'Y' and data.get('file'):
                 path = os.path.join(self.directory, data['file'])
                 name, revision = self.path_to_name_rev[path]
-                all_modules_path = get_yang(name, revision)
+                all_modules_path = get_yang(name, revision, config=self.config)
                 if not all_modules_path:
                     self.logger.warning(f'File {name} not found in the repository')
                     continue
@@ -495,7 +496,7 @@ class VendorGrouping(ModuleGrouping):
             if name in set_of_names:
                 continue
             self.logger.info(f'Parsing module {name}')
-            path = get_yang(name)
+            path = get_yang(name, config=self.config)
             if path is None:
                 return
             vendor_module_class = self._get_vendor_module_class(path)
@@ -526,8 +527,10 @@ class VendorGrouping(ModuleGrouping):
             except FileNotFoundError:
                 self.logger.warning(f'File {name} not found in the repository')
 
-    def _get_vendor_module_class(self, path: str) -> t.Optional[t.Type[VendorModule]]:
-        module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path)
+    def _get_vendor_module_class(
+            self, path: str, implementation_keys: t.Optional[list] = None
+    ) -> t.Optional[t.Type[VendorModule]]:
+        module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, implementation_keys)
         if module_hash_info.file_hash_exists and not module_hash_info.new_implementations_detected:
             return
         vendor_module_class = VendorModule
@@ -587,11 +590,11 @@ class VendorCapabilities(VendorGrouping):
             if 'revision' in module.text:
                 revision_and_more = module.text.split('revision=')[1]
                 revision = revision_and_more.split('&')[0]
-            path = get_yang(name, revision)
+            path = get_yang(name, revision, config=self.config)
             if not path:
                 self.logger.warning(f'File {name} not found in the repository')
                 continue
-            vendor_module_class = self._get_vendor_module_class(path)
+            vendor_module_class = self._get_vendor_module_class(path, implementation_keys)
             if not vendor_module_class:
                 continue
             self.logger.info(f'Parsing module {name}')
@@ -668,7 +671,7 @@ class VendorYangLibrary(VendorGrouping):
 
             self.logger.info(f'Starting to parse {name}')
             revision = yang_lib_info.get('revision')
-            path = get_yang(name, revision)
+            path = get_yang(name, revision, config=self.config)
             if not path:
                 self.logger.warning(f'File {name} not found in the repository')
                 continue
