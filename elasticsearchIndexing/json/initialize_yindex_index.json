@@ -16,25 +16,37 @@
         }
       },
       "tokenizer": {
-        "my_tokenizer": {
+        "ngram": {
           "type": "ngram",
           "min_gram": 2,
           "max_gram": 40
         }
       },
       "analyzer": {
-        "my_analyzer_lowercase": {
-          "tokenizer": "my_tokenizer",
+        "ngram": {
+          "tokenizer": "ngram"
+        },
+        "description_synonym": {
+          "tokenizer": "standard",
+          "filter": [
+            "synonym"
+          ]
+        },
+        "description_lowercase_synonym": {
+          "tokenizer": "standard",
           "filter": [
             "lowercase",
             "synonym"
           ]
         },
-        "my_analyzer_case_sensitive": {
+        "description": {
+          "tokenizer": "standard"
+        },
+        "description_lowercase": {
+          "tokenizer": "standard",
           "filter": [
-            "synonym"
-          ],
-          "tokenizer": "my_tokenizer"
+            "lowercase"
+          ]
         }
       }
     }
@@ -43,7 +55,7 @@
     "properties": {
       "module": {
         "type": "text",
-        "analyzer": "my_analyzer_lowercase",
+        "analyzer": "ngram",
         "fields": {
           "keyword": {
             "type": "keyword",
@@ -53,7 +65,7 @@
       },
       "organization": {
         "type": "text",
-        "analyzer": "my_analyzer_lowercase",
+        "analyzer": "ngram",
         "fields": {
           "keyword": {
             "type": "keyword",
@@ -63,35 +75,18 @@
       },
       "argument": {
         "type": "text",
-        "fields": {
-          "sensitive": {
-            "type": "text",
-            "analyzer": "my_analyzer_case_sensitive"
-          },
-          "lowercase": {
-            "type": "text",
-            "analyzer": "my_analyzer_lowercase"
-          },
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
+        "analyzer": "ngram"
       },
       "description": {
         "type": "text",
+        "analyzer": "description",
         "fields": {
-          "sensitive": {
-            "type": "text",
-            "analyzer": "my_analyzer_case_sensitive"
-          },
           "lowercase": {
             "type": "text",
-            "analyzer": "my_analyzer_lowercase"
+            "analyzer": "description_lowercase"
           },
           "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
+            "type": "keyword"
           }
         }
       },
