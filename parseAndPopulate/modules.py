@@ -48,6 +48,7 @@ from utility import log, yangParser
 from utility.create_config import create_config
 from utility.staticVariables import ORGANIZATIONS, NAMESPACE_MAP
 from utility.util import get_yang, resolve_revision
+from utility.yangParser import ParseException
 
 
 class Module:
@@ -291,7 +292,7 @@ class VendorModuleFromDB(VendorModule):
     def _parse_yang(self):
         self.module_basic_info = self._parse_module_basic_info(self._path)
         if not self.module_basic_info:
-            raise Exception(f'Problem occurred while parsing basic info of: "{self._path}"')
+            raise ParseException(f'Problem occurred while parsing basic info of: "{self._path}"')
 
     def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[dict[str, str]]):
         self.name = self.module_basic_info.get('name', name)

@@ -27,14 +27,10 @@ from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
-from parseAndPopulate.groupings import (SdoDirectory, VendorCapabilities,
-                                        VendorGrouping, VendorYangLibrary)
-from parseAndPopulate.modules import SdoModule
+from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorGrouping, VendorYangLibrary
 from redisConnections.redisConnection import RedisConnection
 from sandbox import generate_schema_urls
-from utility import repoutil
 from utility.create_config import create_config
-from utility.staticVariables import github_url
 
 
 class TestGroupingsClass(unittest.TestCase):
