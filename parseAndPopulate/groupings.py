@@ -656,16 +656,17 @@ class VendorYangLibrary(VendorGrouping):
             yang_lib_info = {'path': self.directory, 'name': name, 'features': [], 'deviations': []}
             conformance_type = None
             for mod in yang:
-                if 'name' in mod.tag:
+                mod_tag = mod.tag
+                if 'name' in mod_tag and not name:
                     name = mod_text if (mod_text := mod.text) else name
                     yang_lib_info['name'] = name
-                if 'revision' in mod.tag:
+                if 'revision' in mod_tag:
                     yang_lib_info['revision'] = mod.text
-                elif 'conformance-type' in mod.tag:
+                elif 'conformance-type' in mod_tag:
                     conformance_type = mod.text
-                elif 'feature' in mod.tag:
+                elif 'feature' in mod_tag:
                     yang_lib_info['features'].append(mod.text)
-                elif 'deviation' in mod.tag:
+                elif 'deviation' in mod_tag:
                     deviation = {'name': mod[0].text, 'revision': mod[1].text}
                     yang_lib_info['deviations'].append(deviation)
 
