@@ -125,7 +125,10 @@ class TestParseDirectoryClass(unittest.TestCase):
         config = mock.MagicMock()
         redis_connection = mock.MagicMock()
 
-        pd.parse_vendor(self.resource('vendor'), dumper, file_hasher, False, self.dir_paths, {}, logger)
+        pd.parse_vendor(
+            self.resource('vendor'), dumper, file_hasher, False, self.dir_paths, {}, logger,
+            config=config, redis_connection=redis_connection,
+        )
 
         root = self.resource('vendor/yang_lib')
         filename = os.path.join(root, 'ietf-yang-library.xml')
