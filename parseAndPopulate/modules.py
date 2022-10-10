@@ -277,17 +277,17 @@ class VendorModuleFromDB(VendorModule):
             config: ConfigParser = create_config(),
             redis_connection: t.Optional[RedisConnection] = None
     ):
-        super().__init__(
-            name, path, schemas, dir_paths, yang_modules, vendor_info=vendor_info, additional_info=additional_info,
-            data=data, config=config,
-        )
         self.pyang_exec = config.get('Tool-Section', 'pyang-exec')
-        self.modules_dir = config.get('Directory-Section', 'modules-directory')
+        self.modules_dir = config.get('Directory-Section', 'save-file-dir')
         self.redis_connection = redis_connection or RedisConnection(config=config)
 
         self.dependencies: list[Dependency] = []
         self.submodule: list[Submodule] = []
         self.imports: list[Dependency] = []
+        super().__init__(
+            name, path, schemas, dir_paths, yang_modules, vendor_info=vendor_info, additional_info=additional_info,
+            data=data, config=config,
+        )
 
     def _parse_yang(self):
         self.module_basic_info = self._parse_module_basic_info(self._path)
@@ -337,6 +337,20 @@ class VendorModuleFromDB(VendorModule):
         namespace = self.json_parse_namespace(self.module_basic_info)
         self.organization = self._namespace_to_organization(namespace)
 
+    def _namespace_to_organization(self, namespace: t.Optional[str]) -> str:
+        if not namespace:
+            return 'independent'
+        for ns, org in NAMESPACE_MAP:
+            if ns in namespace:
+                return org
+        if 'cisco' in namespace:
+            return 'cisco'
+        elif 'ietf' in namespace:
+            return 'ietf'
+        elif 'urn:' in namespace:
+            return namespace.split('urn:')[1].split(':')[0]
+        return 'independent'
+
     def json_parse_namespace(self, module_basic_info: dict) -> t.Optional[str]:
         if 'belongs-to' in module_basic_info:
             belongs_to = module_basic_info['belongs-to']
@@ -360,17 +374,3 @@ class VendorModuleFromDB(VendorModule):
                 f'Problem with parsing basic info of a file: "{self._path}", command: {json_module_command}'
             )
             return None
-
-    def _namespace_to_organization(self, namespace: t.Optional[str]) -> str:
-        if not namespace:
-            return 'independent'
-        for ns, org in NAMESPACE_MAP:
-            if ns in namespace:
-                return org
-        if 'cisco' in namespace:
-            return 'cisco'
-        elif 'ietf' in namespace:
-            return 'ietf'
-        elif 'urn:' in namespace:
-            return namespace.split('urn:')[1].split(':')[0]
-        return 'independent'
