@@ -2,6 +2,10 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.6.1 - 2022-10-10
+
+  * Autocomplete functionality for IETF draft names [yangvalidator #107](https://github.com/YangCatalog/yang-validator-extractor/issues/107)
+
 * ##### v5.6.0 - 2022-09-30
 
   * Bugfix: storing hashes for vendor modules [#609](https://github.com/YangCatalog/backend/issues/609)

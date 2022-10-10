@@ -22,5 +22,6 @@ BACKEND=/backend
 17 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting recovery" >> /var/yang/logs/crons-log.log ; cd  recovery ; python recovery.py --save)
 30 15 * * * (cd ~ ; source bin/activate ; echo "`date` starting removeUnused" >> /var/yang/logs/crons-log.log ; cd  utility ; python removeUnused.py)
 */3 * * * * (cd ~ ; source bin/activate ; cd  elasticsearchIndexing ; python process-changed-mods.py)
+0 2 */1 * * (cd ~ ; source bin/activate ; cd elasticsearchIndexing ; python process-drafts.py)
 0 */2 * * * (cd ~ ; source bin/activate ; cd utility ; python confdFullCheck.py)
 0 0 1 * * (cd ~ ; source bin/activate ; cd recovery ; python redis_users_recovery.py --save)
