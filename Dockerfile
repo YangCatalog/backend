@@ -12,10 +12,10 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
 ENV BACKEND=/backend
+ENV PYANG_PLUGINPATH="$BACKEND/elasticsearchIndexing/pyang_plugin"
 
 #Install Cron
-RUN apt-get -y update
-RUN apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim
+RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim python3-pip pypy3
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
@@ -45,6 +45,7 @@ RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/stat
 
 COPY ./backend/requirements.txt .
 RUN pip install -r requirements.txt
+RUN pypy3 -m pip install pyang==2.5.3 python-dateutil
 
 COPY --chown=yang:yang ./backend $VIRTUAL_ENV
 
@@ -56,8 +57,6 @@ RUN sed -i "s|<YANGCATALOG_CONFIG_PATH>|${YANGCATALOG_CONFIG_PATH}|g" /etc/cron.
 RUN sed -i "/imklog/s/^/#/" /etc/rsyslog.conf
 
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
-
-ENV PYANG_PLUGINPATH="/backend/elasticsearchIndexing/pyang_plugin"
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 
