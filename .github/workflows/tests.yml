@@ -48,7 +48,7 @@ jobs:
 
       - name: TEST PYPY3 INSTALLING
         run: |
-          apt-get -y update && apt-get -y install python3-pip pypy3
+          sudo apt-get -y update && sudo apt-get -y install python3-pip pypy3
           pypy3 -m pip install pyang==2.5.3 python-dateutil
 
       - name: Prepare environment
