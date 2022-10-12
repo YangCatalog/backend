@@ -43,9 +43,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          add-apt-repository ppa:pypy/ppa && apt-get -y update && apt-get -y install python3-pip pypy3
           python -m pip install --upgrade pip
           pip install -r requirements.txt && ./setup.py install
+
+      - name: TEST PYPY3 INSTALLING
+        run: |
+          apt-get -y update && apt-get -y install python3-pip pypy3
           pypy3 -m pip install pyang==2.5.3 python-dateutil
 
       - name: Prepare environment
