@@ -631,9 +631,6 @@ class VendorCapabilities(VendorGrouping):
             self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False, schema_parts)
         self._dump_schema_cache()
 
-    def process_not_changed_module_without_new_implementations(self, vendor_info: dict, module_data: str):
-        pass
-
 
 class VendorYangLibrary(VendorGrouping):
     def parse_and_load(self):

@@ -381,12 +381,13 @@ class VendorModuleFromDB(VendorModule):
     #         return None
 
     def _parse_module_basic_info(self, path: str) -> t.Optional[dict]:
-        json_module_command = f'pypy3 {self.pyang_exec} -fbasic-info --path="{self.modules_dir}" {path}'
+        json_module_command = f'python3 {self.pyang_exec} -fbasic-info --path="{self.modules_dir}" {path}'
         working_directory = os.getcwd()
         try:
             os.chdir(os.environ['BACKEND'])
             data = subprocess.check_output(json_module_command, shell=True)
-            self.logger.info(f'DATA: {data}')
+            self.logger.info(f'BACKEND DIR: {os.environ["BACKEND"]}')
+            os.chdir(working_directory)
             return json.loads(data)
         except json.decoder.JSONDecodeError:
             os.chdir(working_directory)
