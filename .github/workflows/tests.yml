@@ -65,8 +65,7 @@ jobs:
       - name: Feed Redis
         run: |
           export BACKEND=$PWD
-          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
-          python feed_redis.py
+          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf python feed_redis.py
 
       - name: Test with pytest
         env:
