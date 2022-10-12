@@ -24,6 +24,7 @@ import glob
 import json
 import os
 import shutil
+import subprocess
 import typing as t
 from configparser import ConfigParser
 
@@ -364,14 +365,29 @@ class VendorModuleFromDB(VendorModule):
                 return
         return module_basic_info.get('namespace')
 
+    # def _parse_module_basic_info(self, path: str) -> t.Optional[dict]:
+    #     json_module_command = f'pypy3 {self.pyang_exec} -fbasic-info --path="{self.modules_dir}" {path}'
+    #     working_directory = os.getcwd()
+    #     try:
+    #         os.chdir(os.environ['BACKEND'])
+    #         with os.popen(json_module_command) as pipe:
+    #             os.chdir(working_directory)
+    #             return json.load(pipe)
+    #     except json.decoder.JSONDecodeError:
+    #         os.chdir(working_directory)
+    #         self.logger.exception(
+    #             f'Problem with parsing basic info of a file: "{self._path}", command: {json_module_command}'
+    #         )
+    #         return None
+
     def _parse_module_basic_info(self, path: str) -> t.Optional[dict]:
         json_module_command = f'pypy3 {self.pyang_exec} -fbasic-info --path="{self.modules_dir}" {path}'
         working_directory = os.getcwd()
         try:
             os.chdir(os.environ['BACKEND'])
-            with os.popen(json_module_command) as pipe:
-                os.chdir(working_directory)
-                return json.load(pipe)
+            data = subprocess.check_output(json_module_command, shell=True)
+            self.logger.info(f'DATA: {data}')
+            return json.loads(data)
         except json.decoder.JSONDecodeError:
             os.chdir(working_directory)
             self.logger.exception(
