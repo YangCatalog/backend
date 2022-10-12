@@ -46,6 +46,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt && ./setup.py install
 
+      - name: Install pypy3
+        run: |
+          sudo snap install pypy3 --classic
+          pypy3 -m ensurepip && pypy3 -m pip install pyang==2.5.3 python-dateutil
+
       - name: Prepare environment
         run: |
           export VAR=/var/yang
