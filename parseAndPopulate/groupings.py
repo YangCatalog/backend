@@ -22,6 +22,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fileinput
 import json
 import os
+import subprocess
 import typing as t
 import xml.etree.ElementTree as ET
 from configparser import ConfigParser
@@ -612,6 +613,9 @@ class VendorCapabilities(VendorGrouping):
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
                         vendor_info, data=module_and_more, config=self.config, redis_connection=self.redis_connection,
                     )
+                except subprocess.CalledProcessError as e:
+                    self.logger.debug(f'CMD: {e.cmd}, OUTPUT: {e.output}')
+                    continue
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
                     continue
