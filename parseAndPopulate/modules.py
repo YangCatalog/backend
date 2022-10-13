@@ -87,6 +87,7 @@ class Module:
         self.yang_models_path = dir_paths['yang_models']
         self.dependencies: list[Dependency] = []
         self.submodule: list[Submodule] = []
+        self.imports: list[Dependency] = []
         self.can_be_already_stored_in_db = can_be_already_stored_in_db
         self._redis_connection = (
             redis_connection if redis_connection or not self.can_be_already_stored_in_db else RedisConnection(config)
