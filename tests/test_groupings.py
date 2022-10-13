@@ -275,6 +275,22 @@ class TestGroupingsClass(unittest.TestCase):
             sorted(vendor_yang_lib.dumper.yang_modules),
             ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco']
         )
+        self.assertEqual(
+            vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
+            'vendor-sdo-first-deviations'
+        )
+        self.assertEqual(
+            vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].revision,
+            '2022-08-05'
+        )
+        self.assertEqual(
+            vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].conformance_type,
+            'implement'
+        )
+        self.assertEqual(
+            vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
+            ['test-feature']
+        )
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
@@ -351,6 +367,25 @@ class TestGroupingsClass(unittest.TestCase):
         self.assertEqual(
             sorted(vendor_capabilities.dumper.yang_modules),
             ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco']
+        )
+        self.assertEqual(
+            vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
+            'vendor-sdo-first-deviations')
+        self.assertEqual(
+            vendor_capabilities.dumper.yang_modules[
+                'sdo-first@2022-08-05/ietf'
+            ].implementations[0].deviations[0].revision,
+            '2022-08-05'
+        )
+        self.assertEqual(
+            vendor_capabilities.dumper.yang_modules[
+                'vendor-first@2022-08-05/cisco'
+            ].implementations[0].conformance_type,
+            'implement'
+        )
+        self.assertEqual(
+            vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
+            ['test-feature']
         )
 
     def test_vendor_capabilities_ampersand_exception(self):

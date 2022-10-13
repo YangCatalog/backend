@@ -33,9 +33,9 @@ from git.repo import Repo
 import utility.log as log
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher, VendorModuleHashCheckForParsing
 from parseAndPopulate.models.schema_parts import SchemaParts
-from parseAndPopulate.modules import SdoModule, VendorModule, VendorModuleFromDB
+from parseAndPopulate.modules import SdoModule, VendorModule
 from redisConnections.redisConnection import RedisConnection
 from utility import repoutil
 from utility.create_config import create_config
@@ -366,6 +366,7 @@ class VendorGrouping(ModuleGrouping):
         self.capabilities = []
         self.netconf_versions = []
         self.platform_data = []
+        self.implementation_keys = []
         self.xml_file = xml_file
         # Get hello message root
         try:
@@ -452,6 +453,7 @@ class VendorGrouping(ModuleGrouping):
                 'os': implementation['os-type'],
             }
         )
+        self.implementation_keys.append(f'{implementation["name"]}/{implementation["software-version"]}')
         raw_capabilities = implementation.get('netconf-capabilities')
         if not raw_capabilities:
             return
@@ -499,9 +501,10 @@ class VendorGrouping(ModuleGrouping):
             path = get_yang(name, config=self.config)
             if path is None:
                 return
-            vendor_module_class = self._get_vendor_module_class(path)
-            if not vendor_module_class:
+            module_hash_info = self._check_module_hash(path)
+            if not module_hash_info:
                 continue
+            can_be_already_stored_in_db = module_hash_info.file_hash_exists
             revision = path.split('@')[-1].removesuffix('.yang')
             if (name, revision) in self.name_rev_to_path:
                 path = self.name_rev_to_path[name, revision]
@@ -512,9 +515,10 @@ class VendorGrouping(ModuleGrouping):
             }
             try:
                 try:
-                    yang = vendor_module_class(
+                    yang = VendorModule(
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules, vendor_info,
                         config=self.config, redis_connection=self.redis_connection,
+                        can_be_already_stored_in_db=can_be_already_stored_in_db,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
@@ -527,16 +531,11 @@ class VendorGrouping(ModuleGrouping):
             except FileNotFoundError:
                 self.logger.warning(f'File {name} not found in the repository')
 
-    def _get_vendor_module_class(
-            self, path: str, implementation_keys: t.Optional[list] = None
-    ) -> t.Optional[t.Type[VendorModule]]:
-        module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, implementation_keys)
+    def _check_module_hash(self, path: str) -> t.Optional[VendorModuleHashCheckForParsing]:
+        module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
         if module_hash_info.file_hash_exists and not module_hash_info.new_implementations_detected:
             return
-        vendor_module_class = VendorModule
-        if module_hash_info.file_hash_exists and module_hash_info.new_implementations_detected:
-            vendor_module_class = VendorModuleFromDB
-        return vendor_module_class
+        return module_hash_info
 
 
 class VendorCapabilities(VendorGrouping):
@@ -577,7 +576,6 @@ class VendorCapabilities(VendorGrouping):
             )
             raise e
 
-        implementation_keys = [f'{data["platform"]}/{data["software-version"]}' for data in self.platform_data]
         # Parse modules
         for module in modules:
             module.text = module.text or ''
@@ -594,9 +592,10 @@ class VendorCapabilities(VendorGrouping):
             if not path:
                 self.logger.warning(f'File {name} not found in the repository')
                 continue
-            vendor_module_class = self._get_vendor_module_class(path, implementation_keys)
-            if not vendor_module_class:
+            module_hash_info = self._check_module_hash(path)
+            if not module_hash_info:
                 continue
+            can_be_already_stored_in_db = module_hash_info.file_hash_exists
             self.logger.info(f'Parsing module {name}')
             revision = revision or path.split('@')[-1].removesuffix('.yang')
             if (name, revision) in self.name_rev_to_path:
@@ -608,9 +607,10 @@ class VendorCapabilities(VendorGrouping):
             }
             try:
                 try:
-                    yang = vendor_module_class(
+                    yang = VendorModule(
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
                         vendor_info, data=module_and_more, config=self.config, redis_connection=self.redis_connection,
+                        can_be_already_stored_in_db=can_be_already_stored_in_db,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
@@ -673,9 +673,10 @@ class VendorYangLibrary(VendorGrouping):
             if not path:
                 self.logger.warning(f'File {name} not found in the repository')
                 continue
-            vendor_module_class = self._get_vendor_module_class(path)
-            if not vendor_module_class:
+            module_hash_info = self._check_module_hash(path)
+            if not module_hash_info:
                 continue
+            can_be_already_stored_in_db = module_hash_info.file_hash_exists
             revision = revision or path.split('@')[-1].removesuffix('.yang')
             if (name, revision) in self.name_rev_to_path:
                 path = self.name_rev_to_path[name, revision]
@@ -686,9 +687,10 @@ class VendorYangLibrary(VendorGrouping):
             }
             try:
                 try:
-                    yang = vendor_module_class(
+                    yang = VendorModule(
                         name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
                         vendor_info, data=yang_lib_info, config=self.config, redis_connection=self.redis_connection,
+                        can_be_already_stored_in_db=can_be_already_stored_in_db,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')

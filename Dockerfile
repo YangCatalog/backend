@@ -15,7 +15,7 @@ ENV BACKEND=/backend
 ENV PYANG_PLUGINPATH="$BACKEND/elasticsearchIndexing/pyang_plugin"
 
 #Install Cron
-RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim python3-pip pypy3
+RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
@@ -45,7 +45,6 @@ RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/stat
 
 COPY ./backend/requirements.txt .
 RUN pip install -r requirements.txt
-RUN pypy3 -m pip install pyang==2.5.3 python-dateutil
 
 COPY --chown=yang:yang ./backend $VIRTUAL_ENV
 

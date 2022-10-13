@@ -20,7 +20,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import filecmp
-import glob
 import json
 import os
 import shutil
@@ -46,9 +45,7 @@ from parseAndPopulate.resolvers.yang_version import YangVersionResolver
 from redisConnections.redisConnection import RedisConnection
 from utility import log, yangParser
 from utility.create_config import create_config
-from utility.staticVariables import ORGANIZATIONS, NAMESPACE_MAP
 from utility.util import get_yang, resolve_revision
-from utility.yangParser import ParseException
 
 
 class Module:
@@ -65,6 +62,8 @@ class Module:
             yang_modules: dict,
             additional_info: t.Optional[dict[str, str]],
             config: ConfigParser = create_config(),
+            redis_connection: t.Optional[RedisConnection] = None,
+            can_be_already_stored_in_db: bool = False,
     ):
         """
         Initialize and parse everything out of a module.
@@ -83,6 +82,12 @@ class Module:
         self._schemas = schemas
         self._path = path
         self.yang_models_path = dir_paths['yang_models']
+        self.dependencies: list[Dependency] = []
+        self.submodule: list[Submodule] = []
+        self.can_be_already_stored_in_db = can_be_already_stored_in_db
+        self._redis_connection = (
+            redis_connection if redis_connection or not self.can_be_already_stored_in_db else RedisConnection(config)
+        )
 
         self._parse_yang()
         self.implementations: list[Implementation] = []
@@ -96,8 +101,7 @@ class Module:
             raise
 
     def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[dict[str, str]]):
-        if not additional_info:
-            additional_info = {}
+        additional_info = additional_info or {}
         self.author_email = additional_info.get('author-email')
         self.maturity_level = additional_info.get('maturity-level')
         self.reference = additional_info.get('reference')
@@ -129,20 +133,20 @@ class Module:
         key = f'{self.name}@{self.revision}/{self.organization}'
         if key in yang_modules:
             return
-
         self.schema = self._resolve_schema(name_revision)
-
-        self.dependencies: list[Dependency] = []
-        self.submodule: list[Submodule] = []
-        submodule_resolver = SubmoduleResolver(self._parsed_yang, self.logger, self._path, self.schema, self._schemas)
-        self.dependencies, self.submodule = submodule_resolver.resolve()
-
         imports_resolver = ImportsResolver(
             self._parsed_yang, self.logger, self._path, self.schema, self._schemas, self.yang_models_path,
             self._nonietf_dir,
         )
         self.imports = imports_resolver.resolve()
         self.dependencies.extend(self.imports)
+        if self.can_be_already_stored_in_db and (module_data := self._redis_connection.get_module(key)) != '{}':
+            self._populate_information_from_db(json.loads(module_data))
+            return
+
+        submodule_resolver = SubmoduleResolver(self._parsed_yang, self.logger, self._path, self.schema, self._schemas)
+        dependencies, self.submodule = submodule_resolver.resolve()
+        self.dependencies.extend(dependencies)
 
         semantic_version_resolver = SemanticVersionResolver(self._parsed_yang, self.logger)
         self.semantic_version = semantic_version_resolver.resolve()
@@ -160,6 +164,31 @@ class Module:
         self.prefix = prefix_resolver.resolve()
 
         self.tree = self._resolve_tree(self.module_type)
+
+    def _populate_information_from_db(self, module_data_from_db: dict):
+        dependencies_keys = ('submodule', 'dependencies')
+        for key, value in module_data_from_db.items():
+            if key == 'implementations':
+                continue
+            elif key == 'ietf':
+                self.ietf_wg = value['ietf-wg']
+            elif key in dependencies_keys:
+                if key == 'dependencies':
+                    attribute = self.dependencies
+                    dependency_class = Dependency
+                else:
+                    attribute = self.submodule
+                    dependency_class = Submodule
+                dependencies = []
+                for dependency in value:
+                    dependency_instance = dependency_class()
+                    dependency_instance.name = dependency['name']
+                    dependency_instance.revision = dependency['revision']
+                    dependency_instance.schema = dependency['schema']
+                    dependencies.append(dependency_instance)
+                attribute += dependencies
+            else:
+                setattr(self, key.replace('-', '_'), value)
 
     def _resolve_tree(self, module_type: t.Optional[str]):
         if module_type == 'module':
@@ -193,8 +222,13 @@ class SdoModule(Module):
             yang_modules: dict,
             additional_info: t.Optional[dict[str, str]] = None,
             config: ConfigParser = create_config(),
+            redis_connection: t.Optional[RedisConnection] = None,
+            can_be_already_stored_in_db: bool = False,
     ):
-        super().__init__(name, os.path.abspath(path), schemas, dir_paths, yang_modules, additional_info, config=config)
+        super().__init__(
+            name, os.path.abspath(path), schemas, dir_paths, yang_modules, additional_info, config=config,
+            redis_connection=redis_connection, can_be_already_stored_in_db=can_be_already_stored_in_db,
+        )
 
 
 class VendorModule(Module):
@@ -211,7 +245,8 @@ class VendorModule(Module):
             additional_info: t.Optional[dict[str, str]] = None,
             data: t.Optional[t.Union[str, dict]] = None,
             config: ConfigParser = create_config(),
-            redis_connection: t.Optional[RedisConnection] = None
+            redis_connection: t.Optional[RedisConnection] = None,
+            can_be_already_stored_in_db: bool = False,
     ):
         """
         Initialize and parse everything out of a vendor module and 
@@ -232,7 +267,10 @@ class VendorModule(Module):
         self.features = []
         if isinstance(data, (str, dict)):
             self._resolve_deviations_and_features(data)
-        super().__init__(name, path, schemas, dir_paths, yang_modules, additional_info, config=config)
+        super().__init__(
+            name, path, schemas, dir_paths, yang_modules, additional_info, config=config,
+            redis_connection=redis_connection, can_be_already_stored_in_db=can_be_already_stored_in_db,
+        )
         if vendor_info is not None:
             self.implementations += ImplementationResolver(vendor_info, self.features, self.deviations).resolve()
 
@@ -261,120 +299,3 @@ class VendorModule(Module):
             devs_or_features = devs_or_features.split('&')[0]
             ret = devs_or_features.split(',')
         return ret
-
-
-class VendorModuleFromDB(VendorModule):
-    def __init__(
-            self,
-            name: str,
-            path: str,
-            schemas: dict,
-            dir_paths: DirPaths,
-            yang_modules: dict,
-            vendor_info: t.Optional[dict] = None,
-            additional_info: t.Optional[dict[str, str]] = None,
-            data: t.Optional[t.Union[str, dict]] = None,
-            config: ConfigParser = create_config(),
-            redis_connection: t.Optional[RedisConnection] = None
-    ):
-        self.pyang_exec = config.get('Tool-Section', 'pyang-exec')
-        self.modules_dir = config.get('Directory-Section', 'save-file-dir')
-        self.redis_connection = redis_connection or RedisConnection(config=config)
-
-        self.dependencies: list[Dependency] = []
-        self.submodule: list[Submodule] = []
-        self.imports: list[Dependency] = []
-        super().__init__(
-            name, path, schemas, dir_paths, yang_modules, vendor_info=vendor_info, additional_info=additional_info,
-            data=data, config=config,
-        )
-
-    def _parse_yang(self):
-        self.module_basic_info = self._parse_module_basic_info(self._path)
-        if not self.module_basic_info:
-            raise ParseException(f'Problem occurred while parsing basic info of: "{self._path}"')
-
-    def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[dict[str, str]]):
-        self.name = self.module_basic_info.get('name', name)
-        self.revision = self.module_basic_info.get('revision', '1970-01-01')
-        self._parse_organization()
-        key = f'{self.name}@{self.revision}/{self.organization}'
-        if key in yang_modules:
-            return
-        module_data = self.redis_connection.get_module(key)
-        if module_data == '{}':
-            return
-        module_data = json.loads(module_data)
-        dependencies_keys = ('submodule', 'dependencies')
-        for key, value in module_data.items():
-            if key == 'implementations':
-                continue
-            elif key == 'ietf':
-                self.ietf_wg = value['ietf-wg']
-            elif key in dependencies_keys:
-                if key == 'dependencies':
-                    attribute = self.dependencies
-                    dependency_class = Dependency
-                else:
-                    attribute = self.submodule
-                    dependency_class = Submodule
-                dependencies = []
-                for dependency in value:
-                    dependency_instance = dependency_class()
-                    dependency_instance.name = dependency['name']
-                    dependency_instance.revision = dependency['revision']
-                    dependency_instance.schema = dependency['schema']
-                    dependencies.append(dependency_instance)
-                attribute += dependencies
-            else:
-                setattr(self, key.replace('-', '_'), value)
-
-    def _parse_organization(self):
-        parsed_organization = self.module_basic_info.get('organization', '').lower()
-        if parsed_organization in ORGANIZATIONS:
-            self.organization = parsed_organization
-            return
-        namespace = self.json_parse_namespace(self.module_basic_info)
-        self.organization = self._namespace_to_organization(namespace)
-
-    def _namespace_to_organization(self, namespace: t.Optional[str]) -> str:
-        if not namespace:
-            return 'independent'
-        for ns, org in NAMESPACE_MAP:
-            if ns in namespace:
-                return org
-        if 'cisco' in namespace:
-            return 'cisco'
-        elif 'ietf' in namespace:
-            return 'ietf'
-        elif 'urn:' in namespace:
-            return namespace.split('urn:')[1].split(':')[0]
-        return 'independent'
-
-    def json_parse_namespace(self, module_basic_info: dict) -> t.Optional[str]:
-        if 'belongs-to' in module_basic_info:
-            belongs_to = module_basic_info['belongs-to']
-            try:
-                path = max(glob.glob(os.path.join(self.modules_dir, f'{belongs_to}@*.yang')))
-                parent_module = self._parse_module_basic_info(path)
-                if not parent_module:
-                    return
-                return self.json_parse_namespace(parent_module)
-            except ValueError:
-                return
-        return module_basic_info.get('namespace')
-
-    def _parse_module_basic_info(self, path: str) -> t.Optional[dict]:
-        json_module_command = f'pypy3 {self.pyang_exec} -fbasic-info --path="{self.modules_dir}" {path}'
-        working_directory = os.getcwd()
-        try:
-            os.chdir(os.environ['BACKEND'])
-            with os.popen(json_module_command) as pipe:
-                os.chdir(working_directory)
-                return json.load(pipe)
-        except json.decoder.JSONDecodeError:
-            os.chdir(working_directory)
-            self.logger.exception(
-                f'Problem with parsing basic info of a file: "{self._path}", command: {json_module_command}'
-            )
-            return None
