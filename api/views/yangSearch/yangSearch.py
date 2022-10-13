@@ -257,6 +257,7 @@ def search():
 
     search_params = SearchParams(
         case_sensitive=is_boolean(payload, 'case-sensitive', False),
+        use_synonyms=is_boolean(payload, 'use-synonyms', True),
         query_type=is_string_in(payload, 'type', 'term', ['term', 'regexp']),
         include_mibs=is_boolean(payload, 'include-mibs', False),
         latest_revision=is_boolean(payload, 'latest-revision', True),

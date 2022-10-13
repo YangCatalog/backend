@@ -79,7 +79,7 @@ class ElkSearch:
         """
         alerts = []
         for missing in self._missing_modules:
-            alerts.append('Module {} metadata does not exist in yangcatalog'.format(missing))
+            alerts.append(f'Module {missing} metadata does not exist in yangcatalog')
         return alerts
 
     def construct_query(self):
@@ -88,77 +88,79 @@ class ElkSearch:
         Changes being made while creating query:
         - statement is a list of schema types. It is one or more or all of ['typedef', 'grouping', 'feature',
         'identity', 'extension', 'rpc', 'container', 'list', 'leaf-list', 'leaf', 'notification', 'action']
-        - Under query -> bool -> must -> bool -> should -> are 3 different bool -> must -> which can contain
-        either term if we are searching specific text or regex if we are searching for regular expression
-        - The 3 different bools mentioned above are constructed dynamicaly, while at least one must exist and
-        all three may exist
-        - lowercase may be changed with sensitive giving us an option to search for case sensitive text. If we
-        use lowercase everything will be automatically put to lowercase and so we don't care about case sensitivity.
-        - aggs (or aggregations) are used to find latest revisions of a module if we are searching for latest
+        - In the case of the module and argument name, either a term or regexp query is constructed.
+        - In the case of the description field, if the query_type wasn't set to 'regexp', we run a full text search.
+        - Case sensitivity is controlled by the case_sensitive search parameter.
+        - Synonyms in the full text search of description can be toggled with the use_synonyms search param.
+        - aggs (or aggregations) are used to find th latest revisions of a module if we are searching for latest
         revisions only.
-        This query looks as follows:
-        {
-          "query": {
-            "bool": {
-              "must": [
-                "terms": {
-                  "statement": ["leaf", "container"]
-                },
-                {
-                  "bool": {
-                    "should": [
-                      "term": {
-                        "module": "foo"
-                      },
-                      "term": {
-                        "argument.lowercase": "foo"
-                      },
-                      "term": {
-                        "description.lowercase": "foo"
-                      }
-                    ]
-                  }
-                }
-              ]
-            }
-          },
-          "aggs": {
-            "groupby": {
-              "terms": {
-                "field": "module.keyword",
-                "size": 2000
-              },
-              "aggs": {
-                "latest-revision": {
-                  "max": {
-                    "field": "revision"
-                  }
-                }
-              }
-            }
-          }
-        }
+        See search.json for the full query format.
         """
         self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
-        sensitive = 'lowercase'
-        if self._search_params.case_sensitive:
-            sensitive = 'sensitive'
-        else:
-            self._searched_term = self._searched_term.lower()
-        if self._search_params.query_type == 'regexp':
+        case_insensitive = not self._search_params.case_sensitive
+        query_type = self._search_params.query_type
+        if query_type == 'regexp':
             self._searched_term = _escape_reserved_characters(self._searched_term)
-        search_in = self.query['query']['bool']['must'][1]['bool']['should']
+        searched_term = self._searched_term
+        should_query: list = self.query['query']['bool']['should']
         for searched_field in self._search_params.searched_fields:
-            should_query = {
-                self._search_params.query_type: {}
-            }
             if searched_field == 'module':
-                should_query[self._search_params.query_type][searched_field] = self._searched_term
-            else:
-                should_query[self._search_params.query_type][
-                    '{}.{}'.format(searched_field, sensitive)] = self._searched_term
-            search_in.append(should_query)
-        self.LOGGER.debug('Constructed query:\n{}'.format(self.query))
+                should_query.append({
+                    query_type: {
+                        'module': {
+                            'value': searched_term,
+                            'case_insensitive': case_insensitive
+                        }
+                    }
+                })
+            elif searched_field == 'argument':
+                should_query.append({
+                    query_type: {
+                        'argument': {
+                            'value': searched_term,
+                            'case_insensitive': case_insensitive
+                        }
+                    }
+                })
+            elif searched_field == 'description':
+                if query_type == 'regexp':
+                    should_query.append({
+                        'regexp': {
+                            'description.keyword': {
+                                'value': f'.*{searched_term}.*',
+                                'case_insensitive': case_insensitive
+                            }
+                        }
+                    })
+                else:
+                    analyzer = 'description'
+                    if case_insensitive:
+                        analyzer += '_lowercase'
+                    if self._search_params.use_synonyms:
+                        analyzer += '_synonym'
+                    field = 'description'
+                    if case_insensitive:
+                        field += '.lowercase'
+                    should_query.extend([{
+                        'match': {
+                            field: {
+                                'query': searched_term,
+                                'analyzer': analyzer,
+                                'minimum_should_match': '4<80%'
+                            }
+                        }
+                    },
+                    {
+                        # boost results that contain the words in the same order
+                        'match_phrase': {
+                            field: {
+                                'query': searched_term,
+                                'analyzer': analyzer,
+                                'boost': 2
+                            }
+                        }
+                    }])
+        self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
     def search(self):
         """
@@ -197,7 +199,7 @@ class ElkSearch:
         process_scroll_search = gevent.spawn(self._continue_scrolling, secondary_hits)
         for hit in hits:
             row = ResponseRow(elastic_hit=hit['_source'])
-            module_key = '{}@{}/{}'.format(row.module_name, row.revision, row.organization)
+            module_key = f'{row.module_name}@{row.revision}/{row.organization}'
             if module_key in reject:
                 continue
 
@@ -209,7 +211,7 @@ class ElkSearch:
             module_data = self._redis_connection.get_module(module_key)
             module_data = json.loads(module_data)
             if not module_data:
-                self.LOGGER.error('Failed to get module from Redis, but found in Elasticsearch: {}'.format(module_key))
+                self.LOGGER.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
                 reject.append(module_key)
                 self._missing_modules.append(module_key)
                 continue
@@ -229,14 +231,13 @@ class ElkSearch:
                 row_hash = row.get_row_hash_by_columns()
                 if row_hash in self._row_hashes:
                     self.LOGGER.info(
-                        'Trimmed output row {} already exists in response rows - cutting this one out'
-                        .format(row.output_row))
+                        f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out')
                     continue
                 self._row_hashes.append(row_hash)
             response_rows.append(row.output_row)
             if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
-                self.LOGGER.debug('ElkSearch finished with len {} and scroll id {}'
-                                  .format(len(response_rows), self._current_scroll_id))
+                self.LOGGER.debug(
+                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}')
                 process_scroll_search.kill()
                 return response_rows
 
@@ -254,7 +255,7 @@ class ElkSearch:
             self.LOGGER.exception('Error while searching in Elasticsearch')
             elk_response['hits'] = {'hits': []}
             self.timeout = True
-        self.LOGGER.debug('search complete with {} hits'.format(len(elk_response['hits']['hits'])))
+        self.LOGGER.debug(f'search complete with {len(elk_response["hits"]["hits"])} hits')
         self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 
@@ -296,5 +297,5 @@ def _escape_reserved_characters(term: str) -> str:
     """ If the number of double quotes is odd, the sequence is not closed, so escaping characters is needed."""
     for char in RESERVED_CHARACTERS:
         if term.count(char) % 2 == 1:
-            term = term.replace(char, '\\{}'.format(char))
+            term = term.replace(char, f'\\{char}')
     return term
