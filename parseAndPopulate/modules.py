@@ -24,7 +24,6 @@ import glob
 import json
 import os
 import shutil
-import subprocess
 import typing as t
 from configparser import ConfigParser
 
@@ -370,7 +369,6 @@ class VendorModuleFromDB(VendorModule):
         working_directory = os.getcwd()
         try:
             os.chdir(os.environ['BACKEND'])
-            self.logger.info(f'BACKEND DIR: {os.environ["BACKEND"]}')
             with os.popen(json_module_command) as pipe:
                 os.chdir(working_directory)
                 return json.load(pipe)
