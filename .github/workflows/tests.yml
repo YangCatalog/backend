@@ -51,6 +51,9 @@ jobs:
           sudo snap install pypy3 --classic
           pypy3 -m ensurepip && pypy3 -m pip install pyang==2.5.3 python-dateutil
 
+      - name: ECHO PYANG
+        run: which pyang
+
       - name: Prepare environment
         run: |
           export VAR=/var/yang
