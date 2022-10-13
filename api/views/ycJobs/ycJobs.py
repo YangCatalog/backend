@@ -66,7 +66,7 @@ def trigger_ietf_pull():
 def check_github():
     app.logger.info('Starting Github Actions check')
     body = json.loads(request.data)
-    app.logger.info('Body of Github Actions:\n{}'.format(json.dumps(body)))
+    app.logger.info(f'Body of Github Actions:\n{json.dumps(body)}')
 
     # Request Authorization
     request_signature = request.headers['X_HUB_SIGNATURE']
@@ -87,14 +87,15 @@ def check_github():
     else:
         conclusion = body.get('check_run', {}).get('conclusion')
         if conclusion != 'success':
+            html_url = body.get('check_run', {}).get('html_url')
             app.logger.error(
-                'Github Actions run finished with conclusion {}'.format(conclusion))
+                f'Github Actions run finished with conclusion {conclusion}\nMore info: {html_url}')
 
             # Sending email notification to developers team
             mf = message_factory.MessageFactory()
-            mf.send_github_action_failed(body)
+            mf.send_github_action_email(conclusion, html_url)
 
-            return ({'info': 'Run finished with conclusion {}'.format(conclusion)}, 200)
+            return ({'info': f'Run finished with conclusion {conclusion}'}, 200)
 
     # Commit verification
     verify_commit = False

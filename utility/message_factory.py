@@ -281,19 +281,21 @@ class MessageFactory:
         )
         self._post_to_webex(message, True, files=[file])
 
-    def send_github_action_failed(self, content: dict):
-        """Send an email to developers team about failed github action.
+    def send_github_action_email(self, conclusion: str, html_url: str):
+        """Send an email to developers team about final state of github action.
 
         Arguments:
-            :param content    (dict) A dict with info about failed github action.
+            :param conclusion  (str) Result state of github action.
+            :param html_url    (str) Link to the page with more details about github action.
         """
         self.LOGGER.info('Sending notification about failed github action')
         message = (
-            f'{GREETINGS}\n\nSome github action has failed: '
-            f'\n\n{content}'
+            f'{GREETINGS}\n\nSome github action has a {conclusion} conclusion.'
+            f'\n\nMore details: {html_url}'
         )
 
-        self._post_to_email(message, email_to=self._developers_email)
+        self._post_to_email(
+            message, email_to=self._developers_email, subject='Trouble with Github Action')
 
     def send_removed_temp_diff_files(self):
         # TODO send webex message about removed searched diff files
