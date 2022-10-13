@@ -74,6 +74,9 @@ class Module:
             :param dir_paths:       (dict) paths to various needed directories according to configuration
             :param yang_modules:    (dict) yang modules we've already parsed
             :param additional_info:  (dict) some additional information about module given from client
+            :param can_be_already_stored_in_db:  (bool) True if there's a chance that this module is already
+                stored in the DB (for example, we already have a stored cache of this module),
+                so we can try to avoid using resolvers and load information from the DB instead
         """
         self.logger = log.get_logger('modules', os.path.join(dir_paths['log'], 'parseAndPopulate.log'))
         self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
@@ -133,20 +136,21 @@ class Module:
         key = f'{self.name}@{self.revision}/{self.organization}'
         if key in yang_modules:
             return
-        self.schema = self._resolve_schema(name_revision)
-        imports_resolver = ImportsResolver(
-            self._parsed_yang, self.logger, self._path, self.schema, self._schemas, self.yang_models_path,
-            self._nonietf_dir,
-        )
-        self.imports = imports_resolver.resolve()
-        self.dependencies.extend(self.imports)
         if self.can_be_already_stored_in_db and (module_data := self._redis_connection.get_module(key)) != '{}':
             self._populate_information_from_db(json.loads(module_data))
             return
 
+        self.schema = self._resolve_schema(name_revision)
+
         submodule_resolver = SubmoduleResolver(self._parsed_yang, self.logger, self._path, self.schema, self._schemas)
-        dependencies, self.submodule = submodule_resolver.resolve()
-        self.dependencies.extend(dependencies)
+        self.dependencies, self.submodule = submodule_resolver.resolve()
+
+        imports_resolver = ImportsResolver(
+            self._parsed_yang, self.logger, self._path, self.schema, self._schemas,
+            self.yang_models_path, self._nonietf_dir,
+        )
+        self.imports = imports_resolver.resolve()
+        self.dependencies.extend(self.imports)
 
         semantic_version_resolver = SemanticVersionResolver(self._parsed_yang, self.logger)
         self.semantic_version = semantic_version_resolver.resolve()
