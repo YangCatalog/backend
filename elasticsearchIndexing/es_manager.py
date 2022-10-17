@@ -55,10 +55,11 @@ class ESManager:
             'port': config.get('DB-Section', 'es-port', fallback='9200')
         }
         if es_aws == 'True':
-            self.es = Elasticsearch(hosts=[es_host_config], http_auth=(
-                elk_credentials[0], elk_credentials[1]), scheme='https')
-        else:
-            self.es = Elasticsearch(hosts=[es_host_config])
+            self.es = Elasticsearch(
+                hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https'
+            )
+            return
+        self.es = Elasticsearch(hosts=[es_host_config])
 
     def ping(self) -> bool:
         return self.es.ping()

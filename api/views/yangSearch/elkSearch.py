@@ -141,25 +141,29 @@ class ElkSearch:
                     field = 'description'
                     if case_insensitive:
                         field += '.lowercase'
-                    should_query.extend([{
-                        'match': {
-                            field: {
-                                'query': searched_term,
-                                'analyzer': analyzer,
-                                'minimum_should_match': '4<80%'
+                    should_query.extend(
+                        [
+                            {
+                                'match': {
+                                    field: {
+                                        'query': searched_term,
+                                        'analyzer': analyzer,
+                                        'minimum_should_match': '4<80%'
+                                    }
+                                }
+                            },
+                            {
+                                # boost results that contain the words in the same order
+                                'match_phrase': {
+                                    field: {
+                                        'query': searched_term,
+                                        'analyzer': analyzer,
+                                        'boost': 2
+                                    }
+                                }
                             }
-                        }
-                    },
-                    {
-                        # boost results that contain the words in the same order
-                        'match_phrase': {
-                            field: {
-                                'query': searched_term,
-                                'analyzer': analyzer,
-                                'boost': 2
-                            }
-                        }
-                    }])
+                        ]
+                    )
         self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
     def search(self):
