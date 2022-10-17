@@ -88,6 +88,12 @@ class Module:
         self.dependencies: list[Dependency] = []
         self.submodule: list[Submodule] = []
         self.imports: list[Dependency] = []
+        self.semantic_version: t.Optional[str] = None
+        self.schema: t.Optional[str] = None
+        self.contact: t.Optional[str] = None
+        self.description: t.Optional[str] = None
+        self.prefix: t.Optional[str] = None
+        self.tree: t.Optional[str] = None
         self.can_be_already_stored_in_db = can_be_already_stored_in_db
         self._redis_connection = (
             redis_connection if redis_connection or not self.can_be_already_stored_in_db else RedisConnection(config)
