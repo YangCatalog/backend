@@ -189,9 +189,9 @@ class Module:
                 dependencies = []
                 for dependency in value:
                     dependency_instance = dependency_class()
-                    dependency_instance.name = dependency['name']
-                    dependency_instance.revision = dependency['revision']
-                    dependency_instance.schema = dependency['schema']
+                    dependency_instance.name = dependency.get('name')
+                    dependency_instance.revision = dependency.get('revision')
+                    dependency_instance.schema = dependency.get('schema')
                     dependencies.append(dependency_instance)
                 attribute += dependencies
             else:
