@@ -177,6 +177,8 @@ class Module:
                 continue
             elif key == 'ietf':
                 self.ietf_wg = value['ietf-wg']
+            elif key == 'yang-tree':
+                self.tree = value
             elif key in dependencies_keys:
                 if key == 'dependencies':
                     attribute = self.dependencies

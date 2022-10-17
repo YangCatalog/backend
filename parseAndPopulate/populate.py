@@ -249,8 +249,11 @@ class Populate:
                 try:
                     vendors = json.loads(data.read())['vendors']['vendor']
                 except KeyError as e:
+                    if modules:
+                        return modules
                     self.logger.error(
-                        'No files were parsed. This probably means the directory is missing capability xml files'
+                        'No files were parsed. This probably means the directory is missing capability xml files '
+                        'or all the modules are already parsed'
                     )
                     raise e
             self.errors = self.errors or self.confd_service.patch_vendors(vendors)

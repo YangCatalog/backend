@@ -12,7 +12,7 @@ from utility.staticVariables import github_url
 from utility.util import get_yang
 
 """
-This resolver resolves yang module dependecies property,
+This resolver resolves yang module dependencies property,
 which are defined as 'import' in yang models.
 Default value: [] -> no imports
 """

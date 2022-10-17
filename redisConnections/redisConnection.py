@@ -54,7 +54,6 @@ class RedisConnection:
 
         self.LOGGER = log.get_logger('redisModules', os.path.join(self.log_directory, 'redisModulesConnection.log'))
 
-    ### MODULES DATABASE COMMUNICATION ###
     def update_module_properties(self, new_module: dict, existing_module: dict):
         keys = {**new_module, **existing_module}.keys()
         dependencies_keys = ('dependents', 'dependencies')
@@ -86,7 +85,7 @@ class RedisConnection:
             else:
                 new_value = new_module.get(key)
                 existing_value = existing_module.get(key)
-                if existing_value != new_value and new_value is not DEFAULT_VALUES.get(key):
+                if not existing_value or (existing_value != new_value and new_value is not DEFAULT_VALUES.get(key)):
                     existing_module[key] = new_value
 
         return existing_module
@@ -209,16 +208,17 @@ class RedisConnection:
         data = self.vendorsDB.get(key)
         return (data or b'{}').decode('utf-8')
 
-    def populate_implementation(self, new_implemenetation: list):
-        """ Merge new data of each implementaion in 'new_implementaions' list with existing data already stored in Redis.
+    def populate_implementation(self, new_implementation: list):
+        """
+        Merge new data of each implementation in 'new_implementations' list with existing data already stored in Redis.
         Set updated data to Redis under created key in format:
         <vendors>/<platform>/<software-version>/<software-flavor>
 
         Argument:
-            :param new_implemenetation  (list) list of modules which need to be stored into Redis cache
+            :param new_implementation  (list) list of modules which need to be stored into Redis cache
         """
         data = {}
-        for implementation in new_implemenetation:
+        for implementation in new_implementation:
             vendor_name = implementation['name']
             for platform in implementation['platforms']['platform']:
                 platform_name = platform['name']
@@ -226,12 +226,14 @@ class RedisConnection:
                     software_version_name = software_version['name']
                     for software_flavor in software_version['software-flavors']['software-flavor']:
                         software_flavor_name = software_flavor['name']
-                        quoted = [key_quote(i) for i in
-                                  [vendor_name, platform_name, software_version_name, software_flavor_name]]
+                        quoted = [
+                            key_quote(i) for i in
+                            [vendor_name, platform_name, software_version_name, software_flavor_name]
+                        ]
                         key = '/'.join(quoted)
                         if not data.get(key):
                             data[key] = {'protocols': software_flavor.get('protocols', {})}
-                        if not 'modules' in data[key]:
+                        if 'modules' not in data[key]:
                             data[key]['modules'] = {'module': []}
                         data[key]['modules']['module'] += software_flavor.get('modules', {}).get('module', [])
 

@@ -695,7 +695,6 @@ class VendorYangLibrary(VendorGrouping):
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
                     continue
-
                 self.dumper.add_module(yang)
                 keys.add(f'{yang.name}@{yang.revision}/{yang.organization}')
                 set_of_names.add(yang.name)
