@@ -19,40 +19,47 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
+import typing as t
+from configparser import ConfigParser
 
-import utility.log as log
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import (AuthorizationException, NotFoundError,
                                       RequestError)
 from elasticsearch.helpers import parallel_bulk
-from utility.create_config import create_config
 
+import utility.log as log
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from utility.create_config import create_config
 
 
 class ESManager:
-    def __init__(self) -> None:
+    def __init__(self, es: t.Optional[Elasticsearch] = None):
         config = create_config()
         self.threads = int(config.get('General-Section', 'threads'))
         log_directory = config.get('Directory-Section', 'logs')
-        es_aws = config.get('DB-Section', 'es-aws')
-        elk_credentials = config.get(
-            'Secrets-Section', 'elk-secret').strip('"').split(' ')
         self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
-        self.elk_request_timeout = int(config.get(
-            'General-Section', 'elk-request-timeout', fallback=60))
+        self.elk_request_timeout = int(config.get('General-Section', 'elk-request-timeout', fallback=60))
+        self._setup_elasticsearch(config, es)
+        log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
+        self.logger = log.get_logger('es-manager', log_file_path)
+
+    def _setup_elasticsearch(self, config: ConfigParser, es: t.Optional[Elasticsearch] = None):
+        if es:
+            self.es = es
+            return
+        es_aws = config.get('DB-Section', 'es-aws')
+        elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
             'port': config.get('DB-Section', 'es-port', fallback='9200')
         }
         if es_aws == 'True':
-            self.es = Elasticsearch(hosts=[es_host_config], http_auth=(
-                elk_credentials[0], elk_credentials[1]), scheme='https')
-        else:
-            self.es = Elasticsearch(hosts=[es_host_config])
-        log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
-        self.logger = log.get_logger('es-manager', log_file_path)
+            self.es = Elasticsearch(
+                hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https'
+            )
+            return
+        self.es = Elasticsearch(hosts=[es_host_config])
 
     def ping(self) -> bool:
         return self.es.ping()
@@ -296,12 +303,19 @@ class ESManager:
 
         return hits
 
-    def generic_search(self, index: ESIndices, query: dict, response_size: int = 0, use_scroll: bool = False):
+    def generic_search(
+            self,
+            index: t.Union[ESIndices, str],
+            query: dict,
+            response_size: t.Optional[int] = 0,
+            use_scroll: bool = False
+    ):
+        index = index if isinstance(index, str) else index.value
         if use_scroll:
-            return self.es.search(index=index.value, body=query, request_timeout=self.elk_request_timeout,
-                                  scroll=u'10m', size=response_size)
-        return self.es.search(index=index.value, body=query, request_timeout=self.elk_request_timeout,
-                              size=response_size)
+            return self.es.search(
+                index=index, body=query, request_timeout=self.elk_request_timeout, scroll=u'10m', size=response_size
+            )
+        return self.es.search(index=index, body=query, request_timeout=self.elk_request_timeout, size=response_size)
 
     def clear_scroll(self, scroll_id: str):
         return self.es.clear_scroll(scroll_id=scroll_id, ignore=(404, ))

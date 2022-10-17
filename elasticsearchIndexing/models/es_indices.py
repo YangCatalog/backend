@@ -7,3 +7,4 @@ class ESIndices(Enum):
     DRAFTS = 'drafts'
     AUTOCOMPLETE = 'autocomplete'
     TEST = 'test'
+    TEST_SEARCH = 'test_search'

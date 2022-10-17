@@ -42,7 +42,7 @@ class TestESManagerClass(unittest.TestCase):
         self.test_index = ESIndices.TEST
         self.resources_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/tests/resources')
         self.test_data = self._load_test_data()
-        self.es_manager = ESManager()
+        self.es_manager = ESManager(self.es)
         self.ietf_rip_module = {
             'name': 'ietf-rip',
             'revision': '2020-02-20',
@@ -57,10 +57,8 @@ class TestESManagerClass(unittest.TestCase):
 
     def _load_test_data(self):
         data_file_path = os.path.join(self.resources_path, 'es_test_data.json')
-        test_data = {}
         with open(data_file_path, 'r') as reader:
             test_data = json.load(reader)
-
         return test_data
 
 
@@ -161,9 +159,7 @@ class TestESManagerAutocompleteIndexClass(TestESManagerClass):
         for module in autocomplete_modules:
             self.es.index(index=self.test_index.value, body=module, refresh='true')
 
-    @data(
-        'ietf-', 'IETF-R', '-yang-'
-    )
+    @data('ietf-', 'IETF-R', '-yang-')
     def test_autocomplete(self, searched_term: str):
         results = self.es_manager.autocomplete(self.test_index, KeywordsNames.NAME, searched_term)
 
@@ -171,17 +167,13 @@ class TestESManagerAutocompleteIndexClass(TestESManagerClass):
         for result in results:
             self.assertIn(searched_term.lower(), result)
 
-    @data(
-        'a', 'ab', 'ief-r'
-    )
+    @data('a', 'ab', 'ief-r')
     def test_autocomplete_no_results(self, searched_term: str):
         results = self.es_manager.autocomplete(self.test_index, KeywordsNames.NAME, searched_term)
 
         self.assertEqual(results, [])
 
-    @data(
-        'ietf', 'open'
-    )
+    @data('ietf', 'open')
     def test_autocomplete_organization(self, searched_term: str):
         results = self.es_manager.autocomplete(self.test_index, KeywordsNames.ORGANIZATION, searched_term)
 
@@ -189,9 +181,7 @@ class TestESManagerAutocompleteIndexClass(TestESManagerClass):
         for result in results:
             self.assertIn(searched_term.lower(), result)
 
-    @data(
-        'i', 'ie', 'random'
-    )
+    @data('i', 'ie', 'random')
     def test_autocomplete_organization_no_results(self, searched_term: str):
         results = self.es_manager.autocomplete(self.test_index, KeywordsNames.ORGANIZATION, searched_term)
 

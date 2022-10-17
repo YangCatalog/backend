@@ -141,25 +141,29 @@ class ElkSearch:
                     field = 'description'
                     if case_insensitive:
                         field += '.lowercase'
-                    should_query.extend([{
-                        'match': {
-                            field: {
-                                'query': searched_term,
-                                'analyzer': analyzer,
-                                'minimum_should_match': '4<80%'
+                    should_query.extend(
+                        [
+                            {
+                                'match': {
+                                    field: {
+                                        'query': searched_term,
+                                        'analyzer': analyzer,
+                                        'minimum_should_match': '4<80%'
+                                    }
+                                }
+                            },
+                            {
+                                # boost results that contain the words in the same order
+                                'match_phrase': {
+                                    field: {
+                                        'query': searched_term,
+                                        'analyzer': analyzer,
+                                        'boost': 2
+                                    }
+                                }
                             }
-                        }
-                    },
-                    {
-                        # boost results that contain the words in the same order
-                        'match_phrase': {
-                            field: {
-                                'query': searched_term,
-                                'analyzer': analyzer,
-                                'boost': 2
-                            }
-                        }
-                    }])
+                        ]
+                    )
         self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
     def search(self):
@@ -231,13 +235,15 @@ class ElkSearch:
                 row_hash = row.get_row_hash_by_columns()
                 if row_hash in self._row_hashes:
                     self.LOGGER.info(
-                        f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out')
+                        f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out'
+                    )
                     continue
                 self._row_hashes.append(row_hash)
             response_rows.append(row.output_row)
             if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
                 self.LOGGER.debug(
-                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}')
+                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}'
+                )
                 process_scroll_search.kill()
                 return response_rows
 
