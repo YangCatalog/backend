@@ -54,16 +54,15 @@ class ScriptConfig(BaseScriptConfig):
 def main(script_conf: BaseScriptConfig = ScriptConfig()):
     args = script_conf.args
 
-    config_path = args.config_path
-    config = create_config(config_path)
+    config = create_config(args.config_path)
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     temp = config.get('Directory-Section', 'temp')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     try:
-        response = requests.get('{}/search/modules'.format(yangcatalog_api_prefix))
+        response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
     except ConnectionError:
-        print('Failed to fetch data from {}'.format(yangcatalog_api_prefix))
+        print(f'Failed to fetch data from {yangcatalog_api_prefix}')
         sys.exit(1)
 
     try:
@@ -77,18 +76,18 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         name = module['name']
         org = module['organization']
         revision = module['revision']
-        if any(x == '' for x in [name, revision, org]):
-            print('module: {} wrong data'.format(module))
+        if '' in [name, revision, org]:
+            print(f'module: {module} wrong data')
             continue
-        key = '{}@{}/{}'.format(name, revision, org)
-        value = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
+        key = f'{name}@{revision}/{org}'
+        value = f'{save_file_dir}/{name}@{revision}.yang'
         modules_dict[key] = value
 
     output_path = os.path.join(temp, 'elasticsearch_data.json')
     with open(output_path, 'w') as writer:
         json.dump(modules_dict, writer)
 
-    print('Dictionary of {} modules dumped into file'.format(len(modules_dict)))
+    print(f'Dictionary of {len(modules_dict)} modules dumped into file')
 
 
 if __name__ == '__main__':

@@ -48,6 +48,8 @@ jobs:
 
       - name: Prepare environment
         run: |
+          sudo apt-get update -y
+          sudo apt-get install -y pcregrep
           export VAR=/var/yang
           export BACKEND=$PWD
           export PYTHONPATH=$PYTHONPATH:$BACKEND

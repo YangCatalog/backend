@@ -15,7 +15,7 @@ ENV BACKEND=/backend
 ENV PYANG_PLUGINPATH="$BACKEND/elasticsearchIndexing/pyang_plugin"
 
 #Install Cron
-RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim
+RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim pcregrep
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
