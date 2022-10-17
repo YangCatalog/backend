@@ -50,7 +50,8 @@ bp = YangSearch('yangSearch', __name__)
 
 @bp.record
 def init_logger(state):
-    bp.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(state.app.config.d_logs))
+    bp.LOGGER = log.get_logger(
+        'yang-search', '{}/yang.log'.format(state.app.config.d_logs))
 
 
 @bp.before_request
@@ -106,7 +107,8 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
     if nmodule != module_name:
         abort(400, description='Invalid module name specified')
     else:
-        revisions, organization = get_modules_revision_organization(module_name, revision)
+        revisions, organization = get_modules_revision_organization(
+            module_name, revision)
         if len(revisions) == 0:
             abort(404, description='Provided module does not exist')
 
@@ -114,7 +116,8 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
             # get latest revision of provided module
             revision = revisions[0]
 
-        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, module_name, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(
+            ac.d_save_file_dir, module_name, revision)
         plugin.plugins = []
         plugin.init([])
         ctx = create_context(ac.d_yang_models_dir)
@@ -143,7 +146,8 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
                 prefix = 'None'
             import_include_map[prefix] = imp_inc.arg
         json_ytree = ac.d_json_ytree
-        yang_tree_file_path = '{}/{}@{}.json'.format(json_ytree, module_name, revision)
+        yang_tree_file_path = '{}/{}@{}.json'.format(
+            json_ytree, module_name, revision)
         response['maturity'] = get_module_data('{}@{}/{}'.format(module_name, revision,
                                                                  organization)).get('maturity-level', '').upper()
         response['import-include'] = import_include_map
@@ -158,19 +162,22 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
                     response['namespace'] = json_tree.get('namespace', '')
                     response['prefix'] = json_tree.get('prefix', '')
                     import_include_map[response['prefix']] = module_name
-                    data_nodes = build_tree(json_tree, module_name, import_include_map)
+                    data_nodes = build_tree(
+                        json_tree, module_name, import_include_map)
                     jstree_json = dict()
                     jstree_json['data'] = [data_nodes]
                     if json_tree.get('rpcs') is not None:
                         rpcs = dict()
                         rpcs['name'] = json_tree['prefix'] + ':rpcs'
                         rpcs['children'] = json_tree['rpcs']
-                        jstree_json['data'].append(build_tree(rpcs, module_name, import_include_map))
+                        jstree_json['data'].append(build_tree(
+                            rpcs, module_name, import_include_map))
                     if json_tree.get('notifications') is not None:
                         notifs = dict()
                         notifs['name'] = json_tree['prefix'] + ':notifs'
                         notifs['children'] = json_tree['notifications']
-                        jstree_json['data'].append(build_tree(notifs, module_name, import_include_map))
+                        jstree_json['data'].append(build_tree(
+                            notifs, module_name, import_include_map))
                     if json_tree.get('augments') is not None:
                         augments = dict()
                         augments['name'] = json_tree['prefix'] + ':augments'
@@ -180,12 +187,14 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
                             aug_info['name'] = aug['augment_path']
                             aug_info['children'] = aug['augment_children']
                             augments['children'].append(aug_info)
-                        jstree_json['data'].append(build_tree(augments, module_name, import_include_map, augments=True))
+                        jstree_json['data'].append(build_tree(
+                            augments, module_name, import_include_map, augments=True))
             except Exception as e:
                 alerts.append("Failed to read YANG tree data for {}@{}/{}, {}".format(module_name, revision,
                                                                                       organization, e))
         else:
-            alerts.append('YANG Tree data does not exist for {}@{}/{}'.format(module_name, revision, organization))
+            alerts.append(
+                'YANG Tree data does not exist for {}@{}/{}'.format(module_name, revision, organization))
     if jstree_json is None:
         response['jstree_json'] = dict()
         alerts.append('Json tree could not be generated')
@@ -203,7 +212,8 @@ def impact_analysis():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    bp.LOGGER.info('Running impact analysis with following payload:\n{}'.format(payload))
+    bp.LOGGER.info(
+        'Running impact analysis with following payload:\n{}'.format(payload))
     name = payload.get('name')
     revision = payload.get('revision')
     allowed_organizations = payload.get('organizations', [])
@@ -213,7 +223,8 @@ def impact_analysis():
     graph_direction = payload.get('graph-direction', graph_directions)
     for direction in graph_direction:
         if direction not in graph_directions:
-            abort(400, 'Only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
+            abort(400, 'Only list of [{}] are allowed as graph directions'.format(
+                ', '.join(graph_directions)))
 
     # GET module details
     response = {}
@@ -261,16 +272,19 @@ def search():
 
     search_params = SearchParams(
         case_sensitive=is_boolean(payload, 'case-sensitive', False),
+        use_synonyms=is_boolean(payload, 'use-synonyms', True),
         query_type=is_string_in(payload, 'type', 'term', ['term', 'regexp']),
         include_mibs=is_boolean(payload, 'include-mibs', False),
         latest_revision=is_boolean(payload, 'latest-revision', True),
-        searched_fields=is_list_in(payload, 'searched-fields', ['module', 'argument', 'description']),
+        searched_fields=is_list_in(
+            payload, 'searched-fields', ['module', 'argument', 'description']),
         yang_versions=is_list_in(payload, 'yang-versions', ['1.0', '1.1']),
         schema_types=is_list_in(payload, 'schema-types', SCHEMA_TYPES),
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
         sub_search=each_key_in(payload, 'sub-search', OUTPUT_COLUMNS)
     )
-    elk_search = ElkSearch(searched_term, ac.d_logs, ac.es_manager, app.redisConnection, search_params)
+    elk_search = ElkSearch(searched_term, ac.d_logs,
+                           ac.es_manager, app.redisConnection, search_params)
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
@@ -286,7 +300,7 @@ def get_services_list(keyword: str, pattern: str):
     and module_details.
 
     Arguments:
-        :param keyword  (str) Type of what we are autocompleting 'module' or 'organization'
+        :param keyword  (str) Type of what we are autocompleting 'module', 'organization' or 'draft'
         :param pattern  (str) Searched string - input from user
     :return: list of autocompletion results
     """
@@ -295,9 +309,14 @@ def get_services_list(keyword: str, pattern: str):
         return make_response(jsonify(result), 200)
 
     if keyword == 'organization':
-        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
+        result = ac.es_manager.autocomplete(
+            ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
     if keyword == 'module':
-        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
+        result = ac.es_manager.autocomplete(
+            ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
+    if keyword == 'draft':
+        result = ac.es_manager.autocomplete(
+            ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
 
     return make_response(jsonify(result), 200)
 
@@ -334,7 +353,8 @@ def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = No
         abort(400, description='You must specify a "path" argument')
 
     properties = []
-    app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
+    app.logger.info(
+        'Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
     path = '/{}'.format(path)
     try:
         if not revision:
@@ -349,7 +369,8 @@ def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = No
         hits = ac.es_manager.get_node(module)['hits']['hits']
 
         if not hits:
-            abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
+            abort(
+                404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
         result = hits[0]['_source']
         properties = json.loads(result['properties'])
     except Exception as e:
@@ -453,8 +474,10 @@ def get_yang_catalog_help():
                 for echild in child['enum']['children']:
                     if not echild['description']:
                         continue
-                    description = echild['description']['value'].replace('\\n', '\n').replace('\n', "<br/>\r\n")
-                    help_text += '<br/>\r\n<br/>\r\n{}: {}'.format(child.get('enum')['value'], description)
+                    description = echild['description']['value'].replace(
+                        '\\n', '\n').replace('\n', "<br/>\r\n")
+                    help_text += '<br/>\r\n<br/>\r\n{}: {}'.format(
+                        child.get('enum')['value'], description)
             break
 
         paths.reverse()
@@ -479,10 +502,13 @@ def update_dictionary_recursively(module_details_data: dict, path_to_populate: l
     last_path_data = path_to_populate.pop()
     last_path_data = last_path_data.split(':')[-1].split('?')[0]
     if module_details_data.get(last_path_data):
-        update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
+        update_dictionary_recursively(
+            module_details_data[last_path_data], path_to_populate, help_text)
     else:
-        module_details_data[last_path_data] = {'ordering': MODULE_PROPERTIES_ORDER.get(last_path_data, '')}
-        update_dictionary_recursively(module_details_data[last_path_data], path_to_populate, help_text)
+        module_details_data[last_path_data] = {
+            'ordering': MODULE_PROPERTIES_ORDER.get(last_path_data, '')}
+        update_dictionary_recursively(
+            module_details_data[last_path_data], path_to_populate, help_text)
 
 
 def get_modules_revision_organization(module_name: str, revision: t.Optional[str] = None, warnings: bool = False):
@@ -497,13 +523,15 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+            hits = ac.es_manager.get_sorted_module_revisions(
+                ESIndices.AUTOCOMPLETE, module_name)
         else:
             module = {
                 'name': module_name,
                 'revision': revision
             }
-            hits = ac.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
+            hits = ac.es_manager.get_module_by_name_revision(
+                ESIndices.AUTOCOMPLETE, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
@@ -512,8 +540,10 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
             revisions.append(hit['revision'])
         return revisions, organization
     except IndexError:
-        name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
-        bp.LOGGER.exception('Failed to get revisions and organization for {}'.format(name_rev))
+        name_rev = '{}@{}'.format(module_name,
+                                  revision) if revision else module_name
+        bp.LOGGER.exception(
+            'Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
             return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
         abort(404, 'Failed to get revisions and organization for {} - please use module that exists'.format(name_rev))
@@ -528,10 +558,12 @@ def get_latest_module_revision(module_name: str) -> str:
     :return: latest revision of the module
     """
     try:
-        es_result = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+        es_result = ac.es_manager.get_sorted_module_revisions(
+            ESIndices.AUTOCOMPLETE, module_name)
         return es_result[0]['_source']['revision']
     except IndexError:
-        bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))
+        bp.LOGGER.exception(
+            'Failed to get revision for {}'.format(module_name))
         abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
 
 
@@ -551,10 +583,12 @@ def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_te
     pop = list_dictionaries.pop()
     pop = pop.split(':')[-1].split('?')[0]
     if updated_dictionary.get(pop):
-        update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
+        update_dictionary(
+            updated_dictionary[pop], list_dictionaries, help_text)
     else:
         updated_dictionary[pop] = {}
-        update_dictionary(updated_dictionary[pop], list_dictionaries, help_text)
+        update_dictionary(
+            updated_dictionary[pop], list_dictionaries, help_text)
 
 
 def is_boolean(payload: dict, key: str, default: bool):
@@ -567,7 +601,8 @@ def is_boolean(payload: dict, key: str, default: bool):
 def is_string_in(payload: dict, key: str, default: str, one_of: t.List[str]):
     obj = payload.get(key, default)
     if not isinstance(obj, str) or obj not in one_of:
-        abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+        abort(400, 'Value of key "{}" must be string from following list: {}'.format(
+            key, one_of))
     return obj
 
 
@@ -577,23 +612,27 @@ def is_list_in(payload: dict, key: str, default: t.List[str]):
         return default
     one_of = default
     if not isinstance(objs, list):
-        abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+        abort(400, 'Value of key "{}" must be string from following list: {}'.format(
+            key, one_of))
     if len(objs) == 0:
         return default
     for obj in objs:
         if obj not in one_of:
-            abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+            abort(400, 'Value of key "{}" must be string from following list: {}'.format(
+                key, one_of))
     return objs
 
 
 def each_key_in(payload: dict, payload_key: str, keys: t.List[str]):
     rows = payload.get(payload_key, [])
     if not isinstance(rows, list):
-        abort(400, 'Value of key "{}" must be string from following list: {}'.format(payload_key, keys))
+        abort(400, 'Value of key "{}" must be string from following list: {}'.format(
+            payload_key, keys))
     for row in rows:
         for key in row.keys():
             if key not in keys:
-                abort(400, 'Key {} must be string from following list: {} in {}'.format(key, keys, payload_key))
+                abort(400, 'Key {} must be string from following list: {} in {}'.format(
+                    key, keys, payload_key))
     return rows
 
 
@@ -621,7 +660,8 @@ def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augm
             path_list = jsont_path.split('/')[1:]
             path = ''
             for schema in enumerate(pass_on_schemas):
-                path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                path = '{}/{}?{}'.format(path,
+                                         path_list[schema[0]].split('?')[0], schema[1])
             return path
 
     node = dict()
@@ -672,7 +712,8 @@ def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augm
         for prefix in re.findall(r'/[^:]+:', sensor_path):
             if prefix != last:
                 last = prefix
-                sensor_path = sensor_path.replace(prefix, '/{}:'.format(imp_inc_map.get(prefix[1:-1], '/')), 1)
+                sensor_path = sensor_path.replace(
+                    prefix, '/{}:'.format(imp_inc_map.get(prefix[1:-1], '/')), 1)
                 sensor_path = sensor_path.replace(prefix, '/')
         node['data']['sensor_path'] = sensor_path
     if jsont['name'] != module and jsont.get('children') is None or len(jsont['children']) == 0:
@@ -683,15 +724,18 @@ def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augm
                 path_list = jsont['path'].split('/')[1:]
                 path = ''
                 for schema in enumerate(pass_on_schemas):
-                    path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                    path = '{}/{}?{}'.format(path,
+                                             path_list[schema[0]].split('?')[0], schema[1])
                 node['data']['show_node_path'] = path
                 pass_on_schemas.pop()
     elif jsont.get('children') is not None:
         if jsont.get('path') is not None:
-            node['data']['show_node_path'] = _create_node_path(jsont.get('path'))
+            node['data']['show_node_path'] = _create_node_path(
+                jsont.get('path'))
         node['children'] = []
         for child in jsont['children']:
-            node['children'].append(build_tree(child, module, imp_inc_map, pass_on_schemas, augments))
+            node['children'].append(build_tree(
+                child, module, imp_inc_map, pass_on_schemas, augments))
         if len(pass_on_schemas) != 0 and jsont.get('schema_type') not in ['choice', 'case']:
             pass_on_schemas.pop()
 
@@ -714,7 +758,8 @@ def get_type_str(json):
             type_str += get_type_str(val)
         else:
             if isinstance(val, list) or isinstance(val, dict):
-                type_str += ' {} {} {}'.format('{', ','.join([str(i) for i in val]), '}')
+                type_str += ' {} {} {}'.format('{',
+                                               ','.join([str(i) for i in val]), '}')
             else:
                 type_str += ' {} {} {}'.format('{', val, '}')
     return type_str
@@ -732,7 +777,8 @@ def get_dependencies_dependents_data(module_data: dict, submodules_allowed: bool
         :param allowed_organizations    (list) List of allowed organizations
         :param rfc_allowed              (bool) Whether RFCs are allowed
     """
-    module_detail = module_details(module_data['name'], module_data.get('revision'), True)
+    module_detail = module_details(
+        module_data['name'], module_data.get('revision'), True)
     assert isinstance(module_detail, dict)
     if 'warning' in module_detail:
         return module_detail

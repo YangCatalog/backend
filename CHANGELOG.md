@@ -2,6 +2,34 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.6.1 - 2022-10-10
+
+  * Autocomplete functionality for IETF draft names [yangvalidator #107](https://github.com/YangCatalog/yang-validator-extractor/issues/107)
+
+* ##### v5.6.0 - 2022-09-30
+
+  * Bugfix: storing hashes for vendor modules [#609](https://github.com/YangCatalog/backend/issues/609)
+  * ycclient compatibility tested [#551](https://github.com/YangCatalog/backend/issues/551)
+  * create_admin.py sandbox script created [#614](https://github.com/YangCatalog/backend/issues/614)
+  * Expiration resolver created [#600](https://github.com/YangCatalog/backend/issues/600)
+  * New endpoint for unsubscribing from emails added [#607](https://github.com/YangCatalog/backend/issues/607)
+  * Implementations resolver created [#571](https://github.com/YangCatalog/backend/issues/571)
+  * Arguments of recovery scripts improved [#591](https://github.com/YangCatalog/backend/issues/591)
+  * Only latest revision of module kept in dependents [#583](https://github.com/YangCatalog/backend/issues/583)
+  * Logging improved for module deletion from ES [#573](https://github.com/YangCatalog/backend/issues/573)
+  * Mutually exclusive arguments added to BaseScriptConfig [#587](https://github.com/YangCatalog/backend/issues/587)
+  * Outdated mentions of ConfD removed [#574](https://github.com/YangCatalog/backend/issues/574)
+  * Bare 'except:' statements removed [#576](https://github.com/YangCatalog/backend/issues/576)
+  * Running redis_users_recovery.py once a month as a cronjob [#570](https://github.com/YangCatalog/backend/issues/570)
+  * ciscosparkapi replaced with webexteamssdk package [#577](https://github.com/YangCatalog/backend/issues/577)
+  * Send notification after starting populate.py script [#568](https://github.com/YangCatalog/backend/issues/568)
+  * 'In Progress' status added to the job_log [#567](https://github.com/YangCatalog/backend/issues/567)
+  * --simple flag added to the populate.py script [#622](https://github.com/YangCatalog/backend/issues/622)
+  * Miliseconds removed from registration date (in payload body) [admin-ui #64](https://github.com/YangCatalog/admin_ui/issues/64)
+  * String formatting changes to f-strings in multiple scripts
+  * create fork remote in case it doesn't exist [#558](https://github.com/YangCatalog/backend/issues/558)
+  * Simplify test data for dumper.py [#543](https://github.com/YangCatalog/backend/issues/543)
+
 * ##### v5.5.0 - 2022-08-16
 
   * Unit tests covering parse_directory.py (runCapabilities) improved [#543](https://github.com/YangCatalog/backend/issues/543)
