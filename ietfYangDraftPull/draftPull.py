@@ -15,11 +15,11 @@
 
 
 """
-Pull the latest IETF files and add any new IETF draft files to Github.
-Remove old files and and ensure all filenames have a <name>@<revision>.yang format.
+Pull the latest IETF files and add any new IETF draft files to GitHub.
+Remove old files and ensure all filenames have a <name>@<revision>.yang format.
 If there are new RFC files, produce an automated message that will be sent to the 
 Cisco Webex Teams and admin emails notifying that these need to be added to 
-the YangModels/yang Github repository manualy. This script runs as a daily cronjob.
+the YangModels/yang GitHub repository manually. This script runs as a daily cronjob.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -143,11 +143,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
                 remove_from_new = []
             new_files = [file_name for file_name in new_files if file_name not in remove_from_new]
 
-            if args.send_message:
-                if new_files or diff_files:
-                    LOGGER.info('new or modified RFC files found. Sending an E-mail')
-                    mf = message_factory.MessageFactory()
-                    mf.send_new_rfc_message(new_files, diff_files)
+            if args.send_message and (new_files or diff_files):
+                LOGGER.info('new or modified RFC files found. Sending an E-mail')
+                mf = message_factory.MessageFactory()
+                mf.send_new_rfc_message(new_files, diff_files)
 
         # Experimental draft modules
         experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')

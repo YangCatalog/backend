@@ -195,7 +195,7 @@ class Module:
             else:
                 setattr(self, key.replace('-', '_'), value)
 
-    def _resolve_tree(self, module_type: t.Optional[str]):
+    def _resolve_tree(self, module_type: t.Optional[str]) -> t.Optional[str]:
         if module_type == 'module':
             return f'{self._domain_prefix}/api/services/tree/{self.name}@{self.revision}.yang'
         return None

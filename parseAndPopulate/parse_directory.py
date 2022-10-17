@@ -44,7 +44,7 @@ from parseAndPopulate.groupings import (IanaDirectory, SdoDirectory,
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.util import parse_name, parse_revision, strip_comments, find_files
+from utility.util import parse_name, parse_revision, strip_comments
 
 
 class ScriptConfig(BaseScriptConfig):
