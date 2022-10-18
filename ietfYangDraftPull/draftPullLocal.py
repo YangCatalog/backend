@@ -83,7 +83,17 @@ def run_populate_script(directory: str, notify: bool, LOGGER: logging.Logger) ->
     return successful
 
 
-def populate_directory(directory, notify_indexing, logger):
+def populate_directory(directory: str, notify_indexing: bool, logger: logging.Logger):
+    """
+    Run the populate script on a directory and return the result.
+
+    Arguments:
+        :param directory        (str) Directory to run the populate script on
+        :param notify_indexing  (bool)
+        :param logger           (Logger)
+        :return                 (tuple[bool, str]) First specifies whether an error was encoutered,
+            second element is a corresponding text message.
+    """
     logger.info(f'Checking module filenames without revision in {directory}')
     draftPullUtility.check_name_no_revision_exist(directory, logger)
 
@@ -94,7 +104,7 @@ def populate_directory(directory, notify_indexing, logger):
     if populate_error:
         message = 'Error while calling populate script'
     else:
-        message = 'populate script finished successfully'
+        message = 'Populate script finished successfully'
     return populate_error, message
 
 
