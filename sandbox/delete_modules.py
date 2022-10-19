@@ -5,6 +5,7 @@ meant to be deleted (currently set to organization = Huawei).
 import os
 
 import requests
+
 from utility.create_config import create_config
 
 
@@ -26,7 +27,7 @@ def main():
         to_delete_module = {
             'name': module.get('name'),
             'revision': module.get('revision'),
-            'organization': module.get('organization')
+            'organization': module.get('organization'),
         }
         to_delete_list.append(to_delete_module)
 

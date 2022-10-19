@@ -2,10 +2,11 @@ import logging
 import os
 import typing as t
 
+from pyang.statements import Statement
+
 from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.submodule import Submodule
 from parseAndPopulate.resolvers.resolver import Resolver
-from pyang.statements import Statement
 from utility.util import get_yang
 
 """
@@ -15,8 +16,14 @@ Default value: [] -> no submodules
 
 
 class SubmoduleResolver(Resolver):
-    def __init__(self, parsed_yang: Statement, logger: logging.Logger,
-                 path: str, schema: t.Optional[str], schemas: dict) -> None:
+    def __init__(
+        self,
+        parsed_yang: Statement,
+        logger: logging.Logger,
+        path: str,
+        schema: t.Optional[str],
+        schemas: dict,
+    ) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
         self.path = path

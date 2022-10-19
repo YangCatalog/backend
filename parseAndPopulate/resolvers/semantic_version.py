@@ -2,10 +2,11 @@ import logging
 import re
 import typing as t
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 
-""" 
+from parseAndPopulate.resolvers.resolver import Resolver
+
+"""
 This resolver resolves yang module 'semantic_version' property.
 Allowed values have to match following regex: [0-9]+.[0-9]+.[0-9]+
 Default value: None

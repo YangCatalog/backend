@@ -19,11 +19,11 @@ class GrepSearch:
     """
 
     def __init__(
-            self,
-            config: ConfigParser = create_config(),
-            es_manager: ESManager = ESManager(),
-            modules_es_index: ESIndices = ESIndices.YINDEX,
-            redis_connection: RedisConnection = RedisConnection(),
+        self,
+        config: ConfigParser = create_config(),
+        es_manager: ESManager = ESManager(),
+        modules_es_index: ESIndices = ESIndices.YINDEX,
+        redis_connection: RedisConnection = RedisConnection(),
     ):
         self.all_modules_directory = config.get('Directory-Section', 'save-file-dir')
         query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
@@ -40,11 +40,11 @@ class GrepSearch:
         self._processed_modules = {}
 
     def search(
-            self,
-            organizations: list[str],
-            search_string: str,
-            inverted_search: bool = False,
-            case_sensitive: bool = False,
+        self,
+        organizations: list[str],
+        search_string: str,
+        inverted_search: bool = False,
+        case_sensitive: bool = False,
     ) -> list[dict]:
         module_names = self._get_matching_module_names(search_string, inverted_search, case_sensitive)
         if not module_names:
@@ -52,10 +52,10 @@ class GrepSearch:
         return self._search_modules_in_database(organizations, module_names)
 
     def _get_matching_module_names(
-            self,
-            search_string: str,
-            inverted_search: bool,
-            case_sensitive: bool,
+        self,
+        search_string: str,
+        inverted_search: bool,
+        case_sensitive: bool,
     ) -> t.Optional[tuple[str]]:
         """
         Performs a native pcregrep search of modules in self.all_modules_directory.
@@ -72,7 +72,7 @@ class GrepSearch:
         try:
             pcregrep_result = subprocess.check_output(
                 f'{pcregrep_shell_command} \'{search_string}\' {self.all_modules_directory.rstrip("/")}',
-                shell=True
+                shell=True,
             )
             for result in pcregrep_result.decode().split('\n'):
                 if not result:
@@ -81,7 +81,7 @@ class GrepSearch:
                 module_names_with_format.add(module_name_with_format)
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
-                self.logger.info(f'All the modules satisfy the inverted search')
+                self.logger.info('All the modules satisfy the inverted search')
             elif not e.output:
                 self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
                 return
@@ -104,7 +104,9 @@ class GrepSearch:
                 {'term': {'revision': validate_revision(revision)}},
             ]
             es_response = self._es_manager.generic_search(
-                index=self.modules_es_index, query=self.query, response_size=None
+                index=self.modules_es_index,
+                query=self.query,
+                response_size=None,
             )['hits']['hits']
             for result in es_response:
                 response.append(self._create_response_row_for_module(result['_source']))

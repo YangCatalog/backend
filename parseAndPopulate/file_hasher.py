@@ -23,6 +23,7 @@ import os
 import threading
 
 import pyang
+
 from utility import log
 
 BLOCK_SIZE = 65536  # The size of each read from the file
@@ -41,7 +42,8 @@ class FileHasher:
         Arguments:
             :param file_name        (str) name of the file to which the modules hashes are dumped
             :param cache_dir        (str) directory where json file with hashes is saved
-            :param is_active        (bool) whether FileHasher is active or not (use hashes to skip module parsing or not)
+            :param is_active        (bool) whether FileHasher is active or not
+            (use hashes to skip module parsing or not)
             :param log_directory    (str) directory where the log file is saved
         """
         self.file_name = file_name
@@ -54,7 +56,7 @@ class FileHasher:
         self.updated_hashes = {}
 
     def hash_file(self, path: str) -> str:
-        """ Create hash from content of the given file and validators versions.
+        """Create hash from content of the given file and validators versions.
         Each time either the content of the file or the validator version change,
         the resulting hash will be different.
 
@@ -77,7 +79,7 @@ class FileHasher:
         return file_hash.hexdigest()
 
     def load_hashed_files_list(self, path: str = ''):
-        """ Load dumped list of files content hashes from .json file.
+        """Load dumped list of files content hashes from .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Argument:
@@ -99,7 +101,7 @@ class FileHasher:
         return hashed_files_list
 
     def merge_and_dump_hashed_files_list(self, new_hashes: dict, dst_dir: str = ''):
-        """ Dumped updated list of files content hashes into .json file.
+        """Dumped updated list of files content hashes into .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Arguments:
@@ -119,9 +121,9 @@ class FileHasher:
 
         merged_hashes = old_hashes
         for path in new_hashes:
-            file_path_cache = merged_hashes.setdefault(path, {}) # get per path cache
+            file_path_cache = merged_hashes.setdefault(path, {})  # get per path cache
             for hash in new_hashes[path]:
-                implementations = file_path_cache.setdefault(hash, []) # get per hash cache
+                implementations = file_path_cache.setdefault(hash, [])  # get per hash cache
                 implementations.extend(new_hashes[path][hash])
 
         with open(f'{dst_dir}/{self.file_name}.json', 'w') as f:
@@ -130,7 +132,7 @@ class FileHasher:
         self.lock.release()
 
     def dump_tmp_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
-        """ Dump new hashes into temporary json file.
+        """Dump new hashes into temporary json file.
 
         Arguments:
             :param files_hashes (dict) Dictionary of the hashes to be dumped
@@ -143,14 +145,13 @@ class FileHasher:
             self.LOGGER.info(f'{len(files_hashes)} hashes dumped into temp_hashes.json file')
 
     def get_versions(self):
-        """ Return encoded validators versions dictionary.
-        """
+        """Return encoded validators versions dictionary."""
         validators = {}
         validators['pyang_version'] = pyang.__version__
         return json.dumps(validators).encode('utf-8')
 
     def should_parse_sdo_module(self, path: str) -> bool:
-        """ Decide whether SDO module at the given path should be parsed or not.
+        """Decide whether SDO module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Argument:
@@ -162,13 +163,13 @@ class FileHasher:
             return False
         hashes = self.files_hashes.get(path, {})
         if file_hash not in hashes:
-            self.updated_hashes.setdefault(path, {})[file_hash] = [] # empty implementations
+            self.updated_hashes.setdefault(path, {})[file_hash] = []  # empty implementations
             return True
 
         return self.disabled
 
     def should_parse_vendor_module(self, path: str, implementation_keys: list[str]) -> bool:
-        """ Decide whether vendor module at the given path should be parsed or not.
+        """Decide whether vendor module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Arguments:

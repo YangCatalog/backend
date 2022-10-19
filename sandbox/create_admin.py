@@ -20,9 +20,17 @@ def main():
     username, password = credentials.strip('"').split()
 
     # Creating approved admin user
-    user_id = users.create(temp=False, username=username, password=password,
-                           first_name='admin', last_name='admin', email='foo@bar.com',
-                           models_provider='IETF', access_rights_sdo='/', access_rights_vendor='/')
+    user_id = users.create(
+        temp=False,
+        username=username,
+        password=password,
+        first_name='admin',
+        last_name='admin',
+        email='foo@bar.com',
+        models_provider='IETF',
+        access_rights_sdo='/',
+        access_rights_vendor='/',
+    )
 
     print(f'Created user with id={user_id}')
     print(users.get_all_fields(user_id))

@@ -1,11 +1,9 @@
 import json
 import os
 
-
-loaded = dict()
 with open('save.json', 'r') as f:
     loaded = json.load(f)
-modules = dict()
+modules = {}
 for key, value in loaded.items():
     isfile = os.path.isfile(value)
     if isfile:

@@ -23,15 +23,14 @@ import re
 import subprocess
 import unittest
 
-from git.repo import Repo
 from git.exc import GitCommandError
+from git.repo import Repo
 
 import utility.repoutil as ru
 from utility.create_config import create_config
 
 
 class TestRepoutil(unittest.TestCase):
-
     def setUp(self):
         repourl = 'https://github.com/yang-catalog/test'
         self.repo_owner = 'yang-catalog'
@@ -48,10 +47,7 @@ class TestRepoutil(unittest.TestCase):
 
         self.repo = ru.ModifiableRepoUtil(
             repourl,
-            clone_options={
-                'config_username': self.myname,
-                'config_user_email': self.myemail
-            }
+            clone_options={'config_username': self.myname, 'config_user_email': self.myemail},
         )
 
         self.repo.logger = logger
@@ -75,7 +71,7 @@ class TestRepoutil(unittest.TestCase):
     def test_get_commit_hash(self):
         self.assertEqual(self.repo.get_commit_hash(), '0d8d5a76cdd4cc2a9e9709f6acece6d57c0b06ea')
         self.assertEqual(self.repo.get_commit_hash(branch='test'), '971423d605268bd7b38c5153c72ff12bfa408f1d')
-        self.assertEqual(self.repo.get_commit_hash('subrepo','master'), 'de04507eaba334bfdad41ac75a2044d9d63922ee')
+        self.assertEqual(self.repo.get_commit_hash('subrepo', 'master'), 'de04507eaba334bfdad41ac75a2044d9d63922ee')
 
     def test_get_repo_owner(self):
         self.assertEqual(self.repo.get_repo_owner(), 'yang-catalog')
@@ -86,8 +82,8 @@ class TestRepoutil(unittest.TestCase):
         self.assertTrue(os.path.exists(local_dir))
         self.assertIsNotNone(self.repo.repo)
         with self.repo.repo.config_reader() as config:
-            self.assertEqual(config.get_value('user','email'), self.myemail)
-            self.assertEqual(config.get_value('user','name'), self.myname)
+            self.assertEqual(config.get_value('user', 'email'), self.myemail)
+            self.assertEqual(config.get_value('user', 'name'), self.myname)
 
     def test_clone_invalid_url(self):
         with self.assertRaises(GitCommandError):
@@ -110,7 +106,7 @@ class TestRepoutil(unittest.TestCase):
         self.assertTrue(re.search('new file:.*new', out))
 
         file = os.path.join(repodir, 'README.md')
-        f = open(file,'a+')
+        f = open(file, 'a+')
         f.write('test')
         f.close()
 
@@ -137,7 +133,7 @@ class TestRepoutil(unittest.TestCase):
         status_command = 'cd {} && git status'.format(repodir)
 
         file = os.path.join(repodir, 'README.md')
-        f = open(file,'a+')
+        f = open(file, 'a+')
         f.write('test')
         f.close()
 
@@ -154,20 +150,18 @@ class TestRepoutil(unittest.TestCase):
             raise unittest.SkipTest('Replace yang-catalog-token in the Secrets-Section of the test config')
         push_repo = ru.ModifiableRepoUtil(
             'https://yang-catalog:{}@github.com/yang-catalog/deployment'.format(self.token),
-            clone_options={
-                'config_username': 'yang-catalog',
-                'config_user_email': 'fake@gmail.com'
-            })
+            clone_options={'config_username': 'yang-catalog', 'config_user_email': 'fake@gmail.com'},
+        )
         repodir = push_repo.local_dir
         current_tip = push_repo.get_commit_hash()
         status_command = 'cd {} && git status'.format(repodir)
 
         def clean():
             reset_repo = Repo(repodir)
-            reset_repo.git.reset('--hard',current_tip)
+            reset_repo.git.reset('--hard', current_tip)
             reset_repo.git.push(force=True)
 
-        f = open(os.path.join(repodir, 'README.md'),'a+')
+        f = open(os.path.join(repodir, 'README.md'), 'a+')
         f.write('This is added to the end of README.md file')
         f.close()
 

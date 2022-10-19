@@ -6,7 +6,7 @@ confd_content_type = {'Content-type': confd_header_str}
 confd_accept = {'Accept': confd_header_str}
 confd_headers = {**confd_content_type, **confd_accept}
 
-# JSON headers
+# JSON headers
 json_header_str = 'application/json'
 json_content_type = {'Content-type': json_header_str}
 json_accept = {'Accept': json_header_str}
@@ -59,7 +59,7 @@ IETF_RFC_MAP = {
     'ietf-yang-patch@2017-02-22.yang': 'NETCONF',
     'ietf-yang-smiv2@2012-06-22.yang': 'NETMOD',
     'ietf-yang-types@2010-09-24.yang': 'NETMOD',
-    'ietf-yang-types@2013-07-15.yang': 'NETMOD'
+    'ietf-yang-types@2013-07-15.yang': 'NETMOD',
 }
 
 NAMESPACE_MAP = (
@@ -73,7 +73,7 @@ NAMESPACE_MAP = (
     ('https://www.broadband-forum.org', 'bbf'),
     ('http://ackl.io/', 'acklio'),
     ('http://ni.com/ns', 'ni'),
-    ('http://metroethernetforum.org/ns', 'mef')
+    ('http://metroethernetforum.org/ns', 'mef'),
 )
 
 github_url = 'https://github.com'
@@ -82,18 +82,22 @@ github_api = 'https://api.github.com'
 MISSING_ELEMENT = 'missing element'
 backup_date_format = '%Y-%m-%d_%H:%M:%S-UTC'
 
-SDOS = [
-    'bbf',
-    'etsi',
-    'iana',
-    'ieee',
-    'ietf',
-    'mef',
-    'odp'
-]
+SDOS = ['bbf', 'etsi', 'iana', 'ieee', 'ietf', 'mef', 'odp']
 ORGANIZATIONS = [
-    'ietf', 'ieee', 'etsi', 'bbf', 'openconfig', 'tail-f', 'opendaylight',
-    'ciena', 'cisco', 'fujitsu', 'huawei', 'juniper', 'nokia', 'acklio'
+    'ietf',
+    'ieee',
+    'etsi',
+    'bbf',
+    'openconfig',
+    'tail-f',
+    'opendaylight',
+    'ciena',
+    'cisco',
+    'fujitsu',
+    'huawei',
+    'juniper',
+    'nokia',
+    'acklio',
 ]
 SCHEMA_TYPES = [
     'typedef',
@@ -107,7 +111,7 @@ SCHEMA_TYPES = [
     'leaf-list',
     'leaf',
     'notification',
-    'action'
+    'action',
 ]
 OUTPUT_COLUMNS = [
     'name',
@@ -120,7 +124,7 @@ OUTPUT_COLUMNS = [
     'maturity',
     'dependents',
     'compilation-status',
-    'description'
+    'description',
 ]
 MODULE_PROPERTIES_ORDER = {
     'name': 1,
@@ -162,7 +166,7 @@ MODULE_PROPERTIES_ORDER = {
     'os-version': 5,
     'feature-set': 6,
     'os-type': 7,
-    'conformance-type': 8
+    'conformance-type': 8,
 }
 
 

@@ -21,11 +21,12 @@ import time
 from threading import Lock
 
 import redis
+
 from utility import log
 from utility.create_config import create_config
 
 
-class YangCatalogApiGlobalConfig():
+class YangCatalogApiGlobalConfig:
     loading = True
 
     def __init__(self):
@@ -40,7 +41,9 @@ class YangCatalogApiGlobalConfig():
         self.result_dir = config.get('Web-Section', 'result-html-dir', fallback='tests/resources/html/results')
         self.private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
         self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
+        self.credentials = (
+            config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
+        )
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='/var/yang/test-requests')
@@ -61,24 +64,29 @@ class YangCatalogApiGlobalConfig():
         self.is_uwsgi = config.get('General-Section', 'uwsgi', fallback=True)
         self.ys_users_dir = config.get('Directory-Section', 'ys-users', fallback='')
         self.my_uri = config.get('Web-Section', 'my-uri', fallback='http://localhost')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir',
-                                      fallback='tests/resources/yangmodels/yang')
+        self.yang_models = config.get(
+            'Directory-Section',
+            'yang-models-dir',
+            fallback='tests/resources/yangmodels/yang',
+        )
         self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
         self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
         self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
-        self.yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix', fallback='http://localhost/api')
+        self.yangcatalog_api_prefix = config.get(
+            'Web-Section',
+            'yangcatalog-api-prefix',
+            fallback='http://localhost/api',
+        )
         self.domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='http://localhost')
         self.es_aws = self.es_aws == 'True'
 
         self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
 
         self.LOGGER.info('yangcatalog configuration reloaded')
-        self.redis = redis.Redis(
-            host=self.redis_host,
-            port=self.redis_port)  # pyright: ignore
+        self.redis = redis.Redis(host=self.redis_host, port=self.redis_port)  # pyright: ignore
         self.check_wait_redis_connected()
 
     def check_wait_redis_connected(self):

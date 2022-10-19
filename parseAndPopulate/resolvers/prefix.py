@@ -2,12 +2,13 @@ import logging
 import os
 import typing as t
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
+
+from parseAndPopulate.resolvers.resolver import Resolver
 from utility import yangParser
 from utility.util import get_yang
 
-""" 
+"""
 This resolver resolves yang module 'prefix' property.
 Default value: None
 """
@@ -15,8 +16,13 @@ DEFAULT = None
 
 
 class PrefixResolver(Resolver):
-    def __init__(self, parsed_yang: Statement, logger: logging.Logger, name_revision: str,
-                 belongs_to: t.Optional[str]) -> None:
+    def __init__(
+        self,
+        parsed_yang: Statement,
+        logger: logging.Logger,
+        name_revision: str,
+        belongs_to: t.Optional[str],
+    ) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
         self.name_revision = name_revision
@@ -31,7 +37,7 @@ class PrefixResolver(Resolver):
         return self._resolve_module_prefix()
 
     def _resolve_submodule_prefix(self) -> t.Optional[str]:
-        """ If the model is a submodule, then it is necessary to get a namespace from its parent. """
+        """If the model is a submodule, then it is necessary to get a namespace from its parent."""
         if not self.belongs_to:
             self.logger.error('Belongs to not defined - unable to resolve namespace')
             return DEFAULT

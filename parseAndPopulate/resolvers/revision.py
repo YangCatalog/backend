@@ -1,11 +1,11 @@
 import logging
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 
+from parseAndPopulate.resolvers.resolver import Resolver
 from utility.util import validate_revision
 
-""" 
+"""
 This resolver resolves yang module 'revision' property.
 Allowed values must be in date format "YYYY-MM-DD"
 Default value: '1970-01-01'

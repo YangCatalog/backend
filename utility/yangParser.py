@@ -64,7 +64,7 @@ _COPY_OPTIONS = [
 """copy options to pyang context options"""
 
 
-class objectify(object):  # pylint: disable=invalid-name
+class Objectify(object):  # pylint: disable=invalid-name
     """Utility for providing object access syntax (.attr) to dicts"""
 
     features: list
@@ -83,7 +83,7 @@ class objectify(object):  # pylint: disable=invalid-name
 
 
 class OptsContext(Context):
-    opts: objectify
+    opts: Objectify
 
 
 def _parse_features_string(feature_str: str) -> t.Tuple[str, t.List[str]]:
@@ -146,7 +146,7 @@ def create_context(path: str = '.') -> OptsContext:
     """
     # deviations (list): Deviation module (NOT CURRENTLY WORKING).
 
-    opts = objectify(DEFAULT_OPTIONS)
+    opts = Objectify(DEFAULT_OPTIONS)
     repo = FileRepository(path, no_path_recurse=opts.no_path_recurse)
 
     ctx = OptsContext(repo)
@@ -171,7 +171,6 @@ def create_context(path: str = '.') -> OptsContext:
 
 
 class ParseException(Exception):
-
     def __init__(self, path: t.Optional[str]):
         if path is not None:
             config = create_config()

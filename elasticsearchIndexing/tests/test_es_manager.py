@@ -23,6 +23,7 @@ import unittest
 
 from ddt import data, ddt
 from elasticsearch import Elasticsearch
+
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
@@ -30,24 +31,19 @@ from utility.create_config import create_config
 
 
 class TestESManagerClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestESManagerClass, self).__init__(*args, **kwargs)
         config = create_config()
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-            'port': config.get('DB-Section', 'es-port', fallback='9200')
+            'port': config.get('DB-Section', 'es-port', fallback='9200'),
         }
         self.es = Elasticsearch(hosts=[es_host_config])
         self.test_index = ESIndices.TEST
         self.resources_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/tests/resources')
         self.test_data = self._load_test_data()
         self.es_manager = ESManager(self.es)
-        self.ietf_rip_module = {
-            'name': 'ietf-rip',
-            'revision': '2020-02-20',
-            'organization': 'ietf'
-        }
+        self.ietf_rip_module = {'name': 'ietf-rip', 'revision': '2020-02-20', 'organization': 'ietf'}
 
     def setUp(self):
         self.es.indices.delete(index=self.test_index.value, ignore=[400, 404])
@@ -63,7 +59,6 @@ class TestESManagerClass(unittest.TestCase):
 
 
 class TestESManagerWithoutIndexClass(TestESManagerClass):
-
     def test_create_index(self):
         create_result = self.es_manager.create_index(self.test_index)
 
@@ -79,7 +74,6 @@ class TestESManagerWithoutIndexClass(TestESManagerClass):
 
 
 class TestESManagerWithEmptyIndexClass(TestESManagerClass):
-
     def setUp(self):
         super(TestESManagerWithEmptyIndexClass, self).setUp()
         index_json_name = f'initialize_{self.test_index.value}_index.json'
@@ -146,7 +140,6 @@ class TestESManagerWithEmptyIndexClass(TestESManagerClass):
 
 @ddt
 class TestESManagerAutocompleteIndexClass(TestESManagerClass):
-
     def setUp(self):
         super(TestESManagerAutocompleteIndexClass, self).setUp()
         index_json_name = f'initialize_{self.test_index.value}_index.json'
@@ -207,11 +200,7 @@ class TestESManagerAutocompleteIndexClass(TestESManagerClass):
         self.assertEqual(hit['_source'], self.ietf_rip_module)
 
     def test_get_module_by_name_revision_not_exists(self):
-        module = {
-            'name': 'random',
-            'revision': '2022-01-01',
-            'organization': 'random'
-        }
+        module = {'name': 'random', 'revision': '2022-01-01', 'organization': 'random'}
         hits = self.es_manager.get_module_by_name_revision(self.test_index, module)
 
         self.assertEqual(hits, [])

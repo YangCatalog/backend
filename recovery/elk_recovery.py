@@ -24,7 +24,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import datetime
 import sys
-import typing as t
 
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -32,7 +31,6 @@ from utility.staticVariables import backup_date_format
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = __doc__
         mutually_exclusive_args: list[list[Arg]] = [
@@ -41,14 +39,14 @@ class ScriptConfig(BaseScriptConfig):
                     'flag': '--save',
                     'help': 'Set whether you want to create snapshot.',
                     'action': 'store_true',
-                    'default': False
+                    'default': False,
                 },
                 {
                     'flag': '--load',
                     'help': 'Set whether you want to load from snapshot.',
                     'action': 'store_true',
-                    'default': False
-                },  
+                    'default': False,
+                },
             ],
         ]
         args: list[Arg] = [
@@ -60,14 +58,14 @@ class ScriptConfig(BaseScriptConfig):
                     'save operation will use date and time in UTC.'
                 ),
                 'type': str,
-                'default': ''
+                'default': '',
             },
             {
                 'flag': '--compress',
                 'help': 'Set whether to compress snapshot files. Default is True',
                 'action': 'store_true',
-                'default': True
-            }
+                'default': True,
+            },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 

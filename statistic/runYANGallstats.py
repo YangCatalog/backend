@@ -30,7 +30,6 @@ from utility.scriptConfig import Arg, BaseScriptConfig
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = 'Count all YANG modules + related stats for a directory and its subdirectories'
         args: t.List[Arg] = [
@@ -38,33 +37,28 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--rootdir',
                 'help': 'The root directory where to find the source YANG models. Default is "."',
                 'type': str,
-                'default': '.'
+                'default': '.',
             },
             {
                 'flag': '--excludedir',
                 'help': 'The root directory from which to exclude YANG models. '
-                        'This directory should be under rootdir.',
+                'This directory should be under rootdir.',
                 'type': str,
-                'default': ''
+                'default': '',
             },
             {
                 'flag': '--excludekeyword',
                 'help': 'Exclude some keywords from the YANG module name.',
                 'type': str,
-                'default': ''
+                'default': '',
             },
             {
                 'flag': '--removedup',
                 'help': 'Remove duplicate YANG module. Default is False.',
                 'type': bool,
-                'default': False
+                'default': False,
             },
-            {
-                'flag': '--debug',
-                'help': 'Debug level; the default is 0',
-                'type': int,
-                'default': 0
-            }
+            {'flag': '--debug', 'help': 'Debug level; the default is 0', 'type': int, 'default': 0},
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
@@ -81,7 +75,7 @@ def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
     ll = []
     for root, _, files in os.walk(srcdir):
         for f in files:
-            if f.endswith(".yang"):
+            if f.endswith('.yang'):
                 if debug_level > 0:
                     print(os.path.join(root, f))
                 ll.append(os.path.join(root, f))
@@ -130,7 +124,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
     # Remove duplicates and count the YANG modules
     if args.removedup:
-        YANG_module_count_removed_dup = 0
+        yang_module_count_removed_dup = 0
         yang_list_removed_dup = []
         for yang_file in yang_list:
             yang_file_without_path = os.path.basename(yang_file)
@@ -138,24 +132,24 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
                 print(f'yang_list_removed_dup content: {yang_file_without_path}')
             if yang_file_without_path not in yang_list_removed_dup:
                 yang_list_removed_dup.append(yang_file_without_path)
-                YANG_module_count_removed_dup += 1
-        print(f'Number of YANG data models in {args.rootdir} (duplicates removed): {YANG_module_count_removed_dup}')
+                yang_module_count_removed_dup += 1
+        print(f'Number of YANG data models in {args.rootdir} (duplicates removed): {yang_module_count_removed_dup}')
         if args.debug > 0:
             print('yang_list_removed_dup content: ')
             print(yang_list_removed_dup)
         yang_list = yang_list_removed_dup
 
     # Remove the excludekeyword
-    YANG_module_count_removed_dup_removed_keyword = 0
+    yang_module_count_removed_dup_removed_keyword = 0
     yang_list_removed_dup_removed_keyword = []
     if args.excludekeyword:
         for yang_file_without_path in yang_list:
             if args.excludekeyword not in yang_file_without_path:
                 yang_list_removed_dup_removed_keyword.append(yang_file_without_path)
-                YANG_module_count_removed_dup_removed_keyword += 1
+                yang_module_count_removed_dup_removed_keyword += 1
         print(
             f'Number of YANG data models in {args.rootdir} (without the keyword {args.excludekeyword}):'
-            f'{YANG_module_count_removed_dup_removed_keyword}'
+            f'{yang_module_count_removed_dup_removed_keyword}',
         )
 
 

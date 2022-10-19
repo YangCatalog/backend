@@ -1,7 +1,6 @@
 from datetime import datetime
 
 from redisConnections.redis_users_connection import RedisUsersConnection
-
 from utility import message_factory
 
 
@@ -14,7 +13,6 @@ class UserReminder:
         self.day = datetime.now().date().day
         self.users = RedisUsersConnection()
 
-
     def send_message(self):
         user_stats = self._produce_users_info()
         self._mf.send_user_reminder_message(user_stats)
@@ -22,7 +20,7 @@ class UserReminder:
     def _produce_users_info(self):
         return {
             'approved': [self.users.get_all_fields(id) for id in self.users.get_all('approved')],
-            'temp': [self.users.get_all_fields(id) for id in self.users.get_all('temp')]
+            'temp': [self.users.get_all_fields(id) for id in self.users.get_all('temp')],
         }
 
 

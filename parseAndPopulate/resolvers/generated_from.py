@@ -4,7 +4,7 @@ from asyncio.log import logger
 
 from parseAndPopulate.resolvers.resolver import Resolver
 
-""" 
+"""
 This resolver resolves yang module 'generated_from' property.
 Allowed values are: ['mib', 'native', 'not-applicable']
 Default value: 'not-applicable'
