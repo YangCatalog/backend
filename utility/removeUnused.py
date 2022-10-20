@@ -29,9 +29,8 @@ import shutil
 import time
 from datetime import datetime as dt
 
-from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
-
 import utility.log as log
+from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.create_config import create_config
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
@@ -54,10 +53,18 @@ def main():
     start_time = int(time.time())
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                        help='Set path to config file')
-    parser.add_argument('--compress', action='store_true', default=True,
-                        help='Set whether to compress snapshot files. Default is True')
+    parser.add_argument(
+        '--config-path',
+        type=str,
+        default=os.environ['YANGCATALOG_CONFIG_PATH'],
+        help='Set path to config file',
+    )
+    parser.add_argument(
+        '--compress',
+        action='store_true',
+        default=True,
+        help='Set whether to compress snapshot files. Default is True',
+    )
     args = parser.parse_args()
     config_path = args.config_path
     config = create_config(config_path)
@@ -67,21 +74,21 @@ def main():
     es_aws = config.get('DB-Section', 'es-aws')
 
     log_file_path = os.path.join(log_directory, 'jobs', 'removeUnused.log')
-    LOGGER = log.get_logger('removeUnused', log_file_path)
-    LOGGER.info('Starting Cron job remove unused files')
+    logger = log.get_logger('removeUnused', log_file_path)
+    logger.info('Starting Cron job remove unused files')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     current_time = time.time()
     cutoff = current_time - DAY
     try:
-        LOGGER.info('Removing old tmp directory representing int folders')
+        logger.info('Removing old tmp directory representing int folders')
         for dir in next(os.walk(temp_dir))[1]:
             if represents_int(dir):
                 creation_time = os.path.getctime(os.path.join(temp_dir, dir))
                 if creation_time < cutoff:
                     shutil.rmtree(os.path.join(temp_dir, dir))
 
-        LOGGER.info('Removing old correlation ids')
+        logger.info('Removing old correlation ids')
         # removing correlation ids from file that are older than a day
         # Be lenient to missing files
         correlation_ids_file_path = os.path.join(temp_dir, 'correlation_ids')
@@ -99,9 +106,9 @@ def main():
                 if diff.days == 0:
                     filename.write(line)
 
-        LOGGER.info('Removing old yangvalidator cache dirs')
+        logger.info('Removing old yangvalidator cache dirs')
         yang_validator_cache = os.path.join(temp_dir, 'yangvalidator')
-        cutoff = current_time - 2*DAY
+        cutoff = current_time - 2 * DAY
         dirs = os.listdir(yang_validator_cache)
         for dir in dirs:
             if dir.startswith('yangvalidator-v2-cache-'):
@@ -110,11 +117,11 @@ def main():
                     try:
                         shutil.rmtree(os.path.join(yang_validator_cache, dir))
                     except PermissionError:
-                        LOGGER.exception(f'Problem while deleting {dir}')
+                        logger.exception(f'Problem while deleting {dir}')
                         continue
 
         if es_aws != 'True':
-            LOGGER.info('Removing old elasticsearch snapshots')
+            logger.info('Removing old elasticsearch snapshots')
             es_snapshots_manager = ESSnapshotsManager()
             es_snapshots_manager.create_snapshot_repository(args.compress)
             sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
@@ -144,7 +151,7 @@ def main():
                     for filename in filenames:
                         file_path = os.path.join(root, filename)
                         # we only want to compare the contents, not the top directory name
-                        relative_path = file_path[len(path):]
+                        relative_path = file_path[len(path) :]
                         file_signature = relative_path.encode() + hash_file(file_path)
                         sha1.update(file_signature)
                 return sha1.digest()
@@ -165,7 +172,9 @@ def main():
             backup_name_latest = os.path.join(backup_directory, list_of_backups[-1])
 
             def diff_month(later_datetime, earlier_datetime):
-                return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
+                return (
+                    (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
+                )
 
             to_remove = []
             last_six_months = {}
@@ -173,7 +182,7 @@ def main():
 
             today = dt.now()
             for backup in list_of_backups:
-                backup_dt = dt.strptime(backup[:backup.index('.')], backup_date_format)
+                backup_dt = dt.strptime(backup[: backup.index('.')], backup_date_format)
                 month_difference = diff_month(today, backup_dt)
                 if month_difference > 6:
                     to_remove.append(backup)
@@ -204,14 +213,14 @@ def main():
                     elif os.path.isfile(backup_path):
                         os.unlink(backup_path)
 
-        LOGGER.info('Removing old cache json files')
+        logger.info('Removing old cache json files')
         remove_old_backups('confd')
     except Exception as e:
-        LOGGER.exception('Exception found while running removeUnused script')
+        logger.exception('Exception found while running removeUnused script')
         job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     job_log(start_time, temp_dir, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
-    LOGGER.info('Job finished successfully')
+    logger.info('Job finished successfully')
 
 
 if __name__ == '__main__':

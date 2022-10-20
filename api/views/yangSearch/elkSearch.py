@@ -23,9 +23,10 @@ import typing as t
 
 import gevent
 import gevent.queue
+from elasticsearch import ConnectionTimeout
+
 from api.views.yangSearch.response_row import ResponseRow
 from api.views.yangSearch.search_params import SearchParams
-from elasticsearch import ConnectionTimeout
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from redisConnections.redisConnection import RedisConnection
@@ -43,8 +44,14 @@ class ElkSearch:
     in a grid of yangcatalog search.
     """
 
-    def __init__(self, searched_term: str, logs_dir: str, es_manager: ESManager, redis_connection: RedisConnection,
-                 search_params: SearchParams) -> None:
+    def __init__(
+        self,
+        searched_term: str,
+        logs_dir: str,
+        es_manager: ESManager,
+        redis_connection: RedisConnection,
+        search_params: SearchParams,
+    ) -> None:
         """
         Initialization of search under Elasticsearch engine. We need to prepare a query
         that will be used to search in Elasticsearch.
@@ -105,33 +112,25 @@ class ElkSearch:
         should_query: list = self.query['query']['bool']['should']
         for searched_field in self._search_params.searched_fields:
             if searched_field == 'module':
-                should_query.append({
-                    query_type: {
-                        'module': {
-                            'value': searched_term,
-                            'case_insensitive': case_insensitive
-                        }
-                    }
-                })
+                should_query.append(
+                    {query_type: {'module': {'value': searched_term, 'case_insensitive': case_insensitive}}},
+                )
             elif searched_field == 'argument':
-                should_query.append({
-                    query_type: {
-                        'argument': {
-                            'value': searched_term,
-                            'case_insensitive': case_insensitive
-                        }
-                    }
-                })
+                should_query.append(
+                    {query_type: {'argument': {'value': searched_term, 'case_insensitive': case_insensitive}}},
+                )
             elif searched_field == 'description':
                 if query_type == 'regexp':
-                    should_query.append({
-                        'regexp': {
-                            'description.keyword': {
-                                'value': f'.*{searched_term}.*',
-                                'case_insensitive': case_insensitive
-                            }
-                        }
-                    })
+                    should_query.append(
+                        {
+                            'regexp': {
+                                'description.keyword': {
+                                    'value': f'.*{searched_term}.*',
+                                    'case_insensitive': case_insensitive,
+                                },
+                            },
+                        },
+                    )
                 else:
                     analyzer = 'description'
                     if case_insensitive:
@@ -148,21 +147,15 @@ class ElkSearch:
                                     field: {
                                         'query': searched_term,
                                         'analyzer': analyzer,
-                                        'minimum_should_match': '4<80%'
-                                    }
-                                }
+                                        'minimum_should_match': '4<80%',
+                                    },
+                                },
                             },
                             {
                                 # boost results that contain the words in the same order
-                                'match_phrase': {
-                                    field: {
-                                        'query': searched_term,
-                                        'analyzer': analyzer,
-                                        'boost': 2
-                                    }
-                                }
-                            }
-                        ]
+                                'match_phrase': {field: {'query': searched_term, 'analyzer': analyzer, 'boost': 2}},
+                            },
+                        ],
                     )
         self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
@@ -235,14 +228,14 @@ class ElkSearch:
                 row_hash = row.get_row_hash_by_columns()
                 if row_hash in self._row_hashes:
                     self.LOGGER.info(
-                        f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out'
+                        f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out',
                     )
                     continue
                 self._row_hashes.append(row_hash)
             response_rows.append(row.output_row)
             if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
                 self.LOGGER.debug(
-                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}'
+                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}',
                 )
                 process_scroll_search.kill()
                 return response_rows
@@ -255,8 +248,12 @@ class ElkSearch:
         try:
             query_no_agg = self.query.copy()
             query_no_agg.pop('aggs', '')
-            elk_response = self._es_manager.generic_search(ESIndices.YINDEX, query_no_agg,
-                                                           response_size=RESPONSE_SIZE, use_scroll=True)
+            elk_response = self._es_manager.generic_search(
+                ESIndices.YINDEX,
+                query_no_agg,
+                response_size=RESPONSE_SIZE,
+                use_scroll=True,
+            )
         except ConnectionTimeout:
             self.LOGGER.exception('Error while searching in Elasticsearch')
             elk_response['hits'] = {'hits': []}
@@ -300,7 +297,7 @@ class ElkSearch:
 
 
 def _escape_reserved_characters(term: str) -> str:
-    """ If the number of double quotes is odd, the sequence is not closed, so escaping characters is needed."""
+    """If the number of double quotes is odd, the sequence is not closed, so escaping characters is needed."""
     for char in RESERVED_CHARACTERS:
         if term.count(char) % 2 == 1:
             term = term.replace(char, f'\\{char}')

@@ -70,7 +70,12 @@ class ConfdService:
         patch_data = {'yang-catalog:module': module}
         patch_json = json.dumps(patch_data)
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}'.format(self.confd_prefix, module_key)
-        response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+        response = requests.patch(
+            path,
+            patch_json,
+            auth=(self.credentials[0], self.credentials[1]),
+            headers=confd_headers,
+        )
 
         return response
 
@@ -78,7 +83,7 @@ class ConfdService:
         """Attempts to patch a list of JSON objects to confd in chunks.
         Fall back to patching one by one on error. Data that causes errors
         is recorded to a log file along with the errors.
-        
+
         Arguments:
             :param data     (list) List of JSON objects to be patched to confd.
             :param type     (str) Type of the JSON objects. This should be either "modules" or "vendors"
@@ -88,20 +93,30 @@ class ConfdService:
         errors = False
         chunk_size = 500
         failed_data = {}
-        chunks = [data[i:i + chunk_size] for i in range(0, len(data), chunk_size)]
+        chunks = [data[i : i + chunk_size] for i in range(0, len(data), chunk_size)]
         path = '{}/restconf/data/yang-catalog:catalog/{}/'.format(self.confd_prefix, type)
         self.LOGGER.debug('Sending PATCH request to patch multiple {}'.format(type))
         for i, chunk in enumerate(chunks, start=1):
             self.LOGGER.debug('Processing chunk {} out of {}'.format(i, len(chunks)))
             patch_data = {type: {type.rstrip('s'): chunk}}
             patch_json = json.dumps(patch_data)
-            response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+            response = requests.patch(
+                path,
+                patch_json,
+                auth=(self.credentials[0], self.credentials[1]),
+                headers=confd_headers,
+            )
             if response.status_code == 400:
                 self.LOGGER.warning('Failed to batch patch {}, falling back to patching individually'.format(type))
                 for datum in chunk:
                     patch_data = {type: {type.rstrip('s'): [datum]}}
                     patch_json = json.dumps(patch_data)
-                    response = requests.patch(path, patch_json, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
+                    response = requests.patch(
+                        path,
+                        patch_json,
+                        auth=(self.credentials[0], self.credentials[1]),
+                        headers=confd_headers,
+                    )
                     if response.status_code == 400:
                         errors = True
                         with open(os.path.join(self.log_directory, log_file), 'a') as f:
@@ -164,7 +179,10 @@ class ConfdService:
     def delete_dependent(self, module_key: str, dependent: str) -> requests.Response:
         self.LOGGER.debug('Sending DELETE request to dependent {} of the module {}'.format(dependent, module_key))
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/dependents={}'.format(
-            self.confd_prefix, module_key, dependent)
+            self.confd_prefix,
+            module_key,
+            dependent,
+        )
         response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
@@ -172,7 +190,10 @@ class ConfdService:
     def delete_submodule(self, module_key: str, submodule: str) -> requests.Response:
         self.LOGGER.debug('Sending DELETE request to submodule {} of the module {}'.format(submodule, module_key))
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/submodule={}'.format(
-            self.confd_prefix, module_key, submodule)
+            self.confd_prefix,
+            module_key,
+            submodule,
+        )
         response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response
@@ -185,10 +206,14 @@ class ConfdService:
         return response
 
     def delete_implementation(self, module_key: str, implementation_key: str) -> requests.Response:
-        self.LOGGER.debug('Sending DELETE request to implementation {} of the module {}'.format(
-            implementation_key, module_key))
+        self.LOGGER.debug(
+            'Sending DELETE request to implementation {} of the module {}'.format(implementation_key, module_key),
+        )
         path = '{}/restconf/data/yang-catalog:catalog/modules/module={}/implementations/implementation={}'.format(
-            self.confd_prefix, module_key, implementation_key)
+            self.confd_prefix,
+            module_key,
+            implementation_key,
+        )
         response = requests.delete(path, auth=(self.credentials[0], self.credentials[1]), headers=confd_headers)
 
         return response

@@ -40,8 +40,8 @@ GREETINGS = 'Hello from yang-catalog'
 
 class MessageFactory:
     """This class serves to automatically send a message to
-       Webex Teams cisco admins private room and/or to send
-       a message to a group of admin e-mails
+    Webex Teams cisco admins private room and/or to send
+    a message to a group of admin e-mails
     """
 
     def __init__(self, config_path: str = os.environ['YANGCATALOG_CONFIG_PATH']):
@@ -58,17 +58,14 @@ class MessageFactory:
         log_directory = config.get('Directory-Section', 'logs')
         token = config.get('Secrets-Section', 'webex-access-token')
         self._email_from = config.get('Message-Section', 'email-from')
-        self._is_production = config.get(
-            'General-Section', 'is-prod') == 'True'
+        self._is_production = config.get('General-Section', 'is-prod') == 'True'
         self._email_to = config.get('Message-Section', 'email-to').split()
-        self._developers_email = config.get(
-            'Message-Section', 'developers-email').split()
+        self._developers_email = config.get('Message-Section', 'developers-email').split()
         self._temp_dir = config.get('Directory-Section', 'temp')
         self._domain_prefix = config.get('Web-Section', 'domain-prefix')
         self._me = self._domain_prefix.split('/')[-1]
 
-        self.LOGGER = log.get_logger(
-            __name__, os.path.join(log_directory, 'yang.log'))
+        self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'yang.log'))
         self.LOGGER.info('Initialising Message Factory')
 
         self._api = WebexTeamsAPI(access_token=token)
@@ -78,8 +75,7 @@ class MessageFactory:
         self._room = rooms[0]
 
         self._smtp = smtplib.SMTP('localhost')
-        self._message_log_file = os.path.join(
-            self._temp_dir, 'message-log.txt')
+        self._message_log_file = os.path.join(self._temp_dir, 'message-log.txt')
 
     def _validate_rooms_count(self, rooms: list):
         if len(rooms) == 0:
@@ -101,25 +97,26 @@ class MessageFactory:
         """
         msg += f'\n\nMessage sent from {self._me}'
         if not self._is_production:
-            self.LOGGER.info(
-                f'You are in local env. Skip sending message to cisco webex teams. The message was\n{msg}')
+            self.LOGGER.info(f'You are in local env. Skip sending message to cisco webex teams. The message was\n{msg}')
             if files:
                 for f in files:
                     os.remove(f)
             return
         if markdown:
-            self._api.messages.create(
-                self._room.id, markdown=msg, files=files or None)
+            self._api.messages.create(self._room.id, markdown=msg, files=files or None)
         else:
-            self._api.messages.create(
-                self._room.id, text=msg, files=files or None)
+            self._api.messages.create(self._room.id, text=msg, files=files or None)
 
         if files:
             for f in files:
                 os.remove(f)
 
     def _post_to_email(
-            self, message: str, email_to: t.Union[list, tuple] = (), subject: str = '', subtype: str = 'plain',
+        self,
+        message: str,
+        email_to: t.Union[list, tuple] = (),
+        subject: str = '',
+        subtype: str = 'plain',
     ):
         """Send message to an e-mail
 
@@ -131,15 +128,13 @@ class MessageFactory:
         """
         send_to = email_to if email_to else self._email_to
         newline_character = '<br>' if subtype == 'html' else '\n'
-        msg = MIMEText(
-            f'{message}{newline_character}{newline_character}Message sent from {self._me}', _subtype=subtype)
+        msg = MIMEText(f'{message}{newline_character}{newline_character}Message sent from {self._me}', _subtype=subtype)
         msg['Subject'] = subject or 'Automatic generated message - RFC IETF'
         msg['From'] = self._email_from
         msg['To'] = ', '.join(send_to)
 
         if not self._is_production:
-            self.LOGGER.info(
-                f'You are in local env. Skip sending message to emails. The message format was {msg}')
+            self.LOGGER.info(f'You are in local env. Skip sending message to emails. The message format was {msg}')
             self._smtp.quit()
             return
         self._smtp.sendmail(self._email_from, send_to, msg.as_string())
@@ -161,8 +156,13 @@ class MessageFactory:
         for fields in user_data['approved']:
             ret_text += '<tr>'
             for key in [
-                'username', 'first-name', 'last-name', 'access-rights-sdo', 'access-rights-vendor',
-                'models-provider', 'email',
+                'username',
+                'first-name',
+                'last-name',
+                'access-rights-sdo',
+                'access-rights-vendor',
+                'models-provider',
+                'email',
             ]:
                 ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
@@ -197,14 +197,28 @@ class MessageFactory:
         tables_text = 'approved users\n'
 
         tables_text += '```\n'
-        headers = [('user', 25), ('name', 20), ('surname', 20), ('sdo_rights', 20),
-                   ('vendor_rights', 20), ('organization', 30), ('email', 30)]
+        headers = [
+            ('user', 25),
+            ('name', 20),
+            ('surname', 20),
+            ('sdo_rights', 20),
+            ('vendor_rights', 20),
+            ('organization', 30),
+            ('email', 30),
+        ]
         for header, width in headers:
             tables_text += header.ljust(width)
         tables_text += '\n'
 
-        keys = [('username', 25), ('first-name', 20), ('last-name', 20), ('access-rights-sdo', 20),
-                ('access-rights-vendor', 20), ('models-provider', 30), ('email', 30)]
+        keys = [
+            ('username', 25),
+            ('first-name', 20),
+            ('last-name', 20),
+            ('access-rights-sdo', 20),
+            ('access-rights-vendor', 20),
+            ('models-provider', 30),
+            ('email', 30),
+        ]
         for fields in users_stats['approved']:
             for key, width in keys:
                 tables_text += str(fields.get(key)).ljust(width)
@@ -214,14 +228,12 @@ class MessageFactory:
         tables_text += '\n\nusers pending approval\n'
 
         tables_text += '```\n'
-        headers = [('user', 25), ('name', 20), ('surname', 20),
-                   ('organization', 30), ('email', 30)]
+        headers = [('user', 25), ('name', 20), ('surname', 20), ('organization', 30), ('email', 30)]
         for header, width in headers:
             tables_text += header.ljust(width)
         tables_text += '\n'
 
-        keys = [('username', 25), ('first-name', 20),
-                ('last-name', 20), ('models-provider', 30), ('email', 30)]
+        keys = [('username', 25), ('first-name', 20), ('last-name', 20), ('models-provider', 30), ('email', 30)]
         for fields in users_stats['temp']:
             for key, width in keys:
                 tables_text += str(fields.get(key)).ljust(width)
@@ -237,10 +249,8 @@ class MessageFactory:
         Arguments:
             :param user_data  (dict) dictionary containing the data of approved and pending users
         """
-        self._post_to_webex(
-            self._markdown_user_reminder_message(user_data), markdown=True)
-        self._post_to_email(self._html_user_reminder_message(
-            user_data), subtype='html')
+        self._post_to_webex(self._markdown_user_reminder_message(user_data), markdown=True)
+        self._post_to_email(self._html_user_reminder_message(user_data), subtype='html')
 
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
@@ -260,10 +270,8 @@ class MessageFactory:
         """Send a message to Cisco Webex notifying about failed authorization
         on the endpoint for Travis jobs.
         """
-        self.LOGGER.info(
-            'Sending notification about travis authorization failed')
-        message = ('Travis pull job not sent because patch was not sent from'
-                   ' travis. Key verification failed')
+        self.LOGGER.info('Sending notification about travis authorization failed')
+        message = 'Travis pull job not sent because patch was not sent from' ' travis. Key verification failed'
         self._post_to_webex(message)
 
     def send_automated_procedure_failed(self, arguments: list, file: str):
@@ -274,11 +282,8 @@ class MessageFactory:
             :param arguments    (list) A list of arguments passed to the job.
             :param file         (str) Path to a file to attatch.
         """
-        self.LOGGER.info(
-            'Sending notification about any automated procedure failure')
-        message = (
-            f'Automated procedure with arguments:\n {arguments} \nfailed with error. Please see attached document'
-        )
+        self.LOGGER.info('Sending notification about any automated procedure failure')
+        message = f'Automated procedure with arguments:\n {arguments} \nfailed with error. Please see attached document'
         self._post_to_webex(message, True, files=[file])
 
     def send_github_action_email(self, conclusion: str, html_url: str):
@@ -289,13 +294,9 @@ class MessageFactory:
             :param html_url    (str) Link to the page with more details about github action.
         """
         self.LOGGER.info('Sending notification about failed github action')
-        message = (
-            f'{GREETINGS}\n\nSome github action has a {conclusion} conclusion.'
-            f'\n\nMore details: {html_url}'
-        )
+        message = f'{GREETINGS}\n\nSome github action has a {conclusion} conclusion.' f'\n\nMore details: {html_url}'
 
-        self._post_to_email(
-            message, email_to=self._developers_email, subject='Trouble with Github Action')
+        self._post_to_email(message, email_to=self._developers_email, subject='Trouble with Github Action')
 
     def send_removed_temp_diff_files(self):
         # TODO send webex message about removed searched diff files
@@ -310,7 +311,9 @@ class MessageFactory:
         """
         self.LOGGER.info('Sending notification about removed YANG modules')
         message = 'Files have been removed from yangcatalog.org. See attached document'
-        text = f'The following files has been removed from https://yangcatalog.org using the API: \n{removed_yang_files}\n'
+        text = (
+            f'The following files has been removed from https://yangcatalog.org using the API: \n{removed_yang_files}\n'
+        )
         with open(self._message_log_file, 'w') as f:
             f.write(text)
         self._post_to_webex(message, True, files=[self._message_log_file])
@@ -340,8 +343,7 @@ class MessageFactory:
             :param new_files        (list) A list of newly added files.
             :param modified_files   (list) A list of modified files.
         """
-        self.LOGGER.info(
-            'Sending notification about new or modified platform metadata')
+        self.LOGGER.info('Sending notification about new or modified platform metadata')
         new_files_string = '\n'.join(new_files)
         modified_files_string = '\n'.join(modified_files)
         message = 'Files have been modified in yangcatalog.org. See attached document'
@@ -399,8 +401,7 @@ class MessageFactory:
         for key, error in data.items():
             message += f'\n{key}:\n{json.dumps(error, indent=2)}'
 
-        self._post_to_email(
-            message, email_to=self._developers_email, subject=subject)
+        self._post_to_email(message, email_to=self._developers_email, subject=subject)
 
     def send_populate_script_triggered_by_api(self, args: t.Iterable[tuple[str, t.Any]]):
         """Send a webex message notifying that populate.py script has been triggered by an api call.

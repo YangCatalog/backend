@@ -36,10 +36,7 @@ from utility.staticVariables import SDOS
 def _track_progress(es_manager: ESManager, task_id: str) -> None:
     while True:
         task_info = es_manager.es.tasks.get(task_id=task_id)
-        LOGGER.info('{} out of {}'.format(
-            task_info['task']['status']['updated'],
-            task_info['task']['status']['total'])
-        )
+        LOGGER.info('{} out of {}'.format(task_info['task']['status']['updated'], task_info['task']['status']['total']))
         if task_info['completed']:
             break
         time.sleep(10)
@@ -53,7 +50,7 @@ def main():
     global LOGGER
     LOGGER = log.get_logger('es_reindex', '{}/sandbox.log'.format(log_directory))
     # ----------------------------------------------------------------------------------------------
-    # INIT ALL INDICES
+    # INIT ALL INDICES
     # ----------------------------------------------------------------------------------------------
     es_manager = ESManager()
     for index in ESIndices:
@@ -63,14 +60,14 @@ def main():
             create_result = es_manager.create_index(index)
             LOGGER.info(create_result)
     # ----------------------------------------------------------------------------------------------
-    # GET ALL MODULES FROM 'modules' INDEX
+    # GET ALL MODULES FROM 'modules' INDEX
     # ----------------------------------------------------------------------------------------------
     all_es_modules = {}
     if es_manager.index_exists(ESIndices.MODULES):
         all_es_modules = es_manager.match_all(ESIndices.MODULES)
     LOGGER.info('Total number of modules retreived from "modules" index: {}'.format(len(all_es_modules)))
     # ----------------------------------------------------------------------------------------------
-    # FILL 'autocomplete' INDEX
+    # FILL 'autocomplete' INDEX
     # ----------------------------------------------------------------------------------------------
     autocomplete_count = es_manager.get_documents_count(ESIndices.AUTOCOMPLETE)
     modules_count = es_manager.get_documents_count(ESIndices.MODULES)
@@ -81,17 +78,13 @@ def main():
                 name = module['name']
             except KeyError:
                 name = module['module']
-            document = {
-                'name': name,
-                'revision': module['revision'],
-                'organization': module['organization']
-            }
+            document = {'name': name, 'revision': module['revision'], 'organization': module['organization']}
             es_manager.delete_from_index(ESIndices.AUTOCOMPLETE, document)
             index_result = es_manager.index_module(ESIndices.AUTOCOMPLETE, document)
             if index_result['result'] != 'created':
                 LOGGER.info(index_result)
     # ----------------------------------------------------------------------------------------------
-    # PUT MAPPING IN 'yindex' INDEX
+    # PUT MAPPING IN 'yindex' INDEX
     # ----------------------------------------------------------------------------------------------
     yindex_mapping = es_manager.get_index_mapping(ESIndices.YINDEX)
     sdo_property = None
@@ -100,47 +93,35 @@ def main():
     except KeyError:
         LOGGER.info('sdo property not defined yet')
     if not sdo_property:
-        update_mapping = {
-            'properties': {
-                'sdo': {'type': 'boolean'}
-            }
-        }
+        update_mapping = {'properties': {'sdo': {'type': 'boolean'}}}
         put_result = es_manager.put_index_mapping(ESIndices.YINDEX, update_mapping)
         LOGGER.info('Put mapping result:\n{}'.format(put_result))
 
         # ----------------------------------------------------------------------------------------------
-        # SET 'sdo' FIELD FOR NON-SDOS
+        # SET 'sdo' FIELD FOR NON-SDOS
         # ----------------------------------------------------------------------------------------------
         update_query = {
             'script': 'ctx._source.sdo = false',
-            'query': {
-                'bool': {
-                    'must_not': {
-                        'terms': {
-                            'organization.keyword': SDOS
-                        }
-                    }
-                }
-
-            }
+            'query': {'bool': {'must_not': {'terms': {'organization.keyword': SDOS}}}},
         }
         update_result = es_manager.es.update_by_query(
-            index=ESIndices.YINDEX.value, body=update_query, conflicts='proceed', wait_for_completion=False)
+            index=ESIndices.YINDEX.value,
+            body=update_query,
+            conflicts='proceed',
+            wait_for_completion=False,
+        )
         task_id = update_result.get('task')
         _track_progress(es_manager, task_id)
         # ----------------------------------------------------------------------------------------------
-        # SET 'sdo' FIELD FOR SDOS
+        # SET 'sdo' FIELD FOR SDOS
         # ----------------------------------------------------------------------------------------------
-        update_query = {
-            'script': 'ctx._source.sdo = true',
-            'query': {
-                'terms': {
-                    'organization.keyword': SDOS
-                }
-            }
-        }
+        update_query = {'script': 'ctx._source.sdo = true', 'query': {'terms': {'organization.keyword': SDOS}}}
         update_result = es_manager.es.update_by_query(
-            index=ESIndices.YINDEX.value, body=update_query, conflicts='proceed', wait_for_completion=False)
+            index=ESIndices.YINDEX.value,
+            body=update_query,
+            conflicts='proceed',
+            wait_for_completion=False,
+        )
         task_id = update_result.get('task')
         _track_progress(es_manager, task_id)
 

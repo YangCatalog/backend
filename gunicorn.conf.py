@@ -1,4 +1,4 @@
-bind = "unix:/var/run/yang/yang-catalog.sock"
+bind = 'unix:/var/run/yang/yang-catalog.sock'
 # umask = os.umask('007')
 
 workers = 5

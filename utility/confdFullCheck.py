@@ -29,9 +29,8 @@ import random
 import string
 import time
 
-from redisConnections.redisConnection import RedisConnection
-
 import utility.log as log
+from redisConnections.redisConnection import RedisConnection
 from utility import confdService
 from utility.create_config import create_config
 from utility.staticVariables import JobLogStatuses
@@ -71,7 +70,7 @@ if __name__ == '__main__':
         # Change module name to be used only for this check - to not affect real module
         module['name'] = check_module_name
 
-        # PATCH
+        # PATCH
         result = {'label': f'PATCH {check_module_name}@2018-04-03'}
         errors = confdService.patch_modules([module])
 
@@ -106,7 +105,7 @@ if __name__ == '__main__':
         messages.append(result)
 
         # GET 3
-        # NOTE: Module should already be removed - 404 status code is expected
+        # NOTE: Module should already be removed - 404 status code is expected
         result = {'label': f'GET 2 {check_module_name}@2018-04-03'}
         response = confdService.get_module(new_module_key)
 

@@ -1,6 +1,7 @@
-import os
-import json
 import filecmp
+import json
+import os
+
 from utility.util import resolve_revision
 
 conflicting = []
@@ -13,7 +14,7 @@ for dirname, _, files in os.walk(top):
             revision = resolve_revision(os.path.join(dirname, f))
             if f not in fnames:
                 fnames[f] = {}
-            if not revision in fnames[f]:
+            if revision not in fnames[f]:
                 fnames[f][revision] = os.path.join(dirname, f)
             else:
                 if not filecmp.cmp(fnames[f][revision], os.path.join(dirname, f), shallow=False):

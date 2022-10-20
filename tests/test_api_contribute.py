@@ -26,11 +26,12 @@ import shutil
 import unittest
 from unittest import mock
 
+from redis import RedisError
+
 import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
 from api.globalConfig import yc_gc
 from api.views.admin.admin import hash_pw
 from api.yangCatalogApi import app
-from redis import RedisError
 from redisConnections.redis_users_connection import RedisUsersConnection
 
 
@@ -45,7 +46,6 @@ class MockRepoUtil:
 
 
 class TestApiContributeClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestApiContributeClass, self).__init__(*args, **kwargs)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
@@ -69,9 +69,17 @@ class TestApiContributeClass(unittest.TestCase):
 
         # TODO: Mock RedisUsersConnection to run on db=12 when running tests
         self.users = RedisUsersConnection()
-        self.uid = self.users.create(temp=False, username='test', password=hash_pw('test'), email='test@test.test',
-                                     models_provider='test', first_name='test', last_name='test',
-                                     access_rights_sdo='/', access_rights_vendor='/')
+        self.uid = self.users.create(
+            temp=False,
+            username='test',
+            password=hash_pw('test'),
+            email='test@test.test',
+            models_provider='test',
+            first_name='test',
+            last_name='test',
+            access_rights_sdo='/',
+            access_rights_vendor='/',
+        )
 
         os.makedirs(yc_gc.save_requests, exist_ok=True)
 
@@ -83,8 +91,19 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
     def test_register_user(self):
         # we use a username different from "test" because such a user already exists
-        body = {k: 'tset' for k in ['username', 'password', 'password-confirm', 'email',
-                                    'company', 'first-name', 'last-name', 'motivation']}
+        body = {
+            k: 'tset'
+            for k in [
+                'username',
+                'password',
+                'password-confirm',
+                'email',
+                'company',
+                'first-name',
+                'last-name',
+                'motivation',
+            ]
+        }
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 201)
@@ -113,8 +132,19 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'bad request - missing last-name data in input')
 
     def test_register_user_mismatched_passwd(self):
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
-                                    'company', 'first-name', 'last-name', 'motivation']}
+        body = {
+            k: 'test'
+            for k in [
+                'username',
+                'password',
+                'password-confirm',
+                'email',
+                'company',
+                'first-name',
+                'last-name',
+                'motivation',
+            ]
+        }
         body['password-confirm'] = 'different'
         result = self.client.post('api/register-user', json=body)
 
@@ -125,8 +155,19 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'Passwords do not match')
 
     def test_register_user_user_exist(self):
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
-                                    'company', 'first-name', 'last-name', 'motivation']}
+        body = {
+            k: 'test'
+            for k in [
+                'username',
+                'password',
+                'password-confirm',
+                'email',
+                'company',
+                'first-name',
+                'last-name',
+                'motivation',
+            ]
+        }
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 409)
@@ -138,8 +179,19 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.yangCatalogApi.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
     @mock.patch('api.yangCatalogApi.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
     def test_register_user_tempuser_exist(self):
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
-                                    'company', 'first-name', 'last-name', 'motivation']}
+        body = {
+            k: 'test'
+            for k in [
+                'username',
+                'password',
+                'password-confirm',
+                'email',
+                'company',
+                'first-name',
+                'last-name',
+                'motivation',
+            ]
+        }
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 409)
@@ -150,8 +202,19 @@ class TestApiContributeClass(unittest.TestCase):
 
     @mock.patch('api.yangCatalogApi.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
     def test_register_user_db_exception(self):
-        body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email',
-                                    'company', 'first-name', 'last-name', 'motivation']}
+        body = {
+            k: 'test'
+            for k in [
+                'username',
+                'password',
+                'password-confirm',
+                'email',
+                'company',
+                'first-name',
+                'last-name',
+                'motivation',
+            ]
+        }
         result = self.client.post('api/register-user', json=body)
 
         self.assertEqual(result.status_code, 500)
@@ -161,8 +224,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Server problem connecting to database')
 
     def test_delete_modules_one_module(self):
-        """Test correct action is taken for a valid deletion attempt.
-        """
+        """Test correct action is taken for a valid deletion attempt."""
         name = 'yang-catalog'
         revision = '2018-04-03'
         organization = 'ietf'
@@ -180,11 +242,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     def test_delete_modules_unavailable_module(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = ''
-        mod = {
-            'name': 'test',
-            'revision': '2017-01-01',
-            'organization': 'ietf'
-        }
+        mod = {'name': 'test', 'revision': '2017-01-01', 'organization': 'ietf'}
         path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
@@ -202,11 +260,7 @@ class TestApiContributeClass(unittest.TestCase):
         Test error response when the user has insufficient rights.
         """
         mock_access_rights.return_value = ''
-        mod = {
-            'name': 'yang-catalog',
-            'revision': '2017-09-26',
-            'organization': 'ietf'
-        }
+        mod = {'name': 'yang-catalog', 'revision': '2017-09-26', 'organization': 'ietf'}
         path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
@@ -214,17 +268,14 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'],
-                         'You do not have rights to delete modules with organization {}'.format(mod['organization']))
+        self.assertEqual(
+            data['description'],
+            'You do not have rights to delete modules with organization {}'.format(mod['organization']),
+        )
 
     def test_delete_modules_has_implementation(self):
-        """Test skipped modules when the module has implementations.
-        """
-        mod = {
-            'name': 'ietf-yang-types',
-            'revision': '2013-07-15',
-            'organization': 'ietf'
-        }
+        """Test skipped modules when the module has implementations."""
+        mod = {'name': 'ietf-yang-types', 'revision': '2013-07-15', 'organization': 'ietf'}
         path = '{},{},{}'.format(mod['name'], mod['revision'], mod['organization'])
         result = self.client.delete('api/modules/module/{}'.format(path), auth=('test', 'test'))
 
@@ -268,8 +319,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], "Data must start with 'input' root element in json")
 
     def test_delete_vendor(self):
-        """Test correct action is taken for a valid deletion attempt.
-        """
+        """Test correct action is taken for a valid deletion attempt."""
         path = 'nonexistent'
         result = self.client.delete('api/vendors/{}'.format(path), auth=('test', 'test'))
 
@@ -352,8 +402,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - you need to input json body that conforms with'
-                                              ' module-metadata.yang module. Received no json')
+        self.assertEqual(
+            data['description'],
+            'bad request - you need to input json body that conforms with'
+            ' module-metadata.yang module. Received no json',
+        )
 
     def test_add_modules_missing_modules(self):
         result = self.client.put('api/modules', json={'invalid': True}, auth=('test', 'test'))
@@ -393,7 +446,9 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertTrue(data['description'].startswith('The body you have provided could not be parsed. ConfD error text:'))
+        self.assertTrue(
+            data['description'].startswith('The body you have provided could not be parsed. ConfD error text:'),
+        )
 
     @mock.patch('requests.put')
     def test_add_modules_no_source_file(self, mock_put: mock.MagicMock):
@@ -521,8 +576,12 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertTrue(data['description'].startswith('bad request - could not clone the Github repository.'
-                                                       ' Please check owner, repository and path of the request - '))
+        self.assertTrue(
+            data['description'].startswith(
+                'bad request - could not clone the Github repository.'
+                ' Please check owner, repository and path of the request - ',
+            ),
+        )
 
     @mock.patch('shutil.move')
     @mock.patch('shutil.copy')
@@ -596,8 +655,11 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - you need to input json body that conforms with'
-                                              ' platform-implementation-metadata.yang module. Received no json')
+        self.assertEqual(
+            data['description'],
+            'bad request - you need to input json body that conforms with'
+            ' platform-implementation-metadata.yang module. Received no json',
+        )
 
     def test_add_vendor_no_platforms(self):
         result = self.client.put('api/platforms', json={'test': 'test'}, auth=('test', 'test'))
@@ -629,16 +691,21 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'],
-                         'The body you have provided could not be parsed. ConfD error text:\ntest\nError code: 400')
+        self.assertEqual(
+            data['description'],
+            'The body you have provided could not be parsed. ConfD error text:\ntest\nError code: 400',
+        )
 
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     def test_add_vendor_no_module_file_list(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
-        result = self.client.put('api/platforms',
-                                 json={'platforms': {'platform': [{'test': 'test'}]}}, auth=('test', 'test'))
+        result = self.client.put(
+            'api/platforms',
+            json={'platforms': {'platform': [{'test': 'test'}]}},
+            auth=('test', 'test'),
+        )
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
@@ -714,8 +781,12 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertTrue(data['description'].startswith('bad request - could not clone the Github repository.'
-                                                       ' Please check owner, repository and path of the request - '))
+        self.assertTrue(
+            data['description'].startswith(
+                'bad request - could not clone the Github repository.'
+                ' Please check owner, repository and path of the request - ',
+            ),
+        )
 
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
     def test_authorize_for_vendors(self, mock_access_rights: mock.MagicMock):
@@ -724,13 +795,8 @@ class TestApiContributeClass(unittest.TestCase):
         request.authorization = {'username': 'test'}
         body = {
             'platforms': {
-                'platform': [{
-                    'name': 'test',
-                    'vendor': 'test',
-                    'software-version': 'test',
-                    'software-flavor': 'test'
-                }]
-            }
+                'platform': [{'name': 'test', 'vendor': 'test', 'software-version': 'test', 'software-flavor': 'test'}],
+            },
         }
         with app.app_context():
             result = mm.authorize_for_vendors(request, body)
@@ -754,13 +820,10 @@ class TestApiContributeClass(unittest.TestCase):
         request.authorization = {'username': 'test'}
         body = {
             'platforms': {
-                'platform': [{
-                    'name': 'other',
-                    'vendor': 'other',
-                    'software-version': 'other',
-                    'software-flavor': 'other'
-                }]
-            }
+                'platform': [
+                    {'name': 'other', 'vendor': 'other', 'software-version': 'other', 'software-flavor': 'other'},
+                ],
+            },
         }
         with app.app_context():
             result = mm.authorize_for_vendors(request, body)
@@ -825,8 +888,11 @@ class TestApiContributeClass(unittest.TestCase):
 
 
 def mock_redis_get(module: dict):
-    file = '{}/tests/resources/confd_responses/{}@{}.json' \
-        .format(os.environ['BACKEND'], module['name'], module['revision'])
+    file = '{}/tests/resources/confd_responses/{}@{}.json'.format(
+        os.environ['BACKEND'],
+        module['name'],
+        module['revision'],
+    )
     if not os.path.isfile(file):
         return json.loads('{}')
     else:

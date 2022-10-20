@@ -24,6 +24,7 @@ from copy import deepcopy
 from unittest import mock
 
 from redis import Redis
+
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 
@@ -36,8 +37,8 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         self._redis_port = config.get('DB-Section', 'redis-port')
         self.resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
         self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6) # pyright: ignore
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9) # pyright: ignore
+        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)  # pyright: ignore
+        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)  # pyright: ignore
 
     def setUp(self):
         redis_key = 'ietf-bgp@2021-10-25/ietf'
@@ -166,7 +167,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         new_submodule = {
             'name': 'yang-catalog',
             'revision': '2018-04-03',
-            'schema': 'https://raw.githubusercontent.com/YangModels/yang/yang-catalog@2018-04-03.yang'
+            'schema': 'https://raw.githubusercontent.com/YangModels/yang/yang-catalog@2018-04-03.yang',
         }
 
         module['submodule'].append(new_submodule)
@@ -189,7 +190,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
 
         new_dependency = {
             'name': 'yang-catalog',
-            'schema': 'https://raw.githubusercontent.com/YangModels/yang/yang-catalog@2018-04-03.yang'
+            'schema': 'https://raw.githubusercontent.com/YangModels/yang/yang-catalog@2018-04-03.yang',
         }
 
         module['dependencies'].append(new_dependency)
@@ -213,7 +214,8 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         new_dependent = {
             'name': 'ietf-bgp-sr',
             'revision': '2018-06-26',
-            'schema': 'https://raw.githubusercontent.com/YangModels/yang/master/experimental/ietf-extracted-YANG-modules/ietf-bgp-sr@2018-06-26.yang'
+            'schema': 'https://raw.githubusercontent.com/YangModels/yang/master/experimental/'
+            'ietf-extracted-YANG-modules/ietf-bgp-sr@2018-06-26.yang',
         }
 
         module['dependents'][1] = new_dependent
@@ -243,7 +245,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
             'platform': 'ne5000e',
             'software-flavor': 'ALL',
             'software-version': 'V800R011C10SPC810',
-            'vendor': 'huawei'
+            'vendor': 'huawei',
         }
 
         module['implementations']['implementation'].append(new_implementation)
@@ -273,7 +275,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
             'platform': 'ne9000',
             'software-flavor': 'ALL',
             'software-version': 'V800R013C00',
-            'vendor': 'huawei'
+            'vendor': 'huawei',
         }
 
         module['implementations']['implementation'].append(new_implementation)
@@ -387,5 +389,5 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         self.assertNotIn('expires', data)
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

@@ -22,21 +22,41 @@ import time
 from logging import Logger
 
 import requests
-import utility.log as log
-from api.my_flask import app
 from flask.blueprints import Blueprint
 from flask.helpers import make_response
 from flask.json import jsonify
+
+import utility.log as log
+from api.my_flask import app
 from utility.staticVariables import json_headers
 
 
 class HealthcheckBlueprint(Blueprint):
     LOGGER: Logger
 
-    def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
-                 url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
-        super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
-                         url_defaults, root_path)
+    def __init__(
+        self,
+        name,
+        import_name,
+        static_folder=None,
+        static_url_path=None,
+        template_folder=None,
+        url_prefix=None,
+        subdomain=None,
+        url_defaults=None,
+        root_path=None,
+    ):
+        super().__init__(
+            name,
+            import_name,
+            static_folder,
+            static_url_path,
+            template_folder,
+            url_prefix,
+            subdomain,
+            url_defaults,
+            root_path,
+        )
 
 
 bp = HealthcheckBlueprint('healthcheck', __name__)
@@ -54,14 +74,31 @@ def set_config():
     users = ac.redis_users
 
 
-### ROUTE ENDPOINT DEFINITIONS ###
 @bp.route('/services-list', methods=['GET'])
 def get_services_list():
     response_body = []
-    service_endpoints = ['elk', 'confd-admin', 'redis-admin', 'yang-search-admin', 'yang-validator-admin',
-                         'yangre-admin', 'nginx', 'rabbitmq', 'yangcatalog']
-    service_names = ['Elasticsearch', 'ConfD', 'Redis', 'YANG search', 'YANG validator', 'YANGre', 'NGINX', 'RabbitMQ',
-                     'YangCatalog']
+    service_endpoints = [
+        'elk',
+        'confd-admin',
+        'redis-admin',
+        'yang-search-admin',
+        'yang-validator-admin',
+        'yangre-admin',
+        'nginx',
+        'rabbitmq',
+        'yangcatalog',
+    ]
+    service_names = [
+        'Elasticsearch',
+        'ConfD',
+        'Redis',
+        'YANG search',
+        'YANG validator',
+        'YANGre',
+        'NGINX',
+        'RabbitMQ',
+        'YangCatalog',
+    ]
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
         response_body.append(pair)
@@ -72,7 +109,7 @@ def get_services_list():
 def health_check_elk():
     service_name = 'Elasticsearch'
     try:
-        # try to ping Elasticsearch
+        # try to ping Elasticsearch
         if ac.es_manager.ping():
             bp.LOGGER.info('Successfully connected to Elasticsearch')
             # get health of cluster
@@ -82,19 +119,39 @@ def health_check_elk():
             # get list of indices
             indices = ac.es_manager.get_indices()
             if len(indices) > 0:
-                return make_response(jsonify({'info': 'Elasticsearch is running',
-                                              'status': 'running',
-                                              'message': 'Cluster status: {}'.format(health_status)}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': 'Elasticsearch is running',
+                            'status': 'running',
+                            'message': 'Cluster status: {}'.format(health_status),
+                        },
+                    ),
+                    200,
+                )
             else:
-                return make_response(jsonify({'info': 'Elasticsearch is running',
-                                              'status': 'problem',
-                                              'message': 'Cluster status: {} Number of indices: {}'
-                                              .format(health_status, len(indices))}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': 'Elasticsearch is running',
+                            'status': 'problem',
+                            'message': 'Cluster status: {} Number of indices: {}'.format(health_status, len(indices)),
+                        },
+                    ),
+                    200,
+                )
         else:
             bp.LOGGER.info('Cannot connect to Elasticsearch database')
-            return make_response(jsonify({'info': 'Not OK - Elasticsearch is not running',
-                                          'status': 'down',
-                                          'error': 'Cannot ping Elasticsearch'}), 200)
+            return make_response(
+                jsonify(
+                    {
+                        'info': 'Not OK - Elasticsearch is not running',
+                        'status': 'down',
+                        'error': 'Cannot ping Elasticsearch',
+                    },
+                ),
+                200,
+            )
     except Exception as err:
         bp.LOGGER.error('Cannot connect to Elasticsearch database. Error: {}'.format(err))
         return make_response(jsonify(error_response(service_name, err)), 200)
@@ -105,7 +162,7 @@ def health_check_confd():
     service_name = 'ConfD'
 
     try:
-        # Check if ConfD is running
+        # Check if ConfD is running
         response = app.confdService.get_restconf()
 
         if response.status_code == 200:
@@ -148,13 +205,27 @@ def health_check_nginx():
         bp.LOGGER.info('NGINX responded with a code {}'.format(response.status_code))
         response_message = response.json()['info']
         if response.status_code == 200 and response_message == 'Success':
-            return make_response(jsonify({'info': 'NGINX is available',
-                                          'status': 'running',
-                                          'message': 'NGINX responded with a code {}'.format(response.status_code)}), 200)
+            return make_response(
+                jsonify(
+                    {
+                        'info': 'NGINX is available',
+                        'status': 'running',
+                        'message': 'NGINX responded with a code {}'.format(response.status_code),
+                    },
+                ),
+                200,
+            )
         else:
-            return make_response(jsonify({'info': 'Not OK - NGINX is not available',
-                                          'status': 'problem',
-                                          'message': 'NGINX responded with a code {}'.format(response.status_code)}), 200)
+            return make_response(
+                jsonify(
+                    {
+                        'info': 'Not OK - NGINX is not available',
+                        'status': 'problem',
+                        'message': 'NGINX responded with a code {}'.format(response.status_code),
+                    },
+                ),
+                200,
+            )
     except Exception as err:
         bp.LOGGER.error('Cannot ping {}. Error: {}'.format(service_name, err))
         return make_response(jsonify(error_response(service_name, err)), 200)
@@ -179,9 +250,16 @@ def health_check_rabbitmq():
             else:
                 time.sleep(2)
         bp.LOGGER.info('Ping job responded with a message: {}'.format(response_type))
-        return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                      'status': 'running',
-                                      'message': 'Ping job responded with a message: {}'.format(response_type)}), 200)
+        return make_response(
+            jsonify(
+                {
+                    'info': '{} is available'.format(service_name),
+                    'status': 'running',
+                    'message': 'Ping job responded with a message: {}'.format(response_type),
+                },
+            ),
+            200,
+        )
     except Exception as err:
         if err:
             err = 'Check yang.log file for more details!'
@@ -189,7 +267,6 @@ def health_check_rabbitmq():
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
-### ROUTE ENDPOINT DEFINITIONS - ADMIN SPECIFIC ###
 @bp.route('/yangre-admin', methods=['GET'])
 def health_check_yangre_admin():
     service_name = 'yangre'
@@ -204,17 +281,38 @@ def health_check_yangre_admin():
         if response.status_code == 200:
             response_message = response.json()
             if response_message['yangre_output'] == '':
-                return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                              'status': 'running',
-                                              'message': 'yangre successfully validated string'}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': '{} is available'.format(service_name),
+                            'status': 'running',
+                            'message': 'yangre successfully validated string',
+                        },
+                    ),
+                    200,
+                )
             else:
-                return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                              'status': 'problem',
-                                              'message': response_message['yangre_output']}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': '{} is available'.format(service_name),
+                            'status': 'problem',
+                            'message': response_message['yangre_output'],
+                        },
+                    ),
+                    200,
+                )
         elif response.status_code == 400 or response.status_code == 404:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'problem',
-                                          'message': 'yangre responded with a code {}'.format(response.status_code)}), 200)
+            return make_response(
+                jsonify(
+                    {
+                        'info': '{} is available'.format(service_name),
+                        'status': 'problem',
+                        'message': 'yangre responded with a code {}'.format(response.status_code),
+                    },
+                ),
+                200,
+            )
         else:
             err = 'yangre responded with a code {}'.format(response.status_code)
             return make_response(jsonify(error_response(service_name, err)), 200)
@@ -236,17 +334,38 @@ def health_check_yang_validator_admin():
         if response.status_code == 200:
             response_message = response.json()
             if response_message:
-                return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                              'status': 'running',
-                                              'message': '{} successfully fetched and validated RFC{}'.format(service_name, rfc_number)}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': '{} is available'.format(service_name),
+                            'status': 'running',
+                            'message': '{} successfully fetched and validated RFC{}'.format(service_name, rfc_number),
+                        },
+                    ),
+                    200,
+                )
             else:
-                return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                              'status': 'problem',
-                                              'message': 'RFC{} responded with empty body'.format(rfc_number)}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': '{} is available'.format(service_name),
+                            'status': 'problem',
+                            'message': 'RFC{} responded with empty body'.format(rfc_number),
+                        },
+                    ),
+                    200,
+                )
         elif response.status_code == 400 or response.status_code == 404:
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'problem',
-                                          'message': '{} responded with a code {}'.format(service_name, response.status_code)}), 200)
+            return make_response(
+                jsonify(
+                    {
+                        'info': '{} is available'.format(service_name),
+                        'status': 'problem',
+                        'message': '{} responded with a code {}'.format(service_name, response.status_code),
+                    },
+                ),
+                200,
+            )
         else:
             err = '{} responded with a code {}'.format(service_name, response.status_code)
             return make_response(jsonify(error_response(service_name, err)), 200)
@@ -266,18 +385,39 @@ def health_check_yang_search_admin():
         if response.status_code == 200:
             response_message = response.json()
             if response_message['module'] and len(response_message['module']) > 0:
-                return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                              'status': 'running',
-                                              'message': '{} module successfully found'.format(module_name)}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': '{} is available'.format(service_name),
+                            'status': 'running',
+                            'message': '{} module successfully found'.format(module_name),
+                        },
+                    ),
+                    200,
+                )
             else:
-                return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                              'status': 'problem',
-                                              'message': 'Module {} not found'.format(module_name)}), 200)
+                return make_response(
+                    jsonify(
+                        {
+                            'info': '{} is available'.format(service_name),
+                            'status': 'problem',
+                            'message': 'Module {} not found'.format(module_name),
+                        },
+                    ),
+                    200,
+                )
         elif response.status_code == 400 or response.status_code == 404:
             err = json.loads(response.text).get('error')
-            return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                          'status': 'problem',
-                                          'message': '{} responded with a message: {}'.format(service_name, err)}), 200)
+            return make_response(
+                jsonify(
+                    {
+                        'info': '{} is available'.format(service_name),
+                        'status': 'problem',
+                        'message': '{} responded with a message: {}'.format(service_name, err),
+                    },
+                ),
+                200,
+            )
         else:
             err = '{} responded with a code {}'.format(service_name, response.status_code)
             return make_response(jsonify(error_response(service_name, err)), 200)
@@ -291,33 +431,49 @@ def health_check_confd_admin():
     service_name = 'ConfD'
 
     try:
-        # Check if ConfD is running
+        # Check if ConfD is running
         response = app.confdService.get_restconf()
 
         if response.status_code == 200:
             bp.LOGGER.info('ConfD is running')
-            # Check if ConfD is filled with data
+            # Check if ConfD is filled with data
             mod_key = 'yang-catalog,2018-04-03,ietf'
             response = app.confdService.get_module(mod_key)
 
             bp.LOGGER.info('Status code {} while getting data of {} module'.format(response.status_code, mod_key))
             if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-                response = {'info': 'Not OK - ConfD is not filled',
-                            'status': 'problem',
-                            'message': 'Cannot get data of yang-catalog:modules'}
+                response = {
+                    'info': 'Not OK - ConfD is not filled',
+                    'status': 'problem',
+                    'message': 'Cannot get data of yang-catalog:modules',
+                }
                 return make_response(jsonify(response), 200)
             else:
                 module_data = response.json()
                 num_of_modules = len(module_data['yang-catalog:module'])
                 bp.LOGGER.info('{} module successfully loaded from ConfD'.format(mod_key))
                 if num_of_modules > 0:
-                    return make_response(jsonify({'info': 'ConfD is running',
-                                                  'status': 'running',
-                                                  'message': '{} successfully loaded from ConfD'.format(mod_key)}), 200)
+                    return make_response(
+                        jsonify(
+                            {
+                                'info': 'ConfD is running',
+                                'status': 'running',
+                                'message': '{} successfully loaded from ConfD'.format(mod_key),
+                            },
+                        ),
+                        200,
+                    )
                 else:
-                    return make_response(jsonify({'info': 'ConfD is running',
-                                                  'status': 'problem',
-                                                  'message': 'ConfD is running but no modules loaded'}), 200)
+                    return make_response(
+                        jsonify(
+                            {
+                                'info': 'ConfD is running',
+                                'status': 'problem',
+                                'message': 'ConfD is running but no modules loaded',
+                            },
+                        ),
+                        200,
+                    )
         else:
             bp.LOGGER.info('Cannot get data from ConfD')
             err = 'Cannot get data from ConfD'
@@ -335,14 +491,18 @@ def health_check_redis_admin():
         redis_key = 'yang-catalog@2018-04-03/ietf'
         result = app.redisConnection.get_module(redis_key)
         if result == '{}':
-            response = {'info': 'Not OK - Redis is not filled',
-                        'status': 'problem',
-                        'message': 'Cannot get yang-catalog@2018-04-03/ietf'}
+            response = {
+                'info': 'Not OK - Redis is not filled',
+                'status': 'problem',
+                'message': 'Cannot get yang-catalog@2018-04-03/ietf',
+            }
         else:
             bp.LOGGER.info('{} module successfully loaded from Redis'.format(redis_key))
-            response = {'info': 'Redis is running',
-                        'status': 'running',
-                        'message': '{} successfully loaded from Redis'.format(redis_key)}
+            response = {
+                'info': 'Redis is running',
+                'status': 'running',
+                'message': '{} successfully loaded from Redis'.format(redis_key),
+            }
 
     except Exception as err:
         bp.LOGGER.error('Cannot ping Redis. Error: {}'.format(err))
@@ -358,19 +518,20 @@ def health_check_yangcatalog():
     message = 'All URLs responded with status code 200'
     additional_info = []
 
-    urls = [{'url': 'http://yangcatalog.org', 'verify': True},
-            {'url': 'http://www.yangcatalog.org', 'verify': True},
-            {'url': 'https://yangcatalog.org', 'verify': True},
-            {'url': 'https://www.yangcatalog.org', 'verify': True},
-            {'url': 'http://yangvalidator.com', 'verify': True},
-            {'url': 'http://www.yangvalidator.com', 'verify': True},
-            {'url': 'https://yangvalidator.com', 'verify': True},
-            {'url': 'https://www.yangvalidator.com', 'verify': True},
-            {'url': 'http://18.224.127.129', 'verify': False},
-            {'url': 'https://18.224.127.129', 'verify': False},
-            {'url': 'http://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False},
-            {'url': 'https://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False}
-            ]
+    urls = [
+        {'url': 'http://yangcatalog.org', 'verify': True},
+        {'url': 'http://www.yangcatalog.org', 'verify': True},
+        {'url': 'https://yangcatalog.org', 'verify': True},
+        {'url': 'https://www.yangcatalog.org', 'verify': True},
+        {'url': 'http://yangvalidator.com', 'verify': True},
+        {'url': 'http://www.yangvalidator.com', 'verify': True},
+        {'url': 'https://yangvalidator.com', 'verify': True},
+        {'url': 'https://www.yangvalidator.com', 'verify': True},
+        {'url': 'http://18.224.127.129', 'verify': False},
+        {'url': 'https://18.224.127.129', 'verify': False},
+        {'url': 'http://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False},
+        {'url': 'https://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False},
+    ]
 
     for item in urls:
         url = item.get('url', '')
@@ -386,10 +547,17 @@ def health_check_yangcatalog():
             message = 'Problem occured, see additional info'
         additional_info.append(result)
 
-    return make_response(jsonify({'info': '{} is available'.format(service_name),
-                                  'status': status,
-                                  'message': message,
-                                  'additional_info': additional_info}), 200)
+    return make_response(
+        jsonify(
+            {
+                'info': '{} is available'.format(service_name),
+                'status': status,
+                'message': message,
+                'additional_info': additional_info,
+            },
+        ),
+        200,
+    )
 
 
 @bp.route('/cronjobs', methods=['GET'])
@@ -403,9 +571,9 @@ def check_cronjobs():
     return make_response(jsonify({'data': file_content}), 200)
 
 
-### HELPER DEFINITIONS ###
 def error_response(service_name, err):
-    return {'info': 'Not OK - {} is not available'.format(service_name),
-            'status': 'down',
-            'error': 'Cannot ping {}. Error: {}'.format(service_name, err)
-            }
+    return {
+        'info': 'Not OK - {} is not available'.format(service_name),
+        'status': 'down',
+        'error': 'Cannot ping {}. Error: {}'.format(service_name, err),
+    }

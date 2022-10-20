@@ -24,8 +24,7 @@ import time
 import requests
 from flask.globals import g, request
 from flask.helpers import make_response
-from prometheus_client import (CONTENT_TYPE_LATEST, Counter, Gauge, Histogram,
-                               core, generate_latest)
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, core, generate_latest
 
 if sys.version_info >= (3, 4):
     from urllib.parse import parse_qs, urlparse
@@ -38,7 +37,7 @@ def monitor(app):
         g.start_time = time.time()
         http_concurrent_request_count.inc()
         content_length = request.content_length
-        if (content_length):
+        if content_length:
             http_request_size_bytes.labels(request.method, request.path).observe(content_length)
 
     def after_request(response):
@@ -55,23 +54,30 @@ def monitor(app):
         http_response_size_bytes.labels(request.method, request.path).observe(response.calculate_content_length())
         return response
 
-    http_request_latency_ms = Histogram('http_request_latency_ms', 'HTTP Request Latency',
-                                        ['method', 'endpoint'])
+    http_request_latency_ms = Histogram('http_request_latency_ms', 'HTTP Request Latency', ['method', 'endpoint'])
 
-    http_request_size_bytes = Histogram('http_request_size_bytes', 'HTTP request size in bytes',
-                                        ['method', 'endpoint'])
+    http_request_size_bytes = Histogram('http_request_size_bytes', 'HTTP request size in bytes', ['method', 'endpoint'])
 
-    http_response_size_bytes = Histogram('http_response_size_bytes', 'HTTP response size in bytes',
-                                         ['method', 'endpoint'])
+    http_response_size_bytes = Histogram(
+        'http_response_size_bytes',
+        'HTTP response size in bytes',
+        ['method', 'endpoint'],
+    )
 
-    http_request_count = Counter('http_request_count', 'HTTP Request Count', ['method', 'endpoint', 'http_status', 'user'])
+    http_request_count = Counter(
+        'http_request_count',
+        'HTTP Request Count',
+        ['method', 'endpoint', 'http_status', 'user'],
+    )
     http_concurrent_request_count = Gauge('http_concurrent_request_count', 'Flask Concurrent Request Count')
     app.before_request(before_request)
     app.after_request(after_request)
 
     app.add_url_rule('/metrics', 'prometheus_metrics', view_func=metrics)
-    res = requests.get('http://localhost:9090/api/v1/query?query=http_request_count',
-                       headers={'Accept': 'application/json'})
+    res = requests.get(
+        'http://localhost:9090/api/v1/query?query=http_request_count',
+        headers={'Accept': 'application/json'},
+    )
 
     results = res.json()['data']['result']
     for result in results:

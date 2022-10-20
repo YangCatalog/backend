@@ -1,11 +1,12 @@
 import logging
 import typing as t
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
+
+from parseAndPopulate.resolvers.resolver import Resolver
 from utility.staticVariables import NAMESPACE_MAP, ORGANIZATIONS
 
-""" 
+"""
 This resolver resolves yang module 'organization' property.
 Default value: 'independent'
 """

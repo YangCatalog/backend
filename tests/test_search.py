@@ -17,7 +17,6 @@ class RedisConnectionMock:
 
 
 class TestSearchClass(unittest.TestCase):
-
     def setUp(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         config = create_config()
@@ -25,7 +24,9 @@ class TestSearchClass(unittest.TestCase):
         self._configure_es(config)
         self.redis_connection_mock = RedisConnectionMock()
         self.grep_search = GrepSearch(
-            config=config, es_manager=self.es_manager, modules_es_index=self.es_index,
+            config=config,
+            es_manager=self.es_manager,
+            modules_es_index=self.es_index,
             redis_connection=self.redis_connection_mock,
         )
 
@@ -36,7 +37,7 @@ class TestSearchClass(unittest.TestCase):
     def _configure_es(self, config: ConfigParser):
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-            'port': config.get('DB-Section', 'es-port', fallback='9200')
+            'port': config.get('DB-Section', 'es-port', fallback='9200'),
         }
         self.es = Elasticsearch(hosts=[es_host_config])
         self.es_manager = ESManager(self.es)

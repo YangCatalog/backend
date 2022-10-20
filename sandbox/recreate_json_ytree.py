@@ -8,16 +8,20 @@ import os
 from pathlib import Path
 
 from pyang import plugin
+
 from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
 from utility.create_config import create_config
 from utility.yangParser import create_context
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--time', type=str,
-                        help='Modified time argument to find(1)', required=False)
-    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                        help='Set path to config file')
+    parser.add_argument('--time', type=str, help='Modified time argument to find(1)', required=False)
+    parser.add_argument(
+        '--config-path',
+        type=str,
+        default=os.environ['YANGCATALOG_CONFIG_PATH'],
+        help='Set path to config file',
+    )
     args = parser.parse_args()
     config_path = args.config_path
     config = create_config(config_path)

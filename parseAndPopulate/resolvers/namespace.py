@@ -2,21 +2,27 @@ import logging
 import os
 import typing as t
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
+
+from parseAndPopulate.resolvers.resolver import Resolver
 from utility import yangParser
 from utility.staticVariables import MISSING_ELEMENT
 from utility.util import get_yang
 
-""" 
+"""
 This resolver resolves yang module 'namespace' property.
 Default value: 'missing element'
 """
 
 
 class NamespaceResolver(Resolver):
-    def __init__(self, parsed_yang: Statement, logger: logging.Logger, name_revision: str,
-                 belongs_to: t.Optional[str]) -> None:
+    def __init__(
+        self,
+        parsed_yang: Statement,
+        logger: logging.Logger,
+        name_revision: str,
+        belongs_to: t.Optional[str],
+    ) -> None:
         self.parsed_yang = parsed_yang
         self.logger = logger
         self.property_name = 'namespace'
@@ -31,7 +37,7 @@ class NamespaceResolver(Resolver):
         return self._resolve_module_namespace()
 
     def _resolve_submodule_namespace(self) -> str:
-        """ If the model is a submodule, then it is necessary to get a namespace from its parent. """
+        """If the model is a submodule, then it is necessary to get a namespace from its parent."""
         if not self.belongs_to:
             self.logger.error('Belongs to not defined - unable to resolve namespace')
             return MISSING_ELEMENT

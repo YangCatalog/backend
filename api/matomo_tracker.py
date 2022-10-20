@@ -4,12 +4,7 @@ from dataclasses import dataclass
 from piwikapi.tests.request import FakeRequest
 from piwikapi.tracking import PiwikTracker
 
-DO_NOT_TRACK_PATHS = [
-    '/api/job/',
-    '/api/yang-search/v2/completions',
-    '/api/healthcheck',
-    '/api/admin'
-]
+DO_NOT_TRACK_PATHS = ['/api/job/', '/api/yang-search/v2/completions', '/api/healthcheck', '/api/admin']
 
 
 @dataclass
@@ -38,7 +33,7 @@ def get_headers_dict(req) -> dict:
 
 
 def record_analytic(headers: dict, data: MatomoTrackerData, client_ip: t.Optional[str]) -> None:
-    """ Send analytics data to Piwik/Matomo """
+    """Send analytics data to Piwik/Matomo"""
     # Use "FakeRequest" because we had to serialize the real request
     if should_skip(headers):
         return
@@ -55,7 +50,7 @@ def record_analytic(headers: dict, data: MatomoTrackerData, client_ip: t.Optiona
 
 
 def should_skip(headers: dict) -> bool:
-    """ Check whether the request is not just a ping. """
+    """Check whether the request is not just a ping."""
     if '/api/' not in headers.get('PATH_INFO', ''):
         return True
     path_info = headers.get('PATH_INFO', '')
