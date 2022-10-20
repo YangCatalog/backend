@@ -91,7 +91,7 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
         :param directory        (str) Directory to run the populate script on
         :param notify_indexing  (bool)
         :param logger           (Logger)
-        :return                 (tuple[bool, str]) First specifies whether an error was encoutered,
+        :return                 (tuple[bool, str]) First specifies whether the script ran successfully,
             second element is a corresponding text message.
     """
     logger.info(f'Checking module filenames without revision in {directory}')
@@ -100,12 +100,12 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
     logger.info(f'Checking for early revision in {directory}')
     draftPullUtility.check_early_revisions(directory, logger)
 
-    populate_error = run_populate_script(directory, notify_indexing, logger)
-    if populate_error:
-        message = 'Error while calling populate script'
-    else:
+    success = run_populate_script(directory, notify_indexing, logger)
+    if success:
         message = 'Populate script finished successfully'
-    return populate_error, message
+    else:
+        message = 'Error while calling populate script'
+    return success, message
 
 
 def main(script_conf: BaseScriptConfig = ScriptConfig()):
@@ -152,26 +152,23 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         if tar_opened:
             # Standard RFC modules
             rfc_path = os.path.join(repo.local_dir, 'standard/ietf/RFC')
-            populate_error, message = populate_directory(rfc_path, notify_indexing, LOGGER)
-            if populate_error:
-                success = False
+            directory_success, message = populate_directory(rfc_path, notify_indexing, LOGGER)
+            success = success and directory_success
             messages.append({'label': 'Standard RFC modules', 'message': message})
 
         # Experimental modules
         experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
 
-        populate_error, message = populate_directory(experimental_path, notify_indexing, LOGGER)
-        if populate_error:
-            success = False
+        directory_success, message = populate_directory(experimental_path, notify_indexing, LOGGER)
+        success = success and directory_success
         messages.append({'label': 'Experimental modules', 'message': message})
 
         # IANA modules
         iana_path = os.path.join(repo.local_dir, 'standard/iana')
 
         if os.path.exists(iana_path):
-            populate_error, message = populate_directory(iana_path, notify_indexing, LOGGER)
-            if populate_error:
-                success = False
+            directory_success, message = populate_directory(iana_path, notify_indexing, LOGGER)
+            success = success and directory_success
             messages.append({'label': 'IANA modules', 'message': message})
 
     except Exception as e:
