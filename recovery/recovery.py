@@ -164,7 +164,7 @@ class BackupDatabaseData(Recovery):
         redis_modules_raw = self.redis_connection.get_all_modules()
         redis_vendors_raw = self.redis_connection.get_all_vendors()
         redis_modules_dict = json.loads(redis_modules_raw)
-        redis_modules = redis_modules_dict.values()
+        redis_modules = list(redis_modules_dict.values())
         redis_vendors = json.loads(redis_vendors_raw)
 
         os.makedirs(self.redis_json_backup, exist_ok=True)
