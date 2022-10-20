@@ -918,15 +918,15 @@ def process(data, passed_data, value, module, split, count) -> bool:
 
 
 def modules_data():
-    """Get all the modules data from Redis.
+    """
+    Get all the modules data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
     data = app.redisConnection.get_all_modules()
     if data != '{}':
         modules = json.loads(data)
-        modules_list = modules.values()
+        modules_list = list(modules.values())
         data = json.dumps({'module': modules_list})
-
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
