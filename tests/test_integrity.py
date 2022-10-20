@@ -27,7 +27,6 @@ from utility.yangParser import parse
 
 
 class TestIntegrityClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         self.module_dir = os.path.join(os.environ['BACKEND'], 'tests/resources/integrity')
         config = create_config()
@@ -49,7 +48,7 @@ class TestIntegrityClass(unittest.TestCase):
         invalid_revision = parse(self.module_path('invalid-revision'))
         assert invalid_revision
         self.assertFalse(itg.check_revision(invalid_revision))
-    
+
     def test_check_namespace(self):
         good = parse(self.module_path('good'))
         assert good
@@ -88,7 +87,7 @@ class TestIntegrityClass(unittest.TestCase):
         all_includes, missing_includes = itg.check_dependencies('include', missing_include, self.module_dir)
         self.assertSetEqual(all_includes, {'nonexistent'})
         self.assertSetEqual(missing_includes, {'nonexistent'})
-    
+
     def test_sdo(self):
         script_conf = itg.ScriptConfig()
         setattr(script_conf.args, 'dir', self.module_dir)
@@ -96,32 +95,31 @@ class TestIntegrityClass(unittest.TestCase):
         itg.main(script_conf)
 
         expected = {
-            'missing-revisions': [
-                self.module_path('invalid-revision'),
-                self.module_path('missing-revision')
-            ],
-            'missing-namespaces': [
-                self.module_path('invalid-namespace'),
-                self.module_path('missing-namespace')
-            ],
-            'missing-modules': {
-                self.module_path('missing-import'): ['nonexistent']
-            },
-            'missing-submodules': {
-                self.module_path('missing-include'): ['nonexistent']
-            },
-            'unused-modules': {}
+            'missing-revisions': [self.module_path('invalid-revision'), self.module_path('missing-revision')],
+            'missing-namespaces': [self.module_path('invalid-namespace'), self.module_path('missing-namespace')],
+            'missing-modules': {self.module_path('missing-import'): ['nonexistent']},
+            'missing-submodules': {self.module_path('missing-include'): ['nonexistent']},
+            'unused-modules': {},
         }
 
         with open('integrity.json') as f:
             result = json.load(f)
 
         self.assertDictEqual(result, expected)
-    
+
     def test_capabilities_to_modules(self):
         result = set(itg.capabilities_to_modules(os.path.join(self.module_dir, 'capabilities.xml')))
-        expected = {'good', 'deviation', 'missing-revision', 'invalid-revision', 'missing-namespace',
-                    'invalid-namespace', 'missing-import', 'missing-include', 'nonexistent'}
+        expected = {
+            'good',
+            'deviation',
+            'missing-revision',
+            'invalid-revision',
+            'missing-namespace',
+            'invalid-namespace',
+            'missing-import',
+            'missing-include',
+            'nonexistent',
+        }
         self.assertSetEqual(result, expected)
 
     def test_vendor(self):
@@ -130,30 +128,21 @@ class TestIntegrityClass(unittest.TestCase):
         itg.main(script_conf)
 
         expected = {
-            'missing-revisions': [
-                self.module_path('invalid-revision'),
-                self.module_path('missing-revision')
-            ],
-            'missing-namespaces': [
-                self.module_path('invalid-namespace'),
-                self.module_path('missing-namespace')
-            ],
+            'missing-revisions': [self.module_path('invalid-revision'), self.module_path('missing-revision')],
+            'missing-namespaces': [self.module_path('invalid-namespace'), self.module_path('missing-namespace')],
             'missing-modules': {
                 os.path.join(self.module_dir, 'capabilities.xml'): ['nonexistent'],
-                self.module_path('missing-import'): ['nonexistent']
+                self.module_path('missing-import'): ['nonexistent'],
             },
-            'missing-submodules': {
-                self.module_path('missing-include'): ['nonexistent']
-            },
-            'unused-modules': {
-                self.module_dir: ['unused']
-            }
+            'missing-submodules': {self.module_path('missing-include'): ['nonexistent']},
+            'unused-modules': {self.module_dir: ['unused']},
         }
 
         with open('integrity.json') as f:
             result = json.load(f)
 
         self.assertDictEqual(result, expected)
+
 
 if __name__ == '__main__':
     unittest.main()

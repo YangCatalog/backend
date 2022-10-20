@@ -1,9 +1,10 @@
 import logging
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 
-""" 
+from parseAndPopulate.resolvers.resolver import Resolver
+
+"""
 This resolver resolves yang module 'yang_version' property.
 Allowed values are: [1.0, 1.1]
 Default value: 1.0

@@ -13,7 +13,7 @@ import shutil
 from git import InvalidGitRepositoryError, Repo
 
 from utility.create_config import create_config
-from utility.staticVariables import github_url, GITHUB_RAW
+from utility.staticVariables import GITHUB_RAW, github_url
 from utility.util import parse_name, parse_revision, strip_comments
 
 
@@ -66,12 +66,13 @@ def main(directory: str):
     with open(schema_dict_path, 'w') as f:
         json.dump(schemas, f)
 
+
 if __name__ == '__main__':
     argument_parser = argparse.ArgumentParser(description=__doc__)
     argument_parser.add_argument(
         'directory',
         type=str,
-        help='Directory to search for yang files. All yang files must be inside cloned git repositories.'
+        help='Directory to search for yang files. All yang files must be inside cloned git repositories.',
     )
     args = argument_parser.parse_args()
     main(args.directory)

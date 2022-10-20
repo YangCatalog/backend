@@ -54,16 +54,16 @@ class Module:
     # NOTE: Maybe we should consider passing all or some of the arguments togather in some sort of structure,
     #      as passing this many arguments is ugly and error-prone.
     def __init__(
-            self,
-            name: str,
-            path: str,
-            schemas: dict,
-            dir_paths: DirPaths,
-            yang_modules: dict,
-            additional_info: t.Optional[dict[str, str]],
-            config: ConfigParser = create_config(),
-            redis_connection: t.Optional[RedisConnection] = None,
-            can_be_already_stored_in_db: bool = False,
+        self,
+        name: str,
+        path: str,
+        schemas: dict,
+        dir_paths: DirPaths,
+        yang_modules: dict,
+        additional_info: t.Optional[dict[str, str]],
+        config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
+        can_be_already_stored_in_db: bool = False,
     ):
         """
         Initialize and parse everything out of a module.
@@ -153,8 +153,13 @@ class Module:
         self.dependencies, self.submodule = submodule_resolver.resolve()
 
         imports_resolver = ImportsResolver(
-            self._parsed_yang, self.logger, self._path, self.schema, self._schemas,
-            self.yang_models_path, self._nonietf_dir,
+            self._parsed_yang,
+            self.logger,
+            self._path,
+            self.schema,
+            self._schemas,
+            self.yang_models_path,
+            self._nonietf_dir,
         )
         self.imports = imports_resolver.resolve()
         self.dependencies.extend(self.imports)
@@ -225,22 +230,28 @@ class Module:
 
 
 class SdoModule(Module):
-
     def __init__(
-            self,
-            name: str,
-            path: str,
-            schemas: dict,
-            dir_paths: DirPaths,
-            yang_modules: dict,
-            additional_info: t.Optional[dict[str, str]] = None,
-            config: ConfigParser = create_config(),
-            redis_connection: t.Optional[RedisConnection] = None,
-            can_be_already_stored_in_db: bool = False,
+        self,
+        name: str,
+        path: str,
+        schemas: dict,
+        dir_paths: DirPaths,
+        yang_modules: dict,
+        additional_info: t.Optional[dict[str, str]] = None,
+        config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
+        can_be_already_stored_in_db: bool = False,
     ):
         super().__init__(
-            name, os.path.abspath(path), schemas, dir_paths, yang_modules, additional_info, config=config,
-            redis_connection=redis_connection, can_be_already_stored_in_db=can_be_already_stored_in_db,
+            name,
+            os.path.abspath(path),
+            schemas,
+            dir_paths,
+            yang_modules,
+            additional_info,
+            config=config,
+            redis_connection=redis_connection,
+            can_be_already_stored_in_db=can_be_already_stored_in_db,
         )
 
 
@@ -248,21 +259,21 @@ class VendorModule(Module):
     """A module with additional vendor information."""
 
     def __init__(
-            self,
-            name: str,
-            path: str,
-            schemas: dict,
-            dir_paths: DirPaths,
-            yang_modules: dict,
-            vendor_info: t.Optional[dict] = None,
-            additional_info: t.Optional[dict[str, str]] = None,
-            data: t.Optional[t.Union[str, dict]] = None,
-            config: ConfigParser = create_config(),
-            redis_connection: t.Optional[RedisConnection] = None,
-            can_be_already_stored_in_db: bool = False,
+        self,
+        name: str,
+        path: str,
+        schemas: dict,
+        dir_paths: DirPaths,
+        yang_modules: dict,
+        vendor_info: t.Optional[dict] = None,
+        additional_info: t.Optional[dict[str, str]] = None,
+        data: t.Optional[t.Union[str, dict]] = None,
+        config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
+        can_be_already_stored_in_db: bool = False,
     ):
         """
-        Initialize and parse everything out of a vendor module and 
+        Initialize and parse everything out of a vendor module and
         add information from platform-metadata json files provided with Cisco modules.
 
         Arguments:
@@ -281,8 +292,15 @@ class VendorModule(Module):
         if isinstance(data, (str, dict)):
             self._resolve_deviations_and_features(data)
         super().__init__(
-            name, path, schemas, dir_paths, yang_modules, additional_info, config=config,
-            redis_connection=redis_connection, can_be_already_stored_in_db=can_be_already_stored_in_db,
+            name,
+            path,
+            schemas,
+            dir_paths,
+            yang_modules,
+            additional_info,
+            config=config,
+            redis_connection=redis_connection,
+            can_be_already_stored_in_db=can_be_already_stored_in_db,
         )
         if vendor_info is not None:
             self.implementations += ImplementationResolver(vendor_info, self.features, self.deviations).resolve()

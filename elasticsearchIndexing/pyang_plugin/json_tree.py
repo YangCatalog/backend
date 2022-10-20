@@ -29,7 +29,6 @@ def pyang_plugin_init():
 
 
 class JSONTreePlugin(plugin.PyangPlugin):
-
     def add_output_format(self, fmts):
         self.multiple_modules = True
         fmts['json-tree'] = self
@@ -59,8 +58,7 @@ def emit_tree(modules, fd, ctx):
         mod_out['name'] = module.arg
         mod_out['type'] = module.keyword
 
-        chs = [ch for ch in module.i_children
-               if ch.keyword in statements.data_definition_keywords]
+        chs = [ch for ch in module.i_children if ch.keyword in statements.data_definition_keywords]
         mod_out['children'] = get_children(chs, module, mod_out['prefix'], ctx)
 
         mods = [module]
@@ -76,10 +74,8 @@ def emit_tree(modules, fd, ctx):
                 except AttributeError:
                     continue
                 aug = {'augment_children': [], 'augment_path': augment.arg}
-                if (hasattr(augment.i_target_node, 'i_module') and
-                        augment.i_target_node.i_module not in modules + mods):
-                    aug['augment_children'].extend(get_children(
-                        augment.i_children, module, ' ', ctx))
+                if hasattr(augment.i_target_node, 'i_module') and augment.i_target_node.i_module not in modules + mods:
+                    aug['augment_children'].extend(get_children(augment.i_children, module, ' ', ctx))
                 maugs.append(aug)
 
         if len(maugs) > 0:
@@ -199,7 +195,7 @@ def get_flags(s):
         return flags
     elif s.keyword == 'notification':
         return flags
-    elif s.i_config == True:
+    elif s.i_config:
         flags['config'] = True
     else:
         flags['config'] = False
@@ -215,11 +211,10 @@ def get_typename(s):
 
 
 def json_escape(s):
-    return s.replace("\\", r"\\").replace("\n", r"\n").replace("\t", r"\t").replace("\"", r"\"")
+    return s.replace('\\', r'\\').replace('\n', r'\n').replace('\t', r'\t').replace('\"', r'\"')
 
 
 def typestring(node):
-
     def get_nontypedefstring(node):
         s = {}
         t = node.search_one('type')
@@ -259,10 +254,8 @@ def typestring(node):
     if len(s) != 0:
         t = node.search_one('type')
         # chase typedef
-        type_namespace = None
-        i_type_name = None
         name = t.arg
-        if name.find(":") == -1:
+        if name.find(':') == -1:
             prefix = None
         else:
             [prefix, name] = name.split(':', 1)
@@ -273,12 +266,11 @@ def typestring(node):
         else:
             # this is a prefixed name, check the imported modules
             err = []
-            pmodule = util.prefix_to_module(
-                t.i_module, prefix, t.pos, err)
+            pmodule = util.prefix_to_module(t.i_module, prefix, t.pos, err)
             if pmodule is None:
                 return
             typedef = statements.search_typedef(pmodule, name)
-        if typedef != None:
+        if typedef is not None:
             s['typedef'] = get_nontypedefstring(typedef)
     return s
 
@@ -310,19 +302,22 @@ def action_params(action):
                 s['out'].append(o.arg)
     return s
 
+
 def mk_path_str(s, with_prefixes=False):
     """Returns the XPath path of the node"""
+
     def name(s):
         if with_prefixes:
             if len(s.keyword) == 2:
-                return s.keyword[0] + ":" + s.arg + "?" + s.keyword[1]
-            return s.i_module.i_prefix + ":" + s.arg + "?" + s.keyword
+                return s.keyword[0] + ':' + s.arg + '?' + s.keyword[1]
+            return s.i_module.i_prefix + ':' + s.arg + '?' + s.keyword
         else:
             return s.arg
+
     if s.parent.keyword in ['module', 'submodule']:
-        return "/" + name(s)
+        return '/' + name(s)
     elif s.keyword in ['choice', 'case']:
         return mk_path_str(s.parent, with_prefixes)
     else:
         p = mk_path_str(s.parent, with_prefixes)
-        return p + "/" + name(s)
+        return p + '/' + name(s)

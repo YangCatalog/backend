@@ -50,7 +50,8 @@ class FileHasher:
         Arguments:
             :param file_name        (str) name of the file to which the modules hashes are dumped
             :param cache_dir        (str) directory where json file with hashes is saved
-            :param is_active        (bool) whether FileHasher is active or not (use hashes to skip module parsing or not)
+            :param is_active        (bool) whether FileHasher is active or not
+            (use hashes to skip module parsing or not)
             :param log_directory    (str) directory where the log file is saved
         """
         self.file_name = file_name
@@ -63,7 +64,7 @@ class FileHasher:
         self.updated_hashes = {}
 
     def hash_file(self, path: str) -> str:
-        """ Create hash from content of the given file and validators versions.
+        """Create hash from content of the given file and validators versions.
         Each time either the content of the file or the validator version change,
         the resulting hash will be different.
 
@@ -86,7 +87,7 @@ class FileHasher:
         return file_hash.hexdigest()
 
     def load_hashed_files_list(self, path: str = '') -> dict:
-        """ Load dumped list of files content hashes from .json file.
+        """Load dumped list of files content hashes from .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Argument:
@@ -108,7 +109,7 @@ class FileHasher:
         return hashed_files_list
 
     def merge_and_dump_hashed_files_list(self, new_hashes: dict, dst_dir: str = ''):
-        """ Dumped updated list of files content hashes into .json file.
+        """Dumped updated list of files content hashes into .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Arguments:
@@ -135,11 +136,11 @@ class FileHasher:
 
         with open(f'{dst_dir}/{self.file_name}.json', 'w') as f:
             json.dump(merged_hashes, f, indent=2, sort_keys=True)
-            self.logger.info(f'Dictionary of {len(merged_hashes)} hashes successfully dumped into .json file')
+        self.logger.info(f'Dictionary of {len(merged_hashes)} hashes successfully dumped into .json file')
         self.lock.release()
 
     def dump_tmp_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
-        """ Dump new hashes into temporary json file.
+        """Dump new hashes into temporary json file.
 
         Arguments:
             :param files_hashes (dict) Dictionary of the hashes to be dumped
@@ -152,12 +153,12 @@ class FileHasher:
         self.logger.info(f'{len(files_hashes)} hashes dumped into temp_hashes.json file')
 
     def get_versions(self):
-        """ Return encoded validators versions dictionary."""
+        """Return encoded validators versions dictionary."""
         validators = {'pyang_version': pyang.__version__}
         return json.dumps(validators).encode('utf-8')
 
     def should_parse_sdo_module(self, path: str) -> bool:
-        """ Decide whether SDO module at the given path should be parsed or not.
+        """Decide whether SDO module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Argument:
@@ -175,7 +176,9 @@ class FileHasher:
         return self.disabled
 
     def check_vendor_module_hash_for_parsing(
-            self, path: str, implementation_keys: t.Optional[list[str]] = None
+        self,
+        path: str,
+        implementation_keys: t.Optional[list[str]] = None,
     ) -> VendorModuleHashCheckForParsing:
         """Checks whether hash of the vendor module at the given path exists,
         and whether the stored hash has all the implementations from implementation_keys.
@@ -204,5 +207,6 @@ class FileHasher:
             self.updated_hashes.setdefault(path, {}).setdefault(file_hash, []).append(implementation_key)
             new_implementation = True
         return VendorModuleHashCheckForParsing(
-            file_hash_exists=True, new_implementations_detected=new_implementation or self.disabled
+            file_hash_exists=True,
+            new_implementations_detected=new_implementation or self.disabled,
         )

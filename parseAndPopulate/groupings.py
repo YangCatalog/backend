@@ -23,10 +23,10 @@ import fileinput
 import json
 import os
 import typing as t
+import unicodedata
 import xml.etree.ElementTree as ET
 from configparser import ConfigParser
 
-import unicodedata
 from git import InvalidGitRepositoryError
 from git.repo import Repo
 
@@ -48,13 +48,13 @@ class ModuleGrouping:
     """Base class for a grouping of modules to be parsed together."""
 
     def __init__(
-            self,
-            directory: str,
-            dumper: Dumper,
-            file_hasher: FileHasher,
-            api: bool,
-            dir_paths: DirPaths,
-            config: ConfigParser = create_config(),
+        self,
+        directory: str,
+        dumper: Dumper,
+        file_hasher: FileHasher,
+        api: bool,
+        dir_paths: DirPaths,
+        config: ConfigParser = create_config(),
     ):
         """
         Arguments:
@@ -97,8 +97,9 @@ class ModuleGrouping:
             repo = repoutil.load(self.dir_paths['yang_models'], repo_url)
         except InvalidGitRepositoryError:
             repo = repoutil.RepoUtil(
-                repo_url, clone_options={'local_dir': self.dir_paths['yang_models']},
-                logger=self.logger
+                repo_url,
+                clone_options={'local_dir': self.dir_paths['yang_models']},
+                logger=self.logger,
             )
         self.repo = repo
 
@@ -158,14 +159,14 @@ class SdoDirectory(ModuleGrouping):
     """Regular SDO directory containing yang modules."""
 
     def __init__(
-            self,
-            directory: str,
-            dumper: Dumper,
-            file_hasher: FileHasher,
-            api: bool,
-            dir_paths: DirPaths,
-            path_to_name_rev: dict,
-            config: ConfigParser = create_config()
+        self,
+        directory: str,
+        dumper: Dumper,
+        file_hasher: FileHasher,
+        api: bool,
+        dir_paths: DirPaths,
+        path_to_name_rev: dict,
+        config: ConfigParser = create_config(),
     ):
         self.path_to_name_rev = path_to_name_rev
         super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
@@ -193,9 +194,11 @@ class SdoDirectory(ModuleGrouping):
         sdos_count = len(sdos_list)
         for i, sdo in enumerate(sdos_list, start=1):
             # remove diacritics
-            file_name = unicodedata.normalize(
-                'NFKD', os.path.basename(sdo['source-file']['path'])
-            ).encode('ascii', 'ignore').decode()
+            file_name = (
+                unicodedata.normalize('NFKD', os.path.basename(sdo['source-file']['path']))
+                .encode('ascii', 'ignore')
+                .decode()
+            )
             self.logger.info(f'Parsing {file_name} {i} out of {sdos_count}')
             self.repo_owner = sdo['source-file']['owner']
             repo_file_path = sdo['source-file']['path']
@@ -224,7 +227,12 @@ class SdoDirectory(ModuleGrouping):
             self._update_schema_urls(name, revision, path, schema_parts)
             try:
                 yang = SdoModule(
-                    name, path, self._schemas, self.dir_paths, self.dumper.yang_modules, additional_info=sdo,
+                    name,
+                    path,
+                    self._schemas,
+                    self.dir_paths,
+                    self.dumper.yang_modules,
+                    additional_info=sdo,
                     config=self.config,
                 )
             except ParseException:
@@ -243,8 +251,10 @@ class SdoDirectory(ModuleGrouping):
             self.logger.info(f'Searching {sdos_count} files from directory {root}')
             commit_hash = self.repo.get_commit_hash(root, 'main')
             schema_parts = SchemaParts(
-                repo_owner=self.repo_owner, repo_name=self.repo_name,
-                commit_hash=commit_hash, submodule_name=submodule_name
+                repo_owner=self.repo_owner,
+                repo_name=self.repo_name,
+                commit_hash=commit_hash,
+                submodule_name=submodule_name,
             )
             for i, file_name in enumerate(sdos, start=1):
                 # Process only SDO .yang files
@@ -266,7 +276,12 @@ class SdoDirectory(ModuleGrouping):
                 self._update_schema_urls(name, revision, path, schema_parts)
                 try:
                     yang = SdoModule(
-                        name, path, self._schemas, self.dir_paths, self.dumper.yang_modules, config=self.config,
+                        name,
+                        path,
+                        self._schemas,
+                        self.dir_paths,
+                        self.dumper.yang_modules,
+                        config=self.config,
                     )
                 except ParseException:
                     self.logger.exception(f'ParseException while parsing {path}')
@@ -278,16 +293,24 @@ class IanaDirectory(SdoDirectory):
     """Directory containing IANA modules."""
 
     def __init__(
-            self,
-            directory: str,
-            dumper: Dumper,
-            file_hasher: FileHasher,
-            api: bool,
-            dir_paths: DirPaths,
-            path_to_name_rev: dict,
-            config: ConfigParser = create_config(),
+        self,
+        directory: str,
+        dumper: Dumper,
+        file_hasher: FileHasher,
+        api: bool,
+        dir_paths: DirPaths,
+        path_to_name_rev: dict,
+        config: ConfigParser = create_config(),
     ):
         super().__init__(directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
+        iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
+        try:
+            with open(iana_exceptions, 'r') as exceptions_file:
+                self.iana_skip = exceptions_file.read().split('\n')
+        except FileNotFoundError:
+            open(iana_exceptions, 'w').close()
+            os.chmod(iana_exceptions, 0o664)
+            self.iana_skip = []
         self.root = ET.parse(os.path.join(directory, 'yang-parameters.xml')).getroot()
 
     def parse_and_load(self, **kwargs):
@@ -298,8 +321,7 @@ class IanaDirectory(SdoDirectory):
 
         self._load_yangmodels_repo()
         commit_hash = self.repo.get_commit_hash(self.directory, 'main')
-        schema_parts = SchemaParts(
-            repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
+        schema_parts = SchemaParts(repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
 
         for module in modules:
             additional_info = {}
@@ -322,7 +344,15 @@ class IanaDirectory(SdoDirectory):
 
             if data.get('iana') == 'Y' and data.get('file'):
                 path = os.path.join(self.directory, data['file'])
-                name, revision = self.path_to_name_rev[path]
+                if os.path.basename(path) in self.iana_skip:
+                    self.logger.debug(f'skipping {path}: found in iana-exceptions.dat')
+                    continue
+                self.logger.debug(f'parsing {path}')
+                try:
+                    name, revision = self.path_to_name_rev[path]
+                except KeyError:
+                    self.logger.exception('Couldn\'t resolve name and revision')
+                    continue
                 all_modules_path = get_yang(name, revision, config=self.config)
                 if not all_modules_path:
                     self.logger.warning(f'File {name} not found in the repository')
@@ -335,7 +365,12 @@ class IanaDirectory(SdoDirectory):
                 self._update_schema_urls(name, revision, path, schema_parts)
                 try:
                     yang = SdoModule(
-                        data['name'], path, self._schemas, self.dir_paths, self.dumper.yang_modules, additional_info,
+                        data['name'],
+                        path,
+                        self._schemas,
+                        self.dir_paths,
+                        self.dumper.yang_modules,
+                        additional_info,
                         config=self.config,
                     )
                 except ParseException:
@@ -347,16 +382,16 @@ class IanaDirectory(SdoDirectory):
 
 class VendorGrouping(ModuleGrouping):
     def __init__(
-            self,
-            directory: str,
-            xml_file: str,
-            dumper: Dumper,
-            file_hasher: FileHasher,
-            api: bool,
-            dir_paths: DirPaths,
-            name_rev_to_path: dict,
-            config: ConfigParser = create_config(),
-            redis_connection: t.Optional[RedisConnection] = None,
+        self,
+        directory: str,
+        xml_file: str,
+        dumper: Dumper,
+        file_hasher: FileHasher,
+        api: bool,
+        dir_paths: DirPaths,
+        name_rev_to_path: dict,
+        config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
         self.name_rev_to_path = name_rev_to_path
         super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
@@ -382,7 +417,7 @@ class VendorGrouping(ModuleGrouping):
             self.root = ET.parse(xml_file).getroot()
 
     def _parse_platform_metadata(self):
-        #  Vendor modules send from API
+        # Vendor modules send from API
         if self.api:
             with open(f'{self.xml_file.removesuffix(".xml")}.json', 'r') as f:
                 implementation = json.load(f)
@@ -411,8 +446,7 @@ class VendorGrouping(ModuleGrouping):
     def _path_to_platform_data(self) -> dict:
         """Try to derive platrom data from the directory path and xml name."""
         base = os.path.basename(self.xml_file).removesuffix('.xml')
-        base = base.replace('capabilities', '').replace(
-            'capability', '').replace('netconf', '').strip('-')
+        base = base.replace('capabilities', '').replace('capability', '').replace('netconf', '').strip('-')
         platform = base or 'Unknown'
         split_path = self.directory.split('/')
         if 'nx' in split_path:
@@ -435,7 +469,7 @@ class VendorGrouping(ModuleGrouping):
             'os-version': split_path[platform_index + 1],
             'feature-set': 'ALL',
             'os': os_type,
-            'vendor': split_path[platform_index - 1]
+            'vendor': split_path[platform_index - 1],
         }
 
     def _parse_implementation(self, implementation: dict):
@@ -451,7 +485,7 @@ class VendorGrouping(ModuleGrouping):
                 'feature-set': 'ALL',
                 'vendor': implementation['vendor'],
                 'os': implementation['os-type'],
-            }
+            },
         )
         self.implementation_keys.append(f'{implementation["name"]}/{implementation["software-version"]}')
         raw_capabilities = implementation.get('netconf-capabilities')
@@ -510,14 +544,22 @@ class VendorGrouping(ModuleGrouping):
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
             vendor_info = {
-                'platform_data': self.platform_data, 'conformance_type': conformance_type,
-                'capabilities': self.capabilities, 'netconf_versions': self.netconf_versions,
+                'platform_data': self.platform_data,
+                'conformance_type': conformance_type,
+                'capabilities': self.capabilities,
+                'netconf_versions': self.netconf_versions,
             }
             try:
                 try:
                     yang = VendorModule(
-                        name, path, self._schemas, self.dir_paths, self.dumper.yang_modules, vendor_info,
-                        config=self.config, redis_connection=self.redis_connection,
+                        name,
+                        path,
+                        self._schemas,
+                        self.dir_paths,
+                        self.dumper.yang_modules,
+                        vendor_info,
+                        config=self.config,
+                        redis_connection=self.redis_connection,
                         can_be_already_stored_in_db=can_be_already_stored_in_db,
                     )
                 except ParseException:
@@ -567,12 +609,14 @@ class VendorCapabilities(VendorGrouping):
 
         try:
             schema_parts = SchemaParts(
-                repo_owner=self.repo_owner, repo_name=self.repo_name,
-                commit_hash=self.commit_hash, submodule_name=self.submodule_name
+                repo_owner=self.repo_owner,
+                repo_name=self.repo_name,
+                commit_hash=self.commit_hash,
+                submodule_name=self.submodule_name,
             )
         except AttributeError as e:
             self.logger.exception(
-                f'Missing attribute, likely caused by a broken path in {self.directory}/platform-metadata.json'
+                f'Missing attribute, likely caused by a broken path in {self.directory}/platform-metadata.json',
             )
             raise e
 
@@ -602,14 +646,23 @@ class VendorCapabilities(VendorGrouping):
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
             vendor_info = {
-                'platform_data': self.platform_data, 'conformance_type': 'implement',
-                'capabilities': self.capabilities, 'netconf_versions': self.netconf_versions,
+                'platform_data': self.platform_data,
+                'conformance_type': 'implement',
+                'capabilities': self.capabilities,
+                'netconf_versions': self.netconf_versions,
             }
             try:
                 try:
                     yang = VendorModule(
-                        name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
-                        vendor_info, data=module_and_more, config=self.config, redis_connection=self.redis_connection,
+                        name,
+                        path,
+                        self._schemas,
+                        self.dir_paths,
+                        self.dumper.yang_modules,
+                        vendor_info,
+                        data=module_and_more,
+                        config=self.config,
+                        redis_connection=self.redis_connection,
                         can_be_already_stored_in_db=can_be_already_stored_in_db,
                     )
                 except ParseException:
@@ -630,7 +683,7 @@ class VendorCapabilities(VendorGrouping):
 
 class VendorYangLibrary(VendorGrouping):
     def parse_and_load(self):
-        """ Load implementation information which are stored platform-metadata.json file.
+        """Load implementation information which are stored platform-metadata.json file.
         Set this implementation information for each module parsed out from ietf-yang-library xml file.
         """
 
@@ -643,8 +696,10 @@ class VendorYangLibrary(VendorGrouping):
         set_of_names = set()
         keys = set()
         schema_parts = SchemaParts(
-            repo_owner=self.repo_owner, repo_name=self.repo_name,
-            commit_hash=self.commit_hash, submodule_name=self.submodule_name
+            repo_owner=self.repo_owner,
+            repo_name=self.repo_name,
+            commit_hash=self.commit_hash,
+            submodule_name=self.submodule_name,
         )
         for yang in modules:
             if 'module-set-id' in yang.tag:
@@ -682,14 +737,23 @@ class VendorYangLibrary(VendorGrouping):
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
             vendor_info = {
-                'platform_data': self.platform_data, 'conformance_type': conformance_type,
-                'capabilities': self.capabilities, 'netconf_versions': self.netconf_versions,
+                'platform_data': self.platform_data,
+                'conformance_type': conformance_type,
+                'capabilities': self.capabilities,
+                'netconf_versions': self.netconf_versions,
             }
             try:
                 try:
                     yang = VendorModule(
-                        name, path, self._schemas, self.dir_paths, self.dumper.yang_modules,
-                        vendor_info, data=yang_lib_info, config=self.config, redis_connection=self.redis_connection,
+                        name,
+                        path,
+                        self._schemas,
+                        self.dir_paths,
+                        self.dumper.yang_modules,
+                        vendor_info,
+                        data=yang_lib_info,
+                        config=self.config,
+                        redis_connection=self.redis_connection,
                         can_be_already_stored_in_db=can_be_already_stored_in_db,
                     )
                 except ParseException:

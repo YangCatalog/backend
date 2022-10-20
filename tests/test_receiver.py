@@ -23,17 +23,28 @@ import shutil
 import unittest
 from unittest import mock
 
-from api.receiver import Receiver
-from api.status_message import StatusMessage
 from ddt import data, ddt
 from redis import Redis
+
+from api.receiver import Receiver
+from api.status_message import StatusMessage
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 
 
 class MockModulesComplicatedAlgorithms:
-    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list, save_file_dir: str,
-                 direc: str, all_modules, yang_models_dir: str, temp_dir: str, json_ytree: str):
+    def __init__(
+        self,
+        log_directory: str,
+        yangcatalog_api_prefix: str,
+        credentials: list,
+        save_file_dir: str,
+        direc: str,
+        all_modules,
+        yang_models_dir: str,
+        temp_dir: str,
+        json_ytree: str,
+    ):
         pass
 
     def parse_non_requests(self):
@@ -164,17 +175,15 @@ class TestReceiverClass(TestReceiverBaseClass):
         dst = os.path.join(self.direc, 'YangModels', 'yang', 'standard', 'ietf', 'RFC')
         os.makedirs(dst, exist_ok=True)
 
-        RFC_dir = os.path.join(self.nonietf_dir, 'yangmodels', 'yang', 'standard', 'ietf', 'RFC')
+        rfc_dir = os.path.join(self.nonietf_dir, 'yangmodels', 'yang', 'standard', 'ietf', 'RFC')
         shutil.copy(
-            os.path.join(RFC_dir, 'ietf-yang-types@2010-09-24.yang'),
+            os.path.join(rfc_dir, 'ietf-yang-types@2010-09-24.yang'),
             os.path.join(dst, 'ietf-yang-types@2010-09-24.yang'),
         )
         with open(os.path.join(self.direc, 'request-data.json'), 'w') as f:
             json.dump(data, f)
 
-        arguments = [
-            'POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials
-        ]
+        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials]
 
         status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
@@ -186,9 +195,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo_failed_populate(self):
-        arguments = [
-            'POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials
-        ]
+        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials]
 
         status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
@@ -219,9 +226,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         with open(os.path.join(dst, 'capabilities.json'), 'w') as f:
             json.dump(platform, f)
 
-        arguments = [
-            'POPULATE-VENDORS', '--dir', self.direc, '--api', '--credentials', *self.credentials, 'True'
-        ]
+        arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api', '--credentials', *self.credentials, 'True']
 
         status, details = self.receiver.process(arguments)
 
@@ -231,7 +236,13 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_vendor_failed_populate(self):
         arguments = [
-            'POPULATE-VENDORS', '--dir', self.direc, '--api', '--credentials', *self.credentials, 'True',
+            'POPULATE-VENDORS',
+            '--dir',
+            self.direc,
+            '--api',
+            '--credentials',
+            *self.credentials,
+            'True',
         ]
 
         status, details = self.receiver.process(arguments)
@@ -246,13 +257,8 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.redisConnection.reload_modules_cache()
 
         modules_to_delete = {
-            'modules': [
-                {
-                    'name': 'another-yang-module',
-                    'revision': '2020-03-01',
-                    'organization': 'ietf'
-                }
-            ]}
+            'modules': [{'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'}],
+        }
         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         status, details = self.receiver.process_module_deletion(arguments)
@@ -273,14 +279,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.redisConnection.populate_modules(module_to_populate)
         self.redisConnection.reload_modules_cache()
 
-        modules_to_delete = {
-            'modules': [
-                {
-                    'name': 'yang-submodule',
-                    'revision': '2020-02-01',
-                    'organization': 'ietf'
-                }
-            ]}
+        modules_to_delete = {'modules': [{'name': 'yang-submodule', 'revision': '2020-02-01', 'organization': 'ietf'}]}
         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         status, details = self.receiver.process_module_deletion(arguments)
@@ -300,17 +299,10 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         modules_to_delete = {
             'modules': [
-                {
-                    'name': 'another-yang-module',
-                    'revision': '2020-03-01',
-                    'organization': 'ietf'
-                },
-                {
-                    'name': 'yang-module',
-                    'revision': '2020-01-01',
-                    'organization': 'ietf'
-                }
-            ]}
+                {'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'},
+                {'name': 'yang-module', 'revision': '2020-01-01', 'organization': 'ietf'},
+            ],
+        }
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         status, details = self.receiver.process_module_deletion(arguments)
@@ -369,7 +361,7 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
         ('fujitsu', 'T100', '2.4', 'None'),
         ('fujitsu', 'T100', 'None', 'None'),
         ('fujitsu', 'None', 'None', 'None'),
-        ('huawei', 'ne5000e', 'None', 'None')
+        ('huawei', 'ne5000e', 'None', 'None'),
     )
     @mock.patch('api.receiver.prepare_for_es_removal')
     def test_process_vendor_deletion(self, params, indexing_mock: mock.MagicMock):

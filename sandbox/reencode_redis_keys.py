@@ -15,8 +15,8 @@ def main():
             try:
                 vendors_db.rename(old_key, key)
                 print(f'renamed {old_key} to {key}')
-            except:
-                pass # old_key doesn't exist anymore
+            except Exception:
+                pass  # old_key doesn't exist anymore
 
 
 if __name__ == '__main__':

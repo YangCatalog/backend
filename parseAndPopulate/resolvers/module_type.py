@@ -1,10 +1,11 @@
 import logging
 import typing as t
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
 
-""" 
+from parseAndPopulate.resolvers.resolver import Resolver
+
+"""
 This resolver resolves yang module 'module_type' property.
 Allowed values are: ['module', 'submodule', None]
 Default value: 'module'

@@ -13,10 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import logging
 import os
@@ -36,10 +36,10 @@ def get_logger(name: str, file_name_path: str = 'yang.log', level: int = logging
     exists = False
     if os.path.isfile(file_name_path):
         exists = True
-    FORMAT = '%(asctime)-15s %(levelname)-8s %(filename)s %(name)5s => %(message)s - %(lineno)d'
-    DATEFMT = '%Y-%m-%d %H:%M:%S'
+    format = '%(asctime)-15s %(levelname)-8s %(filename)s %(name)5s => %(message)s - %(lineno)d'
+    datefmt = '%Y-%m-%d %H:%M:%S'
     handler = logging.FileHandler(file_name_path)
-    handler.setFormatter(logging.Formatter(FORMAT, DATEFMT))
+    handler.setFormatter(logging.Formatter(format, datefmt))
     logger = logging.getLogger(name)
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
     logger.setLevel(level)

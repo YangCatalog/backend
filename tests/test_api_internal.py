@@ -15,24 +15,23 @@
 # We always check result.is_json, so result.json will never return None.
 # pyright: reportOptionalSubscript=false
 
-__author__ = "Richard Zilincik"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "richard.zilincik@pantheon.tech"
+__author__ = 'Richard Zilincik'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'richard.zilincik@pantheon.tech'
 
+import json
+import os
 import unittest
 from unittest import mock
-import os
-import json
 
-from api.yangCatalogApi import app
 from api.authentication.auth import auth
+from api.yangCatalogApi import app
 
 ac = app.config
 
 
 class TestApiInternalClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestApiInternalClass, self).__init__(*args, **kwargs)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
@@ -74,8 +73,11 @@ class TestApiInternalClass(unittest.TestCase):
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 201)
         self.assertTrue(result.is_json)
@@ -95,8 +97,11 @@ class TestApiInternalClass(unittest.TestCase):
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 400)
 
@@ -111,8 +116,11 @@ class TestApiInternalClass(unittest.TestCase):
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Failed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 406)
         self.assertTrue(result.is_json)
@@ -132,8 +140,11 @@ class TestApiInternalClass(unittest.TestCase):
         body['repository']['owner_name'] = 'YangModels'
         body['result_message'] = 'Passed'
         body['type'] = 'pull_request'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 201)
         self.assertTrue(result.is_json)
@@ -153,8 +164,11 @@ class TestApiInternalClass(unittest.TestCase):
         body['repository']['owner_name'] = 'YangModels'
         body['result_message'] = 'Failed'
         body['type'] = 'pull_request'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 406)
         self.assertTrue(result.is_json)
@@ -171,8 +185,11 @@ class TestApiInternalClass(unittest.TestCase):
         body = content['check_local']
         body['repository']['owner_name'] = 'nonexistent'
         body['result_message'] = 'Failed'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 401)
         self.assertTrue(result.is_json)
@@ -190,8 +207,11 @@ class TestApiInternalClass(unittest.TestCase):
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 500)
         self.assertTrue(result.is_json)
@@ -209,8 +229,11 @@ class TestApiInternalClass(unittest.TestCase):
         mock_open.side_effect = FileNotFoundError
         body = content.get('check_local')
 
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 404)
 
@@ -225,10 +248,12 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate(self, mock_message_factory: mock.MagicMock):
         body = {
-            'commits': [{
-                'added': ['vendor/cisco/nx/9.2-2/platform-metadata.json'],
-                'modified': ['vendor/cisco/xe/1651/platform-metadata.json']
-            }]
+            'commits': [
+                {
+                    'added': ['vendor/cisco/nx/9.2-2/platform-metadata.json'],
+                    'modified': ['vendor/cisco/xe/1651/platform-metadata.json'],
+                },
+            ],
         }
         result = self.client.post('api/check-platform-metadata', json=body)
 
@@ -239,7 +264,7 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertEqual(data['info'], 'Success')
         mock_message_factory.return_value.send_new_modified_platform_metadata.call_args.assert_called_with(
             'vendor/cisco/nx/9.2-2',
-            'vendor/cisco/xe/1651'
+            'vendor/cisco/xe/1651',
         )
 
     @mock.patch.object(ac.sender, 'send', mock.MagicMock())
@@ -272,6 +297,7 @@ class TestApiInternalClass(unittest.TestCase):
         data = result.json
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Statistics file has not been generated yet')
+
 
 if __name__ == '__main__':
     unittest.main()

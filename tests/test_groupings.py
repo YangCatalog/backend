@@ -35,7 +35,6 @@ from utility.create_config import create_config
 
 
 class TestGroupingsClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestGroupingsClass, self).__init__(*args, **kwargs)
 
@@ -51,7 +50,7 @@ class TestGroupingsClass(unittest.TestCase):
             'private': self.test_private_dir,
             'result': yc_gc.result_dir,
             'save': yc_gc.save_file_dir,
-            'yang_models': yc_gc.yang_models
+            'yang_models': yc_gc.yang_models,
         }
         self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
         self.config = create_config()
@@ -77,7 +76,7 @@ class TestGroupingsClass(unittest.TestCase):
         path_to_name_rev = {
             self.resource('owner/repo/sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
             self.resource('owner/repo/sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
-            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05')
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05'),
         }
 
         sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
@@ -85,7 +84,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         self.assertListEqual(
             sorted(sdo_directory.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf']
+            ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'],
         )
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
@@ -103,16 +102,22 @@ class TestGroupingsClass(unittest.TestCase):
         path_to_name_rev = {
             self.resource('owner/repo/sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
             self.resource('owner/repo/sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
-            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05')
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05'),
         }
 
-        sdo_directory = SdoDirectory(self.resources_path, dumper, self.file_hasher, api, self.dir_paths,
-                                     path_to_name_rev)
+        sdo_directory = SdoDirectory(
+            self.resources_path,
+            dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+            path_to_name_rev,
+        )
         sdo_directory.parse_and_load()
 
         self.assertListEqual(
             sorted(sdo_directory.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf']
+            ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'],
         )
 
     def test_vendor_parse_raw_capability(self):
@@ -140,13 +145,14 @@ class TestGroupingsClass(unittest.TestCase):
                 'path': 'ietf-yang-library.xml',
                 'owner': 'owner',
                 'repository': 'repo',
-                'commit-hash': '0' * 64},
+                'commit-hash': '0' * 64,
+            },
             'software-flavor': 'test-flavor',
             'name': 'test-platform',
             'software-version': 'test-version',
             'vendor': 'cisco',
             'os-type': 'test-os',
-            'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0']
+            'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0'],
         }
 
         vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
@@ -154,15 +160,18 @@ class TestGroupingsClass(unittest.TestCase):
 
         self.assertEqual(
             vendor_grouping.platform_data,
-            [{
-                'software-flavor': 'test-flavor',
-                'platform': 'test-platform',
-                'os-version': 'test-version',
-                'software-version': 'test-version',
-                'feature-set': 'ALL',
-                'vendor': 'cisco',
-                'os': 'test-os'
-            }])
+            [
+                {
+                    'software-flavor': 'test-flavor',
+                    'platform': 'test-platform',
+                    'os-version': 'test-version',
+                    'software-version': 'test-version',
+                    'feature-set': 'ALL',
+                    'vendor': 'cisco',
+                    'os': 'test-os',
+                },
+            ],
+        )
 
     def test_vendor_parse_platform_metadata(self):
         path = self.resource('owner/repo/vendor')
@@ -191,7 +200,7 @@ class TestGroupingsClass(unittest.TestCase):
             'software-version': 'test-version',
             'vendor': 'cisco',
             'os-type': 'test-os',
-            'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0']
+            'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0'],
         }
 
         vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
@@ -217,30 +226,37 @@ class TestGroupingsClass(unittest.TestCase):
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_yang_lib = VendorYangLibrary(
-            directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {},
-            config=self.config, redis_connection=self.redis_connection,
+            directory,
+            xml_file,
+            dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+            {},
+            config=self.config,
+            redis_connection=self.redis_connection,
         )
         vendor_yang_lib.parse_and_load()
 
         self.assertEqual(
             sorted(vendor_yang_lib.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco']
+            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco'],
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
-            'vendor-sdo-first-deviations'
+            'vendor-sdo-first-deviations',
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].revision,
-            '2022-08-05'
+            '2022-08-05',
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].conformance_type,
-            'implement'
+            'implement',
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
-            ['test-feature']
+            ['test-feature'],
         )
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
@@ -266,35 +282,42 @@ class TestGroupingsClass(unittest.TestCase):
         self.populate_test_modules_basic_info_to_db()
 
         vendor_yang_lib = VendorYangLibrary(
-            directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {},
-            config=self.config, redis_connection=self.redis_connection,
+            directory,
+            xml_file,
+            dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+            {},
+            config=self.config,
+            redis_connection=self.redis_connection,
         )
         vendor_yang_lib.parse_and_load()
 
         self.assertEqual(
             sorted(vendor_yang_lib.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco']
+            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco'],
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
-            'vendor-sdo-first-deviations'
+            'vendor-sdo-first-deviations',
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].revision,
-            '2022-08-05'
+            '2022-08-05',
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].conformance_type,
-            'implement'
+            'implement',
         )
         self.assertEqual(
             vendor_yang_lib.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
-            ['test-feature']
+            ['test-feature'],
         )
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
-        """ 
+        """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files specified in the capabilities.xml file.
 
@@ -308,32 +331,41 @@ class TestGroupingsClass(unittest.TestCase):
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_capabilities = VendorCapabilities(
-            directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {}, config=self.config
+            directory,
+            xml_file,
+            dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+            {},
+            config=self.config,
         )
         vendor_capabilities.parse_and_load()
 
         self.assertEqual(
             sorted(vendor_capabilities.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco']
+            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco'],
         )
         self.assertEqual(
             vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
-            'vendor-sdo-first-deviations')
-        self.assertEqual(
-            vendor_capabilities.dumper.yang_modules[
-                'sdo-first@2022-08-05/ietf'
-            ].implementations[0].deviations[0].revision,
-            '2022-08-05'
+            'vendor-sdo-first-deviations',
         )
         self.assertEqual(
-            vendor_capabilities.dumper.yang_modules[
-                'vendor-first@2022-08-05/cisco'
-            ].implementations[0].conformance_type,
-            'implement'
+            vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf']
+            .implementations[0]
+            .deviations[0]
+            .revision,
+            '2022-08-05',
+        )
+        self.assertEqual(
+            vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco']
+            .implementations[0]
+            .conformance_type,
+            'implement',
         )
         self.assertEqual(
             vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
-            ['test-feature']
+            ['test-feature'],
         )
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
@@ -359,37 +391,46 @@ class TestGroupingsClass(unittest.TestCase):
         self.populate_test_modules_basic_info_to_db()
 
         vendor_capabilities = VendorCapabilities(
-            directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {},
-            config=self.config, redis_connection=self.redis_connection,
+            directory,
+            xml_file,
+            dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+            {},
+            config=self.config,
+            redis_connection=self.redis_connection,
         )
         vendor_capabilities.parse_and_load()
 
         self.assertEqual(
             sorted(vendor_capabilities.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco']
+            ['sdo-first@2022-08-05/ietf', 'vendor-first@2022-08-05/cisco', 'vendor-second@2022-08-05/cisco'],
         )
         self.assertEqual(
             vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf'].implementations[0].deviations[0].name,
-            'vendor-sdo-first-deviations')
-        self.assertEqual(
-            vendor_capabilities.dumper.yang_modules[
-                'sdo-first@2022-08-05/ietf'
-            ].implementations[0].deviations[0].revision,
-            '2022-08-05'
+            'vendor-sdo-first-deviations',
         )
         self.assertEqual(
-            vendor_capabilities.dumper.yang_modules[
-                'vendor-first@2022-08-05/cisco'
-            ].implementations[0].conformance_type,
-            'implement'
+            vendor_capabilities.dumper.yang_modules['sdo-first@2022-08-05/ietf']
+            .implementations[0]
+            .deviations[0]
+            .revision,
+            '2022-08-05',
+        )
+        self.assertEqual(
+            vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco']
+            .implementations[0]
+            .conformance_type,
+            'implement',
         )
         self.assertEqual(
             vendor_capabilities.dumper.yang_modules['vendor-first@2022-08-05/cisco'].implementations[0].feature,
-            ['test-feature']
+            ['test-feature'],
         )
 
     def test_vendor_capabilities_ampersand_exception(self):
-        """ Test if ampersand character will be replaced in .xml file if occurs.
+        """Test if ampersand character will be replaced in .xml file if occurs.
         If ampersand character occurs, exception is raised, and character is replaced.
         """
         directory = self.resource('owner/repo/vendor')
@@ -402,8 +443,7 @@ class TestGroupingsClass(unittest.TestCase):
         self.assertEqual(vendor_capabilities.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
     def test_vendor__path_to_platform_data_xr(self):
-        """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
-        """
+        """Test if platform_data are set correctly when platform_metadata.json file is not present in the folder."""
         directory = os.path.join(self.test_repo, 'vendor/cisco/xr/702')
         xml_file = os.path.join(directory, 'capabilities-ncs5k.xml')
         api = False
@@ -422,12 +462,12 @@ class TestGroupingsClass(unittest.TestCase):
                 'os-version': '702',
                 'feature-set': 'ALL',
                 'os': 'IOS-XR',
-                'vendor': 'cisco'
-            })
+                'vendor': 'cisco',
+            },
+        )
 
     def test_vendor__path_to_platform_data_nx(self):
-        """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
-        """
+        """Test if platform_data are set correctly when platform_metadata.json file is not present in the folder."""
         directory = os.path.join(self.test_repo, 'vendor/cisco/nx/9.2-1')
         xml_file = os.path.join(directory, 'netconf-capabilities.xml')
         api = False
@@ -446,12 +486,12 @@ class TestGroupingsClass(unittest.TestCase):
                 'os-version': '9.2-1',
                 'feature-set': 'ALL',
                 'os': 'NX-OS',
-                'vendor': 'cisco'
-            })
+                'vendor': 'cisco',
+            },
+        )
 
     def test_vendor__path_to_platform_data_xe(self):
-        """ Test if platform_data are set correctly when platform_metadata.json file is not present in the folder.
-        """
+        """Test if platform_data are set correctly when platform_metadata.json file is not present in the folder."""
         directory = os.path.join(self.test_repo, 'vendor/cisco/xe/16101')
         xml_file = os.path.join(directory, 'capability-asr1k.xml')
         api = False
@@ -470,12 +510,12 @@ class TestGroupingsClass(unittest.TestCase):
                 'os-version': '16101',
                 'feature-set': 'ALL',
                 'os': 'IOS-XE',
-                'vendor': 'cisco'
-            })
+                'vendor': 'cisco',
+            },
+        )
 
     def load_path_to_name_rev(self, key: str):
-        """ Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json.
-        """
+        """Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json."""
         with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             return literal_eval(file_content.get(key, ''))

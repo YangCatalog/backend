@@ -42,7 +42,7 @@ class ResponseRow:
         self.output_row = {}
 
     def get_row_hash_by_columns(self) -> str:
-        """ Return hash which is created from individual row properties. """
+        """Return hash which is created from individual row properties."""
         row_hash = hashlib.sha256()
 
         for value in self.output_row.values():
@@ -51,14 +51,14 @@ class ResponseRow:
         return row_hash.hexdigest()
 
     def create_representation(self) -> None:
-        """ Create dictionary representation of row. """
+        """Create dictionary representation of row."""
         for column in OUTPUT_COLUMNS:
             underscore_column = column.replace('-', '_')
             value = self.__dict__.get(underscore_column)
             self.row_representation[column] = value
 
     def create_output(self, to_remove_columns: t.List['str']) -> None:
-        """ Create dictionary representation of row which does not contain columns
+        """Create dictionary representation of row which does not contain columns
         which are passed as 'to_remove_columns' argument.
 
         Argument:
@@ -73,7 +73,7 @@ class ResponseRow:
             self.output_row[column] = value
 
     def meets_subsearch_condition(self, sub_searches: list) -> bool:
-        """ Check whether row meets all the conditions defined in Advanced search - in 'sub_searches' list.
+        """Check whether row meets all the conditions defined in Advanced search - in 'sub_searches' list.
 
         Argument:
             :param sub_searches     (list) list of additional sub-search conditions
@@ -104,7 +104,7 @@ class ResponseRow:
         return False
 
     def _set_origin(self, organization: str) -> str:
-        """ Set 'origin' based on the 'organization' property. """
+        """Set 'origin' based on the 'organization' property."""
         if organization in SDOS:
             return 'Industry Standard'
         if organization == 'N/A':

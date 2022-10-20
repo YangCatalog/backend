@@ -39,8 +39,7 @@ import utility.log as log
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
-from parseAndPopulate.groupings import (IanaDirectory, SdoDirectory,
-                                        VendorCapabilities, VendorYangLibrary)
+from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -48,7 +47,6 @@ from utility.util import parse_name, parse_revision, strip_comments
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = (
             'Parse modules on given directory and generate json with module metadata '
@@ -59,50 +57,45 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--dir',
                 'help': 'Set dir where to look for hello message xml files or yang files if using "sdo" option',
                 'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC',
             },
             {
                 'flag': '--save-file-hash',
                 'help': 'if True then it will check if content of the file changed '
-                        '(based on hash values) and it will skip parsing if nothing changed.',
+                '(based on hash values) and it will skip parsing if nothing changed.',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
-            {
-                'flag': '--api',
-                'help': 'If request came from api',
-                'action': 'store_true',
-                'default': False
-            },
+            {'flag': '--api', 'help': 'If request came from api', 'action': 'store_true', 'default': False},
             {
                 'flag': '--sdo',
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
             {
                 'flag': '--json-dir',
                 'help': 'Directory where json files to populate Redis will be stored',
                 'type': str,
-                'default': '/var/yang/tmp/'
+                'default': '/var/yang/tmp/',
             },
             {
                 'flag': '--result-html-dir',
                 'help': 'Set dir where to write html compilation result files',
                 'type': str,
-                'default': '/usr/share/nginx/html/results'
+                'default': '/usr/share/nginx/html/results',
             },
             {
                 'flag': '--save-file-dir',
                 'help': 'Directory where the yang file will be saved',
                 'type': str,
-                'default': '/var/yang/all_modules'
+                'default': '/var/yang/all_modules',
             },
             {
                 'flag': '--config-path',
                 'help': 'Set path to config file',
                 'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH']
+                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
@@ -120,7 +113,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         'cache': config.get('Directory-Section', 'cache', fallback='tests/resources/cache'),
         'json': args.json_dir,
         'result': args.result_html_dir,
-        'save': args.save_file_dir
+        'save': args.save_file_dir,
     }
 
     logger = log.get_logger('parse_directory', f'{dir_paths["log"]}/parseAndPopulate.log')
@@ -130,7 +123,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start = time.time()
     dumper = Dumper(dir_paths['log'], 'prepare')
     file_hasher = FileHasher(
-        'backend_files_modification_hashes', dir_paths['cache'], args.save_file_hash, dir_paths['log']
+        'backend_files_modification_hashes',
+        dir_paths['cache'],
+        args.save_file_hash,
+        dir_paths['log'],
     )
 
     logger.info('Saving all yang files so the save-file-dir')
@@ -140,8 +136,15 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, logger, config=config)
     else:
         parse_vendor(
-            args.dir, dumper, file_hasher, args.api, dir_paths, name_rev_to_path, logger,
-            config=config, redis_connection=redis_connection
+            args.dir,
+            dumper,
+            file_hasher,
+            args.api,
+            dir_paths,
+            name_rev_to_path,
+            logger,
+            config=config,
+            redis_connection=redis_connection,
         )
     dumper.dump_modules(dir_paths['json'])
     dumper.dump_vendors(dir_paths['json'])
@@ -155,7 +158,8 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
 
 def save_files(
-        search_directory: str, save_file_dir: str
+    search_directory: str,
+    save_file_dir: str,
 ) -> tuple[dict[tuple[str, str], str], dict[str, tuple[str, str]]]:
     """
     Copy all found yang files to the save_file_dir.
@@ -189,14 +193,14 @@ def save_files(
 
 
 def parse_sdo(
-        search_directory: str,
-        dumper: Dumper,
-        file_hasher: FileHasher,
-        api: bool,
-        dir_paths: DirPaths,
-        path_to_name_rev: dict,
-        logger: Logger,
-        config: ConfigParser = create_config(),
+    search_directory: str,
+    dumper: Dumper,
+    file_hasher: FileHasher,
+    api: bool,
+    dir_paths: DirPaths,
+    path_to_name_rev: dict,
+    logger: Logger,
+    config: ConfigParser = create_config(),
 ):
     """Parse all yang modules in an SDO directory."""
     logger.info(f'Parsing SDO directory {search_directory}')
@@ -209,15 +213,15 @@ def parse_sdo(
 
 
 def parse_vendor(
-        search_directory: str,
-        dumper: Dumper,
-        file_hasher: FileHasher,
-        api: bool,
-        dir_paths: DirPaths,
-        name_rev_to_path: dict,
-        logger: Logger,
-        config: ConfigParser = create_config(),
-        redis_connection: t.Optional[RedisConnection] = None
+    search_directory: str,
+    dumper: Dumper,
+    file_hasher: FileHasher,
+    api: bool,
+    dir_paths: DirPaths,
+    name_rev_to_path: dict,
+    logger: Logger,
+    config: ConfigParser = create_config(),
+    redis_connection: t.Optional[RedisConnection] = None,
 ):
     """Parse all yang modules in a vendor directory."""
     redis_connection = redis_connection or RedisConnection(config=config)
@@ -227,14 +231,28 @@ def parse_vendor(
                 path = os.path.join(root, basename)
                 logger.info(f'Found xml metadata file "{path}"')
                 grouping = VendorCapabilities(
-                    root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path, config=config,
+                    root,
+                    path,
+                    dumper,
+                    file_hasher,
+                    api,
+                    dir_paths,
+                    name_rev_to_path,
+                    config=config,
                     redis_connection=redis_connection,
                 )
             elif fnmatch.fnmatch(basename, '*ietf-yang-library*.xml'):
                 path = os.path.join(root, basename)
                 logger.info(f'Found xml metadata file "{path}"')
                 grouping = VendorYangLibrary(
-                    root, path, dumper, file_hasher, api, dir_paths, name_rev_to_path, config=config,
+                    root,
+                    path,
+                    dumper,
+                    file_hasher,
+                    api,
+                    dir_paths,
+                    name_rev_to_path,
+                    config=config,
                     redis_connection=redis_connection,
                 )
             else:

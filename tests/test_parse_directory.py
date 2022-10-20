@@ -28,25 +28,12 @@ from parseAndPopulate.dir_paths import DirPaths
 
 
 class TestParseDirectoryClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestParseDirectoryClass, self).__init__(*args, **kwargs)
         self.module_name = 'parseAndPopulate'
         self.script_name = 'parse_directory'
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/parse_directory')
-        self.dir_paths = DirPaths(
-            cache='',
-            json='',
-            log='',
-            private='',
-            result='',
-            save='',
-            yang_models=''
-        )
-
-    #########################
-    ### TESTS DEFINITIONS ###
-    #########################
+        self.dir_paths = DirPaths(cache='', json='', log='', private='', result='', save='', yang_models='')
 
     def test_save_files(self):
         save_file_dir = self.resource('all_modules')
@@ -57,7 +44,7 @@ class TestParseDirectoryClass(unittest.TestCase):
 
         self.assertListEqual(
             sorted(os.listdir(save_file_dir)),
-            ['sdo-first@2022-08-05.yang', 'sdo-second@2022-08-05.yang', 'sdo-third@2022-08-05.yang']
+            ['sdo-first@2022-08-05.yang', 'sdo-second@2022-08-05.yang', 'sdo-third@2022-08-05.yang'],
         )
         self.assertDictEqual(
             name_rev_to_path,
@@ -65,7 +52,7 @@ class TestParseDirectoryClass(unittest.TestCase):
                 ('sdo-first', '2022-08-05'): self.resource('sdo/sdo-first.yang'),
                 ('sdo-second', '2022-08-05'): self.resource('sdo/sdo-second.yang'),
                 ('sdo-third', '2022-08-05'): self.resource('sdo/subdir/sdo-third.yang'),
-            }
+            },
         )
         self.assertDictEqual(
             path_to_name_rev,
@@ -73,7 +60,7 @@ class TestParseDirectoryClass(unittest.TestCase):
                 self.resource('sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
                 self.resource('sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
                 self.resource('sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05'),
-            }
+            },
         )
 
     @mock.patch('parseAndPopulate.parse_directory.SdoDirectory')
@@ -90,7 +77,13 @@ class TestParseDirectoryClass(unittest.TestCase):
             raise e
 
         mock_sdo_directory_cls.assert_called_with(
-            self.resource('sdo'), dumper, file_hasher, False, self.dir_paths, {}, config=config
+            self.resource('sdo'),
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
         )
         mock_sdo_directory = mock_sdo_directory_cls.return_value
         mock_sdo_directory.parse_and_load.assert_called()
@@ -103,15 +96,19 @@ class TestParseDirectoryClass(unittest.TestCase):
         config = mock.MagicMock()
 
         try:
-            pd.parse_sdo(
-                self.resource('iana'), dumper, file_hasher, False, self.dir_paths, {}, logger, config=config
-            )
+            pd.parse_sdo(self.resource('iana'), dumper, file_hasher, False, self.dir_paths, {}, logger, config=config)
         except Exception as e:
             e.args = (*e.args, 'This probably means the constructor of SdoDirectory was called.')
             raise e
 
         mock_iana_directory_cls.assert_called_with(
-            self.resource('iana'), dumper, file_hasher, False, self.dir_paths, {}, config=config
+            self.resource('iana'),
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
         )
         mock_iana_directory = mock_iana_directory_cls.return_value
         mock_iana_directory.parse_and_load.assert_called()
@@ -126,15 +123,29 @@ class TestParseDirectoryClass(unittest.TestCase):
         redis_connection = mock.MagicMock()
 
         pd.parse_vendor(
-            self.resource('vendor'), dumper, file_hasher, False, self.dir_paths, {}, logger,
-            config=config, redis_connection=redis_connection,
+            self.resource('vendor'),
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            logger,
+            config=config,
+            redis_connection=redis_connection,
         )
 
         root = self.resource('vendor/yang_lib')
         filename = os.path.join(root, 'ietf-yang-library.xml')
         mock_yang_lib_cls.assert_called_with(
-            root, filename, dumper, file_hasher, False, self.dir_paths, {},
-            config=config, redis_connection=redis_connection
+            root,
+            filename,
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
+            redis_connection=redis_connection,
         )
         mock_yang_lib = mock_yang_lib_cls.return_value
         mock_yang_lib.parse_and_load.assert_called()
@@ -142,8 +153,15 @@ class TestParseDirectoryClass(unittest.TestCase):
         root = self.resource('vendor/capabilities')
         filename = os.path.join(root, 'capabilities.xml')
         mock_capabilities_cls.assert_called_with(
-            root, filename, dumper, file_hasher, False, self.dir_paths, {},
-            config=config, redis_connection=redis_connection
+            root,
+            filename,
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
+            redis_connection=redis_connection,
         )
         mock_capabilities = mock_capabilities_cls.return_value
         mock_capabilities.parse_and_load.assert_called()
@@ -151,7 +169,12 @@ class TestParseDirectoryClass(unittest.TestCase):
     @mock.patch('parseAndPopulate.parse_directory.save_files')
     @mock.patch('parseAndPopulate.parse_directory.parse_sdo')
     @mock.patch('parseAndPopulate.parse_directory.Dumper')
-    def test_main_sdo(self, mock_dumper_cls: mock.MagicMock, mock_parse_sdo: mock.MagicMock, mock_save_files: mock.MagicMock):
+    def test_main_sdo(
+        self,
+        mock_dumper_cls: mock.MagicMock,
+        mock_parse_sdo: mock.MagicMock,
+        mock_save_files: mock.MagicMock,
+    ):
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
         script_conf = submodule.ScriptConfig()
@@ -172,7 +195,12 @@ class TestParseDirectoryClass(unittest.TestCase):
     @mock.patch('parseAndPopulate.parse_directory.save_files')
     @mock.patch('parseAndPopulate.parse_directory.parse_vendor')
     @mock.patch('parseAndPopulate.parse_directory.Dumper')
-    def test_main_vendor(self, mock_dumper_cls: mock.MagicMock, mock_parse_vendor: mock.MagicMock, mock_save_files: mock.MagicMock):
+    def test_main_vendor(
+        self,
+        mock_dumper_cls: mock.MagicMock,
+        mock_parse_vendor: mock.MagicMock,
+        mock_save_files: mock.MagicMock,
+    ):
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
         script_conf = submodule.ScriptConfig()
@@ -192,8 +220,7 @@ class TestParseDirectoryClass(unittest.TestCase):
         self.assertIn(self.resource('vendor'), mock_parse_vendor.call_args.args)
 
     def test_get_help(self):
-        """ Test whether script help has the correct structure (check only structure not content).
-        """
+        """Test whether script help has the correct structure (check only structure not content)."""
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -206,8 +233,7 @@ class TestParseDirectoryClass(unittest.TestCase):
         self.assertNotEqual(script_help.get('options'), {})
 
     def test_get_args_list(self):
-        """ Test whether script default arguments has the correct structure (check only structure not content).
-        """
+        """Test whether script default arguments has the correct structure (check only structure not content)."""
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
@@ -220,12 +246,8 @@ class TestParseDirectoryClass(unittest.TestCase):
             self.assertIn('type', script_args_list.get(key))
             self.assertIn('default', script_args_list.get(key))
 
-    ##########################
-    ### HELPER DEFINITIONS ###
-    ##########################
-
     def set_script_conf_arguments(self, script_conf):
-        """ Set values to ScriptConfig arguments to be able to run in test environment.
+        """Set values to ScriptConfig arguments to be able to run in test environment.
 
         :returns        ScriptConfig with arguments set.
         """

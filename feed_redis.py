@@ -61,9 +61,9 @@ def load_catalog_data():
             print('yang-catalog@2018-04-03 module set in Redis')
             break
 
-    catalog_data_json = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(
-        json.dumps(catalog_data)
-    )['yang-catalog:catalog']
+    catalog_data_json = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(json.dumps(catalog_data))[
+        'yang-catalog:catalog'
+    ]
     modules = catalog_data_json['modules']
     vendors = catalog_data_json.get('vendors', {})
 

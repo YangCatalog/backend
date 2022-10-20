@@ -33,28 +33,33 @@ def pyang_plugin_init():
 
 
 class IndexerPlugin(plugin.PyangPlugin):
-
     def add_output_format(self, fmts):
         self.multiple_modules = True
         fmts['yang-catalog-index_es'] = self
 
     def add_opts(self, optparser):
         optlist = [
-            optparse.make_option("--yang-index-no-schema-es",
-                                 dest="yang_index_no_schema_es",
-                                 action="store_true",
-                                 help="""Do not include SQL schema in output"""),
-            optparse.make_option("--yang-index-schema-only-es",
-                                 dest="yang_index_schema_only_es",
-                                 action="store_true",
-                                 help="""Only include the SQL schema in output"""),
-            optparse.make_option("--yang-index-make-module-table-es",
-                                 dest="yang_index_make_module_table_es",
-                                 action="store_true",
-                                 help="""Generate a modules table that includes various aspects about the modules themselves""")
+            optparse.make_option(
+                '--yang-index-no-schema-es',
+                dest='yang_index_no_schema_es',
+                action='store_true',
+                help='Do not include SQL schema in output',
+            ),
+            optparse.make_option(
+                '--yang-index-schema-only-es',
+                dest='yang_index_schema_only_es',
+                action='store_true',
+                help='Only include the SQL schema in output',
+            ),
+            optparse.make_option(
+                '--yang-index-make-module-table-es',
+                dest='yang_index_make_module_table_es',
+                action='store_true',
+                help='Generate a modules table that includes various aspects about the modules themselves',
+            ),
         ]
 
-        g = optparser.add_option_group("YANG Catalog Index specific options")
+        g = optparser.add_option_group('YANG Catalog Index specific options')
         g.add_options(optlist)
 
     def setup_fmt(self, ctx):
@@ -81,12 +86,19 @@ def emit_index(ctx, modules, fd):
                 continue
             mods.add(module)
         for module in mods:
-            non_chs = list(module.i_typedefs.values()) + list(module.i_features.values()) + list(module.i_identities.values()) + \
-                list(module.i_groupings.values()) + list(module.i_extensions.values())
+            non_chs = (
+                list(module.i_typedefs.values())
+                + list(module.i_features.values())
+                + list(module.i_identities.values())
+                + list(module.i_groupings.values())
+                + list(module.i_extensions.values())
+            )
             for augment in module.search('augment'):
-                if (hasattr(augment, 'i_target_node') and
-                        hasattr(augment.i_target_node, 'i_module') and
-                        augment.i_target_node.i_module not in mods):
+                if (
+                    hasattr(augment, 'i_target_node')
+                    and hasattr(augment.i_target_node, 'i_module')
+                    and augment.i_target_node.i_module not in mods
+                ):
                     for child in augment.i_children:
                         statements.iterate_i_children(child, index_printer)
             for nch in non_chs:
@@ -97,7 +109,7 @@ def emit_index(ctx, modules, fd):
 
 
 def index_escape_json(s):
-    return s.replace("\\", r"\\").replace("'", r"''").replace("\n", r"\n").replace("\t", r"\t").replace("\"", r"\"")
+    return s.replace('\\', r'\\').replace("'", r"''").replace('\n', r'\n').replace('\t', r'\t').replace('\"', r'\"')
 
 
 def flatten_keyword(k):
@@ -149,7 +161,7 @@ def index_printer(stmt):
         revision = rev
     try:
         dateutil.parser.parse(revision)
-    except Exception as e:
+    except Exception:
         if revision[-2:] == '29' and revision[-5:-3] == '02':
             revision = revision.replace('02-29', '02-28')
         else:
@@ -170,8 +182,7 @@ def index_printer(stmt):
                 a = ''
             else:
                 a = index_escape_json(a)
-            subs.append(
-                {k: {'value': a, 'has_children': has_children, 'children': []}})
+            subs.append({k: {'value': a, 'has_children': has_children, 'children': []}})
     vals = {
         'module': module.arg,
         'revision': revision,
@@ -183,7 +194,7 @@ def index_printer(stmt):
         'properties': json.dumps(subs),
     }
     vals['sdo'] = vals['organization'] in SDOS
-    # TODO: What is this field used for?
+    # TODO: What is this field used for?
     # text = '{} {} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],
     #                                            vals['path'], vals['statement'], vals['argument'],
     #                                            vals['description'], vals['sdo'], vals['properties'])
@@ -193,20 +204,22 @@ def index_printer(stmt):
 
 def mk_path_str(s, with_prefixes=False):
     """Returns the XPath path of the node"""
+
     def name(s):
         if with_prefixes:
             if len(s.keyword) == 2:
-                return s.keyword[0] + ":" + s.arg + "?" + s.keyword[1]
-            return s.i_module.i_prefix + ":" + s.arg + "?" + s.keyword
+                return s.keyword[0] + ':' + s.arg + '?' + s.keyword[1]
+            return s.i_module.i_prefix + ':' + s.arg + '?' + s.keyword
         else:
             return s.arg
+
     if s.parent.keyword in ['module', 'submodule']:
-        return "/" + name(s)
+        return '/' + name(s)
     elif s.keyword in ['choice', 'case']:
         return mk_path_str(s.parent, with_prefixes)
     else:
         p = mk_path_str(s.parent, with_prefixes)
-        return p + "/" + name(s)
+        return p + '/' + name(s)
 
 
 def resolve_organization(module):

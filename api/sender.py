@@ -29,10 +29,10 @@ of the yang modules. This script is also used to automatically
 add or update new IETF and Openconfig modules.
 """
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Trust 2019, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 import datetime
 import logging
@@ -48,21 +48,23 @@ from api.status_message import StatusMessage
 
 
 class Sender:
-    def __init__(self, log_directory, temp_dir,
-                 rabbitmq_host='127.0.0.1',
-                 rabbitmq_port=None,
-                 rabbitmq_virtual_host=None,
-                 rabbitmq_username='guest',
-                 rabbitmq_password='guest'):
+    def __init__(
+        self,
+        log_directory,
+        temp_dir,
+        rabbitmq_host='127.0.0.1',
+        rabbitmq_port=None,
+        rabbitmq_virtual_host=None,
+        rabbitmq_username='guest',
+        rabbitmq_password='guest',
+    ):
         self.LOGGER = log.get_logger('sender', log_directory + '/yang.log')
         logging.getLogger('pika').setLevel(logging.INFO)
         self.LOGGER.debug('Initializing sender')
         self._rabbitmq_host = rabbitmq_host
         self._rabbitmq_port = rabbitmq_port
         self._rabbitmq_virtual_host = rabbitmq_virtual_host
-        self._credentials = pika.PlainCredentials(
-            username=rabbitmq_username,
-            password=rabbitmq_password)
+        self._credentials = pika.PlainCredentials(username=rabbitmq_username, password=rabbitmq_password)
         # Let try to connect to RabbitMQ until success..
 
         self._temp_dir = temp_dir
@@ -105,8 +107,8 @@ class Sender:
                         host=self._rabbitmq_host,
                         port=self._rabbitmq_port,
                         virtual_host=self._rabbitmq_virtual_host,
-                        credentials=self._credentials
-                    )
+                        credentials=self._credentials,
+                    ),
                 )
                 channel = connection.channel()
                 channel.queue_declare(queue='module_queue')
@@ -116,7 +118,9 @@ class Sender:
                 time.sleep(3)
         corr_id = str(uuid.uuid4())
         channel.basic_publish(
-            exchange='', routing_key='module_queue', body=str(arguments),
+            exchange='',
+            routing_key='module_queue',
+            body=str(arguments),
             properties=pika.BasicProperties(correlation_id=corr_id),
         )
         with open(os.path.join(self._temp_dir, self._response_file), 'a') as f:

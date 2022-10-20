@@ -40,11 +40,9 @@ current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = (
-            'Save or load the users database stored in redis. '
-            'An automatic backup is made before a load is performed'
+            'Save or load the users database stored in redis. ' 'An automatic backup is made before a load is performed'
         )
         mutually_exclusive_args: list[list[Arg]] = [
             [
@@ -123,8 +121,11 @@ class RedisUsersRecovery:
                     exception_message = str(e)
                     self.logger.exception(exception_message)
                     job_log(
-                        self.start_time, self.temp_dir, current_file_basename,
-                        status=JobLogStatuses.FAIL, error=exception_message,
+                        self.start_time,
+                        self.temp_dir,
+                        current_file_basename,
+                        status=JobLogStatuses.FAIL,
+                        error=exception_message,
                     )
                     raise e
                 data[key.decode()] = value

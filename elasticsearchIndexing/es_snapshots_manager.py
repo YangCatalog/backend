@@ -20,12 +20,12 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import os
 from operator import itemgetter
 
-import utility.log as log
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
-from utility.create_config import create_config
 
+import utility.log as log
 from elasticsearchIndexing.models.es_indices import ESIndices
+from utility.create_config import create_config
 
 
 class ESSnapshotsManager:
@@ -37,39 +37,35 @@ class ESSnapshotsManager:
         self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-            'port': config.get('DB-Section', 'es-port', fallback='9200')
+            'port': config.get('DB-Section', 'es-port', fallback='9200'),
         }
         if es_aws == 'True':
-            self.es = Elasticsearch(hosts=[es_host_config], http_auth=(elk_credentials[0], elk_credentials[1]), scheme='https')
+            self.es = Elasticsearch(
+                hosts=[es_host_config],
+                http_auth=(elk_credentials[0], elk_credentials[1]),
+                scheme='https',
+            )
         else:
             self.es = Elasticsearch(hosts=[es_host_config])
         log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
         self.LOGGER = log.get_logger('es-snapshots-manager', log_file_path)
 
     def create_snapshot_repository(self, compress: bool) -> dict:
-        """ Register a snapshot repository."""
-        body = {
-            'type': 'fs',
-            'settings': {
-                'location': self.elk_repo_name,
-                'compress': compress
-            }
-        }
+        """Register a snapshot repository."""
+        body = {'type': 'fs', 'settings': {'location': self.elk_repo_name, 'compress': compress}}
         return self.es.snapshot.create_repository(repository=self.elk_repo_name, body=body)
 
     def create_snapshot(self, snapshot_name: str) -> dict:
-        """ Creates a snapshot with given 'snapshot_name' in a snapshot repository.
+        """Creates a snapshot with given 'snapshot_name' in a snapshot repository.
 
         Argument:
             :param snapshot_name    (str) Name of the snapshot to be created
         """
-        index_body = {
-            'indices': '_all'
-        }
+        index_body = {'indices': '_all'}
         return self.es.snapshot.create(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
 
     def get_sorted_snapshots(self) -> list:
-        """ Return a sorted list of existing snapshots. """
+        """Return a sorted list of existing snapshots."""
         try:
             snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')
         except NotFoundError:
@@ -78,25 +74,27 @@ class ESSnapshotsManager:
         return sorted(snapshots['snapshots'], key=itemgetter('start_time_in_millis'))
 
     def restore_snapshot(self, snapshot_name: str) -> dict:
-        """ Restore snapshot which is given by 'snapshot_name'.
+        """Restore snapshot which is given by 'snapshot_name'.
 
         Argument:
             :param snapshot_name    (str) Name of the snapshot to restore
         """
-        index_body = {
-            'indices': '_all'
-        }
+        index_body = {'indices': '_all'}
         for index in ESIndices:
             try:
                 self.es.indices.close(index.value)
             except NotFoundError:
                 continue
 
-        return self.es.snapshot.restore(repository=self.elk_repo_name, snapshot=snapshot_name,
-                                        body=index_body, wait_for_completion=True)
+        return self.es.snapshot.restore(
+            repository=self.elk_repo_name,
+            snapshot=snapshot_name,
+            body=index_body,
+            wait_for_completion=True,
+        )
 
     def delete_snapshot(self, snapshot_name: str) -> dict:
-        """ Delete snapshot which is given by 'snapshot_name'.
+        """Delete snapshot which is given by 'snapshot_name'.
 
         Argument:
             :param snapshot_name    (str) Name of the snapshot to delete

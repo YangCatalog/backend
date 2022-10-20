@@ -6,6 +6,7 @@ from flask.globals import current_app
 from flask_httpauth import HTTPBasicAuth
 from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 from redis import RedisError
+
 from redisConnections.redis_users_connection import RedisUsersConnection
 
 auth = HTTPBasicAuth()
@@ -32,9 +33,9 @@ def get_password(username: str) -> bytes:
         :return hashed password from database
     """
     try:
-        id = users.id_by_username(username)
-        if users.is_approved(id):
-            return users.get_field(id, 'password').encode()
+        id = users.id_by_username(username)  # noqa
+        if users.is_approved(id):  # noqa
+            return users.get_field(id, 'password').encode()  # noqa
     except RedisError as err:
         current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
     return b''

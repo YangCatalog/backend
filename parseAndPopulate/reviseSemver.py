@@ -27,20 +27,21 @@ current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
-        help = 'This script gets all the existing modules from Yangcatalog, '\
-            'then it goes through modules list and get only first revision of each '\
-            'unique module. parser_semver() method is then called, which will reevaluate semver for '\
-            'each module (and all of the revisions). '\
-            'Lastly, populate() method will send PATCH request to ConfD and ' \
+        help = (
+            'This script gets all the existing modules from Yangcatalog, '
+            'then it goes through modules list and get only first revision of each '
+            'unique module. parser_semver() method is then called, which will reevaluate semver for '
+            'each module (and all of the revisions). '
+            'Lastly, populate() method will send PATCH request to ConfD and '
             'cache will be re-loaded.'
+        )
 
-        help = 'Parse modules on given directory and generate json with module metadata that can be populated' \
-               ' to confd directory'
+        help = (
+            'Parse modules on given directory and generate json with module metadata that can be populated'
+            ' to confd directory'
+        )
         super().__init__(help, None, [])
-
-
 
 
 def get_older_revision(module1: dict, module2: dict):
@@ -80,7 +81,7 @@ def dump_to_json(path: str, modules: list):
 
 
 def load_from_json(path: str):
-    # Load dumped data from json file
+    # Load dumped data from json file
     with open(path, 'r') as reader:
         return json.load(reader)
 
@@ -97,11 +98,11 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
+    logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     url = f'{yangcatalog_api_prefix}/search/modules'
-    LOGGER.info(f'Getting all the modules from: {url}')
+    logger.info(f'Getting all the modules from: {url}')
     response = requests.get(url, headers={'Accept': 'application/json'})
 
     all_existing_modules = response.json().get('module', [])
@@ -110,12 +111,12 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     path = f'{temp_dir}/semver_prepare.json'
 
     all_modules = get_list_of_unique_modules(all_existing_modules)
-    LOGGER.info(f'Number of unique modules: {len(all_modules["module"])}')
+    logger.info(f'Number of unique modules: {len(all_modules["module"])}')
 
     # Uncomment the next line to read data from the file semver_prepare.json
     # all_modules = load_from_json(path)
 
-    # Initialize ModulesComplicatedAlgorithms
+    # Initialize ModulesComplicatedAlgorithms
     direc = '/var/yang/tmp'
 
     num_of_modules = len(all_modules['module'])
@@ -123,28 +124,34 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     chunks = (num_of_modules - 1) // chunk_size + 1
     for i in range(chunks):
         try:
-            LOGGER.info(f'Proccesing chunk {i} out of {chunks}')
-            batch = all_modules['module'][i * chunk_size:(i + 1) * chunk_size]
+            logger.info(f'Proccesing chunk {i} out of {chunks}')
+            batch = all_modules['module'][i * chunk_size : (i + 1) * chunk_size]
             batch_modules = {'module': batch}
             recursion_limit = sys.getrecursionlimit()
             sys.setrecursionlimit(50000)
             complicated_algorithms = ModulesComplicatedAlgorithms(
-                log_directory, yangcatalog_api_prefix, credentials,
-                save_file_dir, direc, batch_modules, yang_models,
-                temp_dir, json_ytree,
+                log_directory,
+                yangcatalog_api_prefix,
+                credentials,
+                save_file_dir,
+                direc,
+                batch_modules,
+                yang_models,
+                temp_dir,
+                json_ytree,
             )
             complicated_algorithms.parse_semver()
             sys.setrecursionlimit(recursion_limit)
             complicated_algorithms.populate()
         except Exception:
-            LOGGER.exception('Exception occured during running ModulesComplicatedAlgorithms')
+            logger.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
 
     messages = [{'label': 'Number of modules checked', 'message': num_of_modules}]
     end = time.time()
-    LOGGER.info(f'Populate took {int(end - start_time)} seconds with the main and complicated algorithm')
+    logger.info(f'Populate took {int(end - start_time)} seconds with the main and complicated algorithm')
     job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
-    LOGGER.info('Job finished successfully')
+    logger.info('Job finished successfully')
 
 
 if __name__ == '__main__':

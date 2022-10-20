@@ -24,25 +24,43 @@ import shutil
 import typing as t
 from datetime import datetime
 
-from api.authentication.auth import auth, hash_pw
-from api.my_flask import app
 from flask.blueprints import Blueprint
 from flask.globals import request
 from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
+from werkzeug.exceptions import abort
+
+from api.authentication.auth import auth, hash_pw
+from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
-from utility.staticVariables import (NAMESPACE_MAP, backup_date_format,
-                                     github_url)
-from werkzeug.exceptions import abort
+from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
 
 
 class UserSpecificModuleMaintenance(Blueprint):
-
-    def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
-                 url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
-        super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
-                         url_defaults, root_path)
+    def __init__(
+        self,
+        name,
+        import_name,
+        static_folder=None,
+        static_url_path=None,
+        template_folder=None,
+        url_prefix=None,
+        subdomain=None,
+        url_defaults=None,
+        root_path=None,
+    ):
+        super().__init__(
+            name,
+            import_name,
+            static_folder,
+            static_url_path,
+            template_folder,
+            url_prefix,
+            subdomain,
+            url_defaults,
+            root_path,
+        )
 
 
 bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
@@ -55,14 +73,21 @@ def set_config():
     users = ac.redis_users
 
 
-### ROUTE ENDPOINT DEFINITIONS ###
 @bp.route('/register-user', methods=['POST'])
 def register_user():
     if not request.json:
         abort(400, description='bad request - no data received')
     body = request.json
-    for data in ['username', 'password', 'password-confirm', 'email',
-                 'company', 'first-name', 'last-name', 'motivation']:
+    for data in [
+        'username',
+        'password',
+        'password-confirm',
+        'email',
+        'company',
+        'first-name',
+        'last-name',
+        'motivation',
+    ]:
         if data not in body:
             abort(400, description='bad request - missing {} data in input'.format(data))
     username = body['username']
@@ -83,8 +108,16 @@ def register_user():
                 abort(409, 'User with username {} already exists'.format(username))
             elif users.is_temp(id):
                 abort(409, 'User with username {} is pending for permissions'.format(username))
-        users.create(temp=True, username=username, password=password, email=email, models_provider=models_provider,
-                     first_name=first_name, last_name=last_name, motivation=motivation)
+        users.create(
+            temp=True,
+            username=username,
+            password=password,
+            email=email,
+            models_provider=models_provider,
+            first_name=first_name,
+            last_name=last_name,
+            motivation=motivation,
+        )
     except RedisError as err:
         app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
         return ({'error': 'Server problem connecting to database'}, 500)
@@ -106,11 +139,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
             the job is still running or Failed or Finished successfully.
     """
     if all((name, revision, organization)):
-        input_modules = [{
-            'name': name,
-            'revision': revision,
-            'organization': organization
-        }]
+        input_modules = [{'name': name, 'revision': revision, 'organization': organization}]
     else:
         if not request.json:
             abort(400, description='Missing input data to know which modules we want to delete')
@@ -123,19 +152,23 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
-    accessRigths = get_user_access_rights(username)
+    access_rigths = get_user_access_rights(username)
 
     unavailable_modules = []
     for mod in input_modules:
-        # Check if the module is already in Redis
+        # Check if the module is already in Redis
         read = get_mod_redis(mod)
-        if read == {} and accessRigths != '/':
+        if read == {} and access_rigths != '/':
             unavailable_modules.append(mod)
             continue
 
-        if read.get('organization') != accessRigths and accessRigths != '/':
-            abort(401, description='You do not have rights to delete modules with organization {}'
-                  .format(read.get('organization')))
+        if read.get('organization') != access_rigths and access_rigths != '/':
+            abort(
+                401,
+                description='You do not have rights to delete modules with organization {}'.format(
+                    read.get('organization'),
+                ),
+            )
 
         if read.get('implementations') is not None:
             unavailable_modules.append(mod)
@@ -171,12 +204,12 @@ def delete_vendor(value: str):
     assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
     app.logger.debug('Checking authorization for user {}'.format(username))
-    accessRigths = get_user_access_rights(username, is_vendor=True)
-    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
+    access_rigths = get_user_access_rights(username, is_vendor=True)
+    assert access_rigths is not None, "Couldn't get access rights of user {}".format(username)
 
-    if accessRigths.startswith('/') and len(accessRigths) > 1:
-        accessRigths = accessRigths[1:]
-    rights = accessRigths.split('/')
+    if access_rigths.startswith('/') and len(access_rigths) > 1:
+        access_rigths = access_rigths[1:]
+    rights = access_rigths.split('/')
     rights += [None] * (4 - len(rights))
 
     path = '/vendors/{}'.format(value)
@@ -216,8 +249,11 @@ def add_modules():
             the job is still running or Failed or Finished successfully.
     """
     if not request.json:
-        abort(400, description='bad request - you need to input json body that conforms with'
-                               ' module-metadata.yang module. Received no json')
+        abort(
+            400,
+            description='bad request - you need to input json body that conforms with'
+            ' module-metadata.yang module. Received no json',
+        )
     body = request.json
     modules_cont = body.get('modules')
     if modules_cont is None:
@@ -237,9 +273,11 @@ def add_modules():
     response = app.confdService.put_module_metadata(json.dumps(body))
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        abort(400,
-              description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
-                          'Error code: {}'.format(response.text, response.status_code))
+        abort(
+            400,
+            description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
+            'Error code: {}'.format(response.text, response.status_code),
+        )
     direc_num = 0
     while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
         direc_num += 1
@@ -268,7 +306,7 @@ def add_modules():
         if revision is None:
             abort(400, description=missing_msg.format('revision'))
         if request.method == 'POST':
-            # Check if the module is already in Redis
+            # Check if the module is already in Redis
             redis_module = get_mod_redis(module)
             if redis_module != {}:
                 continue
@@ -302,7 +340,8 @@ def add_modules():
         except FileNotFoundError:
             app.logger.exception('Problem with file {}'.format(module_path))
             warning.append(
-                '{} does not exist'.format(os.path.join(repo_url, 'blob', source_file['commit-hash'], module_path)))
+                '{} does not exist'.format(os.path.join(repo_url, 'blob', source_file['commit-hash'], module_path)),
+            )
             continue
 
         organization_parsed = ''
@@ -317,10 +356,15 @@ def add_modules():
                     belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
                 except (yangParser.ParseException, IndexError, AttributeError):
                     break
-                namespace = yangParser.parse(
-                    os.path.abspath('{}/{}/{}.yang'.format(repos[repo_url].local_dir,
-                                                           os.path.dirname(module_path), belongs_to))
-                ).search('namespace')[0].arg
+                namespace = (
+                    yangParser.parse(
+                        os.path.abspath(
+                            '{}/{}/{}.yang'.format(repos[repo_url].local_dir, os.path.dirname(module_path), belongs_to),
+                        ),
+                    )
+                    .search('namespace')[0]
+                    .arg
+                )
                 organization_parsed = organization_by_namespace(namespace)
                 break
         resolved_authorization = authorize_for_sdos(request, organization_sent, organization_parsed)
@@ -333,8 +377,16 @@ def add_modules():
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
 
-    arguments = ['POPULATE-MODULES', '--sdo', '--dir', direc, '--api',
-                 '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1]]
+    arguments = [
+        'POPULATE-MODULES',
+        '--sdo',
+        '--dir',
+        direc,
+        '--api',
+        '--credentials',
+        ac.s_confd_credentials[0],
+        ac.s_confd_credentials[1],
+    ]
     job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
     if len(warning) > 0:
@@ -358,8 +410,11 @@ def add_vendors():
             the job is still running or Failed or Finished successfully.
     """
     if not request.json:
-        abort(400, description='bad request - you need to input json body that conforms with'
-                               ' platform-implementation-metadata.yang module. Received no json')
+        abort(
+            400,
+            description='bad request - you need to input json body that conforms with'
+            ' platform-implementation-metadata.yang module. Received no json',
+        )
     body = request.json
 
     platforms_contents = body.get('platforms')
@@ -384,8 +439,11 @@ def add_vendors():
     response = app.confdService.put_platform_metadata(json.dumps(body))
 
     if response.status_code != 200 and response.status_code != 201 and response.status_code != 204:
-        abort(400, description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
-                               'Error code: {}'.format(response.text, response.status_code))
+        abort(
+            400,
+            description='The body you have provided could not be parsed. ConfD error text:\n{}\n'
+            'Error code: {}'.format(response.text, response.status_code),
+        )
 
     direc_num = 0
     while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
@@ -431,8 +489,11 @@ def add_vendors():
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
         try:
-            shutil.copytree(os.path.join(repos[repo_url].local_dir, dir_in_repo), save_to,
-                            ignore=shutil.ignore_patterns('*.json', '*.xml', '*.sh', '*.md', '*.txt', '*.bin'))
+            shutil.copytree(
+                os.path.join(repos[repo_url].local_dir, dir_in_repo),
+                save_to,
+                ignore=shutil.ignore_patterns('*.json', '*.xml', '*.sh', '*.md', '*.txt', '*.bin'),
+            )
         except OSError:
             pass
         with open('{}/{}.json'.format(save_to, file_name.split('.')[0]), 'w') as f:
@@ -440,8 +501,16 @@ def add_vendors():
         shutil.copy(os.path.join(repos[repo_url].local_dir, module_list_file['path']), save_to)
         tree_created = True
 
-    arguments = ['POPULATE-VENDORS', '--dir', direc, '--api',
-                 '--credentials', ac.s_confd_credentials[0], ac.s_confd_credentials[1], repr(tree_created)]
+    arguments = [
+        'POPULATE-VENDORS',
+        '--dir',
+        direc,
+        '--api',
+        '--credentials',
+        ac.s_confd_credentials[0],
+        ac.s_confd_credentials[1],
+        repr(tree_created),
+    ]
     job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
     return ({'info': 'Verification successful', 'job-id': job_id}, 202)
@@ -449,7 +518,7 @@ def add_vendors():
 
 @bp.route('/job/<job_id>', methods=['GET'])
 def get_job(job_id: str):
-    """ Search for a "job_id" to see the process of the job.
+    """Search for a "job_id" to see the process of the job.
 
     :return response to the request with the job
     """
@@ -465,11 +534,7 @@ def get_job(job_id: str):
         else:
             reason = ''
 
-    return {'info': {'job-id': job_id,
-                     'result': result,
-                     'reason': reason}}
-
-### HELPER DEFINITIONS ###
+    return {'info': {'job-id': job_id, 'result': result, 'reason': reason}}
 
 
 def authorize_for_vendors(request, body: dict):
@@ -483,12 +548,12 @@ def authorize_for_vendors(request, body: dict):
     """
     username = request.authorization['username']
     app.logger.info('Checking vendor authorization for user {}'.format(username))
-    accessRigths = get_user_access_rights(username, is_vendor=True)
-    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
+    access_rigths = get_user_access_rights(username, is_vendor=True)
+    assert access_rigths is not None, "Couldn't get access rights of user {}".format(username)
 
-    if accessRigths.startswith('/') and len(accessRigths) > 1:
-        accessRigths = accessRigths[1:]
-    rights = accessRigths.split('/')
+    if access_rigths.startswith('/') and len(access_rigths) > 1:
+        access_rigths = access_rigths[1:]
+    rights = access_rigths.split('/')
     rights += [None] * (4 - len(rights))
     if rights[0] == '':
         return True
@@ -515,15 +580,15 @@ def authorize_for_sdos(request, organizations_sent: str, organization_parsed: st
     """
     username = request.authorization['username']
     app.logger.info('Checking sdo authorization for user {}'.format(username))
-    accessRigths = get_user_access_rights(username)
-    assert accessRigths is not None, "Couldn't get access rights of user {}".format(username)
+    access_rigths = get_user_access_rights(username)
+    assert access_rigths is not None, "Couldn't get access rights of user {}".format(username)
 
     passed = False
-    if accessRigths == '/':
+    if access_rigths == '/':
         if organization_parsed != organizations_sent:
             return 'module`s organization is not the same as organization provided'
         return True
-    if organizations_sent in accessRigths.split(','):
+    if organizations_sent in access_rigths.split(','):
         if organization_parsed != organizations_sent:
             return 'module`s organization is not in users rights'
         passed = True
@@ -578,5 +643,8 @@ def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
             repo = repoutil.ModifiableRepoUtil(repo_url)
             return repo
         except GitCommandError as e:
-            abort(400, description='bad request - could not clone the Github repository. Please check owner,'
-                  ' repository and path of the request - {}'.format(e.stderr))
+            abort(
+                400,
+                description='bad request - could not clone the Github repository. Please check owner,'
+                ' repository and path of the request - {}'.format(e.stderr),
+            )

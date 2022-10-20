@@ -18,14 +18,13 @@ null values of the json. use cls option - cls=NullJsonEncoder
 """
 import json
 
-__author__ = "Miroslav Kovac"
-__copyright__ = "Copyright The IETF Trust 2020, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "miroslav.kovac@pantheon.tech"
+__author__ = 'Miroslav Kovac'
+__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'miroslav.kovac@pantheon.tech'
 
 
 class NullJsonEncoder(json.JSONEncoder):
-
     def encode(self, o):
         ret_obj = self.__remove_null_dict(o)
         return super().encode(ret_obj)

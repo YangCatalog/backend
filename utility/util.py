@@ -35,12 +35,12 @@ from datetime import date, datetime
 import dateutil.parser
 import requests
 from Crypto.Hash import HMAC, SHA
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
 from pyang import plugin
 from pyang.plugins.check_update import check_update
-from redisConnections.redisConnection import RedisConnection
 
+from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.es_indices import ESIndices
+from redisConnections.redisConnection import RedisConnection
 from utility import message_factory
 from utility.create_config import create_config
 from utility.staticVariables import JobLogStatuses, backup_date_format, json_headers
@@ -111,7 +111,7 @@ def get_yang(name: str, revision: t.Optional[str] = None, config: ConfigParser =
 
 
 def change_permissions_recursive(path: str):
-    """ Change permissions of all the files and folders recursively to rwxrwxr--
+    """Change permissions of all the files and folders recursively to rwxrwxr--
 
     Argument:
         :param path     (str) path to file or folder we need to change permission on
@@ -119,15 +119,36 @@ def change_permissions_recursive(path: str):
     if os.path.isdir(path):
         for root, dirs, files in os.walk(path, topdown=False):
             for directory in [os.path.join(root, d) for d in dirs]:
-                os.chmod(directory, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
+                os.chmod(
+                    directory,
+                    stat.S_IRGRP
+                    | stat.S_IWGRP
+                    | stat.S_IXGRP
+                    | stat.S_IRUSR
+                    | stat.S_IWUSR
+                    | stat.S_IXUSR
+                    | stat.S_IROTH,
+                )
             for file in [os.path.join(root, f) for f in files]:
-                os.chmod(file, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
+                os.chmod(
+                    file,
+                    stat.S_IRGRP
+                    | stat.S_IWGRP
+                    | stat.S_IXGRP
+                    | stat.S_IRUSR
+                    | stat.S_IWUSR
+                    | stat.S_IXUSR
+                    | stat.S_IROTH,
+                )
     else:
-        os.chmod(path, stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH)
+        os.chmod(
+            path,
+            stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP | stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IROTH,
+        )
 
 
 def create_signature(secret_key: str, string: str):
-    """ Create the signed message using secret_key and string_to_sign
+    """Create the signed message using secret_key and string_to_sign
 
     Arguments:
         :param string: (str) String that needs to be signed
@@ -139,16 +160,18 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, paths: dict):
+def send_for_es_indexing(body_to_send: dict, logger: logging.Logger, paths: dict):
     """
     Creates a json file that will be used for Elasticsearch indexing.
 
     Arguments:
         :param body_to_send:        (dict) body that needs to be indexed
-        :param LOGGER:              (logging.Logger) Logger used for logging
+        :param logger:              (logging.Logger) Logger used for logging
         :param paths                (dict) dict containing paths to the necessary files
     """
-    LOGGER.info('Updating metadata for elk - file creation in {} or {}'.format(paths['cache_path'], paths['deletes_path']))
+    logger.info(
+        'Updating metadata for elk - file creation in {} or {}'.format(paths['cache_path'], paths['deletes_path']),
+    )
     while os.path.exists(paths['lock_path']):
         time.sleep(10)
     try:
@@ -157,7 +180,7 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, paths: dict
         except Exception:
             raise Exception('Failed to obtain lock {}'.format(paths['lock_path']))
 
-        changes_cache = dict()
+        changes_cache = {}
         delete_cache = []
         if os.path.exists(paths['cache_path']) and os.path.getsize(paths['cache_path']) > 0:
             with open(paths['cache_path'], 'r') as reader:
@@ -188,13 +211,13 @@ def send_for_es_indexing(body_to_send: dict, LOGGER: logging.Logger, paths: dict
         with open(paths['deletes_path'], 'w') as writer:
             json.dump(delete_cache, writer, indent=2)
     except Exception as e:
-        LOGGER.exception('Problem while sending modules to indexing')
+        logger.exception('Problem while sending modules to indexing')
         os.unlink(paths['lock_path'])
         raise Exception('Caught exception {}'.format(e))
     os.unlink(paths['lock_path'])
 
 
-def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, LOGGER: logging.Logger):
+def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, logger: logging.Logger):
     """Makes an API request to identify dependencies of the modules to be deleted.
     Updates metadata of dependencies in Redis no longer list the modules to be
     deleted as dependents. Deletes the schema files for modules to be deleted
@@ -204,9 +227,9 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
         :param yc_api_prefix        (str) prefix for sending request to API
         :param modules_to_delete    (list) name@revision list of modules to be deleted
         :param save_file_dir        (str) path to the directory where all the yang files are saved
-        :param LOOGER               (Logger) formated logger with the specified name
+        :param logger               (Logger) formated logger with the specified name
     """
-    redisConnection = RedisConnection()
+    redis_connection = RedisConnection()
     for mod_to_delete in modules_to_delete:
         name, revision_organization = mod_to_delete.split('@')
         revision = revision_organization.split('/')[0]
@@ -219,23 +242,28 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
             modules = data['yang-catalog:modules']['module']
             for mod in modules:
                 redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
-                redisConnection.delete_dependent(redis_key, name)
+                redis_connection.delete_dependent(redis_key, name)
         if os.path.exists(path_to_delete_local):
             os.remove(path_to_delete_local)
 
     post_body = {}
     if modules_to_delete:
         post_body = {'modules-to-delete': modules_to_delete}
-        LOGGER.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))
+        logger.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))
         mf = message_factory.MessageFactory()
         mf.send_removed_yang_files(json.dumps(post_body, indent=4))
 
     return post_body
 
 
-def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: logging.Logger,
-                            save_file_dir: str, force_indexing: bool = False):
-    """ Sends the POST request which will activate indexing script for modules which will
+def prepare_for_es_indexing(
+    yc_api_prefix: str,
+    modules_to_index: str,
+    logger: logging.Logger,
+    save_file_dir: str,
+    force_indexing: bool = False,
+):
+    """Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
     containing module name and path where the module can be found if we are adding new
     modules.
@@ -243,7 +271,7 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     Arguments:
         :param yc_api_prefix        (str) prefix for sending request to API
         :param modules_to_index     (str) path to the prepare.json file generated while parsing
-        :param LOOGER               (logging.Logger) formated logger with the specified name
+        :param logger               (logging.Logger) formated logger with the specified name
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
         :param force_indexing       (bool) Whether or not we should force indexing even if module exists in cache.
     """
@@ -251,12 +279,16 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
     es_manager = ESManager()
     with open(modules_to_index, 'r') as reader:
         sdos_json = json.load(reader)
-        LOGGER.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
+        logger.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
     post_body = {}
     load_new_files_to_github = False
     for module in sdos_json.get('module', []):
-        url = '{}/search/modules/{},{},{}'.format(yc_api_prefix,
-                                                  module['name'], module['revision'], module['organization'])
+        url = '{}/search/modules/{},{},{}'.format(
+            yc_api_prefix,
+            module['name'],
+            module['revision'],
+            module['organization'],
+        )
         response = requests.get(url, headers=json_headers)
         code = response.status_code
 
@@ -274,28 +306,28 @@ def prepare_for_es_indexing(yc_api_prefix: str, modules_to_index: str, LOGGER: l
 
     if post_body:
         post_body = {'modules-to-index': post_body}
-        LOGGER.debug('Modules to index:\n{}'.format(json.dumps(post_body, indent=2)))
+        logger.debug('Modules to index:\n{}'.format(json.dumps(post_body, indent=2)))
         mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
     if load_new_files_to_github:
         try:
-            LOGGER.info('Calling draftPull.py script')
+            logger.info('Calling draftPull.py script')
             module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
             submodule = getattr(module, 'draftPull')
             submodule.main()
         except Exception:
-            LOGGER.exception('Error occurred while running draftPull.py script')
+            logger.exception('Error occurred while running draftPull.py script')
     return post_body
 
 
 def job_log(
-        start_time: int,
-        temp_dir: str,
-        filename: str,
-        status: JobLogStatuses,
-        messages: t.Union[tuple, list] = (),
-        error: str = '',
+    start_time: int,
+    temp_dir: str,
+    filename: str,
+    status: JobLogStatuses,
+    messages: t.Union[tuple, list] = (),
+    error: str = '',
 ):
-    """ Dump job run information into cronjob.json file.
+    """Dump job run information into cronjob.json file.
 
     Arguments:
         :param start_time   (int) Start time of job
@@ -334,7 +366,7 @@ def job_log(
 
 
 def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
-    """ Fetch content of yang module from Github and store it to the file.
+    """Fetch content of yang module from Github and store it to the file.
 
     Arguments:
         :param schema       (Optional[str]) URL to Github where the content of the module should be stored
@@ -359,7 +391,7 @@ def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
 
 
 def context_check_update_from(old_schema: str, new_schema: str, yang_models: str, save_file_dir: str):
-    """ Perform pyang --check-update-from validation using context.
+    """Perform pyang --check-update-from validation using context.
 
     Argumets:
         :param old_schema       (str) full path to the yang file with older revision
@@ -369,14 +401,13 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     """
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context(
-        '{}:{}'.format(os.path.abspath(yang_models), save_file_dir))
+    ctx = create_context('{}:{}'.format(os.path.abspath(yang_models), save_file_dir))
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
-    optParser = optparse.OptionParser('', add_help_option=False)
+    opt_parser = optparse.OptionParser('', add_help_option=False)
     for plug in plugin.plugins:
         plug.setup_ctx(ctx)
-        plug.add_opts(optParser)
+        plug.add_opts(opt_parser)
     with open(new_schema, 'r', errors='ignore') as reader:
         new_schema_ctx = ctx.add_module(new_schema, reader.read())
     ctx.opts.check_update_from = old_schema
@@ -423,7 +454,7 @@ def get_list_of_backups(directory: str) -> t.List[str]:
 
 
 def validate_revision(revision: str) -> str:
-    """ Validate if revision has correct format and return default 1970-01-01 if not.
+    """Validate if revision has correct format and return default 1970-01-01 if not.
 
     Argument:
         :param revision     (str) Revision to validate

@@ -23,23 +23,20 @@ import typing as t
 from configparser import ConfigParser
 from urllib.parse import quote, unquote
 
-import utility.log as log
 from redis import Redis
+
+import utility.log as log
 from utility.create_config import create_config
 
-DEFAULT_VALUES = {
-    'compilation-status': 'unknown',
-    'compilation-result': ''
-}
+DEFAULT_VALUES = {'compilation-status': 'unknown', 'compilation-result': ''}
 
 
 class RedisConnection:
-
     def __init__(
-            self,
-            modules_db: t.Optional[t.Union[int, str]] = None,
-            vendors_db: t.Optional[t.Union[int, str]] = None,
-            config: ConfigParser = create_config(),
+        self,
+        modules_db: t.Optional[t.Union[int, str]] = None,
+        vendors_db: t.Optional[t.Union[int, str]] = None,
+        config: ConfigParser = create_config(),
     ):
         self.log_directory = config.get('Directory-Section', 'logs')
         self._redis_host = config.get('DB-Section', 'redis-host')
@@ -91,7 +88,7 @@ class RedisConnection:
         return existing_module
 
     def populate_modules(self, new_modules: list[dict]):
-        """ Merge new data of each module in 'new_modules' list with existing data already stored in Redis.
+        """Merge new data of each module in 'new_modules' list with existing data already stored in Redis.
         Set updated data to Redis under created key in format: <name>@<revision>/<organization>
 
         Argument:
@@ -189,14 +186,15 @@ class RedisConnection:
         return result
 
     def delete_temporary(self, modules_keys: list):
-        result = self.temp_modulesDB.delete(*modules_keys)
+        self.temp_modulesDB.delete(*modules_keys)
 
     def _create_module_key(self, module: dict):
         return f'{module.get("name")}@{module.get("revision")}/{module.get("organization")}'
 
     def create_implementation_key(self, impl: dict):
-        quoted = [key_quote(i) for i in
-                  [impl['vendor'], impl['platform'], impl['software-version'], impl['software-flavor']]]
+        quoted = [
+            key_quote(i) for i in [impl['vendor'], impl['platform'], impl['software-version'], impl['software-flavor']]
+        ]
         return '/'.join(quoted)
 
     # VENDORS DATABASE COMMUNICATION ###
@@ -227,8 +225,8 @@ class RedisConnection:
                     for software_flavor in software_version['software-flavors']['software-flavor']:
                         software_flavor_name = software_flavor['name']
                         quoted = [
-                            key_quote(i) for i in
-                            [vendor_name, platform_name, software_version_name, software_flavor_name]
+                            key_quote(i)
+                            for i in [vendor_name, platform_name, software_version_name, software_flavor_name]
                         ]
                         key = '/'.join(quoted)
                         if not data.get(key):
@@ -261,12 +259,14 @@ class RedisConnection:
                     data = self.vendorsDB.get(key)
                     redis_vendors_raw = (data or b'{}').decode('utf-8')
                     redis_vendor_data = json.loads(redis_vendors_raw)
-                    vendor_name, platform_name, software_version_name, software_flavor_name = \
-                        (unquote(part) for part in key.split('/'))
+                    vendor_name, platform_name, software_version_name, software_flavor_name = (
+                        unquote(part) for part in key.split('/')
+                    )
                     # Build up an object from bottom
                     software_flavor = {'name': software_flavor_name, **redis_vendor_data}
                     software_version = {
-                        'name': software_version_name, 'software-flavors': {'software-flavor': [software_flavor]}
+                        'name': software_version_name,
+                        'software-flavors': {'software-flavor': [software_flavor]},
                     }
                     platform = {'name': platform_name, 'software-versions': {'software-version': [software_version]}}
                     vendor = {'name': vendor_name, 'platforms': {'platform': [platform]}}

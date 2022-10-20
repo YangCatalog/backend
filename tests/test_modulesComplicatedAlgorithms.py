@@ -24,12 +24,10 @@ from copy import deepcopy
 from unittest import mock
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.modulesComplicatedAlgorithms import \
-    ModulesComplicatedAlgorithms
+from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 
 
 class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
-
     def __init__(self, *args, **kwargs):
         super(TestModulesComplicatedAlgorithmsClass, self).__init__(*args, **kwargs)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
@@ -38,12 +36,6 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'
         self.save_file_dir = '{}/all_modules'.format(self.resources_path)
 
-    #########################
-    ### TESTS DEFINITIONS ###
-    #########################
-
-    ### parse_semver() - parsing latest revision ###
-    ################################################
     """
     TEST CASES:
     I. 1st revision - 1.0.0
@@ -53,14 +45,16 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
     V. 5th revision - minor version update (4.1.0)
     VI. 6th revision - patch version update (4.1.1)
     """
+
     @mock.patch('requests.get')
     def test_parse_semver_init_revision(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
+        """Check whether the value of the 'derived-semantic-version' property was set correctly.
         Only one - first revision of the module is passed to the modulesComplicatedAlgorithms script.
         Expected 'derived-semantic-version': 1.0.0
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+            the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -72,27 +66,35 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[0]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
+        self.assertNotEqual(len(complicated_algorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicated_algorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '1.0.0')
 
     @mock.patch('requests.get')
     def test_parse_semver_update_major(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
+        """Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module compilation status is 'passed-with-warnings' so a major version update is expected.
         Expected 'derived-semantic-version': 2.0.0
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+                                                         the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -104,27 +106,37 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[1]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
+        self.assertNotEqual(len(complicated_algorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicated_algorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '2.0.0')
 
     @mock.patch('requests.get')
     def test_parse_semver_update_major_2(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
-        Module compilation status is 'passed' after previous 'passed-with-warnings' so a major version update is expected.
+        """
+        Check whether the value of the 'derived-semantic-version' property was set correctly.
+        Module compilation status is 'passed' after previous 'passed-with-warnings'
+        so a major version update is expected.
         Expected 'derived-semantic-version': 3.0.0
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+                                                         the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -136,28 +148,36 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[2]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
+        self.assertNotEqual(len(complicated_algorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicated_algorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '3.0.0')
 
     @mock.patch('requests.get')
     def test_parse_semver_update_major_3(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
-        Module compilation status is 'passed', but errors occured while running --check-update-from
+        """Check whether the value of the 'derived-semantic-version' property was set correctly.
+        Module compilation status is 'passed', but errors occurred while running --check-update-from
         so a major version update is expected.
         Expected 'derived-semantic-version': 4.0.0
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+                                                         the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -169,28 +189,36 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[3]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
+        self.assertNotEqual(len(complicated_algorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicated_algorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.0.0')
 
     @mock.patch('requests.get')
     def test_parse_semver_update_minor(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
-        Module compilation status is 'passed', no error occured while running --check-update-from,
+        """Check whether the value of the 'derived-semantic-version' property was set correctly.
+        Module compilation status is 'passed', no error occurred while running --check-update-from,
         but yang-trees are different so a minor version update is expected.
         Expected 'derived-semantic-version': 4.1.0
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+                                                         the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -202,28 +230,36 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[4]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
+        self.assertNotEqual(len(complicated_algorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicated_algorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.0')
 
     @mock.patch('requests.get')
     def test_parse_semver_update_patch(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
-        Module compilation status is 'passed', no error occured while running --check-update-from,
+        """Check whether the value of the 'derived-semantic-version' property was set correctly.
+        Module compilation status is 'passed', no error occurred while running --check-update-from,
         yang-trees are same so a patch version update is expected.
         Expected 'derived-semantic-version': 4.1.1
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+                                                         the necessary modules
         """
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
@@ -235,32 +271,38 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[5]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertNotEqual(len(complicatedAlgorithms.new_modules), 0)
+        self.assertNotEqual(len(complicated_algorithms.new_modules), 0)
         name = module_to_parse['name']
         revision = module_to_parse['revision']
-        new_module = complicatedAlgorithms.new_modules[name].get(revision, {})
+        new_module = complicated_algorithms.new_modules[name].get(revision, {})
         self.assertEqual(new_module.get('derived-semantic-version'), '4.1.1')
 
-    ### parse_semver() - parsing middle revision ###
-    ################################################
     @mock.patch('requests.get')
     def test_parse_semver_update_versions(self, mock_requests_get: mock.MagicMock):
-        """ Check whether the value of the 'derived-semantic-version' property was set correctly.
+        """
+        Check whether the value of the 'derived-semantic-version' property was set correctly.
         Module between two other revisions is parsed, which means, it will loop through all the available
         module revisions and assign 'derived-semantic-version' to them.
         Expected 'derived-semantic-version' order: '1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1'
 
         Arguments:
-            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only the necessary modules
+            :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to return only
+                                                         the necessary modules
         """
-        expected_semver_order = ['1.0.0', '2.0.0', '3.0.0', '4.0.0', '4.1.0', '4.1.1']
         modules = self.payloads['modulesComplicatedAlgorithms_prepare_json']['module']
         modules = sorted(modules, key=lambda k: k['revision'])
         # List of modules returned from patched /api/search/modules GET request
@@ -271,32 +313,47 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module_to_parse = modules[4]
         all_modules = {'module': [module_to_parse]}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
 
-        complicatedAlgorithms.parse_semver()
+        complicated_algorithms.parse_semver()
 
-        self.assertIn('2020-05-01', complicatedAlgorithms.new_modules['semver-test'])
-        self.assertEqual(complicatedAlgorithms.new_modules['semver-test']['2020-05-01']['derived-semantic-version'], '4.1.0')
+        self.assertIn('2020-05-01', complicated_algorithms.new_modules['semver-test'])
+        self.assertEqual(
+            complicated_algorithms.new_modules['semver-test']['2020-05-01']['derived-semantic-version'],
+            '4.1.0',
+        )
 
-    ### resolve_tree_type() ###
-    ###########################
     @mock.patch('requests.get')
     def test_parse_non_requests_openconfig(self, mock_requests_get: mock.MagicMock):
         module = self.payloads['parse_tree_type']['module'][0]
         all_modules = {'module': [module]}
         mock_requests_get.return_value.json.return_value = {'module': []}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
-        complicatedAlgorithms.parse_non_requests()
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
+        complicated_algorithms.parse_non_requests()
         name = module['name']
         revision = module['revision']
-        self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'openconfig')
+        self.assertEqual(complicated_algorithms.new_modules[name][revision]['tree-type'], 'openconfig')
 
     @mock.patch('requests.get')
     def test_parse_non_requests_split(self, mock_requests_get: mock.MagicMock):
@@ -304,14 +361,21 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules = {'module': [module]}
         mock_requests_get.return_value.json.return_value = {'module': []}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
-        complicatedAlgorithms.parse_non_requests()
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
+        complicated_algorithms.parse_non_requests()
         name = module['name']
         revision = module['revision']
-        self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'split')
+        self.assertEqual(complicated_algorithms.new_modules[name][revision]['tree-type'], 'split')
 
     @mock.patch('requests.get')
     def test_parse_non_requests_combined(self, mock_requests_get: mock.MagicMock):
@@ -319,41 +383,51 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         all_modules = {'module': [module]}
         mock_requests_get.return_value.json.return_value = {'module': []}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
-        complicatedAlgorithms.parse_non_requests()
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
+        complicated_algorithms.parse_non_requests()
         name = module['name']
         revision = module['revision']
-        self.assertEqual(complicatedAlgorithms.new_modules[name][revision]['tree-type'], 'nmda-compatible')
+        self.assertEqual(complicated_algorithms.new_modules[name][revision]['tree-type'], 'nmda-compatible')
 
-    ### parse_dependents() ###
-    ##########################
-    @mock.patch('parseAndPopulate.modulesComplicatedAlgorithms.ModulesComplicatedAlgorithms.parse_semver',
-                mock.MagicMock())
+    @mock.patch(
+        'parseAndPopulate.modulesComplicatedAlgorithms.ModulesComplicatedAlgorithms.parse_semver',
+        mock.MagicMock(),
+    )
     @mock.patch('requests.get')
     def test_parse_dependents(self, mock_requests_get: mock.MagicMock):
         payload = self.payloads['parse_dependents']
         all_modules = {'module': payload[0]['new']}
         mock_requests_get.return_value.json.return_value = {'module': payload[0]['existing']}
 
-        complicatedAlgorithms = ModulesComplicatedAlgorithms(yc_gc.logs_dir, self.yangcatalog_api_prefix,
-                                                             yc_gc.credentials, self.save_file_dir,
-                                                             yc_gc.temp_dir, all_modules, yc_gc.yang_models, yc_gc.temp_dir,
-                                                             yc_gc.json_ytree)
-        complicatedAlgorithms.parse_requests()
-        new = complicatedAlgorithms.new_modules
+        complicated_algorithms = ModulesComplicatedAlgorithms(
+            yc_gc.logs_dir,
+            self.yangcatalog_api_prefix,
+            yc_gc.credentials,
+            self.save_file_dir,
+            yc_gc.temp_dir,
+            all_modules,
+            yc_gc.yang_models,
+            yc_gc.temp_dir,
+            yc_gc.json_ytree,
+        )
+        complicated_algorithms.parse_requests()
+        new = complicated_algorithms.new_modules
         self.assertIn({'name': 'n1', 'revision': '1', 'schema': None}, new['e1']['1']['dependents'])
         self.assertIn({'name': 'n2', 'revision': '1', 'schema': None}, new['e1']['1']['dependents'])
         self.assertNotIn('1', new['e2'])
         self.assertIn({'name': 'n2', 'revision': '1', 'schema': None}, new['n1']['1']['dependents'])
         self.assertIn({'name': 'e2', 'revision': '1', 'schema': None}, new['n1']['1']['dependents'])
         self.assertNotIn('1', new['n2'])
-
-    ##########################
-    ### HELPER DEFINITIONS ###
-    ##########################
 
     def load_from_json(self, key: str):
         with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
@@ -362,5 +436,5 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         return loaded_result
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

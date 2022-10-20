@@ -27,7 +27,6 @@ import utility.log as log
 from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.submodule import Submodule
-
 from parseAndPopulate.modules import Module
 from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 
@@ -35,24 +34,13 @@ from parseAndPopulate.nullJsonEncoder import NullJsonEncoder
 def get_deviations(deviations: t.Optional[list[Implementation.Deviation]]) -> t.Optional[list[dict]]:
     if deviations is None:
         return None
-    return [
-        {
-            'name': dev.name,
-            'revision': dev.revision
-        } for dev in deviations
-    ]
+    return [{'name': dev.name, 'revision': dev.revision} for dev in deviations]
 
 
 def get_dependencies(dependencies: t.Union[None, list[Dependency], list[Submodule]]) -> t.Optional[list[dict]]:
     if dependencies is None:
         return None
-    return [
-        {
-            'name': dep.name,
-            'revision': dep.revision,
-            'schema': dep.schema
-        } for dep in dependencies
-    ]
+    return [{'name': dep.name, 'revision': dep.revision, 'schema': dep.schema} for dep in dependencies]
 
 
 class Dumper:
@@ -118,9 +106,7 @@ class Dumper:
                             'belongs-to': yang_module.belongs_to,
                             'tree-type': None,
                             'yang-tree': yang_module.tree,
-                            'ietf': {
-                                'ietf-wg': yang_module.ietf_wg
-                            },
+                            'ietf': {'ietf-wg': yang_module.ietf_wg},
                             'namespace': yang_module.namespace,
                             'submodule': get_dependencies(yang_module.submodule),
                             'dependencies': get_dependencies(yang_module.dependencies),
@@ -138,14 +124,17 @@ class Dumper:
                                         'os-type': implementation.os_type,
                                         'feature': implementation.feature,
                                         'deviation': get_deviations(implementation.deviations),
-                                        'conformance-type': implementation.conformance_type
-                                    } for implementation in yang_module.implementations
+                                        'conformance-type': implementation.conformance_type,
+                                    }
+                                    for implementation in yang_module.implementations
                                 ],
-                            }
-                        } for key in sorted(self.yang_modules.keys())
-                    ]
+                            },
+                        }
+                        for key in sorted(self.yang_modules.keys())
+                    ],
                 },
-                prepare_model, cls=NullJsonEncoder
+                prepare_model,
+                cls=NullJsonEncoder,
             )
 
     def dump_vendors(self, directory: str):
@@ -158,45 +147,75 @@ class Dumper:
         self.logger.debug('Creating normal.json file from vendor implementation information')
 
         with open(os.path.join(directory, 'normal.json'), 'w') as f:
-            json.dump({
-                'vendors': {
-                    'vendor': [{
-                        'name': impl.vendor,
-                        'platforms': {
-                            'platform': [{
-                                'name': impl.platform,
-                                'software-versions': {
-                                    'software-version': [{
-                                        'name': impl.software_version,
-                                        'software-flavors': {
-                                            'software-flavor': [{
-                                                'name': impl.software_flavor,
-                                                'protocols': {
-                                                    'protocol': [{
-                                                        'name': 'netconf',
-                                                        'capabilities': impl.capabilities,
-                                                        'protocol-version': impl.netconf_versions,
-                                                    }]
-                                                },
-                                                'modules': {
-                                                    'module': [{
-                                                        'name': (yang_module := self.yang_modules[key]).name,
-                                                        'revision': yang_module.revision,
-                                                        'organization': yang_module.organization,
-                                                        'os-version': impl.os_version,
-                                                        'feature-set': impl.feature_set,
-                                                        'os-type': impl.os_type,
-                                                        'feature': impl.feature,
-                                                        'deviation': get_deviations(impl.deviations),
-                                                        'conformance-type': impl.conformance_type
-                                                    }],
-                                                }
-                                            }]
-                                        }
-                                    }]
-                                }
-                            }]
-                        }
-                    } for key in sorted(self.yang_modules.keys()) for impl in self.yang_modules[key].implementations]
-                }
-            }, f, cls=NullJsonEncoder)
+            json.dump(
+                {
+                    'vendors': {
+                        'vendor': [
+                            {
+                                'name': impl.vendor,
+                                'platforms': {
+                                    'platform': [
+                                        {
+                                            'name': impl.platform,
+                                            'software-versions': {
+                                                'software-version': [
+                                                    {
+                                                        'name': impl.software_version,
+                                                        'software-flavors': {
+                                                            'software-flavor': [
+                                                                {
+                                                                    'name': impl.software_flavor,
+                                                                    'protocols': {
+                                                                        'protocol': [
+                                                                            {
+                                                                                'name': 'netconf',
+                                                                                'capabilities': impl.capabilities,
+                                                                                'protocol-version': (
+                                                                                    impl.netconf_versions
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                    'modules': {
+                                                                        'module': [
+                                                                            {
+                                                                                'name': (
+                                                                                    yang_module := self.yang_modules[
+                                                                                        key
+                                                                                    ]
+                                                                                ).name,
+                                                                                'revision': yang_module.revision,
+                                                                                'organization': (
+                                                                                    yang_module.organization
+                                                                                ),
+                                                                                'os-version': impl.os_version,
+                                                                                'feature-set': impl.feature_set,
+                                                                                'os-type': impl.os_type,
+                                                                                'feature': impl.feature,
+                                                                                'deviation': get_deviations(
+                                                                                    impl.deviations,
+                                                                                ),
+                                                                                'conformance-type': (
+                                                                                    impl.conformance_type
+                                                                                ),
+                                                                            },
+                                                                        ],
+                                                                    },
+                                                                },
+                                                            ],
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                            }
+                            for key in sorted(self.yang_modules.keys())
+                            for impl in self.yang_modules[key].implementations
+                        ],
+                    },
+                },
+                f,
+                cls=NullJsonEncoder,
+            )
