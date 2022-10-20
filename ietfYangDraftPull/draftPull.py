@@ -44,7 +44,7 @@ from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
-from ietfYangDraftPull import draftPullUtility
+from ietfYangDraftPull import draftPullUtility as dpu
 
 current_file_basename = os.path.basename(__file__)
 
@@ -52,6 +52,7 @@ current_file_basename = os.path.basename(__file__)
 class ScriptConfig(BaseScriptConfig):
 
     def __init__(self):
+        assert __doc__
         help = __doc__
         args: t.List[Arg] = [
             {
@@ -93,14 +94,13 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo_name = 'yang'
-    repourl = f'https://{token}@github.com/{username}/{repo_name}.git'
     commit_author = {
         'name': config_name,
         'email': config_email
     }
 
-    draftPullUtility.update_forked_repository(yang_models, repourl, LOGGER)
-    repo = draftPullUtility.clone_forked_repository(repourl, commit_author, LOGGER)
+    dpu.update_forked_repository(yang_models, dpu.construct_github_repo_url(username, repo_name, token), LOGGER)
+    repo = dpu.clone_forked_repository(dpu.construct_github_repo_url(username, repo_name), commit_author, LOGGER)
 
     if not repo:
         error_message = f'Failed to clone repository {username}/{repo_name}'
@@ -114,7 +114,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         extract_to = os.path.join(repo.local_dir, 'standard/ietf/RFCtemp')
         with open(tgz_path, 'wb') as zfile:
             zfile.write(response.content)
-        tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
+        tar_opened = dpu.extract_rfc_tgz(tgz_path, extract_to, LOGGER)
         if tar_opened:
             diff_files = []
             new_files = []
@@ -154,13 +154,13 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         os.makedirs(experimental_path, exist_ok=True)
 
         LOGGER.info('Updating IETF drafts download links')
-        draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
+        dpu.get_draft_module_content(experimental_path, config, LOGGER)
 
         LOGGER.info(f'Checking module filenames without revision in {experimental_path}')
-        draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
+        dpu.check_name_no_revision_exist(experimental_path, LOGGER)
 
         LOGGER.info(f'Checking for early revision in {experimental_path}')
-        draftPullUtility.check_early_revisions(experimental_path, LOGGER)
+        dpu.check_early_revisions(experimental_path, LOGGER)
 
         messages = []
         try:

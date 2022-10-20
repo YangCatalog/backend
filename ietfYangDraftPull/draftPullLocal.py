@@ -83,6 +83,31 @@ def run_populate_script(directory: str, notify: bool, LOGGER: logging.Logger) ->
     return successful
 
 
+def populate_directory(directory: str, notify_indexing: bool, logger: logging.Logger):
+    """
+    Run the populate script on a directory and return the result.
+
+    Arguments:
+        :param directory        (str) Directory to run the populate script on
+        :param notify_indexing  (bool)
+        :param logger           (Logger)
+        :return                 (tuple[bool, str]) First specifies whether the script ran successfully,
+            second element is a corresponding text message.
+    """
+    logger.info(f'Checking module filenames without revision in {directory}')
+    draftPullUtility.check_name_no_revision_exist(directory, logger)
+
+    logger.info(f'Checking for early revision in {directory}')
+    draftPullUtility.check_early_revisions(directory, logger)
+
+    success = run_populate_script(directory, notify_indexing, logger)
+    if success:
+        message = 'Populate script finished successfully'
+    else:
+        message = 'Error while calling populate script'
+    return success, message
+
+
 def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
     args = script_conf.args
@@ -101,7 +126,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
     messages = []
     notify_indexing = notify_indexing == 'True'
-    populate_error = False
+    success = True
     repo = None
     try:
         # Clone YangModels/yang repository
@@ -126,68 +151,31 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
         if tar_opened:
             # Standard RFC modules
-            direc = f'{repo.local_dir}/standard/ietf/RFC'
-
-            LOGGER.info(f'Checking module filenames without revision in {direc}')
-            draftPullUtility.check_name_no_revision_exist(direc, LOGGER)
-
-            LOGGER.info(f'Checking for early revision in {direc}')
-            draftPullUtility.check_early_revisions(direc, LOGGER)
-
-            execution_result = run_populate_script(direc, notify_indexing, LOGGER)
-            if execution_result == False:
-                populate_error = True
-                message = {'label': 'Standard RFC modules', 'message': 'Error while calling populate script'}
-                messages.append(message)
-            else:
-                message = {'label': 'Standard RFC modules', 'message': 'populate script finished successfully'}
-                messages.append(message)
+            rfc_path = os.path.join(repo.local_dir, 'standard/ietf/RFC')
+            directory_success, message = populate_directory(rfc_path, notify_indexing, LOGGER)
+            success = success and directory_success
+            messages.append({'label': 'Standard RFC modules', 'message': message})
 
         # Experimental modules
         experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
 
-        LOGGER.info('Updating IETF drafts download links')
-        draftPullUtility.get_draft_module_content(experimental_path, config, LOGGER)
-
-        LOGGER.info(f'Checking module filenames without revision in {experimental_path}')
-        draftPullUtility.check_name_no_revision_exist(experimental_path, LOGGER)
-
-        LOGGER.info(f'Checking for early revision in {experimental_path}')
-        draftPullUtility.check_early_revisions(experimental_path, LOGGER)
-
-        execution_result = run_populate_script(experimental_path, notify_indexing, LOGGER)
-        if execution_result == False:
-            populate_error = True
-            message = {'label': 'Experimental modules', 'message': 'Error while calling populate script'}
-            messages.append(message)
-        else:
-            message = {'label': 'Experimental modules', 'message': 'populate script finished successfully'}
-            messages.append(message)
+        directory_success, message = populate_directory(experimental_path, notify_indexing, LOGGER)
+        success = success and directory_success
+        messages.append({'label': 'Experimental modules', 'message': message})
 
         # IANA modules
         iana_path = os.path.join(repo.local_dir, 'standard/iana')
 
         if os.path.exists(iana_path):
-            LOGGER.info(f'Checking module filenames without revision in {iana_path}')
-            draftPullUtility.check_name_no_revision_exist(iana_path, LOGGER)
-
-            LOGGER.info(f'Checking for early revision in {iana_path}')
-            draftPullUtility.check_early_revisions(iana_path, LOGGER)
-
-            execution_result = run_populate_script(iana_path, notify_indexing, LOGGER)
-            if execution_result == False:
-                populate_error = True
-                message = {'label': 'IANA modules', 'message': 'Error while calling populate script'}
-                messages.append(message)
-            else:
-                message = {'label': 'IANA modules', 'message': 'populate script finished successfully'}
-                messages.append(message)
+            directory_success, message = populate_directory(iana_path, notify_indexing, LOGGER)
+            success = success and directory_success
+            messages.append({'label': 'IANA modules', 'message': message})
 
     except Exception as e:
         LOGGER.exception('Exception found while running draftPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
-    if not populate_error:
+    if success:
         LOGGER.info('Job finished successfully')
     else:
         LOGGER.info('Job finished, but errors found while calling populate script')
