@@ -36,7 +36,7 @@ from shutil import copy2
 from git.exc import GitCommandError
 
 import utility.log as log
-from ietfYangDraftPull import draftPullUtility
+from ietfYangDraftPull import draftPullUtility as dpu
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
@@ -81,11 +81,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo_name = 'yang'
-    repourl = f'https://{token}@github.com/{username}/{repo_name}.git'
     commit_author = {'name': config_name, 'email': config_email}
 
-    draftPullUtility.update_forked_repository(yang_models, repourl, logger)
-    repo = draftPullUtility.clone_forked_repository(repourl, commit_author, logger)
+    dpu.update_forked_repository(yang_models, dpu.construct_github_repo_url(username, repo_name, token), logger)
+    repo = dpu.clone_forked_repository(dpu.construct_github_repo_url(username, repo_name), commit_author, logger)
 
     if not repo:
         error_message = f'Failed to clone repository {username}/{repo_name}'
@@ -106,7 +105,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
             shutil.rmtree(iana_temp_path)
         # call rsync to sync with rsync.iana.org::assignments/yang-parameters/
         subprocess.call(['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', iana_temp_path])
-        draftPullUtility.set_permissions(iana_temp_path)
+        dpu.set_permissions(iana_temp_path)
         iana_standard_path = os.path.join(repo.local_dir, 'standard/iana')
         if not os.path.exists(iana_standard_path):
             os.makedirs(iana_standard_path)
@@ -133,10 +132,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
                 copy2(src, dst)
 
         logger.info(f'Checking module filenames without revision in {iana_standard_path}')
-        draftPullUtility.check_name_no_revision_exist(iana_standard_path, logger)
+        dpu.check_name_no_revision_exist(iana_standard_path, logger)
 
         logger.info(f'Checking for early revision in {iana_standard_path}')
-        draftPullUtility.check_early_revisions(iana_standard_path, logger)
+        dpu.check_early_revisions(iana_standard_path, logger)
 
         messages = []
         try:

@@ -51,6 +51,14 @@ from utility.staticVariables import github_url
 from utility.util import revision_to_date
 
 
+def construct_github_repo_url(user: str, repo: str, token: t.Optional[str] = None) -> str:
+    """Construct the URL to a Github repository."""
+    if token:
+        return f'https://{token}@github.com/{user}/{repo}.git'
+    else:
+        return f'https://github.com/{user}/{repo}.git'
+
+
 def get_latest_revision(path: str, logger: logging.Logger):
     """Search for the latest revision in yang file
 

@@ -36,6 +36,7 @@ from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.modules import SdoModule, VendorModule
 from utility import repoutil
+from utility.create_config import create_config
 from utility.staticVariables import GITHUB_RAW, github_url
 from utility.util import get_yang
 from utility.yangParser import ParseException
@@ -286,6 +287,15 @@ class IanaDirectory(SdoDirectory):
         path_to_name_rev: dict,
     ):
         super().__init__(directory, dumper, file_hasher, api, dir_paths, path_to_name_rev)
+        config = create_config()
+        iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
+        try:
+            with open(iana_exceptions, 'r') as exceptions_file:
+                self.iana_skip = exceptions_file.read().split('\n')
+        except FileNotFoundError:
+            open(iana_exceptions, 'w').close()
+            os.chmod(iana_exceptions, 0o664)
+            self.iana_skip = []
         self.root = ET.parse(os.path.join(directory, 'yang-parameters.xml')).getroot()
 
     def parse_and_load(self):
@@ -321,7 +331,15 @@ class IanaDirectory(SdoDirectory):
 
             if data.get('iana') == 'Y' and data.get('file'):
                 path = os.path.join(self.directory, data['file'])
-                name, revision = self.path_to_name_rev[path]
+                if os.path.basename(path) in self.iana_skip:
+                    LOGGER.debug(f'skipping {path}: found in iana-exceptions.dat')
+                    continue
+                LOGGER.debug(f'parsing {path}')
+                try:
+                    name, revision = self.path_to_name_rev[path]
+                except KeyError:
+                    LOGGER.exception('Couldn\'t resolve name and revision')
+                    continue
                 all_modules_path = get_yang(name, revision)
                 if not all_modules_path:
                     LOGGER.warning('File {} not found in the repository'.format(name))
