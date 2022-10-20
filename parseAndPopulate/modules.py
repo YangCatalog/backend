@@ -96,7 +96,7 @@ class Module:
         self.tree: t.Optional[str] = None
         self.can_be_already_stored_in_db = can_be_already_stored_in_db
         self._redis_connection = (
-            redis_connection if redis_connection or not self.can_be_already_stored_in_db else RedisConnection(config)
+            redis_connection if redis_connection or not can_be_already_stored_in_db else RedisConnection(config=config)
         )
 
         self._parse_yang()
@@ -143,7 +143,11 @@ class Module:
         key = f'{self.name}@{self.revision}/{self.organization}'
         if key in yang_modules:
             return
-        if self.can_be_already_stored_in_db and (module_data := self._redis_connection.get_module(key)) != '{}':
+        if (
+            self.can_be_already_stored_in_db
+            and self._redis_connection
+            and (module_data := self._redis_connection.get_module(key)) != '{}'
+        ):
             self._populate_information_from_db(json.loads(module_data))
             return
 

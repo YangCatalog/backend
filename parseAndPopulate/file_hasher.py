@@ -36,6 +36,10 @@ class VendorModuleHashCheckForParsing:
     file_hash_exists: bool
     new_implementations_detected: bool
 
+    @property
+    def module_should_be_parsed(self) -> bool:
+        return not (self.file_hash_exists and not self.new_implementations_detected)
+
 
 class FileHasher:
     def __init__(self, file_name: str, cache_dir: str, is_active: bool, log_directory: str):
@@ -180,7 +184,8 @@ class FileHasher:
         path: str,
         implementation_keys: t.Optional[list[str]] = None,
     ) -> VendorModuleHashCheckForParsing:
-        """Checks whether hash of the vendor module at the given path exists,
+        """
+        Checks whether hash of the vendor module at the given path exists,
         and whether the stored hash has all the implementations from implementation_keys.
 
         Arguments:
@@ -199,14 +204,14 @@ class FileHasher:
             self.updated_hashes.setdefault(path, {})[file_hash] = implementation_keys
             return VendorModuleHashCheckForParsing(file_hash_exists=False, new_implementations_detected=True)
 
-        new_implementation = False
-        existing_keys = file_hash_info.get(file_hash, [])
+        new_implementation_keys = False
+        existing_implementation_keys = file_hash_info[file_hash]
         for implementation_key in implementation_keys:
-            if implementation_key in existing_keys:
+            if implementation_key in existing_implementation_keys:
                 continue
             self.updated_hashes.setdefault(path, {}).setdefault(file_hash, []).append(implementation_key)
-            new_implementation = True
+            new_implementation_keys = True
         return VendorModuleHashCheckForParsing(
             file_hash_exists=True,
-            new_implementations_detected=new_implementation or self.disabled,
+            new_implementations_detected=new_implementation_keys or self.disabled,
         )
