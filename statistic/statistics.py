@@ -51,6 +51,7 @@ import utility.log as log
 from parseAndPopulate.resolvers.basic import BasicResolver
 from parseAndPopulate.resolvers.namespace import NamespaceResolver
 from parseAndPopulate.resolvers.organization import OrganizationResolver
+from parseAndPopulate.resolvers.revision import RevisionResolver
 from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
@@ -137,12 +138,8 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
             parsed_yang = yangParser.parse(os.path.abspath(module_path))
         except yangParser.ParseException:
             continue
-        results = parsed_yang.search('revision')
-        if results:
-            revision = results[0].arg
         name = filename.split('.')[0].split('@')[0]
-        if revision is None:
-            revision = '1970-01-01'
+        revision = RevisionResolver(parsed_yang, LOGGER).resolve()
         belongs_to = BasicResolver(parsed_yang, 'belongs_to').resolve()
         namespace = NamespaceResolver(parsed_yang, LOGGER, f'{name}@{revision}', belongs_to).resolve()
         organization = OrganizationResolver(parsed_yang, LOGGER, namespace).resolve()
