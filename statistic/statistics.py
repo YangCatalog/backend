@@ -145,7 +145,7 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
             revision = '1970-01-01'
         belongs_to = BasicResolver(parsed_yang, 'belongs_to').resolve()
         namespace = NamespaceResolver(parsed_yang, LOGGER, f'{name}@{revision}', belongs_to).resolve()
-        organization = OrganizationResolver(parsed_yang, LOGGER, namespace)
+        organization = OrganizationResolver(parsed_yang, LOGGER, namespace).resolve()
         mod = f'{name}@{revision}_{organization}'
         data = all_modules_data_unique.get(mod)
         if data is not None:
