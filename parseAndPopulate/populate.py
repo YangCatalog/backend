@@ -176,6 +176,11 @@ class Populate:
         self._initialize_json_dir()
         self._run_parse_directory_script()
         modules = self._populate_modules_in_db()
+        if not modules:
+            self.logger.error(
+                'No files were parsed. This probably means the directory is missing capability xml files '
+                'or all the modules are already parsed',
+            )
         self._prepare_and_send_modules_for_es_indexing()
         if modules:
             self.process_reload_cache = multiprocessing.Process(target=self._reload_cache_in_parallel)
@@ -236,20 +241,12 @@ class Populate:
         modules = json.loads(data).get('module', [])
         self.errors = self.confd_service.patch_modules(modules)
         self.redis_connection.populate_modules(modules)
-        # In each json
         if not self.args.sdo and os.path.exists(os.path.join(self.json_dir, 'normal.json')):
             self.logger.info('Starting to add vendors')
             with open(os.path.join(self.json_dir, 'normal.json')) as data:
-                try:
-                    vendors = json.loads(data.read())['vendors']['vendor']
-                except KeyError as e:
-                    if modules:
-                        return modules
-                    self.logger.error(
-                        'No files were parsed. This probably means the directory is missing capability xml files '
-                        'or all the modules are already parsed',
-                    )
-                    raise e
+                vendors = json.loads(data.read()).get('vendors', {}).get('vendor')
+            if not vendors:
+                return modules
             self.errors = self.errors or self.confd_service.patch_vendors(vendors)
             self.redis_connection.populate_implementation(vendors)
         return modules
