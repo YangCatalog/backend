@@ -21,12 +21,24 @@ import hashlib
 import json
 import os
 import threading
+import typing as t
+from dataclasses import dataclass
 
 import pyang
 
 from utility import log
 
 BLOCK_SIZE = 65536  # The size of each read from the file
+
+
+@dataclass
+class VendorModuleHashCheckForParsing:
+    file_hash_exists: bool
+    new_implementations_detected: bool
+
+    @property
+    def module_should_be_parsed(self) -> bool:
+        return not (self.file_hash_exists and not self.new_implementations_detected)
 
 
 class FileHasher:
@@ -49,7 +61,7 @@ class FileHasher:
         self.file_name = file_name
         self.cache_dir = cache_dir
         self.disabled = not is_active
-        self.LOGGER = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
+        self.logger = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
         self.lock = threading.Lock()
         self.validators_versions_bytes = self.get_versions()
         self.files_hashes = self.load_hashed_files_list()
@@ -78,7 +90,7 @@ class FileHasher:
 
         return file_hash.hexdigest()
 
-    def load_hashed_files_list(self, path: str = ''):
+    def load_hashed_files_list(self, path: str = '') -> dict:
         """Load dumped list of files content hashes from .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
@@ -92,9 +104,9 @@ class FileHasher:
         try:
             with open(path, 'r') as f:
                 hashed_files_list = json.load(f)
-                self.LOGGER.info(f'Dictionary of {len(hashed_files_list)} hashes loaded successfully')
+            self.logger.info(f'Dictionary of {len(hashed_files_list)} hashes loaded successfully')
         except FileNotFoundError:
-            self.LOGGER.error(f'{path} file was not found')
+            self.logger.error(f'{path} file was not found')
             hashed_files_list = {}
         self.lock.release()
 
@@ -116,7 +128,7 @@ class FileHasher:
             with open(f'{dst_dir}/{self.file_name}.json', 'r') as f:
                 old_hashes = json.load(f)
         except FileNotFoundError:
-            self.LOGGER.error(f'{self.file_name}.json file was not found')
+            self.logger.error(f'{self.file_name}.json file was not found')
             old_hashes = {}
 
         merged_hashes = old_hashes
@@ -128,7 +140,7 @@ class FileHasher:
 
         with open(f'{dst_dir}/{self.file_name}.json', 'w') as f:
             json.dump(merged_hashes, f, indent=2, sort_keys=True)
-            self.LOGGER.info(f'Dictionary of {len(merged_hashes)} hashes successfully dumped into .json file')
+        self.logger.info(f'Dictionary of {len(merged_hashes)} hashes successfully dumped into .json file')
         self.lock.release()
 
     def dump_tmp_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
@@ -142,12 +154,11 @@ class FileHasher:
 
         with open(os.path.join(dst_dir, 'temp_hashes.json'), 'w') as f:
             json.dump(files_hashes, f, indent=2, sort_keys=True)
-            self.LOGGER.info(f'{len(files_hashes)} hashes dumped into temp_hashes.json file')
+        self.logger.info(f'{len(files_hashes)} hashes dumped into temp_hashes.json file')
 
     def get_versions(self):
         """Return encoded validators versions dictionary."""
-        validators = {}
-        validators['pyang_version'] = pyang.__version__
+        validators = {'pyang_version': pyang.__version__}
         return json.dumps(validators).encode('utf-8')
 
     def should_parse_sdo_module(self, path: str) -> bool:
@@ -168,24 +179,39 @@ class FileHasher:
 
         return self.disabled
 
-    def should_parse_vendor_module(self, path: str, implementation_keys: list[str]) -> bool:
-        """Decide whether vendor module at the given path should be parsed or not.
-        Check whether file content hash has changed and keep it for the future use.
+    def check_vendor_module_hash_for_parsing(
+        self,
+        path: str,
+        implementation_keys: t.Optional[list[str]] = None,
+    ) -> VendorModuleHashCheckForParsing:
+        """
+        Checks whether hash of the vendor module at the given path exists,
+        and whether the stored hash has all the implementations from implementation_keys.
 
         Arguments:
-            :param path             (str) Full path to the file to be hashed
-            :param platform         (str) Name of the platform
-            :param software_version (str) Software version
-            :rtype                  (bool)
+            :param path (str) Full path to the file to be hashed
+            :param implementation_keys (list[str]) List of implementations of the module
         """
-        new_implementation = False
         file_hash = self.hash_file(path)
         if not file_hash:
-            return False
+            # So we assume that there are no new implementations for this vendor module and there's no need to parse it
+            return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=False)
 
-        existing_keys = self.files_hashes.get(path, {}).get(file_hash, [])
+        implementation_keys = implementation_keys if implementation_keys is not None else []
+        file_hash_info: dict[str, list[str]] = self.files_hashes.get(path, {})
+        file_hash_exists = file_hash in file_hash_info
+        if not file_hash_exists:
+            self.updated_hashes.setdefault(path, {})[file_hash] = implementation_keys
+            return VendorModuleHashCheckForParsing(file_hash_exists=False, new_implementations_detected=True)
+
+        new_implementation_keys = False
+        existing_implementation_keys = file_hash_info[file_hash]
         for implementation_key in implementation_keys:
-            if implementation_key not in existing_keys:
-                self.updated_hashes.setdefault(path, {}).setdefault(file_hash, []).append(implementation_key)
-                new_implementation = True
-        return new_implementation or self.disabled
+            if implementation_key in existing_implementation_keys:
+                continue
+            self.updated_hashes.setdefault(path, {}).setdefault(file_hash, []).append(implementation_key)
+            new_implementation_keys = True
+        return VendorModuleHashCheckForParsing(
+            file_hash_exists=True,
+            new_implementations_detected=new_implementation_keys or self.disabled,
+        )
