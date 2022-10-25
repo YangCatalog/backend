@@ -84,7 +84,10 @@ class Module:
         try:
             self._parsed_yang = yangParser.parse(self._path)
         except yangParser.ParseException:
-            LOGGER.exception('Missing yang file {}'.format(self._path))
+            if not os.path.isfile(self._path):
+                LOGGER.error(f'Missing yang file {self._path}')
+            else:
+                LOGGER.warning(f'pyang error on {self._path}')
             raise
         self.implementations: t.List[Implementation] = []
         self._parse_all(name, yang_modules, additional_info)

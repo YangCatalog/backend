@@ -262,8 +262,6 @@ def add_modules():
     if module_list is None:
         abort(400, description='bad request - "module" json list is missing and is mandatory')
 
-    app.logger.info('Adding modules with body\n{}'.format(json.dumps(body, indent=2)))
-
     dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
     if not os.path.exists(ac.d_save_requests):
         os.mkdir(ac.d_save_requests)

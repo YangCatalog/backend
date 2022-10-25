@@ -80,14 +80,15 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
                 f'{len(response.json().get("module", []))} modules fetched from {yangcatalog_api_prefix} successfully',
             )
         modules = response.json().get('module', [])
-        for i, module in enumerate(modules, 1):
-            logger.debug(f'{i} out of {len(modules)}')
+        logger.debug('Starting to resolve modules')
+        for module in modules:
             exp_res = ExpirationResolver(module, logger, datatracker_failures, redis_connection)
             ret = exp_res.resolve()
             if ret:
                 revision_updated_modules += 1
             if not updated:
                 updated = ret
+        logger.debug('All modules resolved')
         if updated:
             redis_connection.populate_modules(modules)
             url = f'{yangcatalog_api_prefix}/load-cache'

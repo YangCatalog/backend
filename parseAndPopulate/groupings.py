@@ -227,7 +227,7 @@ class SdoDirectory(ModuleGrouping):
                     aditional_info=sdo,
                 )
             except ParseException:
-                LOGGER.exception('ParseException while parsing {}'.format(path))
+                LOGGER.warning('ParseException while parsing {}'.format(path))
                 continue
             self.dumper.add_module(yang)
 
@@ -269,7 +269,7 @@ class SdoDirectory(ModuleGrouping):
                 try:
                     yang = SdoModule(name, path, self._schemas, self.dir_paths, self.dumper.yang_modules)
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(path))
+                    LOGGER.warning('ParseException while parsing {}'.format(path))
                     continue
                 self.dumper.add_module(yang)
 
@@ -360,7 +360,7 @@ class IanaDirectory(SdoDirectory):
                         additional_info,
                     )
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(path))
+                    LOGGER.warning('ParseException while parsing {}'.format(path))
                     continue
                 self.dumper.add_module(yang)
         self._dump_schema_cache()
@@ -535,7 +535,7 @@ class VendorGrouping(ModuleGrouping):
                             vendor_info,
                         )
                     except ParseException:
-                        LOGGER.exception('ParseException while parsing {}'.format(path))
+                        LOGGER.warning('ParseException while parsing {}'.format(path))
                         continue
 
                     self.dumper.add_module(yang)
@@ -631,7 +631,7 @@ class VendorCapabilities(VendorGrouping):
                         data=module_and_more,
                     )
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(path))
+                    LOGGER.warning('ParseException while parsing {}'.format(path))
                     continue
 
                 self.dumper.add_module(yang)
@@ -722,7 +722,7 @@ class VendorYangLibrary(VendorGrouping):
                         data=yang_lib_info,
                     )
                 except ParseException:
-                    LOGGER.exception('ParseException while parsing {}'.format(path))
+                    LOGGER.warning('ParseException while parsing {}'.format(path))
                     continue
 
                 self.dumper.add_module(yang)

@@ -101,7 +101,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         logger.exception('Exception found while running openconfigPullLocal script')
         job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
-    logger.debug(data)
     api_path = f'{yangcatalog_api_prefix}/modules'
     response = requests.put(api_path, data, auth=(credentials[0], credentials[1]), headers=json_headers)
 

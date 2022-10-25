@@ -504,7 +504,7 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         return revisions, organization
     except IndexError:
         name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
-        bp.LOGGER.exception('Failed to get revisions and organization for {}'.format(name_rev))
+        bp.LOGGER.warning('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
             return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
         abort(404, 'Failed to get revisions and organization for {} - please use module that exists'.format(name_rev))

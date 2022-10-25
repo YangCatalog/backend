@@ -103,6 +103,7 @@ class ElkSearch:
         revisions only.
         See search.json for the full query format.
         """
+        self.LOGGER.debug(f'Constructing query for params {self._search_params}')
         self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
         case_insensitive = not self._search_params.case_sensitive
         query_type = self._search_params.query_type
@@ -157,7 +158,6 @@ class ElkSearch:
                             },
                         ],
                     )
-        self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
     def search(self):
         """

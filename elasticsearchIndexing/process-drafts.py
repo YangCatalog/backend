@@ -36,7 +36,6 @@ def main():
     logger.info('Starting process-drafts.py script')
 
     drafts = load_all_drafts(ietf_drafts_dir)
-    logger.debug(drafts)
 
     logger.info('Trying to initialize Elasticsearch indices')
     es_manager = ESManager()
