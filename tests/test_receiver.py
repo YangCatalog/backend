@@ -233,23 +233,6 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(status, StatusMessage.SUCCESS)
         self.assertEqual(details, '')
 
-    @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
-    def test_process_vendor_failed_populate(self):
-        arguments = [
-            'POPULATE-VENDORS',
-            '--dir',
-            self.direc,
-            '--api',
-            '--credentials',
-            *self.credentials,
-            'True',
-        ]
-
-        status, details = self.receiver.process(arguments)
-
-        self.assertEqual(status, StatusMessage.FAIL)
-        self.assertEqual(details, 'Server error while running populate script')
-
     @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion(self):
         module_to_populate = self.test_data.get('module-deletion-tests')

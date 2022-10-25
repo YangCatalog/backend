@@ -12,6 +12,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
 ENV BACKEND=/backend
+ENV PYANG_PLUGINPATH="$BACKEND/elasticsearchIndexing/pyang_plugin"
 
 #Install Cron
 RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim pcregrep
@@ -55,8 +56,6 @@ RUN sed -i "s|<YANGCATALOG_CONFIG_PATH>|${YANGCATALOG_CONFIG_PATH}|g" /etc/cron.
 RUN sed -i "/imklog/s/^/#/" /etc/rsyslog.conf
 
 COPY ./backend/yangcatalog-rotate /etc/logrotate.d/yangcatalog-rotate
-
-ENV PYANG_PLUGINPATH="/backend/elasticsearchIndexing/pyang_plugin"
 
 RUN chmod 644 /etc/logrotate.d/yangcatalog-rotate
 

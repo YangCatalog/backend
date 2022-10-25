@@ -29,6 +29,7 @@ import stat
 import time
 import typing as t
 import warnings
+from configparser import ConfigParser
 from datetime import date, datetime
 
 import dateutil.parser
@@ -89,19 +90,17 @@ def find_files(directory: str, pattern: str):
                 yield root, path
 
 
-def get_yang(name: str, revision: t.Optional[str] = None) -> t.Optional[str]:
+def get_yang(name: str, revision: t.Optional[str] = None, config: ConfigParser = create_config()) -> t.Optional[str]:
     """Get the path to a yang file stored in the save-file-dir.
     If no revision is specified, the path to the latest revision is returned.
 
     Arguments:
         :param name         (str) name of the yang module
         :param revision     (Optional(str)) revision of the yang module
-        :return             (Optional(str)) path to the matched file
+        :param config     (ConfigParser) config instance from which save-file-dir is extracted
+    :return             (Optional(str)) path to the matched file
     """
-
-    config = create_config()
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
-
     if revision:
         return os.path.join(save_file_dir, '{}@{}.yang'.format(name, revision))
     files = glob.glob(os.path.join(save_file_dir, '{}@*.yang'.format(name)))

@@ -68,14 +68,23 @@ class TestParseDirectoryClass(unittest.TestCase):
         dumper = mock.MagicMock()
         file_hasher = mock.MagicMock()
         logger = mock.MagicMock()
+        config = mock.MagicMock()
 
         try:
-            pd.parse_sdo(self.resource('sdo'), dumper, file_hasher, False, self.dir_paths, {}, logger)
+            pd.parse_sdo(self.resource('sdo'), dumper, file_hasher, False, self.dir_paths, {}, logger, config=config)
         except Exception as e:
             e.args = (*e.args, 'This probably means the constructor of IanaDirectory was called.')
             raise e
 
-        mock_sdo_directory_cls.assert_called_with(self.resource('sdo'), dumper, file_hasher, False, self.dir_paths, {})
+        mock_sdo_directory_cls.assert_called_with(
+            self.resource('sdo'),
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
+        )
         mock_sdo_directory = mock_sdo_directory_cls.return_value
         mock_sdo_directory.parse_and_load.assert_called()
 
@@ -84,9 +93,10 @@ class TestParseDirectoryClass(unittest.TestCase):
         dumper = mock.MagicMock()
         file_hasher = mock.MagicMock()
         logger = mock.MagicMock()
+        config = mock.MagicMock()
 
         try:
-            pd.parse_sdo(self.resource('iana'), dumper, file_hasher, False, self.dir_paths, {}, logger)
+            pd.parse_sdo(self.resource('iana'), dumper, file_hasher, False, self.dir_paths, {}, logger, config=config)
         except Exception as e:
             e.args = (*e.args, 'This probably means the constructor of SdoDirectory was called.')
             raise e
@@ -98,6 +108,7 @@ class TestParseDirectoryClass(unittest.TestCase):
             False,
             self.dir_paths,
             {},
+            config=config,
         )
         mock_iana_directory = mock_iana_directory_cls.return_value
         mock_iana_directory.parse_and_load.assert_called()
@@ -108,18 +119,50 @@ class TestParseDirectoryClass(unittest.TestCase):
         dumper = mock.MagicMock()
         file_hasher = mock.MagicMock()
         logger = mock.MagicMock()
+        config = mock.MagicMock()
+        redis_connection = mock.MagicMock()
 
-        pd.parse_vendor(self.resource('vendor'), dumper, file_hasher, False, self.dir_paths, {}, logger)
+        pd.parse_vendor(
+            self.resource('vendor'),
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            logger,
+            config=config,
+            redis_connection=redis_connection,
+        )
 
         root = self.resource('vendor/yang_lib')
         filename = os.path.join(root, 'ietf-yang-library.xml')
-        mock_yang_lib_cls.assert_called_with(root, filename, dumper, file_hasher, False, self.dir_paths, {})
+        mock_yang_lib_cls.assert_called_with(
+            root,
+            filename,
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
+            redis_connection=redis_connection,
+        )
         mock_yang_lib = mock_yang_lib_cls.return_value
         mock_yang_lib.parse_and_load.assert_called()
 
         root = self.resource('vendor/capabilities')
         filename = os.path.join(root, 'capabilities.xml')
-        mock_capabilities_cls.assert_called_with(root, filename, dumper, file_hasher, False, self.dir_paths, {})
+        mock_capabilities_cls.assert_called_with(
+            root,
+            filename,
+            dumper,
+            file_hasher,
+            False,
+            self.dir_paths,
+            {},
+            config=config,
+            redis_connection=redis_connection,
+        )
         mock_capabilities = mock_capabilities_cls.return_value
         mock_capabilities.parse_and_load.assert_called()
 
