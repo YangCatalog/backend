@@ -48,12 +48,16 @@ import jinja2
 import requests
 
 import utility.log as log
+from parseAndPopulate.resolvers.basic import BasicResolver
+from parseAndPopulate.resolvers.namespace import NamespaceResolver
+from parseAndPopulate.resolvers.organization import OrganizationResolver
+from parseAndPopulate.resolvers.revision import RevisionResolver
 from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url, json_headers
-from utility.util import get_yang, job_log
+from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
 
@@ -134,39 +138,21 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
             parsed_yang = yangParser.parse(os.path.abspath(module_path))
         except yangParser.ParseException:
             continue
-        results = parsed_yang.search('revision')
-        if results:
-            revision = results[0].arg
-        organization = resolve_organization(module_path, parsed_yang)
         name = filename.split('.')[0].split('@')[0]
-        if revision is None:
-            revision = '1970-01-01'
-        organization = organization.replace(' ', '%20')
-        if ',' in organization:
-            path = os.path.join(yangcatalog_api_prefix, 'search/name', name)
-            module_exists = requests.get(path, headers=json_headers)
-            if module_exists.status_code % 100 == 2:
-                data = module_exists.json()
-                org = data['yang-catalog:modules']['module'][0]['organization']
-                rev = data['yang-catalog:modules']['module'][0]['revision']
-                status = data['yang-catalog:modules']['module'][0].get('compilation-status')
-                if org == organization and rev == revision:
-                    if 'passed' == status:
-                        passed += 1
-                    num_in_catalog += 1
-            else:
-                LOGGER.error(f'Could not make request on path {path}')
+        revision = RevisionResolver(parsed_yang, LOGGER).resolve()
+        belongs_to = BasicResolver(parsed_yang, 'belongs_to').resolve()
+        namespace = NamespaceResolver(parsed_yang, LOGGER, f'{name}@{revision}', belongs_to).resolve()
+        organization = OrganizationResolver(parsed_yang, LOGGER, namespace).resolve()
+        mod = f'{name}@{revision}_{organization}'
+        data = all_modules_data_unique.get(mod)
+        if data is not None:
+            if 'passed' == data.get('compilation-status'):
+                passed += 1
+                checked[filename]['passed'] = True
+            checked[filename]['in-catalog'] = True
+            num_in_catalog += 1
         else:
-            mod = f'{name}@{revision}_{organization}'
-            data = all_modules_data_unique.get(mod)
-            if data is not None:
-                if 'passed' == data.get('compilation-status'):
-                    passed += 1
-                    checked[filename]['passed'] = True
-                checked[filename]['in-catalog'] = True
-                num_in_catalog += 1
-            else:
-                LOGGER.error(f'module {mod} does not exist')
+            LOGGER.error(f'module {mod} does not exist')
     return num_in_catalog, passed
 
 
@@ -185,52 +171,6 @@ def match_organization(namespace: str, found: t.Optional[str]) -> str:
             return MISSING_ELEMENT
     else:
         return found
-
-
-def resolve_organization(path: str, parsed_yang) -> str:
-    """Parse yang file and resolve organization out of the module. If the module
-    is a submodule find it's parent and resolve its organization
-
-    Arguments:
-        :param path:        (str) path to a file to parse and resolve a organization
-        :param parsed_yang  (object) pyang parsed yang file object
-        :return:            (str) organization the yang file belongs to
-    """
-    organization = None
-    results = parsed_yang.search('organization')
-    if results:
-        result = results[0].arg.lower()
-        if 'cisco' in result:
-            organization = 'cisco'
-        elif 'ietf' in result:
-            organization = 'ietf'
-        elif 'ciena' in result:
-            organization = 'ciena'
-        elif 'etsi' in result:
-            organization = 'etsi'
-    namespace = None
-    results = parsed_yang.search('namespace')
-    if results:
-        namespace = results[0].arg.lower()
-    else:
-        results = parsed_yang.search('belongs-to')
-        if results:
-            belongs_to = results[0].arg
-            results = None
-            yang_file = get_yang(belongs_to)
-            if yang_file is not None:
-                try:
-                    parsed = yangParser.parse(os.path.abspath(yang_file))
-                    if parsed:
-                        results = parsed.search('namespace')
-                        if results:
-                            namespace = results[0].arg.lower()
-                except yangParser.ParseException:
-                    pass
-    if namespace is None:
-        return MISSING_ELEMENT
-    else:
-        return match_organization(namespace, organization)
 
 
 class InfoTable(t.TypedDict):
@@ -374,7 +314,9 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
                     with open(path, 'r') as f:
                         data = json.load(f)
                         metadata_platforms = data['platforms']['platform']
-                except Exception:
+                except FileNotFoundError:
+                    metadata_platforms = []
+                except OSError:
                     LOGGER.exception(f'Problem with opening {path}')
                     metadata_platforms = []
                 values = [version]
