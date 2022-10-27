@@ -161,7 +161,7 @@ class Populate:
     @property
     def message_factory(self):
         if not self._message_factory:
-            self.message_factory = MessageFactory()
+            self._message_factory = MessageFactory()
         return self._message_factory
 
     @message_factory.setter
@@ -174,13 +174,14 @@ class Populate:
         if self.args.api:
             self._send_notification_about_running_script_by_api()
         self._initialize_json_dir()
-        self._run_parse_directory_script()
+        parsed, skipped = self._run_parse_directory_script()
         modules = self._populate_modules_in_db()
-        if not modules:
+        if not (parsed or skipped):
             self.logger.error(
-                'No files were parsed. This probably means the directory is missing capability xml files '
-                'or all the modules are already parsed',
+                'No files were parsed. This probably means the directory is missing capability xml files.',
             )
+        elif skipped and not parsed:
+            self.logger.info('No new modules were parsed.')
         self._prepare_and_send_modules_for_es_indexing()
         if modules:
             self.process_reload_cache = multiprocessing.Process(target=self._reload_cache_in_parallel)
@@ -214,7 +215,7 @@ class Populate:
             self.json_dir = os.path.join(self.temp_dir, uuid.uuid4().hex)
             os.makedirs(self.json_dir, exist_ok=True)
 
-    def _run_parse_directory_script(self):
+    def _run_parse_directory_script(self) -> tuple[int, int]:
         self.logger.info('Calling parse_directory script')
         try:
             script_conf = parse_directory.ScriptConfig()
@@ -229,10 +230,11 @@ class Populate:
             )
             for attr, value in options:
                 setattr(script_conf.args, attr, value)
-            parse_directory.main(script_conf=script_conf)
+            stats = parse_directory.main(script_conf=script_conf)
         except Exception as e:
             self.logger.exception(f'parse_directory error:\n{e}')
             raise e
+        return stats
 
     def _populate_modules_in_db(self) -> list:
         self.logger.info('Populating yang catalog with data. Starting to add modules')

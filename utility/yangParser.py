@@ -28,7 +28,6 @@ from pyang.context import Context
 from pyang.error import error_codes
 from pyang.repository import FileRepository
 from pyang.statements import Statement
-from pyang.yang_parser import YangParser
 
 from utility.create_config import create_config
 
@@ -188,45 +187,23 @@ class ParseException(Exception):
                 json.dump(modules, f)
 
 
-def parse(text: str) -> Statement:
-    """Parse a YANG statement into an Abstract Syntax subtree.
+def parse(path: str) -> Statement:
+    """
+    Parse a YANG statement into an Abstract Syntax subtree.
 
     Arguments:
-        text (str): file name for a YANG module or text
-
-    Returns:
-        pyang.statements.Statement: Abstract syntax subtree
-
-    Note:
-        The ``parse`` function can be used to parse small amounts of text.
-        If yout plan to parse an entire YANG (sub)module, please use instead::
-
-            ast = ctx.add_module(module_name, text_contet)
-
-        It is also well known that ``parse`` function cannot solve
-        YANG deviations yet.
-    Note II:
-        pyang.Context removed as optional parameter as it was not used anymore.
+        path    (str) Path to a YANG module
+        return  (pyang.statements.Statement) Abstract syntax subtree
     """
-    parser = YangParser()  # Similar names, but, this one is from PYANG library
+    if not isfile(path):
+        raise FileNotFoundError(path)
 
-    filename = 'parser-input'
+    ctx = create_context()
+    ctx.errors = []
 
-    ctx_ = create_context()
-
-    if isfile(text):
-        filename = text
-        with open(filename) as f:
-            text = f.read()
-
-    # ensure reported errors are just from parsing
-    # old_errors = ctx_.errors
-    ctx_.errors = []
-
-    ast = parser.parse(ctx_, filename, text)
+    with open(path) as f:
+        ast = ctx.add_module(path, f.read())
     if ast is None:
-        raise ParseException(filename if filename != 'parser-input' else None)
-
-    ctx_.internal_reset()
+        raise ParseException(path)
 
     return ast

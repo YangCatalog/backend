@@ -101,7 +101,7 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = ScriptConfig()) -> tuple[int, int]:
     args = script_conf.args
 
     config_path = args.config_path
@@ -133,9 +133,9 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     name_rev_to_path, path_to_name_rev = save_files(args.dir, dir_paths['save'])
     logger.info('Starting to iterate through files')
     if args.sdo:
-        parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, logger, config=config)
+        stats = parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, logger, config=config)
     else:
-        parse_vendor(
+        stats = parse_vendor(
             args.dir,
             dumper,
             file_hasher,
@@ -155,6 +155,8 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     # Dump updated hashes into temporary directory
     if len(file_hasher.updated_hashes) > 0:
         file_hasher.dump_tmp_hashed_files_list(file_hasher.updated_hashes, dir_paths['json'])
+
+    return stats
 
 
 def save_files(
@@ -201,7 +203,7 @@ def parse_sdo(
     path_to_name_rev: dict,
     logger: Logger,
     config: ConfigParser = create_config(),
-):
+) -> tuple[int, int]:
     """Parse all yang modules in an SDO directory."""
     logger.info(f'Parsing SDO directory {search_directory}')
     if os.path.isfile(os.path.join(search_directory, 'yang-parameters.xml')):
@@ -209,7 +211,7 @@ def parse_sdo(
         grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
     else:
         grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
-    grouping.parse_and_load()
+    return grouping.parse_and_load()
 
 
 def parse_vendor(
@@ -222,8 +224,10 @@ def parse_vendor(
     logger: Logger,
     config: ConfigParser = create_config(),
     redis_connection: t.Optional[RedisConnection] = None,
-):
+) -> tuple[int, int]:
     """Parse all yang modules in a vendor directory."""
+    parsed = 0
+    skipped = 0
     redis_connection = redis_connection or RedisConnection(config=config)
     for root, _, files in os.walk(search_directory):
         for basename in files:
@@ -258,9 +262,12 @@ def parse_vendor(
             else:
                 continue
             try:
-                grouping.parse_and_load()
+                dir_parsed, dir_skipped = grouping.parse_and_load()
+                parsed += dir_parsed
+                skipped += dir_skipped
             except Exception:
                 logger.exception(f'Skipping "{path}", error while parsing')
+    return parsed, skipped
 
 
 if __name__ == '__main__':
