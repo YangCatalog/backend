@@ -77,7 +77,7 @@ class ElkSearch:
         self._missing_modules = []
         self.timeout = False
         log_file_path = os.path.join(logs_dir, 'yang.log')
-        self.LOGGER = log.get_logger('yc-elasticsearch', log_file_path)
+        self.logger = log.get_logger('yc-elasticsearch', log_file_path)
 
     def alerts(self):
         """
@@ -103,6 +103,7 @@ class ElkSearch:
         revisions only.
         See search.json for the full query format.
         """
+        self.logger.debug(f'Constructing query for params {self._search_params}')
         self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
         case_insensitive = not self._search_params.case_sensitive
         query_type = self._search_params.query_type
@@ -157,7 +158,6 @@ class ElkSearch:
                             },
                         ],
                     )
-        self.LOGGER.debug(f'Constructed query:\n{self.query}')
 
     def search(self):
         """
@@ -175,11 +175,11 @@ class ElkSearch:
         hits = gevent.queue.JoinableQueue()
         process_first_search = gevent.spawn(self._first_scroll, hits)
 
-        self.LOGGER.debug('Running first search in parallel')
+        self.logger.debug('Running first search in parallel')
         if self._search_params.latest_revision:
-            self.LOGGER.debug('Processing aggregations search in parallel')
+            self.logger.debug('Processing aggregations search in parallel')
             self._resolve_aggregations()
-            self.LOGGER.debug('Aggregations processed joining the search')
+            self.logger.debug('Aggregations processed joining the search')
         process_first_search.join()
         hits = hits.get()
         processed_rows = self._process_hits(hits, [])
@@ -208,7 +208,7 @@ class ElkSearch:
             module_data = self._redis_connection.get_module(module_key)
             module_data = json.loads(module_data)
             if not module_data:
-                self.LOGGER.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
+                self.logger.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
                 reject.append(module_key)
                 self._missing_modules.append(module_key)
                 continue
@@ -227,14 +227,14 @@ class ElkSearch:
             if self._remove_columns:
                 row_hash = row.get_row_hash_by_columns()
                 if row_hash in self._row_hashes:
-                    self.LOGGER.info(
+                    self.logger.info(
                         f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out',
                     )
                     continue
                 self._row_hashes.append(row_hash)
             response_rows.append(row.output_row)
             if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
-                self.LOGGER.debug(
+                self.logger.debug(
                     f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}',
                 )
                 process_scroll_search.kill()
@@ -255,10 +255,10 @@ class ElkSearch:
                 use_scroll=True,
             )
         except ConnectionTimeout:
-            self.LOGGER.exception('Error while searching in Elasticsearch')
+            self.logger.exception('Error while searching in Elasticsearch')
             elk_response['hits'] = {'hits': []}
             self.timeout = True
-        self.LOGGER.debug(f'search complete with {len(elk_response["hits"]["hits"])} hits')
+        self.logger.debug(f'search complete with {len(elk_response["hits"]["hits"])} hits')
         self._current_scroll_id = elk_response.get('_scroll_id')
         hits.put(elk_response['hits']['hits'])
 
@@ -270,7 +270,7 @@ class ElkSearch:
         try:
             elk_response = self._es_manager.scroll(self._current_scroll_id)
         except ConnectionTimeout:
-            self.LOGGER.exception('Error while scrolling in Elasticsearch')
+            self.logger.exception('Error while scrolling in Elasticsearch')
             elk_response['hits'] = {'hits': []}
             self.timeout = True
         self._current_scroll_id = elk_response.get('_scroll_id')
@@ -281,7 +281,7 @@ class ElkSearch:
         try:
             response = self._es_manager.generic_search(ESIndices.YINDEX, self.query)
         except ConnectionTimeout:
-            self.LOGGER.exception('Error while resolving aggregations')
+            self.logger.exception('Error while resolving aggregations')
         aggregations = response['aggregations']['groupby']['buckets']
         for agg in aggregations:
             self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]

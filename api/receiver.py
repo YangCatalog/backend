@@ -612,8 +612,11 @@ class Receiver:
                 if key != 'credentials' and body_input[key] != script_args_list[key]['default']:
                     script_conf.args.__setattr__(key, body_input[key])
 
+            clean = script_conf.args.__dict__.copy()
+            username, _ = clean.pop('credentials')
+            clean['username'] = username
             self.LOGGER.info(
-                f'Runnning {script_name}.py script with following configuration:\n{script_conf.args.__dict__}',
+                f'Runnning {script_name}.py script with following configuration:\n{clean}',
             )
             submodule.main(script_conf=script_conf)
             return StatusMessage.SUCCESS

@@ -73,7 +73,7 @@ def get_latest_revision(path: str, logger: logging.Logger):
         assert result
         rev = result.arg
     except Exception:
-        logger.error(f'Cannot yangParser.parse {path}')
+        logger.warning(f'Cannot yangParser.parse {path}')
         rev = None  # In case of invalid YANG syntax, None is returned
 
     return rev

@@ -236,7 +236,7 @@ class SdoDirectory(ModuleGrouping):
                     config=self.config,
                 )
             except ParseException:
-                self.logger.exception(f'ParseException while parsing {path}')
+                self.logger.warning(f'ParseException while parsing {path}')
                 continue
             self.dumper.add_module(yang)
 
@@ -284,7 +284,7 @@ class SdoDirectory(ModuleGrouping):
                         config=self.config,
                     )
                 except ParseException:
-                    self.logger.exception(f'ParseException while parsing {path}')
+                    self.logger.warning(f'ParseException while parsing {path}')
                     continue
                 self.dumper.add_module(yang)
 
@@ -374,7 +374,7 @@ class IanaDirectory(SdoDirectory):
                         config=self.config,
                     )
                 except ParseException:
-                    self.logger.exception(f'ParseException while parsing {path}')
+                    self.logger.warning(f'ParseException while parsing {path}')
                     continue
                 self.dumper.add_module(yang)
         self._dump_schema_cache()
@@ -561,7 +561,7 @@ class VendorGrouping(ModuleGrouping):
                     can_be_already_stored_in_db=module_hash_info.file_hash_exists,
                 )
             except ParseException:
-                self.logger.exception(f'ParseException while parsing {path}')
+                self.logger.warning(f'ParseException while parsing {path}')
                 continue
             except FileNotFoundError:
                 self.logger.warning(f'File {name} not found in the repository')
@@ -657,7 +657,7 @@ class VendorCapabilities(VendorGrouping):
                     can_be_already_stored_in_db=module_hash_info.file_hash_exists,
                 )
             except ParseException:
-                self.logger.exception(f'ParseException while parsing {path}')
+                self.logger.warning(f'ParseException while parsing {path}')
                 continue
             except FileNotFoundError:
                 self.logger.warning(f'File {name} not found in the repository')
@@ -747,7 +747,7 @@ class VendorYangLibrary(VendorGrouping):
                     can_be_already_stored_in_db=module_hash_info.file_hash_exists,
                 )
             except ParseException:
-                self.logger.exception(f'ParseException while parsing {path}')
+                self.logger.warning(f'ParseException while parsing {path}')
                 continue
             except FileNotFoundError:
                 self.logger.warning(f'File {name} not found in the repository')

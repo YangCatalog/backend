@@ -42,7 +42,7 @@ from utility.yangParser import create_context
 
 
 class YangSearch(Blueprint):
-    LOGGER: Logger
+    logger: Logger
 
 
 bp = YangSearch('yangSearch', __name__)
@@ -50,7 +50,7 @@ bp = YangSearch('yangSearch', __name__)
 
 @bp.record
 def init_logger(state):
-    bp.LOGGER = log.get_logger('yang-search', '{}/yang.log'.format(state.app.config.d_logs))
+    bp.logger = log.get_logger('yang-search', '{}/yang.log'.format(state.app.config.d_logs))
 
 
 @bp.before_request
@@ -132,7 +132,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
                 assert module_context
         except Exception:
             msg = 'File {} was not found'.format(path_to_yang)
-            bp.LOGGER.exception(msg)
+            bp.logger.exception(msg)
             abort(400, description=msg)
         imports_includes = []
         imports_includes.extend(module_context.search('import'))
@@ -199,7 +199,7 @@ def impact_analysis():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    bp.LOGGER.info('Running impact analysis with following payload:\n{}'.format(payload))
+    bp.logger.info('Running impact analysis with following payload:\n{}'.format(payload))
     name = payload.get('name')
     revision = payload.get('revision')
     allowed_organizations = payload.get('organizations', [])
@@ -250,7 +250,7 @@ def search():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    bp.LOGGER.info('Running search with following payload {}'.format(payload))
+    bp.logger.info('Running search with following payload {}'.format(payload))
     searched_term = payload.get('searched-term')
     if not searched_term or not isinstance(searched_term, str):
         abort(400, description='You have to define "searched_term" as a string')
@@ -339,7 +339,7 @@ def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = No
     path = '/{}'.format(path)
     try:
         if not revision:
-            bp.LOGGER.warning('Revision not submitted - getting latest')
+            bp.logger.warning('Revision not submitted - getting latest')
             revision = get_latest_module_revision(name)
 
         module = {'name': name, 'revision': revision, 'path': path}
@@ -504,7 +504,7 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         return revisions, organization
     except IndexError:
         name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
-        bp.LOGGER.exception('Failed to get revisions and organization for {}'.format(name_rev))
+        bp.logger.warning('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
             return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
         abort(404, 'Failed to get revisions and organization for {} - please use module that exists'.format(name_rev))
@@ -522,7 +522,7 @@ def get_latest_module_revision(module_name: str) -> str:
         es_result = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         return es_result[0]['_source']['revision']
     except IndexError:
-        bp.LOGGER.exception('Failed to get revision for {}'.format(module_name))
+        bp.logger.exception('Failed to get revision for {}'.format(module_name))
         abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
 
 
@@ -589,7 +589,7 @@ def each_key_in(payload: dict, payload_key: str, keys: t.List[str]):
 
 
 def get_module_data(module_key: str):
-    bp.LOGGER.info('searching for module {}'.format(module_key))
+    bp.logger.info('searching for module {}'.format(module_key))
     module_data = app.redisConnection.get_module(module_key)
     if module_data == '{}':
         abort(404, description='Provided module does not exist')
@@ -737,7 +737,7 @@ def get_dependencies_dependents_data(
     assert isinstance(module_detail, dict)
     module_type = module_detail.get('module-type')
     if not module_type:
-        bp.LOGGER.warning(
+        bp.logger.warning(
             f'module {module_detail.get("name")}@{module_detail.get("revision")} does not contain module-type',
         )
     if module_type == 'submodule' and not submodules_allowed:

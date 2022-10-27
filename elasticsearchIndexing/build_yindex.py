@@ -102,11 +102,11 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
             es_manager.index_module(ESIndices.AUTOCOMPLETE, module)
             break
         except (ConnectionTimeout, ConnectionError) as e:
-            attempts -= attempts
+            attempts -= 1
             if attempts > 0:
                 logger.warning('module {} timed out'.format(name_revision))
             else:
-                logger.exception('module {} timed out too many times failing'.format(name_revision))
+                logger.exception('module {} timed out, failed too many times'.format(name_revision))
                 raise e
 
 

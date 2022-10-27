@@ -107,7 +107,10 @@ class Module:
         try:
             self._parsed_yang = yangParser.parse(self._path)
         except yangParser.ParseException:
-            self.logger.exception(f'Missing yang file {self._path}')
+            if not os.path.isfile(self._path):
+                self.logger.error(f'Missing yang file {self._path}')
+            else:
+                self.logger.warning(f'pyang error on {self._path}')
             raise
 
     def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[dict[str, str]]):
