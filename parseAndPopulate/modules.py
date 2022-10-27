@@ -99,19 +99,9 @@ class Module:
             redis_connection if redis_connection or not can_be_already_stored_in_db else RedisConnection(config=config)
         )
 
-        self._parse_yang()
+        self._parsed_yang = yangParser.parse(self._path)
         self.implementations: list[Implementation] = []
         self._parse_all(name, yang_modules, additional_info)
-
-    def _parse_yang(self):
-        try:
-            self._parsed_yang = yangParser.parse(self._path)
-        except yangParser.ParseException:
-            if not os.path.isfile(self._path):
-                self.logger.error(f'Missing yang file {self._path}')
-            else:
-                self.logger.warning(f'pyang error on {self._path}')
-            raise
 
     def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[dict[str, str]]):
         additional_info = additional_info or {}

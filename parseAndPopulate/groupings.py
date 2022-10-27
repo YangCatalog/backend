@@ -154,6 +154,13 @@ class ModuleGrouping:
             suffix = suffix.replace(f'{schema_parts.submodule_name}/', '')
         return os.path.join(schema_base_hash, suffix)
 
+    def log_module_creation_exception(self, exception: t.Union[FileNotFoundError, ParseException]):
+        path = exception.args[0]
+        if isinstance(exception, FileExistsError):
+            self.logger.error(f'File {path} not found in the repository')
+        elif isinstance(exception, ParseException):
+            self.logger.warning(f'ParseException while parsing {path}')
+
 
 class SdoDirectory(ModuleGrouping):
     """Regular SDO directory containing yang modules."""
@@ -235,8 +242,8 @@ class SdoDirectory(ModuleGrouping):
                     additional_info=sdo,
                     config=self.config,
                 )
-            except ParseException:
-                self.logger.warning(f'ParseException while parsing {path}')
+            except (ParseException, FileNotFoundError) as e:
+                self.log_module_creation_exception(e)
                 continue
             self.dumper.add_module(yang)
 
@@ -283,8 +290,8 @@ class SdoDirectory(ModuleGrouping):
                         self.dumper.yang_modules,
                         config=self.config,
                     )
-                except ParseException:
-                    self.logger.warning(f'ParseException while parsing {path}')
+                except (ParseException, FileNotFoundError) as e:
+                    self.log_module_creation_exception(e)
                     continue
                 self.dumper.add_module(yang)
 
@@ -373,8 +380,8 @@ class IanaDirectory(SdoDirectory):
                         additional_info,
                         config=self.config,
                     )
-                except ParseException:
-                    self.logger.warning(f'ParseException while parsing {path}')
+                except (ParseException, FileNotFoundError) as e:
+                    self.log_module_creation_exception(e)
                     continue
                 self.dumper.add_module(yang)
         self._dump_schema_cache()
@@ -560,11 +567,8 @@ class VendorGrouping(ModuleGrouping):
                     redis_connection=self.redis_connection,
                     can_be_already_stored_in_db=module_hash_info.file_hash_exists,
                 )
-            except ParseException:
-                self.logger.warning(f'ParseException while parsing {path}')
-                continue
-            except FileNotFoundError:
-                self.logger.warning(f'File {name} not found in the repository')
+            except (ParseException, FileNotFoundError) as e:
+                self.log_module_creation_exception(e)
                 continue
             self.dumper.add_module(yang)
             key = f'{yang.name}@{yang.revision}/{yang.organization}'
@@ -656,11 +660,8 @@ class VendorCapabilities(VendorGrouping):
                     redis_connection=self.redis_connection,
                     can_be_already_stored_in_db=module_hash_info.file_hash_exists,
                 )
-            except ParseException:
-                self.logger.warning(f'ParseException while parsing {path}')
-                continue
-            except FileNotFoundError:
-                self.logger.warning(f'File {name} not found in the repository')
+            except (ParseException, FileNotFoundError) as e:
+                self.log_module_creation_exception(e)
                 continue
             self.dumper.add_module(yang)
             key = f'{yang.name}@{yang.revision}/{yang.organization}'
@@ -746,11 +747,8 @@ class VendorYangLibrary(VendorGrouping):
                     redis_connection=self.redis_connection,
                     can_be_already_stored_in_db=module_hash_info.file_hash_exists,
                 )
-            except ParseException:
-                self.logger.warning(f'ParseException while parsing {path}')
-                continue
-            except FileNotFoundError:
-                self.logger.warning(f'File {name} not found in the repository')
+            except (ParseException, FileNotFoundError) as e:
+                self.log_module_creation_exception(e)
                 continue
             self.dumper.add_module(yang)
             keys.add(f'{yang.name}@{yang.revision}/{yang.organization}')
