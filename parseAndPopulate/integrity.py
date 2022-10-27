@@ -141,7 +141,7 @@ def check_dependencies(
 def check(path: str, directory: str, sdo: bool):
     try:
         parsed_module = yangParser.parse(path)
-    except yangParser.ParseException:
+    except (yangParser.ParseException, FileNotFoundError):
         return
     if not check_revision(parsed_module):
         missing_revisions.add(path)
