@@ -27,14 +27,14 @@ from utility.yangParser import parse
 
 
 class TestIntegrityClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        self.module_dir = os.path.join(os.environ['BACKEND'], 'tests/resources/integrity')
+    @classmethod
+    def setUpClass(cls):
         config = create_config()
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir')
-        super().__init__(*args, **kwargs)
+        cls.module_dir = os.path.join(os.environ['BACKEND'], 'tests/resources/integrity')
+        cls.yang_models = config.get('Directory-Section', 'yang-models-dir')
 
     def module_path(self, name: str) -> str:
-        return os.path.join(self.module_dir, '{}.yang'.format(name))
+        return os.path.join(self.module_dir, f'{name}.yang')
 
     def test_check_revision(self):
         good = parse(self.module_path('good'))

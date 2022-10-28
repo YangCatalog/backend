@@ -17,46 +17,47 @@ class RedisConnectionMock:
 
 
 class TestSearchClass(unittest.TestCase):
-    def setUp(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    resources_path: str
+    es: Elasticsearch
+    es_manager: ESManager
+    es_index: ESIndices
+
+    @classmethod
+    def setUpClass(cls):
         config = create_config()
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests', 'resources')
-        self._configure_es(config)
-        self.redis_connection_mock = RedisConnectionMock()
-        self.grep_search = GrepSearch(
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests', 'resources')
+        cls._configure_es(config)
+        redis_connection_mock = RedisConnectionMock()
+        cls.grep_search = GrepSearch(
             config=config,
-            es_manager=self.es_manager,
-            modules_es_index=self.es_index,
-            redis_connection=self.redis_connection_mock,
+            es_manager=cls.es_manager,
+            modules_es_index=cls.es_index,
+            redis_connection=redis_connection_mock,
         )
 
-    def tearDown(self):
-        super().tearDown()
-        self.es.indices.delete(index=self.es_index.value, ignore=[400, 404])
-
-    def _configure_es(self, config: ConfigParser):
+    @classmethod
+    def _configure_es(cls, config: ConfigParser):
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
             'port': config.get('DB-Section', 'es-port', fallback='9200'),
         }
-        self.es = Elasticsearch(hosts=[es_host_config])
-        self.es_manager = ESManager(self.es)
-        self.es_index = ESIndices.TEST_SEARCH
-        self.es_test_data = self._load_es_test_data()
-        index_json_name = f'initialize_{self.es_index.value}_index.json'
+        cls.es = Elasticsearch(hosts=[es_host_config])
+        cls.es_manager = ESManager(cls.es)
+        cls.es_index = ESIndices.TEST_SEARCH
+        with open(os.path.join(cls.resources_path, 'search_test_data.json'), 'r') as reader:
+            es_test_data = json.load(reader)
+        index_json_name = f'initialize_{cls.es_index.value}_index.json'
         index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing', 'json', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
             index_config = json.load(reader)
-        self.es.indices.create(index=self.es_index.value, body=index_config, ignore=400)
-        all_modules = self.es_test_data['all_modules']
+        cls.es.indices.create(index=cls.es_index.value, body=index_config, ignore=400)
+        all_modules = es_test_data['all_modules']
         for module in all_modules:
-            self.es.index(index=self.es_index.value, body=module, refresh='true')
+            cls.es.index(index=cls.es_index.value, body=module, refresh='true')
 
-    def _load_es_test_data(self):
-        data_file_path = os.path.join(self.resources_path, 'search_test_data.json')
-        with open(data_file_path, 'r') as reader:
-            test_data = json.load(reader)
-        return test_data
+    @classmethod
+    def tearDownClass(cls):
+        cls.es.indices.delete(index=cls.es_index.value, ignore=[400, 404])
 
     def test_grep_search(self):
         organizations = ['ietf']

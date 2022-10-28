@@ -31,10 +31,10 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super(TestModulesComplicatedAlgorithmsClass, self).__init__(*args, **kwargs)
         self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
             self.payloads = json.load(f)
         self.yangcatalog_api_prefix = 'http://non-existing-site.com/api/'
-        self.save_file_dir = '{}/all_modules'.format(self.resources_path)
+        self.save_file_dir = os.path.join(self.resources_path, 'all_modules')
 
     """
     TEST CASES:
@@ -428,12 +428,6 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         self.assertIn({'name': 'n2', 'revision': '1', 'schema': None}, new['n1']['1']['dependents'])
         self.assertIn({'name': 'e2', 'revision': '1', 'schema': None}, new['n1']['1']['dependents'])
         self.assertNotIn('1', new['n2'])
-
-    def load_from_json(self, key: str):
-        with open('{}/parseAndPopulate_tests_data.json'.format(self.resources_path), 'r') as f:
-            file_content = json.load(f)
-            loaded_result = file_content.get(key, {})
-        return loaded_result
 
 
 if __name__ == '__main__':

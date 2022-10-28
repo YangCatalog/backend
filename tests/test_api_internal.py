@@ -32,10 +32,12 @@ ac = app.config
 
 
 class TestApiInternalClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestApiInternalClass, self).__init__(*args, **kwargs)
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.client = app.test_client()
+    @classmethod
+    def setUpClass(cls):
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.client = app.test_client()
+        with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
+            cls.payloads_content = json.load(f)
 
     @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull(self):
@@ -65,11 +67,8 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_passed(self, mock_post: mock.MagicMock):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
         mock_post.return_value.status_code = 201
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
@@ -89,11 +88,8 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_passed_couldnt_create(self, mock_post: mock.MagicMock):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
         mock_post.return_value.status_code = 400
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
@@ -109,10 +105,7 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_failed(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Failed'
         body['type'] = 'push'
@@ -133,10 +126,7 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_pr_passed(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'YangModels'
         body['result_message'] = 'Passed'
         body['type'] = 'pull_request'
@@ -157,10 +147,7 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_pr_failed(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'YangModels'
         body['result_message'] = 'Failed'
         body['type'] = 'pull_request'
@@ -179,10 +166,7 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_unknown_owner(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'nonexistent'
         body['result_message'] = 'Failed'
         result = self.client.post(
@@ -200,10 +184,7 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='no'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_unknown_commit(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
@@ -221,13 +202,11 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_commit_file_not_found(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
         patcher = mock.patch('builtins.open')
         mock_open = patcher.start()
         self.addCleanup(patcher.stop)
         mock_open.side_effect = FileNotFoundError
-        body = content.get('check_local')
+        body = self.payloads_content.get('check_local')
 
         result = self.client.post(
             'api/checkComplete',
