@@ -347,12 +347,12 @@ def add_modules():
             path_to_parse = os.path.abspath(os.path.join(save_to, os.path.basename(module_path)))
             namespace = yangParser.parse(path_to_parse).search('namespace')[0].arg
             organization_parsed = organization_by_namespace(namespace)
-        except (yangParser.ParseException, IndexError, AttributeError):
+        except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
             while True:
                 try:
                     path_to_parse = os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))
                     belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
-                except (yangParser.ParseException, IndexError, AttributeError):
+                except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
                     break
                 namespace = (
                     yangParser.parse(

@@ -136,7 +136,7 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
         revision = None
         try:
             parsed_yang = yangParser.parse(os.path.abspath(module_path))
-        except yangParser.ParseException:
+        except (yangParser.ParseException, FileNotFoundError):
             continue
         name = filename.split('.')[0].split('@')[0]
         revision = RevisionResolver(parsed_yang, LOGGER).resolve()
