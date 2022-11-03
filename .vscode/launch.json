@@ -117,10 +117,10 @@
       "justMyCode": false
     },
     {
-      "name": "process-changed-mods",
+      "name": "process_changed_mods",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/elasticsearchIndexing/process-changed-mods.py",
+      "program": "${workspaceFolder}/elasticsearchIndexing/process_changed_mods.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false

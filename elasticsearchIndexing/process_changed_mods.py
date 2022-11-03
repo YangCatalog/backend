@@ -65,11 +65,11 @@ class ProcessChangedMods:
 
         self.logger = log.get_logger(
             'process_changed_mods',
-            os.path.join(self.log_directory, 'process-changed-mods.log'),
+            os.path.join(self.log_directory, 'process_changed_mods.log'),
         )
 
     def start_processing_changed_mods(self):
-        self.logger.info('Starting process-changed-mods.py script')
+        self.logger.info('Starting process_changed_mods.py script')
 
         if os.path.exists(self.lock_file) or os.path.exists(self.lock_file_cron):
             # we can exist since this is run by cronjob every 3 minutes of every day
