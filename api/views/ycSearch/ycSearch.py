@@ -171,7 +171,8 @@ def rpc_search(body: dict = {}):
     """Get all the modules that contains all the leafs with data as provided in body of the request."""
     from_api = False
     if not body:
-        assert request.json is not None
+        if request.json is None:
+            abort(400, description='body of request is empty')
         body = request.json
         from_api = True
     app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body)))
