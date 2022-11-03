@@ -27,7 +27,6 @@ from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.modules import SdoModule, VendorModule
 
 
-# TODO: we should probably have unit tests for the individual Model._resolve* methods
 class TestModulesClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
