@@ -35,30 +35,25 @@ from utility.create_config import create_config
 
 
 class TestGroupingsClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestGroupingsClass, self).__init__(*args, **kwargs)
-
-        # Declare variables
-        self.prepare_output_filename = 'prepare'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings')
-        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
-        self.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
-        self.dir_paths: DirPaths = {
+    @classmethod
+    def setUpClass(cls):
+        generate_schema_urls.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings'))
+        cls.prepare_output_filename = 'prepare'
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings')
+        cls.test_private_dir = os.path.join(cls.resources_path, 'html/private')
+        cls.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
+        cls.dir_paths: DirPaths = {
             'cache': '',
-            'json': self.resources_path,
+            'json': cls.resources_path,
             'log': yc_gc.logs_dir,
-            'private': self.test_private_dir,
+            'private': cls.test_private_dir,
             'result': yc_gc.result_dir,
             'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models,
         }
-        self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
-        self.config = create_config()
-        self.redis_connection = RedisConnection(config=self.config)
-
-    @classmethod
-    def setUpClass(cls):
-        generate_schema_urls.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings'))
+        cls.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
+        cls.config = create_config()
+        cls.redis_connection = RedisConnection(config=cls.config)
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_sdo_directory_parse_and_load(self, mock_hash: mock.MagicMock):
@@ -516,7 +511,7 @@ class TestGroupingsClass(unittest.TestCase):
 
     def load_path_to_name_rev(self, key: str):
         """Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json."""
-        with open(os.path.join(self.resources_path, 'parseAndPopulate_tests_data.json'), 'r') as f:
+        with open(self.resource('parseAndPopulate_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             return literal_eval(file_content.get(key, ''))
 

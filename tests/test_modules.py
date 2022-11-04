@@ -28,18 +28,15 @@ from parseAndPopulate.modules import SdoModule, VendorModule
 
 
 class TestModulesClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestModulesClass, self).__init__(*args, **kwargs)
-
-        # Declare variables
-        self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
-        self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
-        self.sdo_module_filename = 'sdo-module@2022-08-05.yang'
-        self.sdo_module_name = 'sdo-module'
-        self.hello_message_filename = 'capabilities-ncs5k.xml'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
-        self.dir_paths: DirPaths = {
+    @classmethod
+    def setUpClass(cls):
+        cls.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
+        cls.sdo_module_filename = 'sdo-module@2022-08-05.yang'
+        cls.sdo_module_name = 'sdo-module'
+        cls.hello_message_filename = 'capabilities-ncs5k.xml'
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.test_private_dir = os.path.join(resources_path, 'html/private')
+        cls.dir_paths: DirPaths = {
             'cache': '',
             'json': '',
             'log': yc_gc.logs_dir,
@@ -48,9 +45,7 @@ class TestModulesClass(unittest.TestCase):
             'save': yc_gc.save_file_dir,
             'yang_models': yc_gc.yang_models,
         }
-        self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
-
-    # TODO: we should probably have unit tests for the individual Model._resolve* methods
+        cls.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
 
     def test_modules_parse_all_sdo_object(self):
         """
@@ -126,7 +121,7 @@ class TestModulesClass(unittest.TestCase):
         xml_path = os.path.join(self.test_repo, 'vendor/cisco/xr/701', self.hello_message_filename)
         vendor_data = 'ietf-netconf-acm&revision=2018-02-14&deviations=cisco-xr-ietf-netconf-acm-deviations'
         module_name = vendor_data.split('&revision')[0]
-        path_to_yang = '{}/vendor/cisco/xr/701/{}.yang'.format(self.test_repo, module_name)
+        path_to_yang = f'{self.test_repo}/vendor/cisco/xr/701/{module_name}.yang'
         platform_name = 'ncs5k'
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
@@ -174,7 +169,7 @@ class TestModulesClass(unittest.TestCase):
         }
         xml_path = os.path.join(self.test_repo, 'vendor/huawei/network-router/8.20.0/ne5000e/ietf-yang-library.xml')
         module_name = 'huawei-aaa'
-        path_to_yang = '{}/vendor/huawei/network-router/8.20.0/ne5000e/{}.yang'.format(self.test_repo, module_name)
+        path_to_yang = f'{self.test_repo}/vendor/huawei/network-router/8.20.0/ne5000e/{module_name}.yang'
         platform_name = 'ne5000e'
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)

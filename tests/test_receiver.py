@@ -106,41 +106,44 @@ class MockRepoUtil:
 
 
 class TestReceiverBaseClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestReceiverBaseClass, self).__init__(*args, **kwargs)
+    receiver: Receiver
+    redis_connection: RedisConnection
+    directory: str
+    test_data: dict
+
+    @classmethod
+    def setUpClass(cls):
         config = create_config()
+        cls.log_directory = config.get('Directory-Section', 'logs')
+        temp_dir = config.get('Directory-Section', 'temp')
+        cls.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
+        cls.nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
+        yang_models = config.get('Directory-Section', 'yang-models-dir')
+        _redis_host = config.get('DB-Section', 'redis-host')
+        _redis_port = int(config.get('DB-Section', 'redis-port'))
 
-        self.log_directory = config.get('Directory-Section', 'logs')
-        self.temp_dir = config.get('Directory-Section', 'temp')
-        self.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
-        self.nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir')
-        self._redis_host = config.get('DB-Section', 'redis-host')
-        self._redis_port = int(config.get('DB-Section', 'redis-port'))
+        cls.redis_connection = RedisConnection(modules_db=6, vendors_db=9)
+        cls.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
+        cls.receiver.redisConnection = cls.redis_connection
+        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=6)
+        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=9)
+        cls.huawei_dir = f'{yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
+        cls.directory = f'{temp_dir}/receiver_test'
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.private_dir = os.path.join(resources_path, 'html/private')
 
-        self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
-        self.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
-        self.receiver.redisConnection = self.redisConnection
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)
-        self.huawei_dir = f'{self.yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
-        self.direc = f'{self.temp_dir}/receiver_test'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.private_dir = os.path.join(self.resources_path, 'html/private')
+        with open(os.path.join(resources_path, 'receiver_tests_data.json'), 'r') as f:
+            cls.test_data = json.load(f)
 
-        with open(os.path.join(self.resources_path, 'receiver_tests_data.json'), 'r') as f:
-            self.test_data = json.load(f)
+        redis_modules_patcher = mock.patch('redisConnections.redisConnection.RedisConnection')
+        cls.mock_redis_modules = redis_modules_patcher.start()
+        cls.addClassCleanup(redis_modules_patcher.stop)
+        cls.mock_redis_modules.return_value = cls.redis_connection
 
-    def setUp(self):
-        self.redis_modules_patcher = mock.patch('redisConnections.redisConnection.RedisConnection')
-        self.mock_redis_modules = self.redis_modules_patcher.start()
-        self.addCleanup(self.redis_modules_patcher.stop)
-        self.mock_redis_modules.return_value = self.redisConnection
-
-        self.confd_patcher = mock.patch('utility.confdService.ConfdService')
-        self.mock_confd_service = self.confd_patcher.start()
-        self.addCleanup(self.confd_patcher.stop)
-        self.mock_confd_service.side_effect = MockConfdService
+        confd_patcher = mock.patch('utility.confdService.ConfdService')
+        cls.mock_confd_service = confd_patcher.start()
+        cls.addClassCleanup(confd_patcher.stop)
+        cls.mock_confd_service.side_effect = MockConfdService
 
     def tearDown(self):
         self.modulesDB.flushdb()
@@ -149,12 +152,12 @@ class TestReceiverBaseClass(unittest.TestCase):
 
 class TestReceiverClass(TestReceiverBaseClass):
     def setUp(self):
-        super(TestReceiverClass, self).setUp()
-        os.makedirs(self.direc, exist_ok=True)
+        super().setUp()
+        os.makedirs(self.directory, exist_ok=True)
 
     def tearDown(self):
-        super(TestReceiverClass, self).tearDown()
-        shutil.rmtree(self.direc)
+        super().tearDown()
+        shutil.rmtree(self.directory)
 
     def test_run_ping_successful(self):
         status = self.receiver.run_ping('ping')
@@ -172,7 +175,7 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo(self):
         data = self.test_data.get('request-data-content')
-        dst = os.path.join(self.direc, 'YangModels', 'yang', 'standard', 'ietf', 'RFC')
+        dst = os.path.join(self.directory, 'YangModels', 'yang', 'standard', 'ietf', 'RFC')
         os.makedirs(dst, exist_ok=True)
 
         rfc_dir = os.path.join(self.nonietf_dir, 'yangmodels', 'yang', 'standard', 'ietf', 'RFC')
@@ -180,10 +183,10 @@ class TestReceiverClass(TestReceiverBaseClass):
             os.path.join(rfc_dir, 'ietf-yang-types@2010-09-24.yang'),
             os.path.join(dst, 'ietf-yang-types@2010-09-24.yang'),
         )
-        with open(os.path.join(self.direc, 'request-data.json'), 'w') as f:
+        with open(os.path.join(self.directory, 'request-data.json'), 'w') as f:
             json.dump(data, f)
 
-        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials]
+        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.directory, '--api', '--credentials', *self.credentials]
 
         status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
@@ -195,7 +198,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo_failed_populate(self):
-        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.direc, '--api', '--credentials', *self.credentials]
+        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.directory, '--api', '--credentials', *self.credentials]
 
         status, details = self.receiver.process(arguments)
         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
@@ -212,7 +215,7 @@ class TestReceiverClass(TestReceiverBaseClass):
     def test_process_vendor(self):
         platform = self.test_data.get('capabilities-json-content')
 
-        dst = os.path.join(self.direc, 'huawei', 'yang', 'network-router', '8.20.0', 'ne5000e')
+        dst = os.path.join(self.directory, 'huawei', 'yang', 'network-router', '8.20.0', 'ne5000e')
         os.makedirs(dst, exist_ok=True)
 
         shutil.copy(
@@ -226,7 +229,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         with open(os.path.join(dst, 'capabilities.json'), 'w') as f:
             json.dump(platform, f)
 
-        arguments = ['POPULATE-VENDORS', '--dir', self.direc, '--api', '--credentials', *self.credentials, 'True']
+        arguments = ['POPULATE-VENDORS', '--dir', self.directory, '--api', '--credentials', *self.credentials, 'True']
 
         status, details = self.receiver.process(arguments)
 
@@ -236,8 +239,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        self.redisConnection.populate_modules(module_to_populate)
-        self.redisConnection.reload_modules_cache()
+        self.redis_connection.populate_modules(module_to_populate)
+        self.redis_connection.reload_modules_cache()
 
         modules_to_delete = {
             'modules': [{'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'}],
@@ -245,8 +248,8 @@ class TestReceiverClass(TestReceiverBaseClass):
         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         status, details = self.receiver.process_module_deletion(arguments)
-        self.redisConnection.reload_modules_cache()
-        raw_all_modules = self.redisConnection.get_all_modules()
+        self.redis_connection.reload_modules_cache()
+        raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(status, StatusMessage.SUCCESS)
@@ -259,15 +262,15 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_cannot_delete(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        self.redisConnection.populate_modules(module_to_populate)
-        self.redisConnection.reload_modules_cache()
+        self.redis_connection.populate_modules(module_to_populate)
+        self.redis_connection.reload_modules_cache()
 
         modules_to_delete = {'modules': [{'name': 'yang-submodule', 'revision': '2020-02-01', 'organization': 'ietf'}]}
         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         status, details = self.receiver.process_module_deletion(arguments)
-        self.redisConnection.reload_modules_cache()
-        raw_all_modules = self.redisConnection.get_all_modules()
+        self.redis_connection.reload_modules_cache()
+        raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(status, StatusMessage.IN_PROGRESS)
@@ -277,8 +280,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_module_and_its_dependent(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        self.redisConnection.populate_modules(module_to_populate)
-        self.redisConnection.reload_modules_cache()
+        self.redis_connection.populate_modules(module_to_populate)
+        self.redis_connection.reload_modules_cache()
 
         modules_to_delete = {
             'modules': [
@@ -289,8 +292,8 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
         status, details = self.receiver.process_module_deletion(arguments)
-        self.redisConnection.reload_modules_cache()
-        raw_all_modules = self.redisConnection.get_all_modules()
+        self.redis_connection.reload_modules_cache()
+        raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(status, StatusMessage.SUCCESS)
@@ -306,8 +309,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_empty_list_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        self.redisConnection.populate_modules(module_to_populate)
-        self.redisConnection.reload_modules_cache()
+        self.redis_connection.populate_modules(module_to_populate)
+        self.redis_connection.reload_modules_cache()
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps({'modules': []})]
         status, details = self.receiver.process_module_deletion(arguments)
@@ -318,8 +321,8 @@ class TestReceiverClass(TestReceiverBaseClass):
     @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_incorrect_arguments_input(self):
         module_to_populate = self.test_data.get('module-deletion-tests')
-        self.redisConnection.populate_modules(module_to_populate)
-        self.redisConnection.reload_modules_cache()
+        self.redis_connection.populate_modules(module_to_populate)
+        self.redis_connection.reload_modules_cache()
 
         arguments = ['DELETE-MODULES', *self.credentials, json.dumps([])]
         status, details = self.receiver.process_module_deletion(arguments)
@@ -330,14 +333,18 @@ class TestReceiverClass(TestReceiverBaseClass):
 
 @ddt
 class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.vendors_to_populate = cls.test_data.get('vendor-deletion-tests').get('vendors')
+        cls.modules_to_populate = cls.test_data.get('vendor-deletion-tests').get('modules')
+
     def setUp(self):
-        super(TestReceiverVendorsDeletionClass, self).setUp()
-        vendors_to_populate = self.test_data.get('vendor-deletion-tests').get('vendors')
-        modules_to_populate = self.test_data.get('vendor-deletion-tests').get('modules')
-        self.redisConnection.populate_implementation([vendors_to_populate])
-        self.redisConnection.populate_modules(modules_to_populate)
-        self.redisConnection.reload_vendors_cache()
-        self.redisConnection.reload_modules_cache()
+        super().setUp()
+        self.redis_connection.populate_implementation([self.vendors_to_populate])
+        self.redis_connection.populate_modules(self.modules_to_populate)
+        self.redis_connection.reload_vendors_cache()
+        self.redis_connection.reload_modules_cache()
 
     @data(
         ('fujitsu', 'T100', '2.4', 'Linux'),
@@ -363,22 +370,22 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
 
         arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor]
         status = self.receiver.process_vendor_deletion(arguments)
-        self.redisConnection.reload_vendors_cache()
-        self.redisConnection.reload_modules_cache()
+        self.redis_connection.reload_vendors_cache()
+        self.redis_connection.reload_modules_cache()
 
-        created_vendors_dict = self.redisConnection.create_vendors_data_dict(deleted_vendor_branch)
+        created_vendors_dict = self.redis_connection.create_vendors_data_dict(deleted_vendor_branch)
         self.assertEqual(status, StatusMessage.SUCCESS)
         self.assertEqual(created_vendors_dict, [])
         for key in self.vendorsDB.scan_iter():
             redis_key = key.decode('utf-8')
             self.assertNotIn(deleted_vendor_branch, redis_key)
 
-        raw_all_modules = self.redisConnection.get_all_modules()
+        raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
         for module in all_modules.values():
             implementations = module.get('implementations', {}).get('implementation', [])
             for implementation in implementations:
-                implementation_key = self.redisConnection.create_implementation_key(implementation)
+                implementation_key = self.redis_connection.create_implementation_key(implementation)
                 self.assertNotIn(deleted_vendor_branch, implementation_key)
 
 

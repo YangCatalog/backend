@@ -31,31 +31,29 @@ from utility.create_config import create_config
 
 
 class TestESManagerClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestESManagerClass, self).__init__(*args, **kwargs)
+    es: Elasticsearch
+    test_index: ESIndices
+
+    @classmethod
+    def setUpClass(cls):
         config = create_config()
         es_host_config = {
             'host': config.get('DB-Section', 'es-host', fallback='localhost'),
             'port': config.get('DB-Section', 'es-port', fallback='9200'),
         }
-        self.es = Elasticsearch(hosts=[es_host_config])
-        self.test_index = ESIndices.TEST
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/tests/resources')
-        self.test_data = self._load_test_data()
-        self.es_manager = ESManager(self.es)
-        self.ietf_rip_module = {'name': 'ietf-rip', 'revision': '2020-02-20', 'organization': 'ietf'}
+        cls.es = Elasticsearch(hosts=[es_host_config])
+        cls.es_manager = ESManager(cls.es)
+        cls.test_index = ESIndices.TEST
+        resources_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/tests/resources')
+        with open(os.path.join(resources_path, 'es_test_data.json'), 'r') as reader:
+            cls.test_data = json.load(reader)
+        cls.ietf_rip_module = {'name': 'ietf-rip', 'revision': '2020-02-20', 'organization': 'ietf'}
 
     def setUp(self):
         self.es.indices.delete(index=self.test_index.value, ignore=[400, 404])
 
-    def tearDown(self) -> None:
+    def tearDown(self):
         self.es.indices.delete(index=self.test_index.value, ignore=[400, 404])
-
-    def _load_test_data(self):
-        data_file_path = os.path.join(self.resources_path, 'es_test_data.json')
-        with open(data_file_path, 'r') as reader:
-            test_data = json.load(reader)
-        return test_data
 
 
 class TestESManagerWithoutIndexClass(TestESManagerClass):
@@ -74,13 +72,17 @@ class TestESManagerWithoutIndexClass(TestESManagerClass):
 
 
 class TestESManagerWithEmptyIndexClass(TestESManagerClass):
-    def setUp(self):
-        super(TestESManagerWithEmptyIndexClass, self).setUp()
-        index_json_name = f'initialize_{self.test_index.value}_index.json'
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        index_json_name = f'initialize_{cls.test_index.value}_index.json'
         index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
-            index_config = json.load(reader)
-        self.es.indices.create(index=self.test_index.value, body=index_config, ignore=400)
+            cls.index_config = json.load(reader)
+
+    def setUp(self):
+        super().setUp()
+        self.es.indices.create(index=self.test_index.value, body=self.index_config, ignore=400)
 
     def test_create_index_already_exists(self):
         create_result = self.es_manager.create_index(self.test_index)
@@ -140,16 +142,19 @@ class TestESManagerWithEmptyIndexClass(TestESManagerClass):
 
 @ddt
 class TestESManagerAutocompleteIndexClass(TestESManagerClass):
-    def setUp(self):
-        super(TestESManagerAutocompleteIndexClass, self).setUp()
-        index_json_name = f'initialize_{self.test_index.value}_index.json'
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        index_json_name = f'initialize_{cls.test_index.value}_index.json'
         index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
-            index_config = json.load(reader)
-        self.es.indices.create(index=self.test_index.value, body=index_config, ignore=400)
+            cls.index_config = json.load(reader)
+        cls.autocomplete_modules = cls.test_data['autocomplete_modules']
 
-        autocomplete_modules = self.test_data['autocomplete_modules']
-        for module in autocomplete_modules:
+    def setUp(self):
+        super().setUp()
+        self.es.indices.create(index=self.test_index.value, body=self.index_config, ignore=400)
+        for module in self.autocomplete_modules:
             self.es.index(index=self.test_index.value, body=module, refresh='true')
 
     @data('ietf-', 'IETF-R', '-yang-')
