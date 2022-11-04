@@ -28,7 +28,6 @@ import requests
 
 from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
 from utility import log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -113,12 +112,6 @@ class ProcessChangedMods:
 
     def _initialize_es_manager(self):
         self.es_manager = ESManager()
-        self.logger.info('Trying to initialize Elasticsearch indices')
-        for index in ESIndices:
-            if self.es_manager.index_exists(index):
-                continue
-            create_result = self.es_manager.create_index(index)
-            self.logger.info(f'Index {index.value} created with message:\n{create_result}')
         logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
     def _delete_modules_from_es(self):

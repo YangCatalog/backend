@@ -1,4 +1,7 @@
 {
+    "aliases": {
+        "drafts-alias": {}
+    },
     "settings": {
         "index": {
             "blocks": {

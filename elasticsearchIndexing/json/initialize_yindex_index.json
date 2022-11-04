@@ -1,4 +1,7 @@
 {
+  "aliases": {
+    "yindex-alias": {}
+  },
   "settings": {
     "index": {
       "blocks": {

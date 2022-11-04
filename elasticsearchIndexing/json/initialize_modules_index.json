@@ -1,4 +1,7 @@
 {
+  "aliases": {
+    "modules-alias": {}
+  },
   "settings": {
     "index": {
       "blocks": {
