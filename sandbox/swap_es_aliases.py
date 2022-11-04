@@ -16,7 +16,7 @@ def main():
     es.indices.update_aliases(
         body={
             'actions': [
-                {'remove': {'index': args.remove, 'alias': args.alias}},
+                {'remove': {'index': '*', 'alias': args.alias}},
                 {'add': {'index': args.add, 'alias': args.alias}},
             ],
         },
