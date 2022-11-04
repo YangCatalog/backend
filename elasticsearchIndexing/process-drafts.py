@@ -39,10 +39,9 @@ def main():
 
     logger.info('Trying to initialize Elasticsearch indices')
     es_manager = ESManager()
-    for index in ESIndices:
-        if not es_manager.index_exists(index):
-            create_result = es_manager.create_index(index)
-            logger.info(f'Index {index.value} created with message:\n{create_result}')
+    if not es_manager.index_exists(ESIndices.DRAFTS):
+        logger.error('Drafts index has not been created. Exiting.')
+        exit(1)
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
