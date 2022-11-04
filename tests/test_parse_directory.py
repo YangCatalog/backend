@@ -28,12 +28,12 @@ from parseAndPopulate.dir_paths import DirPaths
 
 
 class TestParseDirectoryClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestParseDirectoryClass, self).__init__(*args, **kwargs)
-        self.module_name = 'parseAndPopulate'
-        self.script_name = 'parse_directory'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/parse_directory')
-        self.dir_paths = DirPaths(cache='', json='', log='', private='', result='', save='', yang_models='')
+    @classmethod
+    def setUpClass(cls):
+        cls.module_name = 'parseAndPopulate'
+        cls.script_name = 'parse_directory'
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/parse_directory')
+        cls.dir_paths = DirPaths(cache='', json='', log='', private='', result='', save='', yang_models='')
 
     def test_save_files(self):
         save_file_dir = self.resource('all_modules')

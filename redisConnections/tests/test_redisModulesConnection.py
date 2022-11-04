@@ -30,22 +30,22 @@ from utility.create_config import create_config
 
 
 class TestRedisModulesConnectionClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestRedisModulesConnectionClass, self).__init__(*args, **kwargs)
+    @classmethod
+    def setUpClass(cls):
+        cls.redis_key = 'ietf-bgp@2021-10-25/ietf'
         config = create_config()
-        self._redis_host = config.get('DB-Section', 'redis-host')
-        self._redis_port = config.get('DB-Section', 'redis-port')
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
-        self.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
-        self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=6)  # pyright: ignore
-        self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=9)  # pyright: ignore
+        _redis_host = config.get('DB-Section', 'redis-host')
+        _redis_port = config.get('DB-Section', 'redis-port')
+        resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
+        cls.redisConnection = RedisConnection(modules_db=6, vendors_db=9)
+        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=6)  # pyright: ignore
+        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=9)  # pyright: ignore
+        with open(os.path.join(resources_path, 'ietf-bgp@2021-10-25.json'), 'r') as f:
+            cls.original_data = json.load(f)
 
     def setUp(self):
-        redis_key = 'ietf-bgp@2021-10-25/ietf'
-        with open('{}/ietf-bgp@2021-10-25.json'.format(self.resources_path), 'r') as f:
-            self.original_data = json.load(f)
-        self.modulesDB.set(redis_key, json.dumps(self.original_data))
-        self.modulesDB.set('modules-data', json.dumps({redis_key: self.original_data}))
+        self.modulesDB.set(self.redis_key, json.dumps(self.original_data))
+        self.modulesDB.set('modules-data', json.dumps({self.redis_key: self.original_data}))
 
     def tearDown(self):
         self.modulesDB.flushdb()
@@ -55,7 +55,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         name = 'ietf-bgp'
         revision = '2021-10-25'
         organization = 'ietf'
-        redis_key = '{}@{}/{}'.format(name, revision, organization)
+        redis_key = f'{name}@{revision}/{organization}'
 
         raw_data = self.redisConnection.get_module(redis_key)
         data = json.loads(raw_data)
@@ -92,7 +92,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         name = 'ietf-bgp'
         revision = '2021-10-25'
         organization = 'ietf'
-        redis_key = '{}@{}/{}'.format(name, revision, organization)
+        redis_key = f'{name}@{revision}/{organization}'
         self.modulesDB.flushdb()
 
         result = self.redisConnection.set_redis_module(self.original_data, redis_key)
@@ -110,7 +110,6 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         name = 'ietf-bgp'
         revision = '2021-10-25'
         organization = 'ietf'
-        redis_key = '{}@{}/{}'.format(name, revision, organization)
         redis_key = 'ietf-bgp@2021-10-25/ietf'
         module = deepcopy(self.original_data)
 

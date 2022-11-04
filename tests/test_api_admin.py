@@ -23,6 +23,7 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import json
 import os
 import unittest
+from copy import deepcopy
 from pathlib import Path
 from unittest import mock
 
@@ -37,18 +38,22 @@ ac = app.config
 
 
 class TestApiAdminClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestApiAdminClass, self).__init__(*args, **kwargs)
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.client = app.test_client()
-
-    def setUp(self):
-        self.users = RedisUsersConnection()
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
+    @classmethod
+    def setUpClass(cls):
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.client = app.test_client()
+        cls.users = RedisUsersConnection()
+        with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             content = json.load(f)
         fields = content['user']['input']
-        fields = {key.replace('-', '_'): value for key, value in fields.items()}
-        self.uid = self.users.create(temp=True, **fields)
+        cls.user_info_fields = {key.replace('-', '_'): value for key, value in fields.items()}
+        with open(os.path.join(resources_path, 'testlog.log'), 'r') as f:
+            cls.test_log_text = f.read()
+        with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
+            cls.payloads_content = json.load(f)
+
+    def setUp(self):
+        self.uid = self.users.create(temp=True, **self.user_info_fields)
 
     def tearDown(self):
         self.users.delete(self.uid, temp=True)
@@ -100,7 +105,7 @@ class TestApiAdminClass(unittest.TestCase):
     @mock.patch('builtins.open', mock.mock_open(read_data='test'))
     def test_read_admin_file(self):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
-        result = self.client.get('api/admin/directory-structure/read/{}'.format(path))
+        result = self.client.get(f'api/admin/directory-structure/read/{path}')
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
@@ -112,7 +117,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     def test_read_admin_file_not_found(self):
         path = 'nonexistent'
-        result = self.client.get('api/admin/directory-structure/read/{}'.format(path))
+        result = self.client.get(f'api/admin/directory-structure/read/{path}')
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -122,7 +127,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     def test_read_admin_file_directory(self):
         path = 'all_modules'
-        result = self.client.get('api/admin/directory-structure/read/{}'.format(path))
+        result = self.client.get(f'api/admin/directory-structure/read/{path}')
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -133,7 +138,7 @@ class TestApiAdminClass(unittest.TestCase):
     @mock.patch('os.unlink')
     def test_delete_admin_file(self, mock_unlink: mock.MagicMock):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
-        result = self.client.delete('api/admin/directory-structure/{}'.format(path))
+        result = self.client.delete(f'api/admin/directory-structure/{path}')
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
@@ -143,7 +148,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(
             data['data'],
-            'directory of file {} removed succesfully'.format('{}/{}'.format(ac.d_var, path)),
+            f'directory of file {ac.d_var}/{path} removed succesfully',
         )
 
     @mock.patch('shutil.rmtree')
@@ -156,7 +161,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
         self.assertIn('data', data)
-        self.assertEqual(data['data'], 'directory of file {}/ removed succesfully'.format(ac.d_var))
+        self.assertEqual(data['data'], f'directory of file {ac.d_var}/ removed succesfully')
 
     def test_delete_admin_file_nonexistent(self):
         result = self.client.delete('api/admin/directory-structure/nonexistent')
@@ -170,7 +175,7 @@ class TestApiAdminClass(unittest.TestCase):
     @mock.patch('builtins.open', mock.mock_open())
     def test_write_to_directory_structure(self):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
-        result = self.client.put('api/admin/directory-structure/{}'.format(path), json={'input': {'data': 'test'}})
+        result = self.client.put(f'api/admin/directory-structure/{path}', json={'input': {'data': 'test'}})
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
@@ -182,7 +187,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     def test_write_to_directory_structure_no_data(self):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
-        result = self.client.put('api/admin/directory-structure/{}'.format(path), json={'input': {}})
+        result = self.client.put(f'api/admin/directory-structure/{path}', json={'input': {}})
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -192,7 +197,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     def test_write_to_directory_structure_not_found(self):
         path = 'nonexistent'
-        result = self.client.put('api/admin/directory-structure/{}'.format(path), json={'input': {'data': 'test'}})
+        result = self.client.put(f'api/admin/directory-structure/{path}', json={'input': {'data': 'test'}})
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -386,7 +391,7 @@ class TestApiAdminClass(unittest.TestCase):
     def test_filter_from_date_no_from_timestamp(self):
         result = admin.filter_from_date(['logfile'], None)
 
-        self.assertEqual(result, ['{}/{}.log'.format(ac.d_logs, 'logfile')])
+        self.assertEqual(result, [f'{ac.d_logs}/logfile.log'])
 
     @mock.patch('builtins.open')
     def test_find_timestamp(self, mock_open: mock.MagicMock):
@@ -432,20 +437,14 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(result)
 
     def test_generate_output(self):
-        with open('{}/testlog.log'.format(self.resources_path), 'r') as f:
-            text = f.read()
-
         date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
         time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-        with mock.patch('builtins.open', mock.mock_open(read_data=text)):
+        with mock.patch('builtins.open', mock.mock_open(read_data=self.test_log_text)):
             result = admin.generate_output(False, ['test'], None, None, None, date_regex, time_regex)
 
-        self.assertEqual(result, list(reversed(text.splitlines())))
+        self.assertEqual(result, list(reversed(self.test_log_text.splitlines())))
 
     def test_generate_output_filter(self):
-        with open('{}/testlog.log'.format(self.resources_path), 'r') as f:
-            text = f.read()
-
         filter = {
             'match-case': False,
             'match-words': True,
@@ -455,7 +454,7 @@ class TestApiAdminClass(unittest.TestCase):
         }
         date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
         time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-        with mock.patch('builtins.open', mock.mock_open(read_data=text)):
+        with mock.patch('builtins.open', mock.mock_open(read_data=self.test_log_text)):
             result = admin.generate_output(True, ['test'], filter, 1609455600.0, 1640905200.0, date_regex, time_regex)
 
         self.assertEqual(
@@ -464,9 +463,6 @@ class TestApiAdminClass(unittest.TestCase):
         )
 
     def test_generate_output_filter_match_case(self):
-        with open('{}/testlog.log'.format(self.resources_path), 'r') as f:
-            text = f.read()
-
         filter = {
             'match-case': True,
             'match-words': True,
@@ -476,7 +472,7 @@ class TestApiAdminClass(unittest.TestCase):
         }
         date_regex = r'([12]\d{3}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01]))'
         time_regex = r'(?:[01]\d|2[0-3]):(?:[0-5]\d):(?:[0-5]\d)'
-        with mock.patch('builtins.open', mock.mock_open(read_data=text)):
+        with mock.patch('builtins.open', mock.mock_open(read_data=self.test_log_text)):
             result = admin.generate_output(True, ['test'], filter, 1609455600.0, 1640905200.0, date_regex, time_regex)
 
         self.assertEqual(
@@ -544,9 +540,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
     def test_create_user(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-        body = content['user']
+        body = self.payloads_content['user']
 
         result = self.client.post('api/admin/users/temp', json=body)
 
@@ -562,9 +556,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.users.delete(data['id'], temp=True)
 
     def test_create_user_invalid_status(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-        body = content['user']
+        body = self.payloads_content['user']
 
         result = self.client.post('api/admin/users/fake', json=body)
 
@@ -575,9 +567,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
 
     def test_create_user_args_missing(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-        body = content['user']
+        body = deepcopy(self.payloads_content['user'])
         body['input']['username'] = ''
 
         result = self.client.post('api/admin/users/temp', json=body)
@@ -593,9 +583,7 @@ class TestApiAdminClass(unittest.TestCase):
         )
 
     def test_create_user_missing_access_rights(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-        body = content['user']
+        body = self.payloads_content['user']
 
         result = self.client.post('api/admin/users/approved', json=body)
 
@@ -605,20 +593,18 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
-    def test_delete_user(
-        self,
-    ):
-        result = self.client.delete('api/admin/users/temp/id/{}'.format(self.uid))
+    def test_delete_user(self):
+        result = self.client.delete(f'api/admin/users/temp/id/{self.uid}')
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
-        self.assertEqual(data['info'], 'id {} deleted successfully'.format(self.uid))
+        self.assertEqual(data['info'], f'id {self.uid} deleted successfully')
         self.assertFalse(self.users.is_temp(self.uid))
 
     def test_delete_user_invalid_status(self):
-        result = self.client.delete('api/admin/users/fake/id/{}'.format(self.uid))
+        result = self.client.delete(f'api/admin/users/fake/id/{self.uid}')
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -636,22 +622,20 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['description'], 'id 24857629847625894258476 not found with status approved')
 
     def test_update_user(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-        body = content['user']
+        body = deepcopy(self.payloads_content['user'])
         body['input']['username'] = 'jdoe'
 
-        result = self.client.put('api/admin/users/temp/id/{}'.format(self.uid), json=body)
+        result = self.client.put(f'api/admin/users/temp/id/{self.uid}', json=body)
 
         self.assertEqual(result.status_code, 200)
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('info', data)
-        self.assertEqual(data['info'], 'ID {} updated successfully'.format(self.uid))
+        self.assertEqual(data['info'], f'ID {self.uid} updated successfully')
         self.assertEqual(self.users.get_field(self.uid, 'username'), 'jdoe')
 
     def test_update_user_invalid_status(self):
-        result = self.client.put('api/admin/users/fake/id/{}'.format(self.uid))
+        result = self.client.put(f'api/admin/users/fake/id/{self.uid}')
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)
@@ -660,7 +644,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
 
     def test_update_user_args_missing(self):
-        result = self.client.put('api/admin/users/temp/id/{}'.format(self.uid), json={'input': {}})
+        result = self.client.put(f'api/admin/users/temp/id/{self.uid}', json={'input': {}})
 
         self.assertEqual(result.status_code, 400)
         self.assertTrue(result.is_json)

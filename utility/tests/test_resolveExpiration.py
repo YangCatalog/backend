@@ -42,14 +42,16 @@ from redisConnections.redisConnection import RedisConnection
 
 
 class TestResolveExpirationClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestResolveExpirationClass, self).__init__(*args, **kwargs)
-        self.module_name = 'parseAndPopulate'
-        self.script_name = 'resolve_expiration'
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+    @classmethod
+    def setUpClass(cls):
+        cls.module_name = 'parseAndPopulate'
+        cls.script_name = 'resolve_expiration'
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+        cls.logger = log.get_logger('resolve_expiration', '/var/yang/logs/jobs/resolve_expiration.log')
+        cls.redisConnection = RedisConnection()
+
+    def setUp(self):
         self.datatracker_failures = []
-        self.LOGGER = log.get_logger('resolve_expiration', '/var/yang/logs/jobs/resolve_expiration.log')
-        self.redisConnection = RedisConnection()
 
     def test_resolve_expiration_not_applicable(self):
         """Check result of the resolveExpiration method for the module
@@ -57,7 +59,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         which are requested in the method.
         """
         module = self.load_from_json('dhcp-client@2014-12-18-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, False)
@@ -73,7 +75,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         Also check values of module properties, which are requested in the method.
         """
         module = self.load_from_json('iana-if-type@2014-05-08-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, False)
@@ -97,7 +99,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
 
         module = self.load_from_json('iana-if-type@2011-03-30-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, False)
@@ -121,7 +123,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_empty_response')
 
         module = self.load_from_json('ietf-alarms@2015-05-04-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, False)
@@ -145,7 +147,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_active_draft_response')
 
         module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, False)
@@ -169,7 +171,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_get.return_value.json.return_value = self.load_from_json('datatracker_expired_draft_response')
 
         module = self.load_from_json('iana-if-type@2014-01-15-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, False)
@@ -210,7 +212,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_requests_delete.return_value.text = ''
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, True)
@@ -235,7 +237,7 @@ class TestResolveExpirationClass(unittest.TestCase):
 
         module = self.load_from_json('ietf-inet-types@2021-02-22-simplified')
         del module['expires']
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, True)
@@ -266,7 +268,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         mock_time_sleep.return_value = None
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
-        exp_res = ExpirationResolver(module, self.LOGGER, self.datatracker_failures, self.redisConnection)
+        exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)
         result = exp_res.resolve()
 
         self.assertEqual(result, None)
@@ -297,7 +299,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(script_args_list, {})
 
     def load_from_json(self, key: str):
-        with open('{}/utility_tests_data.json'.format(self.resources_path), 'r') as f:
+        with open(os.path.join(self.resources_path, 'utility_tests_data.json'), 'r') as f:
             file_content = json.load(f)
             loaded_result = file_content.get(key, {})
         return loaded_result
