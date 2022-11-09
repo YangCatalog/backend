@@ -81,10 +81,9 @@ jobs:
 
       - name: Test with pytest
         env:
-          TOKEN: ${{ secrets.TOKEN }}
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
-          export TOKEN
+          export TOKEN=${{ secrets.TOKEN }}
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
@@ -125,12 +124,14 @@ jobs:
   update-coverage-badge:
     needs: build
     runs-on: ubuntu-18.04
-    if: ${{ github.event_name == 'pull_request' }}
+    if: ${{ github.event_name == 'push' && github.event.push.head.repo.full_name != 'YangCatalog/backend' }}
 
     steps:
       - uses: actions/checkout@v2
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          ref: ${{ github.event.push.head.ref }}
+          repository: ${{ github.event.push.head.repo.full_name }}
 
       - uses: actions/setup-python@v4
         with:
@@ -153,7 +154,7 @@ jobs:
           files: .github/images/coverage.svg
 
       - name: Commit files
-        if: steps.changed_files.outputs.files_changed == 'true'
+        if: ${{ steps.changed_files.outputs.files_changed == 'true' }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
