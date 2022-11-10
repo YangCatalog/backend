@@ -229,8 +229,17 @@ def impact_analysis():
         'dependencies': [],
     }
     # this file is created and updated on yangParser exceptions
-    with open(os.path.join(ac.d_var, 'unparsable-modules.json')) as f:
-        unparsable_modules = json.load(f)
+    try:
+        with open(os.path.join(ac.d_var, 'unparsable-modules.json')) as f:
+            unparsable_modules = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        unparsable_modules = []
+
+    def unparsable(module):
+        if 'revision' in module and f'{module["name"]}@{module["revision"]}.yang' in unparsable_modules:
+            return True
+        return False
+
     for direction in graph_directions:
         response[direction] = list(
             filter(
@@ -238,7 +247,7 @@ def impact_analysis():
                 (
                     get_dependencies_dependents_data(module, submodules_allowed, allowed_organizations, rfc_allowed)
                     for module in searched_module.get(direction, [])
-                    if 'revision' in module and f'{module["name"]}@{module["revision"]}.yang' not in unparsable_modules
+                    if not unparsable(module)
                 ),
             ),
         )
