@@ -1,8 +1,8 @@
 # YANG Search Data Maintenance
 
-A cronjob is executed every 3 minutes and calls: `python3 process-changed-mods.py`
+A cronjob is executed every 3 minutes and calls: `python3 process_changed_mods.py`
 
-## process-changed-mods.py
+## process_changed_mods.py
 
 Takes as optional argument: path to the configuration file
 
@@ -15,7 +15,7 @@ Finally, calls `build_yindex.py`
 
 ## build_yindex.py
 
-Build the list of all modules modified since the last `process-changed-mods.py` call:
+Build the list of all modules modified since the last `process_changed_mods.py` call:
 ## pyang_plugin directory
 
 This directory contains all PYANG plugins used by YangSearch.

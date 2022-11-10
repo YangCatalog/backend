@@ -28,7 +28,6 @@ import requests
 
 from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
 from utility import log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
@@ -65,11 +64,11 @@ class ProcessChangedMods:
 
         self.logger = log.get_logger(
             'process_changed_mods',
-            os.path.join(self.log_directory, 'process-changed-mods.log'),
+            os.path.join(self.log_directory, 'process_changed_mods.log'),
         )
 
     def start_processing_changed_mods(self):
-        self.logger.info('Starting process-changed-mods.py script')
+        self.logger.info('Starting process_changed_mods.py script')
 
         if os.path.exists(self.lock_file) or os.path.exists(self.lock_file_cron):
             # we can exist since this is run by cronjob every 3 minutes of every day
@@ -113,12 +112,6 @@ class ProcessChangedMods:
 
     def _initialize_es_manager(self):
         self.es_manager = ESManager()
-        self.logger.info('Trying to initialize Elasticsearch indices')
-        for index in ESIndices:
-            if self.es_manager.index_exists(index):
-                continue
-            create_result = self.es_manager.create_index(index)
-            self.logger.info(f'Index {index.value} created with message:\n{create_result}')
         logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
     def _delete_modules_from_es(self):

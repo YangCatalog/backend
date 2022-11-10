@@ -1,4 +1,7 @@
 {
+  "aliases": {
+    "autocomplete-alias": {}
+  },
   "settings": {
     "index": {
       "blocks": {

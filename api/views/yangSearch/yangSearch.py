@@ -205,10 +205,9 @@ def impact_analysis():
     allowed_organizations = payload.get('organizations', [])
     rfc_allowed = payload.get('allow-rfc', True)
     submodules_allowed = payload.get('allow-submodules', True)
-    graph_directions = ['dependents', 'dependencies']
-    graph_direction = payload.get('graph-direction', graph_directions)
-    for direction in graph_direction:
-        if direction not in graph_directions:
+    graph_directions = payload.get('graph-direction', ['dependents', 'dependencies'])
+    for direction in graph_directions:
+        if direction not in ['dependents', 'dependencies']:
             abort(400, 'Only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
 
     # GET module details
