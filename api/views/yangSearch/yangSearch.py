@@ -228,19 +228,20 @@ def impact_analysis():
         'dependents': [],
         'dependencies': [],
     }
-    if 'dependents' in graph_directions:
-        for dependent in searched_module.get('dependents', []):
-            response['dependents'] += filter(
+    # this file is created and updated on yangParser exceptions
+    with open(os.path.join(ac.d_var, 'unparsable-modules.json')) as f:
+        unparsable_modules = json.load(f)
+    for direction in graph_directions:
+        response[direction] = list(
+            filter(
                 None,
-                [get_dependencies_dependents_data(dependent, submodules_allowed, allowed_organizations, rfc_allowed)],
-            )
-
-    if 'dependencies' in graph_directions:
-        for dependency in searched_module.get('dependencies', []):
-            response['dependencies'] += filter(
-                None,
-                [get_dependencies_dependents_data(dependency, submodules_allowed, allowed_organizations, rfc_allowed)],
-            )
+                (
+                    get_dependencies_dependents_data(module, submodules_allowed, allowed_organizations, rfc_allowed)
+                    for module in searched_module.get(direction, [])
+                    if 'revision' in module and f'{module["name"]}@{module["revision"]}.yang' not in unparsable_modules
+                ),
+            ),
+        )
 
     return jsonify(response)
 
