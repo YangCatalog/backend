@@ -507,8 +507,8 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
         bp.logger.warning('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
-            return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
-        abort(404, 'Failed to get revisions and organization for {} - please use module that exists'.format(name_rev))
+            return {'warning': 'Failed to find module {}'.format(name_rev)}
+        abort(404, 'Failed to get revisions and organization for {}'.format(name_rev))
 
 
 def get_latest_module_revision(module_name: str) -> str:
