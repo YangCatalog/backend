@@ -22,7 +22,7 @@
       "jinja": true
     },
     {
-      "name": "populate - RFC",
+      "name": "populate - SDO",
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/parseAndPopulate/populate.py",
@@ -35,6 +35,21 @@
         "/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC",
         "--notify-indexing",
         "--force-parsing"
+      ]
+    },
+    {
+      "name": "populate - Vendor",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/parseAndPopulate/populate.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false,
+      "args": [
+        "--dir",
+        "/var/yang/nonietf/yangmodels/yang/vendor/huawei/network-router/8.20.0/atn980b",
+        "--notify-indexing",
+        "--simple"
       ]
     },
     {

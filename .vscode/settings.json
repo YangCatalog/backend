@@ -2,5 +2,12 @@
     "editor.rulers": [120],
     "python.analysis.diagnosticMode": "workspace",
     "python.analysis.typeCheckingMode": "basic",
-    "python.defaultInterpreterPath": "python3"
+    "python.defaultInterpreterPath": "python3",
+    "python.testing.pytestArgs": [
+        "tests/",
+        "utility/tests/",
+        "redisConnections/tests/"
+    ],
+    "python.testing.unittestEnabled": true,
+    "python.testing.pytestEnabled": true
 }
