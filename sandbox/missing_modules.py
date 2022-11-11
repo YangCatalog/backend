@@ -9,10 +9,11 @@ modules = requests.get(
 ).json()
 counter = 0
 module_set = {(module['name'], module['revision']) for module in modules}
-for filename in os.listdir('/var/yang/all_modules'):
+save_file_dir = '/var/yang/all_modules'
+for filename in os.listdir(save_file_dir):
     name = filename.split('@')[0]
     revision = filename.split('@')[1].split('.')[0]
     if (name, revision) not in module_set:
-        print('/var/yang/all_modules/' + filename)
+        print(os.path.join(save_file_dir, filename))
         counter += 1
 print(counter)
