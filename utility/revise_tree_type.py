@@ -58,8 +58,8 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    logger = log.get_logger('reviseTreeType', f'{log_directory}/parseAndPopulate.log')
-    logger.info('Starting Cron job for reviseTreeType')
+    logger = log.get_logger('revise_tree_type', f'{log_directory}/parseAndPopulate.log')
+    logger.info('Starting Cron job for revise_tree_type')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
     direc = '/var/yang/tmp'
 
