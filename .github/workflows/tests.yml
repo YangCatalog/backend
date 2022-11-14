@@ -84,7 +84,7 @@ jobs:
           TOKEN: ${{ secrets.TOKEN }}
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
-          export TOKEN=${{ secrets.TOKEN }}
+          export TOKEN
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
