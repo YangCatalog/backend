@@ -81,6 +81,7 @@ jobs:
 
       - name: Test with pytest
         env:
+          TOKEN: ${{ secrets.TOKEN }}
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
           export TOKEN=${{ secrets.TOKEN }}
