@@ -49,7 +49,6 @@ from utility.util import find_files
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         config = create_config()
         help = ''
@@ -58,20 +57,15 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--sdo',
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
             {
                 'flag': '--dir',
                 'help': 'Set directory where to look for hello message xml files',
                 'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC'
+                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC',
             },
-            {
-                'flag': '--output',
-                'help': 'Output json file',
-                'type': str,
-                'default': 'integrity.json'
-            }
+            {'flag': '--output', 'help': 'Output json file', 'type': str, 'default': 'integrity.json'},
         ]
         self.yang_models = config.get('Directory-Section', 'yang-models-dir')
         super().__init__(help, args, None if __name__ == '__main__' else [])
@@ -122,8 +116,11 @@ def check_namespace(parsed_module: Statement) -> bool:
 modules_to_check = deque()  # used for a breadth first search throught the dependency graph of vendor directories
 
 
-def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: Statement,
-                       directory: str) -> t.Tuple[t.Set[str], t.Set[str]]:
+def check_dependencies(
+    dep_type: t.Literal['import', 'include'],
+    parsed_module: Statement,
+    directory: str,
+) -> t.Tuple[t.Set[str], t.Set[str]]:
     all_modules: t.Set[str] = set()
     missing_modules: t.Set[str] = set()
     for dependency in parsed_module.search(dep_type):
@@ -144,7 +141,7 @@ def check_dependencies(dep_type: t.Literal['import', 'include'], parsed_module: 
 def check(path: str, directory: str, sdo: bool):
     try:
         parsed_module = yangParser.parse(path)
-    except yangParser.ParseException:
+    except (yangParser.ParseException, FileNotFoundError):
         return
     if not check_revision(parsed_module):
         missing_revisions.add(path)
@@ -206,11 +203,11 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
                 check(os.path.join(root, filename), root, sdo=False)
 
     report = {
-        'missing-revisions': sorted(list(missing_revisions)),
-        'missing-namespaces': sorted(list(missing_namespaces)),
-        'missing-modules': {key: sorted(list(value)) for key, value in missing_modules.items()},
-        'missing-submodules': {key: sorted(list(value)) for key, value in missing_submodules.items()},
-        'unused-modules': {key: sorted(list(value)) for key, value in unused_modules.items()}
+        'missing-revisions': sorted(list(missing_revisions)),  # noqa
+        'missing-namespaces': sorted(list(missing_namespaces)),  # noqa
+        'missing-modules': {key: sorted(list(value)) for key, value in missing_modules.items()},  # noqa
+        'missing-submodules': {key: sorted(list(value)) for key, value in missing_submodules.items()},  # noqa
+        'unused-modules': {key: sorted(list(value)) for key, value in unused_modules.items()},  # noqa
     }
     with open(args.output, 'w') as f:
         json.dump(report, f)

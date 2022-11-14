@@ -30,21 +30,16 @@ from utility.staticVariables import JobLogStatuses
 
 
 class TestUtilClass(unittest.TestCase):
-
-    def __init__(self, *args, **kwargs):
-        super(TestUtilClass, self).__init__(*args, **kwargs)
-        self.filename = os.path.basename(__file__).split('.py')[0]
-        self.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
-        self.util_tests_dir = os.path.join(yc_gc.temp_dir, 'util-tests')
-
-    #########################
-    ### TESTS DEFINITIONS ###
-    #########################
+    @classmethod
+    def setUpClass(cls):
+        cls.filename = os.path.basename(__file__).split('.py')[0]
+        cls.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+        cls.util_tests_dir = os.path.join(yc_gc.temp_dir, 'util-tests')
+        cls.cronjob_file_path = os.path.join(yc_gc.temp_dir, 'cronjob.json')
 
     def test_create_signature(self):
-        """ Test the result of the method with the given arguments.
-        """
+        """Test the result of the method with the given arguments."""
         secret_key = 'S3cr3t_k3y'
         string_to_sign = 'test'
 
@@ -52,23 +47,22 @@ class TestUtilClass(unittest.TestCase):
         self.assertEqual(result, '33f57bcec731bb8f9ddf964bd1910e657ace0a64')
 
     def test_create_signature_empty_arguments(self):
-        """ Test the result of the method with the given arguments.
-        """
+        """Test the result of the method with the given arguments."""
         result = util.create_signature('', '')
         self.assertEqual(result, 'fbdb1d1b18aa6c08324b7d64b71fb76370690e1d')
 
-    def test_job_log_succes(self):
-        """ Test if job run information was correctly dumped into cronjob.json file if status is Success.
+    def test_job_log_success(self):
+        """Test if job run information was correctly dumped into cronjob.json file if status is Success.
         Check if structure is correct.
         """
         start_time = int(time.time())
         util.job_log(start_time, yc_gc.temp_dir, status=JobLogStatuses.SUCCESS, filename=self.filename)
-        file_content = self.load_cronjobs_json()
+        cronjob_data = self.load_cronjob_data()
 
-        job_log = file_content.get(self.filename, {})
+        job_log = cronjob_data.get(self.filename, {})
 
-        self.assertNotEqual(file_content, {})
-        self.assertIn(self.filename, file_content)
+        self.assertNotEqual(cronjob_data, {})
+        self.assertIn(self.filename, cronjob_data)
         self.assertEqual('Success', job_log['status'])
         for prop in self.job_log_properties:
             self.assertIn(prop, job_log)
@@ -76,17 +70,23 @@ class TestUtilClass(unittest.TestCase):
         self.clear_job_log()
 
     def test_job_log_fail(self):
-        """ Test if job run information was correctly dumped into cronjob.json file if status is Fail.
+        """Test if job run information was correctly dumped into cronjob.json file if status is Fail.
         Check if structure is correct.
         """
         start_time = int(time.time())
-        util.job_log(start_time, yc_gc.temp_dir, error='Error occured', status=JobLogStatuses.FAIL, filename=self.filename)
-        file_content = self.load_cronjobs_json()
+        util.job_log(
+            start_time,
+            yc_gc.temp_dir,
+            error='Error occured',
+            status=JobLogStatuses.FAIL,
+            filename=self.filename,
+        )
 
-        job_log = file_content.get(self.filename, {})
+        cronjob_data = self.load_cronjob_data()
+        job_log = cronjob_data.get(self.filename, {})
 
-        self.assertNotEqual(file_content, {})
-        self.assertIn(self.filename, file_content)
+        self.assertNotEqual(cronjob_data, {})
+        self.assertIn(self.filename, cronjob_data)
         self.assertEqual('Fail', job_log['status'])
         for prop in self.job_log_properties:
             self.assertIn(prop, job_log)
@@ -94,21 +94,26 @@ class TestUtilClass(unittest.TestCase):
         self.clear_job_log()
 
     def test_job_log_messages(self):
-        """ Test if job run information was correctly dumped into cronjob.json file if there are some additional messages.
+        """
+        Test if job run information was correctly dumped into cronjob.json file if there are some additional messages.
         Check if structure is correct.
         """
         start_time = int(time.time())
-        messages = [
-            {'label': 'Message label', 'message': 'Message text'}
-        ]
-        util.job_log(start_time, yc_gc.temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=self.filename)
-        file_content = self.load_cronjobs_json()
+        messages = [{'label': 'Message label', 'message': 'Message text'}]
+        util.job_log(
+            start_time,
+            yc_gc.temp_dir,
+            messages=messages,
+            status=JobLogStatuses.SUCCESS,
+            filename=self.filename,
+        )
 
-        job_log = file_content.get(self.filename, {})
+        cronjob_data = self.load_cronjob_data()
+        job_log = cronjob_data.get(self.filename, {})
         job_log_messages = job_log['messages']
 
-        self.assertNotEqual(file_content, {})
-        self.assertIn(self.filename, file_content)
+        self.assertNotEqual(cronjob_data, {})
+        self.assertIn(self.filename, cronjob_data)
         self.assertEqual('Success', job_log['status'])
         self.assertNotEqual(len(job_log_messages), 0)
         for prop in self.job_log_properties:
@@ -121,57 +126,61 @@ class TestUtilClass(unittest.TestCase):
         self.clear_job_log()
 
     def test_fetch_module_by_schema_successfully(self):
-        """ Test if content of yang module was successfully fetched from Github and stored to the file.
-        """
-        schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang',
-                                   commit_hash='2608a6f38bd2bfe947b6e61f4e0c87cc80f831aa')
+        """Test if content of yang module was successfully fetched from Github and stored to the file."""
+        schema_parts = SchemaParts(
+            repo_owner='YangModels',
+            repo_name='yang',
+            commit_hash='2608a6f38bd2bfe947b6e61f4e0c87cc80f831aa',
+        )
         suffix = 'experimental/ietf-extracted-YANG-modules/ietf-yang-types@2020-07-06.yang'
         schema = os.path.join(schema_parts.schema_base_hash, suffix)
 
         yang_name_rev = 'successful@1970-01-01.yang'
-        dst_path = '{}/{}'.format(yc_gc.save_file_dir, yang_name_rev)
+        dst_path = f'{yc_gc.save_file_dir}/{yang_name_rev}'
         result = util.fetch_module_by_schema(schema, dst_path)
 
         self.assertEqual(result, True)
         self.assertEqual(os.path.isfile(dst_path), True)
 
     def test_fetch_module_by_schema_unsuccessfully(self):
-        """ Check if method returned False if wrong schema was passed as an argument.
+        """Check if method returned False if wrong schema was passed as an argument.
         File should not be created.
         """
-        schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang',
-                                   commit_hash='random-hash')
+        schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='random-hash')
         suffix = 'experimental/ietf-extracted-YANG-modules/ietf-yang-types@2020-07-06.yang'
         schema = os.path.join(schema_parts.schema_base_hash, suffix)
 
         yang_name_rev = 'unsuccessful@1970-01-01.yang'
-        dst_path = '{}/{}'.format(yc_gc.save_file_dir, yang_name_rev)
+        dst_path = f'{yc_gc.save_file_dir}/{yang_name_rev}'
         result = util.fetch_module_by_schema(schema, dst_path)
 
         self.assertEqual(result, False)
         self.assertEqual(os.path.isfile(dst_path), False)
 
     def test_fetch_module_by_schema_empty_schema(self):
-        """ Check if method returned False if non-existing URL was passed as schema argument.
+        """Check if method returned False if non-existing URL was passed as schema argument.
         File should not be created.
         """
         schema = ''
 
         yang_name_rev = 'empty@1970-01-01.yang'
-        dst_path = '{}/{}'.format(yc_gc.save_file_dir, yang_name_rev)
+        dst_path = f'{yc_gc.save_file_dir}/{yang_name_rev}'
         result = util.fetch_module_by_schema(schema, dst_path)
 
         self.assertEqual(result, False)
         self.assertEqual(os.path.isfile(dst_path), False)
 
     def test_context_check_update_from(self):
-        """ Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions.
-        """
-        old_schema = '{}/ietf-yang-types@2010-09-24.yang'.format(yc_gc.save_file_dir)
-        new_schema = '{}/ietf-yang-types@2013-07-15.yang'.format(yc_gc.save_file_dir)
+        """Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions."""
+        old_schema = f'{yc_gc.save_file_dir}/ietf-yang-types@2010-09-24.yang'
+        new_schema = f'{yc_gc.save_file_dir}/ietf-yang-types@2013-07-15.yang'
 
-        ctx, new_schema_ctx = util.context_check_update_from(old_schema, new_schema,
-                                                             yc_gc.yang_models, yc_gc.save_file_dir)
+        ctx, new_schema_ctx = util.context_check_update_from(
+            old_schema,
+            new_schema,
+            yc_gc.yang_models,
+            yc_gc.save_file_dir,
+        )
 
         self.assertIsNotNone(new_schema_ctx)
         self.assertEqual(new_schema_ctx.arg, 'ietf-yang-types')  # pyright: ignore
@@ -181,44 +190,36 @@ class TestUtilClass(unittest.TestCase):
 
     @mock.patch('pyang.context.Context.validate')
     def test_context_check_update_from_ctx_validate_exception(self, mock_ctx_validate: mock.MagicMock):
-        """ Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions.
+        """Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions.
         ctx.validate() method is patched to achieve Exception raising
 
         Argument:
         :param mock_ctx_validate  (mock.MagicMock) ctx.validate() method is patched to raise Exception
         """
         mock_ctx_validate.side_effect = Exception()
-        old_schema = '{}/ietf-yang-types@2010-09-24.yang'.format(yc_gc.save_file_dir)
-        new_schema = '{}/ietf-yang-types@2013-07-15.yang'.format(yc_gc.save_file_dir)
+        old_schema = f'{yc_gc.save_file_dir}/ietf-yang-types@2010-09-24.yang'
+        new_schema = f'{yc_gc.save_file_dir}/ietf-yang-types@2013-07-15.yang'
 
         with self.assertRaises(Exception):
             util.context_check_update_from(old_schema, new_schema, yc_gc.yang_models, yc_gc.save_file_dir)
 
-    ##########################
-    ### HELPER DEFINITIONS ###
-    ##########################
-
     def clear_job_log(self):
-        """ Clear job log for util_test if any exist in cronjob.json file.
-        """
-        file_content = self.load_cronjobs_json()
+        """Clear job log for util_test if any exist in cronjob.json file."""
+        cronjob_json_data = self.load_cronjob_data()
 
-        if self.filename in file_content:
-            del file_content[self.filename]
+        if self.filename in cronjob_json_data:
+            del cronjob_json_data[self.filename]
 
-        with open('{}/cronjob.json'.format(yc_gc.temp_dir), 'w') as f:
-            f.write(json.dumps(file_content, indent=4))
+        with open(self.cronjob_file_path, 'w') as f:
+            f.write(json.dumps(cronjob_json_data, indent=4))
 
-    def load_cronjobs_json(self):
-        """ Load content of cronjobs.json file.
-        """
+    def load_cronjob_data(self) -> dict:
+        """Load content of cronjob.json file."""
         try:
-            with open('{}/cronjob.json'.format(yc_gc.temp_dir), 'r') as f:
-                file_content = json.load(f)
+            with open(self.cronjob_file_path, 'r') as f:
+                return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
-            file_content = {}
-
-        return file_content
+            return {}
 
 
 if __name__ == '__main__':

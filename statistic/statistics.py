@@ -46,31 +46,37 @@ from contextlib import redirect_stdout
 
 import jinja2
 import requests
+
 import utility.log as log
+from parseAndPopulate.resolvers.basic import BasicResolver
+from parseAndPopulate.resolvers.namespace import NamespaceResolver
+from parseAndPopulate.resolvers.organization import OrganizationResolver
+from parseAndPopulate.resolvers.revision import RevisionResolver
+from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import (MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url,
-                                     json_headers)
-from utility.util import get_yang, job_log
-
-from statistic import runYANGallstats as all_stats
+from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url, json_headers
+from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
-        help = 'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang ' \
-               'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily ' \
-               'cronjob'
-        args: t.List[Arg] = [{
-            'flag': '--config-path',
-            'help': 'Set path to config file',
-            'type': str,
-            'default': os.environ['YANGCATALOG_CONFIG_PATH']
-        }]
+        help = (
+            'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang '
+            'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily '
+            'cronjob'
+        )
+        args: t.List[Arg] = [
+            {
+                'flag': '--config-path',
+                'help': 'Set path to config file',
+                'type': str,
+                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
+            },
+        ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
@@ -85,9 +91,7 @@ def render(tpl_path: str, context: dict) -> str:
     """
 
     path, filename = os.path.split(tpl_path)
-    return jinja2.Environment(
-        loader=jinja2.FileSystemLoader(path or './')
-    ).get_template(filename).render(context)
+    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')).get_template(filename).render(context)
 
 
 def list_yang_modules_recursive(srcdir: str) -> t.List[str]:
@@ -128,48 +132,27 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
             passed += checked[filename]['passed']
             num_in_catalog += checked[filename]['in-catalog']
             continue
-        checked[filename] = {
-            'passed': False,
-            'in-catalog': False
-        }
+        checked[filename] = {'passed': False, 'in-catalog': False}
         revision = None
         try:
             parsed_yang = yangParser.parse(os.path.abspath(module_path))
-        except yangParser.ParseException:
+        except (yangParser.ParseException, FileNotFoundError):
             continue
-        results = parsed_yang.search('revision')
-        if results:
-            revision = results[0].arg
-        organization = resolve_organization(module_path, parsed_yang)
         name = filename.split('.')[0].split('@')[0]
-        if revision is None:
-            revision = '1970-01-01'
-        organization = organization.replace(' ', '%20')
-        if ',' in organization:
-            path = os.path.join(yangcatalog_api_prefix, 'search/name', name)
-            module_exists = requests.get(path, headers=json_headers)
-            if module_exists.status_code % 100 == 2:
-                data = module_exists.json()
-                org = data['yang-catalog:modules']['module'][0]['organization']
-                rev = data['yang-catalog:modules']['module'][0]['revision']
-                status = data['yang-catalog:modules']['module'][0].get('compilation-status')
-                if org == organization and rev == revision:
-                    if 'passed' == status:
-                        passed += 1
-                    num_in_catalog += 1
-            else:
-                LOGGER.error(f'Could not make request on path {path}')
+        revision = RevisionResolver(parsed_yang, LOGGER).resolve()
+        belongs_to = BasicResolver(parsed_yang, 'belongs_to').resolve()
+        namespace = NamespaceResolver(parsed_yang, LOGGER, f'{name}@{revision}', belongs_to).resolve()
+        organization = OrganizationResolver(parsed_yang, LOGGER, namespace).resolve()
+        mod = f'{name}@{revision}_{organization}'
+        data = all_modules_data_unique.get(mod)
+        if data is not None:
+            if 'passed' == data.get('compilation-status'):
+                passed += 1
+                checked[filename]['passed'] = True
+            checked[filename]['in-catalog'] = True
+            num_in_catalog += 1
         else:
-            mod = f'{name}@{revision}_{organization}'
-            data = all_modules_data_unique.get(mod)
-            if data is not None:
-                if 'passed' == data.get('compilation-status'):
-                    passed += 1
-                    checked[filename]['passed'] = True
-                checked[filename]['in-catalog'] = True
-                num_in_catalog += 1
-            else:
-                LOGGER.error(f'module {mod} does not exist')
+            LOGGER.error(f'module {mod} does not exist')
     return num_in_catalog, passed
 
 
@@ -188,52 +171,6 @@ def match_organization(namespace: str, found: t.Optional[str]) -> str:
             return MISSING_ELEMENT
     else:
         return found
-
-
-def resolve_organization(path: str, parsed_yang) -> str:
-    """Parse yang file and resolve organization out of the module. If the module
-    is a submodule find it's parent and resolve its organization
-
-    Arguments:
-        :param path:        (str) path to a file to parse and resolve a organization
-        :param parsed_yang  (object) pyang parsed yang file object
-        :return:            (str) organization the yang file belongs to
-    """
-    organization = None
-    results = parsed_yang.search('organization')
-    if results:
-        result = results[0].arg.lower()
-        if 'cisco' in result:
-            organization = 'cisco'
-        elif 'ietf' in result:
-            organization = 'ietf'
-        elif 'ciena' in result:
-            organization = 'ciena'
-        elif 'etsi' in result:
-            organization = 'etsi'
-    namespace = None
-    results = parsed_yang.search('namespace')
-    if results:
-        namespace = results[0].arg.lower()
-    else:
-        results = parsed_yang.search('belongs-to')
-        if results:
-            belongs_to = results[0].arg
-            results = None
-            yang_file = get_yang(belongs_to)
-            if yang_file is not None:
-                try:
-                    parsed = yangParser.parse(os.path.abspath(yang_file))
-                    if parsed:
-                        results = parsed.search('namespace')
-                        if results:
-                            namespace = results[0].arg.lower()
-                except yangParser.ParseException:
-                    pass
-    if namespace is None:
-        return MISSING_ELEMENT
-    else:
-        return match_organization(namespace, organization)
 
 
 class InfoTable(t.TypedDict):
@@ -267,7 +204,7 @@ def process_data(out: str, save_list: t.List[InfoTable], path: str, name: str):
         'num_github': modules,
         'num_catalog': num_in_catalog,
         'percentage_compile': compiled,
-        'percentage_extra': extra
+        'percentage_extra': extra,
     }
     save_list.append(info_table)
 
@@ -298,11 +235,11 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
-def main(scriptConf: t.Optional[ScriptConfig] = None):
+def main(script_conf: t.Optional[ScriptConfig] = None):
     start_time = int(time.time())
-    if scriptConf is None:
-        scriptConf = ScriptConfig()
-    args = scriptConf.args
+    if script_conf is None:
+        script_conf = ScriptConfig()
+    args = script_conf.args
 
     config_path = args.config_path
     config = create_config(config_path)
@@ -359,11 +296,16 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                 vendor_data[implementation['os-type']][version].add(implementation['platform'])
 
     try:
-        # pull(yang_models) no need to pull https://github.com/YangModels/yang as it is daily done via SDO_analysis module
+        # pull(yang_models) no need to pull https://github.com/YangModels/yang
+        # as it is daily done via module-compilation module
 
         # function needs to be renamed to something more descriptive (I don't quite understand it's purpose)
-        def process_platforms(versions: t.List[str], module_platforms,
-                              os_type: str, os_type_name: str) -> t.Tuple[list, dict]:
+        def process_platforms(
+            versions: t.List[str],
+            module_platforms,
+            os_type: str,
+            os_type_name: str,
+        ) -> t.Tuple[list, dict]:
             platform_values = []
             json_output = {}
             for version in versions:
@@ -372,7 +314,9 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                     with open(path, 'r') as f:
                         data = json.load(f)
                         metadata_platforms = data['platforms']['platform']
-                except Exception:
+                except FileNotFoundError:
+                    metadata_platforms = []
+                except OSError:
                     LOGGER.exception(f'Problem with opening {path}')
                     metadata_platforms = []
                 values = [version]
@@ -386,32 +330,22 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
                                 exist = '<i class="fa fa-check"></i>'
                                 exist_json = True
                     for metadata_platform in metadata_platforms:
-                        if (metadata_platform['name'] == module_platform and
-                                metadata_platform['software-version'] == version):
+                        if (
+                            metadata_platform['name'] == module_platform
+                            and metadata_platform['software-version'] == version
+                        ):
                             values.append(f'<i class="fa fa-check"></i>/{exist}')
-                            json_output[version][module_platform] = {
-                                'yangcatalog': True,
-                                'github': exist_json
-                            }
+                            json_output[version][module_platform] = {'yangcatalog': True, 'github': exist_json}
                             break
                     else:
                         values.append(f'<i class="fa fa-times"></i>/{exist}')
-                        json_output[version][module_platform] = {
-                            'yangcatalog': False,
-                            'github': exist_json
-                        }
+                        json_output[version][module_platform] = {'yangcatalog': False, 'github': exist_json}
                 platform_values.append(values)
             return platform_values, json_output
 
-        os_types = (
-            ('xr', 'IOS-XR'),
-            ('xe', 'IOS-XE'),
-            ('nx', 'NX-OS')
-        )
+        os_types = (('xr', 'IOS-XR'), ('xe', 'IOS-XE'), ('nx', 'NX-OS'))
 
-        platforms = {
-            os_type: solve_platforms(f'{yang_models}/vendor/cisco/{os_type}') for os_type, _ in os_types
-        }
+        platforms = {os_type: solve_platforms(f'{yang_models}/vendor/cisco/{os_type}') for os_type, _ in os_types}
 
         versions = {}
         for os_type, _ in os_types:
@@ -423,7 +357,10 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         json_output = {}
         for os_type, name in os_types:
             values[os_type], json_output[os_type] = process_platforms(
-                versions[os_type], platforms[os_type], os_type, name
+                versions[os_type],
+                platforms[os_type],
+                os_type,
+                name,
             )
 
         global all_modules_data_unique
@@ -492,29 +429,29 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
         LOGGER.info('Cloning the repo')
         repo = repoutil.ModifiableRepoUtil(
             os.path.join(github_url, 'openconfig/public'),
-            clone_options={
-                'config_username': config_name,
-                'config_user_email': config_email
-            })
+            clone_options={'config_username': config_name, 'config_user_email': config_email},
+        )
 
         out = get_output(rootdir=os.path.join(repo.local_dir, 'release/models'))
         process_data(out, sdo_list, os.path.join(repo.local_dir, 'release/models'), 'openconfig')
 
-        context = {'table_sdo': sdo_list,
-                   'table_vendor': vendor_list,
-                   'num_yang_files_vendor': vendor_modules,
-                   'num_yang_files_vendor_ndp': vendor_modules_ndp,
-                   'num_yang_files_standard': standard_modules,
-                   'num_yang_files_standard_ndp': standard_modules_ndp,
-                   'num_parsed_files': all_modules_data,
-                   'num_unique_parsed_files': len(all_modules_data_unique),
-                   'xr': platforms['xr'],
-                   'xe': platforms['xe'],
-                   'nx': platforms['nx'],
-                   'xr_values': values['xr'],
-                   'xe_values': values['xe'],
-                   'nx_values': values['nx'],
-                   'current_date': time.strftime('%d/%m/%y')}
+        context = {
+            'table_sdo': sdo_list,
+            'table_vendor': vendor_list,
+            'num_yang_files_vendor': vendor_modules,
+            'num_yang_files_vendor_ndp': vendor_modules_ndp,
+            'num_yang_files_standard': standard_modules,
+            'num_yang_files_standard_ndp': standard_modules_ndp,
+            'num_parsed_files': all_modules_data,
+            'num_unique_parsed_files': len(all_modules_data_unique),
+            'xr': platforms['xr'],
+            'xe': platforms['xe'],
+            'nx': platforms['nx'],
+            'xr_values': values['xr'],
+            'xe_values': values['xe'],
+            'nx_values': values['nx'],
+            'current_date': time.strftime('%d/%m/%y'),
+        }
         LOGGER.info('Rendering data')
         with open(f'{private_dir}/stats/stats.json', 'w') as f:
             for sdo in sdo_list:
@@ -523,18 +460,20 @@ def main(scriptConf: t.Optional[ScriptConfig] = None):
             for vendor in vendor_list:
                 vendor['percentage_compile'] = float(vendor['percentage_compile'].split(' ')[0])
                 vendor['percentage_extra'] = float(vendor['percentage_extra'].split(' ')[0])
-            output = {'table_sdo': sdo_list,
-                      'table_vendor': vendor_list,
-                      'num_yang_files_vendor': int(vendor_modules),
-                      'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
-                      'num_yang_files_standard': int(standard_modules),
-                      'num_yang_files_standard_ndp': int(standard_modules_ndp),
-                      'num_parsed_files': all_modules_data,
-                      'num_unique_parsed_files': len(all_modules_data_unique),
-                      'xr': json_output['xr'],
-                      'xe': json_output['xe'],
-                      'nx': json_output['nx'],
-                      'current_date': time.strftime('%d/%m/%y')}
+            output = {
+                'table_sdo': sdo_list,
+                'table_vendor': vendor_list,
+                'num_yang_files_vendor': int(vendor_modules),
+                'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
+                'num_yang_files_standard': int(standard_modules),
+                'num_yang_files_standard_ndp': int(standard_modules_ndp),
+                'num_parsed_files': all_modules_data,
+                'num_unique_parsed_files': len(all_modules_data_unique),
+                'xr': json_output['xr'],
+                'xe': json_output['xe'],
+                'nx': json_output['nx'],
+                'current_date': time.strftime('%d/%m/%y'),
+            }
             json.dump(output, f)
         result = render(os.path.join(os.environ['BACKEND'], 'statistic/template/stats.html'), context)
         with open(os.path.join(os.environ['BACKEND'], 'statistic/statistics.html'), 'w+') as f:

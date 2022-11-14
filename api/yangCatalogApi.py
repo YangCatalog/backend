@@ -118,7 +118,7 @@ def catch_all(path):
 @auth.auth.login_required
 def load_to_memory():
     """Load all the data populated to yang-catalog to memory.
-            :return response to the request.
+    :return response to the request.
     """
     assert request.authorization
     username = request.authorization['username']

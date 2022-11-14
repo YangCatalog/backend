@@ -12,11 +12,12 @@ Finally, all the information are dumped into json file, so they can be reviewed 
 import json
 import os
 
-import utility.log as log
 from elasticsearch.exceptions import RequestError
+from redis import Redis
+
+import utility.log as log
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
-from redis import Redis
 from utility.create_config import create_config
 from utility.util import fetch_module_by_schema
 
@@ -68,11 +69,7 @@ def main():
             name, rev_org = key.split('@')
             revision, organization = rev_org.split('/')
             redis_modules += 1
-            module = {
-                'name': name,
-                'revision': revision,
-                'organization': organization
-            }
+            module = {'name': name, 'revision': revision, 'organization': organization}
         except ValueError:
             continue
         try:
@@ -123,7 +120,7 @@ def main():
         'es_missing_modules_list': es_missing_modules,
         'redis_missing_modules_list': redis_missing_modules,
         'incorrect_format_modules_list': incorrect_format_modules,
-        'modules_to_index': modules_to_index_dict
+        'modules_to_index': modules_to_index_dict,
     }
     with open('{}/compared_databases.json'.format(temp_dir), 'w') as writer:
         json.dump(result, writer)

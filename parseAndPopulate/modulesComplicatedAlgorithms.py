@@ -37,30 +37,32 @@ from dataclasses import dataclass
 from datetime import date
 
 import requests
-from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
+
+from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from redisConnections.redisConnection import RedisConnection
 from utility import log, message_factory
 from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
-from utility.util import (
-    context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
-)
+from utility.util import context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
 from utility.yangParser import create_context
 
 MAJOR = 0
 MINOR = 1
 PATCH = 2
 
+
 class ModuleMetadata(dict):
     """Module metadata as it can be found in the models subtree of yangcatalog."""
+
     pass
 
 
 @dataclass
 class ModuleSemverMetadata:
     """A reduced set of module metadata relevant to deriving the semantic version of modules."""
+
     name: str
     revision: str
     organization: str
@@ -73,6 +75,7 @@ class ModuleSemverMetadata:
 @dataclass
 class DependentMetadata(t.TypedDict):
     """Metadata stored for dependent modules."""
+
     name: str
     revision: t.Optional[str]
     schema: t.Optional[str]
@@ -81,6 +84,7 @@ class DependentMetadata(t.TypedDict):
 @dataclass
 class DependencyMetadata(t.TypedDict):
     """Metadata stored for dependent modules."""
+
     name: str
     revision: t.Optional[str]
     schema: t.Optional[str]
@@ -90,9 +94,18 @@ NameRevisionModuleTable = dict[str, dict[str, ModuleMetadata]]
 
 
 class ModulesComplicatedAlgorithms:
-
-    def __init__(self, log_directory: str, yangcatalog_api_prefix: str, credentials: list[str], save_file_dir: str,
-                 direc: str, all_modules: t.Optional[dict], yang_models_dir: str, temp_dir: str, json_ytree: str):
+    def __init__(
+        self,
+        log_directory: str,
+        yangcatalog_api_prefix: str,
+        credentials: list[str],
+        save_file_dir: str,
+        direc: str,
+        all_modules: t.Optional[dict],
+        yang_models_dir: str,
+        temp_dir: str,
+        json_ytree: str,
+    ):
         """
         Arguments:
             :param log_directory            (str) Directory where logs will be stored.
@@ -110,7 +123,7 @@ class ModulesComplicatedAlgorithms:
         if all_modules is None:
             with open('{}/prepare.json'.format(direc), 'r') as f:
                 all_modules = json.load(f)
-        self._all_modules: list[ModuleMetadata] = all_modules.get('module', []) # pyright: ignore
+        self._all_modules: list[ModuleMetadata] = all_modules.get('module', [])  # pyright: ignore
         self._yangcatalog_api_prefix = yangcatalog_api_prefix
         self.new_modules: NameRevisionModuleTable = defaultdict(dict)
         self._credentials = credentials
@@ -121,8 +134,7 @@ class ModulesComplicatedAlgorithms:
         self._trees: dict[str, dict[str, str]] = defaultdict(dict)
         self._unavailable_modules = []
         LOGGER.info('get all existing modules')
-        response = requests.get('{}/search/modules'.format(self._yangcatalog_api_prefix),
-                                headers=json_headers)
+        response = requests.get('{}/search/modules'.format(self._yangcatalog_api_prefix), headers=json_headers)
         existing_modules = response.json().get('module', [])
         self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}
@@ -148,8 +160,7 @@ class ModulesComplicatedAlgorithms:
 
     def populate(self):
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
-        LOGGER.info('populate with module complicated data. amount of new data is {}'
-                    .format(len(new_modules)))
+        LOGGER.info('populate with module complicated data. amount of new data is {}'.format(len(new_modules)))
         confd_service = ConfdService()
         confd_service.patch_modules(new_modules)
 
@@ -158,11 +169,14 @@ class ModulesComplicatedAlgorithms:
 
         if len(new_modules) > 0:
             url = '{}/load-cache'.format(self._yangcatalog_api_prefix)
-            response = requests.post(url, None,
-                                     auth=(self._credentials[0], self._credentials[1]))
+            response = requests.post(url, None, auth=(self._credentials[0], self._credentials[1]))
             if response.status_code != 201:
-                LOGGER.warning('Could not send a load-cache request. Status code: {} Message: {}'
-                               .format(response.status_code, response.text))
+                LOGGER.warning(
+                    'Could not send a load-cache request. Status code: {} Message: {}'.format(
+                        response.status_code,
+                        response.text,
+                    ),
+                )
             else:
                 LOGGER.info('load-cache responded with status code {}'.format(response.status_code))
 
@@ -179,12 +193,14 @@ class ModulesComplicatedAlgorithms:
                     continue
                 if '' == row.strip(' '):
                     break
-                if '+--rw' in row and row_number != 0 \
-                        and row_number not in skip and '[' not in row and \
-                        (len(row.replace('|', '').strip(' ').split(
-                            ' ')) != 2 or '(' in row):
-                    if '->' in row and 'config' in row.split('->')[
-                            1] and '+--rw config' not in rows[row_number - 1]:
+                if (
+                    '+--rw' in row
+                    and row_number != 0
+                    and row_number not in skip
+                    and '[' not in row
+                    and (len(row.replace('|', '').strip(' ').split(' ')) != 2 or '(' in row)
+                ):
+                    if '->' in row and 'config' in row.split('->')[1] and '+--rw config' not in rows[row_number - 1]:
                         row_number += 1
                         continue
                     if '+--rw config' not in rows[row_number - 1]:
@@ -193,30 +209,34 @@ class ModulesComplicatedAlgorithms:
                                 return False
                         else:
                             return False
-                    length_before = set([len(row.split('+--')[0])])
+                    length_before = {len(row.split('+--')[0])}
                     skip = []
                     for x in range(row_number, len(rows)):
                         if 'x--' in rows[x] or 'o--' in rows[x]:
                             continue
                         if len(rows[x].split('+--')[0]) not in length_before:
-                            if (len(rows[x].replace('|', '').strip(' ').split(
-                                    ' ')) != 2 and '[' not in rows[x]) \
-                                    or '+--:' in rows[x] or '(' in rows[x]:
+                            if (
+                                (len(rows[x].replace('|', '').strip(' ').split(' ')) != 2 and '[' not in rows[x])
+                                or '+--:' in rows[x]
+                                or '(' in rows[x]
+                            ):
                                 length_before.add(len(rows[x].split('+--')[0]))
                             else:
                                 break
                         if '+--ro' in rows[x]:
                             return False
-                        duplicate = \
-                            rows[x].replace('+--rw', '+--ro').split('+--')[1]
+                        duplicate = rows[x].replace('+--rw', '+--ro').split('+--')[1]
                         if duplicate.replace(' ', '') not in output.replace(' ', ''):
                             return False
                         skip.append(x)
-                if '+--ro' in row and row_number != 0 and row_number not in skip and '[' not in row and \
-                        (len(row.replace('|', '').strip(' ').split(
-                            ' ')) != 2 or '(' in row):
-                    if '->' in row and 'state' in row.split('->')[
-                            1] and '+--ro state' not in rows[row_number - 1]:
+                if (
+                    '+--ro' in row
+                    and row_number != 0
+                    and row_number not in skip
+                    and '[' not in row
+                    and (len(row.replace('|', '').strip(' ').split(' ')) != 2 or '(' in row)
+                ):
+                    if '->' in row and 'state' in row.split('->')[1] and '+--ro state' not in rows[row_number - 1]:
                         row_number += 1
                         continue
                     if '+--ro state' not in rows[row_number - 1]:
@@ -251,9 +271,9 @@ class ModulesComplicatedAlgorithms:
                         return False
                 if 'x--' in row or 'o--' in row:
                     continue
-                if '+--rw config' == row.replace('|', '').strip(
-                    ' ') or '+--ro state' == row.replace('|', '').strip(
-                        ' '):
+                if '+--rw config' == row.replace('|', '').strip(' ') or '+--ro state' == row.replace('|', '').strip(
+                    ' ',
+                ):
                     return False
                 if len(row.split('+--')[0]) == 4:
                     if '-state' in row and '+--ro' in row:
@@ -263,8 +283,7 @@ class ModulesComplicatedAlgorithms:
                     if '-state' in part:
                         next_obsolete_or_deprecated = True
                     part = row.strip(' ').split('/')[-1]
-                    if ':state:' in part or '/state:' in part \
-                            or ':config:' in part or '/config:' in part:
+                    if ':state:' in part or '/state:' in part or ':config:' in part or '/config:' in part:
                         next_obsolete_or_deprecated = True
             return True
 
@@ -306,8 +325,7 @@ class ModulesComplicatedAlgorithms:
                         ctx.validate()
                         try:
                             f = io.StringIO()
-                            emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                                      ctx.opts.tree_line_length, path)
+                            emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
                             stdout = f.getvalue()
                         except Exception:
                             stdout = ''
@@ -330,9 +348,7 @@ class ModulesComplicatedAlgorithms:
                             if '-state' in part:
                                 return False
                         if '+--ro ' in rows[x]:
-                            leaf = \
-                                rows[x].split('+--ro ')[1].split(' ')[0].split(
-                                    '?')[0]
+                            leaf = rows[x].split('+--ro ')[1].split(' ')[0].split('?')[0]
 
                             for y in range(0, len(pyang_list_of_rows)):
                                 if leaf in pyang_list_of_rows[y]:
@@ -353,9 +369,9 @@ class ModulesComplicatedAlgorithms:
             for row in rows:
                 if 'x--' in row or 'o--' in row:
                     continue
-                if '+--rw config' == row.replace('|', '').strip(
-                        ' ') or '+--ro state' == row.replace('|', '') \
-                        .strip(' '):
+                if '+--rw config' == row.replace('|', '').strip(' ') or '+--ro state' == row.replace('|', '').strip(
+                    ' ',
+                ):
                     return False
                 if 'augment' in row:
                     part = row.strip(' ').split('/')[-1]
@@ -366,8 +382,9 @@ class ModulesComplicatedAlgorithms:
                     continue
                 if row == '':
                     break
-                if (len(row.split('+--')[0]) == 4 and 'augment' not in rows[
-                        row_num - 1]) or len(row.split('augment')[0]) == 2:
+                if (len(row.split('+--')[0]) == 4 and 'augment' not in rows[row_num - 1]) or len(
+                    row.split('augment')[0],
+                ) == 2:
                     if '-state' in row:
                         if 'augment' in row:
                             part = row.strip(' ').split('/')[1]
@@ -377,11 +394,11 @@ class ModulesComplicatedAlgorithms:
                         for x in range(row_num + 1, len(rows)):
                             if 'x--' in rows[x] or 'o--' in rows[x]:
                                 continue
-                            if rows[x].strip(' ') == '' \
-                                    or (len(rows[x].split('+--')[
-                                        0]) == 4 and 'augment' not in
-                                        rows[row_num - 1]) \
-                                    or len(row.split('augment')[0]) == 2:
+                            if (
+                                rows[x].strip(' ') == ''
+                                or (len(rows[x].split('+--')[0]) == 4 and 'augment' not in rows[row_num - 1])
+                                or len(row.split('augment')[0]) == 2
+                            ):
                                 break
                             if '+--rw' in rows[x]:
                                 failed = True
@@ -402,8 +419,7 @@ class ModulesComplicatedAlgorithms:
             if not yang_file_exists:
                 LOGGER.error('Skipping module: {}'.format(name_revision))
                 continue
-            LOGGER.info(
-                'Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules)))
+            LOGGER.info('Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules)))
             if revision in self._trees[name]:
                 stdout = self._trees[name][revision]
             else:
@@ -418,8 +434,8 @@ class ModulesComplicatedAlgorithms:
                     a = ctx.add_module(self._path, f.read())
                 if a is None:
                     LOGGER.debug(
-                        'Could not use pyang to generate tree because of errors on module {}'.
-                        format(self._path))
+                        'Could not use pyang to generate tree because of errors on module {}'.format(self._path),
+                    )
                     module['tree-type'] = 'unclassified'
                     if revision not in self.new_modules[name]:
                         self.new_modules[name][revision] = module
@@ -443,8 +459,7 @@ class ModulesComplicatedAlgorithms:
                             raise e
                 try:
                     f = io.StringIO()
-                    emit_tree(ctx, [a], f, ctx.opts.tree_depth,
-                              ctx.opts.tree_line_length, path)
+                    emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
                     stdout = f.getvalue()
                     self._trees[name][revision] = stdout
                 except Exception:
@@ -473,24 +488,30 @@ class ModulesComplicatedAlgorithms:
                 else:
                     module['tree-type'] = 'unclassified'
             LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
-            if (revision not in self._existing_modules[name] or
-                    self._existing_modules[name][revision].get('tree-type') != module['tree-type']):
-                LOGGER.info('tree-type {} vs {} for module {}@{}'.format(
-                    self._existing_modules[name].get(revision, {}).get('tree-type'), module['tree-type'],
-                    module['name'], module['revision']))
+            if (
+                revision not in self._existing_modules[name]
+                or self._existing_modules[name][revision].get('tree-type') != module['tree-type']
+            ):
+                LOGGER.info(
+                    'tree-type {} vs {} for module {}@{}'.format(
+                        self._existing_modules[name].get(revision, {}).get('tree-type'),
+                        module['tree-type'],
+                        module['name'],
+                        module['revision'],
+                    ),
+                )
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
                 else:
                     self.new_modules[name][revision]['tree-type'] = module['tree-type']
 
     def parse_semver(self):
-
         def increment_semver(old: str, significance: int) -> str:
             """Increment a semver string at the specified position."""
             versions = old.split('.')
             versions = list(map(int, versions))
             versions[significance] += 1
-            versions[significance + 1:] = [0] * len(versions[significance + 1:])
+            versions[significance + 1 :] = [0] * len(versions[significance + 1 :])
             return '{}.{}.{}'.format(*versions)
 
         def update_semver(old_semver_data: ModuleSemverMetadata, new_module: ModuleMetadata, significance: int):
@@ -524,9 +545,12 @@ class ModulesComplicatedAlgorithms:
             old_tree_path = '{}/{}.json'.format(self.json_ytree, old_name_revision)
 
             if old_schema_exist and new_schema_exist:
-                ctx, new_schema_ctx = context_check_update_from(old_schema, new_schema,
-                                                                self._yang_models,
-                                                                self._save_file_dir)
+                ctx, new_schema_ctx = context_check_update_from(
+                    old_schema,
+                    new_schema,
+                    self._yang_models,
+                    self._save_file_dir,
+                )
                 if len(ctx.errors) == 0:
                     if os.path.exists(new_tree_path) and os.path.exists(old_tree_path):
                         with open(new_tree_path) as nf, open(old_tree_path) as of:
@@ -573,15 +597,25 @@ class ModulesComplicatedAlgorithms:
         def add_to_new_modules(new_module: ModuleMetadata):
             name = new_module['name']
             revision = new_module['revision']
-            if (revision not in self._existing_modules[name] or
-                    self._existing_modules[name][revision].get('derived-semantic-version') != new_module['derived-semantic-version']):
-                LOGGER.info('semver {} vs {} for module {}@{}'.format(
-                    self._existing_modules[name].get(revision, {}).get('derived-semantic-version'),
-                    new_module['derived-semantic-version'], name, revision))
+            if (
+                revision not in self._existing_modules[name]
+                or self._existing_modules[name][revision].get('derived-semantic-version')
+                != new_module['derived-semantic-version']
+            ):
+                LOGGER.info(
+                    'semver {} vs {} for module {}@{}'.format(
+                        self._existing_modules[name].get(revision, {}).get('derived-semantic-version'),
+                        new_module['derived-semantic-version'],
+                        name,
+                        revision,
+                    ),
+                )
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = new_module
                 else:
-                    self.new_modules[name][revision]['derived-semantic-version'] = new_module['derived-semantic-version']
+                    self.new_modules[name][revision]['derived-semantic-version'] = new_module[
+                        'derived-semantic-version'
+                    ]
 
         for z, new_module in enumerate(self._all_modules, start=1):
             name = new_module['name']
@@ -593,8 +627,7 @@ class ModulesComplicatedAlgorithms:
                 if m['revision'] != new_module['revision']:
                     all_module_revisions[m['revision']] = deepcopy(m)
 
-            LOGGER.info(
-                'Searching semver for {}. {} out of {}'.format(name_revision, z, len(self._all_modules)))
+            LOGGER.info('Searching semver for {}. {} out of {}'.format(name_revision, z, len(self._all_modules)))
             if len(all_module_revisions) == 0:
                 # If there is no other revision for this module
                 new_module['derived-semantic-version'] = '1.0.0'
@@ -602,31 +635,37 @@ class ModulesComplicatedAlgorithms:
             else:
                 # If there is at least one revision for this module
                 new_date = revision_to_date(new_module['revision'])
-                semver_data = [ModuleSemverMetadata(
-                    name=name,
-                    revision=new_revision,
-                    organization=new_module['organization'],
-                    compilation=new_module.get('compilation-status', 'PENDING'),
-                    schema=new_module.get('schema'),
-                    semver='',
-                    date=new_date
-                )]
+                semver_data = [
+                    ModuleSemverMetadata(
+                        name=name,
+                        revision=new_revision,
+                        organization=new_module['organization'],
+                        compilation=new_module.get('compilation-status', 'PENDING'),
+                        schema=new_module.get('schema'),
+                        semver='',
+                        date=new_date,
+                    ),
+                ]
 
                 # Loop through all other available revisions of the module
                 try:
-                    for module in [revision for revision in all_module_revisions.values()]:
+                    for module in all_module_revisions.values():
                         try:
-                            semver_data.append(ModuleSemverMetadata(
-                                name=name,
-                                revision=module['revision'],
-                                organization=module['organization'],
-                                compilation=module.get('compilation-status', 'PENDING'),
-                                schema=module.get('schema'),
-                                semver=module.get('derived-semantic-version', ''),
-                                date=revision_to_date(module['revision'])
-                            ))
-                        except KeyError as e:
-                            LOGGER.exception('Existing module {}@{} is missing the {} field'.format(name, module['revision']))
+                            semver_data.append(
+                                ModuleSemverMetadata(
+                                    name=name,
+                                    revision=module['revision'],
+                                    organization=module['organization'],
+                                    compilation=module.get('compilation-status', 'PENDING'),
+                                    schema=module.get('schema'),
+                                    semver=module.get('derived-semantic-version', ''),
+                                    date=revision_to_date(module['revision']),
+                                ),
+                            )
+                        except KeyError:
+                            LOGGER.exception(
+                                f'Existing module {name}@{module["revision"]} is missing a field',
+                            )
                             raise
                 except KeyError:
                     continue
@@ -696,11 +735,17 @@ class ModulesComplicatedAlgorithms:
                                     if trees_match(new_yang_tree, old_yang_tree):
                                         # yang trees are the same - update only the patch version
                                         update_semver(prev_module_semver_data, module, 2)
-                                        curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 2)
+                                        curr_module_semver_data.semver = increment_semver(
+                                            prev_module_semver_data.semver,
+                                            2,
+                                        )
                                     else:
                                         # yang trees have changed - update minor version
                                         update_semver(prev_module_semver_data, module, 1)
-                                        curr_module_semver_data.semver = increment_semver(prev_module_semver_data.semver, 1)
+                                        curr_module_semver_data.semver = increment_semver(
+                                            prev_module_semver_data.semver,
+                                            1,
+                                        )
                                 except Exception:
                                     # pyang found an error - update major version
                                     update_semver(prev_module_semver_data, module, 0)
@@ -722,7 +767,6 @@ class ModulesComplicatedAlgorithms:
                     return i
             return None
 
-
         def update_dependent(dependent: DependentMetadata, dependency: ModuleMetadata):
             """
             Check is the correct name and revision are already listed as a dependent to the dependency.
@@ -732,21 +776,22 @@ class ModulesComplicatedAlgorithms:
             existing_dependent_list: list[DependentMetadata] = dependency.get('dependents', [])
             index = dependent_index(dependent['name'], existing_dependent_list)
             if index is not None:
-                if (existing_revision := existing_dependent_list[index].get('revision')):
+                if existing_revision := existing_dependent_list[index].get('revision'):
                     new_revision = dependent['revision']
                     assert new_revision, 'We created this and took the revision from the full ModuleMetadata.'
                     if revision_to_date(existing_revision) >= revision_to_date(new_revision):
                         return
-                LOGGER.info('Adding {}@{} as dependent of {}@{}'.format(
-                    dependent['name'],
-                    dependent['revision'],
-                    dependency['name'],
-                    dependency['revision']
-                ))
+                LOGGER.info(
+                    'Adding {}@{} as dependent of {}@{}'.format(
+                        dependent['name'],
+                        dependent['revision'],
+                        dependency['name'],
+                        dependency['revision'],
+                    ),
+                )
                 existing_dependent_list.pop(index)
             dependency.setdefault('dependents', []).append(dependent)
             self.new_modules[dependency['name']][dependency['revision']] = dependency
-
 
         def add_dependents(dependents: list[ModuleMetadata], possible_dependencies: NameRevisionModuleTable):
             """
@@ -756,7 +801,7 @@ class ModulesComplicatedAlgorithms:
                 dependent_partial: DependentMetadata = {
                     'name': dependent_full['name'],
                     'revision': dependent_full['revision'],
-                    'schema': dependent_full.get('schema')
+                    'schema': dependent_full.get('schema'),
                 }
                 for dependency_partial in dependent_full.get('dependencies', []):
                     dependency_partial: DependencyMetadata
@@ -767,7 +812,9 @@ class ModulesComplicatedAlgorithms:
                     dependencies_to_check = []
                     if dependency_specified_revision:
                         if dependency_specified_revision in possible_dependencies[dependency_name]:
-                            dependencies_to_check = [possible_dependencies[dependency_name][dependency_specified_revision]]
+                            dependencies_to_check = [
+                                possible_dependencies[dependency_name][dependency_specified_revision],
+                            ]
                     else:
                         # if no revision was specified for a dependency, the module should accept every revision
                         # therefore it should be listed as a dependent for every revision
@@ -780,7 +827,9 @@ class ModulesComplicatedAlgorithms:
                         if dependency_found_revision in self.new_modules[dependency_name]:
                             dependency_full = self.new_modules[dependency_name][dependency_found_revision]
                         elif dependency_found_revision in self._existing_modules[dependency_name]:
-                            dependency_full = deepcopy(self._existing_modules[dependency_name][dependency_found_revision])
+                            dependency_full = deepcopy(
+                                self._existing_modules[dependency_name][dependency_found_revision],
+                            )
 
                         update_dependent(dependent_partial, dependency_full)
 
@@ -793,12 +842,18 @@ class ModulesComplicatedAlgorithms:
             both_dict[name].update(deepcopy(revisions))
         existing_modules = [revision for name in self._existing_modules.values() for revision in name.values()]
         LOGGER.info('Adding new modules as dependents')
-        add_dependents(new_modules, both_dict) # New modules can be dependents both to existing modules, and other new modules
+        add_dependents(
+            new_modules,
+            both_dict,
+        )  # New modules can be dependents both to existing modules, and other new modules
         LOGGER.info('Adding existing modules as dependents')
-        add_dependents(existing_modules, new_modules_dict) # Existing modules have already been added as dependents to other existing modules
+        add_dependents(
+            existing_modules,
+            new_modules_dict,
+        )  # Existing modules have already been added as dependents to other existing modules
 
     def _check_schema_file(self, name: str, revision: str, schema_url: t.Optional[str]):
-        """ Check if the file exists and if not try to get it from Github.
+        """Check if the file exists and if not try to get it from Github.
 
         Arguments:
             :param name         (str) Name of the module.
@@ -822,7 +877,7 @@ class ModulesComplicatedAlgorithms:
         return result
 
     def check_if_latest_revision(self, module: ModuleMetadata):
-        """ Check if the parsed module is the latest revision.
+        """Check if the parsed module is the latest revision.
 
         Arguments:
             :param module   (ModuleMetadata) Metadata of the currently parsed module

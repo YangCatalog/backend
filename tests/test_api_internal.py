@@ -15,28 +15,29 @@
 # We always check result.is_json, so result.json will never return None.
 # pyright: reportOptionalSubscript=false
 
-__author__ = "Richard Zilincik"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "richard.zilincik@pantheon.tech"
+__author__ = 'Richard Zilincik'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'richard.zilincik@pantheon.tech'
 
+import json
+import os
 import unittest
 from unittest import mock
-import os
-import json
 
-from api.yangCatalogApi import app
 from api.authentication.auth import auth
+from api.yangCatalogApi import app
 
 ac = app.config
 
 
 class TestApiInternalClass(unittest.TestCase):
-
-    def __init__(self, *args, **kwargs):
-        super(TestApiInternalClass, self).__init__(*args, **kwargs)
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.client = app.test_client()
+    @classmethod
+    def setUpClass(cls):
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.client = app.test_client()
+        with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
+            cls.payloads_content = json.load(f)
 
     @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
     def test_trigger_ietf_pull(self):
@@ -66,16 +67,16 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_passed(self, mock_post: mock.MagicMock):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
         mock_post.return_value.status_code = 201
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 201)
         self.assertTrue(result.is_json)
@@ -87,16 +88,16 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_passed_couldnt_create(self, mock_post: mock.MagicMock):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
         mock_post.return_value.status_code = 400
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 400)
 
@@ -104,15 +105,15 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_failed(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Failed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 406)
         self.assertTrue(result.is_json)
@@ -125,15 +126,15 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_pr_passed(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'YangModels'
         body['result_message'] = 'Passed'
         body['type'] = 'pull_request'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 201)
         self.assertTrue(result.is_json)
@@ -146,15 +147,15 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_pr_failed(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'YangModels'
         body['result_message'] = 'Failed'
         body['type'] = 'pull_request'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 406)
         self.assertTrue(result.is_json)
@@ -165,14 +166,14 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_unknown_owner(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'nonexistent'
         body['result_message'] = 'Failed'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 401)
         self.assertTrue(result.is_json)
@@ -183,15 +184,15 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='no'))
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_unknown_commit(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
-
-        body = content['check_local']
+        body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
         body['result_message'] = 'Passed'
         body['type'] = 'push'
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 500)
         self.assertTrue(result.is_json)
@@ -201,16 +202,17 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_commit_file_not_found(self):
-        with open('{}/payloads.json'.format(self.resources_path), 'r') as f:
-            content = json.load(f)
         patcher = mock.patch('builtins.open')
         mock_open = patcher.start()
         self.addCleanup(patcher.stop)
         mock_open.side_effect = FileNotFoundError
-        body = content.get('check_local')
+        body = self.payloads_content.get('check_local')
 
-        result = self.client.post('api/checkComplete', data={'payload': json.dumps(body)},
-                                  headers=(('SIGNATURE', 'test'),))
+        result = self.client.post(
+            'api/checkComplete',
+            data={'payload': json.dumps(body)},
+            headers=(('SIGNATURE', 'test'),),
+        )
 
         self.assertEqual(result.status_code, 404)
 
@@ -225,10 +227,12 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate(self, mock_message_factory: mock.MagicMock):
         body = {
-            'commits': [{
-                'added': ['vendor/cisco/nx/9.2-2/platform-metadata.json'],
-                'modified': ['vendor/cisco/xe/1651/platform-metadata.json']
-            }]
+            'commits': [
+                {
+                    'added': ['vendor/cisco/nx/9.2-2/platform-metadata.json'],
+                    'modified': ['vendor/cisco/xe/1651/platform-metadata.json'],
+                },
+            ],
         }
         result = self.client.post('api/check-platform-metadata', json=body)
 
@@ -239,7 +243,7 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertEqual(data['info'], 'Success')
         mock_message_factory.return_value.send_new_modified_platform_metadata.call_args.assert_called_with(
             'vendor/cisco/nx/9.2-2',
-            'vendor/cisco/xe/1651'
+            'vendor/cisco/xe/1651',
         )
 
     @mock.patch.object(ac.sender, 'send', mock.MagicMock())
@@ -272,6 +276,7 @@ class TestApiInternalClass(unittest.TestCase):
         data = result.json
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'Statistics file has not been generated yet')
+
 
 if __name__ == '__main__':
     unittest.main()

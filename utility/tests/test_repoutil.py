@@ -23,43 +23,40 @@ import re
 import subprocess
 import unittest
 
-from git.repo import Repo
 from git.exc import GitCommandError
+from git.repo import Repo
 
 import utility.repoutil as ru
 from utility.create_config import create_config
 
 
 class TestRepoutil(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.repourl = 'https://github.com/yang-catalog/test'
+        cls.repo_owner = 'yang-catalog'
 
-    def setUp(self):
-        repourl = 'https://github.com/yang-catalog/test'
-        self.repo_owner = 'yang-catalog'
-
-        logger = logging.getLogger(__name__)
+        cls.logger = logging.getLogger(__name__)
         f_handler = logging.FileHandler('test_repoutil.log')
         f_handler.setLevel(logging.ERROR)
         f_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         f_handler.setFormatter(f_format)
-        logger.addHandler(f_handler)
+        cls.logger.addHandler(f_handler)
 
-        self.myname = 'yang-catalog'
-        self.myemail = 'fake@gmail.com'
-
-        self.repo = ru.ModifiableRepoUtil(
-            repourl,
-            clone_options={
-                'config_username': self.myname,
-                'config_user_email': self.myemail
-            }
-        )
-
-        self.repo.logger = logger
+        cls.myname = 'yang-catalog'
+        cls.myemail = 'fake@gmail.com'
 
         if os.environ.get('GITHUB_ACTIONS'):
-            self.token = os.environ['TOKEN']
+            cls.token = os.environ['TOKEN']
         else:
-            self.token = create_config().get('Secrets-Section', 'yang-catalog-token')
+            cls.token = create_config().get('Secrets-Section', 'yang-catalog-token')
+
+    def setUp(self):
+        self.repo = ru.ModifiableRepoUtil(
+            self.repourl,
+            clone_options={'config_username': self.myname, 'config_user_email': self.myemail},
+        )
+        self.repo.logger = self.logger
 
     def test_pull(self):
         ru.pull(self.repo.local_dir)
@@ -75,7 +72,7 @@ class TestRepoutil(unittest.TestCase):
     def test_get_commit_hash(self):
         self.assertEqual(self.repo.get_commit_hash(), '0d8d5a76cdd4cc2a9e9709f6acece6d57c0b06ea')
         self.assertEqual(self.repo.get_commit_hash(branch='test'), '971423d605268bd7b38c5153c72ff12bfa408f1d')
-        self.assertEqual(self.repo.get_commit_hash('subrepo','master'), 'de04507eaba334bfdad41ac75a2044d9d63922ee')
+        self.assertEqual(self.repo.get_commit_hash('subrepo', 'master'), 'de04507eaba334bfdad41ac75a2044d9d63922ee')
 
     def test_get_repo_owner(self):
         self.assertEqual(self.repo.get_repo_owner(), 'yang-catalog')
@@ -86,8 +83,8 @@ class TestRepoutil(unittest.TestCase):
         self.assertTrue(os.path.exists(local_dir))
         self.assertIsNotNone(self.repo.repo)
         with self.repo.repo.config_reader() as config:
-            self.assertEqual(config.get_value('user','email'), self.myemail)
-            self.assertEqual(config.get_value('user','name'), self.myname)
+            self.assertEqual(config.get_value('user', 'email'), self.myemail)
+            self.assertEqual(config.get_value('user', 'name'), self.myname)
 
     def test_clone_invalid_url(self):
         with self.assertRaises(GitCommandError):
@@ -96,7 +93,7 @@ class TestRepoutil(unittest.TestCase):
     def test_add_untracked_remove_deleted(self):
         repodir = self.repo.local_dir
         repo = Repo(repodir)
-        status_command = 'cd {} && git status'.format(repodir)
+        status_command = f'cd {repodir} && git status'
 
         file = os.path.join(repodir, 'new')
         f = open(file, 'w')
@@ -110,7 +107,7 @@ class TestRepoutil(unittest.TestCase):
         self.assertTrue(re.search('new file:.*new', out))
 
         file = os.path.join(repodir, 'README.md')
-        f = open(file,'a+')
+        f = open(file, 'a+')
         f.write('test')
         f.close()
 
@@ -134,10 +131,10 @@ class TestRepoutil(unittest.TestCase):
 
     def test_commit_all(self):
         repodir = self.repo.local_dir
-        status_command = 'cd {} && git status'.format(repodir)
+        status_command = f'cd {repodir} && git status'
 
         file = os.path.join(repodir, 'README.md')
-        f = open(file,'a+')
+        f = open(file, 'a+')
         f.write('test')
         f.close()
 
@@ -145,7 +142,7 @@ class TestRepoutil(unittest.TestCase):
         self.repo.commit_all()
         out = subprocess.getoutput(status_command)
         self.assertIn("Your branch is ahead of 'origin/master' by 1 commit.", out)
-        out = subprocess.getoutput('cd {} && git log -1'.format(repodir))
+        out = subprocess.getoutput(f'cd {repodir} && git log -1')
         self.assertIn('RepoUtil Commit', out)
 
     def test_push(self):
@@ -153,21 +150,19 @@ class TestRepoutil(unittest.TestCase):
         if self.token == 'test':
             raise unittest.SkipTest('Replace yang-catalog-token in the Secrets-Section of the test config')
         push_repo = ru.ModifiableRepoUtil(
-            'https://yang-catalog:{}@github.com/yang-catalog/deployment'.format(self.token),
-            clone_options={
-                'config_username': 'yang-catalog',
-                'config_user_email': 'fake@gmail.com'
-            })
+            f'https://yang-catalog:{self.token}@github.com/yang-catalog/deployment',
+            clone_options={'config_username': 'yang-catalog', 'config_user_email': 'fake@gmail.com'},
+        )
         repodir = push_repo.local_dir
         current_tip = push_repo.get_commit_hash()
-        status_command = 'cd {} && git status'.format(repodir)
+        status_command = f'cd {repodir} && git status'
 
         def clean():
             reset_repo = Repo(repodir)
-            reset_repo.git.reset('--hard',current_tip)
+            reset_repo.git.reset('--hard', current_tip)
             reset_repo.git.push(force=True)
 
-        f = open(os.path.join(repodir, 'README.md'),'a+')
+        f = open(os.path.join(repodir, 'README.md'), 'a+')
         f.write('This is added to the end of README.md file')
         f.close()
 
@@ -179,7 +174,7 @@ class TestRepoutil(unittest.TestCase):
         push_repo.commit_all()
         push_repo.push()
         status = subprocess.getoutput(status_command)
-        log = subprocess.getoutput('cd {} && git log -1 --decorate=short'.format(repodir))
+        log = subprocess.getoutput(f'cd {repodir} && git log -1 --decorate=short')
         commit_hash = push_repo.get_commit_hash()
         clean()
         self.assertIn("Your branch is up to date with 'origin/master'.", status)

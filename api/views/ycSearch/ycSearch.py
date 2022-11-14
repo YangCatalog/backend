@@ -25,7 +25,6 @@ from operator import contains, eq
 
 import jinja2
 import requests
-from api.my_flask import app
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.wrappers import Response
@@ -33,17 +32,37 @@ from flask_deprecate import deprecate_route
 from markupsafe import escape
 from pyang import error, plugin
 from pyang.plugins.tree import emit_tree
+from werkzeug.exceptions import abort
+
+from api.my_flask import app
 from utility.util import context_check_update_from
 from utility.yangParser import create_context
-from werkzeug.exceptions import abort
 
 
 class YcSearch(Blueprint):
-
-    def __init__(self, name, import_name, static_folder=None, static_url_path=None, template_folder=None,
-                 url_prefix=None, subdomain=None, url_defaults=None, root_path=None):
-        super().__init__(name, import_name, static_folder, static_url_path, template_folder, url_prefix, subdomain,
-                         url_defaults, root_path)
+    def __init__(
+        self,
+        name,
+        import_name,
+        static_folder=None,
+        static_url_path=None,
+        template_folder=None,
+        url_prefix=None,
+        subdomain=None,
+        url_defaults=None,
+        root_path=None,
+    ):
+        super().__init__(
+            name,
+            import_name,
+            static_folder,
+            static_url_path,
+            template_folder,
+            url_prefix,
+            subdomain,
+            url_defaults,
+            root_path,
+        )
 
 
 bp = YcSearch('ycSearch', __name__)
@@ -53,8 +72,6 @@ bp = YcSearch('ycSearch', __name__)
 def set_config():
     global ac
     ac = app.config
-
-### ROUTE ENDPOINT DEFINITIONS ###
 
 
 @bp.route('/fast', methods=['POST'])
@@ -78,9 +95,27 @@ def search(value: str):
     split = value.split('/')[:-1]
     key = '/'.join(value.split('/')[:-1])
     value = value.split('/')[-1]
-    module_keys = ['ietf/ietf-wg', 'maturity-level', 'document-name', 'author-email', 'compilation-status', 'namespace',
-                   'conformance-type', 'module-type', 'organization', 'yang-version', 'name', 'revision', 'tree-type',
-                   'belongs-to', 'generated-from', 'expires', 'expired', 'prefix', 'reference']
+    module_keys = [
+        'ietf/ietf-wg',
+        'maturity-level',
+        'document-name',
+        'author-email',
+        'compilation-status',
+        'namespace',
+        'conformance-type',
+        'module-type',
+        'organization',
+        'yang-version',
+        'name',
+        'revision',
+        'tree-type',
+        'belongs-to',
+        'generated-from',
+        'expires',
+        'expired',
+        'prefix',
+        'reference',
+    ]
     for module_key in module_keys:
         if key == module_key:
             data = modules_data().get('module')
@@ -92,13 +127,8 @@ def search(value: str):
                 process(module, passed_data, value, module, split, count)
 
             if len(passed_data) > 0:
-                modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-                    .decode(json.dumps(passed_data))
-                return {
-                    'yang-catalog:modules': {
-                        'module': modules
-                    }
-                }
+                modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(json.dumps(passed_data))
+                return {'yang-catalog:modules': {'module': modules}}
             else:
                 abort(404, description='No module found using provided input data')
     abort(400, description='Search on path {} is not supported'.format(path))
@@ -106,8 +136,7 @@ def search(value: str):
 
 @bp.route('/search-filter/<leaf>', methods=['POST'])
 def rpc_search_get_one(leaf: str):
-    """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request.
-    """
+    """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request."""
     body = request.json
     if body is None:
         abort(400, description='body of request is empty')
@@ -139,11 +168,11 @@ def rpc_search_get_one(leaf: str):
 
 @bp.route('/search-filter', methods=['POST'])
 def rpc_search(body: dict = {}):
-    """Get all the modules that contains all the leafs with data as provided in body of the request.
-    """
+    """Get all the modules that contains all the leafs with data as provided in body of the request."""
     from_api = False
     if not body:
-        assert request.json is not None
+        if request.json is None:
+            abort(400, description='body of request is empty')
         body = request.json
         from_api = True
     app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body)))
@@ -180,21 +209,15 @@ def rpc_search(body: dict = {}):
         if from_api and len(matched_modules) == 0:
             abort(404, description='No modules found with provided input')
         else:
-            modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict) \
-                .decode(json.dumps(matched_modules))
-            return {
-                'yang-catalog:modules': {
-                    'module': modules
-                }
-            }
+            modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(json.dumps(matched_modules))
+            return {'yang-catalog:modules': {'module': modules}}
     else:
         abort(400, description='body request has to start with "input" container')
 
 
 @bp.route('/contributors', methods=['GET'])
 def get_organizations():
-    """Loop through all the modules in catalog and create unique set of organizations.
-    """
+    """Loop through all the modules in catalog and create unique set of organizations."""
     orgs = set()
     data = modules_data().get('module', {})
     for module in data:
@@ -267,8 +290,7 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str) -> 
         f.write('<pre>{}</pre>'.format(yang_file_2_content))
     tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
-    diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
-                .format(tree1, tree2))
+    diff_url = 'https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'.format(tree1, tree2)
     response = requests.get(diff_url)
     os.remove('{}/{}'.format(ac.w_save_diff_dir, file_name1))
     os.remove('{}/{}'.format(ac.w_save_diff_dir, file_name2))
@@ -331,8 +353,7 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str) -> 
         ff.write('<pre>{}</pre>'.format(stdout))
     tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
     tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
-    diff_url = ('https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'
-                .format(tree1, tree2))
+    diff_url = 'https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'.format(tree1, tree2)
     response = requests.get(diff_url)
     os.unlink(full_path_file1)
     os.unlink(full_path_file2)
@@ -341,7 +362,8 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str) -> 
 
 @bp.route('/get-common', methods=['POST'])
 def get_common():
-    """Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
+    """
+    Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
     """
     body = request.json
     if body is None:
@@ -374,8 +396,11 @@ def get_common():
 
 @bp.route('/compare', methods=['POST'])
 def compare():
-    """Compare and find different modules out of two different filtering by leafs with data provided by in body of the request.
-    Output contains module metadata with 'reason-to-show' data as well which can be showing either 'New module' or 'Different revision'.
+    """
+    Compare and find different modules out of two different filtering by leafs with data
+    provided by in body of the request.
+    Output contains module metadata with 'reason-to-show' data as well which can be showing either 'New module' or
+    'Different revision'.
     """
     body = request.json
     if body is None:
@@ -424,7 +449,8 @@ def compare():
 def check_semver():
     """Get output from pyang tool with option '--check-update-from' for all the modules between and filter.
     I. If module compilation failed it will give you only link to get diff in between two yang modules.
-    II. If check-update-from has an output it will provide tree diff and output of the pyang together with diff between two files.
+    II. If check-update-from has an output it will provide tree diff and output of the pyang together with diff
+    between two files.
     """
     body = request.json
     if body is None:
@@ -474,17 +500,22 @@ def check_semver():
                     elif status_new != 'passed' and status_old == 'passed':
                         reason = 'Newer module failed compilation'
                     else:
-                        file_name = ('{}/services/file1={}@{}/check-update-from/file2={}@{}'
-                                     .format(ac.w_yangcatalog_api_prefix, name_new,
-                                             revision_new, name_old,
-                                             revision_old))
-                        reason = ('pyang --check-update-from output: {}'.
-                                  format(file_name))
+                        file_name = '{}/services/file1={}@{}/check-update-from/file2={}@{}'.format(
+                            ac.w_yangcatalog_api_prefix,
+                            name_new,
+                            revision_new,
+                            name_old,
+                            revision_old,
+                        )
+                        reason = 'pyang --check-update-from output: {}'.format(file_name)
 
-                    diff = (
-                        '{}/services/diff-tree/file1={}@{}/file2={}@{}'.
-                        format(ac.w_yangcatalog_api_prefix, name_old,
-                               revision_old, name_new, revision_new))
+                    diff = '{}/services/diff-tree/file1={}@{}/file2={}@{}'.format(
+                        ac.w_yangcatalog_api_prefix,
+                        name_old,
+                        revision_old,
+                        name_new,
+                        revision_new,
+                    )
 
                     output_mod['yang-module-pyang-tree-diff'] = diff
 
@@ -495,9 +526,13 @@ def check_semver():
                     output_mod['old-derived-semantic-version'] = semver_old
                     output_mod['new-derived-semantic-version'] = semver_new
                     output_mod['derived-semantic-version-results'] = reason
-                    diff = ('{}/services/diff-file/file1={}@{}/file2={}@{}'
-                            .format(ac.w_yangcatalog_api_prefix, name_old,
-                                    revision_old, name_new, revision_new))
+                    diff = '{}/services/diff-file/file1={}@{}/file2={}@{}'.format(
+                        ac.w_yangcatalog_api_prefix,
+                        name_old,
+                        revision_old,
+                        name_new,
+                        revision_new,
+                    )
                     output_mod['yang-module-diff'] = diff
                     output_modules_list.append(output_mod)
     if len(output_modules_list) == 0:
@@ -605,7 +640,7 @@ def search_module(name: str, revision: str, organization: str) -> dict:
 @bp.route('/search/modules', methods=['GET'])
 def get_modules():
     """Search for all the modules populated in Redis
-        :return response to the request with all the modules
+    :return response to the request with all the modules
     """
     app.logger.info('Searching for modules')
     data = modules_data()
@@ -617,7 +652,7 @@ def get_modules():
 @bp.route('/search/vendors', methods=['GET'])
 def get_vendors():
     """Search for all the vendors populated in Redis
-        :return response to the request with all the vendors
+    :return response to the request with all the vendors
     """
     app.logger.info('Searching for vendors')
     data = vendors_data()
@@ -629,7 +664,7 @@ def get_vendors():
 @bp.route('/search/catalog', methods=['GET'])
 def get_catalog():
     """Search for a all the data populated in Redis
-        :return response to the request with all the data (modules and vendors)
+    :return response to the request with all the data (modules and vendors)
     """
     app.logger.info('Searching for catalog data')
     data = catalog_data()
@@ -674,9 +709,7 @@ def create_tree(name: str, revision: str) -> str:
     f = io.StringIO()
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
-    context = {
-        'title': 'YANG Tree {}@{}'.format(name, revision)
-    }
+    context = {'title': 'YANG Tree {}@{}'.format(name, revision)}
     if stdout == '' and len(ctx.errors) != 0:
         context['message'] = 'This yang file contains major errors and therefore tree can not be created.'
         return create_bootstrap(context, 'danger.html')
@@ -703,9 +736,7 @@ def create_reference(name: str, revision: str) -> str:
         :return         (str) preformatted HTML with corresponding data
     """
     path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name, revision)
-    context = {
-        'title': 'Reference {}@{}'.format(name, revision)
-    }
+    context = {'title': 'Reference {}@{}'.format(name, revision)}
     try:
         with open(path_to_yang, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_content = escape(f.read())
@@ -840,8 +871,7 @@ def filter_using_api(res_row, payload):
 
 
 def search_recursive(output: set, module: dict, leaf: str, resolved: set):
-    """Look for all dependencies of the module and search for data in those modules too.
-    """
+    """Look for all dependencies of the module and search for data in those modules too."""
     r_name = module['name']
     if r_name not in resolved:
         resolved.add(r_name)
@@ -889,15 +919,15 @@ def process(data, passed_data, value, module, split, count) -> bool:
 
 
 def modules_data():
-    """Get all the modules data from Redis.
+    """
+    Get all the modules data from Redis.
     Empty dictionary is returned if no data is stored under specified key.
     """
     data = app.redisConnection.get_all_modules()
     if data != '{}':
         modules = json.loads(data)
-        modules_list = [module for module in modules.values()]
+        modules_list = list(modules.values())
         data = json.dumps({'module': modules_list})
-
     return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(data)
 
 
@@ -938,5 +968,4 @@ def create_bootstrap(context: dict, template: str):
     app.logger.info('Rendering bootstrap with {} template'.format(template))
     path = os.path.join(os.environ['BACKEND'], 'api/template')
 
-    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')
-                              ).get_template(template).render(context)
+    return jinja2.Environment(loader=jinja2.FileSystemLoader(path or './')).get_template(template).render(context)

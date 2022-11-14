@@ -62,7 +62,7 @@ class BaseScriptConfig:
             self._add_args(args)
         self.args = self.parser.parse_args(arglist)
         self.defaults = [self.parser.get_default(key) for key in self.args.__dict__.keys()]
-        
+
     def _add_mutually_exclusive_args(self, mutually_exclusive_args: list[list[Arg]]):
         for mutually_exclusive_args_list in mutually_exclusive_args:
             group = self.parser.add_mutually_exclusive_group()
@@ -76,11 +76,10 @@ class BaseScriptConfig:
                 self._update_argument_in_args_dict(
                     arg_name,
                     mutually_exclusive_with=[
-                        another_arg_name for another_arg_name in group_arg_names
-                        if another_arg_name != arg_name
-                    ]
+                        another_arg_name for another_arg_name in group_arg_names if another_arg_name != arg_name
+                    ],
                 )
-                
+
     def _add_args(self, args: list[Arg]):
         for arg in args:
             flag = arg.pop('flag')
@@ -88,14 +87,14 @@ class BaseScriptConfig:
                 continue
             argument = self.parser.add_argument(flag, **arg)
             self._add_argument_to_args_dict(argument.dest, arg)
-        
+
     def _add_argument_to_args_dict(self, arg_name: str, arg: Arg):
         # some args with the 'store_true' action do not specify a type
         # NOTE: maybe we should just specify it everywhere?
         self.args_dict[arg_name] = {'type': type(arg['default']).__name__, 'default': arg['default']}
         if 'help' in arg:
             self.help['options'][arg_name] = arg['help']
-    
+
     def _update_argument_in_args_dict(self, arg_name: str, **kwargs):
         self.args_dict[arg_name].update(**kwargs)
 

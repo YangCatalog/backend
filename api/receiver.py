@@ -47,18 +47,17 @@ from distutils.dir_util import copy_tree
 
 import pika
 import requests
+
 import utility.log as log
+from api.status_message import StatusMessage
 from redisConnections.redisConnection import RedisConnection, key_quote
 from utility import message_factory
 from utility.create_config import create_config
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_removal, send_for_es_indexing
 
-from api.status_message import StatusMessage
-
 
 class Receiver:
-
     def __init__(self, config_path: str):
         self._config_path = config_path
         self.load_config()
@@ -90,7 +89,7 @@ class Receiver:
         sdo = '--sdo' in arguments
         api = '--api' in arguments
         i = arguments.index('--dir')
-        direc = arguments[i+1]
+        direc = arguments[i + 1]
 
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
@@ -104,8 +103,9 @@ class Receiver:
             script_conf.args.__setattr__('notify_indexing', True)
             script_conf.args.__setattr__('force_indexing', True)
 
-        self.LOGGER.info('Runnning populate.py script with following configuration:\n{}'.format(
-            script_conf.args.__dict__))
+        self.LOGGER.info(
+            'Runnning populate.py script with following configuration:\n{}'.format(script_conf.args.__dict__),
+        )
         try:
             submodule.main(script_conf=script_conf)
         except Exception:
@@ -115,9 +115,9 @@ class Receiver:
         return StatusMessage.SUCCESS, ''
 
     def process_vendor_deletion(self, arguments: t.List[str]) -> StatusMessage:
-        """Deleting vendors metadata. It deletes all the module in vendor branch of the yang-catalog.yang 
-        module on given path. If the module was added by vendor and it doesn't contain any other implementations 
-        it will delete the whole module in modules branch of the yang-catalog.yang module. 
+        """Deleting vendors metadata. It deletes all the module in vendor branch of the yang-catalog.yang
+        module on given path. If the module was added by vendor and it doesn't contain any other implementations
+        it will delete the whole module in modules branch of the yang-catalog.yang module.
         It will also call indexing script to update Elasticsearch searching.
 
         Argument:
@@ -182,12 +182,14 @@ class Receiver:
                     # Delete module implementation from Redis
                     response = self.redisConnection.delete_implementation(redis_key, imp_key)
                     if response:
-                        self.LOGGER.info('Implementation {} deleted from module {} successfully'.format(imp_key, mod_key))
+                        self.LOGGER.info(
+                            'Implementation {} deleted from module {} successfully'.format(imp_key, mod_key),
+                        )
                     elif response == 0:
                         self.LOGGER.debug('Implementation {} already deleted from module {}'.format(imp_key, mod_key))
                     count_deleted += 1
 
-                if (count_deleted == count_of_implementations and count_of_implementations != 0):
+                if count_deleted == count_of_implementations and count_of_implementations != 0:
                     if organization == vendor:
                         deletion_problem = False
 
@@ -214,8 +216,11 @@ class Receiver:
                     dependents = existing_module['dependents']
                     for dependent in dependents:
                         if dependent['name'] == name and dependent.get('revision') == revision:
-                            mod_key_redis = '{}@{}/{}'.format(existing_module['name'], existing_module['revision'],
-                                                              existing_module['organization'])
+                            mod_key_redis = '{}@{}/{}'.format(
+                                existing_module['name'],
+                                existing_module['revision'],
+                                existing_module['organization'],
+                            )
                             # Delete module's dependent from Redis
                             self.redisConnection.delete_dependent(mod_key_redis, dependent['name'])
 
@@ -223,8 +228,12 @@ class Receiver:
         response = self.redisConnection.delete_vendor(redis_vendor_key)
 
         if self._notify_indexing:
-            body_to_send = prepare_for_es_removal(self._yangcatalog_api_prefix, deleted_modules,
-                                                  self._save_file_dir, self.LOGGER)
+            body_to_send = prepare_for_es_removal(
+                self._yangcatalog_api_prefix,
+                deleted_modules,
+                self._save_file_dir,
+                self.LOGGER,
+            )
             if body_to_send.get('modules-to-delete'):
                 send_for_es_indexing(body_to_send, self.LOGGER, self.indexing_paths)
         return StatusMessage.SUCCESS
@@ -294,7 +303,7 @@ class Receiver:
 
         @functools.lru_cache(maxsize=None)
         def can_delete(name: str, revision: str) -> bool:
-            """ Check whether module with given 'name' and 'revison' which should be removed
+            """Check whether module with given 'name' and 'revison' which should be removed
             is or is not depedency/submodule of some other existing module.
             If module-to-be-deleted has reference in another existing module, it cannot be deleted.
             However, it can be deleted if also referenced existing module will be deleted too.
@@ -307,8 +316,14 @@ class Receiver:
                             if can_delete(existing_module['name'], existing_module['revision']):
                                 continue
                         else:
-                            self.LOGGER.error('{}@{} module has reference in another module\'s {}: {}'
-                                              .format(name, revision, dep_type, redis_key))
+                            self.LOGGER.error(
+                                '{}@{} module has reference in another module\'s {}: {}'.format(
+                                    name,
+                                    revision,
+                                    dep_type,
+                                    redis_key,
+                                ),
+                            )
                             return False
             return True
 
@@ -345,8 +360,12 @@ class Receiver:
             modules_to_index.append(redis_key)
 
         if self._notify_indexing:
-            body_to_send = prepare_for_es_removal(self._yangcatalog_api_prefix, modules_to_index,
-                                                  self._save_file_dir, self.LOGGER)
+            body_to_send = prepare_for_es_removal(
+                self._yangcatalog_api_prefix,
+                modules_to_index,
+                self._save_file_dir,
+                self.LOGGER,
+            )
 
             if len(body_to_send) > 0:
                 send_for_es_indexing(body_to_send, self.LOGGER, self.indexing_paths)
@@ -419,19 +438,16 @@ class Receiver:
             'cache_path': self._changes_cache_path,
             'deletes_path': self._delete_cache_path,
             'failed_path': self._failed_changes_cache_path,
-            'lock_path': self._lock_file
+            'lock_path': self._lock_file,
         }
 
         self._notify_indexing = self._notify_indexing == 'True'
-        self._rabbitmq_credentials = pika.PlainCredentials(
-            username=rabbitmq_username,
-            password=rabbitmq_password)
+        self._rabbitmq_credentials = pika.PlainCredentials(username=rabbitmq_username, password=rabbitmq_password)
         self.LOGGER.info('Config loaded succesfully')
         return StatusMessage.SUCCESS
 
     def on_request(self, channel, method, properties, body):
-        process_reload_cache = multiprocessing.Process(
-            target=self.on_request_thread_safe, args=(properties, body))
+        process_reload_cache = multiprocessing.Process(target=self.on_request_thread_safe, args=(properties, body))
         process_reload_cache.start()
 
     def on_request_thread_safe(self, properties, body_raw: bytes):
@@ -465,9 +481,9 @@ class Receiver:
                 status = self.run_script(arguments[1:])
             elif 'github' == arguments[-1]:
                 self.LOGGER.info('Github automated message starting to populate')
-                paths_plus = arguments[arguments.index('repoLocalDir'):]
+                paths_plus = arguments[arguments.index('repoLocalDir') :]
                 self.LOGGER.info('paths plus {}'.format(paths_plus))
-                arguments = arguments[:arguments.index('repoLocalDir')]
+                arguments = arguments[: arguments.index('repoLocalDir')]
                 self.LOGGER.info('arguments {}'.format(arguments))
                 paths = paths_plus[1:-2]
                 self.LOGGER.info('paths {}'.format(paths))
@@ -486,11 +502,15 @@ class Receiver:
                     mf.send_automated_procedure_failed(arguments, self.temp_dir + '/log_no_sdo_api.txt')
                     self.LOGGER.error(
                         'check log_trigger.txt Error calling process populate.py because {}\n\n with error {}'.format(
-                            e.output, e.stderr))
+                            e.output,
+                            e.stderr,
+                        ),
+                    )
                 except Exception:
                     status = StatusMessage.FAIL
-                    self.LOGGER.error('check log_trigger.txt failed to process github message with error {}'.format(
-                        sys.exc_info()[0]))
+                    self.LOGGER.error(
+                        f'check log_trigger.txt failed to process github message with error {sys.exc_info()[0]}',
+                    )
             else:
                 if arguments[0] == 'DELETE-VENDORS':
                     status = self.process_vendor_deletion(arguments)
@@ -501,9 +521,9 @@ class Receiver:
                 elif arguments[0] in ('POPULATE-MODULES', 'POPULATE-VENDORS'):
                     status, details = self.process(arguments)
                     i = arguments.index('--credentials')
-                    credentials = arguments[i+1:i+3]
+                    credentials = arguments[i + 1 : i + 3]
                     i = arguments.index('--dir')
-                    directory = arguments[i+1]
+                    directory = arguments[i + 1]
                     shutil.rmtree(directory)
                 else:
                     assert False, 'Invalid request type'
@@ -518,8 +538,9 @@ class Receiver:
             status = StatusMessage.FAIL
             self.LOGGER.exception('receiver.py failed')
         final_response = status.value if not details else '{}#split#{}'.format(status.value, details)
-        self.LOGGER.info('Receiver is done with id - {} and message = {}'
-                         .format(properties.correlation_id, final_response))
+        self.LOGGER.info(
+            'Receiver is done with id - {} and message = {}'.format(properties.correlation_id, final_response),
+        )
 
         f = open('{}/correlation_ids'.format(self.temp_dir), 'r')
         lines = f.readlines()
@@ -527,10 +548,11 @@ class Receiver:
         with open('{}/correlation_ids'.format(self.temp_dir), 'w') as f:
             for line in lines:
                 if properties.correlation_id in line:
-                    new_line = '{} -- {} - {}\n'.format(datetime.now()
-                                                        .ctime(),
-                                                        properties.correlation_id,
-                                                        str(final_response))
+                    new_line = '{} -- {} - {}\n'.format(
+                        datetime.now().ctime(),
+                        properties.correlation_id,
+                        str(final_response),
+                    )
                     f.write(new_line)
                 else:
                     f.write(line)
@@ -541,11 +563,14 @@ class Receiver:
     def start_receiving(self):
         while True:
             try:
-                self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                    host=self._rabbitmq_host,
-                    port=self._rabbitmq_port,
-                    heartbeat=10,
-                    credentials=self._rabbitmq_credentials))
+                self.connection = pika.BlockingConnection(
+                    pika.ConnectionParameters(
+                        host=self._rabbitmq_host,
+                        port=self._rabbitmq_port,
+                        heartbeat=10,
+                        credentials=self._rabbitmq_credentials,
+                    ),
+                )
                 self.channel = self.connection.channel()
                 self.channel.queue_declare(queue='module_queue')
 
@@ -587,8 +612,12 @@ class Receiver:
                 if key != 'credentials' and body_input[key] != script_args_list[key]['default']:
                     script_conf.args.__setattr__(key, body_input[key])
 
-            self.LOGGER.info('Runnning {}.py script with following configuration:\n{}'.format(
-                script_name, script_conf.args.__dict__))
+            clean = script_conf.args.__dict__.copy()
+            username, _ = clean.pop('credentials')
+            clean['username'] = username
+            self.LOGGER.info(
+                f'Runnning {script_name}.py script with following configuration:\n{clean}',
+            )
             submodule.main(script_conf=script_conf)
             return StatusMessage.SUCCESS
         except Exception:
@@ -603,8 +632,12 @@ class Receiver:
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--config-path', type=str, default=os.environ['YANGCATALOG_CONFIG_PATH'],
-                        help='Set path to config file')
+    parser.add_argument(
+        '--config-path',
+        type=str,
+        default=os.environ['YANGCATALOG_CONFIG_PATH'],
+        help='Set path to config file',
+    )
     args, extra_args = parser.parse_known_args()
     config_path = args.config_path
     receiver = Receiver(config_path)

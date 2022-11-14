@@ -24,20 +24,18 @@ import logging
 from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
 from pyang import plugin
 from pyang.util import get_latest_revision
-from utility import yangParser
-from utility.util import validate_revision
 
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
-from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import \
-    IndexerPlugin
+from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import IndexerPlugin
+from utility import yangParser
+from utility.util import validate_revision
 
 ES_CHUNK_SIZE = 100
 
 
-def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str,
-                  LOGGER: logging.Logger):
+def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str, logger: logging.Logger):
     name_revision = '{}@{}'.format(module['name'], module['revision'])
 
     plugin.init([])
@@ -69,14 +67,14 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
             emit_tree([parsed_module], writer, ctx)
         except Exception:
             # create empty file so we still have access to that
-            LOGGER.exception('unable to create ytree for module {}'.format(name_revision))
+            logger.exception('unable to create ytree for module {}'.format(name_revision))
             writer.write('')
 
     attempts = 3
     while attempts > 0:
         try:
             # Remove exisiting modules from all indices
-            LOGGER.debug('deleting data from index: modules')
+            logger.debug('deleting data from index: modules')
             es_manager.delete_from_indices(module)
 
             # Remove existing submodules from index: yindex
@@ -84,34 +82,31 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
                 subm_n = subm.arg
                 rev = get_latest_revision(subm)
                 subm_r = validate_revision(rev)
-                submodule = {
-                    'name': subm_n,
-                    'revision': subm_r
-                }
+                submodule = {'name': subm_n, 'revision': subm_r}
                 try:
-                    LOGGER.debug('deleting data from index: yindex')
+                    logger.debug('deleting data from index: yindex')
                     es_manager.delete_from_index(ESIndices.YINDEX, submodule)
                 except RequestError:
-                    LOGGER.exception('Problem while deleting {}@{}'.format(subm_n, subm_r))
+                    logger.exception('Problem while deleting {}@{}'.format(subm_n, subm_r))
 
             # Bulk new modules to index: yindex
             for key in yindexes:
-                chunks = [yindexes[key][i:i + ES_CHUNK_SIZE] for i in range(0, len(yindexes[key]), ES_CHUNK_SIZE)]
+                chunks = [yindexes[key][i : i + ES_CHUNK_SIZE] for i in range(0, len(yindexes[key]), ES_CHUNK_SIZE)]
                 for idx, chunk in enumerate(chunks, start=1):
-                    LOGGER.debug('pushing data to index: yindex {} out of {}'.format(idx, len(chunks)))
+                    logger.debug('pushing data to index: yindex {} out of {}'.format(idx, len(chunks)))
                     es_manager.bulk_modules(ESIndices.YINDEX, chunk)
 
             # Index new modules to index: autocomplete
-            LOGGER.debug('pushing data to index: autocomplete')
+            logger.debug('pushing data to index: autocomplete')
             del module['path']
             es_manager.index_module(ESIndices.AUTOCOMPLETE, module)
             break
         except (ConnectionTimeout, ConnectionError) as e:
-            attempts -= attempts
+            attempts -= 1
             if attempts > 0:
-                LOGGER.warning('module {} timed out'.format(name_revision))
+                logger.warning('module {} timed out'.format(name_revision))
             else:
-                LOGGER.exception('module {} timed out too many times failing'.format(name_revision))
+                logger.exception('module {} timed out, failed too many times'.format(name_revision))
                 raise e
 
 

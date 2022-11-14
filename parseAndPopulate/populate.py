@@ -55,16 +55,15 @@ from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self, config: ConfigParser = create_config()):
         credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
         save_file_dir = config.get('Directory-Section', 'save-file-dir')
         result_dir = config.get('Web-Section', 'result-html-dir')
         help = (
             'Parse hello messages and YANG files to a JSON dictionary. These '
-           'dictionaries are used for populating the yangcatalog. This script first '
-           'runs the parse_directory.py script to create JSON files which are '
-           'used to populate database.'
+            'dictionaries are used for populating the yangcatalog. This script first '
+            'runs the parse_directory.py script to create JSON files which are '
+            'used to populate database.'
         )
         args: t.List[Arg] = [
             {
@@ -72,74 +71,69 @@ class ScriptConfig(BaseScriptConfig):
                 'help': 'Set authorization parameters username and password respectively.',
                 'type': str,
                 'nargs': 2,
-                'default': credentials
+                'default': credentials,
             },
             {
                 'flag': '--dir',
                 'help': 'Set directory where to look for hello message xml files',
                 'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/vendor/huawei/network-router/8.20.0/atn980b'
+                'default': '/var/yang/nonietf/yangmodels/yang/vendor/huawei/network-router/8.20.0/atn980b',
             },
-            {
-                'flag': '--api',
-                'help': 'If request came from api',
-                'action': 'store_true',
-                'default': False
-            },
+            {'flag': '--api', 'help': 'If request came from api', 'action': 'store_true', 'default': False},
             {
                 'flag': '--sdo',
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
             {
                 'flag': '--notify-indexing',
                 'help': 'Whether to send files for indexing',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
             {
                 'flag': '--result-html-dir',
                 'help': f'Set dir where to write HTML compilation result files. Default: {result_dir}',
                 'type': str,
-                'default': result_dir
+                'default': result_dir,
             },
             {
                 'flag': '--save-file-dir',
                 'help': f'Directory where the yang file will be saved. Default: {save_file_dir}',
                 'type': str,
-                'default': save_file_dir
+                'default': save_file_dir,
             },
             {
                 'flag': '--force-parsing',
                 'help': 'Force parse files (do not skip parsing for unchanged files).',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
             {
                 'flag': '--force-indexing',
                 'help': 'Force indexing files (do not skip indexing for unchanged files).',
                 'action': 'store_true',
-                'default': False
+                'default': False,
             },
             {
                 'flag': '--simple',
                 'help': 'Skip running time-consuming complicated resolvers.',
                 'action': 'store_true',
-                'default': False
-            }
+                'default': False,
+            },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 class Populate:
     def __init__(
-            self,
-            args: Namespace,
-            config: ConfigParser = create_config(),
-            redis_connection: RedisConnection = RedisConnection(),
-            confd_service: ConfdService = ConfdService(),
-            message_factory: t.Optional[MessageFactory] = None,
+        self,
+        args: Namespace,
+        config: ConfigParser = create_config(),
+        redis_connection: RedisConnection = RedisConnection(),
+        confd_service: ConfdService = ConfdService(),
+        message_factory: t.Optional[MessageFactory] = None,
     ):
         self.start_time = None
         self.args = args
@@ -167,7 +161,7 @@ class Populate:
     @property
     def message_factory(self):
         if not self._message_factory:
-            self.message_factory = MessageFactory()
+            self._message_factory = MessageFactory()
         return self._message_factory
 
     @message_factory.setter
@@ -180,8 +174,14 @@ class Populate:
         if self.args.api:
             self._send_notification_about_running_script_by_api()
         self._initialize_json_dir()
-        self._run_parse_directory_script()
+        parsed, skipped = self._run_parse_directory_script()
         modules = self._populate_modules_in_db()
+        if not (parsed or skipped):
+            self.logger.error(
+                'No files were parsed. This probably means the directory is missing capability xml files.',
+            )
+        elif skipped and not parsed:
+            self.logger.info('No new modules were parsed.')
         self._prepare_and_send_modules_for_es_indexing()
         if modules:
             self.process_reload_cache = multiprocessing.Process(target=self._reload_cache_in_parallel)
@@ -195,7 +195,7 @@ class Populate:
                 (
                     f'Populate took {int(time.time() - self.start_time)} seconds with the main and '
                     f'{"without" if self.args.simple else "with"} complicated algorithm'
-                )
+                ),
             )
             # Keep new hashes only if the ConfD was patched successfully
             if not self.errors:
@@ -215,7 +215,7 @@ class Populate:
             self.json_dir = os.path.join(self.temp_dir, uuid.uuid4().hex)
             os.makedirs(self.json_dir, exist_ok=True)
 
-    def _run_parse_directory_script(self):
+    def _run_parse_directory_script(self) -> tuple[int, int]:
         self.logger.info('Calling parse_directory script')
         try:
             script_conf = parse_directory.ScriptConfig()
@@ -226,14 +226,15 @@ class Populate:
                 ('save_file_dir', self.args.save_file_dir),
                 ('api', self.args.api),
                 ('sdo', self.args.sdo),
-                ('save_file_hash', not self.args.force_parsing)
+                ('save_file_hash', not self.args.force_parsing),
             )
             for attr, value in options:
                 setattr(script_conf.args, attr, value)
-            parse_directory.main(script_conf=script_conf)
+            stats = parse_directory.main(script_conf=script_conf)
         except Exception as e:
             self.logger.exception(f'parse_directory error:\n{e}')
             raise e
+        return stats
 
     def _populate_modules_in_db(self) -> list:
         self.logger.info('Populating yang catalog with data. Starting to add modules')
@@ -242,17 +243,12 @@ class Populate:
         modules = json.loads(data).get('module', [])
         self.errors = self.confd_service.patch_modules(modules)
         self.redis_connection.populate_modules(modules)
-        # In each json
         if not self.args.sdo and os.path.exists(os.path.join(self.json_dir, 'normal.json')):
             self.logger.info('Starting to add vendors')
             with open(os.path.join(self.json_dir, 'normal.json')) as data:
-                try:
-                    vendors = json.loads(data.read())['vendors']['vendor']
-                except KeyError as e:
-                    self.logger.error(
-                        'No files were parsed. This probably means the directory is missing capability xml files'
-                    )
-                    raise e
+                vendors = json.loads(data.read()).get('vendors', {}).get('vendor')
+            if not vendors:
+                return modules
             self.errors = self.errors or self.confd_service.patch_vendors(vendors)
             self.redis_connection.populate_implementation(vendors)
         return modules
@@ -261,8 +257,11 @@ class Populate:
         body_to_send = {}
         if self.args.notify_indexing:
             body_to_send = prepare_for_es_indexing(
-                self.yangcatalog_api_prefix, os.path.join(self.json_dir, 'prepare.json'),
-                self.logger, self.args.save_file_dir, force_indexing=self.args.force_indexing
+                self.yangcatalog_api_prefix,
+                os.path.join(self.json_dir, 'prepare.json'),
+                self.logger,
+                self.args.save_file_dir,
+                force_indexing=self.args.force_indexing,
             )
         if not body_to_send:
             return
@@ -271,7 +270,7 @@ class Populate:
             'cache_path': self.changes_cache_path,
             'deletes_path': self.delete_cache_path,
             'failed_path': self.failed_changes_cache_path,
-            'lock_path': self.lock_file
+            'lock_path': self.lock_file,
         }
         send_for_es_indexing(body_to_send, self.logger, indexing_paths)
 
@@ -279,11 +278,14 @@ class Populate:
         self.logger.info('Sending request to reload cache in different thread')
         url = f'{self.yangcatalog_api_prefix}/load-cache'
         response = requests.post(
-            url, None, auth=(self.args.credentials[0], self.args.credentials[1]), headers=json_headers,
+            url,
+            None,
+            auth=(self.args.credentials[0], self.args.credentials[1]),
+            headers=json_headers,
         )
         if response.status_code != 201:
             self.logger.warning(
-                f'Could not send a load-cache request. Status code {response.status_code}. message {response.text}'
+                f'Could not send a load-cache request. Status code {response.status_code}. message {response.text}',
             )
         self.logger.info('Cache reloaded successfully')
 
@@ -292,8 +294,15 @@ class Populate:
         recursion_limit = sys.getrecursionlimit()
         sys.setrecursionlimit(50000)
         complicated_algorithms = ModulesComplicatedAlgorithms(
-            self.log_directory, self.yangcatalog_api_prefix, self.args.credentials, self.args.save_file_dir,
-            self.json_dir, None, self.yang_models, self.temp_dir, self.json_ytree
+            self.log_directory,
+            self.yangcatalog_api_prefix,
+            self.args.credentials,
+            self.args.save_file_dir,
+            self.json_dir,
+            None,
+            self.yang_models,
+            self.temp_dir,
+            self.json_ytree,
         )
         complicated_algorithms.parse_non_requests()
         self.logger.info('Waiting for cache reload to finish')
@@ -306,7 +315,10 @@ class Populate:
     def _update_files_hashes(self):
         path = os.path.join(self.json_dir, 'temp_hashes.json')
         file_hasher = FileHasher(
-            'backend_files_modification_hashes', self.cache_dir, not self.args.force_parsing, self.log_directory,
+            'backend_files_modification_hashes',
+            self.cache_dir,
+            not self.args.force_parsing,
+            self.log_directory,
         )
         updated_hashes = file_hasher.load_hashed_files_list(path)
         if updated_hashes:

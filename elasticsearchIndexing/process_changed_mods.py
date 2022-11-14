@@ -17,7 +17,6 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech, jclarke@cisco.com'
 
-import argparse
 import json
 import logging
 import os
@@ -26,18 +25,16 @@ import sys
 import typing as t
 
 import requests
-from utility import log, repoutil
+
+from elasticsearchIndexing.build_yindex import build_indices
+from elasticsearchIndexing.es_manager import ESManager
+from utility import log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.util import fetch_module_by_schema, validate_revision
 
-from elasticsearchIndexing.build_yindex import build_indices
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
-
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = 'Process changed modules in a git repo'
         args: t.List[Arg] = [
@@ -45,7 +42,7 @@ class ScriptConfig(BaseScriptConfig):
                 'flag': '--config-path',
                 'help': 'Set path to config file',
                 'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH']
+                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [])
@@ -67,11 +64,11 @@ class ProcessChangedMods:
 
         self.logger = log.get_logger(
             'process_changed_mods',
-            os.path.join(self.log_directory, 'process-changed-mods.log'),
+            os.path.join(self.log_directory, 'process_changed_mods.log'),
         )
 
     def start_processing_changed_mods(self):
-        self.logger.info('Starting process-changed-mods.py script')
+        self.logger.info('Starting process_changed_mods.py script')
 
         if os.path.exists(self.lock_file) or os.path.exists(self.lock_file_cron):
             # we can exist since this is run by cronjob every 3 minutes of every day
@@ -115,12 +112,6 @@ class ProcessChangedMods:
 
     def _initialize_es_manager(self):
         self.es_manager = ESManager()
-        self.logger.info('Trying to initialize Elasticsearch indices')
-        for index in ESIndices:
-            if self.es_manager.index_exists(index):
-                continue
-            create_result = self.es_manager.create_index(index)
-            self.logger.info(f'Index {index.value} created with message:\n{create_result}')
         logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
     def _delete_modules_from_es(self):
@@ -146,14 +137,9 @@ class ProcessChangedMods:
                 revision = validate_revision(revision)
                 name_revision = f'{name}@{revision}'
 
-                module = {
-                    'name': name,
-                    'revision': revision,
-                    'organization': organization,
-                    'path': module_path
-                }
+                module = {'name': name, 'revision': revision, 'organization': organization, 'path': module_path}
                 self.logger.info(
-                    f'yindex on module {name_revision}. module {module_count} out of {len(self.changes_cache)}'
+                    f'yindex on module {name_revision}. module {module_count} out of {len(self.changes_cache)}',
                 )
 
                 try:

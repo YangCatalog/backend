@@ -7,12 +7,12 @@ from utility.create_config import create_config
 
 
 class TestUserNotificationsClass(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
-        self.client = app.test_client()
+    @classmethod
+    def setUpClass(cls):
+        cls.client = app.test_client()
         config = create_config()
-        self.redis_user_notifications_connection = RedisUserNotificationsConnection(db=12, config=config)
-        self.redis_user_notifications_db = self.redis_user_notifications_connection.redis
+        cls.redis_user_notifications_connection = RedisUserNotificationsConnection(db=12, config=config)
+        cls.redis_user_notifications_db = cls.redis_user_notifications_connection.redis
 
     def tearDown(self):
         super().tearDown()

@@ -38,8 +38,8 @@ def load_catalog_data():
     config = create_config()
     redis_host = config.get('DB-Section', 'redis-host')
     redis_port = config.get('DB-Section', 'redis-port')
-    redis_cache = redis.Redis(host=redis_host , port=redis_port) # pyright: ignore
-    redisConnection = RedisConnection()
+    redis_cache = redis.Redis(host=redis_host, port=redis_port)  # pyright: ignore
+    redis_connection = RedisConnection()
     resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
     try:
         print(f'Loading cache file from path {resources_path}')
@@ -57,20 +57,22 @@ def load_catalog_data():
     for module in modules:
         if module['name'] == 'yang-catalog' and module['revision'] == '2018-04-03':
             redis_cache.set('yang-catalog@2018-04-03/ietf', json.dumps(module))
-            redisConnection.populate_modules([module])
+            redis_connection.populate_modules([module])
             print('yang-catalog@2018-04-03 module set in Redis')
             break
 
-    catalog_data_json = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(json.dumps(catalog_data))['yang-catalog:catalog']
+    catalog_data_json = json.JSONDecoder(object_pairs_hook=OrderedDict).decode(json.dumps(catalog_data))[
+        'yang-catalog:catalog'
+    ]
     modules = catalog_data_json['modules']
     vendors = catalog_data_json.get('vendors', {})
 
     # Fill Redis db=1 with modules data
     modules_data = {create_module_key(module): module for module in modules.get('module', [])}
-    redisConnection.set_redis_module(modules_data, 'modules-data')
+    redis_connection.set_redis_module(modules_data, 'modules-data')
     print(f'{len(modules.get("module", []))} modules set in Redis.')
-    redisConnection.populate_implementation(vendors.get('vendor', []))
-    redisConnection.reload_vendors_cache()
+    redis_connection.populate_implementation(vendors.get('vendor', []))
+    redis_connection.reload_vendors_cache()
     print(f'{len(vendors.get("vendor", []))} vendors set in Redis.')
 
 

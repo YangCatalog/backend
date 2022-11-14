@@ -26,12 +26,8 @@ from utility.yangParser import ParseException
 
 
 class TestParseExceptionClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestParseExceptionClass, self).__init__(*args, **kwargs)
-        self.test_private_dir = os.path.join(os.environ['BACKEND'], 'tests/resources/html/private')
-
-    def test_parseException(self):
-        """ Test if ParseException is raised when non-existing path is passed as 'path' argument.
+    def test_parse_exception(self):
+        """Test if ParseException is raised when non-existing path is passed as 'path' argument.
         Load content of unparsable-modules.json file and check whether name of the module is stored in file.
         """
         ParseException('module.yang')

@@ -1,4 +1,4 @@
-from flask import Blueprint, make_response, jsonify
+from flask import Blueprint, jsonify, make_response
 
 from api.my_flask import app
 

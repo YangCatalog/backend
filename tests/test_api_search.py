@@ -12,10 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-__author__ = "Slavomir Mazur"
-__copyright__ = "Copyright The IETF Trust 2021, All Rights Reserved"
-__license__ = "Apache License, Version 2.0"
-__email__ = "slavomir.mazur@pantheon.tech"
+__author__ = 'Slavomir Mazur'
+__copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'slavomir.mazur@pantheon.tech'
 
 import collections
 import json
@@ -23,21 +23,23 @@ import os
 import unittest
 from unittest import mock
 
-import api.views.ycSearch.ycSearch as search_bp
-from api.yangCatalogApi import app
 from lxml import html as HT
 from markupsafe import escape
 from werkzeug.exceptions import BadRequest, NotFound
+
+import api.views.ycSearch.ycSearch as search_bp
+from api.yangCatalogApi import app
 
 ac = app.config
 
 
 class TestApiSearchClass(unittest.TestCase):
-
-    def __init__(self, *args, **kwargs):
-        super(TestApiSearchClass, self).__init__(*args, **kwargs)
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.client = app.test_client()
+    @classmethod
+    def setUpClass(cls):
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.client = app.test_client()
+        with open(os.path.join(cls.resources_path, 'payloads.json'), 'r') as f:
+            cls.payloads_content = json.load(f)
 
     def test_search_by_organization(self):
         """Test if response has the correct structure.
@@ -46,8 +48,8 @@ class TestApiSearchClass(unittest.TestCase):
         """
         key = 'organization'
         value = 'ietf'
-        path = '{}/{}'.format(key, value)
-        result = self.client.get('api/search/{}'.format(path))
+        path = f'{key}/{value}'
+        result = self.client.get(f'api/search/{path}')
         data = json.loads(result.data)
         modules = data.get('yang-catalog:modules')
 
@@ -61,28 +63,26 @@ class TestApiSearchClass(unittest.TestCase):
             self.assertEqual(module.get(key), value)
 
     def test_search_incorrect_module_key(self):
-        """Test error response when invalid 'key' value was provided.
-        """
+        """Test error response when invalid 'key' value was provided."""
         key = 'incorrect_key'
         value = 'ietf'
-        path = '{}/{}'.format(key, value)
-        result = self.client.get('api/search/{}'.format(path))
+        path = f'{key}/{value}'
+        result = self.client.get(f'api/search/{path}')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'Search on path {} is not supported'.format(path))
+        self.assertEqual(data['description'], f'Search on path {path} is not supported')
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_search_no_hits(self):
-        """Test error response when no hits were found and 404 status code was returned.
-        """
+        """Test error response when no hits were found and 404 status code was returned."""
         key = 'organization'
         value = 'random_organization'
-        path = '{}/{}'.format(key, value)
-        result = self.client.get('api/search/{}'.format(path))
+        path = f'{key}/{value}'
+        result = self.client.get(f'api/search/{path}')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
@@ -102,8 +102,8 @@ class TestApiSearchClass(unittest.TestCase):
         mock_redis_get.return_value = None
         key = 'organization'
         value = 'ietf'
-        path = '{}/{}'.format(key, value)
-        result = self.client.get('api/search/{}'.format(path))
+        path = f'{key}/{value}'
+        result = self.client.get(f'api/search/{path}')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
@@ -119,10 +119,8 @@ class TestApiSearchClass(unittest.TestCase):
         Also list of leaf values of filtered modules should be in property named by 'leaf' property.
         """
         leaf = 'name'
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('rpc_search_get_one')
-        result = self.client.post('api/search-filter/{}'.format(leaf), json=body)
+        body = self.payloads_content.get('rpc_search_get_one')
+        result = self.client.post(f'api/search-filter/{leaf}', json=body)
         data = json.loads(result.data)
         output = data.get('output')
 
@@ -134,17 +132,17 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertNotEqual(len(output.get(leaf)), 0)
 
     def test_rpc_search_get_one_recursive(self):
-        """Test if response has the correct structure. Response should contain 'output' property.
+        """
+        Test if response has the correct structure. Response should contain 'output' property.
         Additional property named by 'leaf' variable should be nested inside 'output' property.
         Also list of leaf values of filtered modules should be in property named by 'leaf' property.
-        Include 'recursive' property to look for all dependencies of the module and search for data in those modules too.
+        Include 'recursive' property to look for all dependencies of the module
+        and search for data in those modules too.
         """
         leaf = 'name'
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('rpc_search_get_one')
+        body = self.payloads_content.get('rpc_search_get_one')
         body['input']['recursive'] = True
-        result = self.client.post('api/search-filter/{}'.format(leaf), json=body)
+        result = self.client.post(f'api/search-filter/{leaf}', json=body)
         data = json.loads(result.data)
         output = data.get('output')
 
@@ -156,10 +154,9 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertNotEqual(len(output.get(leaf)), 0)
 
     def test_rpc_search_get_one_no_body(self):
-        """Test error response when no body was send with request.
-        """
+        """Test error response when no body was send with request."""
         leaf = 'name'
-        result = self.client.post('api/search-filter/{}'.format(leaf))
+        result = self.client.post(f'api/search-filter/{leaf}')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -170,10 +167,9 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_rpc_search_get_one_no_input(self):
-        """Test error response when input do not have correct structure (no 'input' property).
-        """
+        """Test error response when input do not have correct structure (no 'input' property)."""
         leaf = 'name'
-        result = self.client.post('api/search-filter/{}'.format(leaf), json={})
+        result = self.client.post(f'api/search-filter/{leaf}', json={})
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
@@ -184,13 +180,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_rpc_search_get_one_incorrect_leaf(self):
-        """Test error response when using incorrect 'leaf' name (one that is not defined by yang-catalog).
-        """
+        """Test error response when using incorrect 'leaf' name (one that is not defined by yang-catalog)."""
         leaf = 'random_leaf'
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('rpc_search_get_one')
-        result = self.client.post('api/search-filter/{}'.format(leaf), json=body)
+        body = self.payloads_content.get('rpc_search_get_one')
+        result = self.client.post(f'api/search-filter/{leaf}', json=body)
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
@@ -209,10 +202,8 @@ class TestApiSearchClass(unittest.TestCase):
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
         leaf = 'name'
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('rpc_search_get_one')
-        result = self.client.post('api/search-filter/{}'.format(leaf), json=body)
+        body = self.payloads_content.get('rpc_search_get_one')
+        result = self.client.post(f'api/search-filter/{leaf}', json=body)
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
@@ -226,9 +217,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if response has the correct structure. Each module should have dependencies property
         and organization same as on body of request.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('dependecies')
+        body = self.payloads_content.get('dependecies')
         result = self.client.post('api/search-filter', json=body)
         data = json.loads(result.data)
         modules = data.get('yang-catalog:modules')
@@ -246,9 +235,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if response has the correct structure. Each module should have dependents property
         and organization same as on body of request.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('dependents')
+        body = self.payloads_content.get('dependents')
         result = self.client.post('api/search-filter', json=body)
         data = json.loads(result.data)
         modules = data.get('yang-catalog:modules')
@@ -266,9 +253,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if response has the correct structure. Each module should have submodule property
         and organization same as on body of request.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('submodule')
+        body = self.payloads_content.get('submodule')
         result = self.client.post('api/search-filter', json=body)
         data = json.loads(result.data)
         modules = data.get('yang-catalog:modules')
@@ -286,9 +271,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if response has the correct structure. Each module should have implementations property
         and organization same as on body of request.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('implementations')
+        body = self.payloads_content.get('implementations')
         result = self.client.post('api/search-filter', json=body)
         data = json.loads(result.data)
         modules = data.get('yang-catalog:modules')
@@ -310,8 +293,7 @@ class TestApiSearchClass(unittest.TestCase):
                 self.assertIn('software-flavor', implementation)
 
     def test_rpc_search_no_input(self):
-        """Test error response when input do not have correct structure (no 'input' property).
-        """
+        """Test error response when input do not have correct structure (no 'input' property)."""
         body = {}
         result = self.client.post('api/search-filter', json=body)
         data = json.loads(result.data)
@@ -324,11 +306,8 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_rpc_search_not_found(self):
-        """Test error response when no module was found.
-        """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('not_found')
+        """Test error response when no module was found."""
+        body = self.payloads_content.get('not_found')
         result = self.client.post('api/search-filter', json=body)
         data = json.loads(result.data)
 
@@ -374,16 +353,19 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(len(contributors_list), 0)
 
     def test_create_update_from(self):
-        """Test if payload contains desired output = comparasion of pyang outputs for two different yang module revisions.
         """
-        desired_output = "{0}/yang-catalog@2018-04-03.yang:1: the grouping 'yang-lib-imlementation-leafs', "\
-            "defined at {0}/yang-catalog@2017-09-26.yang:599 is illegally removed\n".format(ac.d_save_file_dir)
+        Test if payload contains desired output = comparison of pyang outputs for two different yang module revisions.
+        """
+        desired_output = (
+            f'{ac.d_save_file_dir}/yang-catalog@2018-04-03.yang:1: the grouping \'yang-lib-imlementation-leafs\', '
+            f'defined at {ac.d_save_file_dir}/yang-catalog@2017-09-26.yang:599 is illegally removed\n'
+        )
         file1 = 'yang-catalog'
         revision1 = '2018-04-03'
         file2 = 'yang-catalog'
         revision2 = '2017-09-26'
 
-        path = 'api/services/file1={}@{}/check-update-from/file2={}@{}'.format(file1, revision1, file2, revision2)
+        path = f'api/services/file1={file1}@{revision1}/check-update-from/file2={file2}@{revision2}'
         result = self.client.get(path)
 
         response_text = HT.fromstring(result.data).find('body').find('pre').text  # pyright: ignore
@@ -394,10 +376,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if json payload has correct form (should not contain empty 'output' list)
         Based on request body, each module in 'output' list should not contain empty 'implementations' list.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-
-        body = content.get('get_common')
+        body = self.payloads_content.get('get_common')
         result = self.client.post('api/get-common', json=body)
         data = json.loads(result.data)
         output = data.get('output')
@@ -417,8 +396,7 @@ class TestApiSearchClass(unittest.TestCase):
                 self.assertIn('vendor', implementation)
 
     def test_get_common_no_body(self):
-        """Test error response when no body was send with request.
-        """
+        """Test error response when no body was send with request."""
         result = self.client.post('api/get-common')
         data = json.loads(result.data)
 
@@ -430,8 +408,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_get_common_no_input(self):
-        """Test error response when input do not have correct structure (no 'input' property).
-        """
+        """Test error response when input do not have correct structure (no 'input' property)."""
         result = self.client.post('api/get-common', json={})
         data = json.loads(result.data)
 
@@ -443,8 +420,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_get_common_no_new_old_container(self):
-        """Test error response when input do not have correct structure (no 'first' or 'second' properties)
-        """
+        """Test error response when input do not have correct structure (no 'first' or 'second' properties)"""
         body = {'input': {'first': {}}}
         result = self.client.post('api/get-common', json=body)
         data = json.loads(result.data)
@@ -457,11 +433,8 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_get_common_no_hits(self):
-        """Test error response when no hits were found and 404 status code was returned.
-        """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('get_common_no_hits')
+        """Test error response when no hits were found and 404 status code was returned."""
+        body = self.payloads_content.get('get_common_no_hits')
         result = self.client.post('api/get-common', json=body)
         data = json.loads(result.data)
 
@@ -473,11 +446,11 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_get_common_no_common_modules(self):
-        """Test error response when no common modules were found and 404 status code was returned (different organizations used in filters).
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('get_common_no_common_modules')
+        Test error response when no common modules were found and 404 status code was returned
+        (different organizations used in filters).
+        """
+        body = self.payloads_content.get('get_common_no_common_modules')
         result = self.client.post('api/get-common', json=body)
         data = json.loads(result.data)
 
@@ -489,13 +462,11 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_compare(self):
-        """Test if response has the correct structure. Each module should have additional 'reason-to-show' property
-        which should have one of the following value: 'New module', 'Different revision'
-
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('compare')
+        Test if response has the correct structure. Each module should have additional 'reason-to-show' property
+        which should have one of the following value: 'New module', 'Different revision'
+        """
+        body = self.payloads_content.get('compare')
 
         result = self.client.post('api/compare', json=body)
         data = json.loads(result.data)
@@ -513,8 +484,7 @@ class TestApiSearchClass(unittest.TestCase):
             self.assertIn(reason, reasons)
 
     def test_compare_no_body(self):
-        """Test error response when no body was send with request.
-        """
+        """Test error response when no body was send with request."""
         result = self.client.post('api/compare')
         data = json.loads(result.data)
 
@@ -526,8 +496,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_compare_no_input(self):
-        """Test error response when input do not have correct structure (no 'input' property).
-        """
+        """Test error response when input do not have correct structure (no 'input' property)."""
         result = self.client.post('api/compare', json={})
         data = json.loads(result.data)
 
@@ -539,8 +508,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_compare_no_new_old_container(self):
-        """Test error response when input do not have correct structure (no 'new' or 'old' properties)
-        """
+        """Test error response when input do not have correct structure (no 'new' or 'old' properties)"""
         body = {'input': {'new': {}}}
         result = self.client.post('api/compare', json=body)
         data = json.loads(result.data)
@@ -553,11 +521,11 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_compare_no_hits(self):
-        """Test error response when no hits were found and 404 status code was returned (one filter does not find any module).
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('compare_no_hits')
+        Test error response when no hits were found and 404 status code was returned
+        (one filter does not find any module).
+        """
+        body = self.payloads_content.get('compare_no_hits')
         result = self.client.post('api/compare', json=body)
         data = json.loads(result.data)
 
@@ -569,11 +537,11 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_compare_no_new_modules(self):
-        """Test error response when no new modules were found and 404 status code was returned (same filter used as new and old).
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('compare_no_new_modules')
+        Test error response when no new modules were found and 404 status code was returned
+        (same filter used as new and old).
+        """
+        body = self.payloads_content.get('compare_no_new_modules')
         result = self.client.post('api/compare', json=body)
         data = json.loads(result.data)
 
@@ -589,10 +557,7 @@ class TestApiSearchClass(unittest.TestCase):
         Goal: Check sematic difference for same module with different revisions
         Based on request body, each module in 'output' list should contain certain properties.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-
-        body = content.get('check_semver_same_module')
+        body = self.payloads_content.get('check_semver_same_module')
         result = self.client.post('api/check-semantic-version', json=body)
         data = json.loads(result.data)
         output = data.get('output')
@@ -616,10 +581,7 @@ class TestApiSearchClass(unittest.TestCase):
         Goal: Check semantic differences between 1.2 and 1.1.2 software versions from T600 platform.
         Based on request body, each module in 'output' list should contain certain properties.
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-
-        body = content.get('check_semver_same_platform')
+        body = self.payloads_content.get('check_semver_same_platform')
         result = self.client.post('api/check-semantic-version', json=body)
         data = json.loads(result.data)
         output = data.get('output')
@@ -639,8 +601,7 @@ class TestApiSearchClass(unittest.TestCase):
             self.assertIn('derived-semantic-version-results', output_module)
 
     def test_check_semver_no_body(self):
-        """Test error response when no body was send with request.
-        """
+        """Test error response when no body was send with request."""
         result = self.client.post('api/check-semantic-version')
         data = json.loads(result.data)
 
@@ -652,8 +613,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_check_semver_no_input(self):
-        """Test error response when input do not have correct structure (no 'input' property).
-        """
+        """Test error response when input do not have correct structure (no 'input' property)."""
         result = self.client.post('api/check-semantic-version', json={})
         data = json.loads(result.data)
 
@@ -665,8 +625,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_check_semver_no_new_old_container(self):
-        """Test error response when input do not have correct structure (no 'new' or 'old' properties)
-        """
+        """Test error response when input do not have correct structure (no 'new' or 'old' properties)"""
         body = {'input': {'new': {}}}
         result = self.client.post('api/check-semantic-version', json=body)
         data = json.loads(result.data)
@@ -682,9 +641,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test error response when no difference in semantic versions were found and 404 status code was returned
         (= same filter used as new and old).
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('check_semver_no_difference')
+        body = self.payloads_content.get('check_semver_no_difference')
         result = self.client.post('api/check-semantic-version', json=body)
         data = json.loads(result.data)
 
@@ -696,11 +653,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_check_semver_no_hits(self):
-        """Test error response when no hits were found and 404 status code was returned (same filter used as new and old).
         """
-        with open(os.path.join(self.resources_path, 'payloads.json'), 'r') as f:
-            content = json.load(f)
-        body = content.get('check_semver_no_hits')
+        Test error response when no hits were found and 404 status code was returned (same filter used as new and old).
+        """
+        body = self.payloads_content.get('check_semver_no_hits')
         result = self.client.post('api/check-semantic-version', json=body)
         data = json.loads(result.data)
 
@@ -712,11 +668,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_search_vendor_statistics(self):
-        """Test if payload contains desired output (os-type).
-        """
+        """Test if payload contains desired output (os-type)."""
         vendor_name = 'fujitsu'
         desired_os_type = 'FSS2 Linux'
-        result = self.client.get('api/search/vendor/{}'.format(vendor_name))
+        result = self.client.get(f'api/search/vendor/{vendor_name}')
         payload = json.loads(result.data)
         vendor_data = payload.get(desired_os_type)
 
@@ -726,10 +681,9 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertNotEqual(len(vendor_data), 0)
 
     def test_search_vendor_statistics_incorrect_vendor(self):
-        """Test if responded with empty payload if vendor does not exist.
-        """
+        """Test if responded with empty payload if vendor does not exist."""
         vendor_name = 'random-vendor'
-        result = self.client.get('api/search/vendor/{}'.format(vendor_name))
+        result = self.client.get(f'api/search/vendor/{vendor_name}')
         payload = json.loads(result.data)
 
         self.assertEqual(result.status_code, 200)
@@ -737,11 +691,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(payload, {})
 
     def test_search_vendors(self):
-        """Test if vendor json payload has correct form (should contain certain keys)
-        """
+        """Test if vendor json payload has correct form (should contain certain keys)"""
         vendor_name = 'fujitsu'
-        path = 'vendor/{}'.format(vendor_name)
-        result = self.client.get('api/search/vendors/{}'.format(path))
+        path = f'vendor/{vendor_name}'
+        result = self.client.get(f'api/search/vendors/{path}')
         payload = json.loads(result.data)
 
         self.assertEqual(result.status_code, 200)
@@ -753,27 +706,25 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(vendor['name'], vendor_name)
 
     def test_search_vendors_vendor_not_found(self):
-        """Test if responded with code 400 if vendor not found.
-        """
+        """Test if responded with code 400 if vendor not found."""
         vendor_name = 'random-vendor'
-        path = 'vendor/{}'.format(vendor_name)
+        path = f'vendor/{vendor_name}'
 
-        result = self.client.get('api/search/vendors/{}'.format(path))
+        result = self.client.get(f'api/search/vendors/{path}')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'No vendors found on path {}'.format(path))
+        self.assertEqual(data['description'], f'No vendors found on path {path}')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_search_vendors_software_platform(self):
-        """Compare values when searching for specific vendor platform (T100).
-        """
+        """Compare values when searching for specific vendor platform (T100)."""
         platform_name = 'T100'
-        path = 'vendor/fujitsu/platforms/platform/{}/'.format(platform_name)
-        result = self.client.get('api/search/vendors/{}'.format(path))
+        path = f'vendor/fujitsu/platforms/platform/{platform_name}/'
+        result = self.client.get(f'api/search/vendors/{path}')
         payload = json.loads(result.data)
 
         self.assertEqual(result.status_code, 200)
@@ -785,12 +736,14 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(platform['name'], platform_name)
 
     def test_search_vendors_software_version(self):
-        """Compare values when searching for specific vendor software version (2.4).
-        """
+        """Compare values when searching for specific vendor software version (2.4)."""
         platform_name = 'T100'
         software_version_number = '2.4'
-        path = 'vendor/fujitsu/platforms/platform/{}/software-versions/software-version/{}'.format(platform_name, software_version_number)
-        result = self.client.get('api/search/vendors/{}'.format(path))
+        path = (
+            f'vendor/fujitsu/platforms/platform/{platform_name}/'
+            f'software-versions/software-version/{software_version_number}'
+        )
+        result = self.client.get(f'api/search/vendors/{path}')
         payload = json.loads(result.data)
 
         self.assertEqual(result.status_code, 200)
@@ -802,14 +755,15 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(software_version['name'], software_version_number)
 
     def test_search_vendors_software_flavor(self):
-        """Compare values when searching for specific vendor software flavor (Linux).
-        """
+        """Compare values when searching for specific vendor software flavor (Linux)."""
         platform_name = 'T100'
         software_version_number = '2.4'
         software_flavor_name = 'Linux'
-        path = 'vendor/fujitsu/platforms/platform/{}/software-versions/software-version/{}/software-flavors/software-flavor/{}' \
-            .format(platform_name, software_version_number, software_flavor_name)
-        result = self.client.get('api/search/vendors/{}'.format(path))
+        path = (
+            f'vendor/fujitsu/platforms/platform/{platform_name}/software-versions/'
+            f'software-version/{software_version_number}/software-flavors/software-flavor/{software_flavor_name}'
+        )
+        result = self.client.get(f'api/search/vendors/{path}')
         payload = json.loads(result.data)
 
         self.assertEqual(result.status_code, 200)
@@ -830,7 +784,7 @@ class TestApiSearchClass(unittest.TestCase):
         name = 'yang-catalog'
         revision = '2018-04-03'
         organization = 'ietf'
-        result = self.client.get('api/search/modules/{},{},{}'.format(name, revision, organization))
+        result = self.client.get(f'api/search/modules/{name},{revision},{organization}')
         payload = json.loads(result.data)
         module = payload.get('module')[0]
 
@@ -853,19 +807,18 @@ class TestApiSearchClass(unittest.TestCase):
         revision = '2018-01-01'
         organization = 'cisco'
 
-        result = self.client.get('api/search/modules/{},{},{}'.format(name, revision, organization))
+        result = self.client.get(f'api/search/modules/{name},{revision},{organization}')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 404)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'Module {}@{}/{} not found'.format(name, revision, organization))
+        self.assertEqual(data['description'], f'Module {name}@{revision}/{organization} not found')
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_search_module_missing_data(self):
-        """Test if responded with code 400 if the input arguments are missing.
-        """
+        """Test if responded with code 400 if the input arguments are missing."""
         name = ''
         revision = ''
         organization = ''
@@ -875,12 +828,14 @@ class TestApiSearchClass(unittest.TestCase):
                 search_bp.search_module(name, revision, organization)
 
         self.assertEqual(http_error.exception.code, 404)
-        self.assertEqual(http_error.exception.description, 'Module {}@{}/{} not found'.format(name, revision, organization))
+        self.assertEqual(
+            http_error.exception.description,
+            f'Module {name}@{revision}/{organization} not found',
+        )
         self.assertEqual(http_error.exception.name, 'Not Found')
 
     def test_get_modules(self):
-        """Test if modules json payload has correct form (should not contain empty 'module' list)
-        """
+        """Test if modules json payload has correct form (should not contain empty 'module' list)"""
         result = self.client.get('api/search/modules')
         payload = json.loads(result.data)
         modules = payload.get('module')
@@ -909,8 +864,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_get_vendors(self):
-        """Test if vendors json payload has correct form (should not contain empty 'vendor' list)
-        """
+        """Test if vendors json payload has correct form (should not contain empty 'vendor' list)"""
         result = self.client.get('api/search/vendors')
         payload = json.loads(result.data)
         vendors = payload.get('vendor')
@@ -939,8 +893,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_get_catalog(self):
-        """Test if catalog json payload has correct form (should contain both 'vendors' and 'modules' data)
-        """
+        """Test if catalog json payload has correct form (should contain both 'vendors' and 'modules' data)"""
         result = self.client.get('api/search/catalog')
         payload = json.loads(result.data)
         yang_catalog_data = payload.get('yang-catalog:catalog')
@@ -970,12 +923,11 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(data['error'], 'Not found -- in api code')
 
     def test_create_tree(self):
-        """Compare response with content of yang tree stored in yang-tree.txt file.
-        """
+        """Compare response with content of yang tree stored in yang-tree.txt file."""
         filename = 'yang-catalog'
         revision = '2018-04-03'
 
-        result = self.client.get('api/services/tree/{}@{}.yang'.format(filename, revision))
+        result = self.client.get(f'api/services/tree/{filename}@{revision}.yang')
         data = result.data.decode()
         response_text = HT.fromstring(data).find('body').find('div').find('pre').text  # pyright: ignore
 
@@ -986,43 +938,40 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(yang_tree_data, response_text)
 
     def test_create_tree_incorrect_yang(self):
-        """Test if responded with code 400 if the input arguments are not correct (incorrect yang module name).
-        """
+        """Test if responded with code 400 if the input arguments are not correct (incorrect yang module name)."""
         filename = 'incorrect-yang-file'
         revision = '2018-01-01'
-        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, filename, revision)
+        path_to_yang = f'{ac.d_save_file_dir}/{filename}@{revision}.yang'
 
-        result = self.client.get('api/services/tree/{}@{}.yang'.format(filename, revision))
+        result = self.client.get(f'api/services/tree/{filename}@{revision}.yang')
         data = json.loads(result.data)
 
         self.assertEqual(result.status_code, 400)
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'File {} was not found'.format(path_to_yang))
+        self.assertEqual(data['description'], f'File {path_to_yang} was not found')
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_create_tree_missing_data(self):
-        """Test if responded with code 400 if the input arguments are missing.
-        """
+        """Test if responded with code 400 if the input arguments are missing."""
         filename = ''
         revision = ''
-        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, filename, revision)
+        path_to_yang = f'{ac.d_save_file_dir}/{filename}@{revision}.yang'
 
         with self.assertRaises(BadRequest) as http_error:
             search_bp.create_tree(filename, revision)
 
         self.assertEqual(http_error.exception.code, 400)
-        self.assertEqual(http_error.exception.description, 'File {} was not found'.format(path_to_yang))
+        self.assertEqual(http_error.exception.description, f'File {path_to_yang} was not found')
         self.assertEqual(http_error.exception.name, 'Bad Request')
 
     def test_create_reference(self):
-        """Compare response with content of yang file from resources.
-        """
+        """Compare response with content of yang file from resources."""
         filename = 'yang-catalog'
         revision = '2018-04-03'
 
-        result = self.client.get('api/services/reference/{}@{}.yang'.format(filename, revision))
+        result = self.client.get(f'api/services/reference/{filename}@{revision}.yang')
         data = result.data.decode()
         response_text = data.split('</pre>')[0].split('<pre>')[1]
 
@@ -1033,13 +982,12 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(yang_file_data, response_text)
 
     def test_create_reference_file_not_exists(self):
-        """Test if text in 'expected_message' is part of received HTML.
-        """
+        """Test if text in 'expected_message' is part of received HTML."""
         filename = 'yang-catalog-incorrect-name'
         revision = '2020-01-01'
-        expected_message = 'File {}@{}.yang was not found.'.format(filename, revision)
+        expected_message = f'File {filename}@{revision}.yang was not found.'
 
-        result = self.client.get('api/services/reference/{}@{}.yang'.format(filename, revision))
+        result = self.client.get(f'api/services/reference/{filename}@{revision}.yang')
         data = result.data.decode()
 
         self.assertEqual(result.status_code, 200)

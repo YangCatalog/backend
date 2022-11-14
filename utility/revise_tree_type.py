@@ -41,7 +41,6 @@ current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = 'Resolve the tree-type for modules that are no longer the latest revision. Runs as a daily cronjob.'
         super().__init__(help, None, [])
@@ -49,29 +48,35 @@ class ScriptConfig(BaseScriptConfig):
 
 def main(script_conf: BaseScriptConfig = ScriptConfig()):
     start_time = int(time.time())
-    
+
     config = create_config()
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
-    yang_models = config.get('Directory-Section', 'yang-models-dir',
-                             fallback='/var/yang/nonietf/yangmodels/yang')
+    yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
     json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('reviseTreeType', f'{log_directory}/parseAndPopulate.log')
-    LOGGER.info('Starting Cron job for reviseTreeType')
+    logger = log.get_logger('revise_tree_type', f'{log_directory}/parseAndPopulate.log')
+    logger.info('Starting Cron job for revise_tree_type')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
     direc = '/var/yang/tmp'
 
-    complicated_algorithms = ModulesComplicatedAlgorithms(log_directory, yangcatalog_api_prefix,
-                                                          credentials, save_file_dir,
-                                                          direc, {}, yang_models, temp_dir,
-                                                          json_ytree)
+    complicated_algorithms = ModulesComplicatedAlgorithms(
+        log_directory,
+        yangcatalog_api_prefix,
+        credentials,
+        save_file_dir,
+        direc,
+        {},
+        yang_models,
+        temp_dir,
+        json_ytree,
+    )
     response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
     if response.status_code != 200:
-        LOGGER.error('Failed to fetch list of modules')
+        logger.error('Failed to fetch list of modules')
         job_log(start_time, temp_dir, current_file_basename, error=response.text, status=JobLogStatuses.FAIL)
         return
     modules_revise = []
@@ -81,10 +86,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
             continue
         if not complicated_algorithms.check_if_latest_revision(module):
             modules_revise.append(module)
-    LOGGER.info(f'Resolving tree-types for {len(modules_revise)} modules')
+    logger.info(f'Resolving tree-types for {len(modules_revise)} modules')
     complicated_algorithms.resolve_tree_type(modules_revise)
     complicated_algorithms.populate()
-    LOGGER.info('Job finished successfully')
+    logger.info('Job finished successfully')
     job_log(start_time, temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
 
 

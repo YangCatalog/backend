@@ -1,18 +1,19 @@
 """ This script loops through each module twice - two phases.
 Phase I - Loop through the modules and check whether
           there is a 'master' string in the schema and also that if it is still available.
-          Store available and unavailable schemas for phase II - to avoid makind duplicite requests.
+          Store available and unavailable schemas for phase II - to avoid making duplicate requests.
 Phase II - Loop through the modules and check whether
            there is a 'master' string in the dependencies, dependents and submodules schemas.
            Store available and unavailable schemas
            so there will be no need to make a request for each single schema.
 Patch request to ConfD request is made for each module that has been modified.
-Also reload-cache is called after each phase.
+Also, reload-cache is called after each phase.
 Finally, unavailable schemas are dumped into JSON file.
 """
 import json
 
 import requests
+
 import utility.log as log
 from utility import repoutil
 from utility.confdService import ConfdService
@@ -31,16 +32,16 @@ def get_repo_owner_name(schema: str):
 
 def get_branch_from_schema(schema: str):
     splitted_schema = schema.split('/')
-    branch = splitted_schema[5]  #  5 is the position of the hash in URL path
+    branch = splitted_schema[5]  # NBSP5 is the position of the hash in URL path
 
     return branch
 
 
 def get_available_commit_hash(module: dict, commit_hash_list: list) -> str:
     """Return the hash of a commit which contains the specified revision of a module.
-    
+
     Arguments:
-        :param module               (dict) dictionary with the module's informtaion
+        :param module               (dict) dictionary with the module's information
         :param commit_hash_list     (list) a list of commit hashes to try
         :return                     (str) The first matching commit hash out of the list.
             If there are no matches, an empty string is returned."""
@@ -91,8 +92,7 @@ def check_schema_availability(module: dict) -> str:
 
 
 def get_commit_hash_history(module: dict):
-    """ Try to get list of commit hashes of master branch for each Git repository.
-    """
+    """Try to get list of commit hashes of master branch for each Git repository."""
     # Get repo owner and name
     schema = module.get('schema', '')
     repo_owner, repo_name = get_repo_owner_name(schema)
@@ -127,7 +127,7 @@ if __name__ == '__main__':
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
     confdService = ConfdService()
 
-    # GET all the existing modules of Yangcatalog
+    # GET all the existing modules of Yangcatalog
     url = '{}/search/modules'.format(yangcatalog_api_prefix)
     response = requests.get(url, headers={'Accept': 'application/json'})
     all_existing_modules = response.json().get('module', [])
@@ -239,7 +239,10 @@ if __name__ == '__main__':
                     if dependent_key not in available_schemas:
                         available_schemas[dependent_key] = dependent_schema
                 else:
-                    new_schema = dependent_schema.replace('/{}/'.format(available_commit_hash), '/{}/'.format(schema_available))
+                    new_schema = dependent_schema.replace(
+                        '/{}/'.format(available_commit_hash),
+                        '/{}/'.format(schema_available),
+                    )
                     dependent['schema'] = new_schema
                     updated = True
             except Exception:
@@ -269,7 +272,10 @@ if __name__ == '__main__':
                     if submodule_key not in available_schemas:
                         available_schemas[submodule_key] = submodule_schema
                 else:
-                    new_schema = submodule_schema.replace('/{}/'.format(available_commit_hash), '/{}/'.format(schema_available))
+                    new_schema = submodule_schema.replace(
+                        '/{}/'.format(available_commit_hash),
+                        '/{}/'.format(schema_available),
+                    )
                     submodule['schema'] = new_schema
                     updated = True
             except Exception:
@@ -278,7 +284,7 @@ if __name__ == '__main__':
                 continue
 
         # Make patch request to ConfD to update schema
-        if updated == True:
+        if updated:
             updated_modules[key] = module
 
             response = confdService.patch_module(module)

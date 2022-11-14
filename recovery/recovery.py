@@ -47,7 +47,6 @@ current_file_basename = os.path.basename(__file__)
 
 
 class ScriptConfig(BaseScriptConfig):
-
     def __init__(self):
         help = __doc__
         mutually_exclusive_args: list[list[Arg]] = [
@@ -75,7 +74,7 @@ class ScriptConfig(BaseScriptConfig):
                     'save operation will use date and time in UTC.'
                 ),
                 'type': str,
-                'default': ''
+                'default': '',
             },
             {
                 'flag': '--rdb_file',
@@ -84,7 +83,7 @@ class ScriptConfig(BaseScriptConfig):
                     'Default name is current UTC datetime.'
                 ),
                 'type': str,
-                'default': datetime.utcnow().strftime(backup_date_format)
+                'default': datetime.utcnow().strftime(backup_date_format),
             },
         ]
         super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
@@ -92,10 +91,10 @@ class ScriptConfig(BaseScriptConfig):
 
 class Recovery:
     def __init__(
-            self,
-            args: Namespace,
-            config: ConfigParser = create_config(),
-            redis_connection: RedisConnection = RedisConnection()
+        self,
+        args: Namespace,
+        config: ConfigParser = create_config(),
+        redis_connection: RedisConnection = RedisConnection(),
     ):
         self.start_time = None
         self.job_log_messages = []
@@ -123,7 +122,10 @@ class Recovery:
         self._start_process()
         self.logger.info(f'{self.process_type} process of Redis database finished successfully')
         job_log(
-            self.start_time, self.temp_dir, messages=self.job_log_messages, status=JobLogStatuses.SUCCESS,
+            self.start_time,
+            self.temp_dir,
+            messages=self.job_log_messages,
+            status=JobLogStatuses.SUCCESS,
             filename=self.job_log_filename,
         )
 
@@ -162,23 +164,20 @@ class BackupDatabaseData(Recovery):
         redis_modules_raw = self.redis_connection.get_all_modules()
         redis_vendors_raw = self.redis_connection.get_all_vendors()
         redis_modules_dict = json.loads(redis_modules_raw)
-        redis_modules = [module for module in redis_modules_dict.values()]
+        redis_modules = list(redis_modules_dict.values())
         redis_vendors = json.loads(redis_vendors_raw)
 
         os.makedirs(self.redis_json_backup, exist_ok=True)
         with open(os.path.join(self.redis_json_backup, f'{self.args.file}.json'), 'w') as f:
-            data = {
-                'yang-catalog:catalog': {
-                    'modules': redis_modules,
-                    'vendors': redis_vendors
-                }
-            }
+            data = {'yang-catalog:catalog': {'modules': redis_modules, 'vendors': redis_vendors}}
             json.dump(data, f)
 
-        self.job_log_messages.extend([
-            {'label': 'Saved modules', 'message': len(redis_modules)},
-            {'label': 'Saved vendors', 'message': len(redis_vendors.get('vendor', []))}
-        ])
+        self.job_log_messages.extend(
+            [
+                {'label': 'Saved modules', 'message': len(redis_modules)},
+                {'label': 'Saved vendors', 'message': len(redis_vendors.get('vendor', []))},
+            ],
+        )
 
 
 class LoadDataFromBackupToDatabase(Recovery):
@@ -195,8 +194,11 @@ class LoadDataFromBackupToDatabase(Recovery):
                 error_message = 'Didn\'t find any backups, finishing execution of the script'
                 self.logger.error(error_message)
                 job_log(
-                    self.start_time, self.temp_dir, status=JobLogStatuses.FAIL,
-                    error=error_message, filename=self.job_log_filename,
+                    self.start_time,
+                    self.temp_dir,
+                    status=JobLogStatuses.FAIL,
+                    error=error_message,
+                    filename=self.job_log_filename,
                 )
                 sys.exit()
             self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
@@ -214,10 +216,12 @@ class LoadDataFromBackupToDatabase(Recovery):
             self.redis_connection.reload_modules_cache()
             self.redis_connection.reload_vendors_cache()
             self.logger.info('All the modules data set to Redis successfully')
-        self.job_log_messages.extend([
-            {'label': 'Loaded modules', 'message': len(modules)},
-            {'label': 'Loaded vendors', 'message': len(vendors)}
-        ])
+        self.job_log_messages.extend(
+            [
+                {'label': 'Loaded modules', 'message': len(modules)},
+                {'label': 'Loaded vendors', 'message': len(vendors)},
+            ],
+        )
 
     def _load_data_from_redis_backup(self) -> tuple[list, list]:
         modules = []

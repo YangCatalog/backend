@@ -1,7 +1,8 @@
 import typing as t
 
-from parseAndPopulate.resolvers.resolver import Resolver
 from pyang.statements import Statement
+
+from parseAndPopulate.resolvers.resolver import Resolver
 
 
 class BasicResolver(Resolver):

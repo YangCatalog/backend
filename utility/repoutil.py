@@ -39,8 +39,13 @@ class RepoUtil:
     local_dir: str
     repo: Repo
 
-    def __init__(self, repourl: str, clone: bool = True, clone_options: dict = {}, 
-                 logger: t.Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        repourl: str,
+        clone: bool = True,
+        clone_options: dict = {},
+        logger: t.Optional[logging.Logger] = None,
+    ):
         """
         Arguments:
             :param repourl          (str) URL of the repository
@@ -53,7 +58,6 @@ class RepoUtil:
         self.logger = logger
         if clone:
             self._clone(**clone_options)
-
 
     def get_repo_dir(self) -> str:
         """Return the repository directory name from the URL"""
@@ -74,10 +78,10 @@ class RepoUtil:
                 for submodule in self.repo.submodules:
                     assert isinstance(submodule.path, str)
                     if submodule.path in path:
-                        return load(
-                                os.path.join(self.local_dir, submodule.path),
-                                submodule._url
-                            ).get_commit_hash(path, branch)
+                        return load(os.path.join(self.local_dir, submodule.path), submodule._url).get_commit_hash(
+                            path,
+                            branch,
+                        )
             return self.repo.commit(f'origin/{branch}').hexsha
         except BadName:
             if self.logger:
@@ -94,8 +98,12 @@ class RepoUtil:
         owner = os.path.basename(os.path.dirname(self.url))
         return owner.split(':')[-1]
 
-    def _clone(self, local_dir: t.Optional[str] = None, config_username: t.Optional[str] = None,
-              config_user_email: t.Optional[str] = None):
+    def _clone(
+        self,
+        local_dir: t.Optional[str] = None,
+        config_username: t.Optional[str] = None,
+        config_user_email: t.Optional[str] = None,
+    ):
         """Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
@@ -121,8 +129,13 @@ class ModifiableRepoUtil(RepoUtil):
     The repository directory is automatically removed on object deletion.
     """
 
-    def __init__(self, repourl: str, clone: bool = True, clone_options: dict = {}, 
-                 logger: t.Optional[logging.Logger] = None):
+    def __init__(
+        self,
+        repourl: str,
+        clone: bool = True,
+        clone_options: dict = {},
+        logger: t.Optional[logging.Logger] = None,
+    ):
         super().__init__(repourl, clone, clone_options, logger)
 
     def add_untracked_remove_deleted(self):

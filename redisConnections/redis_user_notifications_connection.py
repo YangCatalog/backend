@@ -21,11 +21,12 @@ class RedisUserNotificationsConnection:
 
         self.log_directory = config.get('Directory-Section', 'logs')
         self.logger = log.get_logger(
-            'redis_user_notifications_connection', f'{self.log_directory}/redis_user_notification_connection.log'
+            'redis_user_notifications_connection',
+            f'{self.log_directory}/redis_user_notification_connection.log',
         )
 
     def unsubscribe_from_emails(self, emails_type: str, *emails: str):
-        """"Unsubscribes a list of emails from an exact emails type"""
+        """ "Unsubscribes a list of emails from an exact emails type"""
         self.logger.info(f'Unsubscribing {emails} from emails "{emails_type}"')
         self.redis.sadd(emails_type, *emails)
 

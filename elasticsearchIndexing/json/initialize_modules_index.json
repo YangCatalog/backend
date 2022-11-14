@@ -1,11 +1,15 @@
 {
+  "aliases": {
+    "modules-alias": {}
+  },
   "settings": {
     "index": {
       "blocks": {
         "read_only_allow_delete": "false"
       },
       "max_ngram_diff": 100,
-      "number_of_shards": 2
+      "number_of_shards": 2,
+      "number_of_replicas": 0
     },
     "analysis": {
       "tokenizer": {

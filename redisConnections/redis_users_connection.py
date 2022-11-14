@@ -36,7 +36,13 @@ class RedisUsersConnection:
     """
 
     _universal_fields = [
-        'username', 'password', 'email', 'models-provider', 'first-name', 'last-name', 'registration-datetime',
+        'username',
+        'password',
+        'email',
+        'models-provider',
+        'first-name',
+        'last-name',
+        'registration-datetime',
     ]
     _temp_fields = ['motivation']
     _appr_fields = ['access-rights-sdo', 'access-rights-vendor']
