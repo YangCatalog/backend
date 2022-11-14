@@ -57,8 +57,6 @@ class TestModulesClass(unittest.TestCase):
     #########################
     ### TESTS DEFINITIONS ###
     #########################
-    # TODO: we should probably have unit tests for the individual Model._resolve* methods
-
     def test_modules_parse_all_sdo_object(self):
         """
         Create modules object from SDO (= ietf) YANG file,
