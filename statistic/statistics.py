@@ -297,7 +297,7 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
 
     try:
         # pull(yang_models) no need to pull https://github.com/YangModels/yang
-        # as it is daily done via SDO_analysis module
+        # as it is daily done via module-compilation module
 
         # function needs to be renamed to something more descriptive (I don't quite understand it's purpose)
         def process_platforms(

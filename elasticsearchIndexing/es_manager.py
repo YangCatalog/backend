@@ -98,7 +98,8 @@ class ESManager:
         Argument:
             :param index   (ESIndices) Index to be checked
         """
-        return self.es.indices.exists(index=index.value)
+        name = index.value
+        return self.es.indices.exists(name) or self.es.indices.exists_alias(name)
 
     def get_indices(self) -> list:
         """Returns a list of existing indices."""
@@ -186,9 +187,7 @@ class ESManager:
         # TODO: Remove this IF after reindexing and unification of both indices
         if index in [ESIndices.MODULES, ESIndices.YINDEX]:
             try:
-                name = document['name']
-                del document['name']
-                document['module'] = name
+                document['module'] = document.pop('name')
             except KeyError:
                 pass
 

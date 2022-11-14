@@ -213,7 +213,7 @@ def extract_rfc_tgz(tgz_path: str, extract_to: str, logger: logging.Logger) -> b
     except tarfile.ReadError:
         logger.warning(
             'tarfile could not be opened. It might not have been generated yet.'
-            ' Did the sdo_analysis cron job run already?',
+            ' Did the module-compilation cron job run already?',
         )
     os.remove(tgz_path)
 

@@ -205,10 +205,9 @@ def impact_analysis():
     allowed_organizations = payload.get('organizations', [])
     rfc_allowed = payload.get('allow-rfc', True)
     submodules_allowed = payload.get('allow-submodules', True)
-    graph_directions = ['dependents', 'dependencies']
-    graph_direction = payload.get('graph-direction', graph_directions)
-    for direction in graph_direction:
-        if direction not in graph_directions:
+    graph_directions = payload.get('graph-direction', ['dependents', 'dependencies'])
+    for direction in graph_directions:
+        if direction not in ['dependents', 'dependencies']:
             abort(400, 'Only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
 
     # GET module details
@@ -228,19 +227,29 @@ def impact_analysis():
         'dependents': [],
         'dependencies': [],
     }
-    if 'dependents' in graph_directions:
-        for dependent in searched_module.get('dependents', []):
-            response['dependents'] += filter(
-                None,
-                [get_dependencies_dependents_data(dependent, submodules_allowed, allowed_organizations, rfc_allowed)],
-            )
+    # this file is created and updated on yangParser exceptions
+    try:
+        with open(os.path.join(ac.d_var, 'unparsable-modules.json')) as f:
+            unparsable_modules = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        unparsable_modules = []
 
-    if 'dependencies' in graph_directions:
-        for dependency in searched_module.get('dependencies', []):
-            response['dependencies'] += filter(
+    def unparsable(module):
+        if 'revision' in module and f'{module["name"]}@{module["revision"]}.yang' in unparsable_modules:
+            return True
+        return False
+
+    for direction in graph_directions:
+        response[direction] = list(
+            filter(
                 None,
-                [get_dependencies_dependents_data(dependency, submodules_allowed, allowed_organizations, rfc_allowed)],
-            )
+                (
+                    get_dependencies_dependents_data(module, submodules_allowed, allowed_organizations, rfc_allowed)
+                    for module in searched_module.get(direction, [])
+                    if not unparsable(module)
+                ),
+            ),
+        )
 
     return jsonify(response)
 
@@ -506,8 +515,8 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
         bp.logger.warning('Failed to get revisions and organization for {}'.format(name_rev))
         if warnings:
-            return {'warning': 'Failed to find module {} in Elasticsearch'.format(name_rev)}
-        abort(404, 'Failed to get revisions and organization for {} - please use module that exists'.format(name_rev))
+            return {'warning': 'Failed to find module {}'.format(name_rev)}
+        abort(404, 'Failed to get revisions and organization for {}'.format(name_rev))
 
 
 def get_latest_module_revision(module_name: str) -> str:

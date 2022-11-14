@@ -100,7 +100,7 @@ users we have in our database.
 file which is saved on the server as a backup. If we loose all the data for
 some reason we can use this script to upload it back with no loss of
 data.
-* [reviseTreeType](https://github.com/YangCatalog/backend/blob/master/utility/reviseTreeType.py) reevaluates the tree type for modules that were previously of type nmda-compatible.
+* [revise_tree_type](https://github.com/YangCatalog/backend/blob/master/utility/revise_tree_type.py) reevaluates the tree type for modules that were previously of type nmda-compatible.
 * [reviseSemver](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/reviseSemver.py) reevaluates the derived semantic versions of modules.
 ### Messaging
 

@@ -2,6 +2,22 @@
 
 * ##### vm.m.p - 2022-MM-DD
 
+* ##### v5.7.0 - 2022-11-11
+  
+  * Unused scripts removed from the sandbox directory [#647](https://github.com/YangCatalog/backend/issues/647)
+  * Replicas disabled in Elasticsearch [#646](https://github.com/YangCatalog/backend/issues/646)
+  * Aliases used now for accessing ES indices [#644](https://github.com/YangCatalog/backend/issues/644)
+  * gevent package version updated [#643](https://github.com/YangCatalog/backend/issues/643)
+  * setUpClass and tearDownClass methods use for tests [#641](https://github.com/YangCatalog/backend/issues/641)
+  * Multiple improvements to te logging added [#638](https://github.com/YangCatalog/backend/issues/638)
+  * Check whether module is unparsable before making request to ES [#633](https://github.com/YangCatalog/backend/issues/633)
+  * Add implementations without need of re-parsing whole module [#611](https://github.com/YangCatalog/backend/issues/611)
+  * Code reformatted according to the defined style guide [deployment #163](https://github.com/YangCatalog/deployment/issues/163)
+  * Bugfix: skip parsing modules specified in the iana-exceptions file [#629](https://github.com/YangCatalog/backend/issues/629)
+  * Text search (grep) functionality implemented [#602](https://github.com/YangCatalog/backend/issues/602)
+  * Send email notification if jobs failed in YangModels/yang repository [#623](https://github.com/YangCatalog/backend/issues/623)
+  * Functionality to avoid using synonyms while searching implemented [#603](https://github.com/YangCatalog/backend/issues/603)
+
 * ##### v5.6.1 - 2022-10-10
 
   * Autocomplete functionality for IETF draft names [yangvalidator #107](https://github.com/YangCatalog/yang-validator-extractor/issues/107)

@@ -1,4 +1,7 @@
 {
+  "aliases": {
+    "yindex-alias": {}
+  },
   "settings": {
     "index": {
       "blocks": {
@@ -6,7 +9,7 @@
       },
       "max_ngram_diff": 150,
       "number_of_shards": 3,
-      "number_of_replicas": 2
+      "number_of_replicas": 0
     },
     "analysis": {
       "filter": {

@@ -12,7 +12,7 @@ BACKEND=/backend
 #
 5 3 * * * (cd ~ ; source bin/activate ; echo "`date` starting statistics" >> /var/yang/logs/crons-log.log ; cd statistic ; python statistics.py)
 5 4 * * * (cd ~ ; source bin/activate ; echo "`date` starting resolveExpiration" >> /var/yang/logs/crons-log.log ; cd parseAndPopulate ; python resolve_expiration.py)
-5 5 * * * (cd ~ ; source bin/activate ; echo "`date` starting reviseTreeType" >> /var/yang/logs/crons-log.log ; cd utility ; python reviseTreeType.py)
+5 5 * * * (cd ~ ; source bin/activate ; echo "`date` starting revise_tree_type" >> /var/yang/logs/crons-log.log ; cd utility ; python revise_tree_type.py)
 5 6 * * * (cd ~ ; source bin/activate; echo "`date` starting openconfigPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python openconfigPullLocal.py )
 5 12 * * 0 (cd ~ ; source bin/activate ; echo "`date` starting reviseSemver" >> /var/yang/logs/crons-log.log ; cd parseAndPopulate ; python reviseSemver.py)
 5 10 1 * * (cd ~ ; source bin/activate ; echo "`date` starting userReminder" >> /var/yang/logs/crons-log.log ; cd utility ; python userReminder.py)
@@ -21,7 +21,7 @@ BACKEND=/backend
 5 22 * * * (cd ~ ; source bin/activate ; echo "`date` starting draftPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python draftPullLocal.py )
 17 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting recovery" >> /var/yang/logs/crons-log.log ; cd  recovery ; python recovery.py --save)
 30 15 * * * (cd ~ ; source bin/activate ; echo "`date` starting removeUnused" >> /var/yang/logs/crons-log.log ; cd  utility ; python removeUnused.py)
-*/3 * * * * (cd ~ ; source bin/activate ; cd  elasticsearchIndexing ; python process-changed-mods.py)
+*/3 * * * * (cd ~ ; source bin/activate ; cd  elasticsearchIndexing ; python process_changed_mods.py)
 0 2 */1 * * (cd ~ ; source bin/activate ; cd elasticsearchIndexing ; python process-drafts.py)
 0 */2 * * * (cd ~ ; source bin/activate ; cd utility ; python confdFullCheck.py)
 0 0 1 * * (cd ~ ; source bin/activate ; cd recovery ; python redis_users_recovery.py --save)
