@@ -77,11 +77,12 @@ jobs:
       - name: Feed Redis
         run: |
           export BACKEND=$PWD
-          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf python feed_redis.py
+          export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
+          python feed_redis.py
 
       - name: Test with pytest
         env:
-          TOKEN: ${{ secrets.TOKEN }}
+          TOKEN: ${{ secrets.token }}
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
           export TOKEN
