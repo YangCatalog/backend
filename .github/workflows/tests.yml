@@ -82,10 +82,9 @@ jobs:
 
       - name: Test with pytest
         env:
-          TOKEN: ${{ secrets.token }}
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
-          export TOKEN
+          export TOKEN=${{ secrets.TOKEN }}
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
@@ -100,7 +99,7 @@ jobs:
         id: coverage_comment
         uses: py-cov-action/python-coverage-comment-action@v3
         with:
-          GITHUB_TOKEN: ${{ secrets.token }}
+          GITHUB_TOKEN: ${{ github.token }}
           COMMENT_TEMPLATE: '
             {% extends "base" %}
             {% block title %}
