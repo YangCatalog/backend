@@ -263,7 +263,7 @@ def update_forked_repository(yang_models: str, forked_repo_url: str, logger: log
             logger.info(f'Remote: {remote.name} - Commit: {info.commit}')
 
         # git pull origin main
-        origin.pull('main')[0]
+        origin.pull('main')
 
         # git push fork main
         push_info = fork.push('main')[0]
