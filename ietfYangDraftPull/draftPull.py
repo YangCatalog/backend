@@ -95,8 +95,9 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     repo_name = 'yang'
     commit_author = {'name': config_name, 'email': config_email}
 
-    dpu.update_forked_repository(yang_models, dpu.construct_github_repo_url(username, repo_name, token), logger)
-    repo = dpu.clone_forked_repository(dpu.construct_github_repo_url(username, repo_name), commit_author, logger)
+    github_repo_url = dpu.construct_github_repo_url(username, repo_name, token)
+    dpu.update_forked_repository(yang_models, github_repo_url, logger)
+    repo = dpu.clone_forked_repository(github_repo_url, commit_author, logger)
 
     if not repo:
         error_message = f'Failed to clone repository {username}/{repo_name}'
