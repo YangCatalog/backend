@@ -26,6 +26,7 @@ class GrepSearch:
         redis_connection: RedisConnection = RedisConnection(),
     ):
         self.all_modules_directory = config.get('Directory-Section', 'save-file-dir')
+        self.results_per_page = int(config.get('Web-Section', 'grep-search-results-per-page', fallback=500))
         query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
         with open(query_path) as query_file:
             self.query = json.load(query_file)
@@ -45,8 +46,9 @@ class GrepSearch:
         search_string: str,
         inverted_search: bool = False,
         case_sensitive: bool = False,
+        page_number: int = 1,
     ) -> list[dict]:
-        module_names = self._get_matching_module_names(search_string, inverted_search, case_sensitive)
+        module_names = self._get_matching_module_names(search_string, inverted_search, case_sensitive, page_number)
         if not module_names:
             return []
         return self._search_modules_in_database(organizations, module_names)
@@ -56,7 +58,8 @@ class GrepSearch:
         search_string: str,
         inverted_search: bool,
         case_sensitive: bool,
-    ) -> t.Optional[tuple[str]]:
+        page_number: int = 1,
+    ) -> t.Optional[t.Union[tuple[str], list[str]]]:
         """
         Performs a native pcregrep search of modules in self.all_modules_directory.
         Returns a list of all module names that satisfy the search.
@@ -67,18 +70,21 @@ class GrepSearch:
             all the modules not satisfying the search
             :param case_sensitive   (bool) indicates if the search must be case-sensitive or not
         """
-        module_names_with_format = set()
+        module_names_with_format = []
         pcregrep_shell_command = f'pcregrep -{"" if case_sensitive else "i"}lrMe'
         try:
             pcregrep_result = subprocess.check_output(
-                f'{pcregrep_shell_command} \'{search_string}\' {self.all_modules_directory.rstrip("/")}',
+                (
+                    f'{pcregrep_shell_command} \'{search_string}\' {self.all_modules_directory.rstrip("/")} '
+                    f'| uniq | head -n{self.results_per_page * page_number}'
+                ),
                 shell=True,
             )
-            for result in pcregrep_result.decode().split('\n'):
+            for result in pcregrep_result.decode().split('\n')[self.results_per_page * (page_number - 1) :]:
                 if not result:
                     continue
                 module_name_with_format = result.split(self.all_modules_directory)[1].lstrip('/')
-                module_names_with_format.add(module_name_with_format)
+                module_names_with_format.append(module_name_with_format)
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
                 self.logger.info('All the modules satisfy the inverted search')
@@ -88,15 +94,20 @@ class GrepSearch:
             else:
                 raise ValueError('Invalid search input')
         if inverted_search:
-            all_module_names_with_format = set(os.listdir(self.all_modules_directory))
-            module_names_with_format = all_module_names_with_format - module_names_with_format
-        return tuple(module_names_with_format)
+            module_names_with_format = tuple(
+                set(os.listdir(self.all_modules_directory)) - set(module_names_with_format),
+            )
+        return module_names_with_format
 
     def _search_modules_in_database(self, organizations: list[str], module_names_with_format: tuple[str]) -> list[dict]:
         response = []
-        self.query['query']['bool']['should'] = [
-            {'term': {'organization': organization}} for organization in organizations
-        ]
+        if not organizations:
+            self.query['query']['bool']['minimum_should_match'] = 0
+        else:
+            self.query['query']['bool']['should'] = [
+                {'term': {'organization': organization}} for organization in organizations
+            ]
+            self.query['query']['bool']['minimum_should_match'] = 1
         for module_name in module_names_with_format:
             name, revision = module_name.split('.yang')[0].split('@')
             self.query['query']['bool']['must'] = [

@@ -37,6 +37,7 @@ from api.views.yangSearch.grep_search import GrepSearch
 from api.views.yangSearch.search_params import SearchParams
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from utility.create_config import create_config
 from utility.staticVariables import MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS, SCHEMA_TYPES
 from utility.yangParser import create_context
 
@@ -62,23 +63,38 @@ def set_config():
 # ROUTE ENDPOINT DEFINITIONS
 
 
-@bp.route('/grep_search', methods=['POST'])
+@bp.route('/grep_search', methods=['GET'])
 def grep_search():
     if not request.json:
         abort(400, description='No input data')
-    body = request.json
-    organizations: list[str] = body.get('organizations', [])
-    search_string: str = body.get('search')
-    inverted_search: bool = body.get('inverted_search', False)
-    case_sensitive: bool = body.get('case_sensitive', False)
+    query_params = request.args
+    organizations: list[str] = query_params.getlist('organizations')
+    search_string: str = query_params.get('search', '')
+    inverted_search: bool = query_params.get('inverted_search', type=lambda v: v.lower() == 'true')
+    case_sensitive: bool = query_params.get('case_sensitive', type=lambda v: v.lower() == 'true')
+    page_number: int = query_params.get('page', default=1, type=int)
     if not search_string:
         abort(400, description='Search cannot be empty')
+    config = create_config()
     try:
-        response = GrepSearch(
-            config=ac.config_parser,
+        results = GrepSearch(
+            config=config,
             es_manager=ac.es_manager,
             redis_connection=app.redisConnection,
-        ).search(organizations, search_string, inverted_search, case_sensitive)
+        ).search(organizations, search_string, inverted_search, case_sensitive, page_number)
+        response = {
+            'more_results': (
+                f'{config.get("Web-Section", "yangcatalog-api-prefix")}/yang-search/v2/grep_search'
+                f'?search={search_string}'
+                f'&organizations={"&organizations=".join(organizations)}'
+                f'&inverted_search={"true" if inverted_search else "false"}'
+                f'&case_sensitive={"true" if case_sensitive else "false"}'
+                f'&page={page_number + 1}'
+            )
+            if results
+            else '',
+            'results': results,
+        }
         return make_response(jsonify(response))
     except ValueError as e:
         abort(400, description=str(e))

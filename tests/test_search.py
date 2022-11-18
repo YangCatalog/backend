@@ -26,6 +26,7 @@ class TestSearchClass(unittest.TestCase):
     def setUpClass(cls):
         config = create_config()
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests', 'resources')
+        config.set('Directory-Section', 'save-file-dir', os.path.join(cls.resources_path, 'test_search/all_modules'))
         cls._configure_es(config)
         redis_connection_mock = RedisConnectionMock()
         cls.grep_search = GrepSearch(
@@ -44,7 +45,7 @@ class TestSearchClass(unittest.TestCase):
         cls.es = Elasticsearch(hosts=[es_host_config])
         cls.es_manager = ESManager(cls.es)
         cls.es_index = ESIndices.TEST_SEARCH
-        with open(os.path.join(cls.resources_path, 'search_test_data.json'), 'r') as reader:
+        with open(os.path.join(cls.resources_path, 'test_search/search_test_data.json'), 'r') as reader:
             es_test_data = json.load(reader)
         index_json_name = f'initialize_{cls.es_index.value}_index.json'
         index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing', 'json', index_json_name)

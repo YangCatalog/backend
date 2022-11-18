@@ -1,0 +1,145 @@
+module fujitsu-ip {
+  namespace "urn:fujitsu:params:xml:ns:yang:ietf-ip-ext";
+  prefix fujitsu-ip;
+
+  import ietf-interfaces {
+    prefix if;
+  }
+  import ietf-ip {
+    prefix ip;
+  }
+  import ietf-yang-types {
+    prefix yang;
+  }
+
+  organization
+    "Fujitsu Ltd.";
+  contact
+    "Fujitsu Ltd.
+     
+     Address: 2801 Telecom Parkway
+     Richardson, Texas 75082
+     
+     Tel: +1-800-USE-FTAC (1-800-873-3822)
+     Email: ftac@fnc.fujitsu.com
+     Web: www.fujitsu.com/us/services/telecom";
+  description
+    "This file contains the extensions
+     for the ietf ip yang model.
+     
+      Copyright (c) 2016 Fujitsu Ltd.
+        All rights reserved. ";
+
+  revision 2018-04-17 {
+    description
+      "Inclusion of Address-src validation for IP over PPP interface";
+  }
+  revision 2018-01-22 {
+    description
+      "Changed filename, module name, and prefix";
+  }
+  revision 2017-12-13 {
+    description
+      "Address-src leaf type changed from enum to leafref";
+  }
+  revision 2017-07-07 {
+    description
+      "Yang optimization changes.";
+  }
+  revision 2017-06-01 {
+    description
+      "Added validation call point for nextmask and prefix length";
+  }
+  revision 2017-04-19 {
+    description
+      "Added support for SC-E1/2";
+  }
+  revision 2017-04-10 {
+    description
+      "Added support for E2 ports for ip numbered interfaces";
+  }
+  revision 2017-03-06 {
+    description
+      "OSC interface specific validations are made generic to support E-SC-E2 interface";
+  }
+
+  augment "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:subnet" {
+    leaf netmask {
+      type yang:dotted-quad;
+      must "not(((current()/../../../if:name = 'ip-1/0/0/NEM') or (current()/../../../if:name = 'ip-200/0/0/NEM'))) or current() = '255.255.255.255'" {
+        error-message "The netmask of NEM interface shall be 255.255.255.255";
+      }
+      description
+        "The subnet specified as a contiguous netmask.";
+    }
+  }
+  augment "/if:interfaces/if:interface/ip:ipv4/ip:address" {
+    leaf preferred {
+      type enumeration {
+        enum "true" {
+          value 1;
+        }
+        enum "false" {
+          value 0;
+        }
+      }
+      default "false";
+      must "count(../../ip:address[fujitsu-ip:preferred='true'])=1" {
+        error-message "one NEM IP Address should be exclusively be marked as preferred";
+      }
+      description
+        "Mark address availablity for unnumbered interface use.";
+    }
+  }
+  augment "/if:interfaces-state/if:interface/ip:ipv4/ip:address" {
+    leaf prefix-length {
+      type uint8 {
+        range "0..32";
+      }
+    }
+  }
+  augment "/if:interfaces/if:interface/ip:ipv4" {
+    leaf update-addr {
+      type enumeration {
+        enum "0" {
+          value 0;
+        }
+        enum "1" {
+          value 1;
+        }
+      }
+      default "0";
+    }
+    leaf address-src {
+      type leafref {
+        path "/if:interfaces/if:interface/if:name";
+      }
+      must "count (/if:interfaces/if:interface[if:name=current()]/if:name) > 0" {
+        error-message "The interface referenced as ipv4 address-src shall exist";
+      }
+      must "/if:interfaces/if:interface[if:name=current()]/if:enabled = 'true'" {
+        error-message "The interface referenced as ipv4 address-src shall be enabled";
+      }
+      must "count (/if:interfaces/if:interface[if:name=current()]/ip:ipv4/ip:address/ip:ip) > 0" {
+        error-message "The interface referenced as ipv4 address-src shall exist and shall have an ip address";
+      }
+      description
+        "The source of the shared IP address for unnumbered IP interface.";
+    }
+    leaf address-force {
+      type leafref {
+        path "/if:interfaces/if:interface/ip:ipv4/ip:address/ip:ip";
+      }
+      must
+        "/if:interfaces/if:interface[if:name='ip-1/0/0/NEM']/ip:ipv4/ip:address[ip:ip=current()]/ip:ip = current() or 
+         /if:interfaces/if:interface[if:name='ip-200/0/0/NEM']/ip:ipv4/ip:address[ip:ip=current()]/ip:ip = current()" {
+        error-message "IP address shall be sourced from the NEM interface only";
+      }
+      must "not (../address-src)" {
+        error-message "Both address-src & address-force cannot be configured at the same time";
+      }
+      description
+        "The IP address to use for the unnumbered interface";
+    }
+  }
+}
