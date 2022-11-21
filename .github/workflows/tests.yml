@@ -9,7 +9,7 @@ jobs:
 
   build:
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
         python-version: ["3.9"]
@@ -19,9 +19,10 @@ jobs:
     environment: tests
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -43,7 +44,7 @@ jobs:
         uses: psf/black@stable
 
       - name: Setup Redis ${{ matrix.redis-version }}
-        uses: supercharge/redis-github-action@1.2.0
+        uses: supercharge/redis-github-action@1.4.0
         with:
           redis-version: ${{ matrix.redis-version }}
 
@@ -90,14 +91,14 @@ jobs:
           coverage run -am pytest
 
       - name: Store coverage file
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.1
         with:
           name: coverage
           path: .coverage
 
       - name: Write coverage comment
         id: coverage_comment
-        uses: py-cov-action/python-coverage-comment-action@v3
+        uses: py-cov-action/python-coverage-comment-action@v2.2.0
         with:
           GITHUB_TOKEN: ${{ github.token }}
           COMMENT_TEMPLATE: '
@@ -116,7 +117,7 @@ jobs:
           '
 
       - name: Store Pull Request comment to be posted
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v3.1.1
         if: ${{ steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true' }}
         with:
           name: python-coverage-comment-action
@@ -124,11 +125,11 @@ jobs:
 
   update-coverage-badge:
     needs: build
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     if: ${{ github.event_name == 'push' && github.event.push.head.repo.full_name != 'YangCatalog/backend' }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
           ref: ${{ github.event.push.head.ref }}
@@ -138,7 +139,7 @@ jobs:
         with:
           python-version: '3.9'
 
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v3.0.1
         with:
           name: coverage
 
@@ -149,7 +150,7 @@ jobs:
         run: mv coverage.svg .github/images
 
       - name: Verify Changed files
-        uses: tj-actions/verify-changed-files@v9
+        uses: tj-actions/verify-changed-files@v12
         id: changed_files
         with:
           files: .github/images/coverage.svg
