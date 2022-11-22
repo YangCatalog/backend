@@ -27,6 +27,7 @@ import hashlib
 import os
 import shutil
 import time
+import uuid
 from datetime import datetime as dt
 
 import utility.log as log
@@ -41,9 +42,17 @@ BLOCK_SIZE = 65536
 current_file_basename = os.path.basename(__file__)
 
 
-def represents_int(s):
+def represents_int(s: str) -> bool:
     try:
         int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def represents_uuid(s: str) -> bool:
+    try:
+        uuid.UUID(s)
         return True
     except ValueError:
         return False
@@ -74,7 +83,7 @@ def main():
     es_aws = config.get('DB-Section', 'es-aws')
 
     log_file_path = os.path.join(log_directory, 'jobs', 'removeUnused.log')
-    logger = log.get_logger('removeUnused', log_file_path)
+    logger = log.get_logger('remove_unused', log_file_path)
     logger.info('Starting Cron job remove unused files')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
@@ -83,7 +92,7 @@ def main():
     try:
         logger.info('Removing old tmp directory representing int folders')
         for dir in next(os.walk(temp_dir))[1]:
-            if represents_int(dir):
+            if represents_int(dir) or represents_uuid(dir):
                 creation_time = os.path.getctime(os.path.join(temp_dir, dir))
                 if creation_time < cutoff:
                     shutil.rmtree(os.path.join(temp_dir, dir))
@@ -216,7 +225,7 @@ def main():
         logger.info('Removing old cache json files')
         remove_old_backups('confd')
     except Exception as e:
-        logger.exception('Exception found while running removeUnused script')
+        logger.exception('Exception found while running remove_unused script')
         job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     job_log(start_time, temp_dir, status=JobLogStatuses.SUCCESS, filename=current_file_basename)

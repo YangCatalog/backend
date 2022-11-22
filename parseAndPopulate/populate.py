@@ -32,6 +32,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import json
 import multiprocessing
 import os
+import shutil
 import sys
 import time
 import typing as t
@@ -200,6 +201,11 @@ class Populate:
             # Keep new hashes only if the ConfD was patched successfully
             if not self.errors:
                 self._update_files_hashes()
+        try:
+            uuid.UUID(self.json_dir)
+            shutil.rmtree(self.json_dir)
+        except ValueError:
+            pass
         self.logger.info('Populate script finished successfully')
 
     def _send_notification_about_running_script_by_api(self):
