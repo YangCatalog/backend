@@ -62,7 +62,7 @@ def set_config():
 # ROUTE ENDPOINT DEFINITIONS
 
 
-@bp.route('/grep_search', methods=['POST'])
+# @bp.route('/grep_search', methods=['POST'])
 def grep_search():
     if not request.json:
         abort(400, description='No input data')
