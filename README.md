@@ -84,7 +84,7 @@ information about what vendors' and SDOs' modules we have and the number of
 modules that we have.
 * [resolveExpiration](https://github.com/YangCatalog/backend/blob/master/utility/resolveExpiration.py) job that checks all the IETF draft modules
 and their expiration dates and updates its metadata accordingly.
-* [removeUnused](https://github.com/YangCatalog/backend/blob/master/utility/removeUnused.py) job that removes data on the server that are not used
+* [remove_unused](https://github.com/YangCatalog/backend/blob/master/utility/remove_unused.py) job that removes data on the server that are not used
 anymore.
 * [userReminder](https://github.com/YangCatalog/backend/blob/master/utility/userReminder.py) script that will be triggered twice a year to show us what
 users we have in our database.
