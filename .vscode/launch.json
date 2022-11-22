@@ -123,10 +123,10 @@
       "justMyCode": false
     },
     {
-      "name": "removeUnused",
+      "name": "remove_unused",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/utility/removeUnused.py",
+      "program": "${workspaceFolder}/utility/remove_unused.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false

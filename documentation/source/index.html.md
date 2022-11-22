@@ -3153,7 +3153,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
       "start": 1599589021,
       "status": "Success"
     },
-    "removeUnused": {
+    "remove_unused": {
       "end": 1599579002,
       "error": "AuthenticationException(401, '{\"Message\":\"settings.role_arn is needed for snapshot registration.\"}')",
       "start": 1599579002,
