@@ -1,32 +1,42 @@
 name: Python tests
 
-on: [push]
+on:
+  push:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize, edited]
 
 jobs:
 
   build:
 
-    runs-on: ubuntu-18.04
+    runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: ["3.9"]
+        python-version: [3.9]
         redis-version: [6]
-        elasticsearch-version: ["7.10.1"]
+        elasticsearch-version: [7.10.1]
       max-parallel: 1
     environment: tests
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
+
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+          cache-dependency-path: |
+            requirements.txt
+            tests_requirements.txt
+            lint_requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install -r lint_requirements.txt
+          pip install -r tests_requirements.txt
           ./setup.py install
 
       - name: Check isort
@@ -39,7 +49,7 @@ jobs:
         uses: psf/black@stable
 
       - name: Setup Redis ${{ matrix.redis-version }}
-        uses: supercharge/redis-github-action@1.2.0
+        uses: supercharge/redis-github-action@1.4.0
         with:
           redis-version: ${{ matrix.redis-version }}
 
@@ -73,7 +83,8 @@ jobs:
       - name: Feed Redis
         run: |
           export BACKEND=$PWD
-          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf python feed_redis.py
+          export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
+          python feed_redis.py
 
       - name: Test with pytest
         env:
@@ -82,4 +93,79 @@ jobs:
         run: |
           export TOKEN
           export BACKEND=$PWD
-          YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf pytest
+          export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
+          coverage run -am pytest
+
+      - name: Store coverage file
+        uses: actions/upload-artifact@v3.1.1
+        with:
+          name: coverage
+          path: .coverage
+
+      - name: Write coverage comment
+        id: coverage_comment
+        uses: py-cov-action/python-coverage-comment-action@v3
+        with:
+          GITHUB_TOKEN: ${{ github.token }}
+          COMMENT_TEMPLATE: '
+            {% extends "base" %}
+            {% block title %}
+            {{ super() }}
+
+            <details>
+            <summary>Full coverage report summary (click to unfold)</summary>
+            {% for file_coverage in coverage.files.values() %}
+            {{ file_coverage.path }}: <b>{{ ((file_coverage.info.percent_covered * 100)|int) }}%</b><br>
+            {% endfor %}
+            </details>
+
+            {% endblock title %}
+          '
+
+      - name: Store Pull Request comment to be posted
+        uses: actions/upload-artifact@v3.1.1
+        if: ${{ steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true' }}
+        with:
+          name: python-coverage-comment-action
+          path: python-coverage-comment-action.txt
+
+  update-coverage-badge:
+    needs: build
+    runs-on: ubuntu-22.04
+    if: ${{ github.event_name == 'push' && github.event.push.head.repo.full_name != 'YangCatalog/backend' }}
+
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.push.head.ref }}
+          repository: ${{ github.event.push.head.repo.full_name }}
+
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.9
+
+      - uses: actions/download-artifact@v3.0.1
+        with:
+          name: coverage
+
+      - name: Coverage badge
+        uses: tj-actions/coverage-badge-py@v1.8
+
+      - name: Move coverage badge to images folder
+        run: mv coverage.svg .github/images
+
+      - name: Verify Changed files
+        uses: tj-actions/verify-changed-files@v12
+        id: changed_files
+        with:
+          files: .github/images/coverage.svg
+
+      - name: Commit files
+        if: ${{ steps.changed_files.outputs.files_changed == 'true' }}
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .github/images/coverage.svg
+          git commit -m "Updated coverage.svg"
+          git push
