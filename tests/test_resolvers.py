@@ -17,17 +17,32 @@ __copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
-import json
+import logging
 import os
 import unittest
+from unittest import mock
+
+from pyang.statements import new_statement
 
 from api.globalConfig import yc_gc
 from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.models.dependency import Dependency
+from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.schema_parts import SchemaParts
-
+from parseAndPopulate.models.submodule import Submodule
 from parseAndPopulate.resolvers.basic import BasicResolver
-
-from pyang.statements import Statement, new_statement
+from parseAndPopulate.resolvers.expiration import ExpirationResolver
+from parseAndPopulate.resolvers.generated_from import GeneratedFromResolver
+from parseAndPopulate.resolvers.implementations import ImplementationResolver
+from parseAndPopulate.resolvers.imports import ImportsResolver
+from parseAndPopulate.resolvers.module_type import ModuleTypeResolver
+from parseAndPopulate.resolvers.namespace import NamespaceResolver
+from parseAndPopulate.resolvers.organization import OrganizationResolver
+from parseAndPopulate.resolvers.prefix import PrefixResolver
+from parseAndPopulate.resolvers.revision import RevisionResolver
+from parseAndPopulate.resolvers.semantic_version import SemanticVersionResolver
+from parseAndPopulate.resolvers.submodule import SubmoduleResolver
+from parseAndPopulate.resolvers.yang_version import YangVersionResolver
 
 
 class TestResolversClass(unittest.TestCase):
@@ -46,17 +61,546 @@ class TestResolversClass(unittest.TestCase):
             'private': '',
             'result': yc_gc.result_dir,
             'save': yc_gc.save_file_dir,
-            'yang_models': yc_gc.yang_models
+            'yang_models': yc_gc.yang_models,
         }
         self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
 
+    def setUp(self) -> None:
+        self.logger = logging.getLogger('test')
 
+        return super().setUp()
+
+    # BasicResolver
     def test_basic_resolver_simple_resolve(self):
-        stmt = new_statement(None, None, 0, 'output', 'test_output')
-        br = BasicResolver(parsed_yang=stmt, property_name="test")
+        # represents 'module test-module: output test-output'
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
+        module_stmt.substmts.append(output_stmt)
+
+        br = BasicResolver(parsed_yang=module_stmt, property_name='output')
         res = br.resolve()
-        self.assertEqual(res, "test_arg")
+        self.assertEqual(res, 'test-output')
+
+    def test_basic_resolver_simple_resolve_with_underscore(self):
+        # consider 'leaf-list' if this keyword does not work
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        output_stmt = new_statement(None, module_stmt, None, 'output-test', 'test-output')
+        module_stmt.substmts.append(output_stmt)
+
+        br = BasicResolver(parsed_yang=module_stmt, property_name='output_test')
+        res = br.resolve()
+        self.assertEqual(res, 'test-output')
+
+    # GeneratedFromResolver
+    def test_generated_from_resolver_simple_resolve_default(self):
+        gfr = GeneratedFromResolver(self.logger, name='test_default', namespace='some_namespace')
+        res = gfr.resolve()
+        self.assertEqual(res, 'not-applicable')
+
+    def test_generated_from_resolver_simple_resolve_default_no_namespace(self):
+        gfr = GeneratedFromResolver(self.logger, name='test_default', namespace=None)
+        res = gfr.resolve()
+        self.assertEqual(res, 'not-applicable')
+
+    def test_generated_from_resolver_simple_resolve_mib(self):
+        gfr = GeneratedFromResolver(self.logger, name='test_mib', namespace='something:smi')
+        res = gfr.resolve()
+        self.assertEqual(res, 'mib')
+
+    def test_generated_from_resolver_simple_resolve_native(self):
+        gfr = GeneratedFromResolver(self.logger, name='test_native_cisco', namespace='something:cisco:something')
+        res = gfr.resolve()
+        self.assertEqual(res, 'native')
+
+    def test_generated_from_resolver_simple_resolve_native_caps(self):
+        gfr = GeneratedFromResolver(self.logger, name='CISCOtest_native', namespace='Something:CISCO:sOmEtHiNg')
+        res = gfr.resolve()
+        self.assertEqual(res, 'native')
+
+    # ImplementationResolver
+    def test_implementation_resolver_simple_resolve(self):
+        platform_data1 = {
+            'vendor': 'test_vendor',
+            'platform': 'test_platform',
+            'software-version': 'v1.0',
+            'software-flavor': 'sweet-idk',
+            'os-version': 'v2.0',
+            'feature-set': 'whole',
+            'os': 'ubuntu',
+        }
+        platform_data2 = {
+            'vendor': 'test_vendor2',
+            'platform': 'test_platform2',
+            'software-version': 'v2.0',
+            'software-flavor': 'sour-idk',
+            'os-version': 'v3.0',
+            'feature-set': 'partial',
+            'os': 'windows',
+        }
+        platform_data = [platform_data1, platform_data2]
+        conformance_type = 'some_type_of_conformance'
+        netconf_capabilities = ['capabilities1', 'capabilities2']
+        netconf_versions = ['version1', 'version2']
+
+        vendor_info = {
+            'platform_data': platform_data,
+            'conformance_type': conformance_type,
+            'capabilities': netconf_capabilities,
+            'netconf_versions': netconf_versions,
+        }
+        features = ['feature1', 'feature2']
+        deviations = [
+            {'name': 'deviation1', 'revision': 'first'},
+            {'name': 'deviation2', 'revision': 'second'},
+        ]
+
+        ir = ImplementationResolver(vendor_info, features, deviations)
+        res = ir.resolve()
+
+        self.assertEqual(len(res), 2)
+        self.assertIsInstance(res[0], Implementation)
+        for platform_data_i, implementation_i in zip(platform_data, res):
+            self.assertEqual(implementation_i.vendor, platform_data_i['vendor'])
+            self.assertEqual(implementation_i.platform, platform_data_i['platform'])
+            self.assertEqual(implementation_i.software_version, platform_data_i['software-version'])
+            self.assertEqual(implementation_i.software_flavor, platform_data_i['software-flavor'])
+            self.assertEqual(implementation_i.os_version, platform_data_i['os-version'])
+            self.assertEqual(implementation_i.feature_set, platform_data_i['feature-set'])
+            self.assertEqual(implementation_i.os_type, platform_data_i['os'])
+            self.assertEqual(implementation_i.feature, features)
+            self.assertEqual(implementation_i.capabilities, netconf_capabilities)
+            self.assertEqual(implementation_i.netconf_versions, netconf_versions)
+            self.assertEqual(implementation_i.deviations[0].name, deviations[0]['name'])
+            self.assertEqual(implementation_i.deviations[0].revision, deviations[0]['revision'])
+            self.assertEqual(implementation_i.deviations[1].name, deviations[1]['name'])
+            self.assertEqual(implementation_i.deviations[1].revision, deviations[1]['revision'])
+            self.assertEqual(implementation_i.conformance_type, conformance_type)
+
+    # ImportsResolver
+    def test_imports_resolver_simple_resolve_no_imports(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
+        module_stmt.substmts.append(output_stmt)
+
+        path = ''
+        schema = None
+        schemas = {}
+        yang_models_dir = ''
+        nonietf_dir = ''
+
+        ir = ImportsResolver(module_stmt, self.logger, path, schema, schemas, yang_models_dir, nonietf_dir)
+        res = ir.resolve()
+        self.assertEqual(res, [])
+
+    @mock.patch('utility.util.get_yang')
+    def test_imports_resolver_simple_resolve_one_import(self, mock_get_yang: mock.MagicMock):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        import_stmt = new_statement(None, module_stmt, None, 'import', 'test-import')
+        module_stmt.substmts.append(import_stmt)
+
+        mock_get_yang.return_value = 'test_yang_file@test_revision.yang'
+        path = ''
+        schema = None
+        schemas = {}
+        yang_models_dir = ''
+        nonietf_dir = ''
+
+        ir = ImportsResolver(module_stmt, self.logger, path, schema, schemas, yang_models_dir, nonietf_dir)
+        res = ir.resolve()
+        dep = res[0]
+        self.assertIsInstance(dep, Dependency)
+        self.assertEqual(dep.name, 'test-import')
+
+    # TODO there is more to cover for ImportsResolver, need to get back to it later
+
+    # ModuleTypeResolver
+    def test_module_type_resolver_simple_resolve_module(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+
+        mtr = ModuleTypeResolver(module_stmt, self.logger)
+        res = mtr.resolve()
+        self.assertEqual(res, 'module')
+
+    def test_module_type_resolver_simple_resolve_submodule(self):
+        submodule_stmt = new_statement(None, None, None, 'submodule', 'test-submodule')
+
+        mtr = ModuleTypeResolver(submodule_stmt, self.logger)
+        res = mtr.resolve()
+        self.assertEqual(res, 'submodule')
+
+    def test_module_type_resolver_simple_resolve_none(self):
+        import_stmt = new_statement(None, None, None, 'import', 'test-import')
+
+        mtr = ModuleTypeResolver(import_stmt, self.logger)
+        res = mtr.resolve()
+        self.assertIsNone(res)
+
+    # ExpirationResolver
+    def test_expiration_resolver_simple_resolve_nothing_changed(self):
+        def redis_connection_side_effect():
+            return None
+
+        module = {
+            'reference': 'ref',
+            'maturity-level': 'not ratified',
+            'expired': 'not-applicable',
+            'expires': None,
+        }
+        datatracker_failures = []
+        redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
+
+        er = ExpirationResolver(module, self.logger, datatracker_failures, redis_connection)
+        res = er.resolve()
+        self.assertEqual(res, False)
+
+    def test_expiration_resolver_simple_resolve_ratified_nothing_changed(self):
+        def redis_connection_side_effect():
+            return None
+
+        module = {
+            'reference': 'ref',
+            'maturity-level': 'ratified',
+            'expired': False,
+            'expires': None,
+        }
+        datatracker_failures = []
+        redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
+
+        er = ExpirationResolver(module, self.logger, datatracker_failures, redis_connection)
+        res = er.resolve()
+        self.assertEqual(res, False)
+
+    def test_expiration_resolver_simple_resolve_expired_changed(self):
+        def redis_connection_side_effect():
+            return None
+
+        module = {
+            'name': 'test_name',
+            'revision': 'test_revision',
+            'reference': 'ref',
+            'maturity-level': 'not ratified',
+            'expired': 'test',
+            'expires': None,
+        }
+        datatracker_failures = []
+        redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
+
+        er = ExpirationResolver(module, self.logger, datatracker_failures, redis_connection)
+        res = er.resolve()
+        self.assertEqual(res, True)
+
+    def test_expiration_resolver_simple_resolve_expires_changed(self):
+        def redis_connection_side_effect():
+            return True
+
+        module = {
+            'name': 'test_name',
+            'revision': 'test_revision',
+            'reference': 'ref',
+            'maturity-level': 'not ratified',
+            'expired': 'False',
+            'expires': 'test',
+        }
+        datatracker_failures = []
+        redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
+
+        er = ExpirationResolver(module, self.logger, datatracker_failures, redis_connection)
+        res = er.resolve()
+        self.assertEqual(res, True)
+
+    def test_expiration_resolver_simple_resolve_with_fetching(self):
+        def redis_connection_side_effect():
+            return True
+
+        module = {
+            'name': 'test_name',
+            'revision': 'test_revision',
+            'reference': 'ref',
+            'maturity-level': 'not ratified',
+            'expired': 'False',
+            'expires': 'test',
+        }
+        datatracker_failures = []
+        redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
+
+        er = ExpirationResolver(module, self.logger, datatracker_failures, redis_connection)
+        res = er.resolve()
+        self.assertEqual(res, True)
+
+    # TODO more tests are applicable to ExpirationResolver
+
+    # OrganizationResolver
+    def test_organization_resolver_simple_resolve_independent(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        organization_stmt = new_statement(None, module_stmt, None, 'organization', 'unknown-org')
+        module_stmt.substmts.append(organization_stmt)
+
+        orgr = OrganizationResolver(module_stmt, self.logger, None)
+        res = orgr.resolve()
+        self.assertEqual(res, 'independent')
+
+    def test_organization_resolver_simple_resolve_cisco_namespace(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        organization_stmt = new_statement(None, module_stmt, None, 'organization', 'unknown-org')
+        module_stmt.substmts.append(organization_stmt)
+
+        orgr = OrganizationResolver(module_stmt, self.logger, 'something-cisco-something')
+        res = orgr.resolve()
+        self.assertEqual(res, 'cisco')
+
+    def test_organization_resolver_simple_resolve_urn(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        organization_stmt = new_statement(None, module_stmt, None, 'organization', 'unknown-org')
+        module_stmt.substmts.append(organization_stmt)
+
+        orgr = OrganizationResolver(module_stmt, self.logger, 'urn:someorg:something-else')
+        res = orgr.resolve()
+        self.assertEqual(res, 'someorg')
+
+    def test_organization_resolver_simple_resolve_nokia(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        organization_stmt = new_statement(None, module_stmt, None, 'organization', 'nokia')
+        module_stmt.substmts.append(organization_stmt)
+
+        orgr = OrganizationResolver(module_stmt, self.logger, None)
+        res = orgr.resolve()
+        self.assertEqual(res, 'nokia')
+
+    # RevisionResolver
+    def test_revision_resolver_simple_resolve(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', '2022-11-17')
+        module_stmt.substmts.append(revision_stmt)
+
+        rr = RevisionResolver(module_stmt, self.logger)
+        res = rr.resolve()
+        self.assertEqual(res, '2022-11-17')
+
+    def test_revision_resolver_simple_resolve_default(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        import_stmt = new_statement(None, module_stmt, None, 'import', 'some_import')
+        module_stmt.substmts.append(import_stmt)
+
+        rr = RevisionResolver(module_stmt, self.logger)
+        res = rr.resolve()
+        self.assertEqual(res, '1970-01-01')
+
+    # SemanticVersionResolver
+    def test_semantic_version_resolver_simple_resolve_cisco_semver(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
+        semver_stmt = new_statement(None, revision_stmt, None, ('cisco-semver', 'module-version'), '1.0.0')
+        module_stmt.substmts.append(revision_stmt)
+        revision_stmt.substmts.append(semver_stmt)
+
+        svr = SemanticVersionResolver(module_stmt, self.logger)
+        res = svr.resolve()
+        self.assertEqual(res, '1.0.0')
+
+    def test_semantic_version_resolver_simple_resolve_cisco_semver_index_error(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
+        semver_stmt = new_statement(None, revision_stmt, None, ('cisco-semver', 'module-version'), '1.something.0')
+        module_stmt.substmts.append(revision_stmt)
+        revision_stmt.substmts.append(semver_stmt)
+
+        svr = SemanticVersionResolver(module_stmt, self.logger)
+        res = svr.resolve()
+        self.assertIsNone(res)
+
+    def test_semantic_version_resolver_simple_resolve_reference(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
+        reference_stmt = new_statement(None, revision_stmt, None, 'reference', '1.0.0')
+        module_stmt.substmts.append(revision_stmt)
+        revision_stmt.substmts.append(reference_stmt)
+
+        svr = SemanticVersionResolver(module_stmt, self.logger)
+        res = svr.resolve()
+        self.assertEqual(res, '1.0.0')
+
+    def test_semantic_version_resolver_simple_resolve_reference_index_error(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
+        reference_stmt = new_statement(None, revision_stmt, None, 'reference', '1.something.0')
+        module_stmt.substmts.append(revision_stmt)
+        revision_stmt.substmts.append(reference_stmt)
+
+        svr = SemanticVersionResolver(module_stmt, self.logger)
+        res = svr.resolve()
+        self.assertIsNone(res)
+
+    def test_semantic_version_resolver_simple_resolve_openconfig(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        oc_ext_stmt = new_statement(None, module_stmt, None, ('oc-ext', 'openconfig-version'), '1.0.0')
+        module_stmt.substmts.append(oc_ext_stmt)
+
+        svr = SemanticVersionResolver(module_stmt, self.logger)
+        res = svr.resolve()
+        self.assertEqual(res, '1.0.0')
+
+    def test_semantic_version_resolver_simple_resolve_openconfig_index_error(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        oc_ext_stmt = new_statement(None, module_stmt, None, ('oc-ext', 'openconfig-version'), '1.something.0')
+        module_stmt.substmts.append(oc_ext_stmt)
+
+        svr = SemanticVersionResolver(module_stmt, self.logger)
+        res = svr.resolve()
+        self.assertIsNone(res)
+
+        # SubmoduleResolver
+
+    def test_submodule_resolver_simple_resolve_no_includes(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
+        module_stmt.substmts.append(output_stmt)
+
+        path = ''
+        schema = None
+        schemas = {}
+
+        sr = SubmoduleResolver(module_stmt, self.logger, path, schema, schemas)
+        res = sr.resolve()
+        deps, subs = res[0], res[1]
+        self.assertEqual(deps, [])
+        self.assertEqual(subs, [])
+
+    @mock.patch('backend.utility.util.get_yang')
+    def test_submodule_resolver_simple_resolve_one_include(self, mock_get_yang: mock.MagicMock):
+        mock_get_yang.return_value = 'test_yang_file@test_revision.yang'
+
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        include_stmt = new_statement(None, module_stmt, None, 'include', 'ietf-yang-types')
+        module_stmt.substmts.append(include_stmt)
+
+        path = ''
+        schema = None
+        schemas = {}
+
+        sr = SubmoduleResolver(module_stmt, self.logger, path, schema, schemas)
+        res = sr.resolve()
+        deps, subs = res[0], res[1]
+        self.assertNotEqual(deps, [])
+        self.assertNotEqual(subs, [])
+        self.assertIsInstance(deps[0], Dependency)
+        self.assertIsInstance(subs[0], Submodule)
+        self.assertEqual(deps[0].name, 'ietf-yang-types')
+        self.assertEqual(subs[0].name, 'ietf-yang-types')
+
+    # YangVersionResolver
+    def test_yang_version_resolver_simple_resolve(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        version_stmt = new_statement(None, module_stmt, None, 'yang-version', '42.0')
+        module_stmt.substmts.append(version_stmt)
+
+        yvr = YangVersionResolver(module_stmt, self.logger)
+        res = yvr.resolve()
+        self.assertEqual(res, '42.0')
+
+    def test_yang_version_resolver_simple_resolve_default(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+
+        yvr = YangVersionResolver(module_stmt, self.logger)
+        res = yvr.resolve()
+        self.assertEqual(res, '1.0')
+
+    def test_yang_version_resolver_simple_resolve_one(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        version_stmt = new_statement(None, module_stmt, None, 'yang-version', '1')
+        module_stmt.substmts.append(version_stmt)
+
+        yvr = YangVersionResolver(module_stmt, self.logger)
+        res = yvr.resolve()
+        self.assertEqual(res, '1.0')
+
+    # PrefixResolver
+    def test_prefix_resolver_simple_resolve_module(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        prefix_stmt = new_statement(None, module_stmt, None, 'prefix', 'some-prefix')
+        module_stmt.substmts.append(prefix_stmt)
+
+        pr = PrefixResolver(module_stmt, self.logger, '', None)
+        res = pr.resolve()
+        self.assertEqual(res, 'some-prefix')
+
+    def test_prefix_resolver_simple_resolve_module_index_error(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+
+        pr = PrefixResolver(module_stmt, self.logger, '', None)
+        res = pr.resolve()
+        self.assertIsNone(res)
+
+    def test_prefix_resolver_simple_resolve_submodule_no_belongs_to(self):
+        module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
+        prefix_stmt = new_statement(None, module_stmt, None, 'prefix', 'some-prefix')
+        module_stmt.substmts.append(prefix_stmt)
+
+        pr = PrefixResolver(module_stmt, self.logger, '', None)
+        res = pr.resolve()
+        self.assertIsNone(res)
+
+    def test_prefix_resolver_simple_resolve_submodule_no_yang_file(self):
+        module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
+        prefix_stmt = new_statement(None, module_stmt, None, 'prefix', 'some-prefix')
+        module_stmt.substmts.append(prefix_stmt)
+
+        pr = PrefixResolver(module_stmt, self.logger, '', 'some_str')
+        res = pr.resolve()
+        self.assertIsNone(res)
+
+    def test_prefix_resolver_simple_resolve_submodule(self):
+        module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
+        prefix_stmt = new_statement(None, module_stmt, None, 'prefix', 'some-prefix')
+        module_stmt.substmts.append(prefix_stmt)
+
+        pr = PrefixResolver(module_stmt, self.logger, '', 'ietf-yang-types')
+        res = pr.resolve()
+        self.assertEqual(res, 'yang')
+
+    # NamespaceResolver
+    def test_namespace_resolver_simple_resolve_module(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        module_stmt.substmts.append(namespace_stmt)
+
+        nr = NamespaceResolver(module_stmt, self.logger, '', None)
+        res = nr.resolve()
+        self.assertEqual(res, 'some-namespace')
+
+    def test_namespace_resolver_simple_resolve_module_index_error(self):
+        module_stmt = new_statement(None, None, None, 'module', 'test-module')
+
+        nr = NamespaceResolver(module_stmt, self.logger, '', None)
+        res = nr.resolve()
+        self.assertEqual(res, 'missing element')
+
+    def test_namespace_resolver_simple_resolve_submodule_no_belongs_to(self):
+        module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        module_stmt.substmts.append(namespace_stmt)
+
+        nr = NamespaceResolver(module_stmt, self.logger, '', None)
+        res = nr.resolve()
+        self.assertEqual(res, 'missing element')
+
+    def test_namespace_resolver_simple_resolve_submodule_no_yang_file(self):
+        module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        module_stmt.substmts.append(namespace_stmt)
+
+        nr = NamespaceResolver(module_stmt, self.logger, '', 'some_str')
+        res = nr.resolve()
+        self.assertEqual(res, 'missing element')
+
+    def test_namespace_resolver_simple_resolve_submodule(self):
+        module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        module_stmt.substmts.append(namespace_stmt)
+
+        nr = NamespaceResolver(module_stmt, self.logger, '', 'ietf-yang-types')
+        res = nr.resolve()
+        self.assertEqual(res, 'urn:ietf:params:xml:ns:yang:ietf-yang-types')
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
