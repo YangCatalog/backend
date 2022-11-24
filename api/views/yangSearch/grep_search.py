@@ -4,12 +4,15 @@ import subprocess
 import typing as t
 from configparser import ConfigParser
 
+from api.cache.api_cache import cache
+from api.views.yangSearch.constants import GrepSearchCacheEnum
 from api.views.yangSearch.response_row import ResponseRow
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from redisConnections.redisConnection import RedisConnection
 from utility import log
 from utility.create_config import create_config
+from utility.staticVariables import ORGANIZATIONS
 from utility.util import validate_revision
 
 
@@ -24,9 +27,15 @@ class GrepSearch:
         es_manager: ESManager = ESManager(),
         modules_es_index: ESIndices = ESIndices.YINDEX,
         redis_connection: RedisConnection = RedisConnection(),
+        starting_cursor: int = 0,
     ):
+        self.starting_cursor = self.finishing_cursor = starting_cursor
+
         self.all_modules_directory = config.get('Directory-Section', 'save-file-dir')
         self.results_per_page = int(config.get('Web-Section', 'grep-search-results-per-page', fallback=500))
+
+        self.listdir_results_cache_key = str(hash(f'listdir_{self.all_modules_directory}'))
+
         query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
         with open(query_path) as query_file:
             self.query = json.load(query_file)
@@ -46,19 +55,29 @@ class GrepSearch:
         search_string: str,
         inverted_search: bool = False,
         case_sensitive: bool = False,
-        page_number: int = 1,
     ) -> list[dict]:
-        module_names = self._get_matching_module_names(search_string, inverted_search, case_sensitive, page_number)
-        if not module_names:
+        organizations = list(
+            filter(
+                lambda org: org in ORGANIZATIONS,
+                map(lambda org: org.lower(), organizations),
+            ),
+        )
+        module_names_with_format = self._get_matching_module_names(
+            search_string,
+            inverted_search,
+            case_sensitive,
+            organizations,
+        )
+        if not module_names_with_format:
             return []
-        return self._search_modules_in_database(organizations, module_names)
+        return self._search_modules_in_database(organizations, module_names_with_format)
 
     def _get_matching_module_names(
         self,
         search_string: str,
         inverted_search: bool,
         case_sensitive: bool,
-        page_number: int = 1,
+        organizations: list[str],
     ) -> t.Optional[t.Union[tuple[str], list[str]]]:
         """
         Performs a native pcregrep search of modules in self.all_modules_directory.
@@ -70,34 +89,74 @@ class GrepSearch:
             all the modules not satisfying the search
             :param case_sensitive   (bool) indicates if the search must be case-sensitive or not
         """
-        module_names_with_format = []
-        pcregrep_shell_command = f'pcregrep -{"" if case_sensitive else "i"}lrMe'
+        search_string = (
+            search_string.strip()
+            .replace('`', r"\`")  # noqa: Q000
+            .replace(r"\\`", r"\`")  # noqa: Q000
+            .replace(r"'", r"\'")  # noqa: Q000
+            .replace(r"\\'", r"\'")  # noqa: Q000
+        )
+        cache_key = (
+            f'{hash(search_string)}_{hash(inverted_search)}_{hash(case_sensitive)}_'
+            f'{hash(tuple(sorted(organizations))) if organizations else ""}'
+        )
+        cached_pcregrep_search_results = cache.get(cache_key)
+        if cached_pcregrep_search_results:
+            return self._get_modules_from_cursor(cached_pcregrep_search_results)
+        pcregrep_shell_command = (
+            f'pcregrep -{"" if case_sensitive else "i"}lrMe \'{search_string}\' '
+            f'{self.all_modules_directory} | uniq '
+            '| awk -F/ \'{ print $NF }\''
+        )
+        if organizations:
+            pcregrep_shell_command += f' | grep -E \'{"|".join(organizations)}\''
         try:
-            pcregrep_result = subprocess.check_output(
-                (
-                    f'{pcregrep_shell_command} \'{search_string}\' {self.all_modules_directory.rstrip("/")} '
-                    f'| uniq | head -n{self.results_per_page * page_number}'
-                ),
-                shell=True,
+            module_names_with_filename_extension = (
+                subprocess.check_output(
+                    pcregrep_shell_command,
+                    shell=True,
+                )
+                .decode()
+                .split('\n')
             )
-            for result in pcregrep_result.decode().split('\n')[self.results_per_page * (page_number - 1) :]:
-                if not result:
-                    continue
-                module_name_with_format = result.split(self.all_modules_directory)[1].lstrip('/')
-                module_names_with_format.append(module_name_with_format)
+            if inverted_search:
+                module_names_with_filename_extension = tuple(
+                    set(self._get_all_modules_with_filename_extension()) - set(module_names_with_filename_extension),
+                )
+            cache.set(
+                cache_key,
+                module_names_with_filename_extension,
+                timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
+            )
+            return self._get_modules_from_cursor(module_names_with_filename_extension)
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
                 self.logger.info('All the modules satisfy the inverted search')
+                return self._get_modules_from_cursor(self._get_all_modules_with_filename_extension())
             elif not e.output:
                 self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
                 return
-            else:
-                raise ValueError('Invalid search input')
-        if inverted_search:
-            module_names_with_format = tuple(
-                set(os.listdir(self.all_modules_directory)) - set(module_names_with_format),
+            raise ValueError('Invalid search input')
+
+    def _get_modules_from_cursor(
+        self,
+        modules: t.Union[list[str], tuple[str]],
+    ) -> t.Optional[t.Union[list[str], tuple[str]]]:
+        try:
+            return modules[self.starting_cursor :]
+        except IndexError:
+            return None
+
+    def _get_all_modules_with_filename_extension(self) -> list[str]:
+        all_modules = cache.get(self.listdir_results_cache_key)
+        if not all_modules:
+            all_modules = os.listdir(self.all_modules_directory)
+            cache.set(
+                self.listdir_results_cache_key,
+                all_modules,
+                timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
             )
-        return module_names_with_format
+        return all_modules
 
     def _search_modules_in_database(self, organizations: list[str], module_names_with_format: tuple[str]) -> list[dict]:
         response = []
@@ -109,6 +168,11 @@ class GrepSearch:
             ]
             self.query['query']['bool']['minimum_should_match'] = 1
         for module_name in module_names_with_format:
+            if len(response) >= self.results_per_page:
+                return response
+            self.finishing_cursor += 1
+            if not module_name:
+                continue
             name, revision = module_name.split('.yang')[0].split('@')
             self.query['query']['bool']['must'] = [
                 {'term': {'module': name}},

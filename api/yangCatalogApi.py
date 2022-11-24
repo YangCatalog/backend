@@ -52,6 +52,7 @@ from flask_cors import CORS
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
+from api.cache.api_cache import cache
 from api.my_flask import MyFlask
 from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import ietf_auth
@@ -64,11 +65,13 @@ from api.views.ycJobs.ycJobs import bp as jobs_bp
 from api.views.ycSearch.ycSearch import bp as search_bp
 
 app = MyFlask(__name__)
-ac = app.config
+app_config = app.config
 
-ac['OIDC_REDIRECT_URI'] = os.path.join(ac.w_yangcatalog_api_prefix, 'admin/ping')
-if ac.g_is_prod:
+app_config['OIDC_REDIRECT_URI'] = os.path.join(app_config.w_yangcatalog_api_prefix, 'admin/ping')
+if app_config.g_is_prod:
     ietf_auth.init_app(app)
+
+cache.init_app(app)
 
 # Register blueprint(s)
 app.register_blueprint(admin_bp)
@@ -136,25 +139,25 @@ def load():
         while True:
             time.sleep(5)
             app.logger.info('application wating for reload with id - {}'.format(special_id))
-            if special_id in app.release_locked:
-                code = app.response_waiting.status_code
-                assert app.response_waiting.json
-                body = app.response_waiting.json
-                body['extra-info'] = 'this message was generated with previous reload-cache response'
-                app.special_id_counter[special_id] -= 1
-                if app.special_id_counter[special_id] == 0:
-                    app.special_id_counter.pop(special_id)
-                    app.release_locked.remove(special_id)
-                return make_response(jsonify(body), code)
-    else:
-        if lock_for_load.locked():
-            app.logger.info('Application locked for reload')
-            app.waiting_for_reload = True
-            special_id = str(uuid.uuid4())
-            g.special_id = special_id
-            app.special_id = special_id
-            app.special_id_counter[special_id] = 0
-            app.logger.info('Special ids {}'.format(app.special_id_counter))
+            if special_id not in app.release_locked:
+                continue
+            code = app.response_waiting.status_code
+            assert app.response_waiting.json
+            body = app.response_waiting.json
+            body['extra-info'] = 'this message was generated with previous reload-cache response'
+            app.special_id_counter[special_id] -= 1
+            if app.special_id_counter[special_id] == 0:
+                app.special_id_counter.pop(special_id)
+                app.release_locked.remove(special_id)
+            return make_response(jsonify(body), code)
+    elif lock_for_load.locked():
+        app.logger.info('Application locked for reload')
+        app.waiting_for_reload = True
+        special_id = str(uuid.uuid4())
+        g.special_id = special_id
+        app.special_id = special_id
+        app.special_id_counter[special_id] = 0
+        app.logger.info('Special ids {}'.format(app.special_id_counter))
     with lock_for_load:
         app.logger.info('Application not locked for reload')
         app.redisConnection.reload_modules_cache()

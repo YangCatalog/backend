@@ -30,7 +30,7 @@ from werkzeug.exceptions import BadRequest, NotFound
 import api.views.ycSearch.ycSearch as search_bp
 from api.yangCatalogApi import app
 
-ac = app.config
+app_config = app.config
 
 
 class TestApiSearchClass(unittest.TestCase):
@@ -357,8 +357,9 @@ class TestApiSearchClass(unittest.TestCase):
         Test if payload contains desired output = comparison of pyang outputs for two different yang module revisions.
         """
         desired_output = (
-            f'{ac.d_save_file_dir}/yang-catalog@2018-04-03.yang:1: the grouping \'yang-lib-imlementation-leafs\', '
-            f'defined at {ac.d_save_file_dir}/yang-catalog@2017-09-26.yang:599 is illegally removed\n'
+            f'{app_config.d_save_file_dir}/'
+            'yang-catalog@2018-04-03.yang:1: the grouping \'yang-lib-imlementation-leafs\', '
+            f'defined at {app_config.d_save_file_dir}/yang-catalog@2017-09-26.yang:599 is illegally removed\n'
         )
         file1 = 'yang-catalog'
         revision1 = '2018-04-03'
@@ -941,7 +942,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if responded with code 400 if the input arguments are not correct (incorrect yang module name)."""
         filename = 'incorrect-yang-file'
         revision = '2018-01-01'
-        path_to_yang = f'{ac.d_save_file_dir}/{filename}@{revision}.yang'
+        path_to_yang = f'{app_config.d_save_file_dir}/{filename}@{revision}.yang'
 
         result = self.client.get(f'api/services/tree/{filename}@{revision}.yang')
         data = json.loads(result.data)
@@ -957,7 +958,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Test if responded with code 400 if the input arguments are missing."""
         filename = ''
         revision = ''
-        path_to_yang = f'{ac.d_save_file_dir}/{filename}@{revision}.yang'
+        path_to_yang = f'{app_config.d_save_file_dir}/{filename}@{revision}.yang'
 
         with self.assertRaises(BadRequest) as http_error:
             search_bp.create_tree(filename, revision)
@@ -993,7 +994,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertIn(expected_message, data)
 
-    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
+    @mock.patch('api.views.ycSearch.ycSearch.ac', app_config)
     @mock.patch('api.my_flask.Redis.get')
     def test_modules_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
@@ -1007,7 +1008,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
-    @mock.patch('api.views.ycSearch.ycSearch.ac', ac)
+    @mock.patch('api.views.ycSearch.ycSearch.ac', app_config)
     @mock.patch('api.my_flask.Redis.get')
     def test_vendors_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
@@ -1026,7 +1027,7 @@ class TestApiSearchClass(unittest.TestCase):
         """Redis get() method patched to return None.
         Then empty OrderedDict is returned from catalog_data() method
         """
-        search_bp.ac = ac
+        search_bp.ac = app_config
         # Patch mock to return None while getting value from Redis
         mock_redis_get.return_value = None
         with app.app_context():

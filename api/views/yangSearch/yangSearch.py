@@ -31,7 +31,9 @@ from pyang import plugin
 from werkzeug.exceptions import abort
 
 import utility.log as log
+from api.cache.api_cache import cache
 from api.my_flask import app
+from api.views.yangSearch.constants import GrepSearchCacheEnum
 from api.views.yangSearch.elkSearch import ElkSearch
 from api.views.yangSearch.grep_search import GrepSearch
 from api.views.yangSearch.search_params import SearchParams
@@ -56,14 +58,12 @@ def init_logger(state):
 
 @bp.before_request
 def set_config():
-    global ac
-    ac = app.config
-
-
-# ROUTE ENDPOINT DEFINITIONS
+    global app_config
+    app_config = app.config
 
 
 @bp.route('/grep_search', methods=['GET'])
+@cache.cached(query_string=True, timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value)
 def grep_search():
     if not request.json:
         abort(400, description='No input data')
@@ -72,32 +72,38 @@ def grep_search():
     search_string: str = query_params.get('search', '')
     inverted_search: bool = query_params.get('inverted_search', type=lambda v: v.lower() == 'true')
     case_sensitive: bool = query_params.get('case_sensitive', type=lambda v: v.lower() == 'true')
-    page_number: int = query_params.get('page', default=1, type=int)
+    cursor: int = query_params.get('cursor', default=0, type=int)
     if not search_string:
         abort(400, description='Search cannot be empty')
     config = create_config()
     try:
-        results = GrepSearch(
+        grep_search_instance = GrepSearch(
             config=config,
-            es_manager=ac.es_manager,
+            es_manager=app_config.es_manager,
             redis_connection=app.redisConnection,
-        ).search(organizations, search_string, inverted_search, case_sensitive, page_number)
-        response = {
-            'more_results': (
-                f'{config.get("Web-Section", "yangcatalog-api-prefix")}/yang-search/v2/grep_search'
-                f'?search={search_string}'
-                f'&organizations={"&organizations=".join(organizations)}'
-                f'&inverted_search={"true" if inverted_search else "false"}'
-                f'&case_sensitive={"true" if case_sensitive else "false"}'
-                f'&page={page_number + 1}'
-            )
-            if results
-            else '',
-            'results': results,
-        }
-        return make_response(jsonify(response))
+            starting_cursor=cursor,
+        )
+        results = grep_search_instance.search(organizations, search_string, inverted_search, case_sensitive)
     except ValueError as e:
         abort(400, description=str(e))
+    if results:
+        response_base_string = (
+            f'{config.get("Web-Section", "yangcatalog-api-prefix")}/yang-search/v2/grep_search'
+            f'?search={search_string}'
+            f'&organizations={"&organizations=".join(organizations)}'
+            f'&inverted_search={"true" if inverted_search else "false"}'
+            f'&case_sensitive={"true" if case_sensitive else "false"}'
+        )
+        previous_page = f'{response_base_string}&cursor={cursor}' if cursor > 0 else ''
+        next_page = f'{response_base_string}&cursor={grep_search_instance.finishing_cursor}'
+    else:
+        previous_page = next_page = ''
+    response = {
+        'previous_page': previous_page,
+        'next_page': next_page,
+        'results': results,
+    }
+    return make_response(jsonify(response))
 
 
 @bp.route('/tree/<module_name>', methods=['GET'])
@@ -133,10 +139,10 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
             # get latest revision of provided module
             revision = revisions[0]
 
-        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, module_name, revision)
+        path_to_yang = '{}/{}@{}.yang'.format(app_config.d_save_file_dir, module_name, revision)
         plugin.plugins = []
         plugin.init([])
-        ctx = create_context(ac.d_yang_models_dir)
+        ctx = create_context(app_config.d_yang_models_dir)
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
 
@@ -161,7 +167,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
             else:
                 prefix = 'None'
             import_include_map[prefix] = imp_inc.arg
-        json_ytree = ac.d_json_ytree
+        json_ytree = app_config.d_json_ytree
         yang_tree_file_path = '{}/{}@{}.json'.format(json_ytree, module_name, revision)
         response['maturity'] = (
             get_module_data('{}@{}/{}'.format(module_name, revision, organization)).get('maturity-level', '').upper()
@@ -245,7 +251,7 @@ def impact_analysis():
     }
     # this file is created and updated on yangParser exceptions
     try:
-        with open(os.path.join(ac.d_var, 'unparsable-modules.json')) as f:
+        with open(os.path.join(app_config.d_var, 'unparsable-modules.json')) as f:
             unparsable_modules = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         unparsable_modules = []
@@ -294,7 +300,7 @@ def search():
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
         sub_search=each_key_in(payload, 'sub-search', OUTPUT_COLUMNS),
     )
-    elk_search = ElkSearch(searched_term, ac.d_logs, ac.es_manager, app.redisConnection, search_params)
+    elk_search = ElkSearch(searched_term, app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
@@ -319,11 +325,11 @@ def get_services_list(keyword: str, pattern: str):
         return make_response(jsonify(result), 200)
 
     if keyword == 'organization':
-        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
+        result = app_config.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
     if keyword == 'module':
-        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
+        result = app_config.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
     if keyword == 'draft':
-        result = ac.es_manager.autocomplete(ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
+        result = app_config.es_manager.autocomplete(ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
 
     return make_response(jsonify(result), 200)
 
@@ -368,7 +374,7 @@ def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = No
             revision = get_latest_module_revision(name)
 
         module = {'name': name, 'revision': revision, 'path': path}
-        hits = ac.es_manager.get_node(module)['hits']['hits']
+        hits = app_config.es_manager.get_node(module)['hits']['hits']
 
         if not hits:
             abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
@@ -443,7 +449,7 @@ def get_yang_catalog_help():
     """
     revision = get_latest_module_revision('yang-catalog')
     module = {'name': 'yang-catalog', 'revision': revision}
-    hits = ac.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
+    hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
     module_details_data = {}
     skip_statement = ['typedef', 'grouping', 'identity']
     for hit in hits:
@@ -516,10 +522,10 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = ac.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
+            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
@@ -544,7 +550,7 @@ def get_latest_module_revision(module_name: str) -> str:
     :return: latest revision of the module
     """
     try:
-        es_result = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+        es_result = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         return es_result[0]['_source']['revision']
     except IndexError:
         bp.logger.exception('Failed to get revision for {}'.format(module_name))
