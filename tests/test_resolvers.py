@@ -241,7 +241,7 @@ class TestResolversClass(unittest.TestCase):
             return None
 
         module = {
-            'reference': 'ref',
+            'reference': 'test_reference',
             'maturity-level': 'not ratified',
             'expired': 'not-applicable',
             'expires': None,
@@ -258,7 +258,7 @@ class TestResolversClass(unittest.TestCase):
             return None
 
         module = {
-            'reference': 'ref',
+            'reference': 'test_reference',
             'maturity-level': 'ratified',
             'expired': False,
             'expires': None,
@@ -277,9 +277,9 @@ class TestResolversClass(unittest.TestCase):
         module = {
             'name': 'test_name',
             'revision': 'test_revision',
-            'reference': 'ref',
+            'reference': 'test_reference',
             'maturity-level': 'not ratified',
-            'expired': 'test',
+            'expired': True,
             'expires': None,
         }
         datatracker_failures = []
@@ -296,29 +296,10 @@ class TestResolversClass(unittest.TestCase):
         module = {
             'name': 'test_name',
             'revision': 'test_revision',
-            'reference': 'ref',
+            'reference': 'test_reference',
             'maturity-level': 'not ratified',
-            'expired': 'False',
-            'expires': 'test',
-        }
-        datatracker_failures = []
-        redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
-
-        er = ExpirationResolver(module, self.logger, datatracker_failures, redis_connection)
-        res = er.resolve()
-        self.assertEqual(res, True)
-
-    def test_expiration_resolver_simple_resolve_with_fetching(self):
-        def redis_connection_side_effect():
-            return True
-
-        module = {
-            'name': 'test_name',
-            'revision': 'test_revision',
-            'reference': 'ref',
-            'maturity-level': 'not ratified',
-            'expired': 'False',
-            'expires': 'test',
+            'expired': False,
+            'expires': '2022-11-25',
         }
         datatracker_failures = []
         redis_connection = mock.MagicMock(side_effect=redis_connection_side_effect)
