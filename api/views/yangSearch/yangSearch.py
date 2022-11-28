@@ -145,7 +145,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
             abort(404, description='Provided module does not exist')
 
         if revision is None:
-            # get latest revision of provided module
+            # get the latest revision of provided module
             revision = revisions[0]
 
         path_to_yang = '{}/{}@{}.yang'.format(app_config.d_save_file_dir, module_name, revision)
