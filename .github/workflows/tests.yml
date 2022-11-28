@@ -10,13 +10,13 @@ jobs:
   build:
 
     runs-on: ubuntu-22.04
+    environment: tests
     strategy:
       matrix:
         python-version: [3.9]
         redis-version: [6]
         elasticsearch-version: [7.10.1]
       max-parallel: 1
-    environment: tests
 
     steps:
       - uses: actions/checkout@v3
@@ -30,6 +30,11 @@ jobs:
             requirements.txt
             tests_requirements.txt
             lint_requirements.txt
+            
+      - name: Check test key
+        env:
+          test_key: ${{ secrets.KEY }}
+        run: echo "${{ env.test_key }}"
 
       - name: Install dependencies
         run: |
@@ -88,10 +93,9 @@ jobs:
 
       - name: Test with pytest
         env:
-          TOKEN: ${{ secrets.TOKEN }}
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
-          export TOKEN
+          export TOKEN=${{ env.tests_token }}
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
