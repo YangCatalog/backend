@@ -1,22 +1,23 @@
 name: Python tests
 
 on:
-  push:
-  pull_request:
-    types: [opened, reopened, ready_for_review, synchronize, edited]
+  workflow_run:
+    workflows: [ 'Linting' ]
+    types:
+      - completed
 
 jobs:
 
   build:
 
     runs-on: ubuntu-22.04
+    environment: tests
     strategy:
       matrix:
         python-version: [3.9]
         redis-version: [6]
         elasticsearch-version: [7.10.1]
       max-parallel: 1
-    environment: tests
 
     steps:
       - uses: actions/checkout@v3
@@ -29,24 +30,13 @@ jobs:
           cache-dependency-path: |
             requirements.txt
             tests_requirements.txt
-            lint_requirements.txt
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install -r lint_requirements.txt
           pip install -r tests_requirements.txt
           ./setup.py install
-
-      - name: Check isort
-        uses: jamescurtin/isort-action@master
-
-      - name: Check flake8
-        run: flake8 .
-
-      - name: Check black
-        uses: psf/black@stable
 
       - name: Setup Redis ${{ matrix.redis-version }}
         uses: supercharge/redis-github-action@1.4.0
@@ -132,14 +122,14 @@ jobs:
   update-coverage-badge:
     needs: build
     runs-on: ubuntu-22.04
-    if: ${{ github.event_name == 'push' && github.event.push.head.repo.full_name != 'YangCatalog/backend' }}
+    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.event.push.head.repo.full_name != 'YangCatalog/backend' }}
 
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 0
-          ref: ${{ github.event.push.head.ref }}
-          repository: ${{ github.event.push.head.repo.full_name }}
+          ref: ${{ github.event.workflow_run.event.push.head.ref }}
+          repository: ${{ github.event.workflow_run.event.push.head.repo.full_name }}
 
       - uses: actions/setup-python@v4
         with:
