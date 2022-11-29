@@ -85,6 +85,7 @@ jobs:
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
+          coverage xml
 
       - name: Store coverage file
         uses: actions/upload-artifact@v3.1.1
@@ -94,9 +95,8 @@ jobs:
 
       - uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
           name: Test upload
-          files: .coverage
+          files: ./coverage.xml
           fail_ci_if_error: true
           verbose: true
 
