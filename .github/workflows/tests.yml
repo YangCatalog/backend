@@ -92,33 +92,13 @@ jobs:
           name: coverage
           path: .coverage
 
-      - name: Write coverage comment
-        id: coverage_comment
-        uses: py-cov-action/python-coverage-comment-action@v3
+      - uses: codecov/codecov-action@v3
         with:
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_PR_RUN_ID: ${{ github.event.workflow_run.id }}
-          COMMENT_TEMPLATE: '
-            {% extends "base" %}
-            {% block title %}
-            {{ super() }}
+          name: Test upload
+          files: .coverage
+          fail_ci_if_error: true
+          verbose: true
 
-            <details>
-            <summary>Full coverage report summary (click to unfold)</summary>
-            {% for file_coverage in coverage.files.values() %}
-            {{ file_coverage.path }}: <b>{{ ((file_coverage.info.percent_covered * 100)|int) }}%</b><br>
-            {% endfor %}
-            </details>
-
-            {% endblock title %}
-          '
-
-      - name: Store Pull Request comment to be posted
-        uses: actions/upload-artifact@v3.1.1
-        if: ${{ steps.coverage_comment.outputs.COMMENT_FILE_WRITTEN == 'true' }}
-        with:
-          name: python-coverage-comment-action
-          path: python-coverage-comment-action.txt
 
   update-coverage-badge:
     needs: build
