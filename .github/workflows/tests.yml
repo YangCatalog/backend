@@ -87,58 +87,8 @@ jobs:
           coverage run -am pytest
           coverage xml
 
-      - name: Store coverage file
-        uses: actions/upload-artifact@v3.1.1
-        with:
-          name: coverage
-          path: .coverage
-
       - uses: codecov/codecov-action@v3
         with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          name: Test upload
           files: ./coverage.xml
           fail_ci_if_error: true
           verbose: true
-
-
-  update-coverage-badge:
-    needs: build
-    runs-on: ubuntu-22.04
-    if: ${{ github.event.workflow_run.event == 'push' && github.event.workflow_run.event.push.head.repo.full_name != 'YangCatalog/backend' }}
-
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.workflow_run.event.push.head.ref }}
-          repository: ${{ github.event.workflow_run.event.push.head.repo.full_name }}
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: 3.9
-
-      - uses: actions/download-artifact@v3.0.1
-        with:
-          name: coverage
-
-      - name: Coverage badge
-        uses: tj-actions/coverage-badge-py@v1.8
-
-      - name: Move coverage badge to images folder
-        run: mv coverage.svg .github/images
-
-      - name: Verify Changed files
-        uses: tj-actions/verify-changed-files@v12
-        id: changed_files
-        with:
-          files: .github/images/coverage.svg
-
-      - name: Commit files
-        if: ${{ steps.changed_files.outputs.files_changed == 'true' }}
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add .github/images/coverage.svg
-          git commit -m "Updated coverage.svg"
-          git push
