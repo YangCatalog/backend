@@ -1,6 +1,6 @@
 # YANG Catalog
 
-<img src=".github/images/coverage.svg" alt="">
+[![codecov](https://codecov.io/gh/YangCatalog/backend/branch/develop/graph/badge.svg?token=JHFBBUTL1X)](https://codecov.io/gh/YangCatalog/backend)
 
 ---
 
