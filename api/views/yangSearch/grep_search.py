@@ -95,40 +95,25 @@ class GrepSearch:
         """
         search_string = (
             search_string.strip()
-            .replace('`', r"\`")  # noqa: Q000
-            .replace(r"\\`", r"\`")  # noqa: Q000
-            .replace(r"'", r"\'")  # noqa: Q000
+            .replace("'", '')
+            .replace('`', r'\`')
+            .replace(r'\\`', r'\`')
+            .replace("'", r"\'")  # noqa: Q000
             .replace(r"\\'", r"\'")  # noqa: Q000
         )
         cache_key = hashlib.sha256(
             f'{search_string}{inverted_search}{case_sensitive}'
             f'{str(sorted(organizations)) if organizations else ""}'.encode(),
         ).hexdigest()
-        cached_pcregrep_search_results = cache.get(cache_key)
-        if cached_pcregrep_search_results:
-            cached_pcregrep_search_results = json.loads(cached_pcregrep_search_results)
-            cursors = cached_pcregrep_search_results['cursors']
-            module_names_with_file_extension = cached_pcregrep_search_results['module_names_with_file_extension']
-            timeout_timestamp = cached_pcregrep_search_results['timeout_timestamp']
-            try:
-                self.previous_cursor = cursors[-2]
-            except IndexError:
-                pass
-            if self.starting_cursor not in cursors:
-                cursors.append(self.starting_cursor)
-            cached_pcregrep_search_results['cursors'] = cursors
-            cache.set(
-                cache_key,
-                json.dumps(cached_pcregrep_search_results),
-                timeout=timeout_timestamp - datetime.now().timestamp(),
-            )
-            return self._get_modules_from_cursor(module_names_with_file_extension)
+        if result := self._get_cached_search_results(cache_key):
+            return result
         pcregrep_shell_command = (
             f'pcregrep -{"" if case_sensitive else "i"}lrMe \'{search_string}\' '
             f'{self.all_modules_directory} | uniq '
             '| awk -F/ \'{ print $NF }\''
         )
-        if organizations:
+        if not inverted_search and organizations:
+            # in the case of an inverted search, organizations will be resolved in the ES search only
             pcregrep_shell_command += f' | grep -E \'{"|".join(organizations)}\''
         try:
             module_names_with_file_extension = (
@@ -143,24 +128,7 @@ class GrepSearch:
                 module_names_with_file_extension = tuple(
                     set(self._get_all_modules_with_filename_extension()) - set(module_names_with_file_extension),
                 )
-            cache.set(
-                cache_key,
-                json.dumps(
-                    {
-                        'timeout_timestamp': (
-                            (
-                                datetime.now()
-                                + timedelta(
-                                    seconds=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
-                                )
-                            ).timestamp()
-                        ),
-                        'module_names_with_file_extension': module_names_with_file_extension,
-                        'cursors': [self.starting_cursor],
-                    },
-                ),
-                timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
-            )
+            self._cache_search_results(cache_key, module_names_with_file_extension)
             return self._get_modules_from_cursor(module_names_with_file_extension)
         except subprocess.CalledProcessError as e:
             if not e.output and inverted_search:
@@ -170,6 +138,45 @@ class GrepSearch:
                 self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
                 return
             raise ValueError('Invalid search input')
+
+    def _get_cached_search_results(self, cache_key: str) -> t.Optional[t.Union[list[str], tuple[str]]]:
+        cached_pcregrep_search_results = cache.get(cache_key)
+        if not cached_pcregrep_search_results:
+            return
+        cached_pcregrep_search_results = json.loads(cached_pcregrep_search_results)
+        cursors = cached_pcregrep_search_results['cursors']
+        module_names_with_file_extension = cached_pcregrep_search_results['module_names_with_file_extension']
+        timeout_timestamp = cached_pcregrep_search_results['timeout_timestamp']
+        try:
+            self.previous_cursor = cursors[-2]
+        except IndexError:
+            pass
+        if self.starting_cursor not in cursors:
+            cursors.append(self.starting_cursor)
+        cached_pcregrep_search_results['cursors'] = cursors
+        cache.set(
+            cache_key,
+            json.dumps(cached_pcregrep_search_results),
+            timeout=timeout_timestamp - datetime.now().timestamp(),
+        )
+        return self._get_modules_from_cursor(module_names_with_file_extension)
+
+    def _cache_search_results(self, cache_key: str, modules: t.Union[list[str], tuple[str]]):
+        cache.set(
+            cache_key,
+            json.dumps(
+                {
+                    'timeout_timestamp': (
+                        (
+                            datetime.now() + timedelta(seconds=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value)
+                        ).timestamp()
+                    ),
+                    'module_names_with_file_extension': modules,
+                    'cursors': [self.starting_cursor],
+                },
+            ),
+            timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
+        )
 
     def _get_modules_from_cursor(
         self,
@@ -207,9 +214,9 @@ class GrepSearch:
         for module_name in module_names_with_file_extension:
             if len(response) >= self.results_per_page:
                 return response
-            self.finishing_cursor += 1
             if not module_name:
                 continue
+            self.finishing_cursor += 1
             name, revision = module_name.split('.yang')[0].split('@')
             self.query['query']['bool']['must'] = [
                 {'term': {'module': name}},

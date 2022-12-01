@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import unittest
@@ -5,7 +6,9 @@ from configparser import ConfigParser
 
 from elasticsearch import Elasticsearch
 
+from api.cache.api_cache import cache
 from api.views.yangSearch.grep_search import GrepSearch
+from api.yangCatalogApi import app  # noqa: F401
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from utility.create_config import create_config
@@ -16,7 +19,7 @@ class RedisConnectionMock:
         return b'{}'
 
 
-class TestSearchClass(unittest.TestCase):
+class TestGrepSearchClass(unittest.TestCase):
     resources_path: str
     es: Elasticsearch
     es_manager: ESManager
@@ -24,17 +27,15 @@ class TestSearchClass(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        config = create_config()
+        cls.config = create_config()
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests', 'resources')
-        config.set('Directory-Section', 'save-file-dir', os.path.join(cls.resources_path, 'test_search/all_modules'))
-        cls._configure_es(config)
-        redis_connection_mock = RedisConnectionMock()
-        cls.grep_search = GrepSearch(
-            config=config,
-            es_manager=cls.es_manager,
-            modules_es_index=cls.es_index,
-            redis_connection=redis_connection_mock,
+        cls.config.set(
+            'Directory-Section',
+            'save-file-dir',
+            os.path.join(cls.resources_path, 'test_search/all_modules'),
         )
+        cls._configure_es(cls.config)
+        cls.redis_connection_mock = RedisConnectionMock()
 
     @classmethod
     def _configure_es(cls, config: ConfigParser):
@@ -60,8 +61,22 @@ class TestSearchClass(unittest.TestCase):
     def tearDownClass(cls):
         cls.es.indices.delete(index=cls.es_index.value, ignore=[400, 404])
 
+    def setUp(self):
+        with app.app_context():
+            cache.clear()
+        self.grep_search = GrepSearch(
+            config=self.config,
+            es_manager=self.es_manager,
+            modules_es_index=self.es_index,
+            redis_connection=self.redis_connection_mock,
+        )
+
+    def tearDown(self):
+        with app.app_context():
+            cache.clear()
+
     def test_grep_search(self):
-        organizations = ['ietf']
+        organizations = []
         simple_search = 'typedef minutes64 {\n.*type uint64;'
         simple_search_result = self.grep_search.search(organizations, simple_search)
         self.assertNotEqual(simple_search_result, [])
@@ -76,6 +91,17 @@ class TestSearchClass(unittest.TestCase):
         ]
         self.assertIn('yang-catalog@2017-09-26', modules_from_complicated_search_result)
         self.assertIn('yang-catalog@2018-04-03', modules_from_complicated_search_result)
+
+    def test_organization_based_grep_search(self):
+        organizations = ['ietf']
+        search = 'typedef dscp {\n.*type uint8 {\n.*range "0..63";\n.*}'
+        search_result = self.grep_search.search(organizations, search)
+        self.assertNotEqual(search_result, [])
+        self.assertEqual(len(search_result), 1)
+        modules_from_search_result = [
+            f'{module_data["module-name"]}@{module_data["revision"]}' for module_data in search_result
+        ]
+        self.assertIn('ietf-inet-types@2020-07-06', modules_from_search_result)
 
     def test_empty_grep_search(self):
         organizations = []
@@ -107,8 +133,44 @@ class TestSearchClass(unittest.TestCase):
         search_result = self.grep_search.search(organizations, search, inverted_search=True)
         self.assertEqual(search_result, [])
 
+    def test_inverted_search_returns_all_files(self):
+        organizations = []
+        search = 'non_existing_string'
+        search_result = self.grep_search._get_matching_module_names(
+            search,
+            inverted_search=True,
+            case_sensitive=False,
+            organizations=organizations,
+        )
+        self.assertNotEqual(search_result, [])
+        self.assertEqual(sorted(search_result), sorted(self.grep_search._get_all_modules_with_filename_extension()))
+
     def test_empty_case_sensitive_grep_search(self):
         organizations = []
         search = 'Namespace ".*";'
         search_result = self.grep_search.search(organizations, search, case_sensitive=True)
         self.assertEqual(search_result, [])
+
+    def test_get_cached_results(self):
+        organizations = []
+        search = 'organization'
+        search_result = self.grep_search._get_matching_module_names(
+            search,
+            inverted_search=False,
+            case_sensitive=False,
+            organizations=organizations,
+        )
+        self.assertNotEqual(search_result, [])
+        cache_key = hashlib.sha256(
+            f'{search}{False}{False}{str(sorted(organizations)) if organizations else ""}'.encode(),
+        ).hexdigest()
+        self.assertEqual(sorted(search_result), sorted(self.grep_search._get_cached_search_results(cache_key)))
+
+    def test_finishing_cursor(self):
+        organizations = []
+        search = 'organization'
+        self.grep_search.search(organizations, search)
+        self.assertEqual(
+            self.grep_search.finishing_cursor,
+            len(self.grep_search._get_all_modules_with_filename_extension()),
+        )
