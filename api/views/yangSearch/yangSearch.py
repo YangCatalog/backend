@@ -33,7 +33,7 @@ from werkzeug.exceptions import abort
 import utility.log as log
 from api.cache.api_cache import cache
 from api.my_flask import app
-from api.views.yangSearch.constants import GrepSearchCacheEnum
+from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
 from api.views.yangSearch.elkSearch import ElkSearch
 from api.views.yangSearch.grep_search import GrepSearch
 from api.views.yangSearch.search_params import SearchParams
@@ -63,7 +63,7 @@ def set_config():
 
 
 @bp.route('/grep_search', methods=['GET'])
-@cache.cached(query_string=True, timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value)
+@cache.cached(query_string=True, timeout=GREP_SEARCH_CACHE_TIMEOUT)
 def grep_search():
     if not (query_params := request.args):
         abort(400, description='No query parameters were provided')
@@ -71,10 +71,10 @@ def grep_search():
     if not search_string:
         abort(400, description='Search cannot be empty')
     organizations: list[str] = query_params.getlist('organizations')
-    inverted_search: bool = query_params.get('inverted_search', type=lambda v: v.lower() == 'true')
-    case_sensitive: bool = query_params.get('case_sensitive', type=lambda v: v.lower() == 'true')
-    previous_cursor: int = query_params.get('previous_cursor', default=0, type=int)
-    cursor: int = query_params.get('cursor', default=0, type=int)
+    inverted_search: bool = query_params.get('inverted_search', type=lambda v: v.lower() == 'true', default=False)
+    case_sensitive: bool = query_params.get('case_sensitive', type=lambda v: v.lower() == 'true', default=False)
+    previous_cursor: int = query_params.get('previous_cursor', type=int, default=0)
+    cursor: int = query_params.get('cursor', type=int, default=0)
     config = create_config()
     try:
         grep_search_instance = GrepSearch(

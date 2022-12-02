@@ -7,7 +7,7 @@ from configparser import ConfigParser
 from datetime import datetime, timedelta
 
 from api.cache.api_cache import cache
-from api.views.yangSearch.constants import GrepSearchCacheEnum
+from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
 from api.views.yangSearch.response_row import ResponseRow
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
@@ -166,16 +166,12 @@ class GrepSearch:
             cache_key,
             json.dumps(
                 {
-                    'timeout_timestamp': (
-                        (
-                            datetime.now() + timedelta(seconds=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value)
-                        ).timestamp()
-                    ),
+                    'timeout_timestamp': (datetime.now() + timedelta(seconds=GREP_SEARCH_CACHE_TIMEOUT)).timestamp(),
                     'module_names_with_file_extension': modules,
                     'cursors': [self.starting_cursor],
                 },
             ),
-            timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
+            timeout=GREP_SEARCH_CACHE_TIMEOUT,
         )
 
     def _get_modules_from_cursor(
@@ -194,7 +190,7 @@ class GrepSearch:
             cache.set(
                 self.listdir_results_cache_key,
                 all_modules,
-                timeout=GrepSearchCacheEnum.GREP_SEARCH_CACHE_TIMEOUT.value,
+                timeout=GREP_SEARCH_CACHE_TIMEOUT,
             )
         return all_modules
 
