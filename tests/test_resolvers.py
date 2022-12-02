@@ -1,4 +1,4 @@
-# Copyright The IETF Trust 2020, All Rights Reserved
+# Copyright The IETF Trust 2022, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,7 @@
 # limitations under the License.
 
 __author__ = 'Dmytro Kyrychenko'
-__copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
+__copyright__ = 'Copyright The IETF Trust 2022, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
@@ -46,25 +46,6 @@ from parseAndPopulate.resolvers.yang_version import YangVersionResolver
 
 
 class TestResolversClass(unittest.TestCase):
-    def __init__(self, *args, **kwargs):
-        super(TestResolversClass, self).__init__(*args, **kwargs)
-
-        # Declare variables
-        self.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
-        self.tmp_dir = '{}/'.format(yc_gc.temp_dir)
-        self.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
-        self.test_private_dir = os.path.join(self.resources_path, 'html/private')
-        self.dir_paths: DirPaths = {
-            'cache': '',
-            'json': '',
-            'log': yc_gc.logs_dir,
-            'private': '',
-            'result': yc_gc.result_dir,
-            'save': yc_gc.save_file_dir,
-            'yang_models': yc_gc.yang_models,
-        }
-        self.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
-
     def setUp(self) -> None:
         self.logger = logging.getLogger('test')
 
@@ -108,39 +89,41 @@ class TestResolversClass(unittest.TestCase):
         self.assertEqual(res, 'mib')
 
     def test_generated_from_resolver_simple_resolve_native(self):
-        gfr = GeneratedFromResolver(self.logger, name='test_native_cisco', namespace='something:cisco:something')
+        gfr = GeneratedFromResolver(self.logger, name='test_native_cisco', 
+                                    namespace='urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
         res = gfr.resolve()
         self.assertEqual(res, 'native')
 
     def test_generated_from_resolver_simple_resolve_native_caps(self):
-        gfr = GeneratedFromResolver(self.logger, name='CISCOtest_native', namespace='Something:CISCO:sOmEtHiNg')
+        gfr = GeneratedFromResolver(self.logger, name='CISCOtest_native', 
+                                    namespace='URN:CISCO:PARAMS:XML:NS:YANG:CISCO-XE-IETF-YANG-PUSH-EXT')
         res = gfr.resolve()
         self.assertEqual(res, 'native')
 
     # ImplementationResolver
     def test_implementation_resolver_simple_resolve(self):
         platform_data1 = {
-            'vendor': 'test_vendor',
-            'platform': 'test_platform',
-            'software-version': 'v1.0',
-            'software-flavor': 'sweet-idk',
-            'os-version': 'v2.0',
-            'feature-set': 'whole',
-            'os': 'ubuntu',
+            'vendor': 'cisco',
+            'platform': 'Nexus 9000',
+            'software-version': '10.3(1)',
+            'software-flavor': 'ALL',
+            'os-version': '10.3(1)',
+            'feature-set': 'ALL',
+            'os': 'NX-OS',
         }
         platform_data2 = {
-            'vendor': 'test_vendor2',
-            'platform': 'test_platform2',
-            'software-version': 'v2.0',
-            'software-flavor': 'sour-idk',
-            'os-version': 'v3.0',
-            'feature-set': 'partial',
-            'os': 'windows',
+            'vendor': 'cisco',
+            'platform': 'Nexus 3000',
+            'software-version': '10.2',
+            'software-flavor': 'ALL',
+            'os-version': '10.2',
+            'feature-set': 'ALL',
+            'os': 'NX-OS',
         }
         platform_data = [platform_data1, platform_data2]
-        conformance_type = 'some_type_of_conformance'
+        conformance_type = 'implement'
         netconf_capabilities = ['capabilities1', 'capabilities2']
-        netconf_versions = ['version1', 'version2']
+        netconf_versions = ['1.0', '2.0']
 
         vendor_info = {
             'platform_data': platform_data,
@@ -150,8 +133,8 @@ class TestResolversClass(unittest.TestCase):
         }
         features = ['feature1', 'feature2']
         deviations = [
-            {'name': 'deviation1', 'revision': 'first'},
-            {'name': 'deviation2', 'revision': 'second'},
+            {'name': 'deviation1', 'revision': '2022-12-02'},
+            {'name': 'deviation2', 'revision': '2022-12-01'},
         ]
 
         ir = ImplementationResolver(vendor_info, features, deviations)
@@ -241,8 +224,8 @@ class TestResolversClass(unittest.TestCase):
             return None
 
         module = {
-            'reference': 'test_reference',
-            'maturity-level': 'not ratified',
+            'reference': 'test.org/reference',
+            'maturity-level': 'adopted',
             'expired': 'not-applicable',
             'expires': None,
         }
@@ -258,7 +241,7 @@ class TestResolversClass(unittest.TestCase):
             return None
 
         module = {
-            'reference': 'test_reference',
+            'reference': 'test.org/reference',
             'maturity-level': 'ratified',
             'expired': False,
             'expires': None,
@@ -276,9 +259,9 @@ class TestResolversClass(unittest.TestCase):
 
         module = {
             'name': 'test_name',
-            'revision': 'test_revision',
-            'reference': 'test_reference',
-            'maturity-level': 'not ratified',
+            'revision': '2022-12-02',
+            'reference': 'test.org/reference',
+            'maturity-level': 'adopted',
             'expired': True,
             'expires': None,
         }
@@ -295,9 +278,9 @@ class TestResolversClass(unittest.TestCase):
 
         module = {
             'name': 'test_name',
-            'revision': 'test_revision',
-            'reference': 'test_reference',
-            'maturity-level': 'not ratified',
+            'revision': '2022-12-02',
+            'reference': 'test.org/reference',
+            'maturity-level': 'adopted',
             'expired': False,
             'expires': '2022-11-25',
         }
@@ -325,7 +308,7 @@ class TestResolversClass(unittest.TestCase):
         organization_stmt = new_statement(None, module_stmt, None, 'organization', 'unknown-org')
         module_stmt.substmts.append(organization_stmt)
 
-        orgr = OrganizationResolver(module_stmt, self.logger, 'something-cisco-something')
+        orgr = OrganizationResolver(module_stmt, self.logger, 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
         res = orgr.resolve()
         self.assertEqual(res, 'cisco')
 
@@ -334,7 +317,7 @@ class TestResolversClass(unittest.TestCase):
         organization_stmt = new_statement(None, module_stmt, None, 'organization', 'unknown-org')
         module_stmt.substmts.append(organization_stmt)
 
-        orgr = OrganizationResolver(module_stmt, self.logger, 'urn:someorg:something-else')
+        orgr = OrganizationResolver(module_stmt, self.logger, 'urn:someorg:params:xml:ns:yang:xe-yang-push-ext')
         res = orgr.resolve()
         self.assertEqual(res, 'someorg')
 
@@ -369,7 +352,7 @@ class TestResolversClass(unittest.TestCase):
     # SemanticVersionResolver
     def test_semantic_version_resolver_simple_resolve_cisco_semver(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', '2022-12-02')
         semver_stmt = new_statement(None, revision_stmt, None, ('cisco-semver', 'module-version'), '1.0.0')
         module_stmt.substmts.append(revision_stmt)
         revision_stmt.substmts.append(semver_stmt)
@@ -380,8 +363,8 @@ class TestResolversClass(unittest.TestCase):
 
     def test_semantic_version_resolver_simple_resolve_cisco_semver_index_error(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
-        semver_stmt = new_statement(None, revision_stmt, None, ('cisco-semver', 'module-version'), '1.something.0')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', '2022-12-02')
+        semver_stmt = new_statement(None, revision_stmt, None, ('cisco-semver', 'module-version'), '1.bad.version.0')
         module_stmt.substmts.append(revision_stmt)
         revision_stmt.substmts.append(semver_stmt)
 
@@ -391,7 +374,7 @@ class TestResolversClass(unittest.TestCase):
 
     def test_semantic_version_resolver_simple_resolve_reference(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', '2022-12-02')
         reference_stmt = new_statement(None, revision_stmt, None, 'reference', '1.0.0')
         module_stmt.substmts.append(revision_stmt)
         revision_stmt.substmts.append(reference_stmt)
@@ -402,8 +385,8 @@ class TestResolversClass(unittest.TestCase):
 
     def test_semantic_version_resolver_simple_resolve_reference_index_error(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        revision_stmt = new_statement(None, module_stmt, None, 'revision', 'test-revision')
-        reference_stmt = new_statement(None, revision_stmt, None, 'reference', '1.something.0')
+        revision_stmt = new_statement(None, module_stmt, None, 'revision', '2022-12-02')
+        reference_stmt = new_statement(None, revision_stmt, None, 'reference', '1.bad.version.0')
         module_stmt.substmts.append(revision_stmt)
         revision_stmt.substmts.append(reference_stmt)
 
@@ -422,15 +405,14 @@ class TestResolversClass(unittest.TestCase):
 
     def test_semantic_version_resolver_simple_resolve_openconfig_index_error(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        oc_ext_stmt = new_statement(None, module_stmt, None, ('oc-ext', 'openconfig-version'), '1.something.0')
+        oc_ext_stmt = new_statement(None, module_stmt, None, ('oc-ext', 'openconfig-version'), '1.bad.version.0')
         module_stmt.substmts.append(oc_ext_stmt)
 
         svr = SemanticVersionResolver(module_stmt, self.logger)
         res = svr.resolve()
         self.assertIsNone(res)
 
-        # SubmoduleResolver
-
+    # SubmoduleResolver
     def test_submodule_resolver_simple_resolve_no_includes(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
         output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
@@ -541,12 +523,12 @@ class TestResolversClass(unittest.TestCase):
     # NamespaceResolver
     def test_namespace_resolver_simple_resolve_module(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
         module_stmt.substmts.append(namespace_stmt)
 
         nr = NamespaceResolver(module_stmt, self.logger, '', None)
         res = nr.resolve()
-        self.assertEqual(res, 'some-namespace')
+        self.assertEqual(res, 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
 
     def test_namespace_resolver_simple_resolve_module_index_error(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
@@ -557,7 +539,7 @@ class TestResolversClass(unittest.TestCase):
 
     def test_namespace_resolver_simple_resolve_submodule_no_belongs_to(self):
         module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
-        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
         module_stmt.substmts.append(namespace_stmt)
 
         nr = NamespaceResolver(module_stmt, self.logger, '', None)
@@ -566,7 +548,7 @@ class TestResolversClass(unittest.TestCase):
 
     def test_namespace_resolver_simple_resolve_submodule_no_yang_file(self):
         module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
-        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
+        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
         module_stmt.substmts.append(namespace_stmt)
 
         nr = NamespaceResolver(module_stmt, self.logger, '', 'some_str')
