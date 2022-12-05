@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import subprocess
@@ -37,7 +36,7 @@ class GrepSearch:
         self.all_modules_directory = config.get('Directory-Section', 'save-file-dir')
         self.results_per_page = int(config.get('Web-Section', 'grep-search-results-per-page', fallback=500))
 
-        self.listdir_results_cache_key = hashlib.sha256(f'listdir_{self.all_modules_directory}'.encode()).hexdigest()
+        self.listdir_results_cache_key = f'listdir_{self.all_modules_directory}'
 
         query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
         with open(query_path) as query_file:
@@ -101,43 +100,38 @@ class GrepSearch:
             .replace("'", r"\'")  # noqa: Q000
             .replace(r"\\'", r"\'")  # noqa: Q000
         )
-        cache_key = hashlib.sha256(
-            f'{search_string}{inverted_search}{case_sensitive}'
-            f'{str(sorted(organizations)) if organizations else ""}'.encode(),
-        ).hexdigest()
+        cache_key = (
+            f'{search_string}{inverted_search}{case_sensitive}{str(sorted(organizations)) if organizations else ""}'
+        )
         if result := self._get_cached_search_results(cache_key):
             return result
-        pcregrep_shell_command = (
-            f'pcregrep -{"" if case_sensitive else "i"}lrMe \'{search_string}\' '
-            f'{self.all_modules_directory} | uniq '
-            '| awk -F/ \'{ print $NF }\''
+        search_command = self._get_filesystem_search_command(
+            search_string,
+            inverted_search,
+            case_sensitive,
+            organizations,
         )
-        if not inverted_search and organizations:
-            # in the case of an inverted search, organizations will be resolved in the ES search only
-            pcregrep_shell_command += f' | grep -E \'{"|".join(organizations)}\''
         try:
-            module_names_with_file_extension = (
-                subprocess.check_output(
-                    pcregrep_shell_command,
-                    shell=True,
-                )
-                .decode()
-                .split('\n')
-            )
-            if inverted_search:
-                module_names_with_file_extension = tuple(
-                    set(self._get_all_modules_with_filename_extension()) - set(module_names_with_file_extension),
-                )
-            self._cache_search_results(cache_key, module_names_with_file_extension)
-            return self._get_modules_from_cursor(module_names_with_file_extension)
-        except subprocess.CalledProcessError as e:
-            if not e.output and inverted_search:
-                self.logger.info('All the modules satisfy the inverted search')
-                return self._get_modules_from_cursor(self._get_all_modules_with_filename_extension())
-            elif not e.output:
-                self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
-                return
+            command_output, error = search_command.communicate()
+        except Exception as e:
+            self.logger.exception(f'Such a search: {search_string}, caused an error: {str(e)}')
             raise ValueError('Invalid search input')
+        if error:
+            self.logger.exception(f'Such a search: {search_string}, caused an error: {error}')
+            raise ValueError('Invalid search input')
+        elif not command_output and inverted_search:
+            self.logger.info(f'All the modules satisfy the inverted search: {search_string}')
+            return self._get_modules_from_cursor(self._get_all_modules_with_filename_extension())
+        elif not command_output:
+            self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
+            return
+        module_names_with_file_extension = command_output.decode().split('\n')
+        if inverted_search:
+            module_names_with_file_extension = tuple(
+                self._get_all_modules_with_filename_extension(return_set=True) - set(module_names_with_file_extension),
+            )
+        self._cache_search_results(cache_key, module_names_with_file_extension)
+        return self._get_modules_from_cursor(module_names_with_file_extension)
 
     def _get_cached_search_results(self, cache_key: str) -> t.Optional[t.Union[list[str], tuple[str]]]:
         cached_pcregrep_search_results = cache.get(cache_key)
@@ -161,6 +155,41 @@ class GrepSearch:
         )
         return self._get_modules_from_cursor(module_names_with_file_extension)
 
+    def _get_filesystem_search_command(
+        self,
+        search_string: str,
+        inverted_search: bool,
+        case_sensitive: bool,
+        organizations: list[str],
+    ) -> subprocess.Popen:
+        search_options = f'-{"" if case_sensitive else "i"}lrMe'
+        pcregrep_search = subprocess.Popen(
+            ['pcregrep', search_options, search_string, self.all_modules_directory],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        get_uniq_paths = subprocess.Popen(
+            ['uniq'],
+            stdin=pcregrep_search.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        final_command = subprocess.Popen(
+            ['awk', '-F/', '{ print $NF }'],
+            stdin=get_uniq_paths.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        if not inverted_search and organizations:
+            # in the case of an inverted search, organizations will be resolved in the ES search only
+            final_command = subprocess.Popen(
+                ['grep', '-E', '|'.join(organizations)],
+                stdin=final_command.stdout,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+        return final_command
+
     def _cache_search_results(self, cache_key: str, modules: t.Union[list[str], tuple[str]]):
         cache.set(
             cache_key,
@@ -183,15 +212,27 @@ class GrepSearch:
         except IndexError:
             return None
 
-    def _get_all_modules_with_filename_extension(self) -> list[str]:
-        all_modules = cache.get(self.listdir_results_cache_key)
+    def _get_all_modules_with_filename_extension(self, return_set: bool = False) -> t.Union[set[str], list[str]]:
+        all_modules = (
+            cache.get(f'set_{self.listdir_results_cache_key}')
+            if return_set
+            else cache.get(self.listdir_results_cache_key)
+        )
         if not all_modules:
             all_modules = os.listdir(self.all_modules_directory)
+            all_modules_set = set(all_modules)
             cache.set(
                 self.listdir_results_cache_key,
                 all_modules,
                 timeout=GREP_SEARCH_CACHE_TIMEOUT,
             )
+            cache.set(
+                f'set_{self.listdir_results_cache_key}',
+                all_modules_set,
+                timeout=GREP_SEARCH_CACHE_TIMEOUT,
+            )
+            if return_set:
+                all_modules = all_modules_set
         return all_modules
 
     def _search_modules_in_database(
