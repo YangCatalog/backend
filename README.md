@@ -1,6 +1,11 @@
 # YANG Catalog
+
+[![codecov](https://codecov.io/gh/YangCatalog/backend/branch/develop/graph/badge.svg?token=JHFBBUTL1X)](https://codecov.io/gh/YangCatalog/backend)
+
+---
+
 ## Overview
-This repository contains YANG Catalog's [REST API](https://yangcatalog.org/doc) and the bulk of it's internal infrastructure for processing YANG modules and extracting their properties. It also serves information to YANG Catalog's [frontend](https://github.com/YangCatalog/yangcatalog-ui) and implements the functionality of the [Admin UI](https://github.com/YangCatalog/admin_ui).
+This repository contains YANG Catalog's [REST API](https://yangcatalog.org/doc) and the bulk of its internal infrastructure for processing YANG modules and extracting their properties. It also serves information to YANG Catalog's [frontend](https://github.com/YangCatalog/yangcatalog-ui) and implements the functionality of the [Admin UI](https://github.com/YangCatalog/admin_ui).
 
 ## YANG Module Processing
 The scripts in this repository serve as a backend to add, update, remove and manage
@@ -11,7 +16,7 @@ YANG module files in yangcatalog. It is composed of:
 
 This repository works directly with  the [yangModels/yang](https://github.com/YangModels/yang)
 repository. That repository contains all the modules
-structered by vendors (Cisco, Huawei and others) and SDOs
+structured by vendors (Cisco, Huawei and others) and SDOs
 (IETF, IEEE, MEF, BBF and others).
 
 ### Parse and Populate
@@ -20,12 +25,12 @@ The most important module in this repository is called ParsedAndPopulate.
 This module contains parsing scripts to parse all the modules of a given
 directory. This gives us all the metadata of the modules
 according to [draft-clacla-netmod-model-catalog-03](https://tools.ietf.org/html/draft-clacla-netmod-model-catalog-03).
-Parsed metedata is subsequently populated to a confd datastore using
+Parsed metadata is subsequently populated to a confd datastore using
 a confd REST request. This database
 is used for the yang-search part of yangcatalog.org.
 
 We can parse modules either with the __sdo__ option, which will go through
-a given directory and parse all of it's yang modules one by one,
+a given directory and parse all of its yang modules one by one,
 or without this option, which will try to find a platform-metadata.json file
 in the directory which contains paths to capability.xml files and
 parse all the modules according to those files with vendor metadata
@@ -43,10 +48,10 @@ of the endpoints serve to find modules in different ways. This is described
 deeper in the [API documentation](https://yangcatalog.org/doc). If the user is
 registered, she/he can add, modify or delete modules based on a pre-approved path.
 Once a user has filled in the registration form, one of yangcatalog's admin users
-needs to approve user using Admin UI and give the user specific rights so he is able to add,
+needs to approve user using Admin UI and give the user specific rights, so he is able to add,
 remove or update only certain modules.
 
-Some of the requests may take a longer period of time to process.
+Some requests may take a longer period of time to process.
 Because of this, a sender and a receiver was made. These scripts use rabbitMQ
 to communicate. The API will use the sender to send a job to the receiver. While
 the receiver is processing this job, the user will receive a job-id. The user can
@@ -62,13 +67,13 @@ populate all the new modules to the yangcatalog database.
 
 The backend API also receives
 IETF Yang models every day and if there are any new drafts it will
-automatically populate theyangcatalog database and update the repository
+automatically populate the yangcatalog database and update the repository
 with all the new IETF modules if the relevant travis job passed successfully.
 
 Please note that UWSGI caching is used to improve the performance compared to
 ConfD requests. During loading of the UWSGI, the cache is pre-populated by
-issueing one ConfD request per module; during this initial load time, the API
-will probably time-out and the NGINX server will return a 50x error.
+issuing one ConfD request per module; during this initial load time, the API
+will probably time out and the NGINX server will return a 50x error.
 
 ### Jobs
 
@@ -79,7 +84,7 @@ information about what vendors' and SDOs' modules we have and the number of
 modules that we have.
 * [resolveExpiration](https://github.com/YangCatalog/backend/blob/master/utility/resolveExpiration.py) job that checks all the IETF draft modules
 and their expiration dates and updates its metadata accordingly.
-* [removeUnused](https://github.com/YangCatalog/backend/blob/master/utility/removeUnused.py) job that removes data on the server that are not used
+* [remove_unused](https://github.com/YangCatalog/backend/blob/master/utility/remove_unused.py) job that removes data on the server that are not used
 anymore.
 * [userReminder](https://github.com/YangCatalog/backend/blob/master/utility/userReminder.py) script that will be triggered twice a year to show us what
 users we have in our database.
