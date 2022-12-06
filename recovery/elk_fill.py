@@ -31,8 +31,10 @@ import typing as t
 import requests
 from requests.exceptions import ConnectionError
 
+import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.fetch_modules import fetch_modules
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -60,17 +62,12 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     config = create_config(args.config_path)
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     temp = config.get('Directory-Section', 'temp')
-    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
-
-    try:
-        response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
-    except ConnectionError:
-        print(f'Failed to fetch data from {yangcatalog_api_prefix}')
-        sys.exit(1)
-
-    try:
-        all_modules = response.json()['module']
-    except KeyError:
+    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+    logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
+    
+    logger.info('extracting list of modules from API')
+    all_modules = fetch_modules(logger)
+    if all_modules is None:
         print('Failed to get list of modules from response')
         sys.exit(1)
 

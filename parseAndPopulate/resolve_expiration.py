@@ -37,6 +37,7 @@ from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
+from utility.fetch_modules import fetch_modules
 
 current_file_basename = os.path.basename(__file__)
 
@@ -72,14 +73,11 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         logger.info(f'Requesting all the modules from {yangcatalog_api_prefix}')
         updated = False
 
-        response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
-        if response.status_code < 200 or response.status_code > 299:
-            logger.error(f'Request on path {yangcatalog_api_prefix} failed with {response.text}')
-        else:
-            logger.debug(
-                f'{len(response.json().get("module", []))} modules fetched from {yangcatalog_api_prefix} successfully',
-            )
-        modules = response.json().get('module', [])
+        modules = fetch_modules(logger)
+        if modules is None:
+            logger.error('module extraction from API has failed')
+            raise ValueError('module extraction from API has failed')
+
         logger.debug('Starting to resolve modules')
         for module in modules:
             exp_res = ExpirationResolver(module, logger, datatracker_failures, redis_connection)

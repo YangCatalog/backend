@@ -22,6 +22,7 @@ from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log, revision_to_date
+from utility.fetch_modules import fetch_modules
 
 current_file_basename = os.path.basename(__file__)
 
@@ -101,11 +102,11 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
-    url = f'{yangcatalog_api_prefix}/search/modules'
-    logger.info(f'Getting all the modules from: {url}')
-    response = requests.get(url, headers={'Accept': 'application/json'})
-
-    all_existing_modules = response.json().get('module', [])
+    logger.info(f'Getting all the modules from API')
+    all_existing_modules = fetch_modules(logger)
+    if all_existing_modules is None:
+        logger.error('module extraction from API has failed')
+        raise ValueError('module extraction from API has failed')
 
     global path
     path = f'{temp_dir}/semver_prepare.json'

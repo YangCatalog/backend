@@ -58,6 +58,7 @@ from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url, json_headers
 from utility.util import job_log
+from utility.fetch_modules import fetch_modules
 
 current_file_basename = os.path.basename(__file__)
 
@@ -261,27 +262,14 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     repo = None
 
     # Fetch the list of all modules known by YangCatalog
-    url = os.path.join(yangcatalog_api_prefix, 'search/modules')
-    try:
-        response = requests.get(url, headers=json_headers)
-        if response.status_code != 200:
-            LOGGER.error(f'Cannot access {log_directory}, response code: {response.status_code}')
-            sys.exit(1)
-        else:
-            all_modules_data = response.json()
-    except requests.exceptions.RequestException as e:
-        LOGGER.error(f'Cannot access {url}, response code: {e.response}\nRetrying in 120s')
-        time.sleep(120)
-        response = requests.get(url, headers=json_headers)
-        if response.status_code != 200:
-            LOGGER.error(f'Cannot access {url}, response code: {response.status_code}')
-            sys.exit(1)
-        else:
-            all_modules_data = response.json()
-            LOGGER.error(f'Success after retry on {url}')
+    LOGGER.info('extracting list of modules from API')
+    all_modules_data = fetch_modules(LOGGER)
+    if all_modules_data is None:
+        LOGGER.error('module extraction from API has failed')
+        raise ValueError('module extraction from API has failed')    
 
     vendor_data = {}
-    for module in all_modules_data['module']:
+    for module in all_modules_data:
         for implementation in module.get('implementations', {}).get('implementation', []):
             if implementation['vendor'] == 'cisco':
                 if implementation['os-type'] not in vendor_data:

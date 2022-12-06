@@ -20,6 +20,7 @@ from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.staticVariables import GITHUB_RAW, github_url
 from utility.util import parse_revision, strip_comments
+from utility.fetch_modules import fetch_modules
 
 
 def get_repo_owner_name(schema: str):
@@ -128,10 +129,11 @@ if __name__ == '__main__':
     confdService = ConfdService()
 
     # GET all the existing modules of Yangcatalog
-    url = '{}/search/modules'.format(yangcatalog_api_prefix)
-    response = requests.get(url, headers={'Accept': 'application/json'})
-    all_existing_modules = response.json().get('module', [])
-    LOGGER.info('{} modules fetched from URL {}'.format(len(all_existing_modules), url))
+    LOGGER.info('extracting list of modules from API')
+    all_existing_modules = fetch_modules(LOGGER)
+    if all_existing_modules is None:
+        LOGGER.error('module extraction from API has failed')
+        raise ValueError('module extraction from API has failed')
 
     ###
     # PHASE I - Check the schema of each module

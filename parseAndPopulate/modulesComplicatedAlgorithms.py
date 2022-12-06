@@ -47,6 +47,7 @@ from utility.confdService import ConfdService
 from utility.staticVariables import json_headers
 from utility.util import context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
 from utility.yangParser import create_context
+from utility.fetch_modules import fetch_modules
 
 MAJOR = 0
 MINOR = 1
@@ -124,7 +125,6 @@ class ModulesComplicatedAlgorithms:
             with open('{}/prepare.json'.format(direc), 'r') as f:
                 all_modules = json.load(f)
         self._all_modules: list[ModuleMetadata] = all_modules.get('module', [])  # pyright: ignore
-        self._yangcatalog_api_prefix = yangcatalog_api_prefix
         self.new_modules: NameRevisionModuleTable = defaultdict(dict)
         self._credentials = credentials
         self._save_file_dir = save_file_dir
@@ -133,9 +133,13 @@ class ModulesComplicatedAlgorithms:
         self.json_ytree = json_ytree
         self._trees: dict[str, dict[str, str]] = defaultdict(dict)
         self._unavailable_modules = []
+        
         LOGGER.info('get all existing modules')
-        response = requests.get('{}/search/modules'.format(self._yangcatalog_api_prefix), headers=json_headers)
-        existing_modules = response.json().get('module', [])
+        existing_modules = fetch_modules(LOGGER)
+        if existing_modules is None:
+            LOGGER.error('module extraction from API has failed')
+            raise ValueError('module extraction from API has failed')
+        
         self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}
         for module in existing_modules:

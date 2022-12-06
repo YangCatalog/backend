@@ -35,6 +35,7 @@ class MockResponse:
     def __init__(self, json_data, status_code):
         self.json_data = json_data
         self.status_code = status_code
+        self.text = json.dumps(json_data)
 
     def json(self):
         return self.json_data
@@ -46,17 +47,19 @@ class TestFetchModules(unittest.TestCase):
         config = create_config()
         yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
         cls.fetch_url = f'{yangcatalog_api_prefix}/search/modules'
-        cls.logger = get_logger('test_fetch_modules')
+        cls.logger = get_logger('test_fetch_modules', './test_fetch_modules.log')
 
-        cls.test_modules = [
+        cls.test_modules = {'module': [
             {'author-email': 'jd@jd.org', 'contact': 'Jane Doe <jane@doe.com>', 
-            'document-name': 'draft-for-test.txt', 'name': 'draft-for-test', 'organization': 'ietf'}
-        ]
+            'document-name': 'draft-for-test.txt', 'name': 'draft-for-test', 'organization': 'ietf'},
+            {'author-email': 'jhd@jd.org', 'contact': 'John Doe <john@doe.com>', 
+            'document-name': 'draft-for-another-test.txt', 'name': 'draft-for-another-test', 'organization': 'cisco'}
+        ]}
 
     def test_simple_request(self):
         def mocked_requests_get(*args, **kwargs):
             if args[0] == self.fetch_url:
-                return MockResponse(json_data=json.dumps(self.test_modules), status_code=200)
+                return MockResponse(json_data=self.test_modules, status_code=200)
             else:
                 return requests.get(*args, **kwargs)
         
@@ -64,4 +67,44 @@ class TestFetchModules(unittest.TestCase):
             modules = fetch_modules(self.logger)
         
         self.assertIsNotNone(modules)
-        self.assertEqual(modules, self.test_modules)
+        self.assertEqual(modules, self.test_modules['module'])
+
+    def test_failed_request_less_200(self):
+        def mocked_requests_get(*args, **kwargs):
+            if args[0] == self.fetch_url:
+                return MockResponse(json_data={}, status_code=199)
+            else:
+                return requests.get(*args, **kwargs)
+        
+        with mock.patch('requests.get', mocked_requests_get):
+            modules = fetch_modules(self.logger, sleep_time=1)
+        
+        self.assertIsNone(modules)
+        
+    def test_failed_request_more_299(self):
+        def mocked_requests_get(*args, **kwargs):
+            if args[0] == self.fetch_url:
+                return MockResponse(json_data={}, status_code=300)
+            else:
+                return requests.get(*args, **kwargs)
+        
+        with mock.patch('requests.get', mocked_requests_get):
+            modules = fetch_modules(self.logger, sleep_time=1)
+        
+        self.assertIsNone(modules)
+
+    def test_failed_request_more_299_then_success(self):
+        with mock.patch('requests.get', side_effect=[MockResponse(json_data={}, status_code=300),
+                                                     MockResponse(json_data=self.test_modules, status_code=200)]):
+            modules = fetch_modules(self.logger, sleep_time=1)
+        
+        self.assertIsNotNone(modules)
+        self.assertEqual(modules, self.test_modules['module'])
+
+    def test_success_on_last_attempt(self):
+        with mock.patch('requests.get', side_effect=[MockResponse(json_data={}, status_code=300),
+                                                     MockResponse(json_data=self.test_modules, status_code=200)]):
+            modules = fetch_modules(self.logger, sleep_time=1, n_retries=2)
+        
+        self.assertIsNotNone(modules)
+        self.assertEqual(modules, self.test_modules['module'])
