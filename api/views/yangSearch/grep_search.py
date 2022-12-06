@@ -92,14 +92,6 @@ class GrepSearch:
             :param case_sensitive   (bool) indicates if the search must be case-sensitive or not
             :param organizations   (list[str]) names of organizations that modules should be of
         """
-        search_string = (
-            search_string.strip()
-            .replace("'", '')
-            .replace('`', r'\`')
-            .replace(r'\\`', r'\`')
-            .replace("'", r"\'")  # noqa: Q000
-            .replace(r"\\'", r"\'")  # noqa: Q000
-        )
         cache_key = (
             f'{search_string}{inverted_search}{case_sensitive}{str(sorted(organizations)) if organizations else ""}'
         )
@@ -113,8 +105,8 @@ class GrepSearch:
         )
         try:
             command_output, error = search_command.communicate()
-        except Exception as e:
-            self.logger.exception(f'Such a search: {search_string}, caused an error: {str(e)}')
+        except (OSError, subprocess.SubprocessError) as e:
+            self.logger.exception(f'Such a search: {search_string}, caused an error: {str(e)}', exc_info=False)
             raise ValueError('Invalid search input')
         if error:
             self.logger.exception(f'Such a search: {search_string}, caused an error: {error}')
@@ -128,7 +120,7 @@ class GrepSearch:
         module_names_with_file_extension = command_output.decode().split('\n')
         if inverted_search:
             module_names_with_file_extension = tuple(
-                self._get_all_modules_with_filename_extension(return_set=True) - set(module_names_with_file_extension),
+                set(self._get_all_modules_with_filename_extension()) - set(module_names_with_file_extension),
             )
         self._cache_search_results(cache_key, module_names_with_file_extension)
         return self._get_modules_from_cursor(module_names_with_file_extension)
@@ -164,7 +156,7 @@ class GrepSearch:
     ) -> subprocess.Popen:
         search_options = f'-{"" if case_sensitive else "i"}lrMe'
         pcregrep_search = subprocess.Popen(
-            ['pcregrep', search_options, search_string, self.all_modules_directory],
+            ['pcregrep', search_options, '--', search_string, self.all_modules_directory],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -183,7 +175,7 @@ class GrepSearch:
         if not inverted_search and organizations:
             # in the case of an inverted search, organizations will be resolved in the ES search only
             final_command = subprocess.Popen(
-                ['grep', '-E', '|'.join(organizations)],
+                ['grep', '-E', '--', '|'.join(organizations)],
                 stdin=final_command.stdout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -212,27 +204,15 @@ class GrepSearch:
         except IndexError:
             return None
 
-    def _get_all_modules_with_filename_extension(self, return_set: bool = False) -> t.Union[set[str], list[str]]:
-        all_modules = (
-            cache.get(f'set_{self.listdir_results_cache_key}')
-            if return_set
-            else cache.get(self.listdir_results_cache_key)
-        )
+    def _get_all_modules_with_filename_extension(self) -> list[str]:
+        all_modules = cache.get(self.listdir_results_cache_key)
         if not all_modules:
             all_modules = os.listdir(self.all_modules_directory)
-            all_modules_set = set(all_modules)
             cache.set(
                 self.listdir_results_cache_key,
                 all_modules,
                 timeout=GREP_SEARCH_CACHE_TIMEOUT,
             )
-            cache.set(
-                f'set_{self.listdir_results_cache_key}',
-                all_modules_set,
-                timeout=GREP_SEARCH_CACHE_TIMEOUT,
-            )
-            if return_set:
-                all_modules = all_modules_set
         return all_modules
 
     def _search_modules_in_database(
