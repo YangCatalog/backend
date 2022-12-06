@@ -28,13 +28,10 @@ import os
 import sys
 import typing as t
 
-import requests
-from requests.exceptions import ConnectionError
-
 import utility.log as log
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
 from utility.fetch_modules import fetch_modules
+from utility.scriptConfig import Arg, BaseScriptConfig
 
 
 class ScriptConfig(BaseScriptConfig):
@@ -64,7 +61,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     temp = config.get('Directory-Section', 'temp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
-    
+
     logger.info('extracting list of modules from API')
     all_modules = fetch_modules(logger)
     if all_modules is None:

@@ -34,10 +34,10 @@ import utility.log as log
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
-from utility.fetch_modules import fetch_modules
 
 current_file_basename = os.path.basename(__file__)
 

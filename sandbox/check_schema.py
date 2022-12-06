@@ -18,9 +18,9 @@ import utility.log as log
 from utility import repoutil
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
 from utility.staticVariables import GITHUB_RAW, github_url
 from utility.util import parse_revision, strip_comments
-from utility.fetch_modules import fetch_modules
 
 
 def get_repo_owner_name(schema: str):

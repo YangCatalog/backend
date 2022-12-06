@@ -39,13 +39,11 @@ import io
 import json
 import os
 import shutil
-import sys
 import time
 import typing as t
 from contextlib import redirect_stdout
 
 import jinja2
-import requests
 
 import utility.log as log
 from parseAndPopulate.resolvers.basic import BasicResolver
@@ -55,10 +53,10 @@ from parseAndPopulate.resolvers.revision import RevisionResolver
 from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url, json_headers
-from utility.util import job_log
 from utility.fetch_modules import fetch_modules
+from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url
+from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
 
@@ -266,7 +264,7 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     all_modules_data = fetch_modules(LOGGER)
     if all_modules_data is None:
         LOGGER.error('module extraction from API has failed')
-        raise ValueError('module extraction from API has failed')    
+        raise ValueError('module extraction from API has failed')
 
     vendor_data = {}
     for module in all_modules_data:

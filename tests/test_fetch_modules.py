@@ -18,17 +18,14 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
 import json
-import os
-import requests
-import typing as t
 import unittest
 from unittest import mock
 
-from api.globalConfig import yc_gc
-from api.yangCatalogApi import app
-from utility.log import get_logger
-from utility.fetch_modules import fetch_modules
+import requests
+
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
+from utility.log import get_logger
 
 
 class MockResponse:
@@ -39,7 +36,7 @@ class MockResponse:
 
     def json(self):
         return self.json_data
-    
+
 
 class TestFetchModules(unittest.TestCase):
     @classmethod
@@ -49,12 +46,24 @@ class TestFetchModules(unittest.TestCase):
         cls.fetch_url = f'{yangcatalog_api_prefix}/search/modules'
         cls.logger = get_logger('test_fetch_modules', './test_fetch_modules.log')
 
-        cls.test_modules = {'module': [
-            {'author-email': 'jd@jd.org', 'contact': 'Jane Doe <jane@doe.com>', 
-            'document-name': 'draft-for-test.txt', 'name': 'draft-for-test', 'organization': 'ietf'},
-            {'author-email': 'jhd@jd.org', 'contact': 'John Doe <john@doe.com>', 
-            'document-name': 'draft-for-another-test.txt', 'name': 'draft-for-another-test', 'organization': 'cisco'}
-        ]}
+        cls.test_modules = {
+            'module': [
+                {
+                    'author-email': 'jd@jd.org',
+                    'contact': 'Jane Doe <jane@doe.com>',
+                    'document-name': 'draft-for-test.txt',
+                    'name': 'draft-for-test',
+                    'organization': 'ietf',
+                },
+                {
+                    'author-email': 'jhd@jd.org',
+                    'contact': 'John Doe <john@doe.com>',
+                    'document-name': 'draft-for-another-test.txt',
+                    'name': 'draft-for-another-test',
+                    'organization': 'cisco',
+                },
+            ],
+        }
 
     def test_simple_request(self):
         def mocked_requests_get(*args, **kwargs):
@@ -62,10 +71,10 @@ class TestFetchModules(unittest.TestCase):
                 return MockResponse(json_data=self.test_modules, status_code=200)
             else:
                 return requests.get(*args, **kwargs)
-        
+
         with mock.patch('requests.get', mocked_requests_get):
             modules = fetch_modules(self.logger)
-        
+
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
 
@@ -75,36 +84,46 @@ class TestFetchModules(unittest.TestCase):
                 return MockResponse(json_data={}, status_code=199)
             else:
                 return requests.get(*args, **kwargs)
-        
+
         with mock.patch('requests.get', mocked_requests_get):
             modules = fetch_modules(self.logger, sleep_time=1)
-        
+
         self.assertIsNone(modules)
-        
+
     def test_failed_request_more_299(self):
         def mocked_requests_get(*args, **kwargs):
             if args[0] == self.fetch_url:
                 return MockResponse(json_data={}, status_code=300)
             else:
                 return requests.get(*args, **kwargs)
-        
+
         with mock.patch('requests.get', mocked_requests_get):
             modules = fetch_modules(self.logger, sleep_time=1)
-        
+
         self.assertIsNone(modules)
 
     def test_failed_request_more_299_then_success(self):
-        with mock.patch('requests.get', side_effect=[MockResponse(json_data={}, status_code=300),
-                                                     MockResponse(json_data=self.test_modules, status_code=200)]):
+        with mock.patch(
+            'requests.get',
+            side_effect=[
+                MockResponse(json_data={}, status_code=300),
+                MockResponse(json_data=self.test_modules, status_code=200),
+            ],
+        ):
             modules = fetch_modules(self.logger, sleep_time=1)
-        
+
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
 
     def test_success_on_last_attempt(self):
-        with mock.patch('requests.get', side_effect=[MockResponse(json_data={}, status_code=300),
-                                                     MockResponse(json_data=self.test_modules, status_code=200)]):
+        with mock.patch(
+            'requests.get',
+            side_effect=[
+                MockResponse(json_data={}, status_code=300),
+                MockResponse(json_data=self.test_modules, status_code=200),
+            ],
+        ):
             modules = fetch_modules(self.logger, sleep_time=1, n_retries=2)
-        
+
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])

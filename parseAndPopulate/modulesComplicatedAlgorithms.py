@@ -44,10 +44,9 @@ from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_
 from redisConnections.redisConnection import RedisConnection
 from utility import log, message_factory
 from utility.confdService import ConfdService
-from utility.staticVariables import json_headers
+from utility.fetch_modules import fetch_modules
 from utility.util import context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
 from utility.yangParser import create_context
-from utility.fetch_modules import fetch_modules
 
 MAJOR = 0
 MINOR = 1
@@ -133,13 +132,13 @@ class ModulesComplicatedAlgorithms:
         self.json_ytree = json_ytree
         self._trees: dict[str, dict[str, str]] = defaultdict(dict)
         self._unavailable_modules = []
-        
+
         LOGGER.info('get all existing modules')
         existing_modules = fetch_modules(LOGGER)
         if existing_modules is None:
             LOGGER.error('module extraction from API has failed')
             raise ValueError('module extraction from API has failed')
-        
+
         self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}
         for module in existing_modules:
