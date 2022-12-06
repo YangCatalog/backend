@@ -106,11 +106,9 @@ class GrepSearch:
         try:
             command_output, error = search_command.communicate()
         except (OSError, subprocess.SubprocessError) as e:
-            self.logger.exception(f'Such a search: {search_string}, caused an error: {str(e)}', exc_info=False)
-            raise ValueError('Invalid search input')
+            raise ValueError(f'Such a search: {search_string}, caused an error: {e}')
         if error:
-            self.logger.exception(f'Such a search: {search_string}, caused an error: {error}')
-            raise ValueError('Invalid search input')
+            raise ValueError(f'Such a search: {search_string}, caused an error: {error}')
         elif not command_output and inverted_search:
             self.logger.info(f'All the modules satisfy the inverted search: {search_string}')
             return self._get_modules_from_cursor(self._get_all_modules_with_filename_extension())
