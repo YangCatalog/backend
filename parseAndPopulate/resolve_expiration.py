@@ -70,13 +70,13 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     redis_connection = RedisConnection()
     logger.info('Starting Cron job resolve modules expiration')
     try:
-        logger.info(f'Requesting all the modules from {yangcatalog_api_prefix}')
+        logger.info(f'Fetching all the modules from {yangcatalog_api_prefix}')
         updated = False
 
         modules = fetch_modules(logger)
         if modules is None:
-            logger.error('module extraction from API has failed')
-            raise ValueError('module extraction from API has failed')
+            logger.error('Failed to fetch modules from API.')
+            raise ValueError('Failed to fetch modules from API.')
 
         logger.debug('Starting to resolve modules')
         for module in modules:

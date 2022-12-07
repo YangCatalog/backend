@@ -100,11 +100,11 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
-    logger.info('Getting all the modules from API')
+    logger.info('Fetching all the modules from API')
     all_existing_modules = fetch_modules(logger)
     if all_existing_modules is None:
-        logger.error('module extraction from API has failed')
-        raise ValueError('module extraction from API has failed')
+        logger.error('Failed to fetch modules from API.')
+        raise ValueError('Failed to fetch modules from API.')
 
     global path
     path = f'{temp_dir}/semver_prepare.json'

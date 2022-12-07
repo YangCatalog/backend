@@ -62,10 +62,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
 
-    logger.info('extracting list of modules from API')
+    logger.info('Fetching all of the modules from API.')
     all_modules = fetch_modules(logger)
     if all_modules is None:
-        print('Failed to get list of modules from response')
+        logger.info('Failed to get list of modules from response')
         sys.exit(1)
 
     modules_dict = {}
@@ -74,7 +74,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         org = module['organization']
         revision = module['revision']
         if '' in [name, revision, org]:
-            print(f'module: {module} wrong data')
+            logger.info(f'module: {module} wrong data')
             continue
         key = f'{name}@{revision}/{org}'
         value = f'{save_file_dir}/{name}@{revision}.yang'
@@ -84,7 +84,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     with open(output_path, 'w') as writer:
         json.dump(modules_dict, writer)
 
-    print(f'Dictionary of {len(modules_dict)} modules dumped into file')
+    logger.info(f'Dictionary of {len(modules_dict)} modules dumped into file')
 
 
 if __name__ == '__main__':

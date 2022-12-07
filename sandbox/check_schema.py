@@ -129,11 +129,11 @@ if __name__ == '__main__':
     confdService = ConfdService()
 
     # GET all the existing modules of Yangcatalog
-    LOGGER.info('extracting list of modules from API')
+    LOGGER.info('Fetching all of the modules from API')
     all_existing_modules = fetch_modules(LOGGER)
     if all_existing_modules is None:
-        LOGGER.error('module extraction from API has failed')
-        raise ValueError('module extraction from API has failed')
+        LOGGER.error('Failed to fetch modules from API.')
+        raise ValueError('Failed to fetch modules from API.')
 
     ###
     # PHASE I - Check the schema of each module

@@ -75,14 +75,15 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     )
 
     modules_revise = []
+    logger.info('Fetching all of the modules from API.')
     modules = fetch_modules(logger)
     if modules is None:
-        logger.error('Failed to fetch list of modules')
+        logger.error('Failed to fetch modules from API.')
         job_log(
             start_time,
             temp_dir,
             current_file_basename,
-            error='failed to fetch list of modules',
+            error='Failed to fetch modules from API.',
             status=JobLogStatuses.FAIL,
         )
         return

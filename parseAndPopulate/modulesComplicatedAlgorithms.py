@@ -133,11 +133,11 @@ class ModulesComplicatedAlgorithms:
         self._trees: dict[str, dict[str, str]] = defaultdict(dict)
         self._unavailable_modules = []
 
-        LOGGER.info('get all existing modules')
+        LOGGER.info('Fetching all existing modules.')
         existing_modules = fetch_modules(LOGGER)
         if existing_modules is None:
-            LOGGER.error('module extraction from API has failed')
-            raise ValueError('module extraction from API has failed')
+            LOGGER.error('Failed to fetch modules from API.')
+            raise ValueError('Failed to fetch modules from API.')
 
         self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}

@@ -1,4 +1,4 @@
-# Copyright The IETF Trust 2021, All Rights Reserved
+# Copyright The IETF Trust 2022, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -78,6 +78,7 @@ class TestFetchModules(unittest.TestCase):
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
 
+    @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_less_200(self):
         def mocked_requests_get(*args, **kwargs):
             if args[0] == self.fetch_url:
@@ -86,10 +87,11 @@ class TestFetchModules(unittest.TestCase):
                 return requests.get(*args, **kwargs)
 
         with mock.patch('requests.get', mocked_requests_get):
-            modules = fetch_modules(self.logger, sleep_time=1)
+            modules = fetch_modules(self.logger)
 
         self.assertIsNone(modules)
 
+    @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_more_299(self):
         def mocked_requests_get(*args, **kwargs):
             if args[0] == self.fetch_url:
@@ -98,10 +100,11 @@ class TestFetchModules(unittest.TestCase):
                 return requests.get(*args, **kwargs)
 
         with mock.patch('requests.get', mocked_requests_get):
-            modules = fetch_modules(self.logger, sleep_time=1)
+            modules = fetch_modules(self.logger)
 
         self.assertIsNone(modules)
 
+    @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_more_299_then_success(self):
         with mock.patch(
             'requests.get',
@@ -110,11 +113,13 @@ class TestFetchModules(unittest.TestCase):
                 MockResponse(json_data=self.test_modules, status_code=200),
             ],
         ):
-            modules = fetch_modules(self.logger, sleep_time=1)
+            modules = fetch_modules(self.logger)
 
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
 
+    @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
+    @mock.patch('utility.fetch_modules.N_RETRIES', 2)
     def test_success_on_last_attempt(self):
         with mock.patch(
             'requests.get',
@@ -123,7 +128,7 @@ class TestFetchModules(unittest.TestCase):
                 MockResponse(json_data=self.test_modules, status_code=200),
             ],
         ):
-            modules = fetch_modules(self.logger, sleep_time=1, n_retries=2)
+            modules = fetch_modules(self.logger)
 
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
