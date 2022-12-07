@@ -28,7 +28,7 @@ from unittest import mock
 from api.authentication.auth import auth
 from api.yangCatalogApi import app
 
-ac = app.config
+app_config = app.config
 
 
 class TestApiInternalClass(unittest.TestCase):
@@ -222,7 +222,7 @@ class TestApiInternalClass(unittest.TestCase):
 
         self.assertEqual(result.status_code, 401)
 
-    @mock.patch.object(ac.sender, 'send', mock.MagicMock())
+    @mock.patch.object(app_config.sender, 'send', mock.MagicMock())
     @mock.patch('utility.message_factory.MessageFactory')
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate(self, mock_message_factory: mock.MagicMock):
@@ -246,7 +246,7 @@ class TestApiInternalClass(unittest.TestCase):
             'vendor/cisco/xe/1651',
         )
 
-    @mock.patch.object(ac.sender, 'send', mock.MagicMock())
+    @mock.patch.object(app_config.sender, 'send', mock.MagicMock())
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock())
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate_empty(self):

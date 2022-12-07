@@ -1,0 +1,42 @@
+module semver-test {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-interfaces";
+  prefix if;
+
+  organization
+    "Pantheon";
+
+  contact
+    "WG List:  <mailto:netmod@ietf.org>
+
+     Editor:   Slavomir Mazur
+               <mailto:slavomir.mazur@pantheon.tech>";
+
+  description
+    "This module is used to test the functionality of generating a derived-semantic-version.";
+
+  revision 2020-01-01 {
+    description
+      "Initial revision.";
+    reference
+      "RFC 8343: A YANG Data Model for Interface Management";
+  }
+
+  container interfaces {
+    description
+      "Interface parameters.";
+
+    leaf switch {
+      type enumeration {
+        enum enabled {
+          value 1;
+        }
+        enum disabled {
+          value 2;
+        }
+      }
+      description
+        "Controls whether switch is enabled or disabled.";
+    }
+  }
+}

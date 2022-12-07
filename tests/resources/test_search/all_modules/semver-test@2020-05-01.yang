@@ -1,0 +1,67 @@
+module semver-test {
+  yang-version 1.1;
+  namespace "urn:ietf:params:xml:ns:yang:ietf-interfaces";
+  prefix if;
+
+  organization
+    "Pantheon";
+
+  contact
+    "WG List:  <mailto:netmod@ietf.org>
+
+     Editor:   Slavomir Mazur
+               <mailto:slavomir.mazur@pantheon.tech>";
+
+  description
+    "This module is used to test the functionality of generating a derived-semantic-version.";
+
+  revision 2020-05-01 {
+    description
+      "Both types: minutes32 and minutes64 must be maintained because of backward compatibility.
+      New leaf added to the interfaces container.";
+    reference
+      "RFC 8343: A YANG Data Model for Interface Management";
+  }
+  
+  typedef minutes32 {
+    type uint32;
+    units "minutes";
+    description
+        "A period of time, measured in units of minutes.";
+  }
+
+  typedef minutes64 {
+    type uint64;
+    units "minutes";
+    description
+        "A period of time, measured in units of minutes.";
+  }
+
+  container interfaces {
+    description
+      "Interface parameters.";
+
+    leaf switch {
+      type enumeration {
+        enum enabled {
+          value 1;
+    	  description
+            "Property enabled.";
+        }
+        enum disabled {
+          value 2;
+          description
+            "Property enabled.";
+        }
+      }
+      description
+        "Controls whether switch is enabled or disabled.";
+    }
+
+    leaf name {
+      type string;
+      description
+        "The name of the interface.";
+    }
+  }
+}

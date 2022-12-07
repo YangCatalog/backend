@@ -34,7 +34,7 @@ import api.views.admin.admin as admin
 from api.yangCatalogApi import app
 from redisConnections.redis_users_connection import RedisUsersConnection
 
-ac = app.config
+app_config = app.config
 
 
 class TestApiAdminClass(unittest.TestCase):
@@ -148,7 +148,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('data', data)
         self.assertEqual(
             data['data'],
-            f'directory of file {ac.d_var}/{path} removed succesfully',
+            f'directory of file {app_config.d_var}/{path} removed succesfully',
         )
 
     @mock.patch('shutil.rmtree')
@@ -161,7 +161,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
         self.assertIn('data', data)
-        self.assertEqual(data['data'], f'directory of file {ac.d_var}/ removed succesfully')
+        self.assertEqual(data['data'], f'directory of file {app_config.d_var}/ removed succesfully')
 
     def test_delete_admin_file_nonexistent(self):
         result = self.client.delete('api/admin/directory-structure/nonexistent')
@@ -391,7 +391,7 @@ class TestApiAdminClass(unittest.TestCase):
     def test_filter_from_date_no_from_timestamp(self):
         result = admin.filter_from_date(['logfile'], None)
 
-        self.assertEqual(result, [f'{ac.d_logs}/logfile.log'])
+        self.assertEqual(result, [f'{app_config.d_logs}/logfile.log'])
 
     @mock.patch('builtins.open')
     def test_find_timestamp(self, mock_open: mock.MagicMock):

@@ -31,12 +31,15 @@ from pyang import plugin
 from werkzeug.exceptions import abort
 
 import utility.log as log
+from api.cache.api_cache import cache
 from api.my_flask import app
+from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
 from api.views.yangSearch.elkSearch import ElkSearch
 from api.views.yangSearch.grep_search import GrepSearch
 from api.views.yangSearch.search_params import SearchParams
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from utility.create_config import create_config
 from utility.staticVariables import MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS, SCHEMA_TYPES
 from utility.yangParser import create_context
 
@@ -50,38 +53,68 @@ bp = YangSearch('yangSearch', __name__)
 
 @bp.record
 def init_logger(state):
-    bp.logger = log.get_logger('yang-search', '{}/yang.log'.format(state.app.config.d_logs))
+    bp.logger = log.get_logger('yang-search', f'{state.app.config.d_logs}/yang.log')
 
 
 @bp.before_request
 def set_config():
-    global ac
-    ac = app.config
+    global app_config
+    app_config = app.config
 
 
-# ROUTE ENDPOINT DEFINITIONS
-
-
-# @bp.route('/grep_search', methods=['POST'])
+@bp.route('/grep_search', methods=['GET'])
+@cache.cached(query_string=True, timeout=GREP_SEARCH_CACHE_TIMEOUT)
 def grep_search():
-    if not request.json:
-        abort(400, description='No input data')
-    body = request.json
-    organizations: list[str] = body.get('organizations', [])
-    search_string: str = body.get('search')
-    inverted_search: bool = body.get('inverted_search', False)
-    case_sensitive: bool = body.get('case_sensitive', False)
+    if not (query_params := request.args):
+        abort(400, description='No query parameters were provided')
+    search_string: str = query_params.get('search')
     if not search_string:
         abort(400, description='Search cannot be empty')
+    organizations: list[str] = query_params.getlist('organizations')
+    inverted_search: bool = query_params.get('inverted_search', type=lambda v: v.lower() == 'true', default=False)
+    case_sensitive: bool = query_params.get('case_sensitive', type=lambda v: v.lower() == 'true', default=False)
+    previous_cursor: int = query_params.get('previous_cursor', type=int, default=0)
+    cursor: int = query_params.get('cursor', type=int, default=0)
+    config = create_config()
     try:
-        response = GrepSearch(
-            config=ac.config_parser,
-            es_manager=ac.es_manager,
+        grep_search_instance = GrepSearch(
+            config=config,
+            es_manager=app_config.es_manager,
             redis_connection=app.redisConnection,
-        ).search(organizations, search_string, inverted_search, case_sensitive)
-        return make_response(jsonify(response))
+            starting_cursor=cursor,
+        )
+        results = grep_search_instance.search(organizations, search_string, inverted_search, case_sensitive)
     except ValueError as e:
         abort(400, description=str(e))
+    response_base_string = (
+        f'{config.get("Web-Section", "yangcatalog-api-prefix")}/yang-search/v2/grep_search'
+        f'?search={search_string}'
+        f'&organizations={"&organizations=".join(organizations)}'
+        f'&inverted_search={"true" if inverted_search else "false"}'
+        f'&case_sensitive={"true" if case_sensitive else "false"}'
+    )
+    if results:
+        previous_page = (
+            f'{response_base_string}&previous_cursor={grep_search_instance.previous_cursor}&cursor={previous_cursor}'
+            if cursor > 0
+            else ''
+        )
+        next_page = f'{response_base_string}&previous_cursor={cursor}&cursor={grep_search_instance.finishing_cursor}'
+    else:
+        previous_page = (
+            f'{response_base_string}'
+            f'&previous_cursor={grep_search_instance.previous_cursor}'
+            f'&cursor={previous_cursor}'
+            if cursor > 0
+            else ''
+        )
+        next_page = ''
+    response = {
+        'previous_page': previous_page,
+        'next_page': next_page,
+        'results': results,
+    }
+    return make_response(jsonify(response))
 
 
 @bp.route('/tree/<module_name>', methods=['GET'])
@@ -114,13 +147,13 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
             abort(404, description='Provided module does not exist')
 
         if revision is None:
-            # get latest revision of provided module
+            # get the latest revision of provided module
             revision = revisions[0]
 
-        path_to_yang = '{}/{}@{}.yang'.format(ac.d_save_file_dir, module_name, revision)
+        path_to_yang = f'{app_config.d_save_file_dir}/{module_name}@{revision}.yang'
         plugin.plugins = []
         plugin.init([])
-        ctx = create_context(ac.d_yang_models_dir)
+        ctx = create_context(app_config.d_yang_models_dir)
         ctx.opts.lint_namespace_prefixes = []
         ctx.opts.lint_modulename_prefixes = []
 
@@ -131,7 +164,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
                 module_context = ctx.add_module(path_to_yang, f.read())
                 assert module_context
         except Exception:
-            msg = 'File {} was not found'.format(path_to_yang)
+            msg = f'File {path_to_yang} was not found'
             bp.logger.exception(msg)
             abort(400, description=msg)
         imports_includes = []
@@ -145,11 +178,10 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
             else:
                 prefix = 'None'
             import_include_map[prefix] = imp_inc.arg
-        json_ytree = ac.d_json_ytree
-        yang_tree_file_path = '{}/{}@{}.json'.format(json_ytree, module_name, revision)
-        response['maturity'] = (
-            get_module_data('{}@{}/{}'.format(module_name, revision, organization)).get('maturity-level', '').upper()
-        )
+        json_ytree = app_config.d_json_ytree
+        yang_tree_file_path = f'{json_ytree}/{module_name}@{revision}.json'
+        module_key = f'{module_name}@{revision}/{organization}'
+        response['maturity'] = get_module_data(module_key).get('maturity-level', '').upper()
         response['import-include'] = import_include_map
 
         if os.path.isfile(yang_tree_file_path):
@@ -177,18 +209,16 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
                             augments['children'].append(aug_info)
                         jstree_json['data'].append(build_tree(augments, module_name, import_include_map, augments=True))
             except Exception as e:
-                alerts.append(
-                    'Failed to read YANG tree data for {}@{}/{}, {}'.format(module_name, revision, organization, e),
-                )
+                alerts.append(f'Failed to read YANG tree data for {module_key}, {e}')
         else:
-            alerts.append('YANG Tree data does not exist for {}@{}/{}'.format(module_name, revision, organization))
+            alerts.append(f'YANG Tree data does not exist for {module_key}')
     if jstree_json is None:
         response['jstree_json'] = {}
         alerts.append('Json tree could not be generated')
     else:
         response['jstree_json'] = jstree_json
 
-    response['module'] = '{}@{}'.format(module_name, revision)
+    response['module'] = f'{module_name}@{revision}'
     response['warning'] = alerts
 
     return make_response(jsonify(response), 200)
@@ -199,7 +229,7 @@ def impact_analysis():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    bp.logger.info('Running impact analysis with following payload:\n{}'.format(payload))
+    bp.logger.info(f'Running impact analysis with following payload:\n{payload}')
     name = payload.get('name')
     revision = payload.get('revision')
     allowed_organizations = payload.get('organizations', [])
@@ -208,7 +238,7 @@ def impact_analysis():
     graph_directions = payload.get('graph-direction', ['dependents', 'dependencies'])
     for direction in graph_directions:
         if direction not in ['dependents', 'dependencies']:
-            abort(400, 'Only list of [{}] are allowed as graph directions'.format(', '.join(graph_directions)))
+            abort(400, f'Only list of {graph_directions} are allowed as graph directions')
 
     # GET module details
     response = {}
@@ -229,7 +259,7 @@ def impact_analysis():
     }
     # this file is created and updated on yangParser exceptions
     try:
-        with open(os.path.join(ac.d_var, 'unparsable-modules.json')) as f:
+        with open(os.path.join(app_config.d_var, 'unparsable-modules.json')) as f:
             unparsable_modules = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         unparsable_modules = []
@@ -259,7 +289,7 @@ def search():
     if not request.json:
         abort(400, description='No input data')
     payload = request.json
-    bp.logger.info('Running search with following payload {}'.format(payload))
+    bp.logger.info(f'Running search with following payload {payload}')
     searched_term = payload.get('searched-term')
     if not searched_term or not isinstance(searched_term, str):
         abort(400, description='You have to define "searched_term" as a string')
@@ -278,7 +308,7 @@ def search():
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
         sub_search=each_key_in(payload, 'sub-search', OUTPUT_COLUMNS),
     )
-    elk_search = ElkSearch(searched_term, ac.d_logs, ac.es_manager, app.redisConnection, search_params)
+    elk_search = ElkSearch(searched_term, app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
@@ -303,11 +333,11 @@ def get_services_list(keyword: str, pattern: str):
         return make_response(jsonify(result), 200)
 
     if keyword == 'organization':
-        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
+        result = app_config.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
     if keyword == 'module':
-        result = ac.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
+        result = app_config.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
     if keyword == 'draft':
-        result = ac.es_manager.autocomplete(ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
+        result = app_config.es_manager.autocomplete(ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
 
     return make_response(jsonify(result), 200)
 
@@ -344,22 +374,22 @@ def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = No
         abort(400, description='You must specify a "path" argument')
 
     properties = []
-    app.logger.info('Show node on path - show-node/{}/{}/{}'.format(name, path, revision))
-    path = '/{}'.format(path)
+    app.logger.info(f'Show node on path - show-node/{name}/{path}/{revision}')
+    path = f'/{path}'
     try:
         if not revision:
             bp.logger.warning('Revision not submitted - getting latest')
             revision = get_latest_module_revision(name)
 
         module = {'name': name, 'revision': revision, 'path': path}
-        hits = ac.es_manager.get_node(module)['hits']['hits']
+        hits = app_config.es_manager.get_node(module)['hits']['hits']
 
         if not hits:
-            abort(404, description='Could not find data for {}@{} at {}'.format(name, revision, path))
+            abort(404, description=f'Could not find data for {name}@{revision} at {path}')
         result = hits[0]['_source']
         properties = json.loads(result['properties'])
     except Exception as e:
-        abort(400, description='Module and path that you specified can not be found - {}'.format(e))
+        abort(400, description=f'Module and path that you specified can not be found - {e}')
     return make_response(jsonify(properties), 200)
 
 
@@ -396,20 +426,20 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
     revisions, organization = elk_response
     if len(revisions) == 0:
         if warnings:
-            return {'warning': 'module {} does not exists in API'.format(module)}
+            return {'warning': f'module {module} does not exists in API'}
         abort(404, description='Provided module does not exist')
 
     # get the latest revision of provided module if revision not defined
     revision = revisions[0] if not revision else revision
 
-    response = {'current-module': '{}@{}.yang'.format(module, revision), 'revisions': revisions}
+    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
 
     # get module from Redis
-    module_key = '{}@{}/{}'.format(module, revision, organization)
+    module_key = f'{module}@{revision}/{organization}'
     module_data = app.redisConnection.get_module(module_key)
     if module_data == '{}':
         if warnings:
-            return {'warning': 'module {} does not exists in API'.format(module_key)}
+            return {'warning': f'module {module_key} does not exists in API'}
         abort(404, description='Provided module does not exist')
     module_data = json.loads(module_data)
     response['metadata'] = module_data
@@ -427,7 +457,7 @@ def get_yang_catalog_help():
     """
     revision = get_latest_module_revision('yang-catalog')
     module = {'name': 'yang-catalog', 'revision': revision}
-    hits = ac.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
+    hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
     module_details_data = {}
     skip_statement = ['typedef', 'grouping', 'identity']
     for hit in hits:
@@ -458,7 +488,7 @@ def get_yang_catalog_help():
                     if not echild['description']:
                         continue
                     description = echild['description']['value'].replace('\\n', '\n').replace('\n', '<br/>\r\n')
-                    help_text += '<br/>\r\n<br/>\r\n{}: {}'.format(child.get('enum')['value'], description)
+                    help_text += f'<br/>\r\n<br/>\r\n{child.get("enum")["value"]}: {description}'
             break
 
         paths.reverse()
@@ -500,10 +530,10 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = ac.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
+            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
@@ -512,11 +542,11 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
             revisions.append(hit['revision'])
         return revisions, organization
     except IndexError:
-        name_rev = '{}@{}'.format(module_name, revision) if revision else module_name
-        bp.logger.warning('Failed to get revisions and organization for {}'.format(name_rev))
+        name_rev = f'{module_name}@{revision}' if revision else module_name
+        bp.logger.warning(f'Failed to get revisions and organization for {name_rev}')
         if warnings:
-            return {'warning': 'Failed to find module {}'.format(name_rev)}
-        abort(404, 'Failed to get revisions and organization for {}'.format(name_rev))
+            return {'warning': f'Failed to find module {name_rev}'}
+        abort(404, f'Failed to get revisions and organization for {name_rev}')
 
 
 def get_latest_module_revision(module_name: str) -> str:
@@ -528,11 +558,11 @@ def get_latest_module_revision(module_name: str) -> str:
     :return: latest revision of the module
     """
     try:
-        es_result = ac.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+        es_result = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
         return es_result[0]['_source']['revision']
     except IndexError:
-        bp.logger.exception('Failed to get revision for {}'.format(module_name))
-        abort(400, 'Failed to get revision for {} - please use module that exists'.format(module_name))
+        bp.logger.exception(f'Failed to get revision for {module_name}')
+        abort(400, f'Failed to get revision for {module_name} - please use module that exists')
 
 
 def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_text: str):
@@ -560,14 +590,14 @@ def update_dictionary(updated_dictionary: dict, list_dictionaries: list, help_te
 def is_boolean(payload: dict, key: str, default: bool):
     obj = payload.get(key, default)
     if not isinstance(obj, bool):
-        abort(400, 'Value of key "{}" must be boolean'.format(key))
+        abort(400, f'Value of key "{key}" must be boolean')
     return obj
 
 
 def is_string_in(payload: dict, key: str, default: str, one_of: t.List[str]):
     obj = payload.get(key, default)
     if not isinstance(obj, str) or obj not in one_of:
-        abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+        abort(400, f'Value of key "{key}" must be string from following list: {one_of}')
     return obj
 
 
@@ -577,28 +607,28 @@ def is_list_in(payload: dict, key: str, default: t.List[str]):
         return default
     one_of = default
     if not isinstance(objs, list):
-        abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+        abort(400, f'Value of key "{key}" must be string from following list: {one_of}')
     if len(objs) == 0:
         return default
     for obj in objs:
         if obj not in one_of:
-            abort(400, 'Value of key "{}" must be string from following list: {}'.format(key, one_of))
+            abort(400, f'Value of key "{key}" must be string from following list: {one_of}')
     return objs
 
 
 def each_key_in(payload: dict, payload_key: str, keys: t.List[str]):
     rows = payload.get(payload_key, [])
     if not isinstance(rows, list):
-        abort(400, 'Value of key "{}" must be string from following list: {}'.format(payload_key, keys))
+        abort(400, f'Value of key "{payload_key}" must be string from following list: {keys}')
     for row in rows:
         for key in row.keys():
             if key not in keys:
-                abort(400, 'Key {} must be string from following list: {} in {}'.format(key, keys, payload_key))
+                abort(400, f'Key {key} must be string from following list: {keys} in {payload_key}')
     return rows
 
 
 def get_module_data(module_key: str):
-    bp.logger.info('searching for module {}'.format(module_key))
+    bp.logger.info(f'searching for module {module_key}')
     module_data = app.redisConnection.get_module(module_key)
     if module_data == '{}':
         abort(404, description='Provided module does not exist')
@@ -622,7 +652,7 @@ def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augm
             path_list = jsont_path.split('/')[1:]
             path = ''
             for schema in enumerate(pass_on_schemas):
-                path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                path = f'{path}/{path_list[schema[0]].split("?")[0]}?{schema[1]}'
             return path
 
     node = {
@@ -667,14 +697,14 @@ def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augm
         path_list = jsont['path'].split('/')[1:]
         path = ''
         for path_part in path_list:
-            path = '{}/{}'.format(path, path_part.split('?')[0])
+            path = f'{path}/{path_part.split("?")[0]}'
         node['data']['path'] = path
         last = None
         sensor_path = path
         for prefix in re.findall(r'/[^:]+:', sensor_path):
             if prefix != last:
                 last = prefix
-                sensor_path = sensor_path.replace(prefix, '/{}:'.format(imp_inc_map.get(prefix[1:-1], '/')), 1)
+                sensor_path = sensor_path.replace(prefix, f'/{imp_inc_map.get(prefix[1:-1], "/")}:', 1)
                 sensor_path = sensor_path.replace(prefix, '/')
         node['data']['sensor_path'] = sensor_path
     if jsont['name'] != module and jsont.get('children') is None or len(jsont['children']) == 0:
@@ -685,7 +715,7 @@ def build_tree(jsont: dict, module: str, imp_inc_map, pass_on_schemas=None, augm
                 path_list = jsont['path'].split('/')[1:]
                 path = ''
                 for schema in enumerate(pass_on_schemas):
-                    path = '{}/{}?{}'.format(path, path_list[schema[0]].split('?')[0], schema[1])
+                    path = f'{path}/{path_list[schema[0]].split("?")[0]}?{schema[1]}'
                 node['data']['show_node_path'] = path
                 pass_on_schemas.pop()
     elif jsont.get('children') is not None:
@@ -716,9 +746,9 @@ def get_type_str(json):
             type_str += get_type_str(val)
         else:
             if isinstance(val, list) or isinstance(val, dict):
-                type_str += ' {} {} {}'.format('{', ','.join([str(i) for i in val]), '}')
+                type_str += f' {"{"} {",".join(str(i) for i in val)} {"}"}'
             else:
-                type_str += ' {} {} {}'.format('{', val, '}')
+                type_str += f' {"{"} {val} {"}"}'
     return type_str
 
 
