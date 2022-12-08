@@ -18,17 +18,13 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
 import logging
-import os
 import unittest
 from unittest import mock
 
 from pyang.statements import new_statement
 
-from api.globalConfig import yc_gc
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.implementation import Implementation
-from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.models.submodule import Submodule
 from parseAndPopulate.resolvers.basic import BasicResolver
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
@@ -89,14 +85,20 @@ class TestResolversClass(unittest.TestCase):
         self.assertEqual(res, 'mib')
 
     def test_generated_from_resolver_simple_resolve_native(self):
-        gfr = GeneratedFromResolver(self.logger, name='test_native_cisco', 
-                                    namespace='urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
+        gfr = GeneratedFromResolver(
+            self.logger,
+            name='test_native_cisco',
+            namespace='urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext',
+        )
         res = gfr.resolve()
         self.assertEqual(res, 'native')
 
     def test_generated_from_resolver_simple_resolve_native_caps(self):
-        gfr = GeneratedFromResolver(self.logger, name='CISCOtest_native', 
-                                    namespace='URN:CISCO:PARAMS:XML:NS:YANG:CISCO-XE-IETF-YANG-PUSH-EXT')
+        gfr = GeneratedFromResolver(
+            self.logger,
+            name='CISCOtest_native',
+            namespace='URN:CISCO:PARAMS:XML:NS:YANG:CISCO-XE-IETF-YANG-PUSH-EXT',
+        )
         res = gfr.resolve()
         self.assertEqual(res, 'native')
 
@@ -308,7 +310,7 @@ class TestResolversClass(unittest.TestCase):
         organization_stmt = new_statement(None, module_stmt, None, 'organization', 'unknown-org')
         module_stmt.substmts.append(organization_stmt)
 
-        orgr = OrganizationResolver(module_stmt, self.logger, 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
+        orgr = OrganizationResolver(module_stmt, self.logger, 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-ext')
         res = orgr.resolve()
         self.assertEqual(res, 'cisco')
 
@@ -523,7 +525,13 @@ class TestResolversClass(unittest.TestCase):
     # NamespaceResolver
     def test_namespace_resolver_simple_resolve_module(self):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
-        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
+        namespace_stmt = new_statement(
+            None,
+            module_stmt,
+            None,
+            'namespace',
+            'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext',
+        )
         module_stmt.substmts.append(namespace_stmt)
 
         nr = NamespaceResolver(module_stmt, self.logger, '', None)
@@ -539,7 +547,13 @@ class TestResolversClass(unittest.TestCase):
 
     def test_namespace_resolver_simple_resolve_submodule_no_belongs_to(self):
         module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
-        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
+        namespace_stmt = new_statement(
+            None,
+            module_stmt,
+            None,
+            'namespace',
+            'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext',
+        )
         module_stmt.substmts.append(namespace_stmt)
 
         nr = NamespaceResolver(module_stmt, self.logger, '', None)
@@ -548,7 +562,13 @@ class TestResolversClass(unittest.TestCase):
 
     def test_namespace_resolver_simple_resolve_submodule_no_yang_file(self):
         module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
-        namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext')
+        namespace_stmt = new_statement(
+            None,
+            module_stmt,
+            None,
+            'namespace',
+            'urn:cisco:params:xml:ns:yang:cisco-xe-ietf-yang-push-ext',
+        )
         module_stmt.substmts.append(namespace_stmt)
 
         nr = NamespaceResolver(module_stmt, self.logger, '', 'some_str')
