@@ -21,8 +21,6 @@ import json
 import os
 import typing as t
 
-import gevent
-import gevent.queue
 from elasticsearch import ConnectionTimeout
 
 from api.views.yangSearch.response_row import ResponseRow
@@ -66,11 +64,10 @@ class ElkSearch:
         self._search_params = search_params
         search_query_path = os.path.join(os.environ['BACKEND'], 'api/views/yangSearch/json/search.json')
         with open(search_query_path, encoding='utf-8') as reader:
-            self.query = json.load(reader)
+            self.query: dict = json.load(reader)
         self._searched_term = searched_term
         self._es_manager = es_manager
         self._redis_connection = redis_connection
-        self._current_scroll_id = None
         self._latest_revisions = {}
         self._remove_columns = list(set(OUTPUT_COLUMNS) - set(self._search_params.output_columns))
         self._row_hashes = []
@@ -159,41 +156,20 @@ class ElkSearch:
                         ],
                     )
 
-    def search(self):
+    def search(self) -> tuple[list[dict], bool]:
         """
-        Search using query produced. This search is done in parallel. We are making two searches at the same time.
-        One search is being done as a scroll search. Elastic search does not allow us to get more then some number
-        of results per search. If we want to search through all the results we have to use scroll but this does not
-        give us an output of aggregations. That is why we have to create second normal search where we don t care about
-        finding of search but we get only get aggregations from response. These two searches may run in parallel.
-
-        Next we have to process the given response in self._process_hits definition. And while processing it we can
-        use scroll search to get next batch of result from search to process if it will be needed.
+        Search using the query we've constructed.
 
         :return list of rows containing dictionary that is filled with output for each column for yangcatalog search
         """
-        hits = gevent.queue.JoinableQueue()
-        process_first_search = gevent.spawn(self._first_scroll, hits)
-
-        self.logger.debug('Running first search in parallel')
-        if self._search_params.latest_revision:
-            self.logger.debug('Processing aggregations search in parallel')
-            self._resolve_aggregations()
-            self.logger.debug('Aggregations processed joining the search')
-        process_first_search.join()
-        hits = hits.get()
-        processed_rows = self._process_hits(hits, [])
-        if self._current_scroll_id is not None:
-            self._es_manager.clear_scroll(self._current_scroll_id)
+        self.logger.debug('Running search')
+        hits: list = self._retrieve_results(self._search_params.latest_revision)
+        processed_rows = self._process_hits(hits)
         return processed_rows, len(hits) == RESPONSE_SIZE
 
-    def _process_hits(self, hits: list, response_rows: list, reject=None):
-        if reject is None:
-            reject = []
-        if not hits:
-            return response_rows
-        secondary_hits = gevent.queue.JoinableQueue()
-        process_scroll_search = gevent.spawn(self._continue_scrolling, secondary_hits)
+    def _process_hits(self, hits: list):
+        response_rows: list[dict] = []
+        reject: list[str] = []
         for hit in hits:
             row = ResponseRow(elastic_hit=hit['_source'])
             module_key = f'{row.module_name}@{row.revision}/{row.organization}'
@@ -233,58 +209,32 @@ class ElkSearch:
                     continue
                 self._row_hashes.append(row_hash)
             response_rows.append(row.output_row)
-            if len(response_rows) >= RESPONSE_SIZE or self._current_scroll_id is None:
-                self.logger.debug(
-                    f'ElkSearch finished with len {len(response_rows)} and scroll id {self._current_scroll_id}',
-                )
-                process_scroll_search.kill()
-                return response_rows
 
-        process_scroll_search.join()
-        return self._process_hits(secondary_hits.get(), response_rows, reject)
+        self.logger.debug(f'ElkSearch finished with length {len(response_rows)}')
+        return response_rows
 
-    def _first_scroll(self, hits):
-        elk_response = {}
+    def _retrieve_results(self, latest_revisions: bool) -> list:
+        query = self.query.copy()
+        if not latest_revisions:
+            query.pop('aggs')
         try:
-            query_no_agg = self.query.copy()
-            query_no_agg.pop('aggs', '')
-            elk_response = self._es_manager.generic_search(
+            response = self._es_manager.generic_search(
                 ESIndices.YINDEX,
-                query_no_agg,
+                query,
                 response_size=RESPONSE_SIZE,
-                use_scroll=True,
             )
         except ConnectionTimeout:
             self.logger.exception('Error while searching in Elasticsearch')
-            elk_response['hits'] = {'hits': []}
             self.timeout = True
-        self.logger.debug(f'search complete with {len(elk_response["hits"]["hits"])} hits')
-        self._current_scroll_id = elk_response.get('_scroll_id')
-        hits.put(elk_response['hits']['hits'])
+            return []
+        hits = response['hits']['hits']
+        self.logger.debug(f'search complete with {len(hits)} hits')
+        if latest_revisions:
+            aggregations = response['aggregations']['groupby']['buckets']
+            for agg in aggregations:
+                self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
 
-    def _continue_scrolling(self, hits):
-        if self._current_scroll_id is None:
-            hits.put([])
-            return
-        elk_response = {}
-        try:
-            elk_response = self._es_manager.scroll(self._current_scroll_id)
-        except ConnectionTimeout:
-            self.logger.exception('Error while scrolling in Elasticsearch')
-            elk_response['hits'] = {'hits': []}
-            self.timeout = True
-        self._current_scroll_id = elk_response.get('_scroll_id')
-        hits.put(elk_response['hits']['hits'])
-
-    def _resolve_aggregations(self):
-        response = {'aggregations': {'groupby': {'buckets': []}}}
-        try:
-            response = self._es_manager.generic_search(ESIndices.YINDEX, self.query)
-        except ConnectionTimeout:
-            self.logger.exception('Error while resolving aggregations')
-        aggregations = response['aggregations']['groupby']['buckets']
-        for agg in aggregations:
-            self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
+        return hits
 
     def _rejects_mibs_or_versions(self, module_key: str, reject: t.List[str], module_data: dict) -> bool:
         if not self._search_params.include_mibs and 'yang:smiv2:' in module_data.get('namespace', ''):
