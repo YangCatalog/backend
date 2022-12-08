@@ -131,9 +131,6 @@ if __name__ == '__main__':
     # GET all the existing modules of Yangcatalog
     LOGGER.info('Fetching all of the modules from API')
     all_existing_modules = fetch_modules(LOGGER)
-    if all_existing_modules is None:
-        LOGGER.error('Failed to fetch modules from API.')
-        raise ValueError('Failed to fetch modules from API.')
 
     ###
     # PHASE I - Check the schema of each module

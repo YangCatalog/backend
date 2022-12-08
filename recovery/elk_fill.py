@@ -63,9 +63,10 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
 
     logger.info('Fetching all of the modules from API.')
-    all_modules = fetch_modules(logger)
-    if all_modules is None:
-        logger.info('Failed to get list of modules from response')
+    try:
+        all_modules = fetch_modules(logger)
+    except RuntimeError:
+        logger.error('Failed to get list of modules from response')
         sys.exit(1)
 
     modules_dict = {}
@@ -74,7 +75,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         org = module['organization']
         revision = module['revision']
         if '' in [name, revision, org]:
-            logger.info(f'module: {module} wrong data')
+            logger.warning(f'module: {module} wrong data')
             continue
         key = f'{name}@{revision}/{org}'
         value = f'{save_file_dir}/{name}@{revision}.yang'

@@ -262,9 +262,6 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     # Fetch the list of all modules known by YangCatalog
     LOGGER.info('Fetching all of the modules from API')
     all_modules_data = fetch_modules(LOGGER)
-    if all_modules_data is None:
-        LOGGER.error('Failed to fetch modules from API.')
-        raise ValueError('Failed to fetch modules from API.')
 
     vendor_data = {}
     for module in all_modules_data:

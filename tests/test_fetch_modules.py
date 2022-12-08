@@ -87,9 +87,8 @@ class TestFetchModules(unittest.TestCase):
                 return requests.get(*args, **kwargs)
 
         with mock.patch('requests.get', mocked_requests_get):
-            modules = fetch_modules(self.logger)
-
-        self.assertIsNone(modules)
+            with self.assertRaises(RuntimeError):
+                fetch_modules(self.logger)
 
     @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_more_299(self):
@@ -100,9 +99,8 @@ class TestFetchModules(unittest.TestCase):
                 return requests.get(*args, **kwargs)
 
         with mock.patch('requests.get', mocked_requests_get):
-            modules = fetch_modules(self.logger)
-
-        self.assertIsNone(modules)
+            with self.assertRaises(RuntimeError):
+                fetch_modules(self.logger)
 
     @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_more_299_then_success(self):

@@ -74,9 +74,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         updated = False
 
         modules = fetch_modules(logger)
-        if modules is None:
-            logger.error('Failed to fetch modules from API.')
-            raise ValueError('Failed to fetch modules from API.')
 
         logger.debug('Starting to resolve modules')
         for module in modules:

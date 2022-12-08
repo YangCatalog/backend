@@ -19,7 +19,6 @@ __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
 import logging
 import time
-import typing as t
 
 import requests
 
@@ -30,7 +29,7 @@ SLEEP_TIME = 30
 N_RETRIES = 5
 
 
-def fetch_modules(logger: logging.Logger) -> t.Optional[t.List[dict]]:
+def fetch_modules(logger: logging.Logger) -> list[dict]:
     config = create_config()
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
     fetch_url = f'{yangcatalog_api_prefix}/search/modules'
@@ -47,8 +46,7 @@ def fetch_modules(logger: logging.Logger) -> t.Optional[t.List[dict]]:
             logger.debug(f'{len(modules)} modules fetched from {yangcatalog_api_prefix} successfully')
             return modules
 
-    logger.error(f'All attempts to get successful request from {yangcatalog_api_prefix} have failed')
-    return None
+    raise RuntimeError('Failed to fetch modules from API.')
 
 
 if __name__ == '__main__':

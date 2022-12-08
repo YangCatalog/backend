@@ -102,9 +102,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
     logger.info('Fetching all the modules from API')
     all_existing_modules = fetch_modules(logger)
-    if all_existing_modules is None:
-        logger.error('Failed to fetch modules from API.')
-        raise ValueError('Failed to fetch modules from API.')
 
     global path
     path = f'{temp_dir}/semver_prepare.json'

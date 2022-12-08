@@ -135,9 +135,6 @@ class ModulesComplicatedAlgorithms:
 
         LOGGER.info('Fetching all existing modules.')
         existing_modules = fetch_modules(LOGGER)
-        if existing_modules is None:
-            LOGGER.error('Failed to fetch modules from API.')
-            raise ValueError('Failed to fetch modules from API.')
 
         self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}
