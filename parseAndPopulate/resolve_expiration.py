@@ -34,6 +34,7 @@ import utility.log as log
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
@@ -69,17 +70,11 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     redis_connection = RedisConnection()
     logger.info('Starting Cron job resolve modules expiration')
     try:
-        logger.info(f'Requesting all the modules from {yangcatalog_api_prefix}')
+        logger.info(f'Fetching all the modules from {yangcatalog_api_prefix}')
         updated = False
 
-        response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
-        if response.status_code < 200 or response.status_code > 299:
-            logger.error(f'Request on path {yangcatalog_api_prefix} failed with {response.text}')
-        else:
-            logger.debug(
-                f'{len(response.json().get("module", []))} modules fetched from {yangcatalog_api_prefix} successfully',
-            )
-        modules = response.json().get('module', [])
+        modules = fetch_modules(logger)
+
         logger.debug('Starting to resolve modules')
         for module in modules:
             exp_res = ExpirationResolver(module, logger, datatracker_failures, redis_connection)
