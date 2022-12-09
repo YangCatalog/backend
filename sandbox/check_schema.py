@@ -18,6 +18,7 @@ import utility.log as log
 from utility import repoutil
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
 from utility.staticVariables import GITHUB_RAW, github_url
 from utility.util import parse_revision, strip_comments
 
@@ -128,10 +129,8 @@ if __name__ == '__main__':
     confdService = ConfdService()
 
     # GET all the existing modules of Yangcatalog
-    url = '{}/search/modules'.format(yangcatalog_api_prefix)
-    response = requests.get(url, headers={'Accept': 'application/json'})
-    all_existing_modules = response.json().get('module', [])
-    LOGGER.info('{} modules fetched from URL {}'.format(len(all_existing_modules), url))
+    LOGGER.info('Fetching all of the modules from API')
+    all_existing_modules = fetch_modules(LOGGER)
 
     ###
     # PHASE I - Check the schema of each module
