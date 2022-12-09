@@ -686,7 +686,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], '"invalid" is not valid script name')
 
-    @mock.patch('api.yangCatalogApi.ac.sender.send')
+    @mock.patch('api.yangCatalogApi.app_config.sender.send')
     def test_run_script_with_args(self, mock_send: mock.MagicMock):
         mock_send.return_value = 1
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
@@ -701,7 +701,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('arguments', data)
         self.assertEqual(data['arguments'], ['parseAndPopulate', 'populate', '"test"'])
 
-    @mock.patch('api.yangCatalogApi.ac.sender', mock.MagicMock())
+    @mock.patch('api.yangCatalogApi.app_config.sender', mock.MagicMock())
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
 
