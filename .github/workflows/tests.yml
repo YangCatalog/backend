@@ -90,7 +90,7 @@ jobs:
           coverage xml
 
       - name: Update code coverage badge
-        if: ${{ github.event.push.head.repo.full_name != 'YangCatalog/backend' && github.ref_name == 'develop' }}
+        if: ${{ github.event.workflow_run.head.repo.full_name == 'YangCatalog/backend' }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

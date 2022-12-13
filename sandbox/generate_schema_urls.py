@@ -20,7 +20,7 @@ from utility.util import parse_name, parse_revision, strip_comments
 def construct_schema_url(repo: Repo, path: str) -> str:
     if 'SOL006-' in path:
         suffix = path.split('SOL006-')[-1]
-        return 'https://forge.etsi.org/rep/nfv/SOL006/raw/{}'.format(suffix)
+        return f'https://forge.etsi.org/rep/nfv/SOL006/raw/{suffix}'
 
     repo_base_url = next(repo.remote('origin').urls).replace(github_url, GITHUB_RAW).removesuffix('.git')
     commit_hash = repo.head.commit.hexsha
@@ -40,6 +40,7 @@ def main(directory: str):
             schemas = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         schemas = {}
+    copied_modules_full_paths = []
     for root, _, files in os.walk(directory):
         abs_root = os.path.abspath(root)
         try:
@@ -55,16 +56,19 @@ def main(directory: str):
                 text = strip_comments(text)
                 name = parse_name(text)
                 revision = parse_revision(text)
-            name_revision = '{}@{}'.format(name, revision)
+            name_revision = f'{name}@{revision}'
             filename = name_revision + '.yang'
             save_file_path = os.path.join(save_file_dir, filename)
             if not os.path.exists(save_file_path):
                 shutil.copy(path, save_file_path)
+                copied_modules_full_paths.append(filename)
             if repo and (name_revision not in schemas):
                 schemas[name_revision] = construct_schema_url(repo, path)
 
     with open(schema_dict_path, 'w') as f:
         json.dump(schemas, f)
+    with open(os.path.join(cache_dir, 'new_copied_modules_paths.json'), 'w') as f:
+        json.dump(copied_modules_full_paths, f)
 
 
 if __name__ == '__main__':
