@@ -26,17 +26,34 @@ from unittest import mock
 import utility.util as util
 from api.globalConfig import yc_gc
 from parseAndPopulate.models.schema_parts import SchemaParts
+from sandbox import constants as sandbox_constants
+from sandbox import generate_schema_urls
+from utility.create_config import create_config
 from utility.staticVariables import JobLogStatuses
 
 
 class TestUtilClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        generate_schema_urls.main(os.environ['TEST_REPO'])
         cls.filename = os.path.basename(__file__).split('.py')[0]
         cls.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
         cls.util_tests_dir = os.path.join(yc_gc.temp_dir, 'util-tests')
         cls.cronjob_file_path = os.path.join(yc_gc.temp_dir, 'cronjob.json')
+
+    @classmethod
+    def tearDownClass(cls):
+        modules_paths_to_remove_file_path = os.path.join(
+            create_config().get('Directory-Section', 'cache'),
+            sandbox_constants.NEW_COPIED_MODULES_PATHS_FILENAME,
+        )
+        with open(modules_paths_to_remove_file_path, 'r') as f:
+            modules_paths_to_remove = json.load(f)
+        for module_path in modules_paths_to_remove:
+            if not os.path.exists(module_path):
+                continue
+            os.remove(module_path)
 
     def test_create_signature(self):
         """Test the result of the method with the given arguments."""

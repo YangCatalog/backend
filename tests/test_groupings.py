@@ -59,7 +59,7 @@ class TestGroupingsClass(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         modules_paths_to_remove_file_path = os.path.join(
-            cls.config.get('Directory-Section', 'cache'),
+            create_config().get('Directory-Section', 'cache'),
             sandbox_constants.NEW_COPIED_MODULES_PATHS_FILENAME,
         )
         with open(modules_paths_to_remove_file_path, 'r') as f:
