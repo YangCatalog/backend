@@ -86,13 +86,14 @@ jobs:
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
           export TOKEN
+          export TEST_REPO=VAR=/var/yang/tmp/test/YangModels/yang
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
           coverage xml
 
       - name: Update code coverage badge
-        if: ${{ github.event.push.head.repo.full_name != 'YangCatalog/backend' && github.ref_name == 'develop' }}
+        if: ${{ github.event.workflow_run.head.repo.full_name == 'YangCatalog/backend' }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
