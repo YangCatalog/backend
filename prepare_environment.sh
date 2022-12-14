@@ -38,6 +38,7 @@ cp "$YANG_MODELS_DIR"/vendor/cisco/xr/702/capabilities-ncs5k.xml "$TEST_REPO"/ve
 cp "$YANG_MODELS_DIR"/vendor/cisco/nx/9.2-1/netconf-capabilities.xml "$TEST_REPO"/vendor/cisco/nx/9.2-1/
 cp "$YANG_MODELS_DIR"/vendor/cisco/xe/16101/capability-asr1k.xml "$TEST_REPO"/vendor/cisco/xe/16101/
 cp "$YANG_MODELS_DIR"/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang "$TEST_REPO"/standard/ietf/RFC
+cp "$YANG_MODELS_DIR"/standard/ietf/RFC/ietf-yang-types@2010-09-24.yang "$TEST_REPO"/standard/ietf/RFC
 
 # Prepare Huawei directory for ietf-yang-lib based tests
 YANG_MODELS_HUAWEI_DIR="$YANG_MODELS_DIR"/vendor/huawei/network-router/8.20.0/ne5000e
