@@ -1,4 +1,3 @@
-import hashlib
 import json
 import os
 import unittest
@@ -161,9 +160,7 @@ class TestGrepSearchClass(unittest.TestCase):
             organizations=organizations,
         )
         self.assertNotEqual(search_result, [])
-        cache_key = hashlib.sha256(
-            f'{search}{False}{False}{str(sorted(organizations)) if organizations else ""}'.encode(),
-        ).hexdigest()
+        cache_key = f'{search}{False}{False}{str(sorted(organizations)) if organizations else ""}'
         self.assertEqual(sorted(search_result), sorted(self.grep_search._get_cached_search_results(cache_key)))
 
     def test_finishing_cursor(self):
