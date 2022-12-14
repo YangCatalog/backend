@@ -19,6 +19,7 @@ __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
 import logging
 import time
+from configparser import ConfigParser
 
 import requests
 
@@ -29,8 +30,7 @@ SLEEP_TIME = 30
 N_RETRIES = 5
 
 
-def fetch_modules(logger: logging.Logger) -> list[dict]:
-    config = create_config()
+def fetch_modules(logger: logging.Logger, config: ConfigParser = create_config()) -> list[dict]:
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
     fetch_url = f'{yangcatalog_api_prefix}/search/modules'
 

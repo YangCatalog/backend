@@ -30,6 +30,7 @@ from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher, VendorModuleHashCheckForParsing
 from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorGrouping, VendorYangLibrary
 from redisConnections.redisConnection import RedisConnection
+from sandbox import constants as sandbox_constants
 from sandbox import generate_schema_urls
 from utility.create_config import create_config
 
@@ -54,6 +55,19 @@ class TestGroupingsClass(unittest.TestCase):
         cls.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
         cls.config = create_config()
         cls.redis_connection = RedisConnection(config=cls.config)
+
+    @classmethod
+    def tearDownClass(cls):
+        modules_paths_to_remove_file_path = os.path.join(
+            cls.config.get('Directory-Section', 'cache'),
+            sandbox_constants.NEW_COPIED_MODULES_PATHS_FILENAME,
+        )
+        with open(modules_paths_to_remove_file_path, 'r') as f:
+            modules_paths_to_remove = json.load(f)
+        for module_path in modules_paths_to_remove:
+            if not os.path.exists(module_path):
+                continue
+            os.remove(module_path)
 
     @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
     def test_sdo_directory_parse_and_load(self, mock_hash: mock.MagicMock):

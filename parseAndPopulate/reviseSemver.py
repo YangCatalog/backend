@@ -101,7 +101,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     logger.info('Fetching all the modules from API')
-    all_existing_modules = fetch_modules(logger)
+    all_existing_modules = fetch_modules(logger, config=config)
 
     global path
     path = f'{temp_dir}/semver_prepare.json'
