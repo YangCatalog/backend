@@ -61,6 +61,8 @@ def main(directory: str):
             filename = name_revision + '.yang'
             save_file_path = os.path.join(save_file_dir, filename)
             if not os.path.exists(save_file_path):
+                if 'ietf-yang-types' in filename:
+                    print(save_file_path)
                 shutil.copy(path, save_file_path)
                 new_copied_modules_paths.append(save_file_path)
             if repo and (name_revision not in schemas):
