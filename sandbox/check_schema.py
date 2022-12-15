@@ -130,7 +130,7 @@ if __name__ == '__main__':
 
     # GET all the existing modules of Yangcatalog
     LOGGER.info('Fetching all of the modules from API')
-    all_existing_modules = fetch_modules(LOGGER)
+    all_existing_modules = fetch_modules(LOGGER, config=config)
 
     ###
     # PHASE I - Check the schema of each module

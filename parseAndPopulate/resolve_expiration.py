@@ -67,13 +67,13 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     revision_updated_modules = 0
     datatracker_failures = []
 
-    redis_connection = RedisConnection()
+    redis_connection = RedisConnection(config=config)
     logger.info('Starting Cron job resolve modules expiration')
     try:
         logger.info(f'Fetching all the modules from {yangcatalog_api_prefix}')
         updated = False
 
-        modules = fetch_modules(logger)
+        modules = fetch_modules(logger, config=config)
 
         logger.debug('Starting to resolve modules')
         for module in modules:

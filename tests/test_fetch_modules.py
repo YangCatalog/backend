@@ -41,8 +41,8 @@ class MockResponse:
 class TestFetchModules(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        config = create_config()
-        yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
+        cls.config = create_config()
+        yangcatalog_api_prefix = cls.config.get('Web-Section', 'yangcatalog-api-prefix')
         cls.fetch_url = f'{yangcatalog_api_prefix}/search/modules'
         cls.logger = get_logger('test_fetch_modules', './test_fetch_modules.log')
 
@@ -73,7 +73,7 @@ class TestFetchModules(unittest.TestCase):
                 return requests.get(*args, **kwargs)
 
         with mock.patch('requests.get', mocked_requests_get):
-            modules = fetch_modules(self.logger)
+            modules = fetch_modules(self.logger, config=self.config)
 
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
@@ -88,7 +88,7 @@ class TestFetchModules(unittest.TestCase):
 
         with mock.patch('requests.get', mocked_requests_get):
             with self.assertRaises(RuntimeError):
-                fetch_modules(self.logger)
+                fetch_modules(self.logger, config=self.config)
 
     @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_more_299(self):
@@ -100,7 +100,7 @@ class TestFetchModules(unittest.TestCase):
 
         with mock.patch('requests.get', mocked_requests_get):
             with self.assertRaises(RuntimeError):
-                fetch_modules(self.logger)
+                fetch_modules(self.logger, config=self.config)
 
     @mock.patch('utility.fetch_modules.SLEEP_TIME', 1)
     def test_failed_request_more_299_then_success(self):
@@ -111,7 +111,7 @@ class TestFetchModules(unittest.TestCase):
                 MockResponse(json_data=self.test_modules, status_code=200),
             ],
         ):
-            modules = fetch_modules(self.logger)
+            modules = fetch_modules(self.logger, config=self.config)
 
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])
@@ -126,7 +126,7 @@ class TestFetchModules(unittest.TestCase):
                 MockResponse(json_data=self.test_modules, status_code=200),
             ],
         ):
-            modules = fetch_modules(self.logger)
+            modules = fetch_modules(self.logger, config=self.config)
 
         self.assertIsNotNone(modules)
         self.assertEqual(modules, self.test_modules['module'])

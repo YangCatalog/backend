@@ -26,6 +26,7 @@ import optparse
 import os
 import re
 import stat
+import subprocess
 import time
 import typing as t
 import warnings
@@ -408,6 +409,21 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     for plug in plugin.plugins:
         plug.setup_ctx(ctx)
         plug.add_opts(opt_parser)
+    import logging
+    import sys
+
+    logging.basicConfig(stream=sys.stderr)
+    logger = logging.getLogger('test')
+    logger.setLevel(logging.DEBUG)
+    for i in (
+        subprocess.check_output(
+            'ls tests/resources/all_modules | grep ietf-yang-types@',
+            shell=True,
+        )
+        .decode()
+        .split('\n')[:-1]
+    ):
+        logger.debug(i)
     with open(new_schema, 'r', errors='ignore') as reader:
         new_schema_ctx = ctx.add_module(new_schema, reader.read())
     ctx.opts.check_update_from = old_schema
@@ -419,7 +435,7 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
         try:
             ctx.validate()
             # NOTE: ResourceWarning appears due to the incorrect way pyang opens files for reading
-            # ResourceWarning: Enable tracemalloc to get the object allocation traceback
+            # ResourceWarning: Enable trace malloc to get the object allocation traceback
             with warnings.catch_warnings(record=True):
                 check_update(ctx, new_schema_ctx)
             break

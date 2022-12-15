@@ -28,11 +28,6 @@ class TestGrepSearchClass(unittest.TestCase):
     def setUpClass(cls):
         cls.config = create_config()
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests', 'resources')
-        cls.config.set(
-            'Directory-Section',
-            'save-file-dir',
-            os.path.join(cls.resources_path, 'test_search/all_modules'),
-        )
         cls._configure_es(cls.config)
         cls.redis_connection_mock = RedisConnectionMock()
 

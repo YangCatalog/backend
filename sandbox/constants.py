@@ -1,2 +1,2 @@
-SCHEMA_URLS_DICT_FILENAME = 'schema_dict.json'
-COPIED_MODULES_LIST_FILENAME = 'new_copied_modules_paths.json'
+SCHEMAS_DICT_FILENAME = 'schema_dict.json'
+NEW_COPIED_MODULES_PATHS_FILENAME = 'new_copied_modules_paths.json'
