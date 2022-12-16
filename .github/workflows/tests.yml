@@ -22,7 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
+          fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_branch }}
+          repository: ${{ github.event.workflow_run.event.head.repo.full_name }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
