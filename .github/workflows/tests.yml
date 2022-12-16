@@ -21,10 +21,15 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        if: ${{ github.workflow_run.event_name == 'pull_request' }}
         with:
-          fetch-depth: 0
           ref: ${{ github.event.workflow_run.head_branch }}
-          repository: ${{ github.event.workflow_run.event.head.repo.full_name }}
+          repository: ${{ github.event.workflow_run.event.pull_request.head.repo.full_name }}
+
+      - uses: actions/checkout@v3
+        if: ${{ github.workflow_run.event_name != 'pull_request' }}
+        with:
+          ref: ${{ github.ref }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
