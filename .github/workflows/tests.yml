@@ -22,17 +22,17 @@ jobs:
     steps:
       - name: PRINT
         env:
-          REPO_NAME: ${{ github.event.pull_request.head.repo.full_name }}
+          REPO_NAME: ${{ github.event.push.head.repo.full_name }}
         run: echo "$REPO_NAME"
 
       - uses: actions/checkout@v3
-        if: ${{ github.event.workflow_run.event == 'pull_request' }}
+        if: ${{ github.event == 'pull_request' }}
         with:
           ref: ${{ github.event.workflow_run.event.pull_request.head.ref }}
           repository: ${{ github.event.workflow_run.event.pull_request.head.repo.full_name }}
 
       - uses: actions/checkout@v3
-        if: ${{ github.event.workflow_run.event == 'push' }}
+        if: ${{ github.event == 'push' }}
         with:
           ref: ${{ github.event.workflow_run.event.push.head.ref }}
           repository: ${{ github.event.workflow_run.event.push.head.repo.full_name }}
