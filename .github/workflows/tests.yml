@@ -79,6 +79,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y pcregrep
           export VAR=/var/yang
+          export TMP_DIR=$VAR/tmp
+          export TEST_REPO=$TMP_DIR/test/YangModels/yang
           export BACKEND=$PWD
           export PYTHONPATH=$PYTHONPATH:$BACKEND
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
@@ -99,6 +101,7 @@ jobs:
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
           export TOKEN
+          export TEST_REPO=/var/yang/tmp/test/YangModels/yang
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
