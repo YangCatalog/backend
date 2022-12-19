@@ -20,7 +20,7 @@
 * /api/admin/scripts
 * /api/admin/disk-usage
 
-#### compareModules/compareModules.py
+#### comparisons/comparisons.py
 * /api/services/\<name1\>@\<revision1\>/check-update-from/\<name2\>@\<revision2\>
 * /api/services/diff-file/\<name1\>@\<revision1\>/\<name2\>@\<revision2\>
 * /api/services/diff-tree/\<name1\>@\<revision1\>/\<name2\>@\<revision2\>
@@ -75,7 +75,7 @@
 * /api/get-statistics
 * /api/problematic-drafts
 
-#### ycSearch/ycSearch.py
+#### redisSearch/redisSearch.py
 * /api/fast
 * /api/search/\<path:value\>
 * /api/search-filter/\<leaf\>
