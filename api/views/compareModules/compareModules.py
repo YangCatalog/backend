@@ -152,11 +152,11 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str) -> 
         :param revision2:        (str) revision of the second module in format YYYY-MM-DD
         :return                  (str) preformatted HTML with corresponding data
     """
-    schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, file2, revision2)
+    schema1 = os.path.join(ac.d_save_file_dir, f'{name1}@{revision1}.yang')
+    schema2 = os.path.join(ac.d_save_file_dir, f'{file2}@{revision2}.yang')
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context('{}:{}'.format(ac.d_yang_models_dir, ac.d_save_file_dir))
+    ctx = create_context(f'{ac.d_yang_models_dir}:{ac.d_save_file_dir}')
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
     ctx.lax_quote_checks = True
@@ -179,9 +179,9 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str) -> 
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name1 = 'schema1-tree-diff.txt'
-    full_path_file1 = '{}/{}'.format(ac.w_save_diff_dir, file_name1)
+    full_path_file1 = os.path.join(ac.w_save_diff_dir, file_name1)
     with open(full_path_file1, 'w+') as ff:
-        ff.write('<pre>{}</pre>'.format(stdout))
+        ff.write(f'<pre>{stdout}</pre>')
     with open(schema2, 'r') as ff:
         a = ctx.add_module(schema2, ff.read())
     ctx.validate()
@@ -189,16 +189,16 @@ def create_diff_tree(name1: str, revision1: str, file2: str, revision2: str) -> 
     emit_tree(ctx, [a], f, ctx.opts.tree_depth, ctx.opts.tree_line_length, path)
     stdout = f.getvalue()
     file_name2 = 'schema2-tree-diff.txt'
-    full_path_file2 = '{}/{}'.format(ac.w_save_diff_dir, file_name2)
+    full_path_file2 = f'{ac.w_save_diff_dir}/{file_name2}'
     with open(full_path_file2, 'w+') as ff:
-        ff.write('<pre>{}</pre>'.format(stdout))
-    tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
-    tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
-    diff_url = 'https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'.format(tree1, tree2)
+        ff.write(f'<pre>{stdout}</pre>')
+    tree1 = f'{ac.w_my_uri}/compatibility/{file_name1}'
+    tree2 = f'{ac.w_my_uri}/compatibility/{file_name2}'
+    diff_url = f'https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={tree1}&url2={tree2}'
     response = requests.get(diff_url)
     os.unlink(full_path_file1)
     os.unlink(full_path_file2)
-    return '<html><body>{}</body></html>'.format(response.text)
+    return f'<html><body>{response.text}</body></html>'
 
 
 @bp.route('/get-common', methods=['POST'])
@@ -341,23 +341,16 @@ def check_semver():
                     elif status_new != 'passed' and status_old == 'passed':
                         reason = 'Newer module failed compilation'
                     else:
-                        file_name = '{}/services/file1={}@{}/check-update-from/file2={}@{}'.format(
-                            ac.w_yangcatalog_api_prefix,
-                            name_new,
-                            revision_new,
-                            name_old,
-                            revision_old,
+                        file_name = (
+                            f'{ac.w_yangcatalog_api_prefix}/services/file1={name_new}@{revision_new}'
+                            f'/check-update-from/file2={name_old}@{revision_old}'
                         )
-                        reason = 'pyang --check-update-from output: {}'.format(file_name)
+                        reason = f'pyang --check-update-from output: {file_name}'
 
-                    diff = '{}/services/diff-tree/file1={}@{}/file2={}@{}'.format(
-                        ac.w_yangcatalog_api_prefix,
-                        name_old,
-                        revision_old,
-                        name_new,
-                        revision_new,
+                    diff = (
+                        f'{ac.w_yangcatalog_api_prefix}/services/diff-tree'
+                        f'/file1={name_old}@{revision_old}/file2={name_new}@{revision_new}'
                     )
-
                     output_mod['yang-module-pyang-tree-diff'] = diff
 
                     output_mod['name'] = name_old
@@ -367,12 +360,9 @@ def check_semver():
                     output_mod['old-derived-semantic-version'] = semver_old
                     output_mod['new-derived-semantic-version'] = semver_new
                     output_mod['derived-semantic-version-results'] = reason
-                    diff = '{}/services/diff-file/file1={}@{}/file2={}@{}'.format(
-                        ac.w_yangcatalog_api_prefix,
-                        name_old,
-                        revision_old,
-                        name_new,
-                        revision_new,
+                    diff = (
+                        f'{ac.w_yangcatalog_api_prefix}/services/diff-file'
+                        f'/file1={name_old}@{revision_old}/file2={name_new}@{revision_new}'
                     )
                     output_mod['yang-module-diff'] = diff
                     output_modules_list.append(output_mod)
