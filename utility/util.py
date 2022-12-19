@@ -419,7 +419,7 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
         try:
             ctx.validate()
             # NOTE: ResourceWarning appears due to the incorrect way pyang opens files for reading
-            # ResourceWarning: Enable tracemalloc to get the object allocation traceback
+            # ResourceWarning: Enable trace malloc to get the object allocation traceback
             with warnings.catch_warnings(record=True):
                 check_update(ctx, new_schema_ctx)
             break

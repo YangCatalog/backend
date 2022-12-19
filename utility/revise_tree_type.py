@@ -77,7 +77,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     modules_revise = []
     logger.info('Fetching all of the modules from API.')
     try:
-        modules = fetch_modules(logger)
+        modules = fetch_modules(logger, config=config)
     except RuntimeError:
         job_log(
             start_time,

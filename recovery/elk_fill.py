@@ -64,7 +64,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
     logger.info('Fetching all of the modules from API.')
     try:
-        all_modules = fetch_modules(logger)
+        all_modules = fetch_modules(logger, config=config)
     except RuntimeError:
         logger.error('Failed to get list of modules from response')
         sys.exit(1)

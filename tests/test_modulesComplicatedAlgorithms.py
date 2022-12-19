@@ -62,6 +62,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules[0].pop('derived-semantic-version')
         existing_modules = {'module': deepcopy(modules[:1])}
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[0]
         all_modules = {'module': [module_to_parse]}
@@ -102,6 +103,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules[1].pop('derived-semantic-version')
         existing_modules = {'module': deepcopy(modules[:2])}
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[1]
         all_modules = {'module': [module_to_parse]}
@@ -144,6 +146,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules[2].pop('derived-semantic-version')
         existing_modules = {'module': deepcopy(modules[:3])}
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[2]
         all_modules = {'module': [module_to_parse]}
@@ -185,6 +188,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules[3].pop('derived-semantic-version')
         existing_modules = {'module': deepcopy(modules[:4])}
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[3]
         all_modules = {'module': [module_to_parse]}
@@ -226,6 +230,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules[4].pop('derived-semantic-version')
         existing_modules = {'module': deepcopy(modules[:5])}
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[4]
         all_modules = {'module': [module_to_parse]}
@@ -267,6 +272,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         modules[5].pop('derived-semantic-version')
         existing_modules = {'module': deepcopy(modules[:6])}
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[5]
         all_modules = {'module': [module_to_parse]}
@@ -309,6 +315,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         existing_modules = {'module': deepcopy(modules[:4] + modules[5:])}
 
         mock_requests_get.return_value.json.return_value = existing_modules
+        mock_requests_get.return_value.status_code = 200
 
         module_to_parse = modules[4]
         all_modules = {'module': [module_to_parse]}
@@ -338,6 +345,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module = self.payloads['parse_tree_type']['module'][0]
         all_modules = {'module': [module]}
         mock_requests_get.return_value.json.return_value = {'module': []}
+        mock_requests_get.return_value.status_code = 200
 
         complicated_algorithms = ModulesComplicatedAlgorithms(
             yc_gc.logs_dir,
@@ -360,6 +368,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module = self.payloads['parse_tree_type']['module'][1]
         all_modules = {'module': [module]}
         mock_requests_get.return_value.json.return_value = {'module': []}
+        mock_requests_get.return_value.status_code = 200
 
         complicated_algorithms = ModulesComplicatedAlgorithms(
             yc_gc.logs_dir,
@@ -382,6 +391,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         module = self.payloads['parse_tree_type']['module'][2]
         all_modules = {'module': [module]}
         mock_requests_get.return_value.json.return_value = {'module': []}
+        mock_requests_get.return_value.status_code = 200
 
         complicated_algorithms = ModulesComplicatedAlgorithms(
             yc_gc.logs_dir,
@@ -408,6 +418,7 @@ class TestModulesComplicatedAlgorithmsClass(unittest.TestCase):
         payload = self.payloads['parse_dependents']
         all_modules = {'module': payload[0]['new']}
         mock_requests_get.return_value.json.return_value = {'module': payload[0]['existing']}
+        mock_requests_get.return_value.status_code = 200
 
         complicated_algorithms = ModulesComplicatedAlgorithms(
             yc_gc.logs_dir,

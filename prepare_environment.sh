@@ -1,5 +1,4 @@
 BACKEND=$(pwd)
-TMP_DIR="$VAR"/tmp
 SAVE_FILE_DIR="$VAR"/all_modules
 YANG_MODELS_DIR="$VAR"/nonietf/yangmodels/yang
 
@@ -20,8 +19,6 @@ then
     git submodule update --init vendor/huawei
 fi
 
-TEST_REPO="$TMP_DIR"/test/YangModels/yang
-
 # Prepare files and directory structure for test_groupings.py
 mkdir -p "$TEST_REPO"/standard/ietf/RFC
 touch "$TEST_REPO"/standard/ietf/README.md
@@ -41,6 +38,7 @@ cp "$YANG_MODELS_DIR"/vendor/cisco/xr/702/capabilities-ncs5k.xml "$TEST_REPO"/ve
 cp "$YANG_MODELS_DIR"/vendor/cisco/nx/9.2-1/netconf-capabilities.xml "$TEST_REPO"/vendor/cisco/nx/9.2-1/
 cp "$YANG_MODELS_DIR"/vendor/cisco/xe/16101/capability-asr1k.xml "$TEST_REPO"/vendor/cisco/xe/16101/
 cp "$YANG_MODELS_DIR"/standard/ietf/RFC/ietf-yang-types@2013-07-15.yang "$TEST_REPO"/standard/ietf/RFC
+cp "$YANG_MODELS_DIR"/standard/ietf/RFC/ietf-yang-types@2010-09-24.yang "$TEST_REPO"/standard/ietf/RFC
 
 # Prepare Huawei directory for ietf-yang-lib based tests
 YANG_MODELS_HUAWEI_DIR="$YANG_MODELS_DIR"/vendor/huawei/network-router/8.20.0/ne5000e
@@ -65,5 +63,3 @@ cp "$YANG_MODELS_DIR"/standard/ietf/RFC/ietf-yang-types@2010-09-24.yang "$TMP_DI
 # Copy all RFC modules into /var/yang/all_modules directory
 cp "$YANG_MODELS_DIR"/standard/ietf/RFC/*@*.yang "$SAVE_FILE_DIR"
 cp "$BACKEND"/tests/resources/all_modules/* "$SAVE_FILE_DIR"
-
-#(cd "$BACKEND" || exit 1; python sandbox/generate_schema_urls.py "$TEST_REPO" || exit 1)
