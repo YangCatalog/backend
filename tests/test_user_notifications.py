@@ -23,6 +23,7 @@ class TestUserNotificationsClass(unittest.TestCase):
         email = 'test@example.com'
         self.redis_user_notifications_connection.unsubscribe_from_emails(email_type, email)
         self.assertListEqual(self.redis_user_notifications_connection.get_unsubscribed_emails(email_type), [email])
+        raise Exception
 
     def test_unsubscription_from_emails_via_api(self):
         email_type = 'test-email-type'
