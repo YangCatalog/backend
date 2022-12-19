@@ -79,18 +79,18 @@ def create_update_from(name1: str, revision1: str, name2: str, revision2: str) -
         :param revision2:        (str) revision of the second module in format YYYY-MM-DD
         :return                  (str) preformatted HTML with corresponding data
     """
-    new_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
-    old_schema = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
+    new_schema = os.path.join(ac.d_save_file_dir, f'{name1}@{revision1}.yang')
+    old_schema = os.path.join(ac.d_save_file_dir, f'{name2}@{revision2}.yang')
     ctx, _ = context_check_update_from(old_schema, new_schema, ac.d_yang_models_dir, ac.d_save_file_dir)
 
     errors = []
     for ctx_err in ctx.errors:
-        ref = '{}:{}:'.format(ctx_err[0].ref, ctx_err[0].line)
+        ref = f'{ctx_err[0].ref}:{ctx_err[0].line}:'
         err_message = error.err_to_str(ctx_err[1], ctx_err[2])
-        err = '{} {}\n'.format(ref, err_message)
+        err = f'{ref} {err_message}\n'
         errors.append(err)
 
-    return '<html><body><pre>{}</pre></body></html>'.format(''.join(errors))
+    return f'<html><body><pre>{"".join(errors)}</pre></body></html>'
 
 
 @bp.route('/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2>', methods=['GET'])
@@ -107,18 +107,18 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str) -> 
         :param revision2:        (str) revision of the second module in format YYYY-MM-DD
         :return                  (str) preformatted HTML with corresponding data
     """
-    schema1 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name1, revision1)
-    schema2 = '{}/{}@{}.yang'.format(ac.d_save_file_dir, name2, revision2)
+    schema1 = os.path.join(ac.d_save_file_dir, f'{name1}@{revision1}.yang')
+    schema2 = os.path.join(ac.d_save_file_dir, f'{name2}@{revision2}.yang')
     file_name1 = 'schema1-file-diff.txt'
     yang_file_1_content = ''
     try:
         with open(schema1, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_1_content = f.read()
     except FileNotFoundError:
-        app.logger.warn('File {}@{}.yang was not found.'.format(name1, revision1))
+        app.logger.warn(f'File {name1}@{revision1}.yang was not found.')
 
-    with open('{}/{}'.format(ac.w_save_diff_dir, file_name1), 'w+') as f:
-        f.write('<pre>{}</pre>'.format(yang_file_1_content))
+    with open(os.path.join(ac.w_save_diff_dir, file_name1), 'w+') as f:
+        f.write(f'<pre>{yang_file_1_content}</pre>')
 
     file_name2 = 'schema2-file-diff.txt'
     yang_file_2_content = ''
@@ -126,16 +126,16 @@ def create_diff_file(name1: str, revision1: str, name2: str, revision2: str) -> 
         with open(schema2, 'r', encoding='utf-8', errors='strict') as f:
             yang_file_2_content = f.read()
     except FileNotFoundError:
-        app.logger.warn('File {}@{}.yang was not found.'.format(name2, revision2))
-    with open('{}/{}'.format(ac.w_save_diff_dir, file_name2), 'w+') as f:
-        f.write('<pre>{}</pre>'.format(yang_file_2_content))
-    tree1 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name1)
-    tree2 = '{}/compatibility/{}'.format(ac.w_my_uri, file_name2)
-    diff_url = 'https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={}&url2={}'.format(tree1, tree2)
+        app.logger.warn(f'File {name2}@{revision2}.yang was not found.')
+    with open(os.path.join(ac.w_save_diff_dir, file_name2), 'w+') as f:
+        f.write(f'<pre>{yang_file_2_content}</pre>')
+    tree1 = f'{ac.w_my_uri}/compatibility/{file_name1}'
+    tree2 = f'{ac.w_my_uri}/compatibility/{file_name2}'
+    diff_url = f'https://www.ietf.org/rfcdiff/rfcdiff.pyht?url1={tree1}&url2={tree2}'
     response = requests.get(diff_url)
-    os.remove('{}/{}'.format(ac.w_save_diff_dir, file_name1))
-    os.remove('{}/{}'.format(ac.w_save_diff_dir, file_name2))
-    return '<html><body>{}</body></html>'.format(response.text)
+    os.remove(os.path.join(ac.w_save_diff_dir, file_name1))
+    os.remove(os.path.join(ac.w_save_diff_dir, file_name2))
+    return f'<html><body>{response.text}</body></html>'
 
 
 @bp.route('/services/diff-tree/file1=<name1>@<revision1>/file2=<file2>@<revision2>', methods=['GET'])
