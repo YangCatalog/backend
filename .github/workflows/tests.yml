@@ -124,5 +124,5 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
           conclusion: ${{ job.status }}
-          actions: '{"label":"Tests", "description":"Tests with pytest", "identifier":"${{ github.event.workflow_run.id }}"}'
+          actions: "{label:Tests, description:Tests with pytest, identifier:${{ github.event.workflow_run.id }}"
           action_url: https://github.com/YangCatalog/backend/actions
