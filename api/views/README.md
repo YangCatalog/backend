@@ -20,6 +20,14 @@
 * /api/admin/scripts
 * /api/admin/disk-usage
 
+#### comparisons/comparisons.py
+* /api/services/\<name1\>@\<revision1\>/check-update-from/\<name2\>@\<revision2\>
+* /api/services/diff-file/\<name1\>@\<revision1\>/\<name2\>@\<revision2\>
+* /api/services/diff-tree/\<name1\>@\<revision1\>/\<name2\>@\<revision2\>
+* /api/get-common
+* /api/compare
+* /api/check-semantic-version
+
 #### healthCheck/healthCheck.py
 * /api/admin/healthcheck/services-list
 * /api/admin/healthcheck/elk
@@ -67,18 +75,12 @@
 * /api/get-statistics
 * /api/problematic-drafts
 
-#### ycSearch/ycSearch.py
+#### redisSearch/redisSearch.py
 * /api/fast
 * /api/search/\<path:value\>
 * /api/search-filter/\<leaf\>
 * /api/search-filter
 * /api/contributors
-* /api/services/\<name1\>@\<revision1\>/check-update-from/\<name2\>@\<revision2\>
-* /api/services/diff-file/\<name1\>@\<revision1\>/\<name2\>@\<revision2\>
-* /api/services/diff-tree/\<name1\>@\<revision1\>/\<name2\>@\<revision2\>
-* /api/get-common
-* /api/compare
-* /api/check-semantic-version
 * /api/search/vendor/\<vendor\>
 * /api/search/vendors/\<path:value\>
 * /api/search/modules/\<name\>,\<revision\>,\<organization\>

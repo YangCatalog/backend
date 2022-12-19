@@ -27,7 +27,7 @@ from lxml import html as HT
 from markupsafe import escape
 from werkzeug.exceptions import BadRequest, NotFound
 
-import api.views.ycSearch.ycSearch as search_bp
+import api.views.redisSearch.redisSearch as search_bp
 from api.yangCatalogApi import app
 
 app_config = app.config
