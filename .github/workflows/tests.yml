@@ -121,6 +121,7 @@ jobs:
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
         with:
           name: Tests conclusion
+          check_id: Tests
           token: ${{ secrets.GITHUB_TOKEN }}
           sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
           conclusion: ${{ job.status }}
