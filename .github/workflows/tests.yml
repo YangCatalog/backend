@@ -124,5 +124,3 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
           conclusion: ${{ job.status }}
-          output: |
-            {"summary":${{ steps.tests.outputs.summary }}}
