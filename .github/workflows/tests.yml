@@ -107,7 +107,7 @@ jobs:
           coverage run -am pytest
           coverage xml
 
-      - name: Update code coverage badge
+      - name: Coverage report
         if: ${{ github.repository == 'YangCatalog/backend' }}
         uses: codecov/codecov-action@v3
         with:
