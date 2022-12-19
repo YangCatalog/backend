@@ -20,7 +20,24 @@ jobs:
       max-parallel: 1
 
     steps:
+      - name: Get PR information
+        uses: potiuk/get-workflow-origin@v1_5
+        if: ${{ github.event.workflow_run.event == 'pull_request' }}
+        id: source-run-info
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sourceRunId: ${{ github.event.workflow_run.id }}
+
       - uses: actions/checkout@v3
+        if: ${{ github.event.workflow_run.event == 'pull_request' }}
+        with:
+          ref: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
+          repository: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
+
+      - uses: actions/checkout@v3
+        if: ${{ github.event.workflow_run.event != 'pull_request' }}
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
@@ -62,6 +79,8 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y pcregrep
           export VAR=/var/yang
+          export TMP_DIR=$VAR/tmp
+          export TEST_REPO=$TMP_DIR/test/YangModels/yang
           export BACKEND=$PWD
           export PYTHONPATH=$PYTHONPATH:$BACKEND
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
@@ -82,13 +101,14 @@ jobs:
           PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
         run: |
           export TOKEN
+          export TEST_REPO=/var/yang/tmp/test/YangModels/yang
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
           coverage xml
 
-      - name: Update code coverage badge
-        if: ${{ github.event.push.head.repo.full_name != 'YangCatalog/backend' && github.ref_name == 'develop' }}
+      - name: Coverage report
+        if: ${{ github.repository == 'YangCatalog/backend' }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

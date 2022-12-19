@@ -28,11 +28,10 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import os
 import time
 
-import requests
-
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
@@ -74,13 +73,21 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         temp_dir,
         json_ytree,
     )
-    response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
-    if response.status_code != 200:
-        logger.error('Failed to fetch list of modules')
-        job_log(start_time, temp_dir, current_file_basename, error=response.text, status=JobLogStatuses.FAIL)
-        return
+
     modules_revise = []
-    modules = response.json()['module']
+    logger.info('Fetching all of the modules from API.')
+    try:
+        modules = fetch_modules(logger, config=config)
+    except RuntimeError:
+        job_log(
+            start_time,
+            temp_dir,
+            current_file_basename,
+            error='Failed to fetch modules from API.',
+            status=JobLogStatuses.FAIL,
+        )
+        return
+
     for module in modules:
         if module.get('tree-type') != 'nmda-compatible':
             continue

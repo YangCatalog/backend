@@ -97,17 +97,28 @@ class GrepSearch:
         )
         if result := self._get_cached_search_results(cache_key):
             return result
-        search_command = self._get_filesystem_search_command(
+        (
+            pcregrep_search,
+            get_uniq_paths,
+            extract_filenames,
+            filter_by_organizations,
+        ) = self._get_filesystem_search_commands(
             search_string,
             inverted_search,
             case_sensitive,
             organizations,
         )
         try:
-            command_output, error = search_command.communicate()
+            command = filter_by_organizations if filter_by_organizations else extract_filenames
+            command_output, error = command.communicate()
         except (OSError, subprocess.SubprocessError) as e:
             raise ValueError(f'Such a search: {search_string}, caused an error: {e}')
-        if error:
+        if (
+            error
+            or (error := pcregrep_search.stderr.read())
+            or (error := get_uniq_paths.stderr.read())
+            or (filter_by_organizations and (error := extract_filenames.stderr.read()))
+        ):
             raise ValueError(f'Such a search: {search_string}, caused an error: {error}')
         elif not command_output and inverted_search:
             self.logger.info(f'All the modules satisfy the inverted search: {search_string}')
@@ -145,16 +156,16 @@ class GrepSearch:
         )
         return self._get_modules_from_cursor(module_names_with_file_extension)
 
-    def _get_filesystem_search_command(
+    def _get_filesystem_search_commands(
         self,
         search_string: str,
         inverted_search: bool,
         case_sensitive: bool,
         organizations: list[str],
-    ) -> subprocess.Popen:
+    ) -> tuple[subprocess.Popen, subprocess.Popen, subprocess.Popen, t.Optional[subprocess.Popen]]:
         search_options = f'-{"" if case_sensitive else "i"}lrMe'
         pcregrep_search = subprocess.Popen(
-            ['pcregrep', search_options, '--', search_string, self.all_modules_directory],
+            ['pcregrep', search_options, search_string, self.all_modules_directory],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
@@ -164,7 +175,7 @@ class GrepSearch:
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
         )
-        final_command = subprocess.Popen(
+        extract_filenames = subprocess.Popen(
             ['awk', '-F/', '{ print $NF }'],
             stdin=get_uniq_paths.stdout,
             stdout=subprocess.PIPE,
@@ -172,13 +183,14 @@ class GrepSearch:
         )
         if not inverted_search and organizations:
             # in the case of an inverted search, organizations will be resolved in the ES search only
-            final_command = subprocess.Popen(
-                ['grep', '-E', '--', '|'.join(organizations)],
-                stdin=final_command.stdout,
+            filter_by_organizations = subprocess.Popen(
+                ['grep', '-E', '|'.join(organizations)],
+                stdin=extract_filenames.stdout,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-        return final_command
+            return pcregrep_search, get_uniq_paths, extract_filenames, filter_by_organizations
+        return pcregrep_search, get_uniq_paths, extract_filenames, None
 
     def _cache_search_results(self, cache_key: str, modules: t.Union[list[str], tuple[str]]):
         cache.set(

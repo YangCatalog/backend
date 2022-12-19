@@ -1,6 +1,0 @@
-module sdo-module {
-  revision 2022-08-05;
-  organization "IETF";
-  namespace "testing";
-  prefix "yang";
-}

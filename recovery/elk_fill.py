@@ -28,10 +28,9 @@ import os
 import sys
 import typing as t
 
-import requests
-from requests.exceptions import ConnectionError
-
+import utility.log as log
 from utility.create_config import create_config
+from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import Arg, BaseScriptConfig
 
 
@@ -60,18 +59,14 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     config = create_config(args.config_path)
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     temp = config.get('Directory-Section', 'temp')
-    yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
+    log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
+    logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
 
+    logger.info('Fetching all of the modules from API.')
     try:
-        response = requests.get(f'{yangcatalog_api_prefix}/search/modules')
-    except ConnectionError:
-        print(f'Failed to fetch data from {yangcatalog_api_prefix}')
-        sys.exit(1)
-
-    try:
-        all_modules = response.json()['module']
-    except KeyError:
-        print('Failed to get list of modules from response')
+        all_modules = fetch_modules(logger, config=config)
+    except RuntimeError:
+        logger.error('Failed to get list of modules from response')
         sys.exit(1)
 
     modules_dict = {}
@@ -80,7 +75,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         org = module['organization']
         revision = module['revision']
         if '' in [name, revision, org]:
-            print(f'module: {module} wrong data')
+            logger.warning(f'module: {module} wrong data')
             continue
         key = f'{name}@{revision}/{org}'
         value = f'{save_file_dir}/{name}@{revision}.yang'
@@ -90,7 +85,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     with open(output_path, 'w') as writer:
         json.dump(modules_dict, writer)
 
-    print(f'Dictionary of {len(modules_dict)} modules dumped into file')
+    logger.info(f'Dictionary of {len(modules_dict)} modules dumped into file')
 
 
 if __name__ == '__main__':

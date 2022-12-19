@@ -44,7 +44,7 @@ from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_
 from redisConnections.redisConnection import RedisConnection
 from utility import log, message_factory
 from utility.confdService import ConfdService
-from utility.staticVariables import json_headers
+from utility.fetch_modules import fetch_modules
 from utility.util import context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
 from utility.yangParser import create_context
 
@@ -124,7 +124,6 @@ class ModulesComplicatedAlgorithms:
             with open('{}/prepare.json'.format(direc), 'r') as f:
                 all_modules = json.load(f)
         self._all_modules: list[ModuleMetadata] = all_modules.get('module', [])  # pyright: ignore
-        self._yangcatalog_api_prefix = yangcatalog_api_prefix
         self.new_modules: NameRevisionModuleTable = defaultdict(dict)
         self._credentials = credentials
         self._save_file_dir = save_file_dir
@@ -133,9 +132,10 @@ class ModulesComplicatedAlgorithms:
         self.json_ytree = json_ytree
         self._trees: dict[str, dict[str, str]] = defaultdict(dict)
         self._unavailable_modules = []
-        LOGGER.info('get all existing modules')
-        response = requests.get('{}/search/modules'.format(self._yangcatalog_api_prefix), headers=json_headers)
-        existing_modules = response.json().get('module', [])
+
+        LOGGER.info('Fetching all existing modules.')
+        existing_modules = fetch_modules(LOGGER)
+
         self._existing_modules: NameRevisionModuleTable = defaultdict(dict)
         self._latest_revisions = {}
         for module in existing_modules:
