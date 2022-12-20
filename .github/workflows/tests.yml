@@ -120,7 +120,7 @@ jobs:
         if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          sha: ${{ github.event.workflow_run.head_sha }}
+          sha: ${{ steps.source-run-info.outputs.mergeCommitSha }}
           name: Tests
           conclusion: ${{ job.status }}
           output: "{\"summary\":\"Workflow run: https://github.com/YangCatalog/backend/actions/runs/${{ github.run_id }}\"}"
