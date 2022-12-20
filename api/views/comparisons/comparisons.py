@@ -33,7 +33,7 @@ from utility.util import context_check_update_from
 from utility.yangParser import create_context
 
 
-class CompareModules(Blueprint):
+class Comparisons(Blueprint):
     def __init__(
         self,
         name,
@@ -59,7 +59,7 @@ class CompareModules(Blueprint):
         )
 
 
-bp = CompareModules('compareModules', __name__)
+bp = Comparisons('comparisons', __name__)
 
 
 @bp.before_request

@@ -613,8 +613,11 @@ class Receiver:
                     script_conf.args.__setattr__(key, body_input[key])
 
             clean = script_conf.args.__dict__.copy()
-            username, _ = clean.pop('credentials')
-            clean['username'] = username
+            try:
+                username, _ = clean.pop('credentials')
+                clean['username'] = username
+            except KeyError:
+                pass
             self.LOGGER.info(
                 f'Runnning {script_name}.py script with following configuration:\n{clean}',
             )

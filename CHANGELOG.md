@@ -1,6 +1,20 @@
 ## Backend Release Notes
 
-* ##### vm.m.p - 2022-MM-DD
+* ##### vm.m.p - 2023-MM-DD
+
+* ##### v5.8.0 - 2022-12-20
+
+  * API Endpoints moved to files to reduce yangSearch.py and ycSearch.py files [#649](https://github.com/YangCatalog/backend/issues/649)
+  * all_modules directory cleared after running tests [#663](https://github.com/YangCatalog/backend/issues/663)
+  * README.md with API endpoints structure added
+  * Incorrect use of Elasticsearch scroll fixed
+  * Unit tests covering module resolvers added [#690](https://github.com/YangCatalog/backend/issues/690)
+  * Functionality for fetching all modules unified [#660](https://github.com/YangCatalog/backend/issues/660)
+  * Grep search improved with "pagination" functionality [#602](https://github.com/YangCatalog/backend/issues/602)
+  * GitHub Actions environment updated to use Ubuntu 22.04 [deployment #173](https://github.com/YangCatalog/deployment/issues/173)
+  * Python base image bumped to version 3.10 [deployment #172](https://github.com/YangCatalog/deployment/issues/172)
+  * Script for resetting a forgotten password added [#673](https://github.com/YangCatalog/backend/issues/673)
+  * Improvements to remove_unused.py script [#667](https://github.com/YangCatalog/backend/issues/667)
 
 * ##### v5.7.0 - 2022-11-11
   

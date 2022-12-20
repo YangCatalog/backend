@@ -10,14 +10,14 @@ For `recovery.py` script we need to specify an option to either save or load the
     When saving modules it will create a json file with the current
     date and time. This json file contains all the modules and
     metadata that we have in yangcatalog. The option to save modules
-    is "--type save", which is the default option
+    is "--save", which is the default option
 
 2. Loading modules
 
     When loading modules we need to either provide a path to a json
     file that contains all the modules and metadata or it will
     load the file with latest date. Option to load modules is
-    "--type load" which is not the default option
+    "--load" which is not the default option
 
 `elk_recovery.py` script allows us to save/load
 the Elasticsearch database to/from snapshot.
