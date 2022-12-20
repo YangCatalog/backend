@@ -126,7 +126,7 @@ See the README.md file in the `documentation/` directory.
 
 ### Fill the ConfD database
 
-Using `backend/recovery/recovery.py --type load /var/yang/cache/confd/<latest>.json`.
+Using `backend/recovery/recovery.py --load --file /var/yang/cache/confd/<latest>.json`.
 
 ### NGINX Configuration
 

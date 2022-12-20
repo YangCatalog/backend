@@ -49,19 +49,23 @@ def main():
         for index_schema_base in glob.glob('initialize_*_index.json', root_dir=schema_dir):
             index_name = index_schema_base.removeprefix('initialize_').removesuffix('_index.json')
             if es.indices.exists(index_name):
+                print(f'{index_name} index already exists')
                 continue
             index_schema = os.path.join(schema_dir, index_schema_base)
             with open(index_schema) as f:
                 schema_contents = json.load(f)
-            es.indices.create(index=index_name, body=schema_contents)
+            create_result = es.indices.create(index=index_name, body=schema_contents)
+            print(create_result)
     else:
         index_name = args.index
         if es.indices.exists(index_name):
+            print(f'{index_name} index already exists')
             return
         index_schema = args.schema or os.path.join(schema_dir, f'initialize_{index_name}_index.json')
         with open(index_schema) as f:
             schema_contents = json.load(f)
-        es.indices.create(index=index_name, body=schema_contents, ignore=400)
+        create_result = es.indices.create(index=index_name, body=schema_contents, ignore=400)
+        print(create_result)
 
 
 if __name__ == '__main__':

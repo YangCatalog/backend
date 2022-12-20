@@ -56,7 +56,7 @@ from api.cache.api_cache import cache
 from api.my_flask import MyFlask
 from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import ietf_auth
-from api.views.compareModules.compareModules import bp as compare_modules_bp
+from api.views.comparisons.comparisons import bp as compare_modules_bp
 from api.views.errorHandlers.errorHandler import bp as error_handling_bp
 from api.views.healthCheck.healthCheck import bp as healthcheck_bp
 from api.views.notifications.notifications import bp as notifications_bp
