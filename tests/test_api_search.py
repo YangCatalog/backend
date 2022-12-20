@@ -994,7 +994,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertIn(expected_message, data)
 
-    @mock.patch('api.views.ycSearch.ycSearch.ac', app_config)
+    @mock.patch('api.views.redisSearch.redisSearch.ac', app_config)
     @mock.patch('api.my_flask.Redis.get')
     def test_modules_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
@@ -1008,7 +1008,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
-    @mock.patch('api.views.ycSearch.ycSearch.ac', app_config)
+    @mock.patch('api.views.redisSearch.redisSearch.ac', app_config)
     @mock.patch('api.my_flask.Redis.get')
     def test_vendors_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.

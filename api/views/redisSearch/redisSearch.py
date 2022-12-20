@@ -37,7 +37,7 @@ from api.my_flask import app
 from utility.yangParser import create_context
 
 
-class YcSearch(Blueprint):
+class RedisSearch(Blueprint):
     def __init__(
         self,
         name,
@@ -63,7 +63,7 @@ class YcSearch(Blueprint):
         )
 
 
-bp = YcSearch('ycSearch', __name__)
+bp = RedisSearch('redisSearch', __name__)
 
 
 @bp.before_request
