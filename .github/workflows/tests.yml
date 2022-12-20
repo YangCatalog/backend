@@ -115,3 +115,12 @@ jobs:
           files: ./coverage.xml
           fail_ci_if_error: true
           verbose: true
+
+      - uses: LouisBrunner/checks-action@v1.5.0
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
+          name: Tests
+          conclusion: ${{ job.status }}
+          details_url: "https://github.com/YangCatalog/backend/actions/runs/${{ github.run_id }}"
