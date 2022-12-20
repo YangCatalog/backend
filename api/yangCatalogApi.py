@@ -56,7 +56,6 @@ from api.cache.api_cache import cache
 from api.my_flask import MyFlask
 from api.views.admin.admin import bp as admin_bp
 from api.views.admin.admin import ietf_auth
-from api.views.compareModules.compareModules import bp as compare_modules_bp
 from api.views.errorHandlers.errorHandler import bp as error_handling_bp
 from api.views.healthCheck.healthCheck import bp as healthcheck_bp
 from api.views.notifications.notifications import bp as notifications_bp
@@ -80,7 +79,6 @@ app.register_blueprint(error_handling_bp, url_prefix='/api')
 app.register_blueprint(user_maintenance_bp, url_prefix='/api')
 app.register_blueprint(jobs_bp, url_prefix='/api')
 app.register_blueprint(search_bp, url_prefix='/api')
-app.register_blueprint(compare_modules_bp, url_prefix='/api')
 app.register_blueprint(healthcheck_bp, url_prefix='/api/admin/healthcheck')
 app.register_blueprint(yang_search_bp, url_prefix='/api/yang-search/v2')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
