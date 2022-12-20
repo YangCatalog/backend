@@ -115,3 +115,12 @@ jobs:
           files: ./coverage.xml
           fail_ci_if_error: true
           verbose: true
+
+      - uses: LouisBrunner/checks-action@v1.5.0
+        if: always()
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          sha: ${{ github.event.workflow_run.head_sha }}
+          name: Tests
+          conclusion: ${{ job.status }}
+          output: "{\"summary\":\"Workflow run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}\"}"
