@@ -121,7 +121,7 @@ jobs:
         if: always()
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          sha: ${{ steps.source-run-info.outputs.sourceHeadSha }}
+          sha: ${{ github.event.workflow_run.head_sha }}
           name: Tests
           conclusion: ${{ job.status }}
-          details_url: "https://github.com/YangCatalog/backend/actions/runs/${{ github.run_id }}"
+          output: "{\"summary\":\"Workflow run: https://github.com/YangCatalog/backend/actions/runs/${{ github.run_id }}\"}"
