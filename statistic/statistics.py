@@ -114,10 +114,8 @@ def get_total_and_passed(directory: str) -> t.Tuple[int, int]:
     number that passed compilation.
 
     Argument:
-        :param path_dir: (str) path to the directory where to search for
-            yang files
-        :return: tuple containing the number of yang files and the number
-            that passed compilation respectively
+        :param directory: (str) path to the directory where to search for yang files
+        :return: tuple containing the number of yang files and the number that passed compilation respectively
     """
     passed = 0
     num_in_catalog = 0
@@ -215,8 +213,6 @@ def solve_platforms(path: str) -> set:
 
     Arguments:
         :param path         (str) path to a specific Cisco platform
-        :param platform     (set) empty set of platforms - will be filled with platforms data on specified path
-        :param LOGGER       (obj) formated logger with the specified name
     """
     platforms = set()
     matches = []
@@ -262,21 +258,27 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     # Fetch the list of all modules known by YangCatalog
     LOGGER.info('Fetching all of the modules from API')
     all_modules_data = fetch_modules(LOGGER, config=config)
-
+    global all_modules_data_unique
+    all_modules_data_unique = {}
     vendor_data = {}
     for module in all_modules_data:
+        name = module['name']
+        revision = module['revision']
+        org = module['organization']
+        all_modules_data_unique[f'{name}@{revision}_{org}'] = module
         for implementation in module.get('implementations', {}).get('implementation', []):
-            if implementation['vendor'] == 'cisco':
-                if implementation['os-type'] not in vendor_data:
-                    vendor_data[implementation['os-type']] = {}
-                version = implementation['software-version']
-                if implementation['os-type'] in ('IOS-XE', 'IOS-XR'):
-                    version = version.replace('.', '')
-                elif implementation['os-type'] == 'NX-OS':
-                    version = version.replace('(', '-').replace(')', '-').rstrip('-')
-                if version not in vendor_data[implementation['os-type']]:
-                    vendor_data[implementation['os-type']][version] = set()
-                vendor_data[implementation['os-type']][version].add(implementation['platform'])
+            if implementation['vendor'] != 'cisco':
+                continue
+            if implementation['os-type'] not in vendor_data:
+                vendor_data[implementation['os-type']] = {}
+            version = implementation['software-version']
+            if implementation['os-type'] in ('IOS-XE', 'IOS-XR'):
+                version = version.replace('.', '')
+            elif implementation['os-type'] == 'NX-OS':
+                version = version.replace('(', '-').replace(')', '-').rstrip('-')
+            if version not in vendor_data[implementation['os-type']]:
+                vendor_data[implementation['os-type']][version] = set()
+            vendor_data[implementation['os-type']][version].add(implementation['platform'])
 
     try:
         # pull(yang_models) no need to pull https://github.com/YangModels/yang
@@ -345,15 +347,6 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
                 os_type,
                 name,
             )
-
-        global all_modules_data_unique
-        all_modules_data_unique = {}
-        for mod in all_modules_data['module']:
-            name = mod['name']
-            revision = mod['revision']
-            org = mod['organization']
-            all_modules_data_unique[f'{name}@{revision}_{org}'] = mod
-        all_modules_data = len(all_modules_data['module'])
 
         # Vendors separately
         vendor_list = []
@@ -425,7 +418,7 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
             'num_yang_files_vendor_ndp': vendor_modules_ndp,
             'num_yang_files_standard': standard_modules,
             'num_yang_files_standard_ndp': standard_modules_ndp,
-            'num_parsed_files': all_modules_data,
+            'num_parsed_files': len(all_modules_data),
             'num_unique_parsed_files': len(all_modules_data_unique),
             'xr': platforms['xr'],
             'xe': platforms['xe'],
@@ -450,7 +443,7 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
                 'num_yang_files_vendor_ndp': int(vendor_modules_ndp),
                 'num_yang_files_standard': int(standard_modules),
                 'num_yang_files_standard_ndp': int(standard_modules_ndp),
-                'num_parsed_files': all_modules_data,
+                'num_parsed_files': len(all_modules_data),
                 'num_unique_parsed_files': len(all_modules_data_unique),
                 'xr': json_output['xr'],
                 'xe': json_output['xe'],
