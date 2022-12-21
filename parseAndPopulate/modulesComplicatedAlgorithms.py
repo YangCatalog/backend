@@ -119,10 +119,11 @@ class ModulesComplicatedAlgorithms:
             :param json_ytree               (str) Directory where json ytrees are stored.
         """
         global LOGGER
-        LOGGER = log.get_logger('modulesComplicatedAlgorithms', '{}/parseAndPopulate.log'.format(log_directory))
+        LOGGER = log.get_logger('modulesComplicatedAlgorithms', f'{log_directory}/parseAndPopulate.log')
         if all_modules is None:
-            with open('{}/prepare.json'.format(direc), 'r') as f:
+            with open(f'{direc}/prepare.json', 'r') as f:
                 all_modules = json.load(f)
+        self._yangcatalog_api_prefix = yangcatalog_api_prefix
         self._all_modules: list[ModuleMetadata] = all_modules.get('module', [])  # pyright: ignore
         self.new_modules: NameRevisionModuleTable = defaultdict(dict)
         self._credentials = credentials
@@ -160,7 +161,7 @@ class ModulesComplicatedAlgorithms:
 
     def populate(self):
         new_modules = [revision for name in self.new_modules.values() for revision in name.values()]
-        LOGGER.info('populate with module complicated data. amount of new data is {}'.format(len(new_modules)))
+        LOGGER.info(f'populate with module complicated data. amount of new data is {len(new_modules)}')
         confd_service = ConfdService()
         confd_service.patch_modules(new_modules)
 
@@ -168,17 +169,15 @@ class ModulesComplicatedAlgorithms:
         redis_connection.populate_modules(new_modules)
 
         if len(new_modules) > 0:
-            url = '{}/load-cache'.format(self._yangcatalog_api_prefix)
+            url = f'{self._yangcatalog_api_prefix}/load-cache'
             response = requests.post(url, None, auth=(self._credentials[0], self._credentials[1]))
             if response.status_code != 201:
                 LOGGER.warning(
-                    'Could not send a load-cache request. Status code: {} Message: {}'.format(
-                        response.status_code,
-                        response.text,
-                    ),
+                    f'Could not send a load-cache request. Status code: '
+                    f'{response.status_code} Message: {response.text}',
                 )
             else:
-                LOGGER.info('load-cache responded with status code {}'.format(response.status_code))
+                LOGGER.info(f'load-cache responded with status code {response.status_code}')
 
     def resolve_tree_type(self, all_modules: list[ModuleMetadata]):
         def is_openconfig(rows, output):
@@ -301,14 +300,14 @@ class ModulesComplicatedAlgorithms:
                     name = coresponding_nmda_file.split('/')[-1].split('.')[0]
                     revision = name.split('@')[-1]
                     name = name.split('@')[0]
-                    if '{}@{}'.format(name, revision) in self._trees:
+                    if f'{name}@{revision}' in self._trees:
                         stdout = self._trees[name][revision]
                         pyang_list_of_rows = stdout.split('\n')[2:]
                     else:
                         plugin.plugins = []
                         plugin.init([])
 
-                        ctx = create_context('{}:{}'.format(os.path.abspath(self._yang_models), self._save_file_dir))
+                        ctx = create_context(f'{os.path.abspath(self._yang_models)}:{self._save_file_dir}')
 
                         ctx.opts.lint_namespace_prefixes = []
                         ctx.opts.lint_modulename_prefixes = []
@@ -412,20 +411,20 @@ class ModulesComplicatedAlgorithms:
         for x, module in enumerate(all_modules, start=1):
             name = module['name']
             revision = module['revision']
-            name_revision = '{}@{}'.format(name, revision)
-            self._path = '{}/{}.yang'.format(self._save_file_dir, name_revision)
+            name_revision = f'{name}@{revision}'
+            self._path = f'{self._save_file_dir}/{name_revision}.yang'
             yang_file_exists = self._check_schema_file(module['name'], module['revision'], module.get('schema'))
             is_latest_revision = self.check_if_latest_revision(module)
             if not yang_file_exists:
-                LOGGER.error('Skipping module: {}'.format(name_revision))
+                LOGGER.error(f'Skipping module: {name_revision}')
                 continue
-            LOGGER.info('Searching tree-type for {}. {} out of {}'.format(name_revision, x, len(all_modules)))
+            LOGGER.info(f'Searching tree-type for {name_revision}. {x} out of {len(all_modules)}')
             if revision in self._trees[name]:
                 stdout = self._trees[name][revision]
             else:
                 plugin.plugins = []
                 plugin.init([])
-                ctx = create_context('{}:{}'.format(os.path.abspath(self._yang_models), self._save_file_dir))
+                ctx = create_context(f'{os.path.abspath(self._yang_models)}:{self._save_file_dir}')
                 ctx.opts.lint_namespace_prefixes = []
                 ctx.opts.lint_modulename_prefixes = []
                 for p in plugin.plugins:
@@ -434,7 +433,7 @@ class ModulesComplicatedAlgorithms:
                     a = ctx.add_module(self._path, f.read())
                 if a is None:
                     LOGGER.debug(
-                        'Could not use pyang to generate tree because of errors on module {}'.format(self._path),
+                        f'Could not use pyang to generate tree because of errors on module {self._path}',
                     )
                     module['tree-type'] = 'unclassified'
                     if revision not in self.new_modules[name]:
@@ -475,7 +474,7 @@ class ModulesComplicatedAlgorithms:
                 else:
                     pyang_list_of_rows = stdout.split('\n')[1:]
                 if 'submodule' == module['module-type']:
-                    LOGGER.debug('Module {} is a submodule'.format(self._path))
+                    LOGGER.debug(f'Module {self._path} is a submodule')
                     module['tree-type'] = 'not-applicable'
                 elif is_latest_revision and is_combined(pyang_list_of_rows, stdout):
                     module['tree-type'] = 'nmda-compatible'
@@ -487,18 +486,14 @@ class ModulesComplicatedAlgorithms:
                     module['tree-type'] = 'transitional-extra'
                 else:
                     module['tree-type'] = 'unclassified'
-            LOGGER.debug('tree type for module {} is {}'.format(module['name'], module['tree-type']))
+            LOGGER.debug(f'tree type for module {module["name"]} is {module["tree-type"]}')
             if (
                 revision not in self._existing_modules[name]
                 or self._existing_modules[name][revision].get('tree-type') != module['tree-type']
             ):
                 LOGGER.info(
-                    'tree-type {} vs {} for module {}@{}'.format(
-                        self._existing_modules[name].get(revision, {}).get('tree-type'),
-                        module['tree-type'],
-                        module['name'],
-                        module['revision'],
-                    ),
+                    f'tree-type {self._existing_modules[name].get(revision, {}).get("tree-type")} vs '
+                    f'{module["tree-type"]} for module {module["name"]}@{module["revision"]}',
                 )
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = module
@@ -535,14 +530,14 @@ class ModulesComplicatedAlgorithms:
                 assert False
 
         def get_trees(new: ModuleSemverMetadata, old: ModuleSemverMetadata) -> t.Optional[t.Tuple[str, str]]:
-            new_name_revision = '{}@{}'.format(new.name, new.revision)
-            old_name_revision = '{}@{}'.format(old.name, old.revision)
-            new_schema = '{}/{}.yang'.format(self._save_file_dir, new_name_revision)
-            old_schema = '{}/{}.yang'.format(self._save_file_dir, old_name_revision)
+            new_name_revision = f'{new.name}@{new.revision}'
+            old_name_revision = f'{old.name}@{old.revision}'
+            new_schema = f'{self._save_file_dir}/{new_name_revision}.yang'
+            old_schema = f'{self._save_file_dir}/{old_name_revision}.yang'
             new_schema_exist = self._check_schema_file(new.name, new.revision, new.schema)
             old_schema_exist = self._check_schema_file(old.name, old.revision, old.schema)
-            new_tree_path = '{}/{}.json'.format(self.json_ytree, new_name_revision)
-            old_tree_path = '{}/{}.json'.format(self.json_ytree, old_name_revision)
+            new_tree_path = f'{self.json_ytree}/{new_name_revision}.json'
+            old_tree_path = f'{self.json_ytree}/{old_name_revision}.json'
 
             if old_schema_exist and new_schema_exist:
                 ctx, new_schema_ctx = context_check_update_from(
@@ -603,12 +598,8 @@ class ModulesComplicatedAlgorithms:
                 != new_module['derived-semantic-version']
             ):
                 LOGGER.info(
-                    'semver {} vs {} for module {}@{}'.format(
-                        self._existing_modules[name].get(revision, {}).get('derived-semantic-version'),
-                        new_module['derived-semantic-version'],
-                        name,
-                        revision,
-                    ),
+                    f'semver {self._existing_modules[name].get(revision, {}).get("derived-semantic-version")} vs '
+                    f'{new_module["derived-semantic-version"]} for module {name}@{revision}',
                 )
                 if revision not in self.new_modules[name]:
                     self.new_modules[name][revision] = new_module
@@ -620,14 +611,14 @@ class ModulesComplicatedAlgorithms:
         for z, new_module in enumerate(self._all_modules, start=1):
             name = new_module['name']
             new_revision = new_module['revision']
-            name_revision = '{}@{}'.format(name, new_revision)
+            name_revision = f'{name}@{new_revision}'
             all_module_revisions = {}
             # Get all other available revisions of the module
             for m in self._existing_modules[new_module['name']].values():
                 if m['revision'] != new_module['revision']:
                     all_module_revisions[m['revision']] = deepcopy(m)
 
-            LOGGER.info('Searching semver for {}. {} out of {}'.format(name_revision, z, len(self._all_modules)))
+            LOGGER.info(f'Searching semver for {name_revision}. {z} out of {len(self._all_modules)}')
             if len(all_module_revisions) == 0:
                 # If there is no other revision for this module
                 new_module['derived-semantic-version'] = '1.0.0'
@@ -681,7 +672,7 @@ class ModulesComplicatedAlgorithms:
                         versions = newest_existing_module_semver_data.semver.split('.')
                         major_ver = int(versions[0])
                         major_ver += 1
-                        upgraded_version = '{}.{}.{}'.format(major_ver, 0, 0)
+                        upgraded_version = f'{major_ver}.0.0'
                         new_module['derived-semantic-version'] = upgraded_version
                         add_to_new_modules(new_module)
                     else:
@@ -782,12 +773,8 @@ class ModulesComplicatedAlgorithms:
                     if revision_to_date(existing_revision) >= revision_to_date(new_revision):
                         return
                 LOGGER.info(
-                    'Adding {}@{} as dependent of {}@{}'.format(
-                        dependent['name'],
-                        dependent['revision'],
-                        dependency['name'],
-                        dependency['revision'],
-                    ),
+                    f'Adding {dependent["name"]}@{dependent["revision"]} as dependent of '
+                    f'{dependency["name"]}@{dependency["revision"]}',
                 )
                 existing_dependent_list.pop(index)
             dependency.setdefault('dependents', []).append(dependent)
@@ -861,16 +848,16 @@ class ModulesComplicatedAlgorithms:
             :param schema_url   (str) Github url from where the schema can be retrieved.
             :return             (bool) Whether the content of the module was obtained or not.
         """
-        schema = '{}/{}@{}.yang'.format(self._save_file_dir, name, revision)
+        schema = f'{self._save_file_dir}/{name}@{revision}.yang'
         result = True
 
         if not os.path.isfile(schema):
-            LOGGER.warning('File on path {} not found'.format(schema))
+            LOGGER.warning(f'File on path {schema} not found')
             result = fetch_module_by_schema(schema_url, schema)
             if result:
                 LOGGER.info('File content successfully retrieved from GitHub using module schema')
             else:
-                module_name = '{}@{}.yang'.format(name, revision)
+                module_name = f'{name}@{revision}.yang'
                 self._unavailable_modules.append(module_name)
                 LOGGER.error('Unable to retrieve file content from GitHub using module schema')
 
