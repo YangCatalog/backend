@@ -1,139 +1,79 @@
 {
   "all_modules": [
     {
-      "module": "cisco-xr-ietf-netconf-acm-deviations",
+      "name": "cisco-xr-ietf-netconf-acm-deviations",
       "revision": "2017-08-02",
-      "organization": "cisco",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "cisco"
     },
     {
       "module": "fujitsu-database",
       "revision": "2017-11-13",
-      "organization": "fujitsu",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "fujitsu"
     },
     {
       "module": "fujitsu-ip",
       "revision": "2018-04-17",
-      "organization": "fujitsu",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "fujitsu"
     },
     {
       "module": "ietf-inet-types",
       "revision": "2020-07-06",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "openconfig-telemetry",
       "revision": "2018-11-21",
-      "organization": "openconfig",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "openconfig"
     },
     {
       "module": "sdo-module",
       "revision": "2022-08-05",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "semver-test",
       "revision": "2020-01-01",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "semver-test",
       "revision": "2020-02-01",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "semver-test",
       "revision": "2020-03-01",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "semver-test",
       "revision": "2020-04-01",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "semver-test",
       "revision": "2020-05-01",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "semver-test",
       "revision": "2020-06-01",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "vendor-module",
       "revision": "2022-08-05",
-      "organization": "cisco",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "cisco"
     },
     {
       "module": "yang-catalog",
       "revision": "2017-09-26",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     },
     {
       "module": "yang-catalog",
       "revision": "2018-04-03",
-      "organization": "ietf",
-      "argument": "test argument",
-      "statement": "test statement",
-      "path": "path",
-      "description": "description"
+      "organization": "ietf"
     }
   ]
 }
