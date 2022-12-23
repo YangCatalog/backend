@@ -7,10 +7,8 @@ from datetime import datetime, timedelta
 
 from api.cache.api_cache import cache
 from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
-from api.views.yangSearch.response_row import ResponseRow
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
-from redisConnections.redisConnection import RedisConnection
 from utility import log
 from utility.create_config import create_config
 from utility.staticVariables import ORGANIZATIONS
@@ -26,8 +24,7 @@ class GrepSearch:
         self,
         config: ConfigParser = create_config(),
         es_manager: ESManager = ESManager(),
-        modules_es_index: ESIndices = ESIndices.YINDEX,
-        redis_connection: RedisConnection = RedisConnection(),
+        modules_es_index: ESIndices = ESIndices.AUTOCOMPLETE,
         starting_cursor: int = 0,
     ):
         self.previous_cursor = 0
@@ -47,9 +44,6 @@ class GrepSearch:
 
         self.modules_es_index = modules_es_index
         self._es_manager = es_manager
-        self._redis_connection = redis_connection
-
-        self._processed_modules = {}
 
     def search(
         self,
@@ -246,7 +240,7 @@ class GrepSearch:
             self.finishing_cursor += 1
             name, revision = module_name.split('.yang')[0].split('@')
             self.query['query']['bool']['must'] = [
-                {'term': {'module': name}},
+                {'term': {'name': name}},
                 {'term': {'revision': validate_revision(revision)}},
             ]
             es_response = self._es_manager.generic_search(
@@ -255,26 +249,12 @@ class GrepSearch:
                 response_size=None,
             )['hits']['hits']
             for result in es_response:
-                response.append(self._create_response_row_for_module(result['_source']))
+                module_data = result['_source']
+                response.append(
+                    {
+                        'module-name': module_data['name'],
+                        'revision': module_data['revision'].replace('02-29', '02-28'),
+                        'organization': module_data['organization'],
+                    },
+                )
         return response
-
-    def _create_response_row_for_module(self, module_search_result: dict) -> dict:
-        row = ResponseRow(elastic_hit=module_search_result)
-        module_key = f'{row.module_name}@{row.revision}/{row.organization}'
-        if (module_data := self._processed_modules.get('module_key')) is not None:
-            return self._fill_response_row(row, module_data)
-        module_data = self._redis_connection.get_module(module_key)
-        module_data = json.loads(module_data)
-        self._processed_modules[module_key] = module_data
-        if not module_data:
-            self.logger.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
-        return self._fill_response_row(row, module_data)
-
-    def _fill_response_row(self, row: ResponseRow, module_data: dict) -> dict:
-        if not module_data:
-            row.create_output(['dependents'])
-            return row.output_row
-        row.dependents = len(module_data.get('dependents', []))
-        row.compilation_status = module_data.get('compilation-status', 'unknown')
-        row.create_output([])
-        return row.output_row

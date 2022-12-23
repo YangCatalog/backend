@@ -22,6 +22,7 @@ import os
 import re
 import typing as t
 from logging import Logger
+from urllib import parse as urllib_parse
 
 from flask.blueprints import Blueprint
 from flask.globals import request
@@ -65,49 +66,44 @@ def set_config():
 @bp.route('/grep_search', methods=['GET'])
 @cache.cached(query_string=True, timeout=GREP_SEARCH_CACHE_TIMEOUT)
 def grep_search():
-    if not (query_params := request.args):
+    if not request.query_string:
         abort(400, description='No query parameters were provided')
-    search_string: str = query_params.get('search')
+    query_params = urllib_parse.parse_qs(urllib_parse.unquote(request.query_string))
+    search_string = value[0] if (value := query_params.get('search')) else None
     if not search_string:
         abort(400, description='Search cannot be empty')
-    organizations: list[str] = query_params.getlist('organizations')
-    inverted_search: bool = query_params.get('inverted_search', type=lambda v: v.lower() == 'true', default=False)
-    case_sensitive: bool = query_params.get('case_sensitive', type=lambda v: v.lower() == 'true', default=False)
-    previous_cursor: int = query_params.get('previous_cursor', type=int, default=0)
-    cursor: int = query_params.get('cursor', type=int, default=0)
+    organizations = query_params.get('organizations', [])
+    inverted_search = value[0].lower() == 'true' if (value := query_params.get('inverted_search')) else False
+    case_sensitive = value[0].lower() == 'true' if (value := query_params.get('case_sensitive')) else False
+    previous_cursor = int(value[0]) if (value := query_params.get('previous_cursor')) else 0
+    cursor = int(value[0]) if (value := query_params.get('cursor')) else 0
     config = create_config()
     try:
-        grep_search_instance = GrepSearch(
-            config=config,
-            es_manager=app_config.es_manager,
-            redis_connection=app.redisConnection,
-            starting_cursor=cursor,
-        )
+        grep_search_instance = GrepSearch(config=config, es_manager=app_config.es_manager, starting_cursor=cursor)
         results = grep_search_instance.search(organizations, search_string, inverted_search, case_sensitive)
     except ValueError as e:
         abort(400, description=str(e))
-    response_base_string = (
-        f'{config.get("Web-Section", "yangcatalog-api-prefix")}/yang-search/v2/grep_search'
-        f'?search={search_string}'
+    response_base_string = f'{config.get("Web-Section", "yangcatalog-api-prefix")}/yang-search/v2/grep_search?'
+    query_string = (
+        f'search={search_string}'
         f'&organizations={"&organizations=".join(organizations)}'
         f'&inverted_search={"true" if inverted_search else "false"}'
         f'&case_sensitive={"true" if case_sensitive else "false"}'
     )
     if results:
-        previous_page = (
-            f'{response_base_string}&previous_cursor={grep_search_instance.previous_cursor}&cursor={previous_cursor}'
-            if cursor > 0
-            else ''
+        previous_page_query_string = (
+            f'{query_string}&previous_cursor={grep_search_instance.previous_cursor}&cursor={previous_cursor}'
         )
-        next_page = f'{response_base_string}&previous_cursor={cursor}&cursor={grep_search_instance.finishing_cursor}'
+        previous_page = f'{response_base_string}{urllib_parse.quote(previous_page_query_string)}' if cursor > 0 else ''
+        next_page_query_string = (
+            f'{query_string}&previous_cursor={cursor}&cursor={grep_search_instance.finishing_cursor}'
+        )
+        next_page = f'{response_base_string}{urllib_parse.quote(next_page_query_string)}'
     else:
-        previous_page = (
-            f'{response_base_string}'
-            f'&previous_cursor={grep_search_instance.previous_cursor}'
-            f'&cursor={previous_cursor}'
-            if cursor > 0
-            else ''
+        previous_page_query_string = (
+            f'{query_string}&previous_cursor={grep_search_instance.previous_cursor}&cursor={previous_cursor}'
         )
+        previous_page = f'{response_base_string}{urllib_parse.quote(previous_page_query_string)}' if cursor > 0 else ''
         next_page = ''
     response = {
         'previous_page': previous_page,
