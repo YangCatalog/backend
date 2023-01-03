@@ -28,7 +28,7 @@
   },
   "mappings": {
     "properties": {
-      "module": {
+      "name": {
         "type": "text",
         "analyzer": "edge_ngram_analyzer",
         "fields": {
@@ -47,43 +47,6 @@
             "ignore_above": 256
           }
         }
-      },
-      "argument": {
-        "type": "text",
-        "fields": {
-          "sensitive": {
-            "type": "text",
-            "analyzer": "edge_ngram_analyzer"
-          },
-          "lowercase": {
-            "type": "text",
-            "analyzer": "edge_ngram_analyzer"
-          },
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "description": {
-        "type": "text",
-        "fields": {
-          "sensitive": {
-            "type": "text",
-            "analyzer": "edge_ngram_analyzer"
-          },
-          "lowercase": {
-            "type": "text",
-            "analyzer": "edge_ngram_analyzer"
-          },
-          "keyword": {
-            "type": "keyword",
-            "ignore_above": 256
-          }
-        }
-      },
-      "sdo": {
-        "type": "boolean"
       },
       "revision": {
         "type": "date"

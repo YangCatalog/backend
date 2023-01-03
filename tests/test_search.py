@@ -13,11 +13,6 @@ from elasticsearchIndexing.models.es_indices import ESIndices
 from utility.create_config import create_config
 
 
-class RedisConnectionMock:
-    def get_module(self, module_key: str):
-        return b'{}'
-
-
 class TestGrepSearchClass(unittest.TestCase):
     resources_path: str
     es: Elasticsearch
@@ -29,7 +24,6 @@ class TestGrepSearchClass(unittest.TestCase):
         cls.config = create_config()
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests', 'resources')
         cls._configure_es(cls.config)
-        cls.redis_connection_mock = RedisConnectionMock()
 
     @classmethod
     def _configure_es(cls, config: ConfigParser):
@@ -58,12 +52,7 @@ class TestGrepSearchClass(unittest.TestCase):
     def setUp(self):
         with app.app_context():
             cache.clear()
-        self.grep_search = GrepSearch(
-            config=self.config,
-            es_manager=self.es_manager,
-            modules_es_index=self.es_index,
-            redis_connection=self.redis_connection_mock,
-        )
+        self.grep_search = GrepSearch(config=self.config, es_manager=self.es_manager, modules_es_index=self.es_index)
 
     def tearDown(self):
         with app.app_context():
