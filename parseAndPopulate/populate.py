@@ -14,13 +14,10 @@
 # limitations under the License.
 
 """
-This script calls parse_directory.py script with
-option based on whether we are populating SDOs or vendors
-and also whether this script was called via API or directly by
-yangcatalog admin user. Once the metatadata are parsed
-and json files are created it will populate the ConfD
-with all the parsed metadata, reloads API and starts to
-parse metadata that needs to use complicated algorthms.
+This script calls parse_directory.py script with option based on whether we are populating SDOs or vendors
+and also whether this script was called via API or directly by yangcatalog admin user.
+Once the metadata is parsed and json files are created it will populate the ConfD with all the parsed metadata,
+reload API and start to parse metadata that needs to use complicated algorithms.
 For this we use class ModulesComplicatedAlgorithms.
 """
 

@@ -75,8 +75,8 @@ def trigger_ietf_pull():
     if username != 'admin':
         abort(401, description='User must be admin')
     job_id = ac.sender.send('run_ietf')
-    app.logger.info('job_id {}'.format(job_id))
-    return ({'job-id': job_id}, 202)
+    app.logger.info(f'job_id {job_id}')
+    return {'job-id': job_id}, 202
 
 
 @bp.route('/checkCompleteGithub', methods=['POST'])
@@ -98,7 +98,7 @@ def check_github():
     # Check run result - if completed successfully
     if body.get('check_run', {}).get('status') != 'completed':
         app.logger.error('Github Actions run not completed yet')
-        return ({'info': 'Run not completed yet - no action was taken'}, 200)
+        return {'info': 'Run not completed yet - no action was taken'}, 200
     else:
         conclusion = body.get('check_run', {}).get('conclusion')
         if conclusion != 'success':
@@ -109,7 +109,7 @@ def check_github():
             mf = message_factory.MessageFactory()
             mf.send_github_action_email(conclusion, html_url)
 
-            return ({'info': f'Run finished with conclusion {conclusion}'}, 200)
+            return {'info': f'Run finished with conclusion {conclusion}'}, 200
 
     # Commit verification
     verify_commit = False
@@ -126,88 +126,80 @@ def check_github():
         except FileNotFoundError:
             abort(404)
 
-    github_repos_url = '{}/repos'.format(github_api)
-    yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
-    pull_requests_url = '{}/pulls'.format(yang_models_url)
+    github_repos_url = f'{github_api}/repos'
+    yang_models_url = f'{github_repos_url}/YangModels/yang'
+    pull_requests_url = f'{yang_models_url}/pulls'
 
-    token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
     if verify_commit:
-        app.logger.info('Commit {} verified'.format(body['check_run']['head_sha']))
+        token_header_value = f'token {ac.s_yang_catalog_token}'
+        app.logger.info(f'Commit {body["check_run"]["head_sha"]} verified')
         # Create PR to YangModels/yang if sent from yang-catalog/yang
         if body['repository']['full_name'] == 'yang-catalog/yang':
-            json_body = json.loads(
-                json.dumps(
-                    {
-                        'title': 'Cronjob - every day pull and update of ietf draft yang files.',
-                        'body': 'ietf extracted yang modules',
-                        'head': 'yang-catalog:main',
-                        'base': 'main',
-                    },
-                ),
-            )
-
-            url = '{}/pulls'.format(yang_models_url)
+            json_body = {
+                'title': 'Cronjob - every day pull and update of ietf draft yang files.',
+                'body': 'ietf extracted yang modules',
+                'head': 'yang-catalog:main',
+                'base': 'main',
+            }
+            url = f'{yang_models_url}/pulls'
             r = requests.post(url, json=json_body, headers={'Authorization': token_header_value})
             if r.status_code == 201:
                 app.logger.info('Pull request created successfully')
-                return ({'info': 'Success'}, 201)
+                return {'info': 'Success'}, 201
             else:
-                message = 'Could not create a pull request.\nGithub responed with status code {}'.format(r.status_code)
+                message = f'Could not create a pull request.\nGithub responed with status code {r.status_code}'
                 app.logger.error(message)
-                return ({'info': message}, 200)
+                return {'info': message}, 200
         # Automatically merge PR if sent from YangModels/yang
         elif body['repository']['full_name'] == 'YangModels/yang':
-            admin_token_header_value = 'token {}'.format(ac.s_admin_token)
+            admin_token_header_value = f'token {ac.s_admin_token}'
             pull_requests = requests.get(pull_requests_url).json()
             for pull_request in pull_requests:
                 head_sha = pull_request['head']['sha']
                 if head_sha == commit_sha:
                     pull_number = pull_request['number']
-                    app.logger.info('Pull request {} was successful - sending review.'.format(pull_number))
-                    url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, pull_number)
+                    app.logger.info(f'Pull request {pull_number} was successful - sending review.')
+                    url = f'{github_api}/repos/YangModels/yang/pulls/{pull_number}/reviews'
                     data = json.dumps({'body': 'AUTOMATED YANG CATALOG APPROVAL', 'event': 'APPROVE'})
                     response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
-                    app.logger.info(
-                        'Review response code {}'.format(
-                            response.status_code,
-                        ),
-                    )
+                    app.logger.info(f'Review response code {response.status_code}')
                     data = json.dumps(
                         {'commit-title': 'Github Actions job passed', 'sha': body['check_run']['head_sha']},
                     )
                     response = requests.put(
-                        'https://api.github.com/repos/YangModels/yang/pulls/{}/merge'.format(pull_number),
+                        f'https://api.github.com/repos/YangModels/yang/pulls/{pull_number}/merge',
                         data,
                         headers={'Authorization': admin_token_header_value},
                     )
                     app.logger.info(
-                        'Merge response code {}\nMerge response {}'.format(response.status_code, response.text),
+                        f'Merge response code {response.status_code}\nMerge response {response.text}',
                     )
-                    return ({'info': 'Success'}, 201)
+                    return {'info': 'Success'}, 201
             else:
-                message = 'No opened pull request found with head sha: {}'.format(commit_sha)
-                return ({'info': message}, 200)
+                message = f'No opened pull request found with head sha: {commit_sha}'
+                return {'info': message}, 200
         else:
-            message = 'Owner name verification failed. Owner -> {}'.format(body['sender']['login'])
+            message = f'Owner name verification failed. Owner -> {body["sender"]["login"]}'
             app.logger.warning(message)
-            return ({'Error': message}, 401)
+            return {'Error': message}, 401
     else:
         app.logger.info('Commit verification failed.' ' Commit sent by someone else - not doing anything.')
-        return ({'info': 'Commit verification failed - sent by someone else'}, 200)
+        return {'info': 'Commit verification failed - sent by someone else'}, 200
 
 
 @bp.route('/checkComplete', methods=['POST'])
 def check_local():
-    """Authorize sender if it is Travis, if travis job was sent from yang-catalog
+    """
+    Authorize sender if it is Travis, if travis job was sent from yang-catalog
     repository and job passed fine and Travis run a job on pushed patch, create
     a pull request to YangModules repository. If the job passed on this pull request,
     merge the pull request and remove the repository at yang-catalog repository
-            :return response to the request
+    :return response to the request
     """
     app.logger.info('Starting pull request job')
     body = json.loads(request.form['payload'])
-    app.logger.info('Body of travis {}'.format(json.dumps(body)))
-    app.logger.info('type of job {}'.format(body['type']))
+    app.logger.info(f'Body of travis {json.dumps(body)}')
+    app.logger.info(f'type of job {body["type"]}')
     try:
         check_authorized(request.headers['SIGNATURE'], request.form['payload'])
         app.logger.info('Authorization successful')
@@ -217,8 +209,8 @@ def check_local():
         mf.send_travis_auth_failed()
         abort(401)
 
-    github_repos_url = '{}/repos'.format(github_api)
-    yang_models_url = '{}/YangModels/yang'.format(github_repos_url)
+    github_repos_url = f'{github_api}/repos'
+    yang_models_url = f'{github_repos_url}/YangModels/yang'
 
     verify_commit = False
     app.logger.info('Checking commit SHA if it is the commit sent by yang-catalog user.')
@@ -235,58 +227,49 @@ def check_local():
     except FileNotFoundError:
         abort(404)
 
-    token_header_value = 'token {}'.format(ac.s_yang_catalog_token)
+    token_header_value = f'token {ac.s_yang_catalog_token}'
     if verify_commit:
         app.logger.info('commit verified')
         if body['repository']['owner_name'] == 'yang-catalog':
             if body['result_message'] == 'Passed':
                 if body['type'] in ['push', 'api']:
                     # After build was successful only locally
-                    json_body = json.loads(
-                        json.dumps(
-                            {
-                                'title': 'Cronjob - every day pull and update of ietf draft yang files.',
-                                'body': 'ietf extracted yang modules',
-                                'head': 'yang-catalog:main',
-                                'base': 'main',
-                            },
-                        ),
-                    )
-
-                    url = '{}/pulls'.format(yang_models_url)
+                    json_body = {
+                        'title': 'Cronjob - every day pull and update of ietf draft yang files.',
+                        'body': 'ietf extracted yang modules',
+                        'head': 'yang-catalog:main',
+                        'base': 'main',
+                    }
+                    url = f'{yang_models_url}/pulls'
                     r = requests.post(url, json=json_body, headers={'Authorization': token_header_value})
                     if r.status_code == 201:
                         app.logger.info('Pull request created successfully')
-                        return ({'info': 'Success'}, 201)
+                        return {'info': 'Success'}, 201
                     else:
-                        app.logger.error('Could not create a pull request {}'.format(r.status_code))
+                        app.logger.error(f'Could not create a pull request {r.status_code}')
                         abort(400)
             else:
                 app.logger.warning('Travis job did not pass.')
-                return ({'info': 'Failed'}, 406)
+                return {'info': 'Failed'}, 406
         elif body['repository']['owner_name'] == 'YangModels':
             if body['result_message'] == 'Passed':
                 if body['type'] == 'pull_request':
                     # If build was successful on pull request
-                    admin_token_header_value = 'token {}'.format(ac.s_admin_token)
+                    admin_token_header_value = f'token {ac.s_admin_token}'
                     pull_number = body['pull_request_number']
-                    app.logger.info('Pull request was successful {}. sending review.'.format(repr(pull_number)))
-                    url = '{}/repos/YangModels/yang/pulls/{}/reviews'.format(github_api, repr(pull_number))
+                    app.logger.info(f'Pull request was successful {repr(pull_number)}. sending review.')
+                    url = f'{github_api}/repos/YangModels/yang/pulls/{repr(pull_number)}/reviews'
                     data = json.dumps({'body': 'AUTOMATED YANG CATALOG APPROVAL', 'event': 'APPROVE'})
                     response = requests.post(url, data, headers={'Authorization': admin_token_header_value})
-                    app.logger.info(
-                        'review response code {}. Merge response {}.'.format(response.status_code, response.text),
-                    )
+                    app.logger.info(f'review response code {response.status_code}. Merge response {response.text}.')
                     data = json.dumps({'commit-title': 'Travis job passed', 'sha': body['head_commit']})
                     response = requests.put(
-                        '{}/repos/YangModels/yang/pulls/{}/merge'.format(github_api, repr(pull_number)),
+                        f'{github_api}/repos/YangModels/yang/pulls/{repr(pull_number)}/merge',
                         data,
                         headers={'Authorization': admin_token_header_value},
                     )
-                    app.logger.info(
-                        'Merge response code {}. Merge response {}.'.format(response.status_code, response.text),
-                    )
-                    return ({'info': 'Success'}, 201)
+                    app.logger.info(f'Merge response code {response.status_code}. Merge response {response.text}.')
+                    return {'info': 'Success'}, 201
             else:
                 app.logger.warning('Travis job did not pass. Removing pull request')
                 pull_number = body['pull_request_number']
@@ -301,18 +284,18 @@ def check_local():
                     ),
                 )
                 requests.patch(
-                    '{}/repos/YangModels/yang/pulls/{}'.format(github_api, pull_number),
+                    f'{github_api}/repos/YangModels/yang/pulls/{pull_number}',
                     json=json_body,
                     headers={'Authorization': token_header_value},
                 )
                 app.logger.warning('Travis job did not pass.')
-                return ({'info': 'Failed'}, 406)
+                return {'info': 'Failed'}, 406
         else:
-            app.logger.warning('Owner name verification failed. Owner -> {}'.format(body['repository']['owner_name']))
-            return ({'Error': 'Owner verfication failed'}, 401)
+            app.logger.warning(f'Owner name verification failed. Owner -> {body["repository"]["owner_name"]}')
+            return {'Error': 'Owner verfication failed'}, 401
     else:
         app.logger.info('Commit verification failed. Commit sent by someone else.' 'Not doing anything.')
-    return ({'Error': 'Fails'}, 500)
+    return {'Error': 'Fails'}, 500
 
 
 @bp.route('/check-platform-metadata', methods=['POST'])
@@ -322,7 +305,7 @@ def trigger_populate():
     try:
         assert request.json
         body = json.loads(request.data)
-        app.logger.info('Body of request:\n{}'.format(json.dumps(body)))
+        app.logger.info(f'Body of request:\n{json.dumps(body)}')
         commits = request.json.get('commits') if request.is_json else None
         paths = set()
         new = []
@@ -364,26 +347,24 @@ def trigger_populate():
             except Exception:
                 app.logger.exception('Could not populate after git push')
     except Exception as e:
-        app.logger.error('Automated github webhook failure - {}'.format(e))
+        app.logger.error(f'Automated github webhook failure - {e}')
 
     return {'info': 'Success'}
 
 
 @bp.route('/get-statistics', methods=['GET'])
 def get_statistics():
-    stats_path = '{}/stats/stats.json'.format(ac.w_private_directory)
+    stats_path = f'{ac.w_private_directory}/stats/stats.json'
     if os.path.exists(stats_path):
         with open(stats_path, 'r') as reader:
             return reader.read()
-    else:
-        abort(404, description='Statistics file has not been generated yet')
+    abort(404, description='Statistics file has not been generated yet')
 
 
 @bp.route('/problematic-drafts', methods=['GET'])
 def get_problematic_drafts():
-    problematic_drafts_path = '{}/drafts/problematic_drafts.json'.format(ac.w_public_directory)
+    problematic_drafts_path = f'{ac.w_public_directory}/drafts/problematic_drafts.json'
     if os.path.exists(problematic_drafts_path):
         with open(problematic_drafts_path, 'r') as reader:
             return reader.read()
-    else:
-        abort(404, description='Problematic drafts file has not been generated yet')
+    abort(404, description='Problematic drafts file has not been generated yet')
