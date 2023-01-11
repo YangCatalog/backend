@@ -14,8 +14,7 @@
 # limitations under the License.
 
 """
-Cronjob tool that automatically runs populate.py
-for all new openconfig modules.
+Cronjob tool that automatically runs populate.py for all new openconfig modules.
 """
 
 __author__ = 'Miroslav Kovac'
