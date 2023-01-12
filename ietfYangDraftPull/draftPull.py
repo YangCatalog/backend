@@ -115,8 +115,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         if tar_opened:
             diff_files = []
             new_files = []
-
-            temp_rfc_yang_files = glob.glob(f'{repo.local_dir}/standard/ietf/RFCtemp/*.yang')
+            temp_rfc_yang_files = glob.glob(f'{extract_to}/*.yang')
             for temp_rfc_yang_file in temp_rfc_yang_files:
                 file_name = os.path.basename(temp_rfc_yang_file)
                 rfc_yang_file = temp_rfc_yang_file.replace('RFCtemp', 'RFC')
@@ -125,8 +124,8 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
                     new_files.append(file_name)
                     continue
 
-                same = filecmp.cmp(rfc_yang_file, temp_rfc_yang_file)
-                if not same:
+                files_are_identical = filecmp.cmp(rfc_yang_file, temp_rfc_yang_file)
+                if not files_are_identical:
                     diff_files.append(file_name)
 
             shutil.rmtree(extract_to)

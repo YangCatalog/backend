@@ -1,6 +1,6 @@
 certifi==2022.12.7
 lxml==4.9.1
-pyOpenSSL==22.0.0
+pyOpenSSL==23.0.0
 configparser==5.2.0
 requests==2.26.0
 Jinja2==3.0.3
