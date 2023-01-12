@@ -86,7 +86,7 @@ modules that we have.
 and their expiration dates and updates its metadata accordingly.
 * [remove_unused](https://github.com/YangCatalog/backend/blob/master/utility/remove_unused.py) job that removes data on the server that are not used
 anymore.
-* [userReminder](https://github.com/YangCatalog/backend/blob/master/utility/userReminder.py) script that will be triggered twice a year to show us what
+* [user_reminder](https://github.com/YangCatalog/backend/blob/master/utility/user_reminder.py) script that will be triggered twice a year to show us what
 users we have in our database.
 * In the ietfYangDraftPull directory there are four jobs.
     1. [draftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPull.py) adds new modules
