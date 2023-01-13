@@ -15,7 +15,7 @@ BACKEND=/backend
 5 5 * * * (cd ~ ; source bin/activate ; echo "`date` starting revise_tree_type" >> /var/yang/logs/crons-log.log ; cd utility ; python revise_tree_type.py)
 5 6 * * * (cd ~ ; source bin/activate; echo "`date` starting openconfigPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python openconfigPullLocal.py )
 5 12 * * 0 (cd ~ ; source bin/activate ; echo "`date` starting reviseSemver" >> /var/yang/logs/crons-log.log ; cd parseAndPopulate ; python reviseSemver.py)
-5 10 1 * * (cd ~ ; source bin/activate ; echo "`date` starting userReminder" >> /var/yang/logs/crons-log.log ; cd utility ; python userReminder.py)
+5 10 1 * * (cd ~ ; source bin/activate ; echo "`date` starting user_reminder" >> /var/yang/logs/crons-log.log ; cd utility ; python user_reminder.py)
 5 14 * * * (cd ~ ; source bin/activate ; echo "`date` starting ianaPull" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python ianaPull.py)
 5 18 * * * (cd ~ ; source bin/activate ; echo "`date` starting draftPull" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python draftPull.py --send-message)
 5 22 * * * (cd ~ ; source bin/activate ; echo "`date` starting draftPullLocal" >> /var/yang/logs/crons-log.log ; cd ietfYangDraftPull ; python draftPullLocal.py )
