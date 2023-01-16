@@ -33,44 +33,23 @@ import os
 import shutil
 import sys
 import time
-import typing as t
 
 import requests
+from draftPull_config import args, help
 from git.exc import GitCommandError
 
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility as dpu
 from utility import message_factory
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        assert __doc__
-        help = __doc__
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-            {
-                'flag': '--send-message',
-                'help': 'Whether to send a notification',
-                'action': 'store_true',
-                'default': False,
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
     start_time = int(time.time())
     args = script_conf.args
 

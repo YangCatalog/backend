@@ -31,62 +31,20 @@ import json
 import os
 import sys
 import time
-import typing as t
 from argparse import Namespace
 from configparser import ConfigParser
 from datetime import datetime
 
+from recovery_config import args, help, mutually_exclusive_args
+
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = __doc__
-        mutually_exclusive_args: list[list[Arg]] = [
-            [
-                {
-                    'flag': '--save',
-                    'help': 'Set true if you want to backup data',
-                    'action': 'store_true',
-                    'default': False,
-                },
-                {
-                    'flag': '--load',
-                    'help': 'Set true if you want to load data from backup to the database',
-                    'action': 'store_true',
-                    'default': False,
-                },
-            ],
-        ]
-        args: t.List[Arg] = [
-            {
-                'flag': '--file',
-                'help': (
-                    'Set name of the file (without file format) to save data to/load data from. Default name is empty. '
-                    'If name is empty: load operation will use the last available json backup file, '
-                    'save operation will use date and time in UTC.'
-                ),
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--rdb_file',
-                'help': (
-                    'Set name of the file to save data from redis database rdb file to. '
-                    'Default name is current UTC datetime.'
-                ),
-                'type': str,
-                'default': datetime.utcnow().strftime(backup_date_format),
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
 
 class Recovery:
@@ -237,7 +195,15 @@ class LoadDataFromBackupToDatabase(Recovery):
         return modules, vendors
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
+def main(
+    script_conf: BaseScriptConfig = BaseScriptConfig(
+        help,
+        args,
+        None if __name__ == '__main__' else [],
+        mutually_exclusive_args,
+    ),
+    config: ConfigParser = create_config(),
+):
     args = script_conf.args
     if args.save:
         BackupDatabaseData(args, config).start_process()

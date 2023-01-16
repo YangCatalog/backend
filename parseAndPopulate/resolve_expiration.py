@@ -29,6 +29,7 @@ import os
 import time
 
 import requests
+from resolve_expiration_config import help
 
 import utility.log as log
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
@@ -42,17 +43,7 @@ from utility.util import job_log
 current_file_basename = os.path.basename(__file__)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Resolve expiration metadata for each module and set it to Redis if changed. '
-            'This runs as a daily cronjob'
-        )
-
-        super().__init__(help, None, None if __name__ == '__main__' else [])
-
-
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, None, None if __name__ == '__main__' else [])):
     start_time = int(time.time())
 
     config = create_config()

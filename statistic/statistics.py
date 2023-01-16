@@ -44,6 +44,8 @@ import typing as t
 from contextlib import redirect_stdout
 
 import jinja2
+from statistics_config import args as args_conf
+from statistics_config import help
 
 import utility.log as log
 from parseAndPopulate.resolvers.basic import BasicResolver
@@ -54,29 +56,11 @@ from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang '
-            'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily '
-            'cronjob'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
 def render(tpl_path: str, context: dict) -> str:
@@ -230,10 +214,10 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
-def main(script_conf: t.Optional[ScriptConfig] = None):
+def main(script_conf: t.Optional[BaseScriptConfig] = None):
     start_time = int(time.time())
     if script_conf is None:
-        script_conf = ScriptConfig()
+        script_conf = BaseScriptConfig(help, args_conf, None if __name__ == '__main__' else [])
     args = script_conf.args
 
     config_path = args.config_path

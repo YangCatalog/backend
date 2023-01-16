@@ -28,6 +28,8 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import os
 import time
 
+from revise_tree_type_config import help
+
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
@@ -39,13 +41,7 @@ from utility.util import job_log
 current_file_basename = os.path.basename(__file__)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = 'Resolve the tree-type for modules that are no longer the latest revision. Runs as a daily cronjob.'
-        super().__init__(help, None, [])
-
-
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, None, [])):
     start_time = int(time.time())
 
     config = create_config()

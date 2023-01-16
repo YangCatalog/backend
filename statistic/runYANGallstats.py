@@ -24,43 +24,10 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'bclaise@cisco.com'
 
 import os
-import typing as t
 
-from utility.scriptConfig import Arg, BaseScriptConfig
+from runYANGallstats_config import args, help
 
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = 'Count all YANG modules + related stats for a directory and its subdirectories'
-        args: t.List[Arg] = [
-            {
-                'flag': '--rootdir',
-                'help': 'The root directory where to find the source YANG models. Default is "."',
-                'type': str,
-                'default': '.',
-            },
-            {
-                'flag': '--excludedir',
-                'help': 'The root directory from which to exclude YANG models. '
-                'This directory should be under rootdir.',
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--excludekeyword',
-                'help': 'Exclude some keywords from the YANG module name.',
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--removedup',
-                'help': 'Remove duplicate YANG module. Default is False.',
-                'type': bool,
-                'default': False,
-            },
-            {'flag': '--debug', 'help': 'Debug level; the default is 0', 'type': int, 'default': 0},
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+from utility.scriptConfig import BaseScriptConfig
 
 
 def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
@@ -82,7 +49,7 @@ def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
     return ll
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
     args = script_conf.args
 
     # equivalent shell commands (without the de-duplication function)

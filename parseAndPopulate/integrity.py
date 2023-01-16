@@ -39,37 +39,13 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 from datetime import date
 
+from integrity_config import args, help
 from pyang.statements import Statement
 
 from utility import yangParser
-from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import NAMESPACE_MAP
 from utility.util import find_files
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        config = create_config()
-        help = ''
-        args: t.List[Arg] = [
-            {
-                'flag': '--sdo',
-                'help': 'If we are processing sdo or vendor yang modules',
-                'action': 'store_true',
-                'default': False,
-            },
-            {
-                'flag': '--dir',
-                'help': 'Set directory where to look for hello message xml files',
-                'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC',
-            },
-            {'flag': '--output', 'help': 'Output json file', 'type': str, 'default': 'integrity.json'},
-        ]
-        self.yang_models = config.get('Directory-Section', 'yang-models-dir')
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
 
 missing_revisions: t.Set[str] = set()
 missing_namespaces: t.Set[str] = set()
@@ -176,7 +152,7 @@ def capabilities_to_modules(capabilities: str) -> t.List[str]:
     return modules
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
     args = script_conf.args
     args.dir = args.dir.rstrip('/')
     if args.sdo:  # sdo directory

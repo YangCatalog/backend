@@ -14,6 +14,8 @@ import os
 import sys
 import time
 
+from reviseSemver_config import help
+
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
@@ -23,24 +25,6 @@ from utility.staticVariables import JobLogStatuses
 from utility.util import job_log, revision_to_date
 
 current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'This script gets all the existing modules from Yangcatalog, '
-            'then it goes through modules list and get only first revision of each '
-            'unique module. parser_semver() method is then called, which will reevaluate semver for '
-            'each module (and all of the revisions). '
-            'Lastly, populate() method will send PATCH request to ConfD and '
-            'cache will be re-loaded.'
-        )
-
-        help = (
-            'Parse modules on given directory and generate json with module metadata that can be populated'
-            ' to confd directory'
-        )
-        super().__init__(help, None, [])
 
 
 def get_older_revision(module1: dict, module2: dict):
@@ -85,7 +69,7 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, None, [])):
     start_time = int(time.time())
     config = create_config()
 

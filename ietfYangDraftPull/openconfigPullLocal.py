@@ -26,39 +26,22 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import json
 import os
 import time
-import typing as t
 from glob import glob
 
 import requests
+from openconfigPullLocal_config import args, help
 
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, json_headers
 from utility.util import job_log, resolve_revision
 
 current_file_basename = os.path.basename(__file__)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Run populate script on all openconfig files to parse all modules and populate the'
-            ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
     start_time = int(time.time())
     args = script_conf.args
 
