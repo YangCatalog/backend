@@ -248,24 +248,16 @@ class TestResolveExpirationClass(unittest.TestCase):
         self.assertEqual(module.get('expires')[:19], '2021-08-26T06:36:43')
 
     @mock.patch('parseAndPopulate.resolve_expiration.requests.get')
-    @mock.patch('parseAndPopulate.resolve_expiration.time.sleep')
-    def test_resolve_expiration_datatracker_raise_exception(
-        self,
-        mock_time_sleep: mock.MagicMock,
-        mock_requests_get: mock.MagicMock,
-    ):
+    def test_resolve_expiration_datatracker_raise_exception(self, mock_requests_get: mock.MagicMock):
         """Check result of the resolveExpiration method if the datatracker is unavailable
         and raising exception while trying to make GET request. Method should return 'None'
         and the 'datatracker_failures' variable should contain problematic datatracker url
 
         Arguments:
-            :param mock_time_sleep      (mock.MagicMock) time.sleep() method is patched
-            so no need to wait during tests run
             :param mock_requests_get    (mock.MagicMock) requests.get() method is patched to raise exception
         """
         # Load submodule and its config
         mock_requests_get.side_effect = Exception()
-        mock_time_sleep.return_value = None
 
         module = self.load_from_json('ietf-inet-types@2020-07-06-simplified')
         exp_res = ExpirationResolver(module, self.logger, self.datatracker_failures, self.redisConnection)

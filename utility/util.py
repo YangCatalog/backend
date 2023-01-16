@@ -102,8 +102,8 @@ def get_yang(name: str, revision: t.Optional[str] = None, config: ConfigParser =
     """
     save_file_dir = config.get('Directory-Section', 'save-file-dir')
     if revision:
-        return os.path.join(save_file_dir, '{}@{}.yang'.format(name, revision))
-    files = glob.glob(os.path.join(save_file_dir, '{}@*.yang'.format(name)))
+        return os.path.join(save_file_dir, f'{name}@{revision}.yang')
+    files = glob.glob(os.path.join(save_file_dir, f'{name}@*.yang'))
     if not files:
         return None
     filename = max(files)
@@ -169,16 +169,14 @@ def send_for_es_indexing(body_to_send: dict, logger: logging.Logger, paths: dict
         :param logger:              (logging.Logger) Logger used for logging
         :param paths                (dict) dict containing paths to the necessary files
     """
-    logger.info(
-        'Updating metadata for elk - file creation in {} or {}'.format(paths['cache_path'], paths['deletes_path']),
-    )
+    logger.info(f'Updating metadata for elk - file creation in {paths["cache_path"]} or {paths["deletes_path"]}')
     while os.path.exists(paths['lock_path']):
         time.sleep(10)
     try:
         try:
             open(paths['lock_path'], 'w').close()
         except Exception:
-            raise Exception('Failed to obtain lock {}'.format(paths['lock_path']))
+            raise Exception(f'Failed to obtain lock {paths["lock_path"]}')
 
         changes_cache = {}
         delete_cache = []
@@ -213,7 +211,7 @@ def send_for_es_indexing(body_to_send: dict, logger: logging.Logger, paths: dict
     except Exception as e:
         logger.exception('Problem while sending modules to indexing')
         os.unlink(paths['lock_path'])
-        raise Exception('Caught exception {}'.format(e))
+        raise Exception(f'Caught exception {e}')
     os.unlink(paths['lock_path'])
 
 
@@ -233,15 +231,15 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
     for mod_to_delete in modules_to_delete:
         name, revision_organization = mod_to_delete.split('@')
         revision = revision_organization.split('/')[0]
-        path_to_delete_local = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
+        path_to_delete_local = f'{save_file_dir}/{name}@{revision}.yang'
         data = {'input': {'dependents': [{'name': name}]}}
 
-        response = requests.post('{}/search-filter'.format(yc_api_prefix), json=data)
+        response = requests.post(f'{yc_api_prefix}/search-filter', json=data)
         if response.status_code == 200:
             data = response.json()
             modules = data['yang-catalog:modules']['module']
             for mod in modules:
-                redis_key = '{}@{}/{}'.format(mod['name'], mod['revision'], mod['organization'])
+                redis_key = f'{mod["name"]}@{mod["revision"]}/{mod["organization"]}'
                 redis_connection.delete_dependent(redis_key, name)
         if os.path.exists(path_to_delete_local):
             os.remove(path_to_delete_local)
@@ -249,7 +247,7 @@ def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_fil
     post_body = {}
     if modules_to_delete:
         post_body = {'modules-to-delete': modules_to_delete}
-        logger.debug('Modules to delete:\n{}'.format(json.dumps(post_body, indent=2)))
+        logger.debug(f'Modules to delete:\n{json.dumps(post_body, indent=2)}')
         mf = message_factory.MessageFactory()
         mf.send_removed_yang_files(json.dumps(post_body, indent=4))
 
@@ -279,16 +277,11 @@ def prepare_for_es_indexing(
     es_manager = ESManager()
     with open(modules_to_index, 'r') as reader:
         sdos_json = json.load(reader)
-        logger.debug('{} modules loaded from prepare.json'.format(len(sdos_json.get('module', []))))
+        logger.debug(f'{len(sdos_json.get("module", []))} modules loaded from prepare.json')
     post_body = {}
     load_new_files_to_github = False
     for module in sdos_json.get('module', []):
-        url = '{}/search/modules/{},{},{}'.format(
-            yc_api_prefix,
-            module['name'],
-            module['revision'],
-            module['organization'],
-        )
+        url = f'{yc_api_prefix}/search/modules/{module["name"]},{module["revision"]},{module["organization"]}'
         response = requests.get(url, headers=json_headers)
         code = response.status_code
 
@@ -300,13 +293,13 @@ def prepare_for_es_indexing(
             load_new_files_to_github = True
 
         if force_indexing or not in_es or not in_redis:
-            path = '{}/{}@{}.yang'.format(save_file_dir, module.get('name'), module.get('revision'))
-            key = '{}@{}/{}'.format(module['name'], module['revision'], module['organization'])
+            path = f'{save_file_dir}/{module.get("name")}@{module.get("revision")}.yang'
+            key = f'{module["name"]}@{module["revision"]}/{module["organization"]}'
             post_body[key] = path
 
     if post_body:
         post_body = {'modules-to-index': post_body}
-        logger.debug('Modules to index:\n{}'.format(json.dumps(post_body, indent=2)))
+        logger.debug(f'Modules to index:\n{json.dumps(post_body, indent=2)}')
         mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
     if load_new_files_to_github:
         try:
@@ -319,49 +312,83 @@ def prepare_for_es_indexing(
     return post_body
 
 
-def job_log(
+def job_log(file_basename: str):
+    def _job_log_decorator(func):
+        config = create_config()
+        temp_dir = config.get('Directory-Section', 'temp')
+
+        def _job_log(*args, **kwargs):
+            nonlocal temp_dir, file_basename
+            start_time = int(time.time())
+            write_job_log(start_time, temp_dir, file_basename, status=JobLogStatuses.IN_PROGRESS)
+            try:
+                success_messages: list[dict[str, str], ...] = func(*args, **kwargs)
+            except Exception as e:
+                write_job_log(
+                    start_time,
+                    temp_dir,
+                    file_basename,
+                    end_time=int(time.time()),
+                    error=str(e),
+                    status=JobLogStatuses.FAIL,
+                )
+                return
+            write_job_log(
+                start_time,
+                temp_dir,
+                file_basename,
+                end_time=int(time.time()),
+                messages=success_messages,
+                status=JobLogStatuses.SUCCESS,
+            )
+
+        return _job_log
+
+    return _job_log_decorator
+
+
+def write_job_log(
     start_time: int,
     temp_dir: str,
     filename: str,
     status: JobLogStatuses,
-    messages: t.Union[tuple, list] = (),
+    end_time: t.Union[str, int] = '',
+    messages: t.Optional[t.Union[tuple, list]] = (),
     error: str = '',
 ):
-    """Dump job run information into cronjob.json file.
+    """
+    Dump job run information into cronjob.json file.
 
     Arguments:
         :param start_time   (int) Start time of job
         :param temp_dir     (str) Path to the directory where cronjob.json file will be stored
         :param filename     (str) Name of python script
         :param messages     (list) Optional - list of additional messages
-        :param error        (str) Error message - if any error has occured
+        :param end_time     (Union[str, int]) - End time of the job
+        :param error        (str) Error message - if any error has occurred
         :param status       (str) Status of job run - either 'Fail' or 'Success'
     """
-    end_time = int(time.time())
-    result = {'start': start_time, 'end': end_time, 'status': status, 'error': error, 'messages': messages}
+    cronjob_results_path = os.path.join(temp_dir, 'cronjob.json')
+    result = {'start': start_time, 'end': end_time, 'status': status, 'error': error, 'messages': messages or ()}
 
     try:
-        with open('{}/cronjob.json'.format(temp_dir), 'r') as reader:
+        with open(cronjob_results_path, 'r') as reader:
             file_content = json.load(reader)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         file_content = {}
 
     filename = filename.split('.py')[0]
-    last_successfull = None
-    # If successfull rewrite, otherwise use last_successfull value from JSON
+    # If successfully rewrite, otherwise use last_successfull value from JSON
+    last_successful = None
     if status == JobLogStatuses.SUCCESS:
-        last_successfull = end_time
-    else:
-        try:
-            previous_state = file_content[filename]
-            last_successfull = previous_state['last_successfull']
-        except KeyError:
-            last_successfull = None
+        last_successful = end_time
+    elif previous_state := file_content.get(filename):
+        last_successful = previous_state.get('last_successfull')
 
-    result['last_successfull'] = last_successfull
+    result['last_successfull'] = last_successful
     file_content[filename] = result
 
-    with open('{}/cronjob.json'.format(temp_dir), 'w') as writer:
+    with open(cronjob_results_path, 'w') as writer:
         writer.write(json.dumps(file_content, indent=4))
 
 
@@ -401,7 +428,7 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     """
     plugin.plugins = []
     plugin.init([])
-    ctx = create_context('{}:{}'.format(os.path.abspath(yang_models), save_file_dir))
+    ctx = create_context(f'{os.path.abspath(yang_models)}:{save_file_dir}')
     ctx.opts.lint_namespace_prefixes = []
     ctx.opts.lint_modulename_prefixes = []
     opt_parser = optparse.OptionParser('', add_help_option=False)

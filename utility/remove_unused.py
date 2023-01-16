@@ -33,7 +33,7 @@ from datetime import datetime as dt
 import utility.log as log
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.create_config import create_config
-from utility.staticVariables import JobLogStatuses, backup_date_format
+from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 DAY = 86400
@@ -58,10 +58,9 @@ def represents_uuid(s: str) -> bool:
         return False
 
 
+@job_log(file_basename=current_file_basename)
 def main():
-    start_time = int(time.time())
     parser = argparse.ArgumentParser()
-
     parser.add_argument(
         '--config-path',
         type=str,
@@ -85,7 +84,6 @@ def main():
     log_file_path = os.path.join(log_directory, 'jobs', 'removeUnused.log')
     logger = log.get_logger('remove_unused', log_file_path)
     logger.info('Starting Cron job remove unused files')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     current_time = time.time()
     cutoff = current_time - DAY
@@ -174,7 +172,7 @@ def main():
             All other files are removed.
 
             Arguments:
-                :param subdir   (str) Directory to search for backups.
+                :param directory   (str) Directory to search for backups.
             """
             backup_directory = os.path.join(cache_directory, directory)
             list_of_backups = get_list_of_backups(backup_directory)
@@ -226,9 +224,7 @@ def main():
         remove_old_backups('confd')
     except Exception as e:
         logger.exception('Exception found while running remove_unused script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
-    job_log(start_time, temp_dir, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     logger.info('Job finished successfully')
 
 
