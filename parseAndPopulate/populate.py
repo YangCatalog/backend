@@ -41,12 +41,12 @@ from argparse import Namespace
 from configparser import ConfigParser
 
 import requests
-from populate_config import args, help
 
 import utility.log as log
 from parseAndPopulate import parse_directory
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+from parseAndPopulate.populate_config import args, help
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
@@ -54,6 +54,8 @@ from utility.message_factory import MessageFactory
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
+
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 
 class Populate:
@@ -153,7 +155,7 @@ class Populate:
     def _run_parse_directory_script(self) -> tuple[int, int]:
         self.logger.info('Calling parse_directory script')
         try:
-            script_conf = parse_directory.ScriptConfig()
+            script_conf = parse_directory.DEFAULT_SCRIPT_CONFIG
             options = (
                 ('json_dir', self.json_dir),
                 ('result_html_dir', self.args.result_html_dir),
@@ -265,7 +267,7 @@ def main(
     config: ConfigParser = create_config(),
     message_factory: t.Optional[MessageFactory] = None,
 ):
-    script_conf = script_conf or BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+    script_conf = script_conf or DEFAULT_SCRIPT_CONFIG
     Populate(script_conf.args, config, message_factory=message_factory).start_populating()
 
 

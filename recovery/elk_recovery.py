@@ -25,21 +25,15 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import datetime
 import sys
 
-from elk_recovery_config import args, help, mutually_exclusive_args
-
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
+from recovery.elk_recovery_config import args, help, mutually_exclusive_args
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import backup_date_format
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
-def main(
-    script_conf: BaseScriptConfig = BaseScriptConfig(
-        help,
-        args,
-        None if __name__ == '__main__' else [],
-        mutually_exclusive_args,
-    ),
-):
+
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     args = script_conf.args
 
     es_snapshots_manager = ESSnapshotsManager()

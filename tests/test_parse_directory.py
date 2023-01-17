@@ -177,7 +177,7 @@ class TestParseDirectoryClass(unittest.TestCase):
     ):
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
         self.set_script_conf_arguments(script_conf)
         script_conf.args.sdo = True
         script_conf.args.dir = self.resource('sdo')
@@ -203,7 +203,7 @@ class TestParseDirectoryClass(unittest.TestCase):
     ):
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
         self.set_script_conf_arguments(script_conf)
         script_conf.args.sdo = False
         script_conf.args.dir = self.resource('vendor')
@@ -224,7 +224,7 @@ class TestParseDirectoryClass(unittest.TestCase):
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
 
         script_help = script_conf.get_help()
 
@@ -237,7 +237,7 @@ class TestParseDirectoryClass(unittest.TestCase):
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
 
         script_args_list = script_conf.get_args_list()
 
@@ -247,9 +247,9 @@ class TestParseDirectoryClass(unittest.TestCase):
             self.assertIn('default', script_args_list.get(key))
 
     def set_script_conf_arguments(self, script_conf):
-        """Set values to ScriptConfig arguments to be able to run in test environment.
+        """Set values to BaseScriptConfig arguments to be able to run in test environment.
 
-        :returns        ScriptConfig with arguments set.
+        :returns        BaseScriptConfig with arguments set.
         """
         script_conf.args.__setattr__('result_html_dir', yc_gc.result_dir)
         script_conf.args.__setattr__('save_file_dir', yc_gc.save_file_dir)

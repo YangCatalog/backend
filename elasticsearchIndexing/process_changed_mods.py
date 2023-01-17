@@ -24,14 +24,16 @@ import shutil
 import sys
 
 import requests
-from process_changed_mods_config import args, help
 
 from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.process_changed_mods_config import args, help
 from utility import log
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.util import fetch_module_by_schema, validate_revision
+
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 
 class ProcessChangedMods:
@@ -201,7 +203,7 @@ class ProcessChangedMods:
             raise Exception(f'Unable to retrieve content of {module["name"]}@{module["revision"]}')
 
 
-def main(script_config: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
+def main(script_config: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     ProcessChangedMods(script_config).start_processing_changed_mods()
 
 

@@ -25,9 +25,10 @@ __email__ = 'bclaise@cisco.com'
 
 import os
 
-from runYANGallstats_config import args, help
-
+from statistic.runYANGallstats_config import args, help
 from utility.scriptConfig import BaseScriptConfig
+
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 
 def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
@@ -49,7 +50,7 @@ def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
     return ll
 
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     args = script_conf.args
 
     # equivalent shell commands (without the de-duplication function)

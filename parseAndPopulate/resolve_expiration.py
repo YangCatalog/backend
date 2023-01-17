@@ -29,9 +29,9 @@ import os
 import time
 
 import requests
-from resolve_expiration_config import help
 
 import utility.log as log
+from parseAndPopulate.resolve_expiration_config import help
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
@@ -40,10 +40,11 @@ from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, None, None if __name__ == '__main__' else [])
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, None, None if __name__ == '__main__' else [])):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     start_time = int(time.time())
 
     config = create_config()

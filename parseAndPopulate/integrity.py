@@ -39,14 +39,15 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict, deque
 from datetime import date
 
-from integrity_config import args, help
 from pyang.statements import Statement
 
+from parseAndPopulate.integrity_config import args, help
 from utility import yangParser
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import NAMESPACE_MAP
 from utility.util import find_files
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 missing_revisions: t.Set[str] = set()
 missing_namespaces: t.Set[str] = set()
 missing_modules: t.Dict[str, t.Set[str]] = defaultdict(set)
@@ -152,7 +153,7 @@ def capabilities_to_modules(capabilities: str) -> t.List[str]:
     return modules
 
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     args = script_conf.args
     args.dir = args.dir.rstrip('/')
     if args.sdo:  # sdo directory

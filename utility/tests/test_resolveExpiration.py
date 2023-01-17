@@ -279,7 +279,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
 
         script_help = script_conf.get_help()
 
@@ -292,7 +292,7 @@ class TestResolveExpirationClass(unittest.TestCase):
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
 
         script_args_list = script_conf.get_args_list()
 

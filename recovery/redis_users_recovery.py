@@ -28,27 +28,23 @@ import os
 import time
 from configparser import ConfigParser
 
-from recovery_config import args, help, mutually_exclusive_args
 from redis import Redis
 
 import utility.log as log
+from recovery.redis_users_recovery_config import args, help, mutually_exclusive_args
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 current_file_basename = os.path.basename(__file__)
 
 
 class RedisUsersRecovery:
     def __init__(
         self,
-        script_conf: BaseScriptConfig = BaseScriptConfig(
-            help,
-            args,
-            None if __name__ == '__main__' else [],
-            mutually_exclusive_args,
-        ),
+        script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG,
         config: ConfigParser = create_config(),
     ):
         self.start_time = None
@@ -134,14 +130,7 @@ class RedisUsersRecovery:
         self.logger.info(f'Data loaded from {file_name} successfully')
 
 
-def main(
-    script_conf: BaseScriptConfig = BaseScriptConfig(
-        help,
-        args,
-        None if __name__ == '__main__' else [],
-        mutually_exclusive_args,
-    ),
-):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     RedisUsersRecovery(script_conf=script_conf).start_process()
 
 

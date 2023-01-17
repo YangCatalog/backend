@@ -35,22 +35,21 @@ import typing as t
 from configparser import ConfigParser
 from logging import Logger
 
-from parse_directory_config import args, help
-
 import utility.log as log
 from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
+from parseAndPopulate.parse_directory_config import args, help
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.util import parse_name, parse_revision, strip_comments
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
-def main(
-    script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else []),
-) -> tuple[int, int]:
+
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG) -> tuple[int, int]:
     args = script_conf.args
 
     config_path = args.config_path

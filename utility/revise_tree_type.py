@@ -28,20 +28,20 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import os
 import time
 
-from revise_tree_type_config import help
-
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
+from utility.revise_tree_type_config import help
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, None, [])
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, None, [])):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     start_time = int(time.time())
 
     config = create_config()

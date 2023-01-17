@@ -44,8 +44,6 @@ import typing as t
 from contextlib import redirect_stdout
 
 import jinja2
-from statistics_config import args as args_conf
-from statistics_config import help
 
 import utility.log as log
 from parseAndPopulate.resolvers.basic import BasicResolver
@@ -53,6 +51,8 @@ from parseAndPopulate.resolvers.namespace import NamespaceResolver
 from parseAndPopulate.resolvers.organization import OrganizationResolver
 from parseAndPopulate.resolvers.revision import RevisionResolver
 from statistic import runYANGallstats as all_stats
+from statistic.statistics_config import args as args_conf
+from statistic.statistics_config import help
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
@@ -60,6 +60,7 @@ from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url
 from utility.util import job_log
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args_conf, None if __name__ == '__main__' else [])
 current_file_basename = os.path.basename(__file__)
 
 
@@ -217,7 +218,7 @@ def solve_platforms(path: str) -> set:
 def main(script_conf: t.Optional[BaseScriptConfig] = None):
     start_time = int(time.time())
     if script_conf is None:
-        script_conf = BaseScriptConfig(help, args_conf, None if __name__ == '__main__' else [])
+        script_conf = DEFAULT_SCRIPT_CONFIG
     args = script_conf.args
 
     config_path = args.config_path
@@ -340,7 +341,7 @@ def main(script_conf: t.Optional[BaseScriptConfig] = None):
             removedup is set to True by default.
             """
             kwargs.setdefault('removedup', True)
-            script_conf = all_stats.ScriptConfig()
+            script_conf = all_stats.DEFAULT_SCRIPT_CONFIG
             for key, value in kwargs.items():
                 setattr(script_conf.args, key, value)
             with redirect_stdout(io.StringIO()) as f:

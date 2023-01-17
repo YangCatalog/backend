@@ -27,15 +27,16 @@ import json
 import os
 import sys
 
-from elk_fill_config import args, help
-
 import utility.log as log
+from recovery.elk_fill_config import args, help
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import BaseScriptConfig
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
+
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     args = script_conf.args
 
     config = create_config(args.config_path)

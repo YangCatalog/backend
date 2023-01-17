@@ -33,19 +33,20 @@ import xml.etree.ElementTree as ET
 from shutil import copy2
 
 from git.exc import GitCommandError
-from ianaPull_config import args, help
 
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility as dpu
+from ietfYangDraftPull.ianaPull_config import args, help
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     start_time = int(time.time())
     args = script_conf.args
 

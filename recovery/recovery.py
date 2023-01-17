@@ -35,15 +35,15 @@ from argparse import Namespace
 from configparser import ConfigParser
 from datetime import datetime
 
-from recovery_config import args, help, mutually_exclusive_args
-
 import utility.log as log
+from recovery.recovery_config import args, help, mutually_exclusive_args
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 current_file_basename = os.path.basename(__file__)
 
 
@@ -195,15 +195,7 @@ class LoadDataFromBackupToDatabase(Recovery):
         return modules, vendors
 
 
-def main(
-    script_conf: BaseScriptConfig = BaseScriptConfig(
-        help,
-        args,
-        None if __name__ == '__main__' else [],
-        mutually_exclusive_args,
-    ),
-    config: ConfigParser = create_config(),
-):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG, config: ConfigParser = create_config()):
     args = script_conf.args
     if args.save:
         BackupDatabaseData(args, config).start_process()

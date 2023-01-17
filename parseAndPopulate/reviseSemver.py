@@ -14,16 +14,16 @@ import os
 import sys
 import time
 
-from reviseSemver_config import help
-
 import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
+from parseAndPopulate.reviseSemver_config import help
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log, revision_to_date
 
+DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, None, [])
 current_file_basename = os.path.basename(__file__)
 
 
@@ -69,7 +69,7 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-def main(script_conf: BaseScriptConfig = BaseScriptConfig(help, None, [])):
+def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     start_time = int(time.time())
     config = create_config()
 
