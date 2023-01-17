@@ -40,12 +40,14 @@ from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
-from parseAndPopulate.parse_directory_config import args, help
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.util import parse_name, parse_revision, strip_comments
 
+help = script_config_dict['parse_directory']['help']
+args = script_config_dict['parse_directory']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 

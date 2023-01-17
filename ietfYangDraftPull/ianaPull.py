@@ -36,12 +36,14 @@ from git.exc import GitCommandError
 
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility as dpu
-from ietfYangDraftPull.ianaPull_config import args, help
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
+help = script_config_dict['ianaPull']['help']
+args = script_config_dict['ianaPull']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 current_file_basename = os.path.basename(__file__)
 

@@ -43,15 +43,17 @@ import utility.log as log
 from parseAndPopulate import parse_directory
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
-from parseAndPopulate.populate_config import args, help
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.message_factory import MessageFactory
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
+help = script_config_dict['populate']['help']
+args = script_config_dict['populate']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 

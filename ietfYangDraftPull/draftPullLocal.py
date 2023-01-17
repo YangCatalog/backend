@@ -34,13 +34,15 @@ import requests
 
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility
-from ietfYangDraftPull.draftPull_config import args, help
 from utility import repoutil
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, github_url
 from utility.util import job_log
 
+help = script_config_dict['draftPullLocal']['help']
+args = script_config_dict['draftPullLocal']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 current_file_basename = os.path.basename(__file__)
 

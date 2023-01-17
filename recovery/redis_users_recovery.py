@@ -31,12 +31,15 @@ from configparser import ConfigParser
 from redis import Redis
 
 import utility.log as log
-from recovery.redis_users_recovery_config import args, help, mutually_exclusive_args
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+help = script_config_dict['redis_users_recovery']['help']
+args = script_config_dict['redis_users_recovery']['args']
+mutually_exclusive_args = script_config_dict['redis_users_recovery']['mutually_exclusive_args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 current_file_basename = os.path.basename(__file__)
 

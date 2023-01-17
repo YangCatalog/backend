@@ -41,12 +41,14 @@ from datetime import date
 
 from pyang.statements import Statement
 
-from parseAndPopulate.integrity_config import args, help
 from utility import yangParser
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import NAMESPACE_MAP
 from utility.util import find_files
 
+help = script_config_dict['integrity']['help']
+args = script_config_dict['integrity']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 missing_revisions: t.Set[str] = set()
 missing_namespaces: t.Set[str] = set()

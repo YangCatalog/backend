@@ -36,13 +36,16 @@ from configparser import ConfigParser
 from datetime import datetime
 
 import utility.log as log
-from recovery.recovery_config import args, help, mutually_exclusive_args
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
+help = script_config_dict['recovery']['help']
+args = script_config_dict['recovery']['args']
+mutually_exclusive_args = script_config_dict['recovery']['mutually_exclusive_args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 current_file_basename = os.path.basename(__file__)
 

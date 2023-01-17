@@ -27,12 +27,14 @@ import requests
 
 from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.process_changed_mods_config import args, help
 from utility import log
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.util import fetch_module_by_schema, validate_revision
 
+help = script_config_dict['process_changed_mods']['help']
+args = script_config_dict['process_changed_mods']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 

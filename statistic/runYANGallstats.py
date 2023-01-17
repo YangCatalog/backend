@@ -25,9 +25,11 @@ __email__ = 'bclaise@cisco.com'
 
 import os
 
-from statistic.runYANGallstats_config import args, help
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 
+help = script_config_dict['runYANGallstats']['help']
+args = script_config_dict['runYANGallstats']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
 
 

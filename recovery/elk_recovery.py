@@ -26,10 +26,13 @@ import datetime
 import sys
 
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
-from recovery.elk_recovery_config import args, help, mutually_exclusive_args
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import backup_date_format
 
+help = script_config_dict['elk_recovery']['help']
+args = script_config_dict['elk_recovery']['args']
+mutually_exclusive_args = script_config_dict['elk_recovery']['mutually_exclusive_args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
 
 

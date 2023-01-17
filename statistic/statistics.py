@@ -51,15 +51,16 @@ from parseAndPopulate.resolvers.namespace import NamespaceResolver
 from parseAndPopulate.resolvers.organization import OrganizationResolver
 from parseAndPopulate.resolvers.revision import RevisionResolver
 from statistic import runYANGallstats as all_stats
-from statistic.statistics_config import args as args_conf
-from statistic.statistics_config import help
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url
 from utility.util import job_log
 
+help = script_config_dict['statistics']['help']
+args_conf = script_config_dict['statistics']['args']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args_conf, None if __name__ == '__main__' else [])
 current_file_basename = os.path.basename(__file__)
 

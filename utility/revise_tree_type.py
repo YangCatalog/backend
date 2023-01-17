@@ -32,11 +32,12 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
-from utility.revise_tree_type_config import help
+from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import BaseScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
+help = script_config_dict['revise_tree_type']['help']
 DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, None, [])
 current_file_basename = os.path.basename(__file__)
 
