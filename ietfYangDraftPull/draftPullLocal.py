@@ -115,7 +115,6 @@ def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
     messages = []
     notify_indexing = notify_indexing == 'True'
     success = True
-    repo = None
     try:
         # Clone YangModels/yang repository
         clone_dir = os.path.join(temp_dir, 'draftpulllocal')

@@ -39,13 +39,14 @@ GREETINGS = 'Hello from yang-catalog'
 
 
 class MessageFactory:
-    """This class serves to automatically send a message to
-    Webex Teams cisco admins private room and/or to send
+    """
+    This class serves to automatically send a message to Webex Teams cisco admins private room and/or to send
     a message to a group of admin e-mails
     """
 
     def __init__(self, config_path: str = os.environ['YANGCATALOG_CONFIG_PATH']):
-        """Setup Webex teams rooms and smtp
+        """
+        Setup Webex teams rooms and smtp
 
         Arguments:
             :param config_path: (str) path to a yangcatalog.conf file
@@ -88,7 +89,8 @@ class MessageFactory:
             sys.exit(1)
 
     def _post_to_webex(self, msg: str, markdown: bool = False, files: t.Union[list, tuple] = ()):
-        """Send message to a webex room
+        """
+        Send message to a webex room
 
         Arguments:
             :param msg          (str) message to send
@@ -118,13 +120,14 @@ class MessageFactory:
         subject: str = '',
         subtype: str = 'plain',
     ):
-        """Send message to an e-mail
+        """
+        Send message to an e-mail
 
         Arguments:
             :param message      (str) message to send
             :param email_to     (list) list of emails to send the message to
             :param subject      (str) subject string
-            :param subtype      (str) MIME text sybtype of the message. Default is "plain".
+            :param subtype      (str) MIME text subtype of the message. Default is "plain".
         """
         send_to = email_to if email_to else self._email_to
         newline_character = '<br>' if subtype == 'html' else '\n'
@@ -140,22 +143,38 @@ class MessageFactory:
         self._smtp.sendmail(self._email_from, send_to, msg.as_string())
         self._smtp.quit()
 
+    def send_user_reminder_message(self, user_data):
+        """
+        Send a message with the current data of pending and approved users.
+        Messages are sent to Cisco Webex in Markdown format, and e-mails in HTML format.
+
+        Arguments:
+            :param user_data  (dict) dictionary containing the data of approved and pending users
+        """
+        self._post_to_webex(self._markdown_user_reminder_message(user_data), markdown=True)
+        self._post_to_email(
+            self._html_user_reminder_message(user_data),
+            subtype='html',
+            subject='Automatic generated message - Users review',
+        )
+
     def _html_user_reminder_message(self, user_data: dict):
-        """Generate the user reminder message in HTML format
+        """
+        Generate the user reminder message in HTML format
 
         Arguments:
             :param user_data  (dict) dictionary containing the data of approved and pending users
         """
         ret_text = '<h3>approved users</h3>'
 
-        ret_text += '<table style="width:100%"><tr>'
-        for header in ['user', 'name', 'surname', 'sdo_rights', 'vendor_rights', 'organization', 'email']:
+        ret_text += '<table style="text-align:center;width:1%"><tr>'
+        for header in ('user', 'name', 'surname', 'sdo_rights', 'vendor_rights', 'organization', 'email'):
             ret_text += f'<th>{header}</th>'
         ret_text += '</tr>'
 
         for fields in user_data['approved']:
             ret_text += '<tr>'
-            for key in [
+            for key in (
                 'username',
                 'first-name',
                 'last-name',
@@ -163,21 +182,21 @@ class MessageFactory:
                 'access-rights-vendor',
                 'models-provider',
                 'email',
-            ]:
+            ):
                 ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
         ret_text += '</table><br>'
 
         ret_text += '<h3>users pending approval</h3>'
 
-        ret_text += '<table style="width:100%"><tr>'
-        for header in ['user', 'name', 'surname', 'organization', 'email']:
+        ret_text += '<table style="text-align:center;width:1%"><tr>'
+        for header in ('user', 'name', 'surname', 'organization', 'email'):
             ret_text += f'<th>{header}</th>'
         ret_text += '<tr>'
 
         for fields in user_data['temp']:
             ret_text += '<tr>'
-            for key in ['username', 'first-name', 'last-name', 'models-provider', 'email']:
+            for key in ('username', 'first-name', 'last-name', 'models-provider', 'email'):
                 ret_text += f'<td>{str(fields.get(key))}</td>'
             ret_text += '</tr>'
         ret_text += '</table>'
@@ -189,7 +208,8 @@ class MessageFactory:
         )
 
     def _markdown_user_reminder_message(self, users_stats: dict):
-        """Generate the user reminder message in Markdown format
+        """
+        Generate the user reminder message in Markdown format
 
         Arguments:
             :param users_stats  (dict) dictionary containing the data of approved and pending users
@@ -242,16 +262,6 @@ class MessageFactory:
 
         return f'{GREETINGS}\n\nTime to review the user profiles: affiliations and capabilities\n\n{tables_text}'
 
-    def send_user_reminder_message(self, user_data):
-        """Send a message with the current data of pending and approved users.
-        Messages are sent to Cisco Webex in markdown format, and e-mails in HTML format.
-
-        Arguments:
-            :param user_data  (dict) dictionary containing the data of approved and pending users
-        """
-        self._post_to_webex(self._markdown_user_reminder_message(user_data), markdown=True)
-        self._post_to_email(self._html_user_reminder_message(user_data), subtype='html')
-
     def send_new_rfc_message(self, new_files, diff_files):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
         new_files = '\n'.join(new_files)
@@ -267,31 +277,30 @@ class MessageFactory:
         self._post_to_email(message)
 
     def send_travis_auth_failed(self):
-        """Send a message to Cisco Webex notifying about failed authorization
-        on the endpoint for Travis jobs.
-        """
+        """Send a message to Cisco Webex notifying about failed authorization on the endpoint for Travis jobs."""
         self.LOGGER.info('Sending notification about travis authorization failed')
         message = 'Travis pull job not sent because patch was not sent from' ' travis. Key verification failed'
         self._post_to_webex(message)
 
     def send_automated_procedure_failed(self, arguments: list, file: str):
-        """Send a message to Cisco Webex notifying about a failed job started from
-        the admin UI.
+        """
+        Send a message to Cisco Webex notifying about a failed job started from the admin UI.
 
         Arguments:
-            :param arguments    (list) A list of arguments passed to the job.
-            :param file         (str) Path to a file to attatch.
+            :param arguments    (list) A list of arguments passed to the job
+            :param file         (str) Path to a file to attach
         """
         self.LOGGER.info('Sending notification about any automated procedure failure')
         message = f'Automated procedure with arguments:\n {arguments} \nfailed with error. Please see attached document'
         self._post_to_webex(message, True, files=[file])
 
     def send_github_action_email(self, conclusion: str, html_url: str):
-        """Send an email to developers team about final state of github action.
+        """
+        Email developers team about final state of GitHub action.
 
         Arguments:
-            :param conclusion  (str) Result state of github action.
-            :param html_url    (str) Link to the page with more details about github action.
+            :param conclusion  (str) Result state of GitHub action
+            :param html_url    (str) Link to the page with more details about GitHub action
         """
         self.LOGGER.info('Sending notification about failed github action')
         message = f'{GREETINGS}\n\nSome github action has a {conclusion} conclusion.' f'\n\nMore details: {html_url}'
@@ -303,7 +312,8 @@ class MessageFactory:
         pass
 
     def send_removed_yang_files(self, removed_yang_files: str):
-        """Send a message to Cisco Webex notifying about removed YANG modules.
+        """
+        Send a message to Cisco Webex notifying about removed YANG modules.
 
         Arguments:
             :param removed_yang_files   (str) Dumped JSON object containing
@@ -319,11 +329,11 @@ class MessageFactory:
         self._post_to_webex(message, True, files=[self._message_log_file])
 
     def send_added_new_yang_files(self, added_yang_files: str):
-        """Send a message to Cisco Webex notifying about new YANG modules.
+        """
+        Send a message to Cisco Webex notifying about new YANG modules.
 
         Arguments:
-            :param added_yang_files     (str) Dumped JSON object containing
-                a list of new YANG modules.
+            :param added_yang_files  (str) Dumped JSON object containing a list of new YANG modules.
         """
         self.LOGGER.info('Sending notification about added yang modules')
         message = 'Files have been added to yangcatalog.org. See attached document'
@@ -336,12 +346,12 @@ class MessageFactory:
         self._post_to_webex(message, True, files=[self._message_log_file])
 
     def send_new_modified_platform_metadata(self, new_files: list, modified_files: list):
-        """Send a message to Cisco Webex notifying about new or modified platform
-        metadata.
+        """
+        Send a message to Cisco Webex notifying about new or modified platform metadata.
 
         Arguments:
-            :param new_files        (list) A list of newly added files.
-            :param modified_files   (list) A list of modified files.
+            :param new_files        (list) A list of newly added files
+            :param modified_files   (list) A list of modified files
         """
         self.LOGGER.info('Sending notification about new or modified platform metadata')
         new_files_string = '\n'.join(new_files)
@@ -358,8 +368,8 @@ class MessageFactory:
         self._post_to_webex(message, True, files=[self._message_log_file])
 
     def send_github_unavailable_schemas(self, modules_list: list):
-        """Send an e-mail message notifying about schemas which could not be fetched
-        from GitHub.
+        """
+        Send an e-mail message notifying about schemas which could not be fetched from GitHub.
 
         Arguments:
             :param modules_list     (list) A list of modules whose schemas could not
@@ -370,12 +380,13 @@ class MessageFactory:
         self._post_to_email(message, self._developers_email)
 
     def send_new_user(self, username: str, email: str, motivation: str):
-        """Send an e-mail message notifying about a new user sign up request.
+        """
+        Send an e-mail message notifying about a new user sign up request.
 
         Arguments:
-            :param username     (str) Username of the new user.
-            :param email        (str) Email used to register.
-            :param motivation   (str) The user's submitted reason for registering.
+            :param username     (str) Username of the new user
+            :param email        (str) Email used to register
+            :param motivation   (str) The user's submitted reason for registering
         """
         self.LOGGER.info('Sending notification about new user')
 
@@ -392,7 +403,7 @@ class MessageFactory:
 
         Arguments:
             :param type     (str) Type of the data, either 'vendors' or 'modules'
-            :param data     (dict) Dictionary containg the rejected data.
+            :param data     (dict) Dictionary containing the rejected data.
         """
         subject = f'Following {type} failed to write to ConfD'
         self.LOGGER.info(subject)
@@ -404,7 +415,8 @@ class MessageFactory:
         self._post_to_email(message, email_to=self._developers_email, subject=subject)
 
     def send_populate_script_triggered_by_api(self, args: t.Iterable[tuple[str, t.Any]]):
-        """Send a webex message notifying that populate.py script has been triggered by an api call.
+        """
+        Send a webex message notifying that populate.py script has been triggered by an api call.
 
         Arguments:
             :param args  (t.Iterable[str, t.Any]) list of all arguments populate.py script was called with

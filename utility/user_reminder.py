@@ -14,8 +14,7 @@ class UserReminder:
         self.users = RedisUsersConnection()
 
     def send_message(self):
-        user_stats = self._produce_users_info()
-        self._mf.send_user_reminder_message(user_stats)
+        self._mf.send_user_reminder_message(self._produce_users_info())
 
     def _produce_users_info(self):
         return {
@@ -25,5 +24,4 @@ class UserReminder:
 
 
 if __name__ == '__main__':
-    ur = UserReminder()
-    ur.send_message()
+    UserReminder().send_message()

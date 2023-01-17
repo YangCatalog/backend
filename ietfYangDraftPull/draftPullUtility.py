@@ -52,11 +52,10 @@ from utility.util import revision_to_date
 
 
 def construct_github_repo_url(user: str, repo: str, token: t.Optional[str] = None) -> str:
-    """Construct the URL to a Github repository."""
+    """Construct the URL to a GitHub repository."""
     if token:
         return f'https://{token}@github.com/{user}/{repo}.git'
-    else:
-        return f'https://github.com/{user}/{repo}.git'
+    return f'https://github.com/{user}/{repo}.git'
 
 
 def get_latest_revision(path: str, logger: logging.Logger):
@@ -165,10 +164,11 @@ def _is_revision_part_valid(revision_part: str) -> bool:
     return revision_part.startswith('.') or revision_part.startswith('@')
 
 
-def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, logger: logging.Logger) -> None:
-    """Loop through download links for each module found in IETFDraft.json and try to get their content.
+def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, logger: logging.Logger):
+    """
+    Loop through download links for each module found in IETFDraft.json and try to get their content.
 
-    Aruments:
+    Arguments:
         :param experimental_path    (str) full path to the directory with cloned experimental modules
         :param config               (configparser.ConfigParser) instance of ConfigParser class
         :param logger               (logging.Logger) formated logger with the specified name
@@ -183,45 +183,58 @@ def get_draft_module_content(experimental_path: str, config: configparser.Config
     except json.decoder.JSONDecodeError:
         logger.error(f'Unable to get content of {os.path.basename(ietf_draft_url)} file')
     for key in ietf_draft_json:
-        filename = os.path.join(experimental_path, key)
-        with open(filename, 'w+') as yang_file:
-            yang_download_link = ietf_draft_json[key][2].split('href="')[1].split('">Download')[0]
-            yang_download_link = yang_download_link.replace(domain_prefix, my_uri)
-            try:
-                yang_raw = requests.get(yang_download_link).text
-                yang_file.write(yang_raw)
-            except ConnectionError:
-                logger.error(f'Unable to retreive content of {key} - {yang_download_link}')
-                yang_file.write('')
+        file_path = os.path.join(experimental_path, key)
+        yang_download_link = ietf_draft_json[key]['compilation_metadata'][2].split('href="')[1].split('">Download')[0]
+        yang_download_link = yang_download_link.replace(domain_prefix, my_uri)
+        try:
+            file_content_response = requests.get(yang_download_link)
+        except ConnectionError:
+            logger.error(f'Unable to retreive content of: {key} - {yang_download_link}')
+            continue
+        if 'text/html' in file_content_response.headers['content-type']:
+            logger.error(f'The content of "{key}" file is a broken html, download link: {yang_download_link}')
+            if not os.path.exists(file_path):
+                continue
+            with open(file_path, 'r') as possibly_broken_module:
+                lines = possibly_broken_module.readlines()
+                module_is_broken = '<html>' in lines[1] and '</html>' in lines[-1]
+            if module_is_broken:
+                logger.info(f'Deleted the file because of broken content: {key} - {yang_download_link}')
+                os.remove(file_path)
+            continue
+        with open(file_path, 'w') as yang_file:
+            yang_file.write(file_content_response.text)
 
 
 def extract_rfc_tgz(tgz_path: str, extract_to: str, logger: logging.Logger) -> bool:
-    """Extract downloaded rfc.tgz file to directory and remove file.
+    """
+    Extract downloaded rfc.tgz file to directory and remove file.
 
     Arguments:
         :param tgz_path     (str) full path to the rfc.tgz file
         :param extract_to   (str) path to the directory where rfc.tgz is extractracted to
         :param logger       (logging.Logger) formated logger with the specified name
+    :return  (bool) Indicates if the tar archive was opened or not
     """
-    tar_opened = False
-    tgz = ''
     try:
         tgz = tarfile.open(tgz_path)
         tar_opened = True
         tgz.extractall(extract_to)
         tgz.close()
     except tarfile.ReadError:
+        tar_opened = False
         logger.warning(
-            'tarfile could not be opened. It might not have been generated yet.'
-            ' Did the module-compilation cron job run already?',
+            'Tarfile could not be opened. It might not have been generated yet. '
+            'Did the module-compilation cron job run already?',
         )
     os.remove(tgz_path)
 
     return tar_opened
 
 
-def set_permissions(directory: str) -> None:
-    """Use chown for all the files and folders recursively in provided directory.
+def set_permissions(directory: str):
+    """
+    Use chown for all the files and folders recursively in provided directory.
 
     Argument:
         :param directory    (str) path to the directory where permissions should be set
@@ -236,8 +249,9 @@ def set_permissions(directory: str) -> None:
             os.chown(os.path.join(root, file), uid, gid)
 
 
-def update_forked_repository(yang_models: str, forked_repo_url: str, logger: logging.Logger) -> None:
-    """Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
+def update_forked_repository(yang_models: str, forked_repo_url: str, logger: logging.Logger):
+    """
+    Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
     Push missing commits to the forked repository if any are missing.
 
     Arguments:
@@ -279,7 +293,8 @@ def clone_forked_repository(
     commit_author: dict,
     logger: logging.Logger,
 ) -> t.Optional[repoutil.ModifiableRepoUtil]:
-    """Try to clone forked repository. Repeat the cloning process several times if the attempt was not successful.
+    """
+    Try to clone forked repository. Repeat the cloning process several times if the attempt was not successful.
 
     Arguments:
         :param repourl          (str) URL to the Github repository
@@ -305,5 +320,4 @@ def clone_forked_repository(
                 logger.exception(f'Failed to clone repository {repo_name}')
                 return
             time.sleep(wait_for_seconds)
-
     return repo
