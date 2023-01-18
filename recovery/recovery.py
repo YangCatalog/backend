@@ -29,8 +29,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import gzip
 import json
 import os
-import sys
-import time
 import typing as t
 from argparse import Namespace
 from configparser import ConfigParser
@@ -40,7 +38,7 @@ import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import JobLogStatuses, backup_date_format
+from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -96,9 +94,7 @@ class Recovery:
         config: ConfigParser = create_config(),
         redis_connection: RedisConnection = RedisConnection(),
     ):
-        self.start_time = None
         self.job_log_messages = []
-        self.job_log_filename = current_file_basename
         self.yang_catalog_module_name = 'yang-catalog@2018-04-03/ietf'
         self.process_type = ''
 
@@ -115,19 +111,12 @@ class Recovery:
         self.redis_json_backup = os.path.join(self.cache_directory, 'redis-json')
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
+    @job_log(file_basename=current_file_basename)
     def start_process(self):
-        self.start_time = int(time.time())
         self.logger.info(f'Starting {self.process_type} process of Redis database')
-        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=self.job_log_filename)
         self._start_process()
         self.logger.info(f'{self.process_type} process of Redis database finished successfully')
-        job_log(
-            self.start_time,
-            self.temp_dir,
-            messages=self.job_log_messages,
-            status=JobLogStatuses.SUCCESS,
-            filename=self.job_log_filename,
-        )
+        return self.job_log_messages
 
     def _start_process(self):
         """Main logic of the script"""
@@ -193,14 +182,7 @@ class LoadDataFromBackupToDatabase(Recovery):
             if not list_of_backups:
                 error_message = 'Didn\'t find any backups, finishing execution of the script'
                 self.logger.error(error_message)
-                job_log(
-                    self.start_time,
-                    self.temp_dir,
-                    status=JobLogStatuses.FAIL,
-                    error=error_message,
-                    filename=self.job_log_filename,
-                )
-                sys.exit()
+                raise RuntimeError(error_message)
             self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
         redis_modules = self.redis_connection.get_all_modules()
         yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)

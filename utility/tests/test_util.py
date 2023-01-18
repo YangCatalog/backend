@@ -73,7 +73,7 @@ class TestUtilClass(unittest.TestCase):
         Check if structure is correct.
         """
         start_time = int(time.time())
-        util.job_log(start_time, yc_gc.temp_dir, status=JobLogStatuses.SUCCESS, filename=self.filename)
+        util.write_job_log(start_time, yc_gc.temp_dir, status=JobLogStatuses.SUCCESS, filename=self.filename)
         cronjob_data = self.load_cronjob_data()
 
         job_log = cronjob_data.get(self.filename, {})
@@ -91,7 +91,7 @@ class TestUtilClass(unittest.TestCase):
         Check if structure is correct.
         """
         start_time = int(time.time())
-        util.job_log(
+        util.write_job_log(
             start_time,
             yc_gc.temp_dir,
             error='Error occured',
@@ -117,7 +117,7 @@ class TestUtilClass(unittest.TestCase):
         """
         start_time = int(time.time())
         messages = [{'label': 'Message label', 'message': 'Message text'}]
-        util.job_log(
+        util.write_job_log(
             start_time,
             yc_gc.temp_dir,
             messages=messages,

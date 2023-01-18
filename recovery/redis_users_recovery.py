@@ -25,7 +25,6 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import datetime
 import json
 import os
-import time
 from configparser import ConfigParser
 
 from redis import Redis
@@ -33,7 +32,7 @@ from redis import Redis
 import utility.log as log
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import JobLogStatuses, backup_date_format
+from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -77,7 +76,6 @@ class ScriptConfig(BaseScriptConfig):
 
 class RedisUsersRecovery:
     def __init__(self, script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
-        self.start_time = None
         self.args = script_conf.args
         self.log_directory = config.get('Directory-Section', 'logs')
         self.temp_dir = config.get('Directory-Section', 'temp')
@@ -88,17 +86,15 @@ class RedisUsersRecovery:
         self.redis = Redis(host=self.redis_host, port=self.redis_port, db=2)
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
+    @job_log(file_basename=current_file_basename)
     def start_process(self):
-        self.start_time = int(time.time())
         process_type = 'save' if self.args.save else 'load'
         self.logger.info(f'Starting {process_type} process of redis users database')
-        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
         if self.args.save:
             self.backup_data_from_redis()
         elif self.args.load:
             self.load_data_from_backup_to_redis()
         self.logger.info(f'{process_type} process of redis users database finished successfully')
-        job_log(self.start_time, self.temp_dir, current_file_basename, status=JobLogStatuses.SUCCESS)
 
     def backup_data_from_redis(self):
         data = {}
@@ -118,15 +114,7 @@ class RedisUsersRecovery:
                     else:
                         raise ValueError(f'Key of unknown type ({key_type}) was found while saving data from redis')
                 except ValueError as e:
-                    exception_message = str(e)
-                    self.logger.exception(exception_message)
-                    job_log(
-                        self.start_time,
-                        self.temp_dir,
-                        current_file_basename,
-                        status=JobLogStatuses.FAIL,
-                        error=exception_message,
-                    )
+                    self.logger.exception(str(e))
                     raise e
                 data[key.decode()] = value
             if cursor == 0:

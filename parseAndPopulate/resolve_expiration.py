@@ -26,7 +26,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import os
-import time
 
 import requests
 
@@ -36,7 +35,6 @@ from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import BaseScriptConfig
-from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -52,17 +50,14 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, None, None if __name__ == '__main__' else [])
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
-    start_time = int(time.time())
-
+@job_log(file_basename=current_file_basename)
+def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
     config = create_config()
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-    temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     logger = log.get_logger('resolve_expiration', f'{log_directory}/jobs/resolve_expiration.log')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     revision_updated_modules = 0
     datatracker_failures = []
@@ -91,7 +86,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
             logger.info(f'Cache loaded with status {response.status_code}')
     except Exception as e:
         logger.exception('Exception found while running resolve_expiration script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     if len(datatracker_failures) > 0:
         datatracker_failures_to_write = '\n'.join(datatracker_failures)
@@ -100,8 +94,8 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
         {'label': 'Modules with changed revison', 'message': revision_updated_modules},
         {'label': 'Datatracker modules failures', 'message': len(datatracker_failures)},
     ]
-    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     logger.info('Job finished successfully')
+    return messages
 
 
 if __name__ == '__main__':

@@ -55,7 +55,7 @@ from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url
+from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, github_url
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -230,6 +230,7 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
+@job_log(file_basename=current_file_basename)
 def main(script_conf: t.Optional[ScriptConfig] = None):
     start_time = int(time.time())
     if script_conf is None:
@@ -243,7 +244,6 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     move_to = f'{config.get("Web-Section", "public-directory")}/.'
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     log_directory = config.get('Directory-Section', 'logs')
-    temp_dir = config.get('Directory-Section', 'temp')
     private_dir = config.get('Web-Section', 'private-directory')
     global yangcatalog_api_prefix
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
@@ -251,7 +251,6 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     global LOGGER
     LOGGER = log.get_logger('statistics', f'{log_directory}/statistics/yang.log')
     LOGGER.info('Starting statistics')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo = None
 
@@ -467,9 +466,7 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
         LOGGER.info(f'Final time in seconds to produce statistics {total_time}')
     except Exception as e:
         LOGGER.exception('Exception found while running statistics script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
-        raise Exception(e)
-    job_log(start_time, temp_dir, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
+        raise e
     LOGGER.info('Job finished successfully')
 
 

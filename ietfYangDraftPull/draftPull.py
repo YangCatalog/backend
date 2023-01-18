@@ -32,7 +32,6 @@ import glob
 import os
 import shutil
 import sys
-import time
 import typing as t
 
 import requests
@@ -43,7 +42,6 @@ from ietfYangDraftPull import draftPullUtility as dpu
 from utility import message_factory
 from utility.create_config import create_config
 from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 current_file_basename = os.path.basename(__file__)
@@ -70,10 +68,9 @@ class ScriptConfig(BaseScriptConfig):
         super().__init__(help, args, None if __name__ == '__main__' else [])
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
-    start_time = int(time.time())
+@job_log(file_basename=current_file_basename)
+def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
     args = script_conf.args
-
     config_path = args.config_path
     config = create_config(config_path)
     token = config.get('Secrets-Section', 'yang-catalog-token')
@@ -82,7 +79,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    temp_dir = config.get('Directory-Section', 'temp')
     rfc_exceptions = config.get('Directory-Section', 'rfc-exceptions')
     yang_models = config.get('Directory-Section', 'yang-models-dir')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
@@ -90,7 +86,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     is_production = is_production == 'True'
     logger = log.get_logger('draftPull', f'{log_directory}/jobs/draft-pull.log')
     logger.info('Starting Cron job IETF pull request')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo_name = 'yang'
     commit_author = {'name': config_name, 'email': config_email}
@@ -100,9 +95,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     repo = dpu.clone_forked_repository(github_repo_url, commit_author, logger)
 
     if not repo:
-        error_message = f'Failed to clone repository {username}/{repo_name}'
-        job_log(start_time, temp_dir, error=error_message, status=JobLogStatuses.FAIL, filename=current_file_basename)
-        sys.exit()
+        raise RuntimeError(f'Failed to clone repository {username}/{repo_name}')
 
     try:
         # Get rfc.tgz file
@@ -192,13 +185,12 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         logger.exception('Exception found while running draftPull script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
 
+    logger.info('Job finished successfully')
     if len(messages) == 0:
         messages = [{'label': 'Pull request created', 'message': f'True - {commit_hash}'}]  # pyright: ignore
-    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
-    logger.info('Job finished successfully')
+    return messages
 
 
 if __name__ == '__main__':
