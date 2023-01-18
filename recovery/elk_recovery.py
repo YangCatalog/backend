@@ -23,20 +23,25 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import datetime
+import os
 import sys
 
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import backup_date_format
 
-help = script_config_dict['elk_recovery']['help']
-args = script_config_dict['elk_recovery']['args']
-mutually_exclusive_args = script_config_dict['elk_recovery']['mutually_exclusive_args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+    mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
+)
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
 
     es_snapshots_manager = ESSnapshotsManager()

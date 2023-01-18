@@ -31,14 +31,18 @@ import utility.log as log
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 
-help = script_config_dict['elk_fill']['help']
-args = script_config_dict['elk_fill']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
 
     config = create_config(args.config_path)

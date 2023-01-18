@@ -42,17 +42,21 @@ from ietfYangDraftPull import draftPullUtility as dpu
 from utility import message_factory
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
-help = script_config_dict['draftPull']['help']
-args = script_config_dict['draftPull']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     start_time = int(time.time())
     args = script_conf.args
 

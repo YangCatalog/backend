@@ -43,15 +43,19 @@ from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabi
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.util import parse_name, parse_revision, strip_comments
 
-help = script_config_dict['parse_directory']['help']
-args = script_config_dict['parse_directory']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG) -> tuple[int, int]:
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int, int]:
     args = script_conf.args
 
     config_path = args.config_path

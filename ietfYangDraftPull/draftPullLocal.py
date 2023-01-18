@@ -37,13 +37,17 @@ from ietfYangDraftPull import draftPullUtility
 from utility import repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import JobLogStatuses, github_url
 from utility.util import job_log
 
-help = script_config_dict['draftPullLocal']['help']
-args = script_config_dict['draftPullLocal']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 current_file_basename = os.path.basename(__file__)
 
 
@@ -60,7 +64,7 @@ def run_populate_script(directory: str, notify: bool, logger: logging.Logger) ->
     try:
         module = __import__('parseAndPopulate', fromlist=['populate'])
         submodule = getattr(module, 'populate')
-        script_conf = submodule.DEFAULT_SCRIPT_CONFIG
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
@@ -98,7 +102,7 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
     return success, message
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     start_time = int(time.time())
     args = script_conf.args
 

@@ -48,13 +48,17 @@ from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.message_factory import MessageFactory
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
-help = script_config_dict['populate']['help']
-args = script_config_dict['populate']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 class Populate:
@@ -154,7 +158,7 @@ class Populate:
     def _run_parse_directory_script(self) -> tuple[int, int]:
         self.logger.info('Calling parse_directory script')
         try:
-            script_conf = parse_directory.DEFAULT_SCRIPT_CONFIG
+            script_conf = parse_directory.DEFAULT_SCRIPT_CONFIG.copy()
             options = (
                 ('json_dir', self.json_dir),
                 ('result_html_dir', self.args.result_html_dir),
@@ -262,11 +266,11 @@ class Populate:
 
 
 def main(
-    script_conf: t.Optional[BaseScriptConfig] = None,
+    script_conf: t.Optional[ScriptConfig] = None,
     config: ConfigParser = create_config(),
     message_factory: t.Optional[MessageFactory] = None,
 ):
-    script_conf = script_conf or DEFAULT_SCRIPT_CONFIG
+    script_conf = script_conf or DEFAULT_SCRIPT_CONFIG.copy()
     Populate(script_conf.args, config, message_factory=message_factory).start_populating()
 
 

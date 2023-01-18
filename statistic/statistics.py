@@ -55,13 +55,17 @@ from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, JobLogStatuses, github_url
 from utility.util import job_log
 
-help = script_config_dict['statistics']['help']
-args_conf = script_config_dict['statistics']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args_conf, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 current_file_basename = os.path.basename(__file__)
 
 
@@ -216,10 +220,10 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
-def main(script_conf: t.Optional[BaseScriptConfig] = None):
+def main(script_conf: t.Optional[ScriptConfig] = None):
     start_time = int(time.time())
     if script_conf is None:
-        script_conf = DEFAULT_SCRIPT_CONFIG
+        script_conf = DEFAULT_SCRIPT_CONFIG.copy()
     args = script_conf.args
 
     config_path = args.config_path
@@ -342,7 +346,7 @@ def main(script_conf: t.Optional[BaseScriptConfig] = None):
             removedup is set to True by default.
             """
             kwargs.setdefault('removedup', True)
-            script_conf = all_stats.DEFAULT_SCRIPT_CONFIG
+            script_conf = all_stats.DEFAULT_SCRIPT_CONFIG.copy()
             for key, value in kwargs.items():
                 setattr(script_conf.args, key, value)
             with redirect_stdout(io.StringIO()) as f:

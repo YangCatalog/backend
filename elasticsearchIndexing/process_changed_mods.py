@@ -30,16 +30,20 @@ from elasticsearchIndexing.es_manager import ESManager
 from utility import log
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.util import fetch_module_by_schema, validate_revision
 
-help = script_config_dict['process_changed_mods']['help']
-args = script_config_dict['process_changed_mods']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 class ProcessChangedMods:
-    def __init__(self, script_config: BaseScriptConfig):
+    def __init__(self, script_config: ScriptConfig):
         self.args = script_config.args
         self.config = create_config(self.args.config_path)
         self.log_directory = self.config.get('Directory-Section', 'logs')
@@ -205,7 +209,7 @@ class ProcessChangedMods:
             raise Exception(f'Unable to retrieve content of {module["name"]}@{module["revision"]}')
 
 
-def main(script_config: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     ProcessChangedMods(script_config).start_processing_changed_mods()
 
 

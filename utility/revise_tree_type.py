@@ -33,16 +33,21 @@ from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgo
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
-help = script_config_dict['revise_tree_type']['help']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, None, [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=None,
+    arglist=[],
+)
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     start_time = int(time.time())
 
     config = create_config()

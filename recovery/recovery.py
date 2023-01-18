@@ -39,14 +39,18 @@ import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.util import get_list_of_backups, job_log
 
-help = script_config_dict['recovery']['help']
-args = script_config_dict['recovery']['args']
-mutually_exclusive_args = script_config_dict['recovery']['mutually_exclusive_args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+    mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
+)
 current_file_basename = os.path.basename(__file__)
 
 
@@ -198,7 +202,7 @@ class LoadDataFromBackupToDatabase(Recovery):
         return modules, vendors
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG, config: ConfigParser = create_config()):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy(), config: ConfigParser = create_config()):
     args = script_conf.args
     if args.save:
         BackupDatabaseData(args, config).start_process()

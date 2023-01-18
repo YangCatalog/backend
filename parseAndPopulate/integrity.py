@@ -43,13 +43,17 @@ from pyang.statements import Statement
 
 from utility import yangParser
 from utility.script_config_dict import script_config_dict
-from utility.scriptConfig import BaseScriptConfig
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import NAMESPACE_MAP
 from utility.util import find_files
 
-help = script_config_dict['integrity']['help']
-args = script_config_dict['integrity']['args']
-DEFAULT_SCRIPT_CONFIG = BaseScriptConfig(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 missing_revisions: t.Set[str] = set()
 missing_namespaces: t.Set[str] = set()
 missing_modules: t.Dict[str, t.Set[str]] = defaultdict(set)
@@ -155,7 +159,7 @@ def capabilities_to_modules(capabilities: str) -> t.List[str]:
     return modules
 
 
-def main(script_conf: BaseScriptConfig = DEFAULT_SCRIPT_CONFIG):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
     args.dir = args.dir.rstrip('/')
     if args.sdo:  # sdo directory
