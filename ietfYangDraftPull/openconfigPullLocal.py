@@ -24,7 +24,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 import os
-import time
 from glob import glob
 
 import requests
@@ -34,7 +33,7 @@ from ietfYangDraftPull import draftPullUtility
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import JobLogStatuses, json_headers
+from utility.staticVariables import json_headers
 from utility.util import job_log, resolve_revision
 
 BASENAME = os.path.basename(__file__)
@@ -47,23 +46,20 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
-    start_time = int(time.time())
+@job_log(file_basename=current_file_basename)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
-
     config_path = args.config_path
     config = create_config(config_path)
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
     config_name = config.get('General-Section', 'repo-config-name')
     config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    temp_dir = config.get('Directory-Section', 'temp')
     openconfig_repo_url = config.get('Web-Section', 'openconfig-models-repo-url')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     logger = log.get_logger('openconfigPullLocal', f'{log_directory}/jobs/openconfig-pull.log')
     logger.info('Starting Cron job openconfig pull request local')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     commit_author = {'name': config_name, 'email': config_email}
     repo = draftPullUtility.clone_forked_repository(openconfig_repo_url, commit_author, logger)
@@ -88,7 +84,6 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
         data = json.dumps({'modules': {'module': modules}})
     except Exception as e:
         logger.exception('Exception found while running openconfigPullLocal script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     api_path = f'{yangcatalog_api_prefix}/modules'
     response = requests.put(api_path, data, auth=(credentials[0], credentials[1]), headers=json_headers)
@@ -96,13 +91,10 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     status_code = response.status_code
     payload = json.loads(response.text)
     if status_code < 200 or status_code > 299:
-        e = f'PUT /api/modules responsed with status code {status_code}'
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         logger.info('Job finished, but an error occured while sending PUT to /api/modules')
-    else:
-        messages = [{'label': 'Job ID', 'message': payload['job-id']}]
-        job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
-        logger.info('Job finished successfully')
+        raise RuntimeError(f'PUT /api/modules responsed with status code {status_code}')
+    logger.info('Job finished successfully')
+    return [{'label': 'Job ID', 'message': payload['job-id']}]
 
 
 if __name__ == '__main__':

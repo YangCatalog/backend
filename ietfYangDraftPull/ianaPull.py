@@ -28,7 +28,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
 import xml.etree.ElementTree as ET
 from shutil import copy2
 
@@ -39,7 +38,6 @@ from ietfYangDraftPull import draftPullUtility as dpu
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import JobLogStatuses
 from utility.util import job_log
 
 BASENAME = os.path.basename(__file__)
@@ -52,10 +50,9 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
 current_file_basename = os.path.basename(__file__)
 
 
-def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
-    start_time = int(time.time())
+@job_log(file_basename=current_file_basename)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
-
     config_path = args.config_path
     config = create_config(config_path)
     yang_models = config.get('Directory-Section', 'yang-models-dir')
@@ -71,7 +68,6 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     is_production = is_production == 'True'
     logger = log.get_logger('ianaPull', f'{log_directory}/jobs/iana-pull.log')
     logger.info('Starting job to pull IANA-maintained modules')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo_name = 'yang'
     commit_author = {'name': config_name, 'email': config_email}
@@ -81,9 +77,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     repo = dpu.clone_forked_repository(github_repo_url, commit_author, logger)
 
     if not repo:
-        error_message = f'Failed to clone repository {username}/{repo_name}'
-        job_log(start_time, temp_dir, error=error_message, status=JobLogStatuses.FAIL, filename=current_file_basename)
-        sys.exit()
+        raise RuntimeError(f'Failed to clone repository {username}/{repo_name}')
 
     try:
         with open(iana_exceptions, 'r') as exceptions_file:
@@ -166,7 +160,6 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         logger.exception('Exception found while running draftPull script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
 
     # Remove tmp folder
@@ -174,8 +167,8 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
 
     if len(messages) == 0:
         messages = [{'label': 'Pull request created', 'message': f'True - {commit_hash}'}]  # pyright: ignore
-    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     logger.info('Job finished successfully')
+    return messages
 
 
 if __name__ == '__main__':

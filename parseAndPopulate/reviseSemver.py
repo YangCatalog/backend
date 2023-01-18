@@ -20,7 +20,6 @@ from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import JobLogStatuses
 from utility.util import job_log, revision_to_date
 
 BASENAME = os.path.basename(__file__)
@@ -75,7 +74,8 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
+@job_log(file_basename=current_file_basename)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     start_time = int(time.time())
     config = create_config()
 
@@ -88,7 +88,6 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     logger = log.get_logger('sandbox', f'{log_directory}/sandbox.log')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     logger.info('Fetching all the modules from API')
     all_existing_modules = fetch_modules(logger, config=config)
@@ -133,11 +132,10 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
             logger.exception('Exception occured during running ModulesComplicatedAlgorithms')
             continue
 
-    messages = [{'label': 'Number of modules checked', 'message': num_of_modules}]
     end = time.time()
     logger.info(f'Populate took {int(end - start_time)} seconds with the main and complicated algorithm')
-    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     logger.info('Job finished successfully')
+    return [{'label': 'Number of modules checked', 'message': num_of_modules}]
 
 
 if __name__ == '__main__':
