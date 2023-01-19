@@ -21,6 +21,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
+import os.path
 import typing as t
 from os.path import isfile
 
@@ -174,16 +175,17 @@ class ParseException(Exception):
         if path is not None:
             config = create_config()
             var_path = config.get('Directory-Section', 'var')
-            self.msg = 'Failed to parse module on path {}'.format(path)
+            self.msg = f'Failed to parse module on path {path}'
+            unparsable_modules_path = os.path.join(var_path, 'unparsable-modules.json')
             try:
-                with open('{}/unparsable-modules.json'.format(var_path), 'r') as f:
+                with open(unparsable_modules_path, 'r') as f:
                     modules = json.load(f)
             except (FileNotFoundError, json.decoder.JSONDecodeError):
                 modules = []
             module = path.split('/')[-1]
             if module not in modules:
                 modules.append(module)
-            with open('{}/unparsable-modules.json'.format(var_path), 'w') as f:
+            with open(unparsable_modules_path, 'w') as f:
                 json.dump(modules, f)
 
 

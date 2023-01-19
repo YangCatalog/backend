@@ -98,6 +98,9 @@
       },
       "revision": {
         "type": "date"
+      },
+      "maturity-level": {
+        "type": "keyword"
       }
     }
   }

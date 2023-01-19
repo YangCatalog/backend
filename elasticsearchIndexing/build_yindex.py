@@ -20,6 +20,7 @@ __email__ = 'miroslav.kovac@pantheon.tech, jclarke@cisco.com'
 import io
 import json
 import logging
+import os.path
 
 from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
 from pyang import plugin
@@ -36,7 +37,7 @@ ES_CHUNK_SIZE = 100
 
 
 def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str, logger: logging.Logger):
-    name_revision = '{}@{}'.format(module['name'], module['revision'])
+    name_revision = f'{module["name"]}@{module["revision"]}'
 
     plugin.init([])
     ctx = yangParser.create_context(save_file_dir)
@@ -62,12 +63,12 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
 
     yindexes = json.loads(f.getvalue())
 
-    with open('{}/{}.json'.format(json_ytree, name_revision), 'w') as writer:
+    with open(os.path.join(json_ytree, name_revision), 'w') as writer:
         try:
             emit_tree([parsed_module], writer, ctx)
         except Exception:
             # create empty file so we still have access to that
-            logger.exception('unable to create ytree for module {}'.format(name_revision))
+            logger.exception(f'Unable to create ytree for module {name_revision}')
             writer.write('')
 
     attempts = 3
@@ -87,13 +88,13 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
                     logger.debug('deleting data from index: yindex')
                     es_manager.delete_from_index(ESIndices.YINDEX, submodule)
                 except RequestError:
-                    logger.exception('Problem while deleting {}@{}'.format(subm_n, subm_r))
+                    logger.exception(f'Problem while deleting {subm_n}@{subm_r}')
 
             # Bulk new modules to index: yindex
             for key in yindexes:
                 chunks = [yindexes[key][i : i + ES_CHUNK_SIZE] for i in range(0, len(yindexes[key]), ES_CHUNK_SIZE)]
                 for idx, chunk in enumerate(chunks, start=1):
-                    logger.debug('pushing data to index: yindex {} out of {}'.format(idx, len(chunks)))
+                    logger.debug(f'Pushing data to index: yindex {idx} out of {len(chunks)}')
                     es_manager.bulk_modules(ESIndices.YINDEX, chunk)
 
             # Index new modules to index: autocomplete
@@ -104,9 +105,9 @@ def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_
         except (ConnectionTimeout, ConnectionError) as e:
             attempts -= 1
             if attempts > 0:
-                logger.warning('module {} timed out'.format(name_revision))
+                logger.warning(f'Module {name_revision} timed out')
             else:
-                logger.exception('module {} timed out, failed too many times'.format(name_revision))
+                logger.exception(f'Module {name_revision} timed out, failed too many times')
                 raise e
 
 

@@ -70,7 +70,8 @@ class ESManager:
         return self.es.cluster.health()
 
     def create_index(self, index: ESIndices):
-        """Create Elasticsearch index with given name.
+        """
+        Create Elasticsearch index with given name.
 
         Argument:
             :param index   (ESIndices) Index to be created
@@ -93,7 +94,8 @@ class ESManager:
         return create_result
 
     def index_exists(self, index: ESIndices) -> bool:
-        """Check if the index already exists.
+        """
+        Check if the index already exists.
 
         Argument:
             :param index   (ESIndices) Index to be checked
@@ -106,7 +108,8 @@ class ESManager:
         return list(self.es.indices.get_alias().keys())
 
     def put_index_mapping(self, index: ESIndices, body: dict) -> dict:
-        """Update mapping for provided index.
+        """
+        Update mapping for provided index.
 
         Arguments:
             :param index    (ESIndices) Index whose mapping to update
@@ -115,7 +118,8 @@ class ESManager:
         return self.es.indices.put_mapping(index=index.value, body=body, ignore=403)
 
     def get_index_mapping(self, index: ESIndices) -> dict:
-        """Get mapping for provided index.
+        """
+        Get mapping for provided index.
 
         Argument:
             :param index    (ESIndices) Index whose mapping to get
@@ -128,7 +132,8 @@ class ESManager:
         return mapping
 
     def get_documents_count(self, index: ESIndices) -> int:
-        """Get number of documents stored in provided index.
+        """
+        Get number of documents stored in provided index.
 
         Argument:
             :param index        (ESIndices) Index in which to search
@@ -141,8 +146,8 @@ class ESManager:
         return count
 
     def autocomplete(self, index: ESIndices, keyword: KeywordsNames, searched_term: str) -> list:
-        """Get list of the modules which will be returned as autocomplete
-        after entering the 'searched_term' by the user.
+        """
+        Get list of the modules which will be returned as autocomplete after entering the 'searched_term' by the user.
 
         Arguments:
             :param index            (ESIndices) Index in which to search
@@ -163,11 +168,12 @@ class ESManager:
         return result
 
     def delete_from_index(self, index: ESIndices, module: dict) -> dict:
-        """Delete module from the index.
+        """
+        Delete module from the index.
 
         Arguments:
             :param index        (ESIndices) Target index from which to delete module
-            :param document     (dict) Document to delete
+            :param module     (dict) Document to delete
         """
         self.logger.info(f'Deleting module: "{module}" from index: "{index}"')
         delete_module_query = self._get_name_revision_query(index, module)
@@ -178,7 +184,8 @@ class ESManager:
             self.delete_from_index(index, module)
 
     def index_module(self, index: ESIndices, document: dict) -> dict:
-        """Creates or updates a 'document' in an selcted index.
+        """
+        Creates or updates a 'document' in a selected index.
 
         Arguments:
             :param index            (ESIndices) Target index to be indexed
@@ -205,7 +212,8 @@ class ESManager:
                 self.logger.error(f'Elasticsearch document failed with info: {info}')
 
     def match_all(self, index: ESIndices) -> dict:
-        """Return the dictionary of all modules that are in the index.
+        """
+        Return the dictionary of all modules that are in the index.
 
         Argument:
             :param index    (ESIndices) Index in which to search
@@ -311,7 +319,8 @@ class ESManager:
         return self.es.scroll(scroll_id=scroll_id, scroll=u'10m', request_timeout=self.elk_request_timeout)
 
     def document_exists(self, index: ESIndices, module: dict) -> bool:
-        """Check whether 'module' already exists in index - if count is greater than 0.
+        """
+        Check whether 'module' already exists in index - if count is greater than 0.
 
         Arguments:
             :param index        (ESIndices) Index in which to search
