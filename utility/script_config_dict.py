@@ -18,17 +18,26 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
 import os
+import typing as t
 from datetime import datetime
 
 from utility.create_config import create_config
+from utility.scriptConfig import Arg
 from utility.staticVariables import backup_date_format
+
+
+class ScriptConfigInfo(t.TypedDict):
+    help: str
+    args: t.Optional[list[Arg]]
+    mutually_exclusive_args: t.Optional[list[list[Arg]]]
+
 
 config = create_config()
 credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
 save_file_dir = config.get('Directory-Section', 'save-file-dir')
 result_dir = config.get('Web-Section', 'result-html-dir')
 
-script_config_dict = {
+script_config_dict: dict[str, ScriptConfigInfo] = {
     'process_changed_mods': {
         'help': 'Process changed modules in a git repo',
         'args': [
@@ -39,6 +48,7 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'draftPull': {
         'help': (
@@ -61,6 +71,7 @@ script_config_dict = {
                 'default': False,
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'draftPullLocal': {
         'help': (
@@ -75,6 +86,7 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'ianaPull': {
         'help': 'Pull the latest IANA-maintained files and add them to the Github if there are any new.',
@@ -86,6 +98,7 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'openconfigPullLocal': {
         'help': (
@@ -100,6 +113,7 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'integrity': {
         'help': '',
@@ -118,7 +132,7 @@ script_config_dict = {
             },
             {'flag': '--output', 'help': 'Output json file', 'type': str, 'default': 'integrity.json'},
         ],
-        'yang_models': config.get('Directory-Section', 'yang-models-dir'),
+        'mutually_exclusive_args': None,
     },
     'parse_directory': {
         'help': (
@@ -171,6 +185,7 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'populate': {
         'help': (
@@ -237,18 +252,23 @@ script_config_dict = {
                 'default': False,
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'resolve_expiration': {
         'help': (
             'Resolve expiration metadata for each module and set it to Redis if changed. '
             'This runs as a daily cronjob'
         ),
+        'args': None,
+        'mutually_exclusive_args': None,
     },
     'reviseSemver': {
         'help': (
             'Parse modules on given directory and generate json with module metadata that can be populated'
             ' to confd directory'
         ),
+        'args': None,
+        'mutually_exclusive_args': None,
     },
     'elk_fill': {
         'help': (
@@ -265,6 +285,7 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'elk_recovery': {
         'help': ' Create or restore backups of our Elasticsearch database. ',
@@ -408,6 +429,7 @@ script_config_dict = {
             },
             {'flag': '--debug', 'help': 'Debug level; the default is 0', 'type': int, 'default': 0},
         ],
+        'mutually_exclusive_args': None,
     },
     'statistics': {
         'help': (
@@ -423,8 +445,11 @@ script_config_dict = {
                 'default': os.environ['YANGCATALOG_CONFIG_PATH'],
             },
         ],
+        'mutually_exclusive_args': None,
     },
     'revise_tree_type': {
         'help': 'Resolve the tree-type for modules that are no longer the latest revision. Runs as a daily cronjob.',
+        'args': None,
+        'mutually_exclusive_args': None,
     },
 }
