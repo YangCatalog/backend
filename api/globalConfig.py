@@ -42,7 +42,7 @@ class YangCatalogApiGlobalConfig:
         self.private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
         self.register_user_email = config.get('Message-Section', 'email-to', fallback='')
         self.credentials = (
-            config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
+            config.get('Secrets-Section', 'confd-credentials', fallback='admin admin').strip('"').split(' ')
         )
         self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')

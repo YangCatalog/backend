@@ -82,7 +82,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
     yang_models = config.get('Directory-Section', 'yang-models-dir', fallback='/var/yang/nonietf/yangmodels/yang')
-    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='test test').strip('"').split(' ')
+    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='admin admin').strip('"').split(' ')
     json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 

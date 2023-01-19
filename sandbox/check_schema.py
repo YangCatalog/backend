@@ -122,7 +122,7 @@ if __name__ == '__main__':
     config = create_config()
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
-    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
+    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='admin admin').strip('"').split()
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
