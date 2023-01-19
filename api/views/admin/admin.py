@@ -548,7 +548,7 @@ def get_script_details(script):
 
     module = __import__(module_name, fromlist=[script])
     submodule = getattr(module, script)
-    script_conf = submodule.ScriptConfig()
+    script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
     script_args_list = script_conf.get_args_list()
     script_args_list.pop('credentials', None)
 

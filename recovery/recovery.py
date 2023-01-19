@@ -29,9 +29,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import gzip
 import json
 import os
-import sys
-import time
-import typing as t
 from argparse import Namespace
 from configparser import ConfigParser
 from datetime import datetime
@@ -39,54 +36,19 @@ from datetime import datetime
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import JobLogStatuses, backup_date_format
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
+from utility.staticVariables import backup_date_format
 from utility.util import get_list_of_backups, job_log
 
-current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = __doc__
-        mutually_exclusive_args: list[list[Arg]] = [
-            [
-                {
-                    'flag': '--save',
-                    'help': 'Set true if you want to backup data',
-                    'action': 'store_true',
-                    'default': False,
-                },
-                {
-                    'flag': '--load',
-                    'help': 'Set true if you want to load data from backup to the database',
-                    'action': 'store_true',
-                    'default': False,
-                },
-            ],
-        ]
-        args: t.List[Arg] = [
-            {
-                'flag': '--file',
-                'help': (
-                    'Set name of the file (without file format) to save data to/load data from. Default name is empty. '
-                    'If name is empty: load operation will use the last available json backup file, '
-                    'save operation will use date and time in UTC.'
-                ),
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--rdb_file',
-                'help': (
-                    'Set name of the file to save data from redis database rdb file to. '
-                    'Default name is current UTC datetime.'
-                ),
-                'type': str,
-                'default': datetime.utcnow().strftime(backup_date_format),
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+    mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
+)
 
 
 class Recovery:
@@ -96,9 +58,7 @@ class Recovery:
         config: ConfigParser = create_config(),
         redis_connection: RedisConnection = RedisConnection(),
     ):
-        self.start_time = None
         self.job_log_messages = []
-        self.job_log_filename = current_file_basename
         self.yang_catalog_module_name = 'yang-catalog@2018-04-03/ietf'
         self.process_type = ''
 
@@ -115,19 +75,12 @@ class Recovery:
         self.redis_json_backup = os.path.join(self.cache_directory, 'redis-json')
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
+    @job_log(file_basename=BASENAME)
     def start_process(self):
-        self.start_time = int(time.time())
         self.logger.info(f'Starting {self.process_type} process of Redis database')
-        job_log(self.start_time, self.temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=self.job_log_filename)
         self._start_process()
         self.logger.info(f'{self.process_type} process of Redis database finished successfully')
-        job_log(
-            self.start_time,
-            self.temp_dir,
-            messages=self.job_log_messages,
-            status=JobLogStatuses.SUCCESS,
-            filename=self.job_log_filename,
-        )
+        return self.job_log_messages
 
     def _start_process(self):
         """Main logic of the script"""
@@ -193,14 +146,7 @@ class LoadDataFromBackupToDatabase(Recovery):
             if not list_of_backups:
                 error_message = 'Didn\'t find any backups, finishing execution of the script'
                 self.logger.error(error_message)
-                job_log(
-                    self.start_time,
-                    self.temp_dir,
-                    status=JobLogStatuses.FAIL,
-                    error=error_message,
-                    filename=self.job_log_filename,
-                )
-                sys.exit()
+                raise RuntimeError(error_message)
             self.args.file = os.path.join(self.redis_json_backup, list_of_backups[-1])
         redis_modules = self.redis_connection.get_all_modules()
         yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)
@@ -237,7 +183,7 @@ class LoadDataFromBackupToDatabase(Recovery):
         return modules, vendors
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig(), config: ConfigParser = create_config()):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy(), config: ConfigParser = create_config()):
     args = script_conf.args
     if args.save:
         BackupDatabaseData(args, config).start_process()

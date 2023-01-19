@@ -26,34 +26,23 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import json
 import os
 import sys
-import typing as t
 
 import utility.log as log
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
+
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'This script creates a dictionary of all the modules currently stored in the Redis database. '
-            'The key is in <name>@<revision>/<organization> format and the value is the path to the .yang file. '
-            'The entire dictionary is then stored in a JSON file - '
-            'the content of this JSON file can then be used as an input for indexing modules into Elasticsearch.'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
 
     config = create_config(args.config_path)

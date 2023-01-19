@@ -94,7 +94,7 @@ class Receiver:
         script_name = 'populate'
         module = __import__('parseAndPopulate', fromlist=[script_name])
         submodule = getattr(module, script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
         # Set populate script arguments
         script_conf.args.__setattr__('sdo', sdo)
         script_conf.args.__setattr__('api', api)
@@ -386,7 +386,7 @@ class Receiver:
             script_name = 'draftPullLocal'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
             submodule = getattr(module, script_name)
-            script_conf = submodule.ScriptConfig()
+            script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
 
             self.LOGGER.info('Runnning draftPullLocal.py script')
             try:
@@ -398,7 +398,7 @@ class Receiver:
             script_name = 'openconfigPullLocal'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
             submodule = getattr(module, script_name)
-            script_conf = submodule.ScriptConfig()
+            script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
 
             self.LOGGER.info('Runnning openconfigPullLocal.py script')
             try:
@@ -605,7 +605,7 @@ class Receiver:
             # Load submodule and its config
             module = __import__(module_name, fromlist=[script_name])
             submodule = getattr(module, script_name)
-            script_conf = submodule.ScriptConfig()
+            script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
             script_args_list = script_conf.get_args_list()
 
             for key in body_input:

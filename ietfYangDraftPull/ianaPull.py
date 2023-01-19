@@ -28,8 +28,6 @@ import os
 import shutil
 import subprocess
 import sys
-import time
-import typing as t
 import xml.etree.ElementTree as ET
 from shutil import copy2
 
@@ -38,31 +36,22 @@ from git.exc import GitCommandError
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility as dpu
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import JobLogStatuses
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.util import job_log
 
-current_file_basename = os.path.basename(__file__)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = 'Pull the latest IANA-maintained files and add them to the Github if there are any new.'
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
-    start_time = int(time.time())
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
-
     config_path = args.config_path
     config = create_config(config_path)
     yang_models = config.get('Directory-Section', 'yang-models-dir')
@@ -78,7 +67,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     is_production = is_production == 'True'
     logger = log.get_logger('ianaPull', f'{log_directory}/jobs/iana-pull.log')
     logger.info('Starting job to pull IANA-maintained modules')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     repo_name = 'yang'
     commit_author = {'name': config_name, 'email': config_email}
@@ -88,9 +76,7 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     repo = dpu.clone_forked_repository(github_repo_url, commit_author, logger)
 
     if not repo:
-        error_message = f'Failed to clone repository {username}/{repo_name}'
-        job_log(start_time, temp_dir, error=error_message, status=JobLogStatuses.FAIL, filename=current_file_basename)
-        sys.exit()
+        raise RuntimeError(f'Failed to clone repository {username}/{repo_name}')
 
     try:
         with open(iana_exceptions, 'r') as exceptions_file:
@@ -173,7 +159,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
             raise type(e)('Error while pushing procedure')
     except Exception as e:
         logger.exception('Exception found while running draftPull script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
 
     # Remove tmp folder
@@ -181,8 +166,8 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
     if len(messages) == 0:
         messages = [{'label': 'Pull request created', 'message': f'True - {commit_hash}'}]  # pyright: ignore
-    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
     logger.info('Job finished successfully')
+    return messages
 
 
 if __name__ == '__main__':

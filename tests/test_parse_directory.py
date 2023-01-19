@@ -177,7 +177,7 @@ class TestParseDirectoryClass(unittest.TestCase):
     ):
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
         self.set_script_conf_arguments(script_conf)
         script_conf.args.sdo = True
         script_conf.args.dir = self.resource('sdo')
@@ -203,7 +203,7 @@ class TestParseDirectoryClass(unittest.TestCase):
     ):
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
         self.set_script_conf_arguments(script_conf)
         script_conf.args.sdo = False
         script_conf.args.dir = self.resource('vendor')
@@ -224,7 +224,7 @@ class TestParseDirectoryClass(unittest.TestCase):
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
 
         script_help = script_conf.get_help()
 
@@ -237,7 +237,7 @@ class TestParseDirectoryClass(unittest.TestCase):
         # Load submodule and its config
         module = __import__(self.module_name, fromlist=[self.script_name])
         submodule = getattr(module, self.script_name)
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
 
         script_args_list = script_conf.get_args_list()
 

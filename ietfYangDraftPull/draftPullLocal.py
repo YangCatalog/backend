@@ -28,8 +28,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import logging
 import os
 import shutil
-import time
-import typing as t
 
 import requests
 
@@ -37,44 +35,34 @@ import utility.log as log
 from ietfYangDraftPull import draftPullUtility
 from utility import repoutil
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
-from utility.staticVariables import JobLogStatuses, github_url
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
+from utility.staticVariables import github_url
 from utility.util import job_log
 
-current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the '
-            'metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 def run_populate_script(directory: str, notify: bool, logger: logging.Logger) -> bool:
     """
     Run populate.py script and return whether execution was successful or not.
 
-    Argumets:
+    Arguments:
         :param directory    (str) full path to directory with yang modules
-        :param notify       (str) whether to send files for'indexing
+        :param notify       (str) whether to send files for indexing
         :param logger       (obj) formated logger with the specified name
     """
     successful = True
     try:
         module = __import__('parseAndPopulate', fromlist=['populate'])
         submodule = getattr(module, 'populate')
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
@@ -112,8 +100,8 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
     return success, message
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
-    start_time = int(time.time())
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
 
     config_path = args.config_path
@@ -126,7 +114,6 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
     temp_dir = config.get('Directory-Section', 'temp')
     logger = log.get_logger('draftPullLocal', f'{log_directory}/jobs/draft-pull-local.log')
     logger.info('Starting cron job IETF pull request local')
-    job_log(start_time, temp_dir, status=JobLogStatuses.IN_PROGRESS, filename=current_file_basename)
 
     messages = []
     notify_indexing = notify_indexing == 'True'
@@ -173,13 +160,12 @@ def main(script_conf: BaseScriptConfig = ScriptConfig()):
 
     except Exception as e:
         logger.exception('Exception found while running draftPullLocal script')
-        job_log(start_time, temp_dir, error=str(e), status=JobLogStatuses.FAIL, filename=current_file_basename)
         raise e
     if success:
         logger.info('Job finished successfully')
     else:
         logger.info('Job finished, but errors found while calling populate script')
-    job_log(start_time, temp_dir, messages=messages, status=JobLogStatuses.SUCCESS, filename=current_file_basename)
+    return messages
 
 
 if __name__ == '__main__':
