@@ -51,10 +51,9 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     args=script_config_dict[FILENAME]['args'],
     arglist=None if __name__ == '__main__' else [],
 )
-current_file_basename = os.path.basename(__file__)
 
 
-@job_log(file_basename=current_file_basename)
+@job_log(file_basename=BASENAME)
 def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
     config_path = args.config_path

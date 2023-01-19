@@ -29,7 +29,6 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     args=None,
     arglist=[],
 )
-current_file_basename = os.path.basename(__file__)
 
 
 def get_older_revision(module1: dict, module2: dict):
@@ -74,7 +73,7 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-@job_log(file_basename=current_file_basename)
+@job_log(file_basename=BASENAME)
 def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     start_time = int(time.time())
     config = create_config()

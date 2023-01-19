@@ -66,7 +66,6 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     args=script_config_dict[FILENAME]['args'],
     arglist=None if __name__ == '__main__' else [],
 )
-current_file_basename = os.path.basename(__file__)
 
 
 def render(tpl_path: str, context: dict) -> str:
@@ -220,7 +219,7 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
-@job_log(file_basename=current_file_basename)
+@job_log(file_basename=BASENAME)
 def main(script_conf: t.Optional[ScriptConfig] = None):
     start_time = int(time.time())
     if script_conf is None:

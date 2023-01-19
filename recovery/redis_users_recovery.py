@@ -44,7 +44,6 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     arglist=None if __name__ == '__main__' else [],
     mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
 )
-current_file_basename = os.path.basename(__file__)
 
 
 class RedisUsersRecovery:
@@ -64,7 +63,7 @@ class RedisUsersRecovery:
         self.redis = Redis(host=self.redis_host, port=self.redis_port, db=2)
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
-    @job_log(file_basename=current_file_basename)
+    @job_log(file_basename=BASENAME)
     def start_process(self):
         process_type = 'save' if self.args.save else 'load'
         self.logger.info(f'Starting {process_type} process of redis users database')

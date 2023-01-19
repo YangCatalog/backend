@@ -45,10 +45,9 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     args=None,
     arglist=None if __name__ == '__main__' else [],
 )
-current_file_basename = os.path.basename(__file__)
 
 
-@job_log(file_basename=current_file_basename)
+@job_log(file_basename=BASENAME)
 def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     config = create_config()
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()

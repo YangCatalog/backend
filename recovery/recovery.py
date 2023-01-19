@@ -49,7 +49,6 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     arglist=None if __name__ == '__main__' else [],
     mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
 )
-current_file_basename = os.path.basename(__file__)
 
 
 class Recovery:
@@ -76,7 +75,7 @@ class Recovery:
         self.redis_json_backup = os.path.join(self.cache_directory, 'redis-json')
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
-    @job_log(file_basename=current_file_basename)
+    @job_log(file_basename=BASENAME)
     def start_process(self):
         self.logger.info(f'Starting {self.process_type} process of Redis database')
         self._start_process()

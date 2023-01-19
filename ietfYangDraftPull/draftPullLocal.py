@@ -47,7 +47,6 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     args=script_config_dict[FILENAME]['args'],
     arglist=None if __name__ == '__main__' else [],
 )
-current_file_basename = os.path.basename(__file__)
 
 
 def run_populate_script(directory: str, notify: bool, logger: logging.Logger) -> bool:
@@ -101,7 +100,7 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
     return success, message
 
 
-@job_log(file_basename=current_file_basename)
+@job_log(file_basename=BASENAME)
 def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
 
