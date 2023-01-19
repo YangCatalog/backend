@@ -54,29 +54,18 @@ from statistic import runYANGallstats as all_stats
 from utility import repoutil, yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, github_url
 from utility.util import job_log
 
-current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Run the statistics on all yang modules populated in yangcatalog.org and from yangModels/yang '
-            'repository and auto generate html page on yangcatalog.org/statistics.html. This runs as a daily '
-            'cronjob'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 def render(tpl_path: str, context: dict) -> str:
@@ -230,11 +219,11 @@ def solve_platforms(path: str) -> set:
     return platforms
 
 
-@job_log(file_basename=current_file_basename)
+@job_log(file_basename=BASENAME)
 def main(script_conf: t.Optional[ScriptConfig] = None):
     start_time = int(time.time())
     if script_conf is None:
-        script_conf = ScriptConfig()
+        script_conf = DEFAULT_SCRIPT_CONFIG.copy()
     args = script_conf.args
 
     config_path = args.config_path
@@ -355,7 +344,7 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
             removedup is set to True by default.
             """
             kwargs.setdefault('removedup', True)
-            script_conf = all_stats.ScriptConfig()
+            script_conf = all_stats.DEFAULT_SCRIPT_CONFIG.copy()
             for key, value in kwargs.items():
                 setattr(script_conf.args, key, value)
             with redirect_stdout(io.StringIO()) as f:

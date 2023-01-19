@@ -23,54 +23,25 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import datetime
+import os
 import sys
 
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import backup_date_format
 
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = __doc__
-        mutually_exclusive_args: list[list[Arg]] = [
-            [
-                {
-                    'flag': '--save',
-                    'help': 'Set whether you want to create snapshot.',
-                    'action': 'store_true',
-                    'default': False,
-                },
-                {
-                    'flag': '--load',
-                    'help': 'Set whether you want to load from snapshot.',
-                    'action': 'store_true',
-                    'default': False,
-                },
-            ],
-        ]
-        args: list[Arg] = [
-            {
-                'flag': '--file',
-                'help': (
-                    'Set name of the file to save data to/load data from. Default name is empty. '
-                    'If name is empty: load operation will use the last backup file, '
-                    'save operation will use date and time in UTC.'
-                ),
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--compress',
-                'help': 'Set whether to compress snapshot files. Default is True',
-                'action': 'store_true',
-                'default': True,
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [], mutually_exclusive_args)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+    mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
+)
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
 
     es_snapshots_manager = ESSnapshotsManager()

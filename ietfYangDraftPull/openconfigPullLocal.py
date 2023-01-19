@@ -24,7 +24,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 import os
-import typing as t
 from glob import glob
 
 import requests
@@ -32,34 +31,23 @@ import requests
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import json_headers
 from utility.util import job_log, resolve_revision
 
-current_file_basename = os.path.basename(__file__)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Run populate script on all openconfig files to parse all modules and populate the'
-            ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-@job_log(file_basename=current_file_basename)
-def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
-
     config_path = args.config_path
     config = create_config(config_path)
     credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')

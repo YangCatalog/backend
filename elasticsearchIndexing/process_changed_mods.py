@@ -22,7 +22,6 @@ import logging
 import os
 import shutil
 import sys
-import typing as t
 
 import requests
 
@@ -30,26 +29,21 @@ from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
 from utility import log
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.util import fetch_module_by_schema, validate_revision
 
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = 'Process changed modules in a git repo'
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 class ProcessChangedMods:
-    def __init__(self, script_config: BaseScriptConfig):
+    def __init__(self, script_config: ScriptConfig):
         self.args = script_config.args
         self.config = create_config(self.args.config_path)
         self.log_directory = self.config.get('Directory-Section', 'logs')
@@ -215,7 +209,7 @@ class ProcessChangedMods:
             raise Exception(f'Unable to retrieve content of {module["name"]}@{module["revision"]}')
 
 
-def main(script_config: BaseScriptConfig = ScriptConfig()):
+def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     ProcessChangedMods(script_config).start_processing_changed_mods()
 
 

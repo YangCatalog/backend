@@ -89,7 +89,7 @@ class TestIntegrityClass(unittest.TestCase):
         self.assertSetEqual(missing_includes, {'nonexistent'})
 
     def test_sdo(self):
-        script_conf = itg.ScriptConfig()
+        script_conf = itg.DEFAULT_SCRIPT_CONFIG.copy()
         setattr(script_conf.args, 'dir', self.module_dir)
         setattr(script_conf.args, 'sdo', True)
         itg.main(script_conf)
@@ -123,7 +123,7 @@ class TestIntegrityClass(unittest.TestCase):
         self.assertSetEqual(result, expected)
 
     def test_vendor(self):
-        script_conf = itg.ScriptConfig()
+        script_conf = itg.DEFAULT_SCRIPT_CONFIG.copy()
         setattr(script_conf.args, 'dir', self.module_dir)
         itg.main(script_conf)
 

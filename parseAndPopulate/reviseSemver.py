@@ -18,19 +18,17 @@ import utility.log as log
 from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgorithms
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
-from utility.scriptConfig import BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.util import job_log, revision_to_date
 
-current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Parse modules on given directory and generate json with module metadata that can be populated'
-            ' to confd directory'
-        )
-        super().__init__(help, None, [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=None,
+    arglist=[],
+)
 
 
 def get_older_revision(module1: dict, module2: dict):
@@ -75,8 +73,8 @@ def load_from_json(path: str):
         return json.load(reader)
 
 
-@job_log(file_basename=current_file_basename)
-def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     start_time = int(time.time())
     config = create_config()
 

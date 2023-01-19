@@ -42,66 +42,20 @@ from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.util import parse_name, parse_revision, strip_comments
 
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Parse modules on given directory and generate json with module metadata '
-            'that can be populated to Redis database.'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--dir',
-                'help': 'Set dir where to look for hello message xml files or yang files if using "sdo" option',
-                'type': str,
-                'default': '/var/yang/nonietf/yangmodels/yang/standard/ietf/RFC',
-            },
-            {
-                'flag': '--save-file-hash',
-                'help': 'if True then it will check if content of the file changed '
-                '(based on hash values) and it will skip parsing if nothing changed.',
-                'action': 'store_true',
-                'default': False,
-            },
-            {'flag': '--api', 'help': 'If request came from api', 'action': 'store_true', 'default': False},
-            {
-                'flag': '--sdo',
-                'help': 'If we are processing sdo or vendor yang modules',
-                'action': 'store_true',
-                'default': False,
-            },
-            {
-                'flag': '--json-dir',
-                'help': 'Directory where json files to populate Redis will be stored',
-                'type': str,
-                'default': '/var/yang/tmp/',
-            },
-            {
-                'flag': '--result-html-dir',
-                'help': 'Set dir where to write html compilation result files',
-                'type': str,
-                'default': '/usr/share/nginx/html/results',
-            },
-            {
-                'flag': '--save-file-dir',
-                'help': 'Directory where the yang file will be saved',
-                'type': str,
-                'default': '/var/yang/all_modules',
-            },
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()) -> tuple[int, int]:
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int, int]:
     args = script_conf.args
 
     config_path = args.config_path

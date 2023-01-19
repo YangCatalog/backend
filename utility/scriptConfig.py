@@ -19,6 +19,7 @@ __email__ = 'richard.zilincik@pantheon.tech'
 
 import argparse
 import typing as t
+from copy import deepcopy
 
 
 class Help(t.TypedDict):
@@ -39,7 +40,7 @@ class Arg(BaseArg, total=False):
     choices: t.List[str]
 
 
-class BaseScriptConfig:
+class ScriptConfig:
     """
     A class for setting configuration options
     for scripts which can be run from the admin UI.
@@ -52,6 +53,20 @@ class BaseScriptConfig:
         arglist: t.Optional[list[str]],
         mutually_exclusive_args: t.Optional[list[list[Arg]]] = None,
     ):
+        self.copy_info = {
+            'help': deepcopy(help),
+            'args': deepcopy(args),
+            'arglist': deepcopy(arglist),
+            'mutually_exclusive_args': deepcopy(mutually_exclusive_args),
+        }
+
+        # We need to make copies of data, so that we don't affect the original info,
+        # that we used for ScriptConfig initialization.
+        help = deepcopy(help)
+        args = deepcopy(args)
+        arglist = deepcopy(arglist)
+        mutually_exclusive_args = deepcopy(mutually_exclusive_args)
+
         self.parser = argparse.ArgumentParser(description=help)
         self.help: Help = {'help': help, 'options': {}}
         self.args_dict = {}
@@ -103,3 +118,6 @@ class BaseScriptConfig:
 
     def get_help(self) -> Help:
         return self.help
+
+    def copy(self):
+        return ScriptConfig(**self.copy_info)

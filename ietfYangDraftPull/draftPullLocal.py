@@ -28,7 +28,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import logging
 import os
 import shutil
-import typing as t
 
 import requests
 
@@ -36,28 +35,18 @@ import utility.log as log
 from ietfYangDraftPull import draftPullUtility
 from utility import repoutil
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import github_url
 from utility.util import job_log
 
-current_file_basename = os.path.basename(__file__)
-
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the '
-            'metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        )
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 def run_populate_script(directory: str, notify: bool, logger: logging.Logger) -> bool:
@@ -73,7 +62,7 @@ def run_populate_script(directory: str, notify: bool, logger: logging.Logger) ->
     try:
         module = __import__('parseAndPopulate', fromlist=['populate'])
         submodule = getattr(module, 'populate')
-        script_conf = submodule.ScriptConfig()
+        script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
@@ -111,8 +100,8 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
     return success, message
 
 
-@job_log(file_basename=current_file_basename)
-def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
 
     config_path = args.config_path

@@ -24,43 +24,17 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'bclaise@cisco.com'
 
 import os
-import typing as t
 
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 
-
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = 'Count all YANG modules + related stats for a directory and its subdirectories'
-        args: t.List[Arg] = [
-            {
-                'flag': '--rootdir',
-                'help': 'The root directory where to find the source YANG models. Default is "."',
-                'type': str,
-                'default': '.',
-            },
-            {
-                'flag': '--excludedir',
-                'help': 'The root directory from which to exclude YANG models. '
-                'This directory should be under rootdir.',
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--excludekeyword',
-                'help': 'Exclude some keywords from the YANG module name.',
-                'type': str,
-                'default': '',
-            },
-            {
-                'flag': '--removedup',
-                'help': 'Remove duplicate YANG module. Default is False.',
-                'type': bool,
-                'default': False,
-            },
-            {'flag': '--debug', 'help': 'Debug level; the default is 0', 'type': int, 'default': 0},
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
 def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
@@ -82,7 +56,7 @@ def list_of_yang_modules_in_subdir(srcdir: str, debug_level: int) -> list:
     return ll
 
 
-def main(script_conf: BaseScriptConfig = ScriptConfig()):
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
 
     # equivalent shell commands (without the de-duplication function)

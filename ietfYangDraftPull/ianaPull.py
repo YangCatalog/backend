@@ -28,7 +28,6 @@ import os
 import shutil
 import subprocess
 import sys
-import typing as t
 import xml.etree.ElementTree as ET
 from shutil import copy2
 
@@ -37,30 +36,22 @@ from git.exc import GitCommandError
 import utility.log as log
 from ietfYangDraftPull import draftPullUtility as dpu
 from utility.create_config import create_config
-from utility.scriptConfig import Arg, BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.util import job_log
 
-current_file_basename = os.path.basename(__file__)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = 'Pull the latest IANA-maintained files and add them to the Github if there are any new.'
-        args: t.List[Arg] = [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ]
-        super().__init__(help, args, None if __name__ == '__main__' else [])
-
-
-@job_log(file_basename=current_file_basename)
-def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     args = script_conf.args
-
     config_path = args.config_path
     config = create_config(config_path)
     yang_models = config.get('Directory-Section', 'yang-models-dir')

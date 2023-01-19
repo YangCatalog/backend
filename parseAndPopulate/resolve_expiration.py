@@ -34,24 +34,21 @@ from parseAndPopulate.resolvers.expiration import ExpirationResolver
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
-from utility.scriptConfig import BaseScriptConfig
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
 from utility.util import job_log
 
-current_file_basename = os.path.basename(__file__)
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=None,
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-class ScriptConfig(BaseScriptConfig):
-    def __init__(self):
-        help = (
-            'Resolve expiration metadata for each module and set it to Redis if changed. '
-            'This runs as a daily cronjob'
-        )
-
-        super().__init__(help, None, None if __name__ == '__main__' else [])
-
-
-@job_log(file_basename=current_file_basename)
-def main(script_conf: BaseScriptConfig = ScriptConfig()) -> list[dict[str, str]]:
+@job_log(file_basename=BASENAME)
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     config = create_config()
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
