@@ -27,6 +27,7 @@ import unicodedata
 import xml.etree.ElementTree as ET
 from configparser import ConfigParser
 
+import requests
 from git import InvalidGitRepositoryError
 from git.repo import Repo
 
@@ -127,7 +128,10 @@ class ModuleGrouping:
         name_revision = f'{name}@{revision}'
         if name_revision in self._schemas:
             return
-        self._schemas[name_revision] = self._construct_schema_url(path, schema_parts)
+        schema = self._construct_schema_url(path, schema_parts)
+        if schema and requests.head(schema).status_code == 200:
+            self._schemas[name_revision] = schema
+        self.logger.error(f'Broken schema generated: {schema}')
 
     def _construct_schema_url(self, path: str, schema_parts: SchemaParts) -> t.Optional[str]:
         self.logger.debug('Resolving schema')
