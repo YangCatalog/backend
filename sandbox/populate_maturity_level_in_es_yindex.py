@@ -19,7 +19,7 @@ def main():
         os.path.join(config.get('Directory-Section', 'logs'), 'sandbox.log'),
     )
     es_manager = ESManager()
-    modules_for_bulk_indexing = []
+    logger.info('Process started')
     for module_key, module in all_modules_generator():
         maturity_level = module.get('maturity-level')
         if (
@@ -41,16 +41,16 @@ def main():
         }
         es_response = es_manager.generic_search(index=ESIndices.YINDEX, query=query, response_size=None)['hits']['hits']
         for result in es_response:
-            module_data = result['_source']
-            module_data['maturity-level'] = maturity_level
-            modules_for_bulk_indexing.append(module_data)
-    logger.info(f'{len(modules_for_bulk_indexing)} modules are ready to be updated in Elasticsearch')
-    i = 0
-    while i <= len(modules_for_bulk_indexing):
-        chunk = modules_for_bulk_indexing[i : i + ES_CHUNK_SIZE]
-        es_manager.bulk_modules(ESIndices.YINDEX, chunk)
-        i += ES_CHUNK_SIZE
-    logger.info('Modules are updated successfully')
+            doc_id = result['_id']
+            logger.info(f'Setting {maturity_level} maturity-level to {doc_id}')
+            es_manager.es.update(
+                index=ESIndices.YINDEX.value,
+                id=doc_id,
+                body={'doc': {'maturity-level': maturity_level}},
+                refresh='true',
+            )
+    es_manager.es.indices.refresh(index=ESIndices.YINDEX.value)
+    logger.info('All modules are updated successfully')
 
 
 def all_modules_generator():

@@ -212,7 +212,7 @@ class ElkSearch:
                 reject.append(module_key)
                 self._missing_modules.append(module_key)
                 continue
-            row.maturity = module_data.get('maturity-level', '')
+            row.maturity = row.maturity if row.maturity else module_data.get('maturity-level', '')
             row.dependents = len(module_data.get('dependents', []))
             row.compilation_status = module_data.get('compilation-status', 'unknown')
             row.create_representation()
