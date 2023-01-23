@@ -198,7 +198,7 @@ def index_printer(stmt):
         'description': dstr,
         'properties': json.dumps(subs),
         'sdo': organization in SDOS,
-        'maturity-level': module_data.get('maturity-level', ''),
+        'rfc': module_data.get('maturity-level') == 'ratified',
     }
     # TODO: What is this field used for?
     # text = '{} {} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],

@@ -103,7 +103,7 @@ class ElkSearch:
         self.logger.debug(f'Constructing query for params {self._search_params}')
         self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
         if not self._search_params.include_drafts:
-            self.query['query']['bool']['must'].append({'term': {'maturity-level': 'ratified'}})
+            self.query['query']['bool']['must'].append({'term': {'rfc': True}})
         case_insensitive = not self._search_params.case_sensitive
         query_type = self._search_params.query_type
         if query_type == 'regexp':

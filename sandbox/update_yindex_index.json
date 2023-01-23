@@ -43,8 +43,8 @@
       "revision": {
         "type": "date"
       },
-      "maturity-level": {
-        "type": "keyword"
+      "rfc": {
+        "type": "boolean"
       }
     }
 }
