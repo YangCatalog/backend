@@ -98,6 +98,9 @@
       },
       "revision": {
         "type": "date"
+      },
+      "rfc": {
+        "type": "boolean"
       }
     }
   }

@@ -298,6 +298,7 @@ def search():
         query_type=is_string_in(payload, 'type', 'term', ['term', 'regexp']),
         include_mibs=is_boolean(payload, 'include-mibs', False),
         latest_revision=is_boolean(payload, 'latest-revision', True),
+        include_drafts=is_boolean(payload, 'include-drafts', True),
         searched_fields=is_list_in(payload, 'searched-fields', ['module', 'argument', 'description']),
         yang_versions=is_list_in(payload, 'yang-versions', ['1.0', '1.1']),
         schema_types=is_list_in(payload, 'schema-types', SCHEMA_TYPES),

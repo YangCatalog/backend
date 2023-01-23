@@ -1,0 +1,50 @@
+{
+    "properties": {
+      "module": {
+        "type": "text",
+        "analyzer": "ngram",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "organization": {
+        "type": "text",
+        "analyzer": "ngram",
+        "fields": {
+          "keyword": {
+            "type": "keyword",
+            "ignore_above": 256
+          }
+        }
+      },
+      "argument": {
+        "type": "text",
+        "analyzer": "ngram"
+      },
+      "description": {
+        "type": "text",
+        "analyzer": "description",
+        "fields": {
+          "lowercase": {
+            "type": "text",
+            "analyzer": "description_lowercase"
+          },
+          "keyword": {
+            "type": "keyword"
+          }
+        }
+      },
+      "sdo": {
+        "type": "boolean"
+      },
+      "revision": {
+        "type": "date"
+      },
+      "rfc": {
+        "type": "boolean"
+      }
+    }
+}

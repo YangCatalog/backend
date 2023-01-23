@@ -96,12 +96,14 @@ class ElkSearch:
         - In the case of the description field, if the query_type wasn't set to 'regexp', we run a full text search.
         - Case sensitivity is controlled by the case_sensitive search parameter.
         - Synonyms in the full text search of description can be toggled with the use_synonyms search param.
-        - aggs (or aggregations) are used to find th latest revisions of a module if we are searching for latest
+        - aggs (or aggregations) are used to find th the latest revisions of a module if we are searching for latest
         revisions only.
         See search.json for the full query format.
         """
         self.logger.debug(f'Constructing query for params {self._search_params}')
         self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
+        if not self._search_params.include_drafts:
+            self.query['query']['bool']['must'].append({'term': {'rfc': True}})
         case_insensitive = not self._search_params.case_sensitive
         query_type = self._search_params.query_type
         if query_type == 'regexp':
@@ -167,7 +169,29 @@ class ElkSearch:
         processed_rows = self._process_hits(hits)
         return processed_rows, len(hits) == RESPONSE_SIZE
 
-    def _process_hits(self, hits: list):
+    def _retrieve_results(self, latest_revisions: bool) -> list[dict]:
+        query = self.query.copy()
+        if not latest_revisions:
+            query.pop('aggs')
+        try:
+            response = self._es_manager.generic_search(
+                ESIndices.YINDEX,
+                query,
+                response_size=RESPONSE_SIZE,
+            )
+        except ConnectionTimeout:
+            self.logger.exception('Error while searching in Elasticsearch')
+            self.timeout = True
+            return []
+        hits = response['hits']['hits']
+        self.logger.debug(f'search complete with {len(hits)} hits')
+        if latest_revisions:
+            aggregations = response['aggregations']['groupby']['buckets']
+            for agg in aggregations:
+                self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
+        return hits
+
+    def _process_hits(self, hits: list) -> list[dict]:
         response_rows: list[dict] = []
         reject: list[str] = []
         for hit in hits:
@@ -188,7 +212,7 @@ class ElkSearch:
                 reject.append(module_key)
                 self._missing_modules.append(module_key)
                 continue
-            row.maturity = module_data.get('maturity-level', '')
+            row.maturity = row.maturity if row.maturity else module_data.get('maturity-level', '')
             row.dependents = len(module_data.get('dependents', []))
             row.compilation_status = module_data.get('compilation-status', 'unknown')
             row.create_representation()
@@ -212,29 +236,6 @@ class ElkSearch:
 
         self.logger.debug(f'ElkSearch finished with length {len(response_rows)}')
         return response_rows
-
-    def _retrieve_results(self, latest_revisions: bool) -> list:
-        query = self.query.copy()
-        if not latest_revisions:
-            query.pop('aggs')
-        try:
-            response = self._es_manager.generic_search(
-                ESIndices.YINDEX,
-                query,
-                response_size=RESPONSE_SIZE,
-            )
-        except ConnectionTimeout:
-            self.logger.exception('Error while searching in Elasticsearch')
-            self.timeout = True
-            return []
-        hits = response['hits']['hits']
-        self.logger.debug(f'search complete with {len(hits)} hits')
-        if latest_revisions:
-            aggregations = response['aggregations']['groupby']['buckets']
-            for agg in aggregations:
-                self._latest_revisions[agg['key']] = agg['latest-revision']['value_as_string'].split('T')[0]
-
-        return hits
 
     def _rejects_mibs_or_versions(self, module_key: str, reject: t.List[str], module_data: dict) -> bool:
         if not self._search_params.include_mibs and 'yang:smiv2:' in module_data.get('namespace', ''):

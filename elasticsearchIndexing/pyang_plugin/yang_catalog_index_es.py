@@ -21,11 +21,13 @@ import dateutil.parser
 from pyang import plugin, statements
 from pyang.util import get_latest_revision
 
+from redisConnections.redisConnection import RedisConnection
 from utility.staticVariables import NAMESPACE_MAP, SDOS
 
 _yang_catalog_index_values = []
 _values = {'yindex': []}
 _ctx = None
+redis_connection = RedisConnection()
 
 
 def pyang_plugin_init():
@@ -183,17 +185,21 @@ def index_printer(stmt):
             else:
                 a = index_escape_json(a)
             subs.append({k: {'value': a, 'has_children': has_children, 'children': []}})
+    organization = resolve_organization(module)
+    module_key = f'{module.arg}@{revision}/{organization}'
+    module_data = json.loads(redis_connection.get_module(module_key))
     vals = {
         'module': module.arg,
         'revision': revision,
-        'organization': resolve_organization(module),
+        'organization': organization,
         'path': path,
         'statement': skey,
         'argument': stmt.arg,
         'description': dstr,
         'properties': json.dumps(subs),
+        'sdo': organization in SDOS,
+        'rfc': module_data.get('maturity-level') == 'ratified',
     }
-    vals['sdo'] = vals['organization'] in SDOS
     # TODO: What is this field used for?
     # text = '{} {} {} {} {} {} {} {} {}'.format(vals['module'], vals['revision'], vals['organization'],
     #                                            vals['path'], vals['statement'], vals['argument'],

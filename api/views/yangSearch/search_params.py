@@ -9,6 +9,7 @@ class SearchParams:
     query_type: str
     include_mibs: bool
     latest_revision: bool
+    include_drafts: bool
     searched_fields: List
     yang_versions: List
     schema_types: List

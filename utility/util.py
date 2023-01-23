@@ -261,17 +261,17 @@ def prepare_for_es_indexing(
     save_file_dir: str,
     force_indexing: bool = False,
 ):
-    """Sends the POST request which will activate indexing script for modules which will
+    """
+    Sends the POST request which will activate indexing script for modules which will
     help to speed up process of searching. It will create a json body of all the modules
-    containing module name and path where the module can be found if we are adding new
-    modules.
+    containing module name and path where the module can be found if we are adding new modules.
 
     Arguments:
         :param yc_api_prefix        (str) prefix for sending request to API
         :param modules_to_index     (str) path to the prepare.json file generated while parsing
         :param logger               (logging.Logger) formated logger with the specified name
         :param save_file_dir        (str) path to the directory where all the yang files will be saved
-        :param force_indexing       (bool) Whether or not we should force indexing even if module exists in cache.
+        :param force_indexing       (bool) Whether we should force indexing even if module exists in cache.
     """
     mf = message_factory.MessageFactory()
     es_manager = ESManager()

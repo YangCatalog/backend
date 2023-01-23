@@ -109,15 +109,15 @@ class RedisConnection:
 
             self.set_redis_module(updated_module, redis_key)
 
-    def get_all_modules(self):
+    def get_all_modules(self) -> str:
         data = self.modulesDB.get('modules-data')
         return (data or b'{}').decode('utf-8')
 
-    def get_module(self, key: str):
+    def get_module(self, key: str) -> str:
         data = self.modulesDB.get(key)
         return (data or b'{}').decode('utf-8')
 
-    def get_temp_module(self, key: str):
+    def get_temp_module(self, key: str) -> str:
         data = self.temp_modulesDB.get(key)
         return (data or b'{}').decode('utf-8')
 

@@ -34,7 +34,7 @@ class ResponseRow:
         self.origin = self._set_origin(elastic_hit['organization'])
         self.organization = elastic_hit['organization']
         self.description = elastic_hit['description']
-        self.maturity = ''
+        self.maturity = 'ratified' if elastic_hit.get('rfc') else ''
         self.dependents = 0
         self.compilation_status = 'unknown'
 
