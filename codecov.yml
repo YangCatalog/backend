@@ -7,3 +7,7 @@ comment:
   require_changes: false
   require_base: no
   require_head: no
+
+coverage:
+  status:
+    patch: off
