@@ -106,18 +106,19 @@ jobs:
           coverage run -am pytest
           coverage xml
 
-      - name: Coverage report
+      - name: Coverage report PR
         if: ${{ github.repository == 'YangCatalog/backend' && github.event.workflow_run.event == 'pull_request' }}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
+          override_commit: ${{ steps.source-run-info.outputs.mergeCommitSha }}
           override_pr: ${{ steps.source-run-info.outputs.pullRequestNumber }}
           files: ./coverage.xml
           fail_ci_if_error: true
           verbose: true
 
       - name: Coverage report
-        if: ${{ github.repository == 'YangCatalog/backend' }}
+        if: ${{ github.repository == 'YangCatalog/backend' && github.event.workflow_run.event != 'pull_request'}}
         uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
