@@ -31,8 +31,7 @@ jobs:
       - uses: actions/checkout@v3
         if: ${{ github.event.workflow_run.event == 'pull_request' }}
         with:
-          ref: ${{ steps.source-run-info.outputs.sourceHeadBranch }}
-          repository: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
+          ref: ${{ steps.source-run-info.outputs.mergeCommitSha }}
 
       - uses: actions/checkout@v3
         if: ${{ github.event.workflow_run.event != 'pull_request' }}
@@ -65,7 +64,7 @@ jobs:
           sudo swapoff -a
           sudo sysctl -w vm.swappiness=1
           sudo sysctl -w vm.max_map_count=262144
-    
+
       - name: Setup Elasticsearch ${{ matrix.elasticsearch-version }}
         uses: getong/elasticsearch-action@v1.2
         with:
@@ -106,6 +105,16 @@ jobs:
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           coverage run -am pytest
           coverage xml
+
+      - name: Coverage report
+        if: ${{ github.repository == 'YangCatalog/backend' && github.event.workflow_run.event == 'pull_request' }}
+        uses: codecov/codecov-action@v3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          override_pr: ${{ steps.source-run-info.outputs.pullRequestNumber }}
+          files: ./coverage.xml
+          fail_ci_if_error: true
+          verbose: true
 
       - name: Coverage report
         if: ${{ github.repository == 'YangCatalog/backend' }}
