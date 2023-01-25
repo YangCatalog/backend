@@ -30,11 +30,12 @@ from git import GitCommandError, InvalidGitRepositoryError
 from redis import RedisError
 from werkzeug.exceptions import abort
 
-from api.authentication.auth import auth, hash_pw
+from api.authentication.auth import auth
 from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
+from utility.util import hash_pw
 
 
 class UserSpecificModuleMaintenance(Blueprint):

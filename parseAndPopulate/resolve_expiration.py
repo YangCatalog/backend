@@ -50,7 +50,7 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
 @job_log(file_basename=BASENAME)
 def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
     config = create_config()
-    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password').strip('"').split()
+    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='admin admin').strip('"').split()
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 

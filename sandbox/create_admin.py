@@ -1,20 +1,20 @@
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.create_config import create_config
+from utility.util import hash_pw
 
 
 def main():
     users = RedisUsersConnection()
 
-    admin_id = users.id_by_username('admin')
-    if admin_id:
+    if users.id_by_username('admin'):
         print('Admin user already exists.')
         exit(0)
 
     # Getting confd-credentials from yangcatalog config
     config = create_config()
-    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='user password')
+    credentials = config.get('Secrets-Section', 'confd-credentials', fallback='admin admin')
 
-    if credentials == 'user password':
+    if credentials == 'admin admin':
         raise ValueError('couldnt find confd-credentials in given config file')
 
     username, password = credentials.strip('"').split()
@@ -23,7 +23,7 @@ def main():
     user_id = users.create(
         temp=False,
         username=username,
-        password=password,
+        password=hash_pw(password),
         first_name='admin',
         last_name='admin',
         email='foo@bar.com',

@@ -176,8 +176,8 @@ class LoadDataFromBackupToDatabase(Recovery):
             with open(self.args.file, 'r') as file_load:
                 self.logger.info(f'Loading file {file_load.name}')
                 catalog_data = json.load(file_load)
-                modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', {}).get('module', [])
-                vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', {}).get('vendor', [])
+                modules = catalog_data.get('yang-catalog:catalog', {}).get('modules', [])
+                vendors = catalog_data.get('yang-catalog:catalog', {}).get('vendors', [])
         else:
             self.logger.info('Unable to load modules - ending')
         return modules, vendors

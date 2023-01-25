@@ -2,8 +2,8 @@
 
 from argparse import ArgumentParser
 
-from api.authentication.auth import hash_pw
 from redisConnections.redis_users_connection import RedisUsersConnection
+from utility.util import hash_pw
 
 
 def main():
@@ -13,9 +13,9 @@ def main():
     args = parser.parse_args()
 
     users = RedisUsersConnection()
-    id = users.id_by_username(args.user)
-    hash = hash_pw(args.new_password)
-    users.set_field(id, 'password', hash.decode())
+    user_id = users.id_by_username(args.user)
+    hashed_pw = hash_pw(args.new_password)
+    users.set_field(user_id, 'password', hashed_pw)
 
 
 if __name__ == '__main__':
