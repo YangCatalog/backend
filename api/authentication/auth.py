@@ -1,5 +1,4 @@
 import base64
-import hashlib
 
 import requests
 from flask.globals import current_app
@@ -8,20 +7,15 @@ from OpenSSL.crypto import FILETYPE_PEM, X509, load_publickey, verify
 from redis import RedisError
 
 from redisConnections.redis_users_connection import RedisUsersConnection
+from utility.util import hash_pw
 
 auth = HTTPBasicAuth()
 users: RedisUsersConnection
 
 
 @auth.hash_password
-def hash_pw(password: str) -> bytes:
-    """Hash the password
-
-    Arguments:
-        :param password     (str) password provided via API
-        :return hashed password
-    """
-    return hashlib.sha256(password.encode()).hexdigest().encode()
+def hash_pw_bytes(password: str) -> bytes:
+    return hash_pw(password).encode()
 
 
 @auth.get_password
@@ -33,15 +27,15 @@ def get_password(username: str) -> bytes:
         :return hashed password from database
     """
     try:
-        id = users.id_by_username(username)  # noqa
-        if users.is_approved(id):  # noqa
-            return users.get_field(id, 'password').encode()  # noqa
+        user_id = users.id_by_username(username)  # noqa
+        if users.is_approved(user_id):  # noqa
+            return users.get_field(user_id, 'password').encode()  # noqa
     except RedisError as err:
-        current_app.logger.error('Cannot connect to database. Redis error: {}'.format(err))
+        current_app.logger.error(f'Cannot connect to database. Redis error: {err}')
     return b''
 
 
-def check_authorized(signature: str, payload: str):
+def check_authorized(signature: str, payload: str) -> None:
     """Convert the PEM encoded public key to a format palatable for pyOpenSSL,
     then verify the signature
 
@@ -55,4 +49,4 @@ def check_authorized(signature: str, payload: str):
     pkey_public_key = load_publickey(FILETYPE_PEM, public_key)
     certificate = X509()
     certificate.set_pubkey(pkey_public_key)
-    verify(certificate, base64.b64decode(signature), payload, str('SHA1'))
+    verify(certificate, base64.b64decode(signature), payload, 'SHA1')
