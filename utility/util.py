@@ -20,6 +20,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import fnmatch
 import glob
+import hashlib
 import json
 import logging
 import optparse
@@ -286,7 +287,7 @@ def prepare_for_es_indexing(
         code = response.status_code
 
         in_es = False
-        in_redis = code == 200 or code == 201 or code == 204
+        in_redis = code in [200, 201, 204]
         if in_redis:
             in_es = es_manager.document_exists(ESIndices.AUTOCOMPLETE, module)
         else:
@@ -501,3 +502,8 @@ def validate_revision(revision: str) -> str:
 
 def revision_to_date(revision: str) -> date:
     return date.fromisoformat(validate_revision(revision))
+
+
+def hash_pw(password: str) -> str:
+    encoded_password = password.encode(encoding='utf-8', errors='strict')
+    return hashlib.sha256(encoded_password).hexdigest()

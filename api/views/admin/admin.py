@@ -20,7 +20,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fnmatch
 import grp
 import gzip
-import hashlib
 import json
 import math
 import os
@@ -28,7 +27,6 @@ import pwd
 import re
 import shutil
 import stat
-import sys
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -47,6 +45,7 @@ from werkzeug.utils import redirect
 
 from api.my_flask import app
 from utility.create_config import create_config
+from utility.util import hash_pw
 
 config = create_config()
 client_id = config.get('Secrets-Section', 'client-id')
@@ -608,12 +607,6 @@ def get_module_name(script_name):
     elif script_name == 'statistics':
         return 'statistic'
     return None
-
-
-def hash_pw(password):
-    if sys.version_info >= (3, 4):
-        password = password.encode(encoding='utf-8', errors='strict')
-    return hashlib.sha256(password).hexdigest()
 
 
 def get_input(body):

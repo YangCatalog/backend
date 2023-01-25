@@ -1,12 +1,6 @@
-import hashlib
-
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.create_config import create_config
-
-
-def hash_pw(password: str) -> str:
-    encoded_password = password.encode(encoding='utf-8', errors='strict')
-    return hashlib.sha256(encoded_password).hexdigest()
+from utility.util import hash_pw
 
 
 def main():
