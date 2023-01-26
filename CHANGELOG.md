@@ -1,6 +1,15 @@
 ## Backend Release Notes
 
-* ##### vm.m.p - 2023-MM-DD
+* ##### v5.9.0 - 2023-01-26
+
+  * Bugfix: Minor fix to the create_admin.py script [#713](https://github.com/YangCatalog/backend/issues/713)
+  * YANG Search: now possible to search only within RFC modules [frontend #13](https://github.com/YangCatalog/frontend/issues/13)
+  * Missing schemas restored
+  * All script configs moved into one config file [#712](https://github.com/YangCatalog/backend/issues/712)
+  * job_log transformed into function decorator
+  * Bugfix: Do not allow to push 404 HTML into YangModels/yang [#698](https://github.com/YangCatalog/backend/issues/698)
+  * Bugfix: Extra Space removed from email when sending monthly users email [#697](https://github.com/YangCatalog/backend/issues/697)
+  * Another chunk of improvements to the grep search [#692](https://github.com/YangCatalog/backend/issues/692)
 
 * ##### v5.8.0 - 2022-12-20
 
