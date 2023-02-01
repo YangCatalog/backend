@@ -180,7 +180,6 @@ def health_check_confd():
 
 @bp.route('/redis', methods=['GET'])
 def health_check_redis():
-
     try:
         result = ac.redis.ping()
         if result:
