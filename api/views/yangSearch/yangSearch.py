@@ -789,5 +789,6 @@ def get_dependencies_dependents_data(
         'organization': module_detail['organization'],
         'reference': module_detail.get('reference', ''),
         'maturity-level': module_detail.get('maturity-level', ''),
+        'expired': module_details.get('expired', 'not-applicable'),
     }
     return child
