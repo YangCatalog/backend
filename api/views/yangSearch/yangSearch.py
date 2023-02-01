@@ -443,6 +443,46 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
     return response
 
 
+@bp.route('/get-revisions-maturity-level/<module>', methods=['GET'])
+def get_revisions_maturity_level(module: str):
+    """
+    Search for data saved in our datastore (= Redis) regarding maturity level of all revisions for the module.
+
+    Arguments:
+        :param module           (str) Name of the searched module
+    :return: returns json with maturity-level metadata of a specific module
+    """
+    if not module:
+        abort(400, description='No module name provided')
+
+    elk_response = get_modules_revision_organization(module, None, True)
+    if elk_response is None:
+        abort(400, description='ElasticSearch returned no info')
+
+    revisions, organization = elk_response
+
+    if len(revisions) == 0:
+        abort(404, description='Provided module does not exist')
+
+    response = {'module': module, 'revision_maturity_level': []}
+
+    for revision in revisions:
+        # get module from Redis
+        module_key = f'{module}@{revision}/{organization}'
+        module_data = app.redisConnection.get_module(module_key)
+        if module_data == '{}':
+            abort(404, description='Provided module does not exist')
+        module_data = json.loads(module_data)
+        maturity_level = module_data['maturity-level'] if 'maturity-level' in module_data else 'no info'
+        rev_mat_pair = {
+            'revision': module_data['revision'],
+            'maturity-level': maturity_level,
+        }
+        response['revision_maturity_level'].append(rev_mat_pair)
+
+    return response
+
+
 @bp.route('/yang-catalog-help', methods=['GET'])
 def get_yang_catalog_help():
     """
