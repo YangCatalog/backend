@@ -429,17 +429,27 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
     # get the latest revision of provided module if revision not defined
     revision = revisions[0] if not revision else revision
 
-    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
+    response = {'current-module': f'{module}@{revision}.yang', 'revisions': []}
 
     # get module from Redis
-    module_key = f'{module}@{revision}/{organization}'
-    module_data = app.redisConnection.get_module(module_key)
-    if module_data == '{}':
-        if warnings:
-            return {'warning': f'module {module_key} does not exists in API'}
-        abort(404, description='Provided module does not exist')
-    module_data = json.loads(module_data)
-    response['metadata'] = module_data
+    for rev in revisions:
+        module_key = f'{module}@{rev}/{organization}'
+        module_data = app.redisConnection.get_module(module_key)
+        if module_data == '{}':
+            if warnings:
+                return {'warning': f'module {module_key} does not exists in API'}
+            abort(404, description='Provided module does not exist')
+
+        module_data = json.loads(module_data)
+        maturity_level = module_data['maturity-level'] if 'maturity-level' in module_data else 'no info'
+        rev_mat_pair = {
+            'revision': module_data['revision'],
+            'maturity-level': maturity_level,
+        }
+        response['revisions'].append(rev_mat_pair)
+        if rev == revision:
+            response['metadata'] = module_data
+
     return response
 
 
