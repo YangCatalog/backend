@@ -25,16 +25,16 @@ from utility.staticVariables import OUTPUT_COLUMNS, SDOS
 
 
 class ResponseRow:
-    def __init__(self, elastic_hit: dict) -> None:
-        self.name = elastic_hit['argument']
-        self.revision = elastic_hit['revision'].replace('02-29', '02-28')
-        self.schema_type = elastic_hit['statement']
-        self.path = elastic_hit['path']
-        self.module_name = elastic_hit['module']
-        self.origin = self._set_origin(elastic_hit['organization'])
-        self.organization = elastic_hit['organization']
-        self.description = elastic_hit['description']
-        self.maturity = 'ratified' if elastic_hit.get('rfc') else ''
+    def __init__(self, source: dict) -> None:
+        self.name = source['argument']
+        self.revision = source['revision']
+        self.schema_type = source['statement']
+        self.path = source['path']
+        self.module_name = source['module']
+        self.origin = self._set_origin(source['organization'])
+        self.organization = source['organization']
+        self.description = source['description']
+        self.maturity = 'ratified' if source.get('rfc') else ''
         self.dependents = 0
         self.compilation_status = 'unknown'
 
@@ -71,37 +71,6 @@ class ResponseRow:
             underscore_column = column.replace('-', '_')
             value = self.__dict__.get(underscore_column)
             self.output_row[column] = value
-
-    def meets_subsearch_condition(self, sub_searches: list) -> bool:
-        """Check whether row meets all the conditions defined in Advanced search - in 'sub_searches' list.
-
-        Argument:
-            :param sub_searches     (list) list of additional sub-search conditions
-        """
-        if not sub_searches:
-            return True
-
-        for sub_search in sub_searches:
-            passed = True
-            for key, value in sub_search.items():
-                if not passed:
-                    break
-                if isinstance(value, list):
-                    for val in value:
-                        try:
-                            passed = val.lower() in str(self.row_representation[key]).lower()
-                        except KeyError:
-                            passed = False
-                        if not passed:
-                            break
-                else:
-                    try:
-                        passed = value.lower() in str(self.row_representation[key]).lower()
-                    except KeyError:
-                        passed = False
-            if passed:
-                return True
-        return False
 
     def _set_origin(self, organization: str) -> str:
         """Set 'origin' based on the 'organization' property."""

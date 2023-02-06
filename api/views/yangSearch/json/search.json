@@ -2,8 +2,7 @@
   "sort": [
     {
       "sdo": {
-        "order": "desc",
-        "unmapped_type": "boolean"
+        "order": "desc"
       }
     },
     "_score"

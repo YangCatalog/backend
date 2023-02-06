@@ -31,13 +31,13 @@ from flask.json import jsonify
 from pyang import plugin
 from werkzeug.exceptions import abort
 
+import api.views.yangSearch.search_params as sp
 import utility.log as log
 from api.cache.api_cache import cache
 from api.my_flask import app
 from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
 from api.views.yangSearch.elkSearch import ElkSearch
 from api.views.yangSearch.grep_search import GrepSearch
-from api.views.yangSearch.search_params import SearchParams
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
 from utility.create_config import create_config
@@ -292,26 +292,72 @@ def search():
     if len(searched_term) < 2:
         abort(400, description='You have to define "searched-term" containing at least 2 characters')
 
-    search_params = SearchParams(
-        case_sensitive=is_boolean(payload, 'case-sensitive', False),
-        use_synonyms=is_boolean(payload, 'use-synonyms', True),
-        query_type=is_string_in(payload, 'type', 'term', ['term', 'regexp']),
+    subqueries = []
+    regex = is_boolean(payload, 'regex', False)
+    case_insensitive = not is_boolean(payload, 'case-sensitive', False)
+    use_synonyms = is_boolean(payload, 'use-synonyms', True)
+    searched_fields = is_list_in(payload, 'searched-fields', ['module', 'argument', 'description'])
+    if 'module' in searched_fields:
+        subqueries.append(sp.ModuleName(searched_term, False, regex))
+    if 'argument' in searched_fields:
+        subqueries.append(sp.Name(searched_term, False, regex))
+    if 'description' in searched_fields:
+        subqueries.append(sp.Description(searched_term, False, case_insensitive, use_synonyms, regex))
+
+    search_params = sp.SearchParams(
         include_mibs=is_boolean(payload, 'include-mibs', False),
         latest_revision=is_boolean(payload, 'latest-revision', True),
         include_drafts=is_boolean(payload, 'include-drafts', True),
-        searched_fields=is_list_in(payload, 'searched-fields', ['module', 'argument', 'description']),
+        subqueries=subqueries,
         yang_versions=is_list_in(payload, 'yang-versions', ['1.0', '1.1']),
         schema_types=is_list_in(payload, 'schema-types', SCHEMA_TYPES),
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
-        sub_search=each_key_in(payload, 'sub-search', OUTPUT_COLUMNS),
     )
-    elk_search = ElkSearch(searched_term, app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
+    elk_search = ElkSearch(app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
     response['warning'] = elk_search.alerts()
     response['timeout'] = elk_search.timeout
-    return make_response(jsonify(response), 200)
+    return response
+
+
+@bp.route('/advanced-search', methods=['POST'])
+def advanced_search():
+    if not request.json:
+        abort(400, description='No input data')
+    payload = request.json
+    subqueries = []
+    subqueries_json = payload.pop('sub-search')
+    for field, subquery in subqueries_json.items():
+        subqueries.append(
+            {
+                'name': sp.Name,
+                'revision': sp.Revision,
+                'path': sp.Path,
+                'module': sp.ModuleName,
+                'organization': sp.Organization,
+                'maturity': sp.Maturity,
+                'description': sp.Description,
+            }[field](**subquery),
+        )
+
+    search_params = sp.SearchParams(
+        include_mibs=is_boolean(payload, 'include-mibs', False),
+        latest_revision=is_boolean(payload, 'latest-revision', True),
+        subqueries=subqueries,
+        yang_versions=is_list_in(payload, 'yang-versions', ['1.0', '1.1']),
+        schema_types=is_list_in(payload, 'schema-types', SCHEMA_TYPES),
+        output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
+        include_drafts=is_boolean(payload, 'include-drafts', True),
+    )
+    elk_search = ElkSearch(app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
+    elk_search.construct_query()
+    response = {}
+    response['rows'], response['max-hits'] = elk_search.search()
+    response['warning'] = elk_search.alerts()
+    response['timeout'] = elk_search.timeout
+    return response
 
 
 @bp.route('/completions/<keyword>/<pattern>', methods=['GET'])
