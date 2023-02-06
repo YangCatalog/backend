@@ -443,6 +443,23 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
     return response
 
 
+@bp.route('/draft-code-snippets/<draft_name>', methods=['GET'])
+def get_draft_code_snippets(draft_name: str) -> t.Optional[list[str, ...]]:
+    config = create_config()
+    code_snippets_directory = config.get('Web-Section', 'code-snippets-directory')
+    draft_code_snippets_directory = os.path.join(code_snippets_directory, os.path.splitext(draft_name)[0])
+    if not os.path.exists(draft_code_snippets_directory):
+        return jsonify([])
+    domain_prefix = config.get('Web-Section', 'domain-prefix')
+    public_directory = config.get('Web-Section', 'public-directory')
+    draft_code_snippets_directory_relpath = os.path.relpath(draft_code_snippets_directory, public_directory)
+    draft_code_snippets_url = f'{domain_prefix}/{draft_code_snippets_directory_relpath}'
+    response = []
+    for filename in os.listdir(draft_code_snippets_directory):
+        response.append(f'{draft_code_snippets_url}/{filename}')
+    return jsonify(response)
+
+
 @bp.route('/yang-catalog-help', methods=['GET'])
 def get_yang_catalog_help():
     """
