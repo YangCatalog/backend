@@ -309,6 +309,8 @@ def search():
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
+    if payload.get('sub-search'):
+        response['max-hits'] = False
     response['warning'] = elk_search.alerts()
     response['timeout'] = elk_search.timeout
     return make_response(jsonify(response), 200)
