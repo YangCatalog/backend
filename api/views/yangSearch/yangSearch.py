@@ -309,6 +309,8 @@ def search():
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
+    if payload.get('sub-search'):
+        response['max-hits'] = False
     response['warning'] = elk_search.alerts()
     response['timeout'] = elk_search.timeout
     return make_response(jsonify(response), 200)
@@ -446,7 +448,12 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
 @bp.route('/draft-code-snippets/<draft_name>', methods=['GET'])
 def get_draft_code_snippets(draft_name: str) -> t.Optional[list[str, ...]]:
     config = create_config()
-    code_snippets_directory = config.get('Web-Section', 'code-snippets-directory')
+    downloadables_directory = config.get('Web-Section', 'downloadables-directory')
+    code_snippets_directory = config.get(
+        'Web-Section',
+        'code-snippets-directory',
+        fallback=os.path.join(downloadables_directory, 'code-snippets'),
+    )
     draft_code_snippets_directory = os.path.join(code_snippets_directory, os.path.splitext(draft_name)[0])
     if not os.path.exists(draft_code_snippets_directory):
         return jsonify([])
