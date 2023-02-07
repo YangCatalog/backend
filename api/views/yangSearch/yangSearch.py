@@ -24,6 +24,7 @@ import typing as t
 from logging import Logger
 from urllib import parse as urllib_parse
 
+from flask import Response
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.helpers import make_response
@@ -446,24 +447,16 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
 
 
 @bp.route('/draft-code-snippets/<draft_name>', methods=['GET'])
-def get_draft_code_snippets(draft_name: str) -> t.Optional[list[str, ...]]:
-    config = create_config()
-    downloadables_directory = config.get('Web-Section', 'downloadables-directory')
-    code_snippets_directory = config.get(
-        'Web-Section',
-        'code-snippets-directory',
-        fallback=os.path.join(downloadables_directory, 'code-snippets'),
-    )
+def get_draft_code_snippets(draft_name: str) -> Response:
+    code_snippets_directory = app_config.w_code_snippets_directory
     draft_code_snippets_directory = os.path.join(code_snippets_directory, os.path.splitext(draft_name)[0])
     if not os.path.exists(draft_code_snippets_directory):
         return jsonify([])
-    domain_prefix = config.get('Web-Section', 'domain-prefix')
-    public_directory = config.get('Web-Section', 'public-directory')
+    domain_prefix = app_config.w_domain_prefix
+    public_directory = app_config.w_public_directory
     draft_code_snippets_directory_relpath = os.path.relpath(draft_code_snippets_directory, public_directory)
     draft_code_snippets_url = f'{domain_prefix}/{draft_code_snippets_directory_relpath}'
-    response = []
-    for filename in os.listdir(draft_code_snippets_directory):
-        response.append(f'{draft_code_snippets_url}/{filename}')
+    response = [f'{draft_code_snippets_url}/{filename}' for filename in os.listdir(draft_code_snippets_directory)]
     return jsonify(response)
 
 
