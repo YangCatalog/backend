@@ -24,6 +24,7 @@ import typing as t
 from logging import Logger
 from urllib import parse as urllib_parse
 
+from flask import Response
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.helpers import make_response
@@ -443,6 +444,26 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
     module_data = json.loads(module_data)
     response['metadata'] = module_data
     return response
+
+
+@bp.route('/draft-code-snippets/<draft_name>', methods=['GET'])
+def get_draft_code_snippets(draft_name: str) -> Response:
+    """
+    Arguments:
+        :param draft_name (str) name of the draft/RFC which code snippets should be returned,
+        name should look like this: rfc7533.txt
+    :return Returns a list of draft/RFC code snippets' urls
+    """
+    code_snippets_directory = app_config.w_code_snippets_directory
+    draft_code_snippets_directory = os.path.join(code_snippets_directory, os.path.splitext(draft_name)[0])
+    if not os.path.exists(draft_code_snippets_directory):
+        return jsonify([])
+    domain_prefix = app_config.w_domain_prefix
+    public_directory = app_config.w_public_directory
+    draft_code_snippets_directory_relpath = os.path.relpath(draft_code_snippets_directory, public_directory)
+    draft_code_snippets_url = f'{domain_prefix}/{draft_code_snippets_directory_relpath}'
+    response = [f'{draft_code_snippets_url}/{filename}' for filename in os.listdir(draft_code_snippets_directory)]
+    return jsonify(response)
 
 
 @bp.route('/yang-catalog-help', methods=['GET'])
