@@ -448,6 +448,12 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
 
 @bp.route('/draft-code-snippets/<draft_name>', methods=['GET'])
 def get_draft_code_snippets(draft_name: str) -> Response:
+    """
+    Arguments:
+        :param draft_name (str) name of the draft/RFC which code snippets should be returned,
+        name should look like this: rfc7533.txt
+    :return Returns a list of draft/RFC code snippets' urls
+    """
     code_snippets_directory = app_config.w_code_snippets_directory
     draft_code_snippets_directory = os.path.join(code_snippets_directory, os.path.splitext(draft_name)[0])
     if not os.path.exists(draft_code_snippets_directory):
