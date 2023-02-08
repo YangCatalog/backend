@@ -351,7 +351,6 @@ class Receiver:
                         self.redisConnection.delete_dependent(redis_key, mod['name'])
         modules_to_index = []
         for mod_key, redis_key in zip(mod_keys_to_delete, redis_keys_to_delete):
-
             response = self.redisConnection.delete_modules([redis_key])
             if response == 1:
                 self.LOGGER.info('Module {} deleted successfully'.format(redis_key))

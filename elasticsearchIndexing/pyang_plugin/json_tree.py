@@ -278,7 +278,6 @@ def typestring(node):
 def action_params(action):
     s = {}
     for params in action.substmts:
-
         if params.keyword == 'input':
             inputs = params.search('leaf')
             inputs += params.search('leaf-list')
