@@ -418,6 +418,7 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
 
     elk_response = get_modules_revision_organization(module, None, warnings)
+
     if 'warning' in elk_response:
         return elk_response
     revisions, organization = elk_response
@@ -428,28 +429,19 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
 
     # get the latest revision of provided module if revision not defined
     revision = revisions[0] if not revision else revision
+    revisions_maturity_levels = get_modules_revision_maturity_levels(module)
 
-    response = {'current-module': f'{module}@{revision}.yang', 'revisions': []}
+    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions_maturity_levels}
 
     # get module from Redis
-    for rev in revisions:
-        module_key = f'{module}@{rev}/{organization}'
-        module_data = app.redisConnection.get_module(module_key)
-        if module_data == '{}':
-            if warnings:
-                return {'warning': f'module {module_key} does not exists in API'}
-            abort(404, description='Provided module does not exist')
-
-        module_data = json.loads(module_data)
-        maturity_level = module_data['maturity-level'] if 'maturity-level' in module_data else 'no info'
-        rev_mat_pair = {
-            'revision': module_data['revision'],
-            'maturity-level': maturity_level,
-        }
-        response['revisions'].append(rev_mat_pair)
-        if rev == revision:
-            response['metadata'] = module_data
-
+    module_key = f'{module}@{revision}/{organization}'
+    module_data = app.redisConnection.get_module(module_key)
+    if module_data == '{}':
+        if warnings:
+            return {'warning': f'module {module_key} does not exists in API'}
+        abort(404, description='Provided module does not exist')
+    module_data = json.loads(module_data)
+    response['metadata'] = module_data
     return response
 
 
@@ -594,6 +586,28 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         if warnings:
             return {'warning': f'Failed to find module {name_rev}'}
         abort(404, f'Failed to get revisions and organization for {name_rev}')
+
+
+def get_modules_revision_maturity_levels(module_name: str):
+    """
+    Get maturity level for every revision of given module.
+
+    Arguments:
+        :param module_name      (str) Name of the searched module
+    :return dict with pairs of revision and its maturity level
+    """
+    hits = app_config.es_manager.get_maturity_levels_for_module(module_name)
+    res = []
+    for hit in hits:
+        hit = hit['_source']
+        revision = hit['revision']
+        revision_mat_level = {
+            'revision': revision,
+            'maturity_level': hit['rfc'] if 'rfc' in hit else False,
+        }
+        if revision_mat_level not in res:
+            res.append(revision_mat_level)
+    return res
 
 
 def get_latest_module_revision(module_name: str) -> str:

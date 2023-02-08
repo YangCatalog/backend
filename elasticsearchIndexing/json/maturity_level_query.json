@@ -1,0 +1,24 @@
+{
+    "query": {
+      "bool": {
+        "must": [
+          {
+            "match_phrase": {
+              "module.keyword": {
+                "query": ""
+              }
+            }
+          }
+        ]
+      }
+    },
+    "sort": [
+      {
+        "revision": {
+          "order": "desc"
+        }
+      }
+    ],
+    "size": 1000
+}
+  
