@@ -282,19 +282,6 @@ class ESManager:
 
         return es_result['hits']['hits']
 
-    def get_maturity_levels_for_module(self, module_name: str):
-        query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/maturity_level_query.json')
-        with open(query_path, encoding='utf-8') as reader:
-            maturity_level_query = json.load(reader)
-
-        maturity_level_query['query']['bool']['must'][0]['match_phrase']['module.keyword']['query'] = module_name
-        try:
-            es_result = self.es.search(index=ESIndices.YINDEX.value, body=maturity_level_query)
-        except RequestError:
-            return []
-
-        return es_result['hits']['hits']
-
     def get_node(self, module: dict) -> dict:
         query_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json/show_node.json')
         with open(query_path, encoding='utf-8') as reader:

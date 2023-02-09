@@ -145,7 +145,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
 
         if revision is None:
             # get the latest revision of provided module
-            revision = revisions[0]
+            revision = revisions[0]['revision']
 
         path_to_yang = f'{app_config.d_save_file_dir}/{module_name}@{revision}.yang'
         plugin.plugins = []
@@ -431,10 +431,8 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(404, description='Provided module does not exist')
 
     # get the latest revision of provided module if revision not defined
-    revision = revisions[0] if not revision else revision
-    revisions_maturity_levels = get_modules_revision_maturity_levels(module)
-
-    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions_maturity_levels}
+    revision = revisions[0]['revision'] if not revision else revision
+    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
 
     # get module from Redis
     module_key = f'{module}@{revision}/{organization}'
@@ -552,16 +550,22 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.YINDEX, module_name)
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
+            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
         for hit in hits:
             hit = hit['_source']
-            revisions.append(hit['revision'])
+            revision = hit['revision']
+            revision_mat_level = {
+                'revision': revision,
+                'maturity_level': hit['rfc'] if 'rfc' in hit else False,
+            }
+            if revision_mat_level not in revisions:
+                revisions.append(revision_mat_level)
         return revisions, organization
     except IndexError:
         name_rev = f'{module_name}@{revision}' if revision else module_name
@@ -569,28 +573,6 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         if warnings:
             return {'warning': f'Failed to find module {name_rev}'}
         abort(404, f'Failed to get revisions and organization for {name_rev}')
-
-
-def get_modules_revision_maturity_levels(module_name: str) -> list[dict[str, str]]:
-    """
-    Get maturity level for every revision of given module.
-
-    Arguments:
-        :param module_name      (str) Name of the searched module
-    :return dict with pairs of revision and its maturity level
-    """
-    hits = app_config.es_manager.get_maturity_levels_for_module(module_name)
-    res = []
-    for hit in hits:
-        hit = hit['_source']
-        revision = hit['revision']
-        revision_mat_level = {
-            'revision': revision,
-            'maturity_level': hit['rfc'] if 'rfc' in hit else False,
-        }
-        if revision_mat_level not in res:
-            res.append(revision_mat_level)
-    return res
 
 
 def get_latest_module_revision(module_name: str) -> str:
