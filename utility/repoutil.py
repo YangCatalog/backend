@@ -31,7 +31,8 @@ from gitdb.exc import BadName
 
 
 class RepoUtil:
-    """Simple class for rolling up some git operations as part of file
+    """
+    Simple class for rolling up some git operations as part of file
     manipulation. The user should create the object with the URL to
     the repository and an appropriate set of credentials.
     """
@@ -105,14 +106,15 @@ class RepoUtil:
         config_username: t.Optional[str] = None,
         config_user_email: t.Optional[str] = None,
     ):
-        """Clone the specified repository and recursively clone submodules.
+        """
+        Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
         Arguments:
-            :param local_dir        (Optional[str]) Directory where to clone the repo.
-                By default a new temporary directory is created.
+            :param local_dir  (Optional[str]) Directory where to clone the repo.
+            By default, a new temporary directory is created.
             :param config_username  (Optional[str]) Username to set in the git config.
-            :param config_email     (Optional[str]) Email to set in the git config.
+            :param config_user_email  (Optional[str]) Email to set in the git config.
         """
         if local_dir:
             self.local_dir = local_dir
@@ -126,7 +128,8 @@ class RepoUtil:
 
 
 class ModifiableRepoUtil(RepoUtil):
-    """RepoUtil subclass with methods for manipulating the repository.
+    """
+    RepoUtil subclass with methods for manipulating the repository.
     The repository directory is automatically removed on object deletion.
     """
 
@@ -181,7 +184,7 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
 
     Arguments:
         :param repo_dir    (str) directory where .git file is located
-        :param repo_url    (str) url to Github repository
+        :param repo_url    (str) url to GitHub repository
     """
     repo = (RepoUtil if 'yangmodels/yang' in repo_dir else ModifiableRepoUtil)(repo_url, clone=False)
     try:

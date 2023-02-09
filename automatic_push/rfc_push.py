@@ -115,12 +115,17 @@ def _create_pull_request(
             True,
             'PullRequest creation is successful (switch to the PROD environment to actually create one)',
         )
+    pr_title = 'Add new IETF RFC files'
+    open_pr_response = requests.get(
+        'https://api.github.com/repos/YangModels/yang/pulls',
+        headers={'Authorization': f'token {token}', 'Content-Type': 'application/vnd.github+json'},
+        data=json.dumps({'state': 'open', 'head': 'yang-catalog'}),
+    )
+    for pr in open_pr_response.json():
+        if pr['title'] == pr_title:
+            return PullRequestCreationResult(False, f'There is already an open PullRequest: {pr["html_url"]}')
     forked_repo.repo.git.push('--set-upstream', 'origin', forked_repo.repo.active_branch)
-    data = {
-        'title': 'Add new IETF RFC files',
-        'head': f'{username}:{forked_repo.repo.active_branch}',
-        'base': 'main',
-    }
+    data = {'title': pr_title, 'head': f'{username}:{forked_repo.repo.active_branch}', 'base': 'main'}
     response = requests.post(
         'https://api.github.com/repos/YangModels/yang/pulls',
         headers={'Authorization': f'token {token}', 'Content-Type': 'application/vnd.github+json'},
