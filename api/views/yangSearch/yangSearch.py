@@ -562,7 +562,7 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
             revision = hit['revision']
             revision_mat_level = {
                 'revision': revision,
-                'maturity_level': hit['rfc'] if 'rfc' in hit else False,
+                'is_rfc': hit['rfc'] if 'rfc' in hit else False,
             }
             if revision_mat_level not in revisions:
                 revisions.append(revision_mat_level)
