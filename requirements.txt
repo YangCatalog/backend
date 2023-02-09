@@ -29,3 +29,4 @@ Flask-pyoidc==3.10.0
 piwikapi==0.3
 webexteamssdk==1.6.1
 Flask-Caching==2.0.1
+xym==0.6.2

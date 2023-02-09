@@ -43,7 +43,7 @@ class RepoUtil:
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: dict = {},
+        clone_options: t.Optional[dict] = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         """
@@ -56,6 +56,7 @@ class RepoUtil:
         """
         self.url = repourl
         self.logger = logger
+        clone_options = clone_options or {}
         if clone:
             self._clone(**clone_options)
 
@@ -133,7 +134,7 @@ class ModifiableRepoUtil(RepoUtil):
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: dict = {},
+        clone_options: dict = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         super().__init__(repourl, clone, clone_options, logger)
