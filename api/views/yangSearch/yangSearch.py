@@ -145,7 +145,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
 
         if revision is None:
             # get the latest revision of provided module
-            revision = revisions[0]
+            revision = revisions[0]['revision']
 
         path_to_yang = f'{app_config.d_save_file_dir}/{module_name}@{revision}.yang'
         plugin.plugins = []
@@ -421,6 +421,7 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
 
     elk_response = get_modules_revision_organization(module, None, warnings)
+
     if 'warning' in elk_response:
         return elk_response
     revisions, organization = elk_response
@@ -430,8 +431,7 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(404, description='Provided module does not exist')
 
     # get the latest revision of provided module if revision not defined
-    revision = revisions[0] if not revision else revision
-
+    revision = revisions[0]['revision'] if not revision else revision
     response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
 
     # get module from Redis
@@ -550,16 +550,22 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.YINDEX, module_name)
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
+            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
         for hit in hits:
             hit = hit['_source']
-            revisions.append(hit['revision'])
+            revision = hit['revision']
+            revision_mat_level = {
+                'revision': revision,
+                'is_rfc': hit['rfc'] if 'rfc' in hit else False,
+            }
+            if revision_mat_level not in revisions:
+                revisions.append(revision_mat_level)
         return revisions, organization
     except IndexError:
         name_rev = f'{module_name}@{revision}' if revision else module_name
