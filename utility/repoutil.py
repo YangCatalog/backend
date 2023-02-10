@@ -18,12 +18,14 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import json
 import logging
 import os
 import shutil
 import tempfile
 import typing as t
 
+import requests
 from git.cmd import Git
 from git.exc import InvalidGitRepositoryError
 from git.repo import Repo
@@ -193,3 +195,39 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
         raise InvalidGitRepositoryError(repo_dir)
     repo.local_dir = repo_dir
     return repo
+
+
+def create_pull_request(
+    owner: str,
+    repo: str,
+    head_branch: str,
+    base_branch: str,
+    headers: t.Optional[dict] = None,
+    **data,
+) -> requests.Response:
+    """
+    Creates a PullRequest to the needed repository.
+
+    Arguments:
+        :param owner (str) Repository owner's name.
+        :param repo (str) Repository name.
+        :param head_branch (str) The name of the branch where your changes are implemented.
+        For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
+        :param base_branch (str) The name of the branch you want the changes pulled into.
+        This should be an existing branch on the current repository.
+        :param headers (t.Optional[dict]) Headers to send, access token should be provided here like that
+        {'Authorization': 'token TOKEN_VALUE'}.
+        :param data (str) other data for the PR, full documentation can be found here
+        https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
+        :return (requests.Response) result of the PR creation, documentation can also be found by the link above
+    """
+    headers = headers or {}
+    headers['Content-Type'] = 'application/vnd.github+json'
+    data['head'] = head_branch
+    data['base'] = base_branch
+    response = requests.post(
+        f'https://api.github.com/repos/{owner}/{repo}/pulls',
+        headers=headers,
+        data=json.dumps(data),
+    )
+    return response
