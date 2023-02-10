@@ -86,7 +86,7 @@ def _extract_modules(files_to_update: list[str], repo: ModifiableRepoUtil, confi
         except IndexError:
             continue
         if rfc_url not in extracted_rfcs:
-            xym.xym(source_id=rfc_url, srcdir='', dstdir=extract_to)
+            xym.xym(source_id=rfc_url, srcdir='', dstdir=extract_to, strict=True, force_revision_regexp=True)
             extracted_rfcs.add(rfc_url)
         filename_without_revision = f'{filename.split("@")[0]}.yang'
         extracted_file_path = os.path.join(extract_to, filename_without_revision)
