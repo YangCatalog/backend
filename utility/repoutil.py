@@ -139,7 +139,7 @@ class ModifiableRepoUtil(RepoUtil):
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: dict = None,
+        clone_options: t.Optional[dict] = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         super().__init__(repourl, clone, clone_options, logger)
@@ -217,7 +217,7 @@ def create_pull_request(
         This should be an existing branch on the current repository.
         :param headers (t.Optional[dict]) Headers to send, access token should be provided here like that
         {'Authorization': 'token TOKEN_VALUE'}.
-        :param data (str) other data for the PR, full documentation can be found here
+        :param data (dict) other data for the PR, full documentation can be found here
         https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
         :return (requests.Response) result of the PR creation, documentation can also be found by the link above
     """

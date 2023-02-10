@@ -14,7 +14,8 @@
 
 """
 This module contains functionality for creating a PullRequest to the: https://github.com/YangModels/yang/ repo
-with new/updated modules from RFCs.
+with new/updated modules from RFCs. There are also modules which won't be pushed into the repository,
+they are stored in the /var/yang/ietf-exceptions/exceptions.dat and /var/yang/ietf-exceptions/iana-exceptions.dat files.
 """
 
 
