@@ -11,6 +11,7 @@ Also, reload-cache is called after each phase.
 Finally, unavailable schemas are dumped into JSON file.
 """
 import json
+import os.path
 
 import requests
 
@@ -63,7 +64,7 @@ def get_available_commit_hash(module: dict, commit_hash_list: list) -> str:
             continue
         module_text = response.text
         module_revision = parse_revision(strip_comments(module_text))
-        key = '{}@{}'.format(name, module_revision)
+        key = f'{name}@{module_revision}'
         available_schemas[key] = new_schema
         if revision == module_revision:
             available_commit_hash = commit_hash
@@ -76,9 +77,8 @@ def check_schema_availability(module: dict) -> str:
     """Check if the module's schema can be retrieved from GitHub."""
     schema = module.get('schema', '')
     repo_owner, repo_name = get_repo_owner_name(schema)
-    repo_owner_name = '{}/{}'.format(repo_owner, repo_name)
+    repo_owner_name = f'{repo_owner}/{repo_name}'
     commit_hash_list = commit_hash_history.get(repo_owner_name, [])
-    available_commit_hash = ''
 
     if '/master/' in schema:
         available_commit_hash = get_available_commit_hash(module, commit_hash_list)
@@ -97,14 +97,14 @@ def get_commit_hash_history(module: dict):
     # Get repo owner and name
     schema = module.get('schema', '')
     repo_owner, repo_name = get_repo_owner_name(schema)
-    repo_owner_name = '{}/{}'.format(repo_owner, repo_name)
+    repo_owner_name = f'{repo_owner}/{repo_name}'
 
     commit_hash = commit_hash_history.get(repo_owner_name, None)
 
     # Clone repo to get the commit hashes history for repository
     if commit_hash is None:
-        repo_url = '{}/{}/{}'.format(github_url, repo_owner, repo_name)
-        LOGGER.info('Cloning repo from {}'.format(repo_url))
+        repo_url = f'{github_url}/{repo_owner}/{repo_name}'
+        LOGGER.info(f'Cloning repo from {repo_url}')
         repo = repoutil.ModifiableRepoUtil(repo_url)
 
         # Get list of all historic hashes
@@ -112,9 +112,9 @@ def get_commit_hash_history(module: dict):
 
 
 def __print_patch_response(key: str, response):
-    message = 'Module {} updated with code {}'.format(key, response.status_code)
+    message = f'Module {key} updated with code {response.status_code}'
     if response.text != '':
-        message = '{} and text {}'.format(message, response.text)
+        message = f'{message} and text {response.text}'
     LOGGER.info(message)
 
 
@@ -125,7 +125,7 @@ if __name__ == '__main__':
     credentials = config.get('Secrets-Section', 'confd-credentials', fallback='admin admin').strip('"').split()
     yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-    LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
+    LOGGER = log.get_logger('sandbox', os.path.join(log_directory, 'sandbox.log'))
     confdService = ConfdService()
 
     # GET all the existing modules of Yangcatalog
@@ -142,11 +142,11 @@ if __name__ == '__main__':
     commit_hash_history = {}
     for module in all_existing_modules:
         update = False
-        key = '{}@{}'.format(module.get('name'), module.get('revision'))
+        key = f'{module.get("name")}@{module.get("revision")}'
         schema = module.get('schema')
 
         if key in unavailable_schemas:
-            LOGGER.warning('Skipping module {} - schema unavailable'.format(key))
+            LOGGER.warning(f'Skipping module {key} - schema unavailable')
             continue
         if schema is None:
             unavailable_schemas[key] = ''
@@ -155,7 +155,7 @@ if __name__ == '__main__':
             available_commit_hash = get_branch_from_schema(schema)
             get_commit_hash_history(module)
 
-            LOGGER.debug('Checking schema for module {}'.format(key))
+            LOGGER.debug(f'Checking schema for module {key}')
             if key in available_schemas:
                 schema_available = get_branch_from_schema(available_schemas[key])
             else:
@@ -163,12 +163,12 @@ if __name__ == '__main__':
 
             if schema_available == '':
                 unavailable_schemas[key] = schema
-                LOGGER.warning('Schema not available: {}'.format(schema))
+                LOGGER.warning(f'Schema not available: {schema}')
             elif schema_available == available_commit_hash:
                 if key not in available_schemas:
                     available_schemas[key] = schema
             else:
-                new_schema = schema.replace('/{}/'.format(available_commit_hash), '/{}/'.format(schema_available))
+                new_schema = schema.replace(f'/{available_commit_hash}/', f'/{schema_available}/')
                 module['schema'] = new_schema
                 updated_schemas += 1
 
@@ -177,22 +177,22 @@ if __name__ == '__main__':
 
                 __print_patch_response(key, response)
         except Exception:
-            LOGGER.exception('Problem with module {}'.format(key))
+            LOGGER.exception(f'Problem with module {key}')
             unavailable_schemas[key] = schema
             continue
 
     # Reload cache after checking each scheme
     if updated_schemas > 0:
-        url = '{}/load-cache'.format(yangcatalog_api_prefix)
+        url = f'{yangcatalog_api_prefix}/load-cache'
         response = requests.post(url, None, auth=(credentials[0], credentials[1]))
-        LOGGER.info('Cache loaded with status {}'.format(response.status_code))
+        LOGGER.info(f'Cache loaded with status {response.status_code}')
 
-    LOGGER.info('Number of modules checked: {}'.format(len(all_existing_modules)))
-    LOGGER.info('Number of unavailable schemas: {}'.format(len(unavailable_schemas)))
-    LOGGER.info('Number of updated schemas: {}'.format(updated_schemas))
+    LOGGER.info(f'Number of modules checked: {len(all_existing_modules)}')
+    LOGGER.info(f'Number of unavailable schemas: {len(unavailable_schemas)}')
+    LOGGER.info(f'Number of updated schemas: {updated_schemas}')
 
     # Dump unavailable schemas to JSON file
-    with open('{}/unavailable_schemas.json'.format(temp_dir), 'w') as f:
+    with open(os.path.join(temp_dir, 'unavailable_schemas.json'), 'w') as f:
         json.dump(unavailable_schemas, f, indent=2, sort_keys=True)
 
     ###
@@ -202,13 +202,13 @@ if __name__ == '__main__':
     master_in_dependencies = 0
 
     for module in all_existing_modules:
-        key = '{}@{}'.format(module.get('name'), module.get('revision'))
+        key = f'{module.get("name")}@{module.get("revision")}'
         dependencies = module.get('dependencies', [])
         dependents = module.get('dependents', [])
         submodules = module.get('submodule', [])
         updated = False
 
-        LOGGER.debug('Checking dependents and submodules for module {}'.format(key))
+        LOGGER.debug(f'Checking dependents and submodules for module {key}')
 
         for dependency in dependencies:
             dependency_schema = dependency.get('schema', '')
@@ -218,13 +218,13 @@ if __name__ == '__main__':
         # Check the schema path of each dependent
         for dependent in dependents:
             dependent_schema = dependent.get('schema', '')
-            dependent_key = '{}@{}'.format(dependent.get('name'), dependent.get('revision'))
+            dependent_key = f'{dependent.get("name")}@{dependent.get("revision")}'
             try:
                 available_commit_hash = get_branch_from_schema(dependent_schema)
                 get_commit_hash_history(module)
 
                 if dependent_key in unavailable_schemas:
-                    LOGGER.warning('Skipping dependent {} - schema unavailable'.format(dependent_key))
+                    LOGGER.warning(f'Skipping dependent {dependent_key} - schema unavailable')
                     continue
 
                 if dependent_key in available_schemas:
@@ -238,26 +238,23 @@ if __name__ == '__main__':
                     if dependent_key not in available_schemas:
                         available_schemas[dependent_key] = dependent_schema
                 else:
-                    new_schema = dependent_schema.replace(
-                        '/{}/'.format(available_commit_hash),
-                        '/{}/'.format(schema_available),
-                    )
+                    new_schema = dependent_schema.replace(f'/{available_commit_hash}/', f'/{schema_available}/')
                     dependent['schema'] = new_schema
                     updated = True
             except Exception:
                 unavailable_schemas[dependent_key] = dependent_schema
-                LOGGER.exception('Error occured while processing dependent {}'.format(dependent_key))
+                LOGGER.exception(f'Error occured while processing dependent {dependent_key}')
                 continue
         # Check the schema path of each submodule
         for submodule in submodules:
             submodule_schema = submodule.get('schema', '')
-            submodule_key = '{}@{}'.format(submodule.get('name'), submodule.get('revision'))
+            submodule_key = f'{submodule.get("name")}@{submodule.get("revision")}'
             try:
                 available_commit_hash = get_branch_from_schema(submodule_schema)
                 get_commit_hash_history(module)
 
                 if submodule_key in unavailable_schemas:
-                    LOGGER.warning('Skipping submodule {} - schema unavailable'.format(submodule_key))
+                    LOGGER.warning(f'Skipping submodule {submodule_key} - schema unavailable')
                     continue
 
                 if submodule_key in available_schemas:
@@ -271,15 +268,12 @@ if __name__ == '__main__':
                     if submodule_key not in available_schemas:
                         available_schemas[submodule_key] = submodule_schema
                 else:
-                    new_schema = submodule_schema.replace(
-                        '/{}/'.format(available_commit_hash),
-                        '/{}/'.format(schema_available),
-                    )
+                    new_schema = submodule_schema.replace(f'/{available_commit_hash}/', f'/{schema_available}/')
                     submodule['schema'] = new_schema
                     updated = True
             except Exception:
                 unavailable_schemas[submodule_key] = submodule_schema
-                LOGGER.exception('Error occured while processing submodule {}'.format(submodule_key))
+                LOGGER.exception(f'Error occured while processing submodule {submodule_key}')
                 continue
 
         # Make patch request to ConfD to update schema
@@ -291,14 +285,14 @@ if __name__ == '__main__':
             __print_patch_response(key, response)
 
     # Reload cache after checking schemas in dependents and submodules
-    url = '{}/load-cache'.format(yangcatalog_api_prefix)
+    url = f'{yangcatalog_api_prefix}/load-cache'
     response = requests.post(url, None, auth=(credentials[0], credentials[1]))
-    LOGGER.info('Cache loaded with status {}'.format(response.status_code))
+    LOGGER.info(f'Cache loaded with status {response.status_code}')
 
-    LOGGER.info("'master' in dependencies: {}".format(master_in_dependencies))
-    LOGGER.info('Number of updated modules: {}'.format(len(updated_modules)))
-    LOGGER.info('Number of unavailable schemas: {}'.format(len(unavailable_schemas)))
+    LOGGER.info(f"'master' in dependencies: {master_in_dependencies}")
+    LOGGER.info(f'Number of updated modules: {len(updated_modules)}')
+    LOGGER.info(f'Number of unavailable schemas: {len(unavailable_schemas)}')
 
     # Dump unavailable schemas to JSON file
-    with open('{}/unavailable_schemas.json'.format(temp_dir), 'w') as f:
+    with open(os.path.join(temp_dir, 'unavailable_schemas.json'), 'w') as f:
         json.dump(unavailable_schemas, f, indent=2, sort_keys=True)
