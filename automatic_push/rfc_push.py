@@ -45,17 +45,18 @@ class PullRequestCreationResult:
 
 
 def create_new_rfcs_pull_request(
-    files_to_update: list[str],
+    new_files: list[str],
+    diff_files: list[str],
     forked_repo: ModifiableRepoUtil,
     logger: logging.Logger,
     config: ConfigParser = create_config(),
 ) -> PullRequestCreationResult:
-    if not files_to_update:
+    if not new_files and not diff_files:
         return PullRequestCreationResult(False, 'No files to update')
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     try:
-        _extract_modules(files_to_update, forked_repo, config)
+        _extract_modules(new_files, diff_files, forked_repo, config)
         if not forked_repo.repo.untracked_files:
             return PullRequestCreationResult(False, 'No files to update after extraction')
         result = _create_pull_request(forked_repo, username, token, logger, config)
@@ -65,7 +66,7 @@ def create_new_rfcs_pull_request(
         return PullRequestCreationResult(False, f'Unexpected error\n{e}')
 
 
-def _extract_modules(files_to_update: list[str], repo: ModifiableRepoUtil, config: ConfigParser):
+def _extract_modules(new_files: list[str], diff_files: list[str], repo: ModifiableRepoUtil, config: ConfigParser):
     private_dir = config.get('Web-Section', 'private-directory')
     extract_to = os.path.join(repo.local_dir, 'standard/ietf/RFCtemp')
     rfc_directory = os.path.join(repo.local_dir, 'standard/ietf/RFC')
@@ -77,7 +78,7 @@ def _extract_modules(files_to_update: list[str], repo: ModifiableRepoUtil, confi
     extracted_rfcs = set()
     cwd = os.getcwd()
     os.chdir(rfc_directory)
-    for filename in files_to_update:
+    for filename in new_files + diff_files:
         rfc_url = rfcs_dict.get(filename)
         if not rfc_url:
             continue
@@ -93,6 +94,8 @@ def _extract_modules(files_to_update: list[str], repo: ModifiableRepoUtil, confi
         if not os.path.exists(extracted_file_path):
             continue
         shutil.copy2(extracted_file_path, filename)
+        if filename not in new_files:
+            continue
         if os.path.islink(filename_without_revision):
             os.unlink(filename_without_revision)
         os.symlink(filename, filename_without_revision)
