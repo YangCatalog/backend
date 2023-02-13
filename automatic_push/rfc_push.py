@@ -32,7 +32,6 @@ from configparser import ConfigParser
 from dataclasses import dataclass
 
 import requests
-from xym import xym
 
 from utility.create_config import create_config
 from utility.repoutil import ModifiableRepoUtil, create_pull_request
@@ -56,7 +55,7 @@ def create_new_rfcs_pull_request(
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     try:
-        _extract_modules(new_files, diff_files, forked_repo, config)
+        _update_files_locally(new_files, diff_files, forked_repo, config)
         if not forked_repo.repo.untracked_files:
             return PullRequestCreationResult(False, 'No files to update after extraction')
         result = _create_pull_request(forked_repo, username, token, logger, config)
@@ -66,41 +65,24 @@ def create_new_rfcs_pull_request(
         return PullRequestCreationResult(False, f'Unexpected error\n{e}')
 
 
-def _extract_modules(new_files: list[str], diff_files: list[str], repo: ModifiableRepoUtil, config: ConfigParser):
-    private_dir = config.get('Web-Section', 'private-directory')
-    extract_to = os.path.join(repo.local_dir, 'standard/ietf/RFCtemp')
-    rfc_directory = os.path.join(repo.local_dir, 'standard/ietf/RFC')
-    if os.path.exists(extract_to):
-        shutil.rmtree(extract_to)
-    os.makedirs(extract_to)
-    with open(os.path.join(private_dir, 'IETFYANGRFC.json'), 'r') as f:
-        rfcs_dict = json.load(f)
-    extracted_rfcs = set()
+def _update_files_locally(new_files: list[str], diff_files: list[str], repo: ModifiableRepoUtil, config: ConfigParser):
+    ietf_directory = config.get('Directory-Section', 'ietf-directory')
+    rfc_directory = os.path.join(ietf_directory, 'YANG-rfc')
+    copy_to = os.path.join(repo.local_dir, 'standard/ietf/RFC')
     cwd = os.getcwd()
-    os.chdir(rfc_directory)
+    os.chdir(copy_to)
     for filename in new_files + diff_files:
-        rfc_url = rfcs_dict.get(filename)
-        if not rfc_url:
-            continue
-        try:
-            rfc_url = rfc_url.split('<a href=\"')[1].split('\">')[0]
-        except IndexError:
-            continue
-        if rfc_url not in extracted_rfcs:
-            xym.xym(source_id=rfc_url, srcdir='', dstdir=extract_to, strict=True, force_revision_regexp=True)
-            extracted_rfcs.add(rfc_url)
+        file_path = os.path.join(rfc_directory, filename)
         filename_without_revision = f'{filename.split("@")[0]}.yang'
-        extracted_file_path = os.path.join(extract_to, filename_without_revision)
-        if not os.path.exists(extracted_file_path):
+        if not os.path.exists(file_path):
             continue
-        shutil.copy2(extracted_file_path, filename)
+        shutil.copy2(file_path, filename)
         if filename not in new_files:
             continue
         if os.path.islink(filename_without_revision):
             os.unlink(filename_without_revision)
         os.symlink(filename, filename_without_revision)
     os.chdir(cwd)
-    shutil.rmtree(extract_to)
 
 
 def _create_pull_request(
