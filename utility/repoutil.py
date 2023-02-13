@@ -27,7 +27,7 @@ import typing as t
 
 import requests
 from git.cmd import Git
-from git.exc import InvalidGitRepositoryError
+from git.exc import GitError, InvalidGitRepositoryError
 from git.repo import Repo
 from gitdb.exc import BadName
 
@@ -62,6 +62,7 @@ class RepoUtil:
         clone_options = clone_options or {}
         if clone:
             self._clone(**clone_options)
+        self.previous_active_branch: t.Optional[str] = None
 
     def get_repo_dir(self) -> str:
         """Return the repository directory name from the URL"""
@@ -127,6 +128,26 @@ class RepoUtil:
             with self.repo.config_writer() as config:
                 config.set_value('user', 'email', config_user_email)
                 config.set_value('user', 'name', config_username)
+
+    def checkout(self, branch_name: str, new_branch: bool = False):
+        """
+        Checkouts to another branch, overwrites the self.previous_active_branch attribute
+        to the currently active branch.
+
+        Arguments:
+            :param branch_name (str) Name of the branch to switch to.
+            :param new_branch (bool) Whether this branch new or not, if this argument is False
+            and the branch doesn't exist then an error will be raised
+        """
+        self.previous_active_branch = self.repo.active_branch
+        try:
+            if new_branch:
+                self.repo.git.checkout('HEAD', b=branch_name)
+            else:
+                self.repo.git.checkout(branch_name)
+        except GitError as e:
+            self.repo.git.checkout(self.previous_active_branch)
+            raise e
 
 
 class ModifiableRepoUtil(RepoUtil):

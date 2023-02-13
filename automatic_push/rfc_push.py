@@ -30,8 +30,10 @@ import os
 import shutil
 from configparser import ConfigParser
 from dataclasses import dataclass
+from datetime import datetime
 
 import requests
+from git import GitError
 
 from utility.create_config import create_config
 from utility.repoutil import ModifiableRepoUtil, create_pull_request
@@ -55,12 +57,19 @@ def create_new_rfcs_pull_request(
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     try:
+        forked_repo.checkout(datetime.now().strftime('%Y_%m_%d_%H_%M_%S'), new_branch=True)
+    except GitError:
+        logger.exception('New branch creation failed')
+        return PullRequestCreationResult(False, 'New branch couldn\'t be created')
+    try:
         _update_files_locally(new_files, diff_files, forked_repo, config)
-        if not forked_repo.repo.untracked_files:
-            return PullRequestCreationResult(False, 'No files to update after extraction')
+        if not forked_repo.repo.index.diff(None):
+            return PullRequestCreationResult(False, 'No changed files found locally')
         result = _create_pull_request(forked_repo, username, token, logger, config)
+        forked_repo.checkout(forked_repo.previous_active_branch)
         return result
     except Exception as e:
+        forked_repo.checkout(forked_repo.previous_active_branch)
         logger.exception('Unexpected error occurred during an automatic PullRequest creation')
         return PullRequestCreationResult(False, f'Unexpected error\n{e}')
 
