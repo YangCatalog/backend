@@ -30,10 +30,8 @@ import os
 import shutil
 from configparser import ConfigParser
 from dataclasses import dataclass
-from datetime import datetime
 
 import requests
-from git import GitError
 
 from utility.create_config import create_config
 from utility.repoutil import ModifiableRepoUtil, create_pull_request
@@ -57,19 +55,11 @@ def create_new_rfcs_pull_request(
     token = config.get('Secrets-Section', 'yang-catalog-token')
     username = config.get('General-Section', 'repository-username')
     try:
-        forked_repo.checkout(datetime.now().strftime('%Y_%m_%d_%H_%M_%S'), new_branch=True)
-    except GitError:
-        logger.exception('New branch creation failed')
-        return PullRequestCreationResult(False, 'New branch couldn\'t be created')
-    try:
         _update_files_locally(new_files, diff_files, forked_repo, config)
         if not forked_repo.repo.index.diff(None):
             return PullRequestCreationResult(False, 'No changed files found locally')
-        result = _create_pull_request(forked_repo, username, token, logger, config)
-        forked_repo.checkout(forked_repo.previous_active_branch)
-        return result
+        return _create_pull_request(forked_repo, username, token, logger, config)
     except Exception as e:
-        forked_repo.checkout(forked_repo.previous_active_branch)
         logger.exception('Unexpected error occurred during an automatic PullRequest creation')
         return PullRequestCreationResult(False, f'Unexpected error\n{e}')
 
@@ -108,26 +98,26 @@ def _create_pull_request(
             True,
             'PullRequest creation is successful (switch to the PROD environment to actually create one)',
         )
-    pr_title = 'Add new IETF RFC files'
-    open_pr_response = requests.get(
-        'https://api.github.com/repos/YangModels/yang/pulls',
-        headers={'Authorization': f'token {token}', 'Content-Type': 'application/vnd.github+json'},
-        data=json.dumps({'state': 'open', 'head': 'yang-catalog'}),
-    )
-    for pr in open_pr_response.json():
-        if pr['title'] == pr_title:
-            forked_repo.repo.git.reset('--hard')
-            return PullRequestCreationResult(False, f'There is already an open PullRequest: {pr["html_url"]}')
     forked_repo.repo.git.add(all=True)
     forked_repo.commit_all(message='Add new IETF RFC files')
     forked_repo.repo.git.push('--set-upstream', 'origin', forked_repo.repo.active_branch)
+    open_pr_response = requests.get(
+        'https://api.github.com/repos/YangModels/yang/pulls',
+        headers={'Authorization': f'token {token}', 'Content-Type': 'application/vnd.github+json'},
+        data=json.dumps({'state': 'open', 'head': f'yang-catalog:{forked_repo.repo.active_branch}'}),
+    )
+    if prs := open_pr_response.json():
+        return PullRequestCreationResult(
+            False,
+            f'There is already an open PullRequest (files were updated in this PullRequest): {prs[0]["html_url"]}',
+        )
     response = create_pull_request(
         'YangModels',
         'yang',
         f'{username}:{forked_repo.repo.active_branch}',
         'main',
         {'Authorization': f'token {token}'},
-        title=pr_title,
+        title='Add new IETF RFC files',
     )
     message = response.json()['html_url'] if response.ok else response.text
     logger.info(f'Automatic PullRequest creation info: {message}')
