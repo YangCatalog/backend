@@ -49,6 +49,7 @@ def create_new_rfcs_pull_request(
 ) -> PullRequestCreationResult:
     if not new_files and not diff_files:
         return PullRequestCreationResult(False, 'No files to update')
+    commit_dir = config.get('Directory-Section', 'commit-dir')
     try:
         _update_files_locally(new_files, diff_files, forked_repo, config)
         if not forked_repo.repo.index.diff(None):
@@ -63,6 +64,12 @@ def create_new_rfcs_pull_request(
         forked_repo.repo.git.add(all=True)
         forked_repo.commit_all(message='Add new IETF RFC files')
         forked_repo.repo.git.push('--set-upstream', 'origin', forked_repo.repo.active_branch)
+        with open(commit_dir, 'w+') as f:
+            f.write(f'{forked_repo.repo.head.commit}\n')
+        logger.info(
+            f'new/diff modules are pushed into {forked_repo.repo.active_branch} is created, '
+            f'commit hash: {forked_repo.repo.head.commit}',
+        )
         return PullRequestCreationResult(
             True,
             f'Files are pushed in the {forked_repo.repo.active_branch} branch, '
