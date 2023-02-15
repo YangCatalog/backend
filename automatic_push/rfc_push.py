@@ -64,7 +64,7 @@ def create_new_rfcs_pull_request(
         forked_repo.repo.git.add(all=True)
         forked_repo.commit_all(message='Add new IETF RFC files')
         forked_repo.repo.git.push('--set-upstream', 'origin', forked_repo.repo.active_branch)
-        with open(commit_dir, 'w+') as f:
+        with open(commit_dir, 'a') as f:
             f.write(f'{forked_repo.repo.head.commit}\n')
         logger.info(
             f'new/diff modules are pushed into {forked_repo.repo.active_branch} is created, '
