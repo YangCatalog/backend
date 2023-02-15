@@ -297,7 +297,7 @@ def clone_forked_repository(
     Try to clone forked repository. Repeat the cloning process several times if the attempt was not successful.
 
     Arguments:
-        :param repourl          (str) URL to the Github repository
+        :param repourl          (str) URL to the GitHub repository
         :param commit_author    (dict) Dictionary that contains information about the author of the commit
         :param logger           (logging.Logger) formated logger with the specified name
     """

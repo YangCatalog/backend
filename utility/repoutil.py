@@ -24,6 +24,7 @@ import os
 import shutil
 import tempfile
 import typing as t
+from dataclasses import dataclass
 
 import requests
 from git.cmd import Git
@@ -62,6 +63,7 @@ class RepoUtil:
         clone_options = clone_options or {}
         if clone:
             self._clone(**clone_options)
+        self.previous_active_branch: t.Optional[str] = None
 
     def get_repo_dir(self) -> str:
         """Return the repository directory name from the URL"""
@@ -197,36 +199,46 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
     return repo
 
 
-def create_pull_request(
-    owner: str,
-    repo: str,
-    head_branch: str,
-    base_branch: str,
-    headers: t.Optional[dict] = None,
-    **data,
-) -> requests.Response:
+@dataclass
+class PullRequestCreationDetail:
+    """
+    Data for a PullRequest creation, full documentation can be found here:
+    https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
+    """
+
+    owner: str
+    'Repository owner\'s name.'
+    repo: str
+    'Repository name.'
+    head_branch: str
+    """
+    The name of the branch where your changes are implemented.
+    For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
+    """
+    base_branch: str
+    'The name of the branch you want the changes pulled into. This should be an existing branch on the current repo.'
+    headers: t.Optional[dict] = None
+    'Headers to send, access token should be provided here like that {\'Authorization\': \'token TOKEN_VALUE\'}.'
+    body_data: t.Optional[dict] = None
+    'Request body, head and base branches will be set automatically'
+
+
+def create_pull_request(pr_detail: PullRequestCreationDetail) -> requests.Response:
     """
     Creates a PullRequest to the needed repository.
 
     Arguments:
-        :param owner (str) Repository owner's name.
-        :param repo (str) Repository name.
-        :param head_branch (str) The name of the branch where your changes are implemented.
-        For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
-        :param base_branch (str) The name of the branch you want the changes pulled into.
-        This should be an existing branch on the current repository.
-        :param headers (t.Optional[dict]) Headers to send, access token should be provided here like that
-        {'Authorization': 'token TOKEN_VALUE'}.
-        :param data (dict) other data for the PR, full documentation can be found here
+        :param pr_detail (PullRequestCreationDetail) all the information needed to create a PR
+        :return (requests.Response) result of the PR creation, documentation can be found by this link
         https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
-        :return (requests.Response) result of the PR creation, documentation can also be found by the link above
     """
-    headers = headers or {}
+    headers = pr_detail.headers or {}
     headers['Content-Type'] = 'application/vnd.github+json'
-    data['head'] = head_branch
-    data['base'] = base_branch
+    data = pr_detail.body_data or {}
+    data['head'] = pr_detail.head_branch
+    data['base'] = pr_detail.base_branch
     response = requests.post(
-        f'https://api.github.com/repos/{owner}/{repo}/pulls',
+        f'https://api.github.com/repos/{pr_detail.owner}/{pr_detail.repo}/pulls',
         headers=headers,
         data=json.dumps(data),
     )

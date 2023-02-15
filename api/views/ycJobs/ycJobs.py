@@ -99,17 +99,15 @@ def check_github():
     if body.get('check_run', {}).get('status') != 'completed':
         app.logger.error('Github Actions run not completed yet')
         return {'info': 'Run not completed yet - no action was taken'}, 200
-    else:
-        conclusion = body.get('check_run', {}).get('conclusion')
-        if conclusion != 'success':
-            html_url = body.get('check_run', {}).get('html_url')
-            app.logger.error(f'Github Actions run finished with conclusion {conclusion}\nMore info: {html_url}')
+    if (conclusion := body.get('check_run', {}).get('conclusion')) != 'success':
+        html_url = body.get('check_run', {}).get('html_url')
+        app.logger.error(f'Github Actions run finished with conclusion {conclusion}\nMore info: {html_url}')
 
-            # Sending email notification to developers team
-            mf = message_factory.MessageFactory()
-            mf.send_github_action_email(conclusion, html_url)
+        # Sending email notification to developers team
+        mf = message_factory.MessageFactory()
+        mf.send_github_action_email(conclusion, html_url)
 
-            return {'info': f'Run finished with conclusion {conclusion}'}, 200
+        return {'info': f'Run finished with conclusion {conclusion}'}, 200
 
     # Commit verification
     verify_commit = False
