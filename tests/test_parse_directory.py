@@ -40,26 +40,18 @@ class TestParseDirectoryClass(unittest.TestCase):
         shutil.rmtree(save_file_dir, ignore_errors=True)
         os.mkdir(save_file_dir)
 
-        name_rev_to_path, path_to_name_rev = pd.save_files(self.resource('sdo'), save_file_dir)
+        file_mapping = pd.save_files(self.resource('sdo'), save_file_dir)
 
         self.assertListEqual(
             sorted(os.listdir(save_file_dir)),
             ['sdo-first@2022-08-05.yang', 'sdo-second@2022-08-05.yang', 'sdo-third@2022-08-05.yang'],
         )
         self.assertDictEqual(
-            name_rev_to_path,
+            file_mapping,
             {
-                ('sdo-first', '2022-08-05'): self.resource('sdo/sdo-first.yang'),
-                ('sdo-second', '2022-08-05'): self.resource('sdo/sdo-second.yang'),
-                ('sdo-third', '2022-08-05'): self.resource('sdo/subdir/sdo-third.yang'),
-            },
-        )
-        self.assertDictEqual(
-            path_to_name_rev,
-            {
-                self.resource('sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
-                self.resource('sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
-                self.resource('sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05'),
+                self.resource('sdo/sdo-first.yang'): self.resource('all_modules/sdo-first@2022-08-05.yang'),
+                self.resource('sdo/sdo-second.yang'): self.resource('all_modules/sdo-second@2022-08-05.yang'),
+                self.resource('sdo/subdir/sdo-third.yang'): self.resource('all_modules/sdo-third@2022-08-05.yang'),
             },
         )
 
@@ -128,7 +120,6 @@ class TestParseDirectoryClass(unittest.TestCase):
             file_hasher,
             False,
             self.dir_paths,
-            {},
             logger,
             config=config,
             redis_connection=redis_connection,
@@ -143,7 +134,6 @@ class TestParseDirectoryClass(unittest.TestCase):
             file_hasher,
             False,
             self.dir_paths,
-            {},
             config=config,
             redis_connection=redis_connection,
         )
@@ -159,7 +149,6 @@ class TestParseDirectoryClass(unittest.TestCase):
             file_hasher,
             False,
             self.dir_paths,
-            {},
             config=config,
             redis_connection=redis_connection,
         )

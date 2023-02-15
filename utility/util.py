@@ -323,7 +323,7 @@ def job_log(file_basename: str):
             start_time = int(time.time())
             write_job_log(start_time, temp_dir, file_basename, status=JobLogStatuses.IN_PROGRESS)
             try:
-                success_messages: list[dict[str, str], ...] = func(*args, **kwargs)
+                success_messages: list[dict[str, str]] = func(*args, **kwargs)
             except Exception as e:
                 write_job_log(
                     start_time,
@@ -391,31 +391,6 @@ def write_job_log(
 
     with open(cronjob_results_path, 'w') as writer:
         writer.write(json.dumps(file_content, indent=4))
-
-
-def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
-    """Fetch content of yang module from Github and store it to the file.
-
-    Arguments:
-        :param schema       (Optional[str]) URL to Github where the content of the module should be stored
-        :param dst_path     (str) Path where the module should be saved
-        :return             (bool) Whether the content of the module was obtained or not.
-    """
-    file_exist = False
-    try:
-        assert schema
-        yang_file_response = requests.get(schema)
-        yang_file_content = yang_file_response.content.decode(encoding='utf-8')
-
-        if yang_file_response.status_code == 200:
-            with open(dst_path, 'w') as writer:
-                writer.write(yang_file_content)
-            os.chmod(dst_path, 0o644)
-            file_exist = os.path.isfile(dst_path)
-    except Exception:
-        file_exist = os.path.isfile(dst_path)
-
-    return file_exist
 
 
 def context_check_update_from(old_schema: str, new_schema: str, yang_models: str, save_file_dir: str):
@@ -507,3 +482,7 @@ def revision_to_date(revision: str) -> date:
 def hash_pw(password: str) -> str:
     encoded_password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(encoded_password).hexdigest()
+
+
+def yang_url(domain_prefix, name, revision) -> str:
+    return f'{domain_prefix}/all_modules/{name}@{revision}.yang'

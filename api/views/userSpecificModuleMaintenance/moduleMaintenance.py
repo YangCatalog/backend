@@ -324,9 +324,6 @@ def add_modules():
         if repo_url not in repos:
             repos[repo_url] = get_repo(repo_url, owner, repo_name)
 
-        # needed to later construct the schema
-        source_file['commit-hash'] = repos[repo_url].get_commit_hash(branch=source_file.get('branch', 'HEAD'))
-
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
         try:
             os.makedirs(save_to)
@@ -339,7 +336,9 @@ def add_modules():
         except FileNotFoundError:
             app.logger.exception('Problem with file {}'.format(module_path))
             warning.append(
-                '{} does not exist'.format(os.path.join(repo_url, 'blob', source_file['commit-hash'], module_path)),
+                '{} does not exist'.format(
+                    os.path.join(repo_url, 'blob', source_file.get('branch', 'HEAD'), module_path),
+                ),
             )
             continue
 
@@ -349,12 +348,12 @@ def add_modules():
             namespace = yangParser.parse(path_to_parse).search('namespace')[0].arg
             organization_parsed = organization_by_namespace(namespace)
         except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
-            while True:
-                try:
-                    path_to_parse = os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))
-                    belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
-                except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
-                    break
+            try:
+                path_to_parse = os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))
+                belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
+            except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
+                pass
+            else:
                 namespace = (
                     yangParser.parse(
                         os.path.abspath(
@@ -365,7 +364,6 @@ def add_modules():
                     .arg
                 )
                 organization_parsed = organization_by_namespace(namespace)
-                break
         resolved_authorization = authorize_for_sdos(request, organization_sent, organization_parsed)
         if not resolved_authorization:
             shutil.rmtree(direc)
@@ -481,9 +479,6 @@ def add_vendors():
 
         if repo_url not in repos:
             repos[repo_url] = get_repo(repo_url, owner, repo_name)
-
-        # needed to later construct the schema
-        module_list_file['commit-hash'] = repos[repo_url].get_commit_hash(branch=module_list_file.get('branch', 'HEAD'))
 
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
