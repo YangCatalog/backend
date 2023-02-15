@@ -233,7 +233,7 @@ def create_pull_request(pr_detail: PullRequestCreationDetail) -> requests.Respon
         https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
     """
     headers = pr_detail.headers or {}
-    headers['Content-Type'] = 'application/vnd.github+json'
+    headers['accept'] = 'application/vnd.github+json'
     data = pr_detail.body_data or {}
     data['head'] = pr_detail.head_branch
     data['base'] = pr_detail.base_branch
@@ -243,3 +243,13 @@ def create_pull_request(pr_detail: PullRequestCreationDetail) -> requests.Respon
         data=json.dumps(data),
     )
     return response
+
+
+def approve_pull_request(
+    owner: str,
+    repo: str,
+    pull_number: int,
+) -> requests.Response:
+    return requests.post(
+        f'https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/reviews',
+    )
