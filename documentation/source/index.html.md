@@ -1808,13 +1808,6 @@ only with verification information and a job-id on which you can
 You must replace <code>admin admin</code> with your personal name password.
 </aside>
 
-## Travis check
-
-This endpoint is used by travis. When a pull request by a yang-catalog
-user is created a travis job runs afterwards it calls this api.
-This endpoint will merge the pull request automatically if the job didn`t
-fail.
-
 ### HTTP Request
 
 `POST https://yangcatalog.org/api/checkComplete`
