@@ -64,10 +64,10 @@ def check_github():
     app.logger.info(f'Body of Github Actions:\n{json.dumps(body)}')
 
     # Request Authorization
-    request_signature = request.headers['X_HUB_SIGNATURE']
-    computed_signature = create_signature(app_config.s_yang_catalog_token, request.data.decode())
+    request_signature = request.headers['X_HUB_SIGNATURE'].split('sha1=')[-1]
+    computed_signature = create_signature(app_config.s_secret_key, request.data.decode())
 
-    if request_signature.split('sha1=')[-1] == computed_signature:
+    if request_signature == computed_signature:
         app.logger.info('Authorization successful')
     else:
         app.logger.error('Authorization failed. Request did not come from Github')

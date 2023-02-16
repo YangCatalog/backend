@@ -65,7 +65,6 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch('requests.post')
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_passed(self, mock_post: mock.MagicMock):
         mock_post.return_value.status_code = 201
         body = self.payloads_content['check_local']
@@ -86,7 +85,6 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch('requests.post')
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_passed_couldnt_create(self, mock_post: mock.MagicMock):
         mock_post.return_value.status_code = 400
         body = self.payloads_content['check_local']
@@ -103,7 +101,6 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch('requests.delete', mock.MagicMock())
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_fork_failed(self):
         body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
@@ -124,7 +121,6 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('requests.post', mock.MagicMock())
     @mock.patch('requests.put', mock.MagicMock())
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_pr_passed(self):
         body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'YangModels'
@@ -145,7 +141,6 @@ class TestApiInternalClass(unittest.TestCase):
     @mock.patch('requests.patch', mock.MagicMock())
     @mock.patch('requests.delete', mock.MagicMock())
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_pr_failed(self):
         body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'YangModels'
@@ -164,7 +159,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertEqual(data['info'], 'Failed')
 
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='test'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_unknown_owner(self):
         body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'nonexistent'
@@ -182,7 +176,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertEqual(data['Error'], 'Owner verfication failed')
 
     @mock.patch('api.views.ycJobs.ycJobs.open', mock.mock_open(read_data='no'))
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_unknown_commit(self):
         body = self.payloads_content['check_local']
         body['repository']['owner_name'] = 'yang-catalog'
@@ -200,7 +193,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('Error', data)
         self.assertEqual(data['Error'], 'Fails')
 
-    @mock.patch('api.views.ycJobs.ycJobs.check_authorized', mock.MagicMock())
     def test_get_local_commit_file_not_found(self):
         patcher = mock.patch('builtins.open')
         mock_open = patcher.start()
