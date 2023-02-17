@@ -5,8 +5,8 @@ This package contains python scripts to process IETF and openconfig YANG files:
 
 - rfc_push
 
-    This module contains functionality for creating a PullRequest to the: https://github.com/YangModels/yang/ repo
-    with new/updated modules from RFCs. There are also modules which won't be pushed into the repository,
+    This module contains functionality for pushing new/updated modules extracted from RFCs in the:
+    https://github.com/yang-catalog/yang/ repo. There are also modules which won't be pushed into the repository,
     they are stored in the ```/var/yang/ietf-exceptions/exceptions.dat``` and ```/var/yang/ietf-exceptions/iana-exceptions.dat``` files.
     Currently, content of these files should be:
     ```
