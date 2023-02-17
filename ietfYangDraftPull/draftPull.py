@@ -37,7 +37,7 @@ import requests
 from git.exc import GitCommandError
 
 import utility.log as log
-from automatic_push.rfc_push import create_new_rfcs_pull_request
+from automatic_push.rfc_push import push_new_rfcs
 from ietfYangDraftPull import draftPullUtility as dpu
 from utility import message_factory
 from utility.create_config import create_config
@@ -117,7 +117,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
                 os.chmod(rfc_exceptions, 0o664)
                 remove_from_new = []
             new_files = [file_name for file_name in new_files if file_name not in remove_from_new]
-            automatic_pull_request_creation_result = create_new_rfcs_pull_request(
+            automatic_push_result = push_new_rfcs(
                 new_files=new_files,
                 diff_files=diff_files,
                 logger=logger,
@@ -127,12 +127,12 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
             if args.send_message and (new_files or diff_files):
                 logger.info('new or modified RFC files found. Sending an E-mail')
                 mf = message_factory.MessageFactory()
-                automatic_pull_request_creation_message = (
-                    f'Automatic PullRequest creation '
-                    f'{"is successful" if automatic_pull_request_creation_result.pr_created else "failed"}:\n'
-                    f'{automatic_pull_request_creation_result.message}'
+                automatic_push_message = (
+                    f'Automatic new RFCs push '
+                    f'{"is successful" if automatic_push_result.push_successful else "failed"}:\n'
+                    f'{automatic_push_result.message}'
                 )
-                mf.send_new_rfc_message(new_files, diff_files, automatic_pull_request_creation_message)
+                mf.send_new_rfc_message(new_files, diff_files, automatic_push_message)
 
         # Experimental draft modules
         experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
