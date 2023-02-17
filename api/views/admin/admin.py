@@ -586,6 +586,7 @@ def get_script_names():
         'redis_users_recovery',
         'resolve_expiration',
         'reviseSemver',
+        'etsi_populate',
     )
     return {'data': scripts_names, 'info': 'Success'}
 
@@ -606,6 +607,8 @@ def get_module_name(script_name):
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'
+    elif script_name == 'etsi_populate':
+        return 'populate_triggers'
     return None
 
 

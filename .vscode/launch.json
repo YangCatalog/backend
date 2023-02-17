@@ -148,6 +148,15 @@
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false
+    },
+    {
+      "name": "etsi_populate",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/populate_triggers/etsi_populate.py",
+      "console": "integratedTerminal",
+      "cwd": "${workspaceFolder}",
+      "justMyCode": false
     }
   ]
 }
