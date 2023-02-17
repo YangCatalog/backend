@@ -135,7 +135,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
             logger.info('Pushing files to forked repository')
             commit_hash = repo.repo.head.commit
             logger.info(f'Commit hash {commit_hash}')
-            with open(commit_dir, 'w+') as f:
+            with open(commit_dir, 'w') as f:
                 f.write(f'{commit_hash}\n')
             if is_production:
                 logger.info('Pushing untracked and modified files to remote repository')

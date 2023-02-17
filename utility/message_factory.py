@@ -262,7 +262,7 @@ class MessageFactory:
 
         return f'{GREETINGS}\n\nTime to review the user profiles: affiliations and capabilities\n\n{tables_text}'
 
-    def send_new_rfc_message(self, new_files, diff_files):
+    def send_new_rfc_message(self, new_files: list[str], diff_files: list[str], automatic_push_message: str):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
         new_files = '\n'.join(new_files)
         diff_files = '\n'.join(diff_files)
@@ -270,9 +270,9 @@ class MessageFactory:
             f'{GREETINGS}\n\nSome of the files are different in '
             'https://yangcatalog.org/private/IETFYANGRFC.json against yangModels/yang repository\n\n'
             f'Files that are missing in yangModels/yang repository: \n{new_files} \n\n '
-            f'Files that are different than in yangModels repository: \n{diff_files}'
+            f'Files that are different than in yangModels repository: \n{diff_files}\n\n'
+            f'{automatic_push_message}\n\n\n'
         )
-
         self._post_to_webex(message)
         self._post_to_email(message)
 
