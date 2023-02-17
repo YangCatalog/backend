@@ -13,8 +13,8 @@
 # limitations under the License.
 
 """
-This module contains functionality for creating a PullRequest to the: https://github.com/YangModels/yang/ repo
-with new/updated modules from RFCs. There are also modules which won't be pushed into the repository,
+This module contains functionality for pushing new/updated modules extracted from RFCs in the:
+https://github.com/yang-catalog/yang/ repo. There are also modules which won't be pushed into the repository,
 they are stored in the /var/yang/ietf-exceptions/exceptions.dat and /var/yang/ietf-exceptions/iana-exceptions.dat files.
 """
 
@@ -35,31 +35,31 @@ from utility.repoutil import ModifiableRepoUtil
 
 
 @dataclass
-class PullRequestCreationResult:
-    pr_created: bool
+class RFCsPushResult:
+    push_successful: bool
     message: str
 
 
-def create_new_rfcs_pull_request(
+def push_new_rfcs(
     new_files: list[str],
     diff_files: list[str],
     forked_repo: ModifiableRepoUtil,
     logger: logging.Logger,
     config: ConfigParser = create_config(),
-) -> PullRequestCreationResult:
+) -> RFCsPushResult:
     if not new_files and not diff_files:
-        return PullRequestCreationResult(False, 'No files to update')
+        return RFCsPushResult(False, 'No files to update')
     commit_dir = config.get('Directory-Section', 'commit-dir')
     try:
         _update_files_locally(new_files, diff_files, forked_repo, config)
         if not forked_repo.repo.index.diff(None):
-            return PullRequestCreationResult(False, 'No changed files found locally')
+            return RFCsPushResult(False, 'No changed files found locally')
         is_prod = config.get('General-Section', 'is-prod') == 'True'
         if not is_prod:
             forked_repo.repo.git.reset('--hard')
-            return PullRequestCreationResult(
+            return RFCsPushResult(
                 True,
-                'PullRequest creation is successful (switch to the PROD environment to actually create one)',
+                'Push is successful (switch to the PROD environment to actually push changes to the repo)',
             )
         forked_repo.repo.git.add(all=True)
         forked_repo.commit_all(message='Add new IETF RFC files')
@@ -67,10 +67,10 @@ def create_new_rfcs_pull_request(
         with open(commit_dir, 'w') as f:
             f.write(f'{forked_repo.repo.head.commit}\n')
         logger.info(
-            f'new/diff modules are pushed into {forked_repo.repo.active_branch} is created, '
+            f'new/diff modules are pushed into {forked_repo.repo.active_branch} branch, '
             f'commit hash: {forked_repo.repo.head.commit}',
         )
-        return PullRequestCreationResult(
+        return RFCsPushResult(
             True,
             f'Files are pushed in the {forked_repo.repo.active_branch} branch, '
             f'PullRequest should be created after the successful run of GitHub Actions, '
@@ -78,7 +78,7 @@ def create_new_rfcs_pull_request(
         )
     except Exception as e:
         logger.exception('Unexpected error occurred during an automatic PullRequest creation')
-        return PullRequestCreationResult(False, f'Unexpected error\n{e}')
+        return RFCsPushResult(False, f'Unexpected error\n{e}')
 
 
 def _update_files_locally(new_files: list[str], diff_files: list[str], repo: ModifiableRepoUtil, config: ConfigParser):
