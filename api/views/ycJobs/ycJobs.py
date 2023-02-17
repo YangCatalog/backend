@@ -114,16 +114,14 @@ def check_github():
     # Create PR to YangModels/yang if sent from yang-catalog/yang
     if body['repository']['full_name'] == 'yang-catalog/yang':
         response = repoutil.create_pull_request(
-            repoutil.PullRequestCreationDetail(
-                owner='YangModels',
-                repo='yang',
-                head_branch='yang-catalog:main',
-                base_branch='main',
-                headers={'Authorization': token_header_value},
-                request_body={
-                    'title': 'Cronjob - every day pull and update of ietf draft yang files.',
-                    'body': 'ietf extracted yang modules',
-                },
+            owner='YangModels',
+            repo='yang',
+            head_branch='yang-catalog:main',
+            base_branch='main',
+            headers={'Authorization': token_header_value},
+            request_body=repoutil.PullRequestCreationDetail(
+                title='Cronjob - every day pull and update of ietf draft yang files.',
+                body='ietf extracted yang modules',
             ),
         )
         if response.status_code == 201:
@@ -147,7 +145,7 @@ def check_github():
                 'yang',
                 pull_number,
                 headers=headers,
-                request_body={'body': 'AUTOMATED YANG CATALOG APPROVAL'},
+                request_body=repoutil.PullRequestApprovingDetail(body='AUTOMATED YANG CATALOG APPROVAL'),
             )
             app.logger.info(f'Review response code {approval_response.status_code}')
             merging_response = repoutil.merge_pull_request(
@@ -155,7 +153,10 @@ def check_github():
                 'yang',
                 pull_number,
                 headers=headers,
-                request_body={'commit_title': 'Github Actions job passed', 'sha': body['check_run']['head_sha']},
+                request_body=repoutil.PullRequestMergingDetail(
+                    commit_title='Github Actions job passed',
+                    sha=body['check_run']['head_sha'],
+                ),
             )
             app.logger.info(
                 f'Merge response code {merging_response.status_code}\nMerge response {merging_response.text}',

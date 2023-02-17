@@ -198,27 +198,27 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
     return repo
 
 
-class PullRequestCreationDetail(t.TypedDict):
+class PullRequestCreationDetail(t.TypedDict, total=False):
     """
-    Body to send for a PullRequest creation, detail information about each param can be found here:
+    Additional data to send for a PullRequest creation, detail information about each param can be found here:
     https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
     """
 
-    head: str
-    base: str
-    head_repo: t.Optional[str]
-    title: t.Optional[str]
-    body: t.Optional[str]
-    maintainer_can_modify: t.Optional[bool]
-    draft: t.Optional[bool]
-    issue: t.Optional[int]
+    head_repo: str
+    title: str
+    body: str
+    maintainer_can_modify: bool
+    draft: bool
+    issue: int
 
 
 def create_pull_request(
     owner: str,
     repo: str,
-    request_body: PullRequestCreationDetail,
+    head_branch: str,
+    base_branch: str,
     headers: t.Optional[dict] = None,
+    request_body: t.Optional[PullRequestCreationDetail] = None,
 ) -> requests.Response:
     """
     Creates a PullRequest to the needed repository, full documentation can be found here:
@@ -227,14 +227,21 @@ def create_pull_request(
     Arguments:
         :param owner (str) Repository owner's name.
         :param repo (str) Repository name.
+        :param head_branch (str) The name of the branch where your changes are implemented.
+        For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
+        :param base_branch (str) The name of the branch you want the changes pulled into.
+        This should be an existing branch on the current repository.
         This should be an existing branch on the current repo.
-        :param request_body (PullRequestCreationDetail) Request body to send.
+        :param request_body (Optional[PullRequestCreationDetail]) Request body to send.
         :param headers (Optional[dict]) Headers to send,
         access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
         :return (requests.Response) result of the PR creation
     """
     headers = headers or {}
     headers['accept'] = 'application/vnd.github+json'
+    request_body = request_body or PullRequestCreationDetail()
+    request_body['head'] = head_branch
+    request_body['base'] = base_branch
     return requests.post(
         f'https://api.github.com/repos/{owner}/{repo}/pulls',
         headers=headers,
@@ -242,35 +249,15 @@ def create_pull_request(
     )
 
 
-def close_pull_request(
-    owner: str,
-    repo: str,
-    pull_number: int,
-    headers: t.Optional[dict] = None,
-    request_body: t.Optional[dict] = None,
-) -> requests.Response:
+class PullRequestApprovingDetail(t.TypedDict, total=False):
     """
-    Approves the PullRequest, full documentation can be found here:
-    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#update-a-pull-request
+    Additional data to send for a PullRequest approving, detail information about each param can be found here:
+    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#create-a-review-for-a-pull-request
+    """
 
-    Arguments:
-        :param owner (str) Repository owner's name.
-        :param repo (str) Repository name.
-        :param pull_number (int) Number of the PullRequest to approve
-        :param headers (Optional[dict]) Headers to send,
-         access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
-        :param request_body (Optional[dict]) Request body, "event" param would be set automatically.
-        :return (requests.Response) result of the PR creation
-    """
-    headers = headers or {}
-    headers['accept'] = 'application/vnd.github+json'
-    request_body = request_body or {}
-    request_body['state'] = 'closed'
-    return requests.patch(
-        f'https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}',
-        headers=headers,
-        data=json.dumps(request_body),
-    )
+    commit_id: str
+    body: str
+    comments: list[dict]
 
 
 def approve_pull_request(
@@ -278,7 +265,7 @@ def approve_pull_request(
     repo: str,
     pull_number: int,
     headers: t.Optional[dict] = None,
-    request_body: t.Optional[dict] = None,
+    request_body: t.Optional[PullRequestApprovingDetail] = None,
 ) -> requests.Response:
     """
     Approves the PullRequest, full documentation can be found here:
@@ -290,18 +277,30 @@ def approve_pull_request(
         :param pull_number (int) Number of the PullRequest to approve
         :param headers (Optional[dict]) Headers to send,
          access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
-        :param request_body (Optional[dict]) Request body, "event" param would be set automatically.
+        :param request_body (Optional[PullRequestApprovingDetail]) Request body to send.
         :return (requests.Response) result of the PR creation
     """
     headers = headers or {}
     headers['accept'] = 'application/vnd.github+json'
-    request_body = request_body or {}
+    request_body = request_body or PullRequestApprovingDetail()
     request_body['event'] = 'APPROVE'
     return requests.post(
         f'https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/reviews',
         headers=headers,
         data=json.dumps(request_body),
     )
+
+
+class PullRequestMergingDetail(t.TypedDict, total=False):
+    """
+    Additional data to send for a PullRequest merging, detail information about each param can be found here:
+    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#merge-a-pull-request
+    """
+
+    commit_title: str
+    commit_message: str
+    sha: str
+    merge_method: str
 
 
 def merge_pull_request(
@@ -321,7 +320,7 @@ def merge_pull_request(
         :param pull_number (int) Number of the PullRequest to approve
         :param headers (Optional[dict]) Headers to send,
          access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
-        :param request_body (Optional[dict]) Request body.
+        :param request_body (Optional[PullRequestMergingDetail]) Request body to send.
         :return (requests.Response) result of the PR creation
     """
     headers = headers or {}
@@ -329,5 +328,5 @@ def merge_pull_request(
     return requests.put(
         f'https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/merge',
         headers=headers,
-        data=json.dumps(request_body or {}),
+        data=json.dumps(request_body or PullRequestMergingDetail()),
     )
