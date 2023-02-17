@@ -142,7 +142,7 @@ class Module:
             self._populate_information_from_db(json.loads(module_data))
             return
 
-        self.schema = yang_url(self._domain_prefix, self.name, self.revision)
+        self.schema = yang_url(self.name, self.revision)
 
         submodule_resolver = SubmoduleResolver(self._parsed_yang, self.logger, self._domain_prefix)
         self.dependencies, self.submodule = submodule_resolver.resolve()

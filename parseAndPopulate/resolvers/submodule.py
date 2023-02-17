@@ -45,7 +45,6 @@ class SubmoduleResolver(Resolver):
             new_submodule.revision = yang_file.split('@')[-1].removesuffix('.yang')
 
             new_submodule.schema = new_dependency.schema = yang_url(
-                self.domain_prefix,
                 new_submodule.name,
                 new_submodule.revision,
             )

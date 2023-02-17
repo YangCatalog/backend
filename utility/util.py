@@ -484,5 +484,6 @@ def hash_pw(password: str) -> str:
     return hashlib.sha256(encoded_password).hexdigest()
 
 
-def yang_url(domain_prefix, name, revision) -> str:
+def yang_url(name, revision, config: ConfigParser = create_config()) -> str:
+    domain_prefix = config.get('Web-Section', 'domain-prefix')
     return f'{domain_prefix}/all_modules/{name}@{revision}.yang'
