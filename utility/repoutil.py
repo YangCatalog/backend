@@ -24,7 +24,6 @@ import os
 import shutil
 import tempfile
 import typing as t
-from dataclasses import dataclass
 
 import requests
 from git.cmd import Git
@@ -199,48 +198,47 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
     return repo
 
 
-@dataclass
-class PullRequestCreationDetail:
+class PullRequestCreationDetail(t.TypedDict):
     """
-    Data for a PullRequest creation, full documentation can be found here:
+    Body to send for a PullRequest creation, detail information about each param can be found here:
     https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
     """
 
-    owner: str
-    'Repository owner\'s name.'
-    repo: str
-    'Repository name.'
-    head_branch: str
-    """
-    The name of the branch where your changes are implemented.
-    For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
-    """
-    base_branch: str
-    'The name of the branch you want the changes pulled into. This should be an existing branch on the current repo.'
-    headers: t.Optional[dict] = None
-    'Headers to send, access token can be provided here like that {\'Authorization\': \'token TOKEN_VALUE\'}.'
-    request_body: t.Optional[dict] = None
-    'Request body, head and base branches will be set automatically.'
+    head: str
+    base: str
+    head_repo: t.Optional[str]
+    title: t.Optional[str]
+    body: t.Optional[str]
+    maintainer_can_modify: t.Optional[bool]
+    draft: t.Optional[bool]
+    issue: t.Optional[int]
 
 
-def create_pull_request(pr_detail: PullRequestCreationDetail) -> requests.Response:
+def create_pull_request(
+    owner: str,
+    repo: str,
+    request_body: PullRequestCreationDetail,
+    headers: t.Optional[dict] = None,
+) -> requests.Response:
     """
-    Creates a PullRequest to the needed repository.
+    Creates a PullRequest to the needed repository, full documentation can be found here:
+    https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
 
     Arguments:
-        :param pr_detail (PullRequestCreationDetail) all the information needed to create a PR
-        :return (requests.Response) result of the PR creation, documentation can be found by this link
-        https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
+        :param owner (str) Repository owner's name.
+        :param repo (str) Repository name.
+        This should be an existing branch on the current repo.
+        :param request_body (PullRequestCreationDetail) Request body to send.
+        :param headers (Optional[dict]) Headers to send,
+        access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
+        :return (requests.Response) result of the PR creation
     """
-    headers = pr_detail.headers or {}
+    headers = headers or {}
     headers['accept'] = 'application/vnd.github+json'
-    data = pr_detail.request_body or {}
-    data['head'] = pr_detail.head_branch
-    data['base'] = pr_detail.base_branch
     return requests.post(
-        f'https://api.github.com/repos/{pr_detail.owner}/{pr_detail.repo}/pulls',
+        f'https://api.github.com/repos/{owner}/{repo}/pulls',
         headers=headers,
-        data=json.dumps(data),
+        data=json.dumps(request_body),
     )
 
 
