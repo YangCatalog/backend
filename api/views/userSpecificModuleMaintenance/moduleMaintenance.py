@@ -76,8 +76,6 @@ def set_config():
 
 @bp.route('/register-user', methods=['POST'])
 def register_user():
-    if not request.json:
-        abort(400, description='bad request - no data received')
     body = request.json
     for data in [
         'username',
@@ -142,13 +140,10 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     if all((name, revision, organization)):
         input_modules = [{'name': name, 'revision': revision, 'organization': organization}]
     else:
-        if not request.json:
-            abort(400, description='Missing input data to know which modules we want to delete')
         rpc = request.json
-        if rpc.get('input'):
-            input_modules = rpc['input'].get('modules', [])
-        else:
-            abort(404, description="Data must start with 'input' root element in json")
+        if not rpc.get('input'):
+            abort(404, description='Data must start with "input" root element in json')
+        input_modules = rpc['input'].get('modules', [])
 
     assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
@@ -249,12 +244,6 @@ def add_modules():
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
-    if not request.json:
-        abort(
-            400,
-            description='bad request - you need to input json body that conforms with'
-            ' module-metadata.yang module. Received no json',
-        )
     body = request.json
     modules_cont = body.get('modules')
     if modules_cont is None:
@@ -391,7 +380,7 @@ def add_modules():
     if len(warning) > 0:
         return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
     else:
-        return ({'info': 'Verification successful', 'job-id': job_id}, 202)
+        return {'info': 'Verification successful', 'job-id': job_id}, 202
 
 
 @bp.route('/platforms', methods=['PUT', 'POST'])
@@ -408,14 +397,7 @@ def add_vendors():
     :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
-    if not request.json:
-        abort(
-            400,
-            description='bad request - you need to input json body that conforms with'
-            ' platform-implementation-metadata.yang module. Received no json',
-        )
     body = request.json
-
     platforms_contents = body.get('platforms')
     if platforms_contents is None:
         abort(400, description='bad request - "platforms" json object is missing and is mandatory')
@@ -512,7 +494,7 @@ def add_vendors():
     ]
     job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
-    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
+    return {'info': 'Verification successful', 'job-id': job_id}, 202
 
 
 @bp.route('/job/<job_id>', methods=['GET'])
