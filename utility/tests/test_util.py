@@ -143,7 +143,7 @@ class TestUtilClass(unittest.TestCase):
         self.clear_job_log()
 
     def test_fetch_module_by_schema_successfully(self):
-        """Test if content of yang module was successfully fetched from Github and stored to the file."""
+        """Test if content of yang module was successfully fetched from GitHub and stored to the file."""
         schema_parts = SchemaParts(
             repo_owner='YangModels',
             repo_name='yang',

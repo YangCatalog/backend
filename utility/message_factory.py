@@ -276,12 +276,6 @@ class MessageFactory:
         self._post_to_webex(message)
         self._post_to_email(message)
 
-    def send_travis_auth_failed(self):
-        """Send a message to Cisco Webex notifying about failed authorization on the endpoint for Travis jobs."""
-        self.LOGGER.info('Sending notification about travis authorization failed')
-        message = 'Travis pull job not sent because patch was not sent from' ' travis. Key verification failed'
-        self._post_to_webex(message)
-
     def send_automated_procedure_failed(self, arguments: list, file: str):
         """
         Send a message to Cisco Webex notifying about a failed job started from the admin UI.

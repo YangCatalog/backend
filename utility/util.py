@@ -394,10 +394,10 @@ def write_job_log(
 
 
 def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
-    """Fetch content of yang module from Github and store it to the file.
+    """Fetch content of yang module from GitHub and store it to the file.
 
     Arguments:
-        :param schema       (Optional[str]) URL to Github where the content of the module should be stored
+        :param schema       (Optional[str]) URL to GitHub where the content of the module should be stored
         :param dst_path     (str) Path where the module should be saved
         :return             (bool) Whether the content of the module was obtained or not.
     """
