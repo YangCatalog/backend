@@ -321,7 +321,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], "Data must start with 'input' root element in json")
+        self.assertEqual(data['description'], 'Data must start with "input" root element in json')
 
     def test_delete_vendor(self):
         """Test correct action is taken for a valid deletion attempt."""
