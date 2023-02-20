@@ -207,8 +207,6 @@ def get_common():
     Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
     """
     body = request.json
-    if body is None:
-        abort(400, description='body of request is empty')
     if body.get('input') is None:
         abort(400, description='body of request need to start with input')
     if body['input'].get('first') is None or body['input'].get('second') is None:
@@ -244,8 +242,6 @@ def compare():
     'Different revision'.
     """
     body = request.json
-    if body is None:
-        abort(400, description='body of request is empty')
     if body.get('input') is None:
         abort(400, description='body of request need to start with input')
     if body['input'].get('old') is None or body['input'].get('new') is None:
@@ -294,8 +290,6 @@ def check_semver():
     between two files.
     """
     body = request.json
-    if body is None:
-        abort(400, description='body of request is empty')
     if body.get('input') is None:
         abort(400, description='body of request need to start with input')
     if body['input'].get('old') is None or body['input'].get('new') is None:

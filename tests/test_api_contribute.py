@@ -120,7 +120,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertTrue(result.is_json)
         data = result.json
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'bad request - no data received')
+        self.assertEqual(
+            data['description'],
+            'The browser (or proxy) sent a request that this server could not understand.',
+        )
 
     def test_register_user_missing_field(self):
         body = {k: 'test' for k in ['username', 'password', 'password-confirm', 'email', 'company', 'first-name']}
@@ -306,7 +309,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], 'Missing input data to know which modules we want to delete')
+        self.assertEqual(
+            data['description'],
+            'The browser (or proxy) sent a request that this server could not understand.',
+        )
 
     def test_delete_modules_missing_input(self):
         result = self.client.delete('api/modules', json={'input': {}}, auth=('test', 'test'))
@@ -315,7 +321,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         data = json.loads(result.data)
         self.assertIn('description', data)
-        self.assertEqual(data['description'], "Data must start with 'input' root element in json")
+        self.assertEqual(data['description'], 'Data must start with "input" root element in json')
 
     def test_delete_vendor(self):
         """Test correct action is taken for a valid deletion attempt."""
@@ -399,8 +405,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(
             data['description'],
-            'bad request - you need to input json body that conforms with'
-            ' module-metadata.yang module. Received no json',
+            'The browser (or proxy) sent a request that this server could not understand.',
         )
 
     def test_add_modules_missing_modules(self):
@@ -626,8 +631,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(
             data['description'],
-            'bad request - you need to input json body that conforms with'
-            ' platform-implementation-metadata.yang module. Received no json',
+            'The browser (or proxy) sent a request that this server could not understand.',
         )
 
     def test_add_vendor_no_platforms(self):

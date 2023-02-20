@@ -12,12 +12,12 @@ Crypto==1.4.1
 pycryptodome==3.14.1
 python-dateutil==2.8.1
 elasticsearch==7.10.1
-Flask==2.0.0
+Flask==2.1.1
 Flask-HTTPAuth==4.4.0
 flask-cors==3.0.10
 Flask-WTF==0.14.3
 pytest==6.2.5
-werkzeug==2.0.1
+werkzeug==2.2.3
 redis==3.5.3
 gunicorn==20.1.0
 gevent==22.10.2
