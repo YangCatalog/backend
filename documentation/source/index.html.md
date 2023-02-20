@@ -1808,13 +1808,6 @@ only with verification information and a job-id on which you can
 You must replace <code>admin admin</code> with your personal name password.
 </aside>
 
-### HTTP Request
-
-`POST https://yangcatalog.org/api/checkComplete`
-
-Authorization is done using HTTP_SIGNATURE from the payload provided
-by travis request
-
 ## New vendor modules added
 
 This endpoint is used within github. Whenever something is merged to the [YangModels/yang](https://github.com/YangModels/yang) github repository this endpoint is
