@@ -82,8 +82,10 @@ github_api = 'https://api.github.com'
 MISSING_ELEMENT = 'missing element'
 backup_date_format = '%Y-%m-%d_%H:%M:%S-UTC'
 
-SDOS = ['bbf', 'etsi', 'iana', 'ieee', 'ietf', 'mef', 'odp']
+SDOS = ['bbf', 'etsi', 'iana', 'ieee', 'ietf', 'mef', 'opendaylight', 'openconfig']
 ORGANIZATIONS = [
+    'iana',
+    'mef',
     'ietf',
     'ieee',
     'etsi',
