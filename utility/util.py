@@ -487,9 +487,6 @@ def validate_revision(revision: str) -> str:
     Argument:
         :param revision     (str) Revision to validate
     """
-    if '02-29' in revision:
-        revision = revision.replace('02-29', '02-28')
-
     try:
         dateutil.parser.parse(revision)
         year, month, day = map(int, revision.split('-'))

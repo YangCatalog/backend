@@ -200,7 +200,7 @@ class ElkSearch:
             if module_key in reject:
                 continue
 
-            module_latest_revision = self._latest_revisions.get(row.module_name, '').replace('02-29', '02-28')
+            module_latest_revision = self._latest_revisions.get(row.module_name, '')
             if self._search_params.latest_revision and row.revision != module_latest_revision:
                 reject.append(module_key)
                 continue
