@@ -68,7 +68,7 @@ populate all the new modules to the yangcatalog database.
 The backend API also receives
 IETF Yang models every day and if there are any new drafts it will
 automatically populate the yangcatalog database and update the repository
-with all the new IETF modules if the relevant travis job passed successfully.
+with all the new IETF modules if GitHub Actions pass successfully.
 
 Please note that UWSGI caching is used to improve the performance compared to
 ConfD requests. During loading of the UWSGI, the cache is pre-populated by

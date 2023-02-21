@@ -18,12 +18,14 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import json
 import logging
 import os
 import shutil
 import tempfile
 import typing as t
 
+import requests
 from git.cmd import Git
 from git.exc import InvalidGitRepositoryError
 from git.repo import Repo
@@ -31,7 +33,8 @@ from gitdb.exc import BadName
 
 
 class RepoUtil:
-    """Simple class for rolling up some git operations as part of file
+    """
+    Simple class for rolling up some git operations as part of file
     manipulation. The user should create the object with the URL to
     the repository and an appropriate set of credentials.
     """
@@ -43,7 +46,7 @@ class RepoUtil:
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: dict = {},
+        clone_options: t.Optional[dict] = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         """
@@ -56,8 +59,10 @@ class RepoUtil:
         """
         self.url = repourl
         self.logger = logger
+        clone_options = clone_options or {}
         if clone:
             self._clone(**clone_options)
+        self.previous_active_branch: t.Optional[str] = None
 
     def get_repo_dir(self) -> str:
         """Return the repository directory name from the URL"""
@@ -104,14 +109,15 @@ class RepoUtil:
         config_username: t.Optional[str] = None,
         config_user_email: t.Optional[str] = None,
     ):
-        """Clone the specified repository and recursively clone submodules.
+        """
+        Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
         Arguments:
-            :param local_dir        (Optional[str]) Directory where to clone the repo.
-                By default a new temporary directory is created.
+            :param local_dir  (Optional[str]) Directory where to clone the repo.
+            By default, a new temporary directory is created.
             :param config_username  (Optional[str]) Username to set in the git config.
-            :param config_email     (Optional[str]) Email to set in the git config.
+            :param config_user_email  (Optional[str]) Email to set in the git config.
         """
         if local_dir:
             self.local_dir = local_dir
@@ -125,7 +131,8 @@ class RepoUtil:
 
 
 class ModifiableRepoUtil(RepoUtil):
-    """RepoUtil subclass with methods for manipulating the repository.
+    """
+    RepoUtil subclass with methods for manipulating the repository.
     The repository directory is automatically removed on object deletion.
     """
 
@@ -133,7 +140,7 @@ class ModifiableRepoUtil(RepoUtil):
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: dict = {},
+        clone_options: t.Optional[dict] = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         super().__init__(repourl, clone, clone_options, logger)
@@ -180,7 +187,7 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
 
     Arguments:
         :param repo_dir    (str) directory where .git file is located
-        :param repo_url    (str) url to Github repository
+        :param repo_url    (str) url to GitHub repository
     """
     repo = (RepoUtil if 'yangmodels/yang' in repo_dir else ModifiableRepoUtil)(repo_url, clone=False)
     try:
@@ -189,3 +196,137 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
         raise InvalidGitRepositoryError(repo_dir)
     repo.local_dir = repo_dir
     return repo
+
+
+class PullRequestCreationDetail(t.TypedDict, total=False):
+    """
+    Additional data to send for a PullRequest creation, detail information about each param can be found here:
+    https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
+    """
+
+    head_repo: str
+    title: str
+    body: str
+    maintainer_can_modify: bool
+    draft: bool
+    issue: int
+
+
+def create_pull_request(
+    owner: str,
+    repo: str,
+    head_branch: str,
+    base_branch: str,
+    headers: t.Optional[dict] = None,
+    request_body: t.Optional[PullRequestCreationDetail] = None,
+) -> requests.Response:
+    """
+    Creates a PullRequest to the needed repository, full documentation can be found here:
+    https://docs.github.com/en/rest/pulls/pulls?apiVersion=latest#create-a-pull-request
+
+    Arguments:
+        :param owner (str) Repository owner's name.
+        :param repo (str) Repository name.
+        :param head_branch (str) The name of the branch where your changes are implemented.
+        For cross-repository pull requests in the same network, namespace head with a user like this: username:branch.
+        :param base_branch (str) The name of the branch you want the changes pulled into.
+        This should be an existing branch on the current repository.
+        This should be an existing branch on the current repo.
+        :param request_body (Optional[PullRequestCreationDetail]) Request body to send.
+        :param headers (Optional[dict]) Headers to send,
+        access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
+        :return (requests.Response) result of the PR creation
+    """
+    headers = headers or {}
+    headers['accept'] = 'application/vnd.github+json'
+    request_body = request_body or PullRequestCreationDetail()
+    request_body['head'] = head_branch
+    request_body['base'] = base_branch
+    return requests.post(
+        f'https://api.github.com/repos/{owner}/{repo}/pulls',
+        headers=headers,
+        data=json.dumps(request_body),
+    )
+
+
+class PullRequestApprovingDetail(t.TypedDict, total=False):
+    """
+    Additional data to send for a PullRequest approving, detail information about each param can be found here:
+    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#create-a-review-for-a-pull-request
+    """
+
+    commit_id: str
+    body: str
+    comments: list[dict]
+
+
+def approve_pull_request(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    headers: t.Optional[dict] = None,
+    request_body: t.Optional[PullRequestApprovingDetail] = None,
+) -> requests.Response:
+    """
+    Approves the PullRequest, full documentation can be found here:
+    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#create-a-review-for-a-pull-request
+
+    Arguments:
+        :param owner (str) Repository owner's name.
+        :param repo (str) Repository name.
+        :param pull_number (int) Number of the PullRequest to approve
+        :param headers (Optional[dict]) Headers to send,
+         access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
+        :param request_body (Optional[PullRequestApprovingDetail]) Request body to send.
+        :return (requests.Response) result of the PR creation
+    """
+    headers = headers or {}
+    headers['accept'] = 'application/vnd.github+json'
+    request_body = request_body or PullRequestApprovingDetail()
+    request_body['event'] = 'APPROVE'
+    return requests.post(
+        f'https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/reviews',
+        headers=headers,
+        data=json.dumps(request_body),
+    )
+
+
+class PullRequestMergingDetail(t.TypedDict, total=False):
+    """
+    Additional data to send for a PullRequest merging, detail information about each param can be found here:
+    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#merge-a-pull-request
+    """
+
+    commit_title: str
+    commit_message: str
+    sha: str
+    merge_method: str
+
+
+def merge_pull_request(
+    owner: str,
+    repo: str,
+    pull_number: int,
+    headers: t.Optional[dict] = None,
+    request_body: t.Optional[dict] = None,
+) -> requests.Response:
+    """
+    Merges the PullRequest, full documentation can be found here:
+    https://docs.github.com/en/rest/pulls/reviews?apiVersion=latest#merge-a-pull-request
+
+    Arguments:
+        :param owner (str) Repository owner's name.
+        :param repo (str) Repository name.
+        :param pull_number (int) Number of the PullRequest to approve
+        :param headers (Optional[dict]) Headers to send,
+         access token can be provided here like that {'Authorization': 'token TOKEN_VALUE'}.
+        :param request_body (Optional[PullRequestMergingDetail]) Request body to send.
+        :return (requests.Response) result of the PR creation
+    """
+    headers = headers or {}
+    headers['accept'] = 'application/vnd.github+json'
+    return requests.put(
+        f'https://api.github.com/repos/{owner}/{repo}/pulls/{pull_number}/merge',
+        headers=headers,
+        data=json.dumps(request_body or PullRequestMergingDetail()),
+    )

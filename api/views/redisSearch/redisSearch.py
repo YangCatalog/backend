@@ -21,6 +21,7 @@ import collections
 import io
 import json
 import os
+import typing as t
 from operator import contains, eq
 
 import jinja2
@@ -136,8 +137,6 @@ def search(value: str):
 def rpc_search_get_one(leaf: str):
     """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request."""
     body = request.json
-    if body is None:
-        abort(400, description='body of request is empty')
     if body.get('input') is None:
         abort(400, description='body of request need to start with input')
 
@@ -165,12 +164,10 @@ def rpc_search_get_one(leaf: str):
 
 
 @bp.route('/search-filter', methods=['POST'])
-def rpc_search(body: dict = {}):
+def rpc_search(body: t.Optional[dict] = None):
     """Get all the modules that contains all the leafs with data as provided in body of the request."""
     from_api = False
     if not body:
-        if request.json is None:
-            abort(400, description='body of request is empty')
         body = request.json
         from_api = True
     app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body)))
