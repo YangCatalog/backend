@@ -25,3 +25,15 @@ This package contains python scripts to process IETF and openconfig YANG files:
     iana-if-type@2022-08-17.yang
     iana-if-type@2022-08-24.yang
     ```
+  
+- draft_push
+
+  Script automatically pushes new IETF draft yang modules to the GitHub repository: https://github.com/yang-catalog/yang.
+  Old ones are removed and their naming is corrected to ```<name>@<revision>.yang```. New IETF RFC modules are checked 
+  and automatically pushed too. An e-mail with information about pushing new RFCs is sent to yangcatalog admin users
+  if such a thing occurs. Message about new RFC or DRAFT yang modules is also sent to the Cisco Webex Teams, room: YANG Catalog Admin.
+
+- iana_push
+
+  Script automatically pushes new IANA-maintained yang modules to the GitHub repository: https://github.com/yang-catalog/yang.
+  Old ones are removed and their naming is corrected to ```<name>@<revision>.yang```.

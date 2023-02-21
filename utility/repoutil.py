@@ -23,9 +23,11 @@ import logging
 import os
 import shutil
 import tempfile
+import time
 import typing as t
 
 import requests
+from git import GitCommandError
 from git.cmd import Git
 from git.exc import InvalidGitRepositoryError
 from git.repo import Repo
@@ -42,11 +44,21 @@ class RepoUtil:
     local_dir: str
     repo: Repo
 
+    class CloneOptions(t.TypedDict, total=False):
+        """Data used during cloning of a repository"""
+
+        local_dir: str
+        'Directory where to clone the repo. By default, a new temporary directory will be created.'
+        config_username: str
+        'Username to set in the git config.'
+        config_user_email: str
+        'Email to set in the git config.'
+
     def __init__(
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: t.Optional[dict] = None,
+        clone_options: t.Optional[CloneOptions] = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         """
@@ -54,14 +66,14 @@ class RepoUtil:
             :param repourl          (str) URL of the repository
             :param clone            (bool) Should always be set to True. To load a repository
                                            which has already been cloned, see  the load() function.
-            :param clone_options    (dict) May contain the keys local_dir, config_username and config_email
+            :param clone_options    (Optional[dict]) May contain the information for the repository cloning
             :param logger           (Optional[Logger])
         """
         self.url = repourl
         self.logger = logger
-        clone_options = clone_options or {}
+        clone_options = clone_options or self.CloneOptions()
         if clone:
-            self._clone(**clone_options)
+            self._clone(clone_options)
         self.previous_active_branch: t.Optional[str] = None
 
     def get_repo_dir(self) -> str:
@@ -103,30 +115,22 @@ class RepoUtil:
         owner = os.path.basename(os.path.dirname(self.url))
         return owner.split(':')[-1]
 
-    def _clone(
-        self,
-        local_dir: t.Optional[str] = None,
-        config_username: t.Optional[str] = None,
-        config_user_email: t.Optional[str] = None,
-    ):
+    def _clone(self, clone_options: t.Optional[CloneOptions] = None):
         """
         Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
         Arguments:
-            :param local_dir  (Optional[str]) Directory where to clone the repo.
-            By default, a new temporary directory is created.
-            :param config_username  (Optional[str]) Username to set in the git config.
-            :param config_user_email  (Optional[str]) Email to set in the git config.
+            :param clone_options  (Optional[CloneOptions]) Data for the repository cloning
         """
-        if local_dir:
+        if local_dir := clone_options.get('local_dir'):
             self.local_dir = local_dir
         else:
             self.local_dir = tempfile.mkdtemp()
         self.repo = Repo.clone_from(self.url, self.local_dir, multi_options=['--recurse-submodules'])
-        if config_username:
+        if config_username := clone_options.get('config_username'):
             with self.repo.config_writer() as config:
-                config.set_value('user', 'email', config_user_email)
+                config.set_value('user', 'email', clone_options.get('config_user_email'))
                 config.set_value('user', 'name', config_username)
 
 
@@ -179,6 +183,45 @@ def pull(repo_dir: str):
     repo = Repo(repo_dir)
     for submodule in repo.submodules:
         submodule.update(recursive=True, init=True)
+
+
+def construct_github_repo_url(user: str, repo: str, token: t.Optional[str] = None) -> str:
+    """Construct the URL to a GitHub repository."""
+    if token:
+        return f'https://{token}@github.com/{user}/{repo}.git'
+    return f'https://github.com/{user}/{repo}.git'
+
+
+def clone_repo(
+    repo_url: str,
+    clone_options: RepoUtil.CloneOptions,
+    logger: logging.Logger,
+) -> t.Optional[ModifiableRepoUtil]:
+    """
+    Tries to clone a repository. Repeat the cloning process several times if the attempt was not successful.
+
+    Arguments:
+        :param repo_url          (str) URL to the GitHub repository
+        :param clone_options    (dict) Dictionary that contains information about the author of the commit
+        :param logger           (logging.Logger) formated logger with the specified name
+    """
+    attempts = 3
+    wait_for_seconds = 30
+    repo_name = repo_url.split('github.com/')[-1].split('.git')[0]
+    while True:
+        try:
+            logger.info(f'Cloning repository from: {repo_url}')
+            repo = ModifiableRepoUtil(repo_url, clone_options=clone_options)
+            logger.info(f'Repository cloned to local directory {repo.local_dir}')
+            break
+        except GitCommandError:
+            attempts -= 1
+            logger.warning(f'Unable to clone {repo_name} repository - waiting for {wait_for_seconds} seconds')
+            if attempts == 0:
+                logger.exception(f'Failed to clone repository {repo_name}')
+                return
+            time.sleep(wait_for_seconds)
+    return repo
 
 
 def load(repo_dir: str, repo_url: str) -> RepoUtil:

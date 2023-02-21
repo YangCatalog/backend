@@ -69,10 +69,10 @@
       ]
     },
     {
-      "name": "draftPull",
+      "name": "draft_push",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/ietfYangDraftPull/draftPull.py",
+      "program": "${workspaceFolder}/automatic_push/draft_push.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false

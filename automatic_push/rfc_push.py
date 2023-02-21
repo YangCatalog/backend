@@ -18,11 +18,10 @@ https://github.com/yang-catalog/yang/ repo. There are also modules which won't b
 they are stored in the /var/yang/ietf-exceptions/exceptions.dat and /var/yang/ietf-exceptions/iana-exceptions.dat files.
 """
 
-
 __author__ = 'Bohdan Konovalenko'
 __copyright__ = 'Copyright The IETF Trust 2023, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
-__email__ = 'bohdan.konovalenko@bluefield.tech'
+__email__ = 'bohdan.konovalenko@pantheon.tech'
 
 import logging
 import os

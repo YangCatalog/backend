@@ -101,7 +101,7 @@ class ModuleGrouping:
         except InvalidGitRepositoryError:
             repo = repoutil.RepoUtil(
                 repo_url,
-                clone_options={'local_dir': self.dir_paths['yang_models']},
+                clone_options=repoutil.RepoUtil.CloneOptions(local_dir=self.dir_paths['yang_models']),
                 logger=self.logger,
             )
         self.repo = repo

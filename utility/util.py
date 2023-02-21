@@ -304,16 +304,23 @@ def prepare_for_es_indexing(
         mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
     if load_new_files_to_github:
         try:
-            logger.info('Calling draftPull.py script')
-            module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
-            submodule = getattr(module, 'draftPull')
+            logger.info('Calling draft_push.py script')
+            module = __import__('automatic_push', fromlist=['draft_push'])
+            submodule = getattr(module, 'draft_push')
             submodule.main()
         except Exception:
-            logger.exception('Error occurred while running draftPull.py script')
+            logger.exception('Error occurred while running draft_push.py script')
     return post_body
 
 
 def job_log(file_basename: str):
+    """
+    Decorator to write information about the script run into the cronjob.json file.
+
+    Arguments:
+        :param file_basename (str) Name of the script, can be provided in such forms - script_name, script_name.py
+    """
+
     def _job_log_decorator(func):
         config = create_config()
         temp_dir = config.get('Directory-Section', 'temp')
@@ -460,11 +467,12 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
 
 
 def get_list_of_backups(directory: str) -> t.List[str]:
-    """Get a sorted list of backup file or directory names in a directory.
+    """
+    Get a sorted list of backup file or directory names in a directory.
     Backups are identified by matching backup date format.
 
     Arguments:
-        :param directory    directory in with to search
+        :param directory (str) directory where to search
         :return             sorted list of file/directory names
     """
     dates: t.List[str] = []
@@ -482,7 +490,8 @@ def get_list_of_backups(directory: str) -> t.List[str]:
 
 
 def validate_revision(revision: str) -> str:
-    """Validate if revision has correct format and return default 1970-01-01 if not.
+    """
+    Validate if revision has correct format and return default 1970-01-01 if not.
 
     Argument:
         :param revision     (str) Revision to validate

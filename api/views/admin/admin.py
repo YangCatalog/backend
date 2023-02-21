@@ -575,8 +575,8 @@ def get_script_names():
     scripts_names = (
         'populate',
         'parse_directory',
-        'draftPull',
-        'ianaPull',
+        'draft_push',
+        'iana_push',
         'draftPullLocal',
         'openconfigPullLocal',
         'statistics',
@@ -598,11 +598,13 @@ def get_disk_usage():
 
 
 def get_module_name(script_name):
-    if script_name in ['populate', 'parse_directory', 'reviseSemver', 'resolve_expiration']:
+    if script_name in ('populate', 'parse_directory', 'reviseSemver', 'resolve_expiration'):
         return 'parseAndPopulate'
-    elif script_name in ['draftPull', 'ianaPull', 'draftPullLocal', 'openconfigPullLocal']:
+    elif script_name in ('draftPullLocal', 'openconfigPullLocal'):
         return 'ietfYangDraftPull'
-    elif script_name in ['recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery']:
+    elif script_name in ('draft_push', 'iana_push'):
+        return 'automatic_push'
+    elif script_name in ('recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery'):
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'

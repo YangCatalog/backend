@@ -83,9 +83,8 @@ class Sender:
         """
         self.LOGGER.debug('Trying to get response from correlation ids')
 
-        f = open(os.path.join(self._temp_dir, self._response_file), 'r')
-        lines = f.readlines()
-        f.close()
+        with open(os.path.join(self._temp_dir, self._response_file), 'r') as f:
+            lines = f.readlines()
         for line in lines:
             if correlation_id == line.split('- ')[1].strip():
                 return line.split('- ')[-1].strip()

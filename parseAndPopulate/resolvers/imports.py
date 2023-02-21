@@ -91,7 +91,7 @@ class ImportsResolver(Resolver):
             repo = repoutil.load(repo_dir, repo_url)
         except InvalidGitRepositoryError:
             self.logger.error('Unable to load {} repository'.format(repo_url))
-            repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': repo_dir})
+            repo = repoutil.RepoUtil(repo_url, clone_options=repoutil.RepoUtil.CloneOptions(local_dir=repo_dir))
 
         new_schema_parts = SchemaParts(
             repo_owner=repo_owner,
@@ -114,7 +114,10 @@ class ImportsResolver(Resolver):
             repo = repoutil.load(self.yang_models_dir, repo_url)
         except InvalidGitRepositoryError:
             self.logger.error('Unable to load {} repository'.format(repo_url))
-            repo = repoutil.RepoUtil(repo_url, clone_options={'local_dir': self.yang_models_dir})
+            repo = repoutil.RepoUtil(
+                repo_url,
+                clone_options=repoutil.RepoUtil.CloneOptions(local_dir=self.yang_models_dir),
+            )
 
         # Check if repository is a submodule
         for submodule in repo.repo.submodules:

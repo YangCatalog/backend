@@ -88,14 +88,15 @@ and their expiration dates and updates its metadata accordingly.
 anymore.
 * [user_reminder](https://github.com/YangCatalog/backend/blob/master/utility/user_reminder.py) script that will be triggered twice a year to show us what
 users we have in our database.
-* In the ietfYangDraftPull directory there are four jobs.
-    1. [draftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPull.py) adds new modules
-    to the YangModels/yang repository if there are any new modules. 
-    2. [draftPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPullLocal.py)
+* In the [ietfYangDraftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull) directory there are two jobs.
+    1. [draftPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/draftPullLocal.py)
     goes through all ietf drafts and rfcs and populates yangcatalog.
-    3. [openconfigPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/openconfigPullLocal.py) populates all the
+    2. [openconfigPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/openconfigPullLocal.py) populates all the
     new openconfig yang modules from their own repository to yangcatalog.
-    4. [ianaPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/ianaPull) rsyncs and populates new modules from IANA.
+* In the [automatic_push](https://github.com/YangCatalog/backend/blob/master/automatic_push) directory there are two jobs.
+    1. [draft_push](https://github.com/YangCatalog/backend/blob/master/automatic_push/draft_push.py) adds new modules
+    to the YangModels/yang repository if there are any new modules.
+    2. [iana_push](https://github.com/YangCatalog/backend/blob/master/automatic_push/iana_push) rsyncs and populates new modules from IANA.
 * [recovery](https://github.com/YangCatalog/backend/blob/master/recovery/recovery.py) script which pulls all the data from confd and creates a json
 file which is saved on the server as a backup. If we loose all the data for
 some reason we can use this script to upload it back with no loss of

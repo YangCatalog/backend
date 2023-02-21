@@ -2727,8 +2727,8 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
   "data":[
     "populate",
     "runCapabilities",
-    "draftPull",
-    "ianaPull",
+    "draft_push",
+    "iana_push",
     "draftPullLocal",
     "openconfigPullLocal",
     "statistics",
@@ -3111,7 +3111,14 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "data": {
-    "draftPull": {
+    "draft_push": {
+      "end": 1599603601,
+      "error": "",
+      "last_successfull": 1599603601,
+      "start": 1599603558,
+      "status": "Success"
+    },
+    "iana_push": {
       "end": 1599603601,
       "error": "",
       "last_successfull": 1599603601,
