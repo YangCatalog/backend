@@ -74,7 +74,7 @@ def update_forked_repository(yang_models: str, forked_repo_url: str, logger: log
         logger.exception('yang-catalog/yang repo might not be up-to-date')
 
 
-def populate_draft_modules_content(experimental_path: str, config: ConfigParser, logger: logging.Logger):
+def download_draft_modules_content(experimental_path: str, config: ConfigParser, logger: logging.Logger):
     """
     Loop through download links for each module found in IETFDraft.json and try to get their content.
 

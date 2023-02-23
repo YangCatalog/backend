@@ -37,7 +37,7 @@ import requests
 import ietfYangDraftPull.draftPullUtility as dpu
 import utility.log as log
 from automatic_push.rfc_push import push_new_rfcs
-from automatic_push.utility import populate_draft_modules_content, push_untracked_files, update_forked_repository
+from automatic_push.utility import download_draft_modules_content, push_untracked_files, update_forked_repository
 from utility import message_factory, repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -168,7 +168,7 @@ class DraftPush:
 
     def _populate_and_check_experimental_drafts(self):
         self.logger.info('Updating IETF drafts download links')
-        populate_draft_modules_content(self.experimental_path, self.config, self.logger)
+        download_draft_modules_content(self.experimental_path, self.config, self.logger)
 
         self.logger.info(f'Checking module filenames without revision in {self.experimental_path}')
         dpu.check_name_no_revision_exist(self.experimental_path, self.logger)

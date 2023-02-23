@@ -78,10 +78,10 @@
       "justMyCode": false
     },
     {
-      "name": "draftPullLocal",
+      "name": "ietf_pull_local",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/ietfYangDraftPull/draftPullLocal.py",
+      "program": "${workspaceFolder}/ietfYangDraftPull/ietf_pull_local.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false

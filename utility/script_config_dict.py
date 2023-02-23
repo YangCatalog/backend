@@ -75,7 +75,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'draftPullLocal': {
+    'ietf_pull_local': {
         'help': (
             'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the '
             'metadata to yangcatalog if there are any new. This runs as a daily cronjob'
@@ -93,7 +93,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
         'help': (
             'Script automatically pushes new IANA-maintained yang modules to the GitHub repository:'
             'https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to '
-            '<name>@<revision>.yang.',
+            '<name>@<revision>.yang.'
         ),
         'args': [
             {

@@ -3,7 +3,7 @@ Automatic YANG modules pull and push scripts
 
 This package contains scripts to process IETF and openconfig YANG files:
 
-- draftPullLocal
+- ietf_pull_local
 
     Cronjob tool that automatically runs populate.py over 3 different directories:
     I. RFC .yang modules -> standard/ietf/RFC path

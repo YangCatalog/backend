@@ -577,7 +577,7 @@ def get_script_names():
         'parse_directory',
         'draft_push',
         'iana_push',
-        'draftPullLocal',
+        'ietf_pull_local',
         'openconfigPullLocal',
         'statistics',
         'recovery',
@@ -600,7 +600,7 @@ def get_disk_usage():
 def get_module_name(script_name):
     if script_name in ('populate', 'parse_directory', 'reviseSemver', 'resolve_expiration'):
         return 'parseAndPopulate'
-    elif script_name in ('draftPullLocal', 'openconfigPullLocal'):
+    elif script_name in ('ietf_pull_local', 'openconfigPullLocal'):
         return 'ietfYangDraftPull'
     elif script_name in ('draft_push', 'iana_push'):
         return 'automatic_push'

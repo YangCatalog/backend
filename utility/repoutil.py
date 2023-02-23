@@ -66,7 +66,7 @@ class RepoUtil:
             :param repourl          (str) URL of the repository
             :param clone            (bool) Should always be set to True. To load a repository
                                            which has already been cloned, see  the load() function.
-            :param clone_options    (Optional[dict]) May contain the information for the repository cloning
+            :param clone_options    (Optional[CloneOptions]) May contain the information for the repository cloning
             :param logger           (Optional[Logger])
         """
         self.url = repourl
