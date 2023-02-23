@@ -69,19 +69,19 @@
       ]
     },
     {
-      "name": "draft_push",
+      "name": "ietf_push",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/automatic_push/draft_push.py",
+      "program": "${workspaceFolder}/automatic_push/ietf_push.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false
     },
     {
-      "name": "ietf_pull_local",
+      "name": "pull_local",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/ietfYangDraftPull/ietf_pull_local.py",
+      "program": "${workspaceFolder}/ietfYangDraftPull/pull_local.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false

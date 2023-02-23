@@ -31,7 +31,7 @@ from configparser import ConfigParser
 from shutil import copy2
 
 import utility.log as log
-from automatic_push.utility import push_untracked_files, update_forked_repository
+from automatic_push.utils import push_untracked_files, update_forked_repository
 from ietfYangDraftPull import draftPullUtility as dpu
 from utility import repoutil
 from utility.create_config import create_config
@@ -76,7 +76,13 @@ class IanaPush:
         self._sync_yang_parameters()
         self._parse_yang_parameters()
         self._check_iana_standard_dir()
-        messages = push_untracked_files(self.repo, self.logger, self.verified_commits_file_path, self.is_production)
+        messages = push_untracked_files(
+            self.repo,
+            'Cronjob - daily check of IANA modules.',
+            self.logger,
+            self.verified_commits_file_path,
+            self.is_production,
+        )
         self.logger.info('Removing tmp directory')
         if os.path.exists(self.iana_temp_dir):
             shutil.rmtree(self.iana_temp_dir)

@@ -1791,7 +1791,7 @@ yang modules
 
 This endpoint serves to run two different processes:
 
-1. ietf_pull_local.py
+1. pull_local.py
 2. openconfigPullLocall.py
 
 These scripts serve as automated tools to parse and populate all
@@ -2727,9 +2727,9 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
   "data":[
     "populate",
     "runCapabilities",
-    "draft_push",
+    "ietf_push",
     "iana_push",
-    "ietf_pull_local",
+    "pull_local",
     "openconfigPullLocal",
     "statistics",
     "recovery",
@@ -3111,7 +3111,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 {
   "data": {
-    "draft_push": {
+    "ietf_push": {
       "end": 1599603601,
       "error": "",
       "last_successfull": 1599603601,
@@ -3125,7 +3125,7 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
       "start": 1599603558,
       "status": "Success"
     },
-    "ietf_pull_local": {
+    "pull_local": {
       "end": 1599612283,
       "error": "",
       "last_successfull": 1599612283,

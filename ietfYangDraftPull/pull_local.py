@@ -112,7 +112,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
     log_directory = config.get('Directory-Section', 'logs')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     temp_dir = config.get('Directory-Section', 'temp')
-    logger = log.get_logger('ietf_pull_local', f'{log_directory}/jobs/ietf-pull-local.log')
+    logger = log.get_logger('pull_local', f'{log_directory}/jobs/pull-local.log')
     logger.info('Starting cron job IETF pull request local')
 
     messages = []
@@ -162,7 +162,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
             messages.append({'label': 'IANA modules', 'message': message})
 
     except Exception as e:
-        logger.exception('Exception found while running ietf_pull_local script')
+        logger.exception('Exception found while running pull_local script')
         raise e
     if success:
         logger.info('Job finished successfully')

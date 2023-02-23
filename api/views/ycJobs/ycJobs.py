@@ -120,7 +120,7 @@ def check_github():
             base_branch='main',
             headers={'Authorization': token_header_value},
             request_body=repoutil.PullRequestCreationDetail(
-                title='Cronjob - every day pull and update of ietf draft yang files.',
+                title='Cronjob - daily update of yang files.',
                 body='ietf extracted yang modules',
             ),
         )

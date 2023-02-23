@@ -52,13 +52,13 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'draft_push': {
+    'ietf_push': {
         'help': (
-            'Script automatically pushes new IETF draft yang modules to the GitHub repository: '
+            'Script automatically pushes new IETF RFC and draft yang modules to the GitHub repository:'
             'https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to '
-            '<name>@<revision>.yang. New IETF RFC modules are checked and automatically pushed too. An e-mail with '
-            'information about pushing new RFCs is sent to yangcatalog admin users if such a thing occurs. Message '
-            'about new RFC or DRAFT yang modules is also sent to the Cisco Webex Teams, room: YANG Catalog Admin.'
+            '<name>@<revision>.yang. An e-mail with information about local update of new RFCs is sent to '
+            'yangcatalog admin users if there are files to update. Message about new RFC yang modules '
+            'is also sent to the Cisco Webex Teams, room: YANG Catalog Admin.'
         ),
         'args': [
             {
@@ -75,7 +75,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'ietf_pull_local': {
+    'pull_local': {
         'help': (
             'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the '
             'metadata to yangcatalog if there are any new. This runs as a daily cronjob'

@@ -304,12 +304,12 @@ def prepare_for_es_indexing(
         mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
     if load_new_files_to_github:
         try:
-            logger.info('Calling draft_push.py script')
-            module = __import__('automatic_push', fromlist=['draft_push'])
-            submodule = getattr(module, 'draft_push')
+            logger.info('Calling ietf_push.py script')
+            module = __import__('automatic_push', fromlist=['ietf_push'])
+            submodule = getattr(module, 'ietf_push')
             submodule.main()
         except Exception:
-            logger.exception('Error occurred while running draft_push.py script')
+            logger.exception('Error occurred while running ietf_push.py script')
     return post_body
 
 

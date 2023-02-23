@@ -31,7 +31,6 @@ import requests
 from git import GitCommandError
 
 from utility import repoutil
-from utility.repoutil import ModifiableRepoUtil
 from utility.staticVariables import github_url
 
 
@@ -117,7 +116,8 @@ def download_draft_modules_content(experimental_path: str, config: ConfigParser,
 
 
 def push_untracked_files(
-    repo: ModifiableRepoUtil,
+    repo: repoutil.ModifiableRepoUtil,
+    commit_message: str,
     logger: logging.Logger,
     verified_commits_file_path: str,
     is_production: bool,
@@ -127,6 +127,7 @@ def push_untracked_files(
 
     Arguments:
           :param repo (ModifiableRepoUtil) Repository where to push changes.
+          :param commit_message (str) New commit message.
           :param logger (logging.Logger) Logger instance to log information/exceptions.
           :param verified_commits_file_path (str) Path to file where our verified commits should be stored
           in order to verify commits in GitHub webhooks.
@@ -138,7 +139,7 @@ def push_untracked_files(
         untracked_files = repo.repo.untracked_files
         repo.add_untracked_remove_deleted()
         logger.info('Committing all files locally')
-        repo.commit_all('Cronjob - every day pull of ietf draft yang files.')
+        repo.commit_all(message=commit_message)
         logger.info('Pushing files to forked repository')
         commit_hash = repo.repo.head.commit
         logger.info(f'Commit hash {commit_hash}')

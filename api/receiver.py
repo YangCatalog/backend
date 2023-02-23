@@ -381,18 +381,18 @@ class Receiver:
         :return: response success or failed
         """
         try:
-            # Run ietf_pull_local.py script
-            script_name = 'ietf_pull_local'
+            # Run pull_local.py script
+            script_name = 'pull_local'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
             submodule = getattr(module, script_name)
             script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
 
-            self.LOGGER.info('Runnning ietf_pull_local.py script')
+            self.LOGGER.info('Runnning pull_local.py script')
             try:
                 submodule.main(script_conf=script_conf)
             except Exception:
-                self.LOGGER.exception('Problem while running ietf_pull_local script')
-                return StatusMessage.FAIL, 'Server error while running ietf_pull_local script'
+                self.LOGGER.exception('Problem while running pull_local script')
+                return StatusMessage.FAIL, 'Server error while running pull_local script'
             # Run openconfigPullLocal.py script
             script_name = 'openconfigPullLocal'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
