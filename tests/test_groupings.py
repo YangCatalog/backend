@@ -25,10 +25,10 @@ from ast import literal_eval
 from unittest import mock
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher, VendorModuleHashCheckForParsing
 from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorGrouping, VendorYangLibrary
+from parseAndPopulate.models.directory_paths import DirPaths
 from redisConnections.redisConnection import RedisConnection
 from sandbox import constants as sandbox_constants
 from sandbox import generate_schema_urls

@@ -38,7 +38,7 @@ from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import github_url
-from utility.util import job_log
+from utility.util import JobLogMessage, job_log
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -101,7 +101,7 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
 
 
 @job_log(file_basename=BASENAME)
-def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLogMessage]:
     args = script_conf.args
 
     config_path = args.config_path

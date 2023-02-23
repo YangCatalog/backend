@@ -1,9 +1,10 @@
 from parseAndPopulate.models.implementation import Implementation
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.resolvers.resolver import Resolver
 
 
 class ImplementationResolver(Resolver):
-    def __init__(self, vendor_info_dict: dict, features: list, deviations: list) -> None:
+    def __init__(self, vendor_info_dict: VendorInfo, features: list, deviations: list) -> None:
         self.vendor_info = vendor_info_dict
         self.features = features
         self.deviations = deviations
@@ -15,18 +16,9 @@ class ImplementationResolver(Resolver):
             conformance_type:    (str) string representing conformance type of module
             capabilities:        (list) list of netconf capabilities loaded from platform_metadata.json
             netconf_versions:    (list) list of netconf versions loaded from platform-metadata.json
-
-        Other parameters:
-            features:            (list) list of features from initializations data for VendorModule
-            deviations:          (list) list of deviations from initializations data for VendorModule
         """
-        platform_data = self.vendor_info['platform_data']
-        conformance_type = self.vendor_info['conformance_type']
-        capabilities = self.vendor_info['capabilities']
-        netconf_versions = self.vendor_info['netconf_versions']
-
         implementations = []
-        for data in platform_data:
+        for data in self.vendor_info.platform_data:
             implementation = Implementation()
             implementation.vendor = data['vendor']
             implementation.platform = data['platform']
@@ -36,8 +28,8 @@ class ImplementationResolver(Resolver):
             implementation.feature_set = data['feature-set']
             implementation.os_type = data['os']
             implementation.feature = self.features
-            implementation.capabilities = capabilities
-            implementation.netconf_versions = netconf_versions
+            implementation.capabilities = self.vendor_info.capabilities
+            implementation.netconf_versions = self.vendor_info.netconf_versions
 
             for deviation in self.deviations:
                 dev = implementation.Deviation()
@@ -45,7 +37,7 @@ class ImplementationResolver(Resolver):
                 dev.revision = deviation['revision']
                 implementation.deviations.append(dev)
 
-            implementation.conformance_type = conformance_type
+            implementation.conformance_type = self.vendor_info.conformance_type
 
             implementations.append(implementation)
         return implementations

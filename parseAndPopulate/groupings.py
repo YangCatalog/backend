@@ -32,11 +32,12 @@ from git import InvalidGitRepositoryError
 from git.repo import Repo
 
 import utility.log as log
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.schema_parts import SchemaParts
-from parseAndPopulate.modules import SdoModule, VendorModule
+from parseAndPopulate.models.vendor_modules import VendorInfo, VendorPlatformData
+from parseAndPopulate.modules import Module, SdoModule, VendorModule
 from redisConnections.redisConnection import RedisConnection
 from utility import repoutil
 from utility.create_config import create_config
@@ -344,7 +345,7 @@ class IanaDirectory(SdoDirectory):
         schema_parts = SchemaParts(repo_owner=self.repo_owner, repo_name=self.repo_name, commit_hash=commit_hash)
 
         for module in modules:
-            additional_info = {}
+            additional_info = Module.AdditionalModuleInfo(organization='ietf')
             data = module.attrib
             for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
@@ -360,7 +361,6 @@ class IanaDirectory(SdoDirectory):
                     else:
                         additional_info['document-name'] = xref_info.get('data')
                         additional_info['reference'] = f'https://datatracker.ietf.org/doc/{xref_info.get("data")}'
-                additional_info['organization'] = 'ietf'
 
             if data.get('iana') == 'Y' and data.get('file'):
                 path = os.path.join(self.directory, data['file'])
@@ -391,7 +391,7 @@ class IanaDirectory(SdoDirectory):
                         self._schemas,
                         self.dir_paths,
                         self.dumper.yang_modules,
-                        additional_info,
+                        additional_info=additional_info,
                         config=self.config,
                     )
                 except (ParseException, FileNotFoundError) as e:
@@ -423,7 +423,7 @@ class VendorGrouping(ModuleGrouping):
         self.found_capabilities = False
         self.capabilities = []
         self.netconf_versions = []
-        self.platform_data = []
+        self.platform_data: list[VendorPlatformData] = []
         self.implementation_keys = []
         self.xml_file = xml_file
         # Get hello message root
@@ -466,8 +466,8 @@ class VendorGrouping(ModuleGrouping):
             self.logger.debug('Deriving platform metadata from paths')
             self.platform_data.append(self._path_to_platform_data())
 
-    def _path_to_platform_data(self) -> dict:
-        """Try to derive platrom data from the directory path and xml name."""
+    def _path_to_platform_data(self) -> VendorPlatformData:
+        """Try to derive platform data from the directory path and xml name."""
         base = os.path.basename(self.xml_file).removesuffix('.xml')
         base = base.replace('capabilities', '').replace('capability', '').replace('netconf', '').strip('-')
         platform = base or 'Unknown'
@@ -566,12 +566,12 @@ class VendorGrouping(ModuleGrouping):
             if (name, revision) in self.name_rev_to_path:
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
-            vendor_info = {
-                'platform_data': self.platform_data,
-                'conformance_type': conformance_type,
-                'capabilities': self.capabilities,
-                'netconf_versions': self.netconf_versions,
-            }
+            vendor_info = VendorInfo(
+                platform_data=self.platform_data,
+                conformance_type=conformance_type,
+                capabilities=self.capabilities,
+                netconf_versions=self.netconf_versions,
+            )
             try:
                 yang = VendorModule(
                     name,
@@ -660,12 +660,12 @@ class VendorCapabilities(VendorGrouping):
             if (name, revision) in self.name_rev_to_path:
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
-            vendor_info = {
-                'platform_data': self.platform_data,
-                'conformance_type': 'implement',
-                'capabilities': self.capabilities,
-                'netconf_versions': self.netconf_versions,
-            }
+            vendor_info = VendorInfo(
+                platform_data=self.platform_data,
+                conformance_type='implement',
+                capabilities=self.capabilities,
+                netconf_versions=self.netconf_versions,
+            )
             try:
                 yang = VendorModule(
                     name,
@@ -750,12 +750,12 @@ class VendorYangLibrary(VendorGrouping):
             if (name, revision) in self.name_rev_to_path:
                 path = self.name_rev_to_path[name, revision]
             self._update_schema_urls(name, revision, path, schema_parts)
-            vendor_info = {
-                'platform_data': self.platform_data,
-                'conformance_type': conformance_type,
-                'capabilities': self.capabilities,
-                'netconf_versions': self.netconf_versions,
-            }
+            vendor_info = VendorInfo(
+                platform_data=self.platform_data,
+                conformance_type=conformance_type,
+                capabilities=self.capabilities,
+                netconf_versions=self.netconf_versions,
+            )
             try:
                 yang = VendorModule(
                     name,

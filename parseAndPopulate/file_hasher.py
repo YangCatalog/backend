@@ -64,7 +64,7 @@ class FileHasher:
         self.logger = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
         self.lock = threading.Lock()
         self.validators_versions_bytes = self.get_versions()
-        self.files_hashes = self.load_hashed_files_list()
+        self.files_hashes = self.load_hashed_files_data()
         self.updated_hashes = {}
 
     def hash_file(self, path: str) -> str:
@@ -90,8 +90,9 @@ class FileHasher:
 
         return file_hash.hexdigest()
 
-    def load_hashed_files_list(self, path: str = '') -> dict:
-        """Load dumped list of files content hashes from .json file.
+    def load_hashed_files_data(self, path: str = '') -> dict:
+        """
+        Load dumped list of files content hashes from .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Argument:
@@ -103,21 +104,21 @@ class FileHasher:
         self.lock.acquire()
         try:
             with open(path, 'r') as f:
-                hashed_files_list = json.load(f)
-            self.logger.info(f'Dictionary of {len(hashed_files_list)} hashes loaded successfully')
+                hashed_files_data = json.load(f)
+            self.logger.info(f'Dictionary of {len(hashed_files_data)} hashes loaded successfully')
         except FileNotFoundError:
             self.logger.error(f'{path} file was not found')
-            hashed_files_list = {}
+            hashed_files_data = {}
         self.lock.release()
 
-        return hashed_files_list
+        return hashed_files_data
 
     def merge_and_dump_hashed_files_list(self, new_hashes: dict, dst_dir: str = ''):
         """Dumped updated list of files content hashes into .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Arguments:
-            :param files_hashes (dict) Dictionary of the hashes to be dumped
+            :param new_hashes (dict) Dictionary of the hashes to be dumped
             :param dst_dir      (str) Optional - directory where the .json file with hashes is saved
         """
         dst_dir = self.cache_dir if dst_dir == '' else dst_dir
@@ -144,7 +145,8 @@ class FileHasher:
         self.lock.release()
 
     def dump_tmp_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
-        """Dump new hashes into temporary json file.
+        """
+        Dump new hashes into temporary json file.
 
         Arguments:
             :param files_hashes (dict) Dictionary of the hashes to be dumped
@@ -162,7 +164,8 @@ class FileHasher:
         return json.dumps(validators).encode('utf-8')
 
     def should_parse_sdo_module(self, path: str) -> bool:
-        """Decide whether SDO module at the given path should be parsed or not.
+        """
+        Decide whether SDO module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Argument:
