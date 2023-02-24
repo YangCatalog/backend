@@ -25,6 +25,7 @@ import shutil
 import tempfile
 import time
 import typing as t
+from dataclasses import dataclass
 
 import requests
 from git import GitCommandError
@@ -53,6 +54,8 @@ class RepoUtil:
         'Username to set in the git config.'
         config_user_email: str
         'Email to set in the git config.'
+        recurse_submodules: bool
+        'If set to True then the repository will be cloned with all of submodules, will be set to True by default'
 
     def __init__(
         self,
@@ -81,11 +84,12 @@ class RepoUtil:
         return os.path.splitext(os.path.basename(self.url))[0]
 
     def get_commit_hash(self, path: str = '', branch: str = 'HEAD') -> str:
-        """Get the commit hash of a branch.
+        """
+        Get the commit hash of a branch.
 
         Arguments:
             :param path     (str) Path to a file of interest. This is used to determine
-                                  if we should search for the the commit hash in a submodule.
+                                  if we should search for the commit hash in a submodule.
             :param branch   (str) The branch we want to get the commit hash of.
             :return         (str) The commit hash.
         """
@@ -115,19 +119,20 @@ class RepoUtil:
         owner = os.path.basename(os.path.dirname(self.url))
         return owner.split(':')[-1]
 
-    def _clone(self, clone_options: t.Optional[CloneOptions] = None):
+    def _clone(self, clone_options: CloneOptions):
         """
         Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
         Arguments:
-            :param clone_options  (Optional[CloneOptions]) Data for the repository cloning
+            :param clone_options  (CloneOptions) Data for the repository cloning
         """
         if local_dir := clone_options.get('local_dir'):
             self.local_dir = local_dir
         else:
             self.local_dir = tempfile.mkdtemp()
-        self.repo = Repo.clone_from(self.url, self.local_dir, multi_options=['--recurse-submodules'])
+        multi_options = ['--recurse-submodules'] if clone_options.setdefault('recurse_submodules', True) else None
+        self.repo = Repo.clone_from(self.url, self.local_dir, multi_options=multi_options)
         if config_username := clone_options.get('config_username'):
             with self.repo.config_writer() as config:
                 config.set_value('user', 'email', clone_options.get('config_user_email'))
@@ -239,6 +244,63 @@ def load(repo_dir: str, repo_url: str) -> RepoUtil:
         raise InvalidGitRepositoryError(repo_dir)
     repo.local_dir = repo_dir
     return repo
+
+
+@dataclass
+class PushResult:
+    is_successful: bool
+    detail: str
+
+
+def push_untracked_files(
+    repo: ModifiableRepoUtil,
+    commit_message: str,
+    logger: logging.Logger,
+    verified_commits_file_path: str,
+    is_production: bool,
+) -> PushResult:
+    """
+    Commits locally and pushes all the changes to the remote repository.
+
+    Arguments:
+          :param repo (ModifiableRepoUtil) Repository where to push changes.
+          :param commit_message (str) New commit message.
+          :param logger (logging.Logger) Logger instance to log information/exceptions.
+          :param verified_commits_file_path (str) Path to file where our verified commits should be stored
+          in order to verify commits in GitHub webhooks.
+          :param is_production (bool) If set to False then files would only be committed and not pushed to the repo.
+    :return (PushResult) Returns information about the push.
+    """
+    try:
+        logger.info('Adding all untracked files locally')
+        untracked_files = repo.repo.untracked_files
+        repo.add_untracked_remove_deleted()
+        logger.info('Committing all files locally')
+        repo.commit_all(message=commit_message)
+        logger.info('Pushing files to forked repository')
+        commit_hash = repo.repo.head.commit
+        logger.info(f'Commit hash {commit_hash}')
+        with open(verified_commits_file_path, 'w') as f:
+            f.write(f'{commit_hash}\n')
+        if is_production:
+            logger.info('Pushing untracked and modified files to remote repository')
+            repo.push()
+        else:
+            logger.info('DEV environment - not pushing changes into remote repository')
+            untracked_files_list = '\n'.join(untracked_files)
+            logger.debug(f'List of all untracked and modified files:\n{untracked_files_list}')
+    except GitCommandError as e:
+        message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
+        if 'Your branch is up to date' in e.stdout:
+            logger.warning(message)
+            return PushResult(is_successful=True, detail='Branch is up to date')
+        else:
+            logger.exception('Error while pushing procedure - Git command error')
+            return PushResult(is_successful=False, detail=str(e))
+    except Exception as e:
+        logger.exception('Error while pushing procedure')
+        return PushResult(is_successful=False, detail=str(e))
+    return PushResult(is_successful=True, detail=f'Commit hash: {commit_hash}')
 
 
 class PullRequestCreationDetail(t.TypedDict, total=False):

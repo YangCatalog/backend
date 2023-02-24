@@ -144,8 +144,8 @@ class ModuleGrouping:
         if 'openconfig/public' in path:
             suffix = os.path.abspath(path).split('/openconfig/public/')[-1]
             return os.path.join(schema_base_hash, suffix)
-        if 'draftpulllocal' in path:
-            suffix = os.path.abspath(path).split('draftpulllocal/')[-1]
+        if 'pull_local' in path:
+            suffix = os.path.abspath(path).split('pull_local/')[-1]
             return os.path.join(schema_base_hash, suffix)
         if 'yangmodels/yang' in path:
             suffix = os.path.abspath(path).split('/yangmodels/yang/')[-1]

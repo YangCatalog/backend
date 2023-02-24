@@ -31,7 +31,7 @@ from configparser import ConfigParser
 from shutil import copy2
 
 import utility.log as log
-from automatic_push.utils import push_untracked_files, update_forked_repository
+from automatic_push.utils import get_forked_repository
 from ietfYangDraftPull import draftPullUtility as dpu
 from utility import repoutil
 from utility.create_config import create_config
@@ -70,13 +70,13 @@ class IanaPush:
 
     @job_log(file_basename=BASENAME)
     def __call__(self):
-        self.logger.info('Starting job to pull IANA-maintained modules')
-        self._get_repo()
+        self.logger.info('Starting job to push IANA-maintained modules')
+        self.repo = get_forked_repository(self.config, self.logger)
         self._configure_file_paths()
         self._sync_yang_parameters()
         self._parse_yang_parameters()
         self._check_iana_standard_dir()
-        messages = push_untracked_files(
+        push_result = repoutil.push_untracked_files(
             self.repo,
             'Cronjob - daily check of IANA modules.',
             self.logger,
@@ -86,26 +86,13 @@ class IanaPush:
         self.logger.info('Removing tmp directory')
         if os.path.exists(self.iana_temp_dir):
             shutil.rmtree(self.iana_temp_dir)
-        self.logger.info('Job finished successfully')
+        if push_result.is_successful:
+            messages = [{'label': 'Push is successful', 'message': push_result.detail}]
+            self.logger.info('Job finished successfully')
+        else:
+            messages = [{'label': 'Push is unsuccessful', 'message': push_result.detail}]
+            self.logger.info('Job finished unsuccessfully, push failed')
         return messages
-
-    def _get_repo(self):
-        self.repo_name = 'yang'
-        repo_token = self.config.get('Secrets-Section', 'yang-catalog-token')
-        repo_owner = self.config.get('General-Section', 'repository-username')
-        repo_config_name = self.config.get('General-Section', 'repo-config-name')
-        repo_config_email = self.config.get('General-Section', 'repo-config-email')
-        yang_models_dir = self.config.get('Directory-Section', 'yang-models-dir')
-        repo_clone_options = repoutil.RepoUtil.CloneOptions(
-            config_username=repo_config_name,
-            config_user_email=repo_config_email,
-        )
-        github_repo_url = repoutil.construct_github_repo_url(repo_owner, self.repo_name, repo_token)
-        update_forked_repository(yang_models_dir, github_repo_url, self.logger)
-        repo = repoutil.clone_repo(github_repo_url, repo_clone_options, self.logger)
-        if not repo:
-            raise RuntimeError(f'Failed to clone repository {repo_owner}/{self.repo_name}')
-        self.repo = repo
 
     def _configure_file_paths(self):
         self.iana_standard_dir = os.path.join(self.repo.local_dir, 'standard/iana')

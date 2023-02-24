@@ -120,7 +120,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[
     success = True
     try:
         # Clone YangModels/yang repository
-        clone_dir = os.path.join(temp_dir, 'draftpulllocal')
+        clone_dir = os.path.join(temp_dir, 'pull_local')
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
         repo = repoutil.ModifiableRepoUtil(

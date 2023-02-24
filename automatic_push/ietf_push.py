@@ -27,6 +27,7 @@ __email__ = 'bohdan.konovalenko@pantheon.tech'
 
 import filecmp
 import glob
+import json
 import os
 import shutil
 import typing as t
@@ -37,7 +38,7 @@ import requests
 
 import ietfYangDraftPull.draftPullUtility as dpu
 import utility.log as log
-from automatic_push.utils import download_draft_modules_content, push_untracked_files, update_forked_repository
+from automatic_push.utils import get_forked_repository
 from utility import message_factory, repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -73,6 +74,9 @@ class IetfPush:
         self.rfc_exceptions_file_path = self.config.get('Directory-Section', 'rfc-exceptions')
         self.verified_commits_file_path = self.config.get('Directory-Section', 'commit-dir')
         self.ietf_rfc_url = self.config.get('Web-Section', 'ietf-RFC-tar-private-url')
+        self.ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
+        self.my_uri = config.get('Web-Section', 'my-uri')
+        self.domain_prefix = config.get('Web-Section', 'domain-prefix')
         ietf_directory = self.config.get('Directory-Section', 'ietf-directory')
         self.rfc_directory = os.path.join(ietf_directory, 'YANG-rfc')
         self.is_production = self.config.get('General-Section', 'is-prod') == 'True'
@@ -83,8 +87,8 @@ class IetfPush:
 
     @job_log(file_basename=BASENAME)
     def __call__(self):
-        self.logger.info('Starting Cron job IETF pull request')
-        self._get_repo()
+        self.logger.info('Starting job to push IETF modules')
+        self.repo = get_forked_repository(self.config, self.logger)
         self._configure_file_paths()
         try:
             ietf_tar_extracted_successfully = self._extract_ietf_modules_tar()
@@ -92,36 +96,23 @@ class IetfPush:
                 new_files, diff_files = self._get_new_and_diff_rfc_files()
                 self._update_rfc_files_locally(new_files, diff_files)
             self._download_and_check_experimental_drafts()
-            messages = push_untracked_files(
+            push_result = repoutil.push_untracked_files(
                 self.repo,
                 'Cronjob - daily check of IETF modules.',
                 self.logger,
                 self.verified_commits_file_path,
                 self.is_production,
             )
-            self.logger.info('Job finished successfully')
+            if push_result.is_successful:
+                messages = [{'label': 'Push is successful', 'message': push_result.detail}]
+                self.logger.info('Job finished successfully')
+            else:
+                messages = [{'label': 'Push is unsuccessful', 'message': push_result.detail}]
+                self.logger.info('Job finished unsuccessfully, push failed')
             return messages
         except Exception as e:
             self.logger.exception('Exception found while running ietf_push script')
             raise e
-
-    def _get_repo(self):
-        repo_name = 'yang'
-        repo_token = self.config.get('Secrets-Section', 'yang-catalog-token')
-        yang_models_dir = self.config.get('Directory-Section', 'yang-models-dir')
-        repo_owner = self.config.get('General-Section', 'repository-username')
-        repo_config_name = self.config.get('General-Section', 'repo-config-name')
-        repo_config_email = self.config.get('General-Section', 'repo-config-email')
-        repo_clone_options = repoutil.RepoUtil.CloneOptions(
-            config_username=repo_config_name,
-            config_user_email=repo_config_email,
-        )
-        github_repo_url = repoutil.construct_github_repo_url(repo_owner, repo_name, repo_token)
-        update_forked_repository(yang_models_dir, github_repo_url, self.logger)
-        repo = repoutil.clone_repo(github_repo_url, repo_clone_options, self.logger)
-        if not repo:
-            raise RuntimeError(f'Failed to clone repository {repo_owner}/{repo_name}')
-        self.repo = repo
 
     def _configure_file_paths(self):
         self.tgz_path = os.path.join(self.repo.local_dir, 'rfc.tgz')
@@ -182,24 +173,61 @@ class IetfPush:
         if self.send_message:
             self.logger.info('new or modified RFC files found. Sending an E-mail')
             mf = message_factory.MessageFactory()
-            if self.repo.repo.index.diff(None, paths=self.rfc_dir):
+            for _ in self.repo.repo.index.diff(None, paths=self.rfc_dir):
                 local_files_update_message = (
                     'RFC files are updated locally, changes must be pushed in the repo soon, '
                     'and a PullRequest must be created after successful run of GitHub Actions.'
                 )
+                break
             else:
                 local_files_update_message = 'RFC files are not updated locally'
             mf.send_new_rfc_message(new_files, diff_files, local_files_update_message)
 
     def _download_and_check_experimental_drafts(self):
         self.logger.info('Updating IETF drafts download links')
-        download_draft_modules_content(self.experimental_path, self.config, self.logger)
+        self._download_draft_modules_content()
 
         self.logger.info(f'Checking module filenames without revision in {self.experimental_path}')
         dpu.check_name_no_revision_exist(self.experimental_path, self.logger)
 
         self.logger.info(f'Checking for early revision in {self.experimental_path}')
         dpu.check_early_revisions(self.experimental_path, self.logger)
+
+    def _download_draft_modules_content(self):
+        response = requests.get(self.ietf_draft_url)
+        try:
+            ietf_draft_json = response.json()
+        except json.decoder.JSONDecodeError:
+            self.logger.error(f'Unable to get content of {os.path.basename(self.ietf_draft_url)} file')
+            ietf_draft_json = {}
+        for key in ietf_draft_json:
+            file_path = os.path.join(self.experimental_path, key)
+            yang_download_link = (
+                ietf_draft_json[key]['compilation_metadata'][2]
+                .split(
+                    'href="',
+                )[1]
+                .split('">Download')[0]
+            )
+            yang_download_link = yang_download_link.replace(self.domain_prefix, self.my_uri)
+            try:
+                file_content_response = requests.get(yang_download_link)
+            except ConnectionError:
+                self.logger.error(f'Unable to retrieve content of: {key} - {yang_download_link}')
+                continue
+            if 'text/html' in file_content_response.headers['content-type']:
+                self.logger.error(f'The content of "{key}" file is a broken html, download link: {yang_download_link}')
+                if not os.path.exists(file_path):
+                    continue
+                with open(file_path, 'r') as possibly_broken_module:
+                    lines = possibly_broken_module.readlines()
+                    module_is_broken = '<html>' in lines[1] and '</html>' in lines[-1]
+                if module_is_broken:
+                    self.logger.info(f'Deleted the file because of broken content: {key} - {yang_download_link}')
+                    os.remove(file_path)
+                continue
+            with open(file_path, 'w') as yang_file:
+                yang_file.write(file_content_response.text)
 
 
 if __name__ == '__main__':
