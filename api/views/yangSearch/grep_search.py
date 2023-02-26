@@ -253,7 +253,7 @@ class GrepSearch:
                 response.append(
                     {
                         'module-name': module_data['name'],
-                        'revision': module_data['revision'].replace('02-29', '02-28'),
+                        'revision': module_data['revision'],
                         'organization': module_data['organization'],
                     },
                 )
