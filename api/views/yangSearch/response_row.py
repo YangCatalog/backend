@@ -27,7 +27,7 @@ from utility.staticVariables import OUTPUT_COLUMNS, SDOS
 class ResponseRow:
     def __init__(self, elastic_hit: dict) -> None:
         self.name = elastic_hit['argument']
-        self.revision = elastic_hit['revision'].replace('02-29', '02-28')
+        self.revision = elastic_hit['revision']
         self.schema_type = elastic_hit['statement']
         self.path = elastic_hit['path']
         self.module_name = elastic_hit['module']

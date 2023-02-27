@@ -164,10 +164,7 @@ def index_printer(stmt):
     try:
         dateutil.parser.parse(revision)
     except Exception:
-        if revision[-2:] == '29' and revision[-5:-3] == '02':
-            revision = revision.replace('02-29', '02-28')
-        else:
-            revision = '1970-01-01'
+        revision = '1970-01-01'
     rev_parts = revision.split('-')
     revision = datetime(int(rev_parts[0]), int(rev_parts[1]), int(rev_parts[2])).date().isoformat()
     for i in stmt.substmts:
