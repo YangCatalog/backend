@@ -22,7 +22,6 @@ import fnmatch
 import glob
 import hashlib
 import json
-import logging
 import optparse
 import os
 import re
@@ -39,12 +38,8 @@ from Crypto.Hash import HMAC, SHA
 from pyang import plugin
 from pyang.plugins.check_update import check_update
 
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
-from redisConnections.redisConnection import RedisConnection
-from utility import message_factory
 from utility.create_config import create_config
-from utility.staticVariables import JobLogStatuses, backup_date_format, json_headers
+from utility.staticVariables import JobLogStatuses, backup_date_format
 from utility.yangParser import create_context
 
 single_line_re = re.compile(r'//.*')
@@ -77,11 +72,12 @@ def resolve_revision(filename: str):
 
 
 def find_files(directory: str, pattern: str):
-    """Generator that yields files matching a pattern
+    """
+    Generator that yields files matching a pattern
 
     Arguments:
-        :param directory    directory in which to search
-        :param pattern      a unix shell style pattern
+        :param directory (str) directory in which to search
+        :param pattern (str) a unix shell style pattern
         :yield              a tuple of the containing directory and the path to the matching file
     """
     for root, _, files in os.walk(directory):
@@ -92,7 +88,8 @@ def find_files(directory: str, pattern: str):
 
 
 def get_yang(name: str, revision: t.Optional[str] = None, config: ConfigParser = create_config()) -> t.Optional[str]:
-    """Get the path to a yang file stored in the save-file-dir.
+    """
+    Get the path to a yang file stored in the save-file-dir.
     If no revision is specified, the path to the latest revision is returned.
 
     Arguments:
@@ -112,7 +109,8 @@ def get_yang(name: str, revision: t.Optional[str] = None, config: ConfigParser =
 
 
 def change_permissions_recursive(path: str):
-    """Change permissions of all the files and folders recursively to rwxrwxr--
+    """
+    Change permissions of all the files and folders recursively to rwxrwxr--
 
     Argument:
         :param path     (str) path to file or folder we need to change permission on
@@ -149,7 +147,8 @@ def change_permissions_recursive(path: str):
 
 
 def create_signature(secret_key: str, string: str):
-    """Create the signed message using secret_key and string_to_sign
+    """
+    Create the signed message using secret_key and string_to_sign
 
     Arguments:
         :param string: (str) String that needs to be signed
@@ -161,156 +160,9 @@ def create_signature(secret_key: str, string: str):
     return hmac.hexdigest()
 
 
-def send_for_es_indexing(body_to_send: dict, logger: logging.Logger, paths: dict):
-    """
-    Creates a json file that will be used for Elasticsearch indexing.
-
-    Arguments:
-        :param body_to_send:        (dict) body that needs to be indexed
-        :param logger:              (logging.Logger) Logger used for logging
-        :param paths                (dict) dict containing paths to the necessary files
-    """
-    logger.info(f'Updating metadata for elk - file creation in {paths["cache_path"]} or {paths["deletes_path"]}')
-    while os.path.exists(paths['lock_path']):
-        time.sleep(10)
-    try:
-        try:
-            open(paths['lock_path'], 'w').close()
-        except Exception:
-            raise Exception(f'Failed to obtain lock {paths["lock_path"]}')
-
-        changes_cache = {}
-        delete_cache = []
-        if os.path.exists(paths['cache_path']) and os.path.getsize(paths['cache_path']) > 0:
-            with open(paths['cache_path'], 'r') as reader:
-                changes_cache = json.load(reader)
-        if os.path.exists(paths['deletes_path']) and os.path.getsize(paths['deletes_path']) > 0:
-            with open(paths['deletes_path'], 'r') as reader:
-                delete_cache = json.load(reader)
-
-        if body_to_send.get('modules-to-index') is None:
-            body_to_send['modules-to-index'] = {}
-
-        if body_to_send.get('modules-to-delete') is None:
-            body_to_send['modules-to-delete'] = []
-
-        for mname, mpath in body_to_send['modules-to-index'].items():
-            changes_cache[mname] = mpath
-        for mname in body_to_send['modules-to-delete']:
-            exists = False
-            for existing in delete_cache:
-                if mname == existing:
-                    exists = True
-            if not exists:
-                delete_cache.append(mname)
-
-        with open(paths['cache_path'], 'w') as writer:
-            json.dump(changes_cache, writer, indent=2)
-
-        with open(paths['deletes_path'], 'w') as writer:
-            json.dump(delete_cache, writer, indent=2)
-    except Exception as e:
-        logger.exception('Problem while sending modules to indexing')
-        os.unlink(paths['lock_path'])
-        raise Exception(f'Caught exception {e}')
-    os.unlink(paths['lock_path'])
-
-
-def prepare_for_es_removal(yc_api_prefix: str, modules_to_delete: list, save_file_dir: str, logger: logging.Logger):
-    """Makes an API request to identify dependencies of the modules to be deleted.
-    Updates metadata of dependencies in Redis no longer list the modules to be
-    deleted as dependents. Deletes the schema files for modules to be deleted
-    from the disk.
-
-    Arguments:
-        :param yc_api_prefix        (str) prefix for sending request to API
-        :param modules_to_delete    (list) name@revision list of modules to be deleted
-        :param save_file_dir        (str) path to the directory where all the yang files are saved
-        :param logger               (Logger) formated logger with the specified name
-    """
-    redis_connection = RedisConnection()
-    for mod_to_delete in modules_to_delete:
-        name, revision_organization = mod_to_delete.split('@')
-        revision = revision_organization.split('/')[0]
-        path_to_delete_local = f'{save_file_dir}/{name}@{revision}.yang'
-        data = {'input': {'dependents': [{'name': name}]}}
-
-        response = requests.post(f'{yc_api_prefix}/search-filter', json=data)
-        if response.status_code == 200:
-            data = response.json()
-            modules = data['yang-catalog:modules']['module']
-            for mod in modules:
-                redis_key = f'{mod["name"]}@{mod["revision"]}/{mod["organization"]}'
-                redis_connection.delete_dependent(redis_key, name)
-        if os.path.exists(path_to_delete_local):
-            os.remove(path_to_delete_local)
-
-    post_body = {}
-    if modules_to_delete:
-        post_body = {'modules-to-delete': modules_to_delete}
-        logger.debug(f'Modules to delete:\n{json.dumps(post_body, indent=2)}')
-        mf = message_factory.MessageFactory()
-        mf.send_removed_yang_files(json.dumps(post_body, indent=4))
-
-    return post_body
-
-
-def prepare_for_es_indexing(
-    yc_api_prefix: str,
-    modules_to_index: str,
-    logger: logging.Logger,
-    save_file_dir: str,
-    force_indexing: bool = False,
-):
-    """
-    Sends the POST request which will activate indexing script for modules which will
-    help to speed up process of searching. It will create a json body of all the modules
-    containing module name and path where the module can be found if we are adding new modules.
-
-    Arguments:
-        :param yc_api_prefix        (str) prefix for sending request to API
-        :param modules_to_index     (str) path to the prepare.json file generated while parsing
-        :param logger               (logging.Logger) formated logger with the specified name
-        :param save_file_dir        (str) path to the directory where all the yang files will be saved
-        :param force_indexing       (bool) Whether we should force indexing even if module exists in cache.
-    """
-    mf = message_factory.MessageFactory()
-    es_manager = ESManager()
-    with open(modules_to_index, 'r') as reader:
-        sdos_json = json.load(reader)
-        logger.debug(f'{len(sdos_json.get("module", []))} modules loaded from prepare.json')
-    post_body = {}
-    load_new_files_to_github = False
-    for module in sdos_json.get('module', []):
-        url = f'{yc_api_prefix}/search/modules/{module["name"]},{module["revision"]},{module["organization"]}'
-        response = requests.get(url, headers=json_headers)
-        code = response.status_code
-
-        in_es = False
-        in_redis = code in [200, 201, 204]
-        if in_redis:
-            in_es = es_manager.document_exists(ESIndices.AUTOCOMPLETE, module)
-        else:
-            load_new_files_to_github = True
-
-        if force_indexing or not in_es or not in_redis:
-            path = f'{save_file_dir}/{module.get("name")}@{module.get("revision")}.yang'
-            key = f'{module["name"]}@{module["revision"]}/{module["organization"]}'
-            post_body[key] = path
-
-    if post_body:
-        post_body = {'modules-to-index': post_body}
-        logger.debug(f'Modules to index:\n{json.dumps(post_body, indent=2)}')
-        mf.send_added_new_yang_files(json.dumps(post_body, indent=4))
-    if load_new_files_to_github:
-        try:
-            logger.info('Calling draftPull.py script')
-            module = __import__('ietfYangDraftPull', fromlist=['draftPull'])
-            submodule = getattr(module, 'draftPull')
-            submodule.main()
-        except Exception:
-            logger.exception('Error occurred while running draftPull.py script')
-    return post_body
+class JobLogMessage(t.TypedDict):
+    label: str
+    message: str | int
 
 
 def job_log(file_basename: str):
@@ -323,7 +175,7 @@ def job_log(file_basename: str):
             start_time = int(time.time())
             write_job_log(start_time, temp_dir, file_basename, status=JobLogStatuses.IN_PROGRESS)
             try:
-                success_messages: list[dict[str, str], ...] = func(*args, **kwargs)
+                success_messages: t.Optional[t.Union[tuple[JobLogMessage], list[JobLogMessage]]] = func(*args, **kwargs)
             except Exception as e:
                 write_job_log(
                     start_time,
@@ -354,7 +206,7 @@ def write_job_log(
     filename: str,
     status: JobLogStatuses,
     end_time: t.Union[str, int] = '',
-    messages: t.Optional[t.Union[tuple, list]] = (),
+    messages: t.Optional[t.Union[tuple[JobLogMessage], list[JobLogMessage]]] = (),
     error: str = '',
 ):
     """
@@ -394,7 +246,8 @@ def write_job_log(
 
 
 def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
-    """Fetch content of yang module from GitHub and store it to the file.
+    """
+    Fetch content of yang module from GitHub and store it to the file.
 
     Arguments:
         :param schema       (Optional[str]) URL to GitHub where the content of the module should be stored
@@ -419,9 +272,10 @@ def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
 
 
 def context_check_update_from(old_schema: str, new_schema: str, yang_models: str, save_file_dir: str):
-    """Perform pyang --check-update-from validation using context.
+    """
+    Perform pyang --check-update-from validation using context.
 
-    Argumets:
+    Arguments:
         :param old_schema       (str) full path to the yang file with older revision
         :param new_schema       (str) full path to the yang file with newer revision
         :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
@@ -459,13 +313,14 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
     return ctx, new_schema_ctx
 
 
-def get_list_of_backups(directory: str) -> t.List[str]:
-    """Get a sorted list of backup file or directory names in a directory.
+def get_list_of_backups(directory: str) -> list[str]:
+    """
+    Get a sorted list of backup file or directory names in a directory.
     Backups are identified by matching backup date format.
 
     Arguments:
-        :param directory    directory in with to search
-        :return             sorted list of file/directory names
+        :param directory (str) directory in with to search
+        :return (list[str]) sorted list of file/directory names
     """
     dates: t.List[str] = []
     for name in os.listdir(directory):
@@ -482,7 +337,8 @@ def get_list_of_backups(directory: str) -> t.List[str]:
 
 
 def validate_revision(revision: str) -> str:
-    """Validate if revision has correct format and return default 1970-01-01 if not.
+    """
+    Validate if revision has correct format and return default 1970-01-01 if not.
 
     Argument:
         :param revision     (str) Revision to validate

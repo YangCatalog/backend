@@ -33,13 +33,13 @@ import utility.log as log
 from redisConnections.redisConnection import RedisConnection
 from utility import confdService
 from utility.create_config import create_config
-from utility.util import job_log
+from utility.util import JobLogMessage, job_log
 
 current_file_basename = os.path.basename(__file__)
 
 
 @job_log(file_basename=current_file_basename)
-def main(config: ConfigParser = create_config()) -> list[dict[str, str]]:
+def main(config: ConfigParser = create_config()) -> list[JobLogMessage]:
     logs_dir = config.get('Directory-Section', 'logs')
 
     logger = log.get_logger('healthcheck', os.path.join(logs_dir, 'healthcheck.log'))

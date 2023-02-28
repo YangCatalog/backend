@@ -69,7 +69,8 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
 
 
 def render(tpl_path: str, context: dict) -> str:
-    """Render jinja html template
+    """
+    Render jinja html template
 
     Arguments:
         :param tpl_path:    (str) path to a file

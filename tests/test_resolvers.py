@@ -26,6 +26,7 @@ from pyang.statements import new_statement
 from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.submodule import Submodule
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.resolvers.basic import BasicResolver
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
 from parseAndPopulate.resolvers.generated_from import GeneratedFromResolver
@@ -127,12 +128,12 @@ class TestResolversClass(unittest.TestCase):
         netconf_capabilities = ['capabilities1', 'capabilities2']
         netconf_versions = ['1.0', '2.0']
 
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': conformance_type,
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_versions,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type=conformance_type,
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_versions,
+        )
         features = ['feature1', 'feature2']
         deviations = [
             {'name': 'deviation1', 'revision': '2022-12-02'},

@@ -24,8 +24,9 @@ import unittest
 
 import parseAndPopulate.dumper as du
 from api.globalConfig import yc_gc
-from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.schema_parts import SchemaParts
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.modules import SdoModule, VendorModule
 
 
@@ -109,12 +110,12 @@ class TestDumperClass(unittest.TestCase):
         netconf_version = ['urn:ietf:params:xml:ns:netconf:base:1.0']
         netconf_capabilities = ['urn:ietf:params:netconf:capability:test-capability:1.0']
         # Modules object
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': 'implement',
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_version,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type='implement',
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_version,
+        )
         yang = self.declare_vendor_module(vendor_info=vendor_info)
         # Dumper object
         dumper = du.Dumper(yc_gc.logs_dir, self.prepare_output_filename)
@@ -142,7 +143,7 @@ class TestDumperClass(unittest.TestCase):
         yang = SdoModule('sdo-module', path_to_yang, {}, self.dir_paths, {})
         return yang
 
-    def declare_vendor_module(self, vendor_info: t.Optional[dict] = None):
+    def declare_vendor_module(self, vendor_info: t.Optional[VendorInfo] = None):
         """
         Initialize Modules object for vendor (Cisco) module.
 

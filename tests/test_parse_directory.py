@@ -24,7 +24,7 @@ from unittest import mock
 
 import parseAndPopulate.parse_directory as pd
 from api.globalConfig import yc_gc
-from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.models.directory_paths import DirPaths
 
 
 class TestParseDirectoryClass(unittest.TestCase):

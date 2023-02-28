@@ -20,7 +20,7 @@ from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.util import job_log, revision_to_date
+from utility.util import JobLogMessage, job_log, revision_to_date
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -74,7 +74,7 @@ def load_from_json(path: str):
 
 
 @job_log(file_basename=BASENAME)
-def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLogMessage]:
     start_time = int(time.time())
     config = create_config()
 
