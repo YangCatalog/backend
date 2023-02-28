@@ -28,10 +28,11 @@ import xml.etree.ElementTree as ET
 from configparser import ConfigParser
 
 import utility.log as log
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
-from parseAndPopulate.modules import SdoModule, VendorModule
+from parseAndPopulate.models.directory_paths import DirPaths
+from parseAndPopulate.models.vendor_modules import VendorInfo, VendorPlatformData
+from parseAndPopulate.modules import Module, SdoModule, VendorModule
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.util import get_yang
@@ -225,7 +226,7 @@ class IanaDirectory(SdoDirectory):
         modules = self.root.iter(f'{namespace}record')
 
         for module in modules:
-            additional_info = {}
+            additional_info = Module.AdditionalModuleInfo(organization='ietf')
             data = module.attrib
             for attributes in module:
                 prop = attributes.tag.split(namespace)[-1]
@@ -241,7 +242,6 @@ class IanaDirectory(SdoDirectory):
                     else:
                         additional_info['document-name'] = xref_info.get('data')
                         additional_info['reference'] = f'https://datatracker.ietf.org/doc/{xref_info.get("data")}'
-                additional_info['organization'] = 'ietf'
 
             if data.get('iana') != 'Y' or 'file' not in data:
                 continue
@@ -294,7 +294,7 @@ class VendorGrouping(ModuleGrouping):
         self.found_capabilities = False
         self.capabilities = []
         self.netconf_versions = []
-        self.platform_data = []
+        self.platform_data: list[VendorPlatformData] = []
         self.implementation_keys = []
         self.xml_file = xml_file
         # Get hello message root
@@ -331,8 +331,8 @@ class VendorGrouping(ModuleGrouping):
             self.logger.debug('Deriving platform metadata from paths')
             self.platform_data.append(self._path_to_platform_data())
 
-    def _path_to_platform_data(self) -> dict:
-        """Try to derive platrom data from the directory path and xml name."""
+    def _path_to_platform_data(self) -> VendorPlatformData:
+        """Try to derive platform data from the directory path and xml name."""
         base = os.path.basename(self.xml_file).removesuffix('.xml')
         base = base.replace('capabilities', '').replace('capability', '').replace('netconf', '').strip('-')
         platform = base or 'Unknown'
@@ -417,12 +417,12 @@ class VendorGrouping(ModuleGrouping):
             if not module_hash_info.module_should_be_parsed:
                 self.skipped += 1
                 continue
-            vendor_info = {
-                'platform_data': self.platform_data,
-                'conformance_type': conformance_type,
-                'capabilities': self.capabilities,
-                'netconf_versions': self.netconf_versions,
-            }
+            vendor_info = VendorInfo(
+                platform_data=self.platform_data,
+                conformance_type=conformance_type,
+                capabilities=self.capabilities,
+                netconf_versions=self.netconf_versions,
+            )
             try:
                 yang = VendorModule(
                     path,
@@ -493,12 +493,12 @@ class VendorCapabilities(VendorGrouping):
                 continue
             self.logger.info(f'Parsing module {name}')
             revision = revision or path.split('@')[-1].removesuffix('.yang')
-            vendor_info = {
-                'platform_data': self.platform_data,
-                'conformance_type': 'implement',
-                'capabilities': self.capabilities,
-                'netconf_versions': self.netconf_versions,
-            }
+            vendor_info = VendorInfo(
+                platform_data=self.platform_data,
+                conformance_type='implement',
+                capabilities=self.capabilities,
+                netconf_versions=self.netconf_versions,
+            )
             try:
                 yang = VendorModule(
                     path,
@@ -571,12 +571,12 @@ class VendorYangLibrary(VendorGrouping):
                 self.skipped += 1
                 continue
             revision = revision or path.split('@')[-1].removesuffix('.yang')
-            vendor_info = {
-                'platform_data': self.platform_data,
-                'conformance_type': conformance_type,
-                'capabilities': self.capabilities,
-                'netconf_versions': self.netconf_versions,
-            }
+            vendor_info = VendorInfo(
+                platform_data=self.platform_data,
+                conformance_type=conformance_type,
+                capabilities=self.capabilities,
+                netconf_versions=self.netconf_versions,
+            )
             try:
                 yang = VendorModule(
                     path,

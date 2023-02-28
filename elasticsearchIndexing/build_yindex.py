@@ -28,6 +28,7 @@ from pyang.util import get_latest_revision
 
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
+from elasticsearchIndexing.models.index_build import BuildYINDEXModule
 from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
 from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import IndexerPlugin
 from utility import yangParser
@@ -36,7 +37,13 @@ from utility.util import validate_revision
 ES_CHUNK_SIZE = 100
 
 
-def build_indices(es_manager: ESManager, module: dict, save_file_dir: str, json_ytree: str, logger: logging.Logger):
+def build_indices(
+    es_manager: ESManager,
+    module: BuildYINDEXModule,
+    save_file_dir: str,
+    json_ytree: str,
+    logger: logging.Logger,
+):
     name_revision = f'{module["name"]}@{module["revision"]}'
 
     plugin.init([])

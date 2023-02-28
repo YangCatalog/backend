@@ -14,11 +14,9 @@
 # limitations under the License.
 
 """
-Python script to start parsing all the yang files.
-Based on the provided directory and boolean option
-sdo (default False) this script will start to look
-for xml files or it will start to parse all the yang
-files in the directory ignoring all the vendor metadata
+Python script to start parsing all the yang files. Based on the provided directory and boolean option sdo
+(default False) this script will start to look for xml files, or it will start to parse all the yang files in the
+directory ignoring all the vendor metadata
 """
 
 __author__ = 'Miroslav Kovac'
@@ -36,10 +34,10 @@ from configparser import ConfigParser
 from logging import Logger
 
 import utility.log as log
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.dumper import Dumper
 from parseAndPopulate.file_hasher import FileHasher
 from parseAndPopulate.groupings import IanaDirectory, SdoDirectory, VendorCapabilities, VendorYangLibrary
+from parseAndPopulate.models.directory_paths import DirPaths
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict

@@ -25,6 +25,7 @@ import sys
 
 from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.index_build import BuildYINDEXModule
 from utility import log
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -129,7 +130,7 @@ class ProcessChangedMods:
                 revision = validate_revision(revision)
                 name_revision = f'{name}@{revision}'
 
-                module = {'name': name, 'revision': revision, 'organization': organization, 'path': module_path}
+                module = BuildYINDEXModule(name=name, revision=revision, organization=organization, path=module_path)
                 self.logger.info(
                     f'yindex on module {name_revision}. module {module_count} out of {len(self.changes_cache)}',
                 )

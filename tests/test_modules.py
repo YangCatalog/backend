@@ -22,7 +22,8 @@ import os
 import unittest
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.dir_paths import DirPaths
+from parseAndPopulate.models.directory_paths import DirPaths
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.modules import SdoModule, VendorModule
 
 
@@ -125,12 +126,12 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': 'implement',
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_versions,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type='implement',
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_versions,
+        )
         yang = VendorModule(
             path_to_yang,
             self.dir_paths,
@@ -171,12 +172,12 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': 'implement',
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_versions,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type='implement',
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_versions,
+        )
         yang = VendorModule(
             path_to_yang,
             self.dir_paths,

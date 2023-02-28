@@ -26,10 +26,11 @@ import shutil
 import typing as t
 from configparser import ConfigParser
 
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.models.dependency import Dependency
+from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.submodule import Submodule
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.resolvers.basic import BasicResolver
 from parseAndPopulate.resolvers.generated_from import GeneratedFromResolver
 from parseAndPopulate.resolvers.implementations import ImplementationResolver
@@ -53,12 +54,27 @@ class Module:
 
     # NOTE: Maybe we should consider passing all or some of the arguments togather in some sort of structure,
     #      as passing this many arguments is ugly and error-prone.
+
+    AdditionalModuleInfo = t.TypedDict(
+        'AdditionalModuleInfo',
+        {
+            'author-email': str,
+            'maturity-level': str,
+            'reference': str,
+            'document-name': str,
+            'module-classification': str,
+            'generated-from': str,
+            'organization': str,
+        },
+        total=False,
+    )
+
     def __init__(
         self,
         path: str,
         dir_paths: DirPaths,
         yang_modules: t.Iterable[str],
-        additional_info: t.Optional[dict[str, str]],
+        additional_info: t.Optional[AdditionalModuleInfo],
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
         can_be_already_stored_in_db: bool = False,
@@ -99,8 +115,8 @@ class Module:
         self.implementations: list[Implementation] = []
         self._parse_all(yang_modules, additional_info)
 
-    def _parse_all(self, yang_modules: t.Iterable[str], additional_info: t.Optional[dict[str, str]]):
-        additional_info = additional_info or {}
+    def _parse_all(self, yang_modules: t.Iterable[str], additional_info: t.Optional[AdditionalModuleInfo]):
+        additional_info = additional_info or self.AdditionalModuleInfo()
         self.author_email = additional_info.get('author-email')
         self.maturity_level = additional_info.get('maturity-level')
         self.reference = additional_info.get('reference')
@@ -164,8 +180,7 @@ class Module:
         self.contact = BasicResolver(self._parsed_yang, 'contact').resolve()
         self.description = BasicResolver(self._parsed_yang, 'description').resolve()
 
-        generated_from_resolver = GeneratedFromResolver(self.logger, self.name, self.namespace)
-        self.generated_from = generated_from or generated_from_resolver.resolve()
+        self.generated_from = generated_from or GeneratedFromResolver(self.logger, self.name, self.namespace).resolve()
 
         prefix_resolver = PrefixResolver(self._parsed_yang, self.logger, name_revision, self.belongs_to)
         self.prefix = prefix_resolver.resolve()
@@ -220,7 +235,7 @@ class SdoModule(Module):
         path: str,
         dir_paths: DirPaths,
         yang_modules: t.Iterable[str],
-        additional_info: t.Optional[dict[str, str]] = None,
+        additional_info: t.Optional[Module.AdditionalModuleInfo] = None,
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
         can_be_already_stored_in_db: bool = False,
@@ -244,8 +259,8 @@ class VendorModule(Module):
         path: str,
         dir_paths: DirPaths,
         yang_modules: t.Iterable[str],
-        vendor_info: t.Optional[dict] = None,
-        additional_info: t.Optional[dict[str, str]] = None,
+        vendor_info: t.Optional[VendorInfo] = None,
+        additional_info: t.Optional[Module.AdditionalModuleInfo] = None,
         data: t.Optional[t.Union[str, dict]] = None,
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
@@ -260,14 +275,14 @@ class VendorModule(Module):
             :param dir_paths:           (dict) paths to various needed directories according to configuration
             :param yang_modules:        (dict) yang modules we've already parsed
             :param additional_info:      (dict) some additional information about module given from client
-            :param vendor_info:         (dict) dict with additional vendor information
+            :param vendor_info:         (Optional[VendorInfo]) dict with additional vendor information
         """
 
         # these are required for self._find_file() to work
         self.yang_models = dir_paths['yang_models']
         self.deviations = []
         self.features = []
-        if isinstance(data, (str, dict)):
+        if data:
             self._resolve_deviations_and_features(data)
         super().__init__(
             path,
