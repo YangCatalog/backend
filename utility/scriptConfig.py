@@ -41,10 +41,7 @@ class Arg(BaseArg, total=False):
 
 
 class ScriptConfig:
-    """
-    A class for setting configuration options
-    for scripts which can be run from the admin UI.
-    """
+    """A class for setting configuration options for scripts which can be run from the admin UI."""
 
     def __init__(
         self,
