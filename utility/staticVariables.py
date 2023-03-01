@@ -84,7 +84,6 @@ backup_date_format = '%Y-%m-%d_%H:%M:%S-UTC'
 
 SDOS = ['bbf', 'etsi', 'iana', 'ieee', 'ietf', 'mef', 'opendaylight', 'openconfig']
 ORGANIZATIONS = [
-    'iana',
     'mef',
     'ietf',
     'ieee',

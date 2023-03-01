@@ -79,7 +79,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     # Number of YANG data models in /home/bclaise/yanggithub/ : 673
     # Number of YANG data models in /home/bclaise/yanggithub/ (without the keyword show):673
 
-    yang_list = list_of_yang_modules_in_subdir(args.rootdir, args.debug)
+    yang_list = list_of_yang_modules_in_subdir(args.root_dir, args.debug)
 
     if args.debug > 0:
         print('yang_list content: ')
@@ -94,7 +94,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
         yang_list = temp_list
 
     print('--------------------------')
-    print(f'Number of YANG data models in {args.rootdir} : {len(yang_list)}')
+    print(f'Number of YANG data models in {args.root_dir} : {len(yang_list)}')
 
     # Remove duplicates and count the YANG modules
     if args.removedup:
@@ -107,7 +107,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
             if yang_file_without_path not in yang_list_removed_dup:
                 yang_list_removed_dup.append(yang_file_without_path)
                 yang_module_count_removed_dup += 1
-        print(f'Number of YANG data models in {args.rootdir} (duplicates removed): {yang_module_count_removed_dup}')
+        print(f'Number of YANG data models in {args.root_dir} (duplicates removed): {yang_module_count_removed_dup}')
         if args.debug > 0:
             print('yang_list_removed_dup content: ')
             print(yang_list_removed_dup)
@@ -122,7 +122,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
                 yang_list_removed_dup_removed_keyword.append(yang_file_without_path)
                 yang_module_count_removed_dup_removed_keyword += 1
         print(
-            f'Number of YANG data models in {args.rootdir} (without the keyword {args.excludekeyword}):'
+            f'Number of YANG data models in {args.root_dir} (without the keyword {args.excludekeyword}):'
             f'{yang_module_count_removed_dup_removed_keyword}',
         )
 
