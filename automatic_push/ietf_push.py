@@ -43,7 +43,7 @@ from utility import message_factory, repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.util import job_log
+from utility.util import JobLogMessage, job_log
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -86,7 +86,7 @@ class IetfPush:
         self.repo: t.Optional[repoutil.ModifiableRepoUtil] = None
 
     @job_log(file_basename=BASENAME)
-    def __call__(self):
+    def __call__(self) -> list[JobLogMessage]:
         self.logger.info('Starting job to push IETF modules')
         self.repo = get_forked_repository(self.config, self.logger)
         self._configure_file_paths()
@@ -104,10 +104,10 @@ class IetfPush:
                 self.is_production,
             )
             if push_result.is_successful:
-                messages = [{'label': 'Push is successful', 'message': push_result.detail}]
+                messages = [JobLogMessage(label='Push is successful', message=push_result.detail)]
                 self.logger.info('Job finished successfully')
             else:
-                messages = [{'label': 'Push is unsuccessful', 'message': push_result.detail}]
+                messages = [JobLogMessage(label='Push is unsuccessful', message=push_result.detail)]
                 self.logger.info('Job finished unsuccessfully, push failed')
             return messages
         except Exception as e:

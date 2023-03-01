@@ -527,14 +527,12 @@ class VendorCapabilities(VendorGrouping):
 
 class VendorYangLibrary(VendorGrouping):
     def parse_and_load(self) -> tuple[int, int]:
-        """Load implementation information which are stored platform-metadata.json file.
+        """
+        Load implementation information which are stored platform-metadata.json file.
         Set this implementation information for each module parsed out from ietf-yang-library xml file.
         """
-
         self.logger.debug('Starting to parse files from vendor')
-
         self._parse_platform_metadata()
-
         # netconf capability parsing
         modules = self.root[0]
         set_of_names = set()

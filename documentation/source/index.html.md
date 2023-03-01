@@ -2854,7 +2854,7 @@ curl -X POST -H "Accept: application/json" -H "Content-type: application/json"
  --data '<data>'
 ```
 
-> The above command uses data like this if the script is "draftPull":
+> The above command uses data like this if the script is "draft_push":
 
 ```json
 {
