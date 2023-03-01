@@ -145,7 +145,7 @@ class TestGrepSearchClass(unittest.TestCase):
         )
         self.assertNotEqual(search_result, [])
         cache_key = f'{search}{False}{False}{str(sorted(organizations)) if organizations else ""}'
-        self.assertEqual(sorted(search_result), sorted(self.grep_search._get_cached_search_results(cache_key)))
+        self.assertEqual(sorted(search_result), sorted(self.grep_search._search_in_cache(cache_key)))
 
     def test_finishing_cursor(self):
         organizations = []
