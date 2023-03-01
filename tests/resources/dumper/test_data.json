@@ -6,21 +6,12 @@
                 "revision": "2022-08-05",
                 "organization": "ietf",
                 "generated-from": "not-applicable",
-                "maturity-level": null,
-                "document-name": null,
-                "reference": null,
                 "module-classification": "unknown",
                 "compilation-status": "unknown",
-                "compilation-result": "",
                 "prefix": "yang",
                 "yang-version": "1.0",
-                "description": null,
-                "contact": null,
                 "module-type": "module",
                 "yang-tree": "http://localhost/api/services/tree/sdo-module@2022-08-05.yang",
-                "ietf": {
-                    "ietf-wg": null
-                },
                 "namespace": "testing"
             }
         ]

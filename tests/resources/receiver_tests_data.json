@@ -11,8 +11,7 @@
                     "source-file": {
                         "owner": "YangModels",
                         "path": "standard/ietf/RFC/ietf-yang-types@2010-09-24.yang",
-                        "repository": "yang",
-                        "commit-hash": "11afe3c44d04b1abe42d3837f5cf50aae7fc4c62"
+                        "repository": "yang"
                     }
                 }
             ]
@@ -27,8 +26,7 @@
             "type": "capabilities",
             "owner": "huawei",
             "repository": "yang.git",
-            "path": "network-router/8.20.0/ne5000e/capabilities.xml",
-            "commit-hash": "d3edbc33ee7e2da65b251aa02b92cbaa625008a7"
+            "path": "network-router/8.20.0/ne5000e/capabilities.xml"
         },
         "os-type": "VRP"
     },

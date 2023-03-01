@@ -33,7 +33,6 @@ from configparser import ConfigParser
 from datetime import date, datetime
 
 import dateutil.parser
-import requests
 from Crypto.Hash import HMAC, SHA
 from pyang import plugin
 from pyang.plugins.check_update import check_update
@@ -245,32 +244,6 @@ def write_job_log(
         writer.write(json.dumps(file_content, indent=4))
 
 
-def fetch_module_by_schema(schema: t.Optional[str], dst_path: str) -> bool:
-    """
-    Fetch content of yang module from GitHub and store it to the file.
-
-    Arguments:
-        :param schema       (Optional[str]) URL to GitHub where the content of the module should be stored
-        :param dst_path     (str) Path where the module should be saved
-        :return             (bool) Whether the content of the module was obtained or not.
-    """
-    file_exist = False
-    try:
-        assert schema
-        yang_file_response = requests.get(schema)
-        yang_file_content = yang_file_response.content.decode(encoding='utf-8')
-
-        if yang_file_response.status_code == 200:
-            with open(dst_path, 'w') as writer:
-                writer.write(yang_file_content)
-            os.chmod(dst_path, 0o644)
-            file_exist = os.path.isfile(dst_path)
-    except Exception:
-        file_exist = os.path.isfile(dst_path)
-
-    return file_exist
-
-
 def context_check_update_from(old_schema: str, new_schema: str, yang_models: str, save_file_dir: str):
     """
     Perform pyang --check-update-from validation using context.
@@ -360,3 +333,8 @@ def revision_to_date(revision: str) -> date:
 def hash_pw(password: str) -> str:
     encoded_password = password.encode(encoding='utf-8', errors='strict')
     return hashlib.sha256(encoded_password).hexdigest()
+
+
+def yang_url(name, revision, config: ConfigParser = create_config()) -> str:
+    domain_prefix = config.get('Web-Section', 'domain-prefix')
+    return f'{domain_prefix}/all_modules/{name}@{revision}.yang'
