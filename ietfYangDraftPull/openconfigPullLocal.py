@@ -29,7 +29,7 @@ from glob import glob
 import requests
 
 import utility.log as log
-from ietfYangDraftPull import draftPullUtility
+from utility import repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
@@ -60,8 +60,8 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
     logger = log.get_logger('openconfigPullLocal', f'{log_directory}/jobs/openconfig-pull.log')
     logger.info('Starting Cron job openconfig pull request local')
 
-    commit_author = {'name': config_name, 'email': config_email}
-    repo = draftPullUtility.clone_forked_repository(openconfig_repo_url, commit_author, logger)
+    repo_clone_options = repoutil.RepoUtil.CloneOptions(config_username=config_name, config_user_email=config_email)
+    repo = repoutil.clone_repo(openconfig_repo_url, repo_clone_options, logger)
     assert repo
     modules = []
     try:

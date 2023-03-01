@@ -165,6 +165,13 @@ class JobLogMessage(t.TypedDict):
 
 
 def job_log(file_basename: str):
+    """
+    Decorator to write information about the script run into the cronjob.json file.
+
+    Arguments:
+        :param file_basename (str) Name of the script, can be provided in such forms - script_name, script_name.py
+    """
+
     def _job_log_decorator(func):
         config = create_config()
         temp_dir = config.get('Directory-Section', 'temp')
@@ -288,11 +295,12 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
 
 def get_list_of_backups(directory: str) -> list[str]:
     """
+
     Get a sorted list of backup file or directory names in a directory.
     Backups are identified by matching backup date format.
 
     Arguments:
-        :param directory (str) directory in with to search
+        :param directory (str) directory where to search
         :return (list[str]) sorted list of file/directory names
     """
     dates: t.List[str] = []

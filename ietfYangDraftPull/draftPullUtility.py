@@ -13,18 +13,8 @@
 # limitations under the License.
 
 """
-This script contains shared methods definitions
-that are used in both dratfPull.py and draftPullLocal.py scripts.
-
-Contains following method definitions:
-    check_name_no_revision_exist()
-    check_early_revisions()
-    get_latest_revision()
-    get_draft_module_content()
-    extract_rfc_tgz()
-    set_permissions()
-    update_forked_repository()
-    clone_forked_repository()
+This script contains shared methods definitions that can be used in both
+ietfYangDraftPull and automatic_push directories' scripts.
 """
 
 __author__ = 'Slavomir Mazur'
@@ -32,30 +22,14 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
-import configparser
 import grp
-import json
 import logging
 import os
 import pwd
 import tarfile
-import time
-import typing as t
 
-import requests
-from git.exc import GitCommandError
-from requests.exceptions import ConnectionError
-
-from utility import repoutil, yangParser
-from utility.staticVariables import github_url
+from utility import yangParser
 from utility.util import revision_to_date
-
-
-def construct_github_repo_url(user: str, repo: str, token: t.Optional[str] = None) -> str:
-    """Construct the URL to a GitHub repository."""
-    if token:
-        return f'https://{token}@github.com/{user}/{repo}.git'
-    return f'https://github.com/{user}/{repo}.git'
 
 
 def get_latest_revision(path: str, logger: logging.Logger):
@@ -80,11 +54,9 @@ def get_latest_revision(path: str, logger: logging.Logger):
 
 def check_name_no_revision_exist(directory: str, logger: logging.Logger) -> None:
     """
-    This function checks the format of all the modules filename.
-    If it contains module with a filename without revision,
-    we check if there is a module that has revision in
-    its filename. If such module exists, then module with no revision
-    in filename will be removed.
+    This function checks the format of all the modules' filename. If it contains module with a filename without
+    revision, we check if there is a module that has revision in its filename. If such module exists,
+    then module with no revision in filename will be removed.
 
     Arguments:
         :param directory    (str) full path to directory with yang modules
@@ -164,48 +136,6 @@ def _is_revision_part_valid(revision_part: str) -> bool:
     return revision_part.startswith('.') or revision_part.startswith('@')
 
 
-def get_draft_module_content(experimental_path: str, config: configparser.ConfigParser, logger: logging.Logger):
-    """
-    Loop through download links for each module found in IETFDraft.json and try to get their content.
-
-    Arguments:
-        :param experimental_path    (str) full path to the directory with cloned experimental modules
-        :param config               (configparser.ConfigParser) instance of ConfigParser class
-        :param logger               (logging.Logger) formated logger with the specified name
-    """
-    ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
-    my_uri = config.get('Web-Section', 'my-uri')
-    domain_prefix = config.get('Web-Section', 'domain-prefix')
-    ietf_draft_json = {}
-    response = requests.get(ietf_draft_url)
-    try:
-        ietf_draft_json = response.json()
-    except json.decoder.JSONDecodeError:
-        logger.error(f'Unable to get content of {os.path.basename(ietf_draft_url)} file')
-    for key in ietf_draft_json:
-        file_path = os.path.join(experimental_path, key)
-        yang_download_link = ietf_draft_json[key]['compilation_metadata'][2].split('href="')[1].split('">Download')[0]
-        yang_download_link = yang_download_link.replace(domain_prefix, my_uri)
-        try:
-            file_content_response = requests.get(yang_download_link)
-        except ConnectionError:
-            logger.error(f'Unable to retreive content of: {key} - {yang_download_link}')
-            continue
-        if 'text/html' in file_content_response.headers['content-type']:
-            logger.error(f'The content of "{key}" file is a broken html, download link: {yang_download_link}')
-            if not os.path.exists(file_path):
-                continue
-            with open(file_path, 'r') as possibly_broken_module:
-                lines = possibly_broken_module.readlines()
-                module_is_broken = '<html>' in lines[1] and '</html>' in lines[-1]
-            if module_is_broken:
-                logger.info(f'Deleted the file because of broken content: {key} - {yang_download_link}')
-                os.remove(file_path)
-            continue
-        with open(file_path, 'w') as yang_file:
-            yang_file.write(file_content_response.text)
-
-
 def extract_rfc_tgz(tgz_path: str, extract_to: str, logger: logging.Logger) -> bool:
     """
     Extract downloaded rfc.tgz file to directory and remove file.
@@ -247,77 +177,3 @@ def set_permissions(directory: str):
             os.chown(os.path.join(root, dir), uid, gid)
         for file in files:
             os.chown(os.path.join(root, file), uid, gid)
-
-
-def update_forked_repository(yang_models: str, forked_repo_url: str, logger: logging.Logger):
-    """
-    Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
-    Push missing commits to the forked repository if any are missing.
-
-    Arguments:
-        :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
-        :param forked_repo_url  (str) url to the forked repository
-        :param logger           (logging.Logger) formated logger with the specified name
-    """
-    try:
-        main_repo = repoutil.load(yang_models, f'{github_url}/YangModels/yang.git')
-        origin = main_repo.repo.remote('origin')
-        try:
-            fork = main_repo.repo.remote('fork')
-        except ValueError:
-            git_config_lock_file = os.path.join(yang_models, '.git', 'config.lock')
-            if os.path.exists(git_config_lock_file):
-                os.remove(git_config_lock_file)
-            fork = main_repo.repo.create_remote('fork', forked_repo_url)
-            os.mknod(git_config_lock_file)
-
-        # git fetch --all
-        for remote in main_repo.repo.remotes:
-            info = remote.fetch('main')[0]
-            logger.info(f'Remote: {remote.name} - Commit: {info.commit}')
-
-        # git pull origin main
-        origin.pull('main')
-
-        # git push fork main
-        push_info = fork.push('main')[0]
-        logger.info(f'Push info: {push_info.summary}')
-        if 'non-fast-forward' in push_info.summary:
-            logger.warning('yang-catalog/yang repo might not be up-to-date')
-    except GitCommandError:
-        logger.exception('yang-catalog/yang repo might not be up-to-date')
-
-
-def clone_forked_repository(
-    repourl: str,
-    commit_author: dict,
-    logger: logging.Logger,
-) -> t.Optional[repoutil.ModifiableRepoUtil]:
-    """
-    Try to clone forked repository. Repeat the cloning process several times if the attempt was not successful.
-
-    Arguments:
-        :param repourl          (str) URL to the GitHub repository
-        :param commit_author    (dict) Dictionary that contains information about the author of the commit
-        :param logger           (logging.Logger) formated logger with the specified name
-    """
-    attempts = 3
-    wait_for_seconds = 30
-    repo_name = repourl.split('github.com/')[-1].split('.git')[0]
-    while True:
-        try:
-            logger.info(f'Cloning repository from: {repourl}')
-            repo = repoutil.ModifiableRepoUtil(
-                repourl,
-                clone_options={'config_username': commit_author['name'], 'config_user_email': commit_author['email']},
-            )
-            logger.info(f'Repository cloned to local directory {repo.local_dir}')
-            break
-        except GitCommandError:
-            attempts -= 1
-            logger.warning(f'Unable to clone {repo_name} repository - waiting for {wait_for_seconds} seconds')
-            if attempts == 0:
-                logger.exception(f'Failed to clone repository {repo_name}')
-                return
-            time.sleep(wait_for_seconds)
-    return repo

@@ -112,7 +112,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
     log_directory = config.get('Directory-Section', 'logs')
     ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
     temp_dir = config.get('Directory-Section', 'temp')
-    logger = log.get_logger('draftPullLocal', f'{log_directory}/jobs/draft-pull-local.log')
+    logger = log.get_logger('pull_local', f'{log_directory}/jobs/pull-local.log')
     logger.info('Starting cron job IETF pull request local')
 
     messages = []
@@ -120,12 +120,16 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
     success = True
     try:
         # Clone YangModels/yang repository
-        clone_dir = os.path.join(temp_dir, 'draftpulllocal')
+        clone_dir = os.path.join(temp_dir, 'pull_local')
         if os.path.exists(clone_dir):
             shutil.rmtree(clone_dir)
         repo = repoutil.ModifiableRepoUtil(
-            os.path.join(github_url, 'YangModels/yang.git'),
-            clone_options={'config_username': config_name, 'config_user_email': config_email, 'local_dir': clone_dir},
+            f'{github_url}/YangModels/yang.git',
+            clone_options=repoutil.RepoUtil.CloneOptions(
+                config_username=config_name,
+                config_user_email=config_email,
+                local_dir=clone_dir,
+            ),
         )
         logger.info(f'YangModels/yang repo cloned to local directory {repo.local_dir}')
 
@@ -138,8 +142,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
 
         if tar_opened:
             # Standard RFC modules
-            rfc_path = os.path.join(repo.local_dir, 'standard/ietf/RFC')
-            directory_success, message = populate_directory(rfc_path, notify_indexing, logger)
+            directory_success, message = populate_directory(extract_to, notify_indexing, logger)
             success = success and directory_success
             messages.append({'label': 'Standard RFC modules', 'message': message})
 
@@ -159,7 +162,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
             messages.append({'label': 'IANA modules', 'message': message})
 
     except Exception as e:
-        logger.exception('Exception found while running draftPullLocal script')
+        logger.exception('Exception found while running pull_local script')
         raise e
     if success:
         logger.info('Job finished successfully')
