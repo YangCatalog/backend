@@ -25,7 +25,6 @@ import unittest
 import parseAndPopulate.dumper as du
 from api.globalConfig import yc_gc
 from parseAndPopulate.models.directory_paths import DirPaths
-from parseAndPopulate.models.schema_parts import SchemaParts
 from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.modules import SdoModule, VendorModule
 
@@ -35,7 +34,6 @@ class TestDumperClass(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
         cls.prepare_output_filename = 'prepare'
         cls.platform_name = 'test-platform'
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/dumper')
@@ -86,7 +84,7 @@ class TestDumperClass(unittest.TestCase):
         dumped_module_data = file_content['module']
 
         # Compare properties/keys of desired and dumped module data objects
-        self.compare_module_data(dumped_module_data, desired_module_data)
+        self.compare_module_data(desired_module_data, dumped_module_data)
 
     def test_dumper_dump_vendors(self):
         """
@@ -140,7 +138,7 @@ class TestDumperClass(unittest.TestCase):
             :return     (SdoModule) Created instance of Modules object of SDO (ietf) module
         """
         path_to_yang = self.resource('sdo-module.yang')
-        yang = SdoModule('sdo-module', path_to_yang, {}, self.dir_paths, {})
+        yang = SdoModule(path_to_yang, self.dir_paths, {})
         return yang
 
     def declare_vendor_module(self, vendor_info: t.Optional[VendorInfo] = None):
@@ -151,12 +149,9 @@ class TestDumperClass(unittest.TestCase):
             :return     (VendorModule) Created instance of Modules object of vendor (cisco) module
         """
         vendor_data = 'sdo-module&revision=2022-08-05&deviations=vendor-sdo-module-deviations'
-        module_name = vendor_data.split('&revision')[0]
         path_to_yang = self.resource('sdo-module.yang')
         yang = VendorModule(
-            module_name,
             path_to_yang,
-            {},
             self.dir_paths,
             {},
             vendor_info=vendor_info,

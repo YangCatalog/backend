@@ -82,10 +82,10 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
     )
 
     logger.info('Saving all yang files so the save-file-dir')
-    name_rev_to_path, path_to_name_rev = save_files(args.dir, dir_paths['save'])
+    file_mapping = save_files(args.dir, dir_paths['save'])
     logger.info('Starting to iterate through files')
     if args.sdo:
-        stats = parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, path_to_name_rev, logger, config=config)
+        stats = parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, file_mapping, logger, config=config)
     else:
         stats = parse_vendor(
             args.dir,
@@ -93,7 +93,6 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
             file_hasher,
             args.api,
             dir_paths,
-            name_rev_to_path,
             logger,
             config=config,
             redis_connection=redis_connection,
@@ -114,21 +113,18 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
 def save_files(
     search_directory: str,
     save_file_dir: str,
-) -> tuple[dict[tuple[str, str], str], dict[str, tuple[str, str]]]:
+) -> dict[str, str]:
     """
     Copy all found yang files to the save_file_dir.
     Return dicts with data containing the original locations of the files,
     which is later needed for parsing.
 
     Arguments:
-        :param search_directory                         (str) Directory to process
-        :param save_file_dir                            (str) Directory to save yang files to
-        :return (name_rev_to_path, path_to_name_rev)    (Tuple[Dict[str, str], Dict[str, str]])
-            name_rev_to_path: needed by parse_vendor()
-            path_to_name_rev: needed by parse_sdo()
+        :param search_directory     (str) Directory to process
+        :param save_file_dir        (str) Directory to save yang files to
+        :return                     (dict[str, str]) Mapping of original to new file paths
     """
-    name_rev_to_path = {}
-    path_to_name_rev = {}
+    file_mapping = {}
     for yang_file in glob.glob(os.path.join(search_directory, '**/*.yang'), recursive=True):
         with open(yang_file) as f:
             text = f.read()
@@ -136,14 +132,10 @@ def save_files(
             name = parse_name(text)
             revision = parse_revision(text)
             save_file_path = os.path.join(save_file_dir, f'{name}@{revision}.yang')
-            # To construct and save a schema url, we need the original path, module name, and revision.
-            # SDO metadata only provides the path, vendor metadata only provides the name and revision.
-            # We need mappings both ways to retrieve the missing data.
-            name_rev_to_path[name, revision] = yang_file
-            path_to_name_rev[yang_file] = name, revision
+            file_mapping[yang_file] = save_file_path
             if not os.path.exists(save_file_path):
                 shutil.copy(yang_file, save_file_path)
-    return name_rev_to_path, path_to_name_rev
+    return file_mapping
 
 
 def parse_sdo(
@@ -152,7 +144,7 @@ def parse_sdo(
     file_hasher: FileHasher,
     api: bool,
     dir_paths: DirPaths,
-    path_to_name_rev: dict,
+    file_mapping: dict[str, str],
     logger: Logger,
     config: ConfigParser = create_config(),
 ) -> tuple[int, int]:
@@ -160,9 +152,9 @@ def parse_sdo(
     logger.info(f'Parsing SDO directory {search_directory}')
     if os.path.isfile(os.path.join(search_directory, 'yang-parameters.xml')):
         logger.info('Found yang-parameters.xml file, parsing IANA directory')
-        grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
+        grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, file_mapping, config=config)
     else:
-        grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, path_to_name_rev, config=config)
+        grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, file_mapping, config=config)
     return grouping.parse_and_load()
 
 
@@ -172,7 +164,6 @@ def parse_vendor(
     file_hasher: FileHasher,
     api: bool,
     dir_paths: DirPaths,
-    name_rev_to_path: dict,
     logger: Logger,
     config: ConfigParser = create_config(),
     redis_connection: t.Optional[RedisConnection] = None,
@@ -193,7 +184,6 @@ def parse_vendor(
                     file_hasher,
                     api,
                     dir_paths,
-                    name_rev_to_path,
                     config=config,
                     redis_connection=redis_connection,
                 )
@@ -207,7 +197,6 @@ def parse_vendor(
                     file_hasher,
                     api,
                     dir_paths,
-                    name_rev_to_path,
                     config=config,
                     redis_connection=redis_connection,
                 )

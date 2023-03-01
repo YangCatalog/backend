@@ -45,7 +45,7 @@ from redisConnections.redisConnection import RedisConnection
 from utility import log, message_factory
 from utility.confdService import ConfdService
 from utility.fetch_modules import fetch_modules
-from utility.util import context_check_update_from, fetch_module_by_schema, get_yang, revision_to_date
+from utility.util import context_check_update_from, get_yang, revision_to_date
 from utility.yangParser import create_context
 
 MAJOR = 0
@@ -413,11 +413,7 @@ class ModulesComplicatedAlgorithms:
             revision = module['revision']
             name_revision = f'{name}@{revision}'
             self._path = f'{self._save_file_dir}/{name_revision}.yang'
-            yang_file_exists = self._check_schema_file(module['name'], module['revision'], module.get('schema'))
             is_latest_revision = self.check_if_latest_revision(module)
-            if not yang_file_exists:
-                LOGGER.error(f'Skipping module: {name_revision}')
-                continue
             LOGGER.info(f'Searching tree-type for {name_revision}. {x} out of {len(all_modules)}')
             if revision in self._trees[name]:
                 stdout = self._trees[name][revision]
@@ -534,60 +530,57 @@ class ModulesComplicatedAlgorithms:
             old_name_revision = f'{old.name}@{old.revision}'
             new_schema = f'{self._save_file_dir}/{new_name_revision}.yang'
             old_schema = f'{self._save_file_dir}/{old_name_revision}.yang'
-            new_schema_exist = self._check_schema_file(new.name, new.revision, new.schema)
-            old_schema_exist = self._check_schema_file(old.name, old.revision, old.schema)
             new_tree_path = f'{self.json_ytree}/{new_name_revision}.json'
             old_tree_path = f'{self.json_ytree}/{old_name_revision}.json'
 
-            if old_schema_exist and new_schema_exist:
-                ctx, new_schema_ctx = context_check_update_from(
-                    old_schema,
-                    new_schema,
-                    self._yang_models,
-                    self._save_file_dir,
-                )
-                if len(ctx.errors) == 0:
-                    if os.path.exists(new_tree_path) and os.path.exists(old_tree_path):
-                        with open(new_tree_path) as nf, open(old_tree_path) as of:
-                            new_yang_tree = json.load(nf)
-                            old_yang_tree = json.load(of)
-                    else:
-                        with open(old_schema, 'r', errors='ignore') as f:
-                            old_schema_ctx = ctx.add_module(old_schema, f.read())
-                        if ctx.opts.tree_path is not None:
-                            path = ctx.opts.tree_path.split('/')
-                            if path[0] == '':
-                                path = path[1:]
-                        else:
-                            path = None
-                        retry = 5
-                        while retry:
-                            try:
-                                ctx.validate()
-                                break
-                            except Exception as e:
-                                retry -= 1
-                                if retry == 0:
-                                    raise e
-                        try:
-                            f = io.StringIO()
-                            emit_json_tree([new_schema_ctx], f, ctx)
-                            new_yang_tree = f.getvalue()
-                            with open(new_tree_path, 'w') as f:
-                                f.write(new_yang_tree)
-                        except Exception:
-                            new_yang_tree = ''
-                        try:
-                            f = io.StringIO()
-                            emit_json_tree([old_schema_ctx], f, ctx)
-                            old_yang_tree = f.getvalue()
-                            with open(old_tree_path, 'w') as f:
-                                f.write(old_yang_tree)
-                        except Exception:
-                            old_yang_tree = '2'
-                    return (new_yang_tree, old_yang_tree)
+            ctx, new_schema_ctx = context_check_update_from(
+                old_schema,
+                new_schema,
+                self._yang_models,
+                self._save_file_dir,
+            )
+            if len(ctx.errors) == 0:
+                if os.path.exists(new_tree_path) and os.path.exists(old_tree_path):
+                    with open(new_tree_path) as nf, open(old_tree_path) as of:
+                        new_yang_tree = json.load(nf)
+                        old_yang_tree = json.load(of)
                 else:
-                    raise Exception
+                    with open(old_schema, 'r', errors='ignore') as f:
+                        old_schema_ctx = ctx.add_module(old_schema, f.read())
+                    if ctx.opts.tree_path is not None:
+                        path = ctx.opts.tree_path.split('/')
+                        if path[0] == '':
+                            path = path[1:]
+                    else:
+                        path = None
+                    retry = 5
+                    while retry:
+                        try:
+                            ctx.validate()
+                            break
+                        except Exception as e:
+                            retry -= 1
+                            if retry == 0:
+                                raise e
+                    try:
+                        f = io.StringIO()
+                        emit_json_tree([new_schema_ctx], f, ctx)
+                        new_yang_tree = f.getvalue()
+                        with open(new_tree_path, 'w') as f:
+                            f.write(new_yang_tree)
+                    except Exception:
+                        new_yang_tree = ''
+                    try:
+                        f = io.StringIO()
+                        emit_json_tree([old_schema_ctx], f, ctx)
+                        old_yang_tree = f.getvalue()
+                        with open(old_tree_path, 'w') as f:
+                            f.write(old_yang_tree)
+                    except Exception:
+                        old_yang_tree = '2'
+                return (new_yang_tree, old_yang_tree)
+            else:
+                raise Exception
 
         def add_to_new_modules(new_module: ModuleMetadata):
             name = new_module['name']
@@ -838,30 +831,6 @@ class ModulesComplicatedAlgorithms:
             existing_modules,
             new_modules_dict,
         )  # Existing modules have already been added as dependents to other existing modules
-
-    def _check_schema_file(self, name: str, revision: str, schema_url: t.Optional[str]):
-        """Check if the file exists and if not try to get it from Github.
-
-        Arguments:
-            :param name         (str) Name of the module.
-            :param revision     (str) Revision of the module.
-            :param schema_url   (str) Github url from where the schema can be retrieved.
-            :return             (bool) Whether the content of the module was obtained or not.
-        """
-        schema = f'{self._save_file_dir}/{name}@{revision}.yang'
-        result = True
-
-        if not os.path.isfile(schema):
-            LOGGER.warning(f'File on path {schema} not found')
-            result = fetch_module_by_schema(schema_url, schema)
-            if result:
-                LOGGER.info('File content successfully retrieved from GitHub using module schema')
-            else:
-                module_name = f'{name}@{revision}.yang'
-                self._unavailable_modules.append(module_name)
-                LOGGER.error('Unable to retrieve file content from GitHub using module schema')
-
-        return result
 
     def check_if_latest_revision(self, module: ModuleMetadata):
         """Check if the parsed module is the latest revision.

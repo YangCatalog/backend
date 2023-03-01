@@ -25,9 +25,8 @@ from unittest import mock
 
 import utility.util as util
 from api.globalConfig import yc_gc
-from parseAndPopulate.models.schema_parts import SchemaParts
 from sandbox import constants as sandbox_constants
-from sandbox import generate_schema_urls
+from sandbox import save_yang_files
 from utility.create_config import create_config
 from utility.staticVariables import JobLogStatuses
 
@@ -35,7 +34,7 @@ from utility.staticVariables import JobLogStatuses
 class TestUtilClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        generate_schema_urls.main(os.environ['TEST_REPO'])
+        save_yang_files.main(os.environ['TEST_REPO'])
         cls.filename = os.path.basename(__file__).split('.py')[0]
         cls.job_log_properties = ['start', 'end', 'status', 'error', 'messages', 'last_successfull']
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
@@ -141,51 +140,6 @@ class TestUtilClass(unittest.TestCase):
             self.assertIn('message', message)
 
         self.clear_job_log()
-
-    def test_fetch_module_by_schema_successfully(self):
-        """Test if content of yang module was successfully fetched from GitHub and stored to the file."""
-        schema_parts = SchemaParts(
-            repo_owner='YangModels',
-            repo_name='yang',
-            commit_hash='2608a6f38bd2bfe947b6e61f4e0c87cc80f831aa',
-        )
-        suffix = 'experimental/ietf-extracted-YANG-modules/ietf-yang-types@2020-07-06.yang'
-        schema = os.path.join(schema_parts.schema_base_hash, suffix)
-
-        yang_name_rev = 'successful@1970-01-01.yang'
-        dst_path = f'{yc_gc.save_file_dir}/{yang_name_rev}'
-        result = util.fetch_module_by_schema(schema, dst_path)
-
-        self.assertEqual(result, True)
-        self.assertEqual(os.path.isfile(dst_path), True)
-
-    def test_fetch_module_by_schema_unsuccessfully(self):
-        """Check if method returned False if wrong schema was passed as an argument.
-        File should not be created.
-        """
-        schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='random-hash')
-        suffix = 'experimental/ietf-extracted-YANG-modules/ietf-yang-types@2020-07-06.yang'
-        schema = os.path.join(schema_parts.schema_base_hash, suffix)
-
-        yang_name_rev = 'unsuccessful@1970-01-01.yang'
-        dst_path = f'{yc_gc.save_file_dir}/{yang_name_rev}'
-        result = util.fetch_module_by_schema(schema, dst_path)
-
-        self.assertEqual(result, False)
-        self.assertEqual(os.path.isfile(dst_path), False)
-
-    def test_fetch_module_by_schema_empty_schema(self):
-        """Check if method returned False if non-existing URL was passed as schema argument.
-        File should not be created.
-        """
-        schema = ''
-
-        yang_name_rev = 'empty@1970-01-01.yang'
-        dst_path = f'{yc_gc.save_file_dir}/{yang_name_rev}'
-        result = util.fetch_module_by_schema(schema, dst_path)
-
-        self.assertEqual(result, False)
-        self.assertEqual(os.path.isfile(dst_path), False)
 
     def test_context_check_update_from(self):
         """Test result of pyang --check-update-from validation using context of two ietf-yang-types revisions."""

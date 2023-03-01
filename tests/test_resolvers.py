@@ -168,13 +168,7 @@ class TestResolversClass(unittest.TestCase):
         output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
         module_stmt.substmts.append(output_stmt)
 
-        path = ''
-        schema = None
-        schemas = {}
-        yang_models_dir = ''
-        nonietf_dir = ''
-
-        ir = ImportsResolver(module_stmt, self.logger, path, schema, schemas, yang_models_dir, nonietf_dir)
+        ir = ImportsResolver(module_stmt, self.logger, 'foo')
         res = ir.resolve()
         self.assertEqual(res, [])
 
@@ -185,13 +179,8 @@ class TestResolversClass(unittest.TestCase):
         module_stmt.substmts.append(import_stmt)
 
         mock_get_yang.return_value = 'test_yang_file@test_revision.yang'
-        path = ''
-        schema = None
-        schemas = {}
-        yang_models_dir = ''
-        nonietf_dir = ''
 
-        ir = ImportsResolver(module_stmt, self.logger, path, schema, schemas, yang_models_dir, nonietf_dir)
+        ir = ImportsResolver(module_stmt, self.logger, 'foo')
         res = ir.resolve()
         dep = res[0]
         self.assertIsInstance(dep, Dependency)
@@ -421,11 +410,7 @@ class TestResolversClass(unittest.TestCase):
         output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
         module_stmt.substmts.append(output_stmt)
 
-        path = ''
-        schema = None
-        schemas = {}
-
-        sr = SubmoduleResolver(module_stmt, self.logger, path, schema, schemas)
+        sr = SubmoduleResolver(module_stmt, self.logger, 'foo')
         res = sr.resolve()
         deps, subs = res[0], res[1]
         self.assertEqual(deps, [])
@@ -439,11 +424,7 @@ class TestResolversClass(unittest.TestCase):
         include_stmt = new_statement(None, module_stmt, None, 'include', 'ietf-yang-types')
         module_stmt.substmts.append(include_stmt)
 
-        path = ''
-        schema = None
-        schemas = {}
-
-        sr = SubmoduleResolver(module_stmt, self.logger, path, schema, schemas)
+        sr = SubmoduleResolver(module_stmt, self.logger, 'foo')
         res = sr.resolve()
         deps, subs = res[0], res[1]
         self.assertNotEqual(deps, [])

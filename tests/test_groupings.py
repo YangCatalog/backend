@@ -31,14 +31,14 @@ from parseAndPopulate.groupings import SdoDirectory, VendorCapabilities, VendorG
 from parseAndPopulate.models.directory_paths import DirPaths
 from redisConnections.redisConnection import RedisConnection
 from sandbox import constants as sandbox_constants
-from sandbox import generate_schema_urls
+from sandbox import save_yang_files
 from utility.create_config import create_config
 
 
 class TestGroupingsClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        generate_schema_urls.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings'))
+        save_yang_files.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings'))
         cls.prepare_output_filename = 'prepare'
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings')
         cls.test_private_dir = os.path.join(cls.resources_path, 'html/private')
@@ -55,11 +55,12 @@ class TestGroupingsClass(unittest.TestCase):
         cls.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
         cls.config = create_config()
         cls.redis_connection = RedisConnection(config=cls.config)
+        cls.save_file_dir = cls.config.get('Directory-Section', 'save-file-dir')
 
     @classmethod
     def tearDownClass(cls):
         modules_paths_to_remove_file_path = os.path.join(
-            create_config().get('Directory-Section', 'cache'),
+            cls.config.get('Directory-Section', 'cache'),
             sandbox_constants.NEW_COPIED_MODULES_PATHS_FILENAME,
         )
         with open(modules_paths_to_remove_file_path, 'r') as f:
@@ -69,26 +70,30 @@ class TestGroupingsClass(unittest.TestCase):
                 continue
             os.remove(module_path)
 
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_sdo_directory_parse_and_load(self, mock_hash: mock.MagicMock):
+    def test_sdo_directory_parse_and_load(self):
         """
         Test whether keys were created and prepare object values were set correctly
         from all the .yang files which are located in 'path' directory.
-
-        Arguments:
-            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_hash.return_value = 'master'
         path = self.resource('owner/repo/sdo')
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-        path_to_name_rev = {
-            self.resource('owner/repo/sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
-            self.resource('owner/repo/sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
-            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05'),
+        file_mapping = {
+            self.resource('owner/repo/sdo/sdo-first.yang'): os.path.join(
+                self.save_file_dir,
+                'sdo-first@2022-08-05.yang',
+            ),
+            self.resource('owner/repo/sdo/sdo-second.yang'): os.path.join(
+                self.save_file_dir,
+                'sdo-second@2022-08-05.yang',
+            ),
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): os.path.join(
+                self.save_file_dir,
+                'sdo-third@2022-08-05.yang',
+            ),
         }
 
-        sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, path_to_name_rev)
+        sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, file_mapping)
         sdo_directory.parse_and_load()
 
         self.assertListEqual(
@@ -96,22 +101,26 @@ class TestGroupingsClass(unittest.TestCase):
             ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'],
         )
 
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_sdo_directory_parse_and_load_api(self, mock_hash: mock.MagicMock):
+    def test_sdo_directory_parse_and_load_api(self):
         """
         Test whether key was created and prepare object value was set correctly
         from all modules loaded from request-data.json file.
-
-        Arguments:
-            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_hash.return_value = 'master'
         api = True
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-        path_to_name_rev = {
-            self.resource('owner/repo/sdo/sdo-first.yang'): ('sdo-first', '2022-08-05'),
-            self.resource('owner/repo/sdo/sdo-second.yang'): ('sdo-second', '2022-08-05'),
-            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): ('sdo-third', '2022-08-05'),
+        file_mapping = {
+            self.resource('owner/repo/sdo/sdo-first.yang'): os.path.join(
+                self.save_file_dir,
+                'sdo-first@2022-08-05.yang',
+            ),
+            self.resource('owner/repo/sdo/sdo-second.yang'): os.path.join(
+                self.save_file_dir,
+                'sdo-second@2022-08-05.yang',
+            ),
+            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): os.path.join(
+                self.save_file_dir,
+                'sdo-third@2022-08-05.yang',
+            ),
         }
 
         sdo_directory = SdoDirectory(
@@ -120,7 +129,7 @@ class TestGroupingsClass(unittest.TestCase):
             self.file_hasher,
             api,
             self.dir_paths,
-            path_to_name_rev,
+            file_mapping,
         )
         sdo_directory.parse_and_load()
 
@@ -135,7 +144,7 @@ class TestGroupingsClass(unittest.TestCase):
         xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = False
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         vendor_grouping._parse_raw_capability('urn:ietf:params:xml:ns:netconf:base:1.0')
 
         self.assertEqual(vendor_grouping.netconf_versions, ['urn:ietf:params:xml:ns:netconf:base:1.0'])
@@ -154,7 +163,6 @@ class TestGroupingsClass(unittest.TestCase):
                 'path': 'ietf-yang-library.xml',
                 'owner': 'owner',
                 'repository': 'repo',
-                'commit-hash': '0' * 64,
             },
             'software-flavor': 'test-flavor',
             'name': 'test-platform',
@@ -164,7 +172,7 @@ class TestGroupingsClass(unittest.TestCase):
             'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0'],
         }
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         vendor_grouping._parse_implementation(implementation)
 
         self.assertEqual(
@@ -188,7 +196,7 @@ class TestGroupingsClass(unittest.TestCase):
         xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = False
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         with mock.patch.object(vendor_grouping, '_parse_implementation') as mock_parse_implementation:
             vendor_grouping._parse_platform_metadata()
 
@@ -212,23 +220,18 @@ class TestGroupingsClass(unittest.TestCase):
             'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0'],
         }
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         with mock.patch.object(vendor_grouping, '_parse_implementation') as mock_parse_implementation:
             with mock.patch('parseAndPopulate.groupings.open', mock.mock_open(read_data=json.dumps(implementation))):
                 vendor_grouping._parse_platform_metadata()
 
         mock_parse_implementation.assert_called_with(implementation)
 
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_vendor_yang_lib_parse_and_load(self, mock_hash: mock.MagicMock):
+    def test_vendor_yang_lib_parse_and_load(self):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files specified in the ietf-yang-library.xml file.
-
-        Arguments:
-            :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_hash.return_value = 'master'
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'ietf-yang-library.xml')
         api = False
@@ -241,7 +244,6 @@ class TestGroupingsClass(unittest.TestCase):
             self.file_hasher,
             api,
             self.dir_paths,
-            {},
             config=self.config,
             redis_connection=self.redis_connection,
         )
@@ -268,16 +270,11 @@ class TestGroupingsClass(unittest.TestCase):
             ['test-feature'],
         )
 
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_vendor_yang_lib_parse_and_load_from_db(self, mock_hash: mock.MagicMock):
+    def test_vendor_yang_lib_parse_and_load_from_db(self):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files specified in the ietf-yang-library.xml file.
-
-        Arguments:
-            :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_hash.return_value = 'master'
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'ietf-yang-library.xml')
         api = False
@@ -297,7 +294,6 @@ class TestGroupingsClass(unittest.TestCase):
             self.file_hasher,
             api,
             self.dir_paths,
-            {},
             config=self.config,
             redis_connection=self.redis_connection,
         )
@@ -324,16 +320,11 @@ class TestGroupingsClass(unittest.TestCase):
             ['test-feature'],
         )
 
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_vendor_capabilities_parse_and_load(self, mock_hash: mock.MagicMock):
+    def test_vendor_capabilities_parse_and_load(self):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files specified in the capabilities.xml file.
-
-        Arguments:
-            :param mock_hash        (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_hash.return_value = 'master'
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'capabilities.xml')
         api = False
@@ -346,7 +337,6 @@ class TestGroupingsClass(unittest.TestCase):
             self.file_hasher,
             api,
             self.dir_paths,
-            {},
             config=self.config,
         )
         vendor_capabilities.parse_and_load()
@@ -377,16 +367,11 @@ class TestGroupingsClass(unittest.TestCase):
             ['test-feature'],
         )
 
-    @mock.patch('parseAndPopulate.groupings.repoutil.RepoUtil.get_commit_hash')
-    def test_vendor_capabilities_parse_and_load_from_db(self, mock_hash: mock.MagicMock):
+    def test_vendor_capabilities_parse_and_load_from_db(self):
         """
         Test whether keys were created and dumper object values were set correctly
         from all the .yang files specified in the ietf-yang-library.xml file.
-
-        Arguments:
-            :param mock_hash            (mock.MagicMock) get_commit_hash() method is patched, to always return 'master'
         """
-        mock_hash.return_value = 'master'
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'capabilities.xml')
         api = False
@@ -406,7 +391,6 @@ class TestGroupingsClass(unittest.TestCase):
             self.file_hasher,
             api,
             self.dir_paths,
-            {},
             config=self.config,
             redis_connection=self.redis_connection,
         )
@@ -447,7 +431,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorGrouping(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_capabilities = VendorGrouping(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
 
         self.assertEqual(vendor_capabilities.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
@@ -459,7 +443,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         platform_data = vendor_capabilities._path_to_platform_data()
 
         self.assertDictEqual(
@@ -483,7 +467,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         platform_data = vendor_capabilities._path_to_platform_data()
 
         self.assertEqual(
@@ -507,7 +491,7 @@ class TestGroupingsClass(unittest.TestCase):
 
         dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths, {})
+        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
         platform_data = vendor_capabilities._path_to_platform_data()
 
         self.assertEqual(
