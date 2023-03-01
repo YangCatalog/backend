@@ -26,6 +26,7 @@ from pyang.statements import new_statement
 from parseAndPopulate.models.dependency import Dependency
 from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.submodule import Submodule
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.resolvers.basic import BasicResolver
 from parseAndPopulate.resolvers.expiration import ExpirationResolver
 from parseAndPopulate.resolvers.generated_from import GeneratedFromResolver
@@ -127,12 +128,12 @@ class TestResolversClass(unittest.TestCase):
         netconf_capabilities = ['capabilities1', 'capabilities2']
         netconf_versions = ['1.0', '2.0']
 
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': conformance_type,
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_versions,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type=conformance_type,
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_versions,
+        )
         features = ['feature1', 'feature2']
         deviations = [
             {'name': 'deviation1', 'revision': '2022-12-02'},
@@ -167,13 +168,7 @@ class TestResolversClass(unittest.TestCase):
         output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
         module_stmt.substmts.append(output_stmt)
 
-        path = ''
-        schema = None
-        schemas = {}
-        yang_models_dir = ''
-        nonietf_dir = ''
-
-        ir = ImportsResolver(module_stmt, self.logger, path, schema, schemas, yang_models_dir, nonietf_dir)
+        ir = ImportsResolver(module_stmt, self.logger, 'foo')
         res = ir.resolve()
         self.assertEqual(res, [])
 
@@ -184,13 +179,8 @@ class TestResolversClass(unittest.TestCase):
         module_stmt.substmts.append(import_stmt)
 
         mock_get_yang.return_value = 'test_yang_file@test_revision.yang'
-        path = ''
-        schema = None
-        schemas = {}
-        yang_models_dir = ''
-        nonietf_dir = ''
 
-        ir = ImportsResolver(module_stmt, self.logger, path, schema, schemas, yang_models_dir, nonietf_dir)
+        ir = ImportsResolver(module_stmt, self.logger, 'foo')
         res = ir.resolve()
         dep = res[0]
         self.assertIsInstance(dep, Dependency)
@@ -420,11 +410,7 @@ class TestResolversClass(unittest.TestCase):
         output_stmt = new_statement(None, module_stmt, None, 'output', 'test-output')
         module_stmt.substmts.append(output_stmt)
 
-        path = ''
-        schema = None
-        schemas = {}
-
-        sr = SubmoduleResolver(module_stmt, self.logger, path, schema, schemas)
+        sr = SubmoduleResolver(module_stmt, self.logger, 'foo')
         res = sr.resolve()
         deps, subs = res[0], res[1]
         self.assertEqual(deps, [])
@@ -438,11 +424,7 @@ class TestResolversClass(unittest.TestCase):
         include_stmt = new_statement(None, module_stmt, None, 'include', 'ietf-yang-types')
         module_stmt.substmts.append(include_stmt)
 
-        path = ''
-        schema = None
-        schemas = {}
-
-        sr = SubmoduleResolver(module_stmt, self.logger, path, schema, schemas)
+        sr = SubmoduleResolver(module_stmt, self.logger, 'foo')
         res = sr.resolve()
         deps, subs = res[0], res[1]
         self.assertNotEqual(deps, [])

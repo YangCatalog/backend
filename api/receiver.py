@@ -53,8 +53,8 @@ from api.status_message import StatusMessage
 from redisConnections.redisConnection import RedisConnection, key_quote
 from utility import message_factory
 from utility.create_config import create_config
+from utility.elasticsearch_util import ESIndexingPaths, prepare_for_es_removal, send_for_es_indexing
 from utility.staticVariables import json_headers
-from utility.util import prepare_for_es_removal, send_for_es_indexing
 
 
 class Receiver:
@@ -433,12 +433,12 @@ class Receiver:
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
         self._yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-        self.indexing_paths = {
-            'cache_path': self._changes_cache_path,
-            'deletes_path': self._delete_cache_path,
-            'failed_path': self._failed_changes_cache_path,
-            'lock_path': self._lock_file,
-        }
+        self.indexing_paths = ESIndexingPaths(
+            cache_path=self._changes_cache_path,
+            deletes_path=self._delete_cache_path,
+            failed_path=self._failed_changes_cache_path,
+            lock_path=self._lock_file,
+        )
 
         self._notify_indexing = self._notify_indexing == 'True'
         self._rabbitmq_credentials = pika.PlainCredentials(username=rabbitmq_username, password=rabbitmq_password)

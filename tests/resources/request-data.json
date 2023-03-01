@@ -10,8 +10,7 @@
                 "source-file": {
                     "repository": "yang",
                     "owner": "YangModels",
-                    "path": "standard/ietf/RFC/ietf-interfaces.yang",
-                    "commit-hash": "11afe3c44d04b1abe42d3837f5cf50aae7fc4c62"
+                    "path": "standard/ietf/RFC/ietf-interfaces.yang"
                 }
             }
         ]

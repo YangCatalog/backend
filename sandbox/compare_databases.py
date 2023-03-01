@@ -19,7 +19,6 @@ import utility.log as log
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from utility.create_config import create_config
-from utility.util import fetch_module_by_schema
 
 
 def check_module_in_redis(hits: dict, redis: Redis):
@@ -83,12 +82,9 @@ def main():
             # Check if this file is in /var/yang/all_modules folder
             all_modules_path = '{}/{}@{}.yang'.format(save_file_dir, name, revision)
             if not os.path.isfile(all_modules_path):
-                schema = module.get('schema')
                 LOGGER.warning('Trying to retreive file content from Github for module {}'.format(key))
-                result = fetch_module_by_schema(schema, all_modules_path)
-                if result:
-                    modules_to_index_dict[key] = all_modules_path
-                    modules_to_index_list.append(module)
+                modules_to_index_dict[key] = all_modules_path
+                modules_to_index_list.append(module)
             else:
                 modules_to_index_dict[key] = all_modules_path
                 modules_to_index_list.append(module)

@@ -26,10 +26,11 @@ import shutil
 import typing as t
 from configparser import ConfigParser
 
-from parseAndPopulate.dir_paths import DirPaths
 from parseAndPopulate.models.dependency import Dependency
+from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.implementation import Implementation
 from parseAndPopulate.models.submodule import Submodule
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.resolvers.basic import BasicResolver
 from parseAndPopulate.resolvers.generated_from import GeneratedFromResolver
 from parseAndPopulate.resolvers.implementations import ImplementationResolver
@@ -45,7 +46,7 @@ from parseAndPopulate.resolvers.yang_version import YangVersionResolver
 from redisConnections.redisConnection import RedisConnection
 from utility import log, yangParser
 from utility.create_config import create_config
-from utility.util import get_yang, resolve_revision
+from utility.util import get_yang, resolve_revision, yang_url
 
 
 class Module:
@@ -53,14 +54,27 @@ class Module:
 
     # NOTE: Maybe we should consider passing all or some of the arguments togather in some sort of structure,
     #      as passing this many arguments is ugly and error-prone.
+
+    AdditionalModuleInfo = t.TypedDict(
+        'AdditionalModuleInfo',
+        {
+            'author-email': str,
+            'maturity-level': str,
+            'reference': str,
+            'document-name': str,
+            'module-classification': str,
+            'generated-from': str,
+            'organization': str,
+        },
+        total=False,
+    )
+
     def __init__(
         self,
-        name: str,
         path: str,
-        schemas: dict,
         dir_paths: DirPaths,
-        yang_modules: dict,
-        additional_info: t.Optional[dict[str, str]],
+        yang_modules: t.Iterable[str],
+        additional_info: t.Optional[AdditionalModuleInfo],
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
         can_be_already_stored_in_db: bool = False,
@@ -69,7 +83,6 @@ class Module:
         Initialize and parse everything out of a module.
 
         Arguments:
-            :param name:            (str) name of the module (not parsed out of the module)
             :param path:            (str) path to yang file being parsed
             :param dir_paths:       (dict) paths to various needed directories according to configuration
             :param yang_modules:    (dict) yang modules we've already parsed
@@ -82,7 +95,6 @@ class Module:
         self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
         self._nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
         self.html_result_dir = dir_paths['result']
-        self._schemas = schemas
         self._path = path
         self.yang_models_path = dir_paths['yang_models']
         self.dependencies: list[Dependency] = []
@@ -101,10 +113,10 @@ class Module:
 
         self._parsed_yang = yangParser.parse(self._path)
         self.implementations: list[Implementation] = []
-        self._parse_all(name, yang_modules, additional_info)
+        self._parse_all(yang_modules, additional_info)
 
-    def _parse_all(self, name: str, yang_modules: dict, additional_info: t.Optional[dict[str, str]]):
-        additional_info = additional_info or {}
+    def _parse_all(self, yang_modules: t.Iterable[str], additional_info: t.Optional[AdditionalModuleInfo]):
+        additional_info = additional_info or self.AdditionalModuleInfo()
         self.author_email = additional_info.get('author-email')
         self.maturity_level = additional_info.get('maturity-level')
         self.reference = additional_info.get('reference')
@@ -116,7 +128,9 @@ class Module:
         self.compilation_result = None
         self.ietf_wg = None
 
-        self.name: str = self._parsed_yang.arg or name
+        if self._parsed_yang.arg is None:
+            raise ValueError(f'{self._path} did not contain a module statement')
+        self.name: str = self._parsed_yang.arg
         revision_resolver = RevisionResolver(self._parsed_yang, self.logger)
         self.revision = revision_resolver.resolve()
         name_revision = f'{self.name}@{self.revision}'
@@ -144,19 +158,15 @@ class Module:
             self._populate_information_from_db(json.loads(module_data))
             return
 
-        self.schema = self._resolve_schema(name_revision)
+        self.schema = yang_url(self.name, self.revision)
 
-        submodule_resolver = SubmoduleResolver(self._parsed_yang, self.logger, self._path, self.schema, self._schemas)
+        submodule_resolver = SubmoduleResolver(self._parsed_yang, self.logger, self._domain_prefix)
         self.dependencies, self.submodule = submodule_resolver.resolve()
 
         imports_resolver = ImportsResolver(
             self._parsed_yang,
             self.logger,
-            self._path,
-            self.schema,
-            self._schemas,
-            self.yang_models_path,
-            self._nonietf_dir,
+            self._domain_prefix,
         )
         self.imports = imports_resolver.resolve()
         self.dependencies.extend(self.imports)
@@ -170,8 +180,7 @@ class Module:
         self.contact = BasicResolver(self._parsed_yang, 'contact').resolve()
         self.description = BasicResolver(self._parsed_yang, 'description').resolve()
 
-        generated_from_resolver = GeneratedFromResolver(self.logger, self.name, self.namespace)
-        self.generated_from = generated_from or generated_from_resolver.resolve()
+        self.generated_from = generated_from or GeneratedFromResolver(self.logger, self.name, self.namespace).resolve()
 
         prefix_resolver = PrefixResolver(self._parsed_yang, self.logger, name_revision, self.belongs_to)
         self.prefix = prefix_resolver.resolve()
@@ -219,30 +228,20 @@ class Module:
         except FileNotFoundError:
             shutil.copy(self._path, file_with_path)
 
-    def _resolve_schema(self, name_revision: str) -> t.Optional[str]:
-        try:
-            return self._schemas[name_revision]
-        except KeyError:
-            self.logger.warning(f'Schema URL for {self.name}@{self.revision} has not been resolved')
-
 
 class SdoModule(Module):
     def __init__(
         self,
-        name: str,
         path: str,
-        schemas: dict,
         dir_paths: DirPaths,
-        yang_modules: dict,
-        additional_info: t.Optional[dict[str, str]] = None,
+        yang_modules: t.Iterable[str],
+        additional_info: t.Optional[Module.AdditionalModuleInfo] = None,
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
         can_be_already_stored_in_db: bool = False,
     ):
         super().__init__(
-            name,
             os.path.abspath(path),
-            schemas,
             dir_paths,
             yang_modules,
             additional_info,
@@ -257,13 +256,11 @@ class VendorModule(Module):
 
     def __init__(
         self,
-        name: str,
         path: str,
-        schemas: dict,
         dir_paths: DirPaths,
-        yang_modules: dict,
-        vendor_info: t.Optional[dict] = None,
-        additional_info: t.Optional[dict[str, str]] = None,
+        yang_modules: t.Iterable[str],
+        vendor_info: t.Optional[VendorInfo] = None,
+        additional_info: t.Optional[Module.AdditionalModuleInfo] = None,
         data: t.Optional[t.Union[str, dict]] = None,
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
@@ -274,24 +271,21 @@ class VendorModule(Module):
         add information from platform-metadata json files provided with Cisco modules.
 
         Arguments:
-            :param name:                (str) name of the module (not parsed out of the module)
             :param path:                (str) path to yang file being parsed
             :param dir_paths:           (dict) paths to various needed directories according to configuration
             :param yang_modules:        (dict) yang modules we've already parsed
             :param additional_info:      (dict) some additional information about module given from client
-            :param vendor_info:         (dict) dict with additional vendor information
+            :param vendor_info:         (Optional[VendorInfo]) dict with additional vendor information
         """
 
         # these are required for self._find_file() to work
         self.yang_models = dir_paths['yang_models']
         self.deviations = []
         self.features = []
-        if isinstance(data, (str, dict)):
+        if data:
             self._resolve_deviations_and_features(data)
         super().__init__(
-            name,
             path,
-            schemas,
             dir_paths,
             yang_modules,
             additional_info,

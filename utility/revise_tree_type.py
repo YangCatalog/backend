@@ -45,7 +45,7 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
 
 
 @job_log(file_basename=BASENAME)
-def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[dict[str, str]]:
+def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     config = create_config()
     temp_dir = config.get('Directory-Section', 'temp', fallback='/var/yang/tmp')
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')

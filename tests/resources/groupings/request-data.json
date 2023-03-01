@@ -10,8 +10,7 @@
                 "source-file": {
                     "repository": "repo",
                     "owner": "owner",
-                    "path": "sdo/sdo-first.yang",
-                    "commit-hash": "master"
+                    "path": "sdo/sdo-first.yang"
                 }
             },
             {
@@ -23,8 +22,7 @@
                 "source-file": {
                     "repository": "repo",
                     "owner": "owner",
-                    "path": "sdo/sdo-second.yang",
-                    "commit-hash": "master"
+                    "path": "sdo/sdo-second.yang"
                 }
             },
             {
@@ -36,8 +34,7 @@
                 "source-file": {
                     "repository": "repo",
                     "owner": "owner",
-                    "path": "sdo/subdir/sdo-third.yang",
-                    "commit-hash": "master"
+                    "path": "sdo/subdir/sdo-third.yang"
                 }
             }
         ]

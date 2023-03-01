@@ -24,6 +24,7 @@ from configparser import ConfigParser
 
 from redis import Redis
 
+import redisConnections.data_transfer_objects as dto
 import utility.log as log
 from utility.create_config import create_config
 
@@ -59,21 +60,21 @@ class RedisUsersConnection:
     def username_exists(self, username: str) -> bool:
         return self.redis.hexists('usernames', username)
 
-    def get_field(self, id: t.Union[str, int], field: str) -> str:
-        r = self.redis.get(f'{id}:{field}')
+    def get_field(self, user_id: t.Union[str, int], field: str) -> str:
+        r = self.redis.get(f'{user_id}:{field}')
         return (r or b'').decode()
 
-    def set_field(self, id: t.Union[str, int], field: str, value: str) -> bool:
-        return bool(self.redis.set(f'{id}:{field}', value))
+    def set_field(self, user_id: t.Union[str, int], field: str, value: str) -> bool:
+        return bool(self.redis.set(f'{user_id}:{field}', value))
 
-    def delete_field(self, id: t.Union[str, int], field: str) -> bool:
-        return bool(self.redis.delete(f'{id}:{field}'))
+    def delete_field(self, user_id: t.Union[str, int], field: str) -> bool:
+        return bool(self.redis.delete(f'{user_id}:{field}'))
 
-    def is_approved(self, id: t.Union[str, int]) -> bool:
-        return self.redis.sismember('approved', id)
+    def is_approved(self, user_id: t.Union[str, int]) -> bool:
+        return self.redis.sismember('approved', user_id)
 
-    def is_temp(self, id: t.Union[str, int]) -> bool:
-        return self.redis.sismember('temp', id)
+    def is_temp(self, user_id: t.Union[str, int]) -> bool:
+        return self.redis.sismember('temp', user_id)
 
     def id_by_username(self, username: str) -> str:
         r = self.redis.hget('usernames', username)
@@ -81,58 +82,58 @@ class RedisUsersConnection:
 
     def create(self, temp: bool, **kwargs) -> int:
         self.logger.info('Creating new user')
-        id = self.redis.incr('new-id')
-        self.redis.hset('usernames', kwargs['username'], id)
+        user_id = self.redis.incr('new-id')
+        self.redis.hset('usernames', kwargs['username'], user_id)
         if 'registration_datetime' not in kwargs:
             kwargs['registration_datetime'] = str(datetime.datetime.utcnow())
         for field in self._universal_fields:
-            self.set_field(id, field, kwargs[field.replace('-', '_')])
-        self.redis.sadd('temp' if temp else 'approved', id)
+            self.set_field(user_id, field, kwargs[field.replace('-', '_')])
+        self.redis.sadd('temp' if temp else 'approved', user_id)
         if temp:
             for field in self._temp_fields:
-                self.set_field(id, field, kwargs[field.replace('-', '_')])
+                self.set_field(user_id, field, kwargs[field.replace('-', '_')])
         else:
             for field in self._appr_fields:
-                self.set_field(id, field, kwargs[field.replace('-', '_')])
-        return id
+                self.set_field(user_id, field, kwargs[field.replace('-', '_')])
+        return user_id
 
-    def delete(self, id: t.Union[str, int], temp: bool):
-        self.logger.info(f'Deleting user with id {id}')
-        self.redis.hdel('usernames', self.get_field(id, 'username'))
+    def delete(self, user_id: t.Union[str, int], temp: bool):
+        self.logger.info(f'Deleting user with id {user_id}')
+        self.redis.hdel('usernames', self.get_field(user_id, 'username'))
         for field in self._universal_fields:
-            self.delete_field(id, field)
-        self.redis.srem('temp' if temp else 'approved', id)
+            self.delete_field(user_id, field)
+        self.redis.srem('temp' if temp else 'approved', user_id)
         if temp:
             for field in self._temp_fields:
-                self.delete_field(id, field)
+                self.delete_field(user_id, field)
         else:
             for field in self._appr_fields:
-                self.delete_field(id, field)
+                self.delete_field(user_id, field)
 
-    def approve(self, id: t.Union[str, int], access_rights_sdo: str, access_rights_vendor: str):
-        self.logger.info(f'Approving user with id {id}')
-        self.redis.srem('temp', id)
-        self.set_field(id, 'access-rights-sdo', access_rights_sdo)
-        self.set_field(id, 'access-rights-vendor', access_rights_vendor)
-        self.redis.delete(f'{id}:"motivation"')
-        self.redis.sadd('approved', id)
+    def approve(self, user_id: t.Union[str, int], access_rights_sdo: str, access_rights_vendor: str):
+        self.logger.info(f'Approving user with id {user_id}')
+        self.redis.srem('temp', user_id)
+        self.set_field(user_id, 'access-rights-sdo', access_rights_sdo)
+        self.set_field(user_id, 'access-rights-vendor', access_rights_vendor)
+        self.redis.delete(f'{user_id}:"motivation"')
+        self.redis.sadd('approved', user_id)
 
     def get_all(self, status: str) -> list[str]:
-        return list(map(lambda id: id.decode(), self.redis.smembers(status)))
+        return list(map(lambda user_id: user_id.decode(), self.redis.smembers(status)))
 
-    def get_all_fields(self, id: t.Union[str, int]) -> dict:
+    def get_all_fields(self, user_id: t.Union[str, int]) -> t.Union[dto.TempUserFields, dto.ApprovedUserFields]:
         r = {}
         for field in self._universal_fields:
             # Remove milliseconds - should be after '.'
             if field == 'registration-datetime':
-                raw_date = self.get_field(id, field).split('.')[0]
+                raw_date = self.get_field(user_id, field).split('.')[0]
                 r[field] = raw_date
                 continue
-            r[field] = self.get_field(id, field)
-        if self.is_temp(id):
+            r[field] = self.get_field(user_id, field)
+        if self.is_temp(user_id):
             for field in self._temp_fields:
-                r[field] = self.get_field(id, field)
-        elif self.is_approved(id):
+                r[field] = self.get_field(user_id, field)
+        elif self.is_approved(user_id):
             for field in self._appr_fields:
-                r[field] = self.get_field(id, field)
+                r[field] = self.get_field(user_id, field)
         return r
