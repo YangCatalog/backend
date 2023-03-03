@@ -65,6 +65,7 @@ class Module:
             'module-classification': str,
             'generated-from': str,
             'organization': str,
+            'source-file': dict[str, str],
         },
         total=False,
     )

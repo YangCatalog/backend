@@ -75,6 +75,7 @@ class TestParseDirectoryClass(unittest.TestCase):
             False,
             self.dir_paths,
             {},
+            None,
             config=config,
         )
         mock_sdo_directory = mock_sdo_directory_cls.return_value
@@ -100,6 +101,7 @@ class TestParseDirectoryClass(unittest.TestCase):
             False,
             self.dir_paths,
             {},
+            None,
             config=config,
         )
         mock_iana_directory = mock_iana_directory_cls.return_value

@@ -85,7 +85,17 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
     file_mapping = save_files(args.dir, dir_paths['save'])
     logger.info('Starting to iterate through files')
     if args.sdo:
-        stats = parse_sdo(args.dir, dumper, file_hasher, args.api, dir_paths, file_mapping, logger, config=config)
+        stats = parse_sdo(
+            args.dir,
+            dumper,
+            file_hasher,
+            args.api,
+            dir_paths,
+            file_mapping,
+            logger,
+            args.official_source,
+            config=config,
+        )
     else:
         stats = parse_vendor(
             args.dir,
@@ -146,15 +156,17 @@ def parse_sdo(
     dir_paths: DirPaths,
     file_mapping: dict[str, str],
     logger: Logger,
+    official_source: t.Optional[str] = None,
     config: ConfigParser = create_config(),
 ) -> tuple[int, int]:
     """Parse all yang modules in an SDO directory."""
     logger.info(f'Parsing SDO directory {search_directory}')
     if os.path.isfile(os.path.join(search_directory, 'yang-parameters.xml')):
         logger.info('Found yang-parameters.xml file, parsing IANA directory')
-        grouping = IanaDirectory(search_directory, dumper, file_hasher, api, dir_paths, file_mapping, config=config)
+        cls = IanaDirectory
     else:
-        grouping = SdoDirectory(search_directory, dumper, file_hasher, api, dir_paths, file_mapping, config=config)
+        cls = SdoDirectory
+    grouping = cls(search_directory, dumper, file_hasher, api, dir_paths, file_mapping, official_source, config=config)
     return grouping.parse_and_load()
 
 
