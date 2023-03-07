@@ -184,7 +184,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'flag': '--official-source',
                 'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
                 'type': str,
-                'default': 'None',
+                'default': '',
             },
             {
                 'flag': '--config-path',
@@ -226,7 +226,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'flag': '--official-source',
                 'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
                 'type': str,
-                'default': 'None',
+                'default': '',
             },
             {
                 'flag': '--notify-indexing',

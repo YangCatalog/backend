@@ -123,7 +123,7 @@ class SdoDirectory(ModuleGrouping):
         sdos_count = len(sdos_list)
         for i, sdo in enumerate(sdos_list, start=1):
             # remove diacritics
-            assert 'source-file' in sdo
+            assert 'source-file' in sdo, 'This is checked at the /api/modules endpoint and guaranteed to pass here'
             file_name = (
                 unicodedata.normalize('NFKD', os.path.basename(sdo['source-file']['path']))
                 .encode('ascii', 'ignore')
@@ -201,7 +201,7 @@ class SdoDirectory(ModuleGrouping):
                 # this is the official source of this organization's modules
                 # or we don't have a version of this module yet
                 self.dumper.add_module(yang)
-                shutil.copy(path, self.file_mapping[path])
+                shutil.copy(path, all_modules_path)
                 self.parsed += 1
         return self.parsed, self.skipped
 
@@ -287,7 +287,7 @@ class IanaDirectory(SdoDirectory):
             if yang.organization != self.official_source and should_parse.was_parsed_previously:
                 continue
             self.dumper.add_module(yang)
-            shutil.copy(path, self.file_mapping[path])
+            shutil.copy(path, all_modules_path)
             self.parsed += 1
         return self.parsed, self.skipped
 

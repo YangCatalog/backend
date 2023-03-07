@@ -93,7 +93,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
             dir_paths,
             file_mapping,
             logger,
-            args.official_source,
+            args.official_source or None,  # in case of an empty string
             config=config,
         )
     else:
