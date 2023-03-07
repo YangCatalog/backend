@@ -146,7 +146,7 @@ class SdoDirectory(ModuleGrouping):
             if '/openconfig/public/' in path:
                 all_modules_path = self.file_mapping[path]
                 should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
-                if not should_parse.seen_hash:
+                if not should_parse.hash_changed:
                     self.skipped += 1
                     continue
             try:
@@ -177,7 +177,7 @@ class SdoDirectory(ModuleGrouping):
                 path = os.path.join(root, file_name)
                 all_modules_path = self.file_mapping[path]
                 should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
-                if should_parse.seen_hash:
+                if not should_parse.hash_changed:
                     self.skipped += 1
                     continue
                 if '[1]' in file_name:
@@ -194,7 +194,7 @@ class SdoDirectory(ModuleGrouping):
                 except (ParseException, FileNotFoundError) as e:
                     self.log_module_creation_exception(e)
                     continue
-                if yang.organization != self.official_source and should_parse.seen_name_revision:
+                if yang.organization != self.official_source and should_parse.was_parsed_previously:
                     # this is not the official source of this organization's modules
                     # and we already have some version of this module
                     continue
@@ -268,7 +268,7 @@ class IanaDirectory(SdoDirectory):
                 self.logger.warning(f'File {name} not found in the repository')
                 continue
             should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
-            if not should_parse.seen_hash:
+            if not should_parse.hash_changed:
                 self.skipped += 1
                 continue
 
@@ -284,7 +284,7 @@ class IanaDirectory(SdoDirectory):
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
                 continue
-            if yang.organization != self.official_source and should_parse.seen_name_revision:
+            if yang.organization != self.official_source and should_parse.was_parsed_previously:
                 continue
             self.dumper.add_module(yang)
             shutil.copy(path, self.file_mapping[path])

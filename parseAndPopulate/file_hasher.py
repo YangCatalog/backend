@@ -33,8 +33,8 @@ BLOCK_SIZE = 65536  # The size of each read from the file
 
 @dataclass
 class SdoHashCheck:
-    seen_hash: bool
-    seen_name_revision: bool
+    hash_changed: bool
+    was_parsed_previously: bool
 
 
 @dataclass
@@ -180,13 +180,13 @@ class FileHasher:
         """
         file_hash = self.hash_file(new_path)
         if not file_hash:
-            return SdoHashCheck(False, False)
+            return SdoHashCheck(True, False)
         hashes = self.files_hashes.get(accepted_path, {})
         if file_hash not in hashes:
             self.updated_hashes.setdefault(accepted_path, {})[file_hash] = []  # empty implementations
-            return SdoHashCheck(False, bool(hashes))
+            return SdoHashCheck(True, bool(hashes))
 
-        return SdoHashCheck(not self.disabled, bool(hashes))
+        return SdoHashCheck(self.disabled, bool(hashes))
 
     def check_vendor_module_hash_for_parsing(
         self,
