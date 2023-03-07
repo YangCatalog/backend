@@ -31,8 +31,12 @@ from configparser import ConfigParser
 from shutil import copy2
 
 import utility.log as log
-from automatic_push.utils import get_forked_repository
-from ietfYangDraftPull import draftPullUtility as dpu
+from automatic_push.utils import (
+    check_early_revisions,
+    check_name_no_revision_exist,
+    get_forked_repository,
+    set_permissions,
+)
 from utility import repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -108,7 +112,7 @@ class IanaPush:
         subprocess.call(
             ['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', self.iana_temp_dir],
         )
-        dpu.set_permissions(self.iana_temp_dir)
+        set_permissions(self.iana_temp_dir)
         xml_path = os.path.join(self.iana_temp_dir, 'yang-parameters.xml')
         copy2(xml_path, self.yang_parameters_path)
 
@@ -133,10 +137,10 @@ class IanaPush:
 
     def _check_iana_standard_dir(self):
         self.logger.info(f'Checking module filenames without revision in {self.iana_standard_dir}')
-        dpu.check_name_no_revision_exist(self.iana_standard_dir, self.logger)
+        check_name_no_revision_exist(self.iana_standard_dir, self.logger)
 
         self.logger.info(f'Checking for early revision in {self.iana_standard_dir}')
-        dpu.check_early_revisions(self.iana_standard_dir, self.logger)
+        check_early_revisions(self.iana_standard_dir, self.logger)
 
 
 if __name__ == '__main__':

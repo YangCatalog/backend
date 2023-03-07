@@ -36,9 +36,13 @@ from dataclasses import dataclass
 
 import requests
 
-import ietfYangDraftPull.draftPullUtility as dpu
 import utility.log as log
-from automatic_push.utils import get_forked_repository
+from automatic_push.utils import (
+    check_early_revisions,
+    check_name_no_revision_exist,
+    extract_rfc_tgz,
+    get_forked_repository,
+)
 from utility import message_factory, repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -125,7 +129,7 @@ class IetfPush:
         response = requests.get(self.ietf_rfc_url)
         with open(self.tgz_path, 'wb') as zfile:
             zfile.write(response.content)
-        return dpu.extract_rfc_tgz(self.tgz_path, self.temp_rfc_dir, self.logger)
+        return extract_rfc_tgz(self.tgz_path, self.temp_rfc_dir, self.logger)
 
     def _get_new_and_diff_rfc_files(self) -> tuple[list[str], list[str]]:
         diff_files = []
@@ -188,10 +192,10 @@ class IetfPush:
         self._download_draft_modules_content()
 
         self.logger.info(f'Checking module filenames without revision in {self.experimental_path}')
-        dpu.check_name_no_revision_exist(self.experimental_path, self.logger)
+        check_name_no_revision_exist(self.experimental_path, self.logger)
 
         self.logger.info(f'Checking for early revision in {self.experimental_path}')
-        dpu.check_early_revisions(self.experimental_path, self.logger)
+        check_early_revisions(self.experimental_path, self.logger)
 
     def _download_draft_modules_content(self):
         response = requests.get(self.ietf_draft_url)

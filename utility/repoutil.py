@@ -149,7 +149,7 @@ class ModifiableRepoUtil(RepoUtil):
         self,
         repourl: str,
         clone: bool = True,
-        clone_options: t.Optional[dict] = None,
+        clone_options: t.Optional[RepoUtil.CloneOptions] = None,
         logger: t.Optional[logging.Logger] = None,
     ):
         super().__init__(repourl, clone, clone_options, logger)
@@ -315,6 +315,8 @@ class PullRequestCreationDetail(t.TypedDict, total=False):
     maintainer_can_modify: bool
     draft: bool
     issue: int
+    head: str
+    base: str
 
 
 def create_pull_request(
@@ -363,6 +365,7 @@ class PullRequestApprovingDetail(t.TypedDict, total=False):
     commit_id: str
     body: str
     comments: list[dict]
+    event: str
 
 
 def approve_pull_request(
@@ -435,3 +438,13 @@ def merge_pull_request(
         headers=headers,
         data=json.dumps(request_body or PullRequestMergingDetail()),
     )
+
+
+def add_worktree(repo_dir: str, new_worktree_dir: t.Optional[str] = None) -> str:
+    new_worktree_dir = new_worktree_dir or tempfile.mkdtemp()
+    Git(repo_dir).worktree('add', '--detach', new_worktree_dir)
+    return new_worktree_dir
+
+
+def remove_worktree(worktree_dir: str):
+    Git(worktree_dir).worktree('remove', '.')
