@@ -19,12 +19,9 @@ __email__ = 'stanislav.chlebec@pantheon.tech'
 
 import logging
 import os
-import re
-import subprocess
 import unittest
 
 from git.exc import GitCommandError
-from git.repo import Repo
 
 import utility.repoutil as ru
 from utility.create_config import create_config
@@ -66,17 +63,6 @@ class TestRepoutil(unittest.TestCase):
 
         self.assertEqual(repo.url, self.repo.url)
 
-    def test_get_repo_dir(self):
-        self.assertEqual(self.repo.get_repo_dir(), 'test')
-
-    def test_get_commit_hash(self):
-        self.assertEqual(self.repo.get_commit_hash(), '0d8d5a76cdd4cc2a9e9709f6acece6d57c0b06ea')
-        self.assertEqual(self.repo.get_commit_hash(branch='test'), '971423d605268bd7b38c5153c72ff12bfa408f1d')
-        self.assertEqual(self.repo.get_commit_hash('subrepo', 'master'), 'de04507eaba334bfdad41ac75a2044d9d63922ee')
-
-    def test_get_repo_owner(self):
-        self.assertEqual(self.repo.get_repo_owner(), 'yang-catalog')
-
     def test_clone(self):
         local_dir = self.repo.local_dir
 
@@ -89,97 +75,6 @@ class TestRepoutil(unittest.TestCase):
     def test_clone_invalid_url(self):
         with self.assertRaises(GitCommandError):
             ru.ModifiableRepoUtil('https://github.com/yang-catalog/fake')
-
-    def test_add_untracked_remove_deleted(self):
-        repodir = self.repo.local_dir
-        repo = Repo(repodir)
-        status_command = f'cd {repodir} && git status'
-
-        file = os.path.join(repodir, 'new')
-        f = open(file, 'w')
-        f.write('test')
-        f.close()
-
-        self.assertEqual('new', repo.untracked_files[0])
-        self.repo.add_untracked_remove_deleted()
-        self.assertFalse(repo.untracked_files, 'should be empty after succesful adding')
-        out = subprocess.getoutput(status_command)
-        self.assertTrue(re.search('new file:.*new', out))
-
-        file = os.path.join(repodir, 'README.md')
-        f = open(file, 'a+')
-        f.write('test')
-        f.close()
-
-        self.repo.add_untracked_remove_deleted()
-        out = subprocess.getoutput(status_command)
-        self.assertTrue(re.search('modified:.*README\\.md', out))
-
-        file = os.path.join(repodir, 'ok.txt')
-        os.remove(file)
-
-        self.repo.add_untracked_remove_deleted()
-        out = subprocess.getoutput(status_command)
-        self.assertTrue(re.search('deleted:.*ok\\.txt', out))
-
-        os.mkdir(os.path.join(repodir, 'dir'))
-        os.rename(os.path.join(repodir, 'foo', 'a.txt'), os.path.join(repodir, 'dir', 'a.txt'))
-
-        self.repo.add_untracked_remove_deleted()
-        out = subprocess.getoutput(status_command)
-        self.assertTrue(re.search('renamed:.*foo/a\\.txt.*->.*dir/a\\.txt', out))
-
-    def test_commit_all(self):
-        repodir = self.repo.local_dir
-        status_command = f'cd {repodir} && git status'
-
-        file = os.path.join(repodir, 'README.md')
-        f = open(file, 'a+')
-        f.write('test')
-        f.close()
-
-        self.repo.add_untracked_remove_deleted()
-        self.repo.commit_all()
-        out = subprocess.getoutput(status_command)
-        self.assertIn("Your branch is ahead of 'origin/master' by 1 commit.", out)
-        out = subprocess.getoutput(f'cd {repodir} && git log -1')
-        self.assertIn('RepoUtil Commit', out)
-
-    def test_push(self):
-        # relatively big repo, takes long to clone, maybe create a smaller dummy repo?
-        if self.token == 'test':
-            raise unittest.SkipTest('Replace yang-catalog-token in the Secrets-Section of the test config')
-        push_repo = ru.ModifiableRepoUtil(
-            f'https://yang-catalog:{self.token}@github.com/yang-catalog/deployment',
-            clone_options={'config_username': 'yang-catalog', 'config_user_email': 'fake@gmail.com'},
-        )
-        repodir = push_repo.local_dir
-        current_tip = push_repo.get_commit_hash()
-        status_command = f'cd {repodir} && git status'
-
-        def clean():
-            reset_repo = Repo(repodir)
-            reset_repo.git.reset('--hard', current_tip)
-            reset_repo.git.push(force=True)
-
-        f = open(os.path.join(repodir, 'README.md'), 'a+')
-        f.write('This is added to the end of README.md file')
-        f.close()
-
-        # add
-        push_repo.add_untracked_remove_deleted()
-        out = subprocess.getoutput(status_command)
-        self.assertTrue(re.search('modified:.*README\\.md', out))
-
-        push_repo.commit_all()
-        push_repo.push()
-        status = subprocess.getoutput(status_command)
-        log = subprocess.getoutput(f'cd {repodir} && git log -1 --decorate=short')
-        commit_hash = push_repo.get_commit_hash()
-        clean()
-        self.assertIn("Your branch is up to date with 'origin/master'.", status)
-        self.assertIn('origin', log)
-        self.assertNotEqual(commit_hash, current_tip)
 
     def test_del(self):
         self.assertTrue(os.path.exists(self.repo.local_dir))

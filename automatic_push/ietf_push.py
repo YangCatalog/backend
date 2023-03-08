@@ -30,7 +30,6 @@ import glob
 import json
 import os
 import shutil
-import typing as t
 from configparser import ConfigParser
 from dataclasses import dataclass
 
@@ -41,7 +40,8 @@ from automatic_push.utils import (
     check_early_revisions,
     check_name_no_revision_exist,
     extract_rfc_tgz,
-    get_forked_repository,
+    get_forked_worktree,
+    push_untracked_files,
 )
 from utility import message_factory, repoutil
 from utility.create_config import create_config
@@ -53,7 +53,7 @@ BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
 DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     help=script_config_dict[FILENAME]['help'],
-    args=script_config_dict[FILENAME]['args'],
+    args=script_config_dict[FILENAME].get('args'),
     arglist=None if __name__ == '__main__' else [],
 )
 
@@ -77,6 +77,7 @@ class IetfPush:
         self.config = config
         self.rfc_exceptions_file_path = self.config.get('Directory-Section', 'rfc-exceptions')
         self.verified_commits_file_path = self.config.get('Directory-Section', 'commit-dir')
+        self.yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
         self.ietf_rfc_url = self.config.get('Web-Section', 'ietf-RFC-tar-private-url')
         self.ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
         self.my_uri = config.get('Web-Section', 'my-uri')
@@ -87,12 +88,10 @@ class IetfPush:
         log_directory = self.config.get('Directory-Section', 'logs')
         self.logger = log.get_logger('ietf_push', f'{log_directory}/jobs/ietf-push.log')
 
-        self.repo: t.Optional[repoutil.ModifiableRepoUtil] = None
-
     @job_log(file_basename=BASENAME)
     def __call__(self) -> list[JobLogMessage]:
         self.logger.info('Starting job to push IETF modules')
-        self.repo = get_forked_repository(self.config, self.logger)
+        self.repo = get_forked_worktree(self.config, self.logger)
         self._configure_file_paths()
         try:
             ietf_tar_extracted_successfully = self._extract_ietf_modules_tar()
@@ -100,7 +99,7 @@ class IetfPush:
                 new_files, diff_files = self._get_new_and_diff_rfc_files()
                 self._update_rfc_files_locally(new_files, diff_files)
             self._download_and_check_experimental_drafts()
-            push_result = repoutil.push_untracked_files(
+            push_result = push_untracked_files(
                 self.repo,
                 'Cronjob - daily check of IETF modules.',
                 self.logger,
@@ -117,12 +116,15 @@ class IetfPush:
         except Exception as e:
             self.logger.exception('Exception found while running ietf_push script')
             raise e
+        finally:
+            repoutil.remove_worktree(self.repo.working_dir)  # pyright: ignore
 
     def _configure_file_paths(self):
-        self.tgz_path = os.path.join(self.repo.local_dir, 'rfc.tgz')
-        self.temp_rfc_dir = os.path.join(self.repo.local_dir, 'standard/ietf/RFCtemp')
-        self.rfc_dir = os.path.join(self.repo.local_dir, 'standard/ietf/RFC')
-        self.experimental_path = os.path.join(self.repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
+        assert isinstance(self.repo.working_dir, str), 'always true'
+        self.tgz_path = os.path.join(self.repo.working_dir, 'rfc.tgz')
+        self.temp_rfc_dir = os.path.join(self.repo.working_dir, 'standard/ietf/RFCtemp')
+        self.rfc_dir = os.path.join(self.repo.working_dir, 'standard/ietf/RFC')
+        self.experimental_path = os.path.join(self.repo.working_dir, 'experimental/ietf-extracted-YANG-modules')
         os.makedirs(self.experimental_path, exist_ok=True)
 
     def _extract_ietf_modules_tar(self) -> bool:
@@ -177,7 +179,7 @@ class IetfPush:
         if self.send_message:
             self.logger.info('new or modified RFC files found. Sending an E-mail')
             mf = message_factory.MessageFactory()
-            for _ in self.repo.repo.index.diff(None, paths=self.rfc_dir):
+            for _ in self.repo.index.diff(None, paths=self.rfc_dir):
                 local_files_update_message = (
                     'RFC files are updated locally, changes must be pushed in the repo soon, '
                     'and a PullRequest must be created after successful run of GitHub Actions.'

@@ -21,73 +21,54 @@ __copyright__ = 'Copyright The IETF Trust 2023, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'bohdan.konovalenko@pantheon.tech, slavomir.mazur@pantheon.tech'
 
-import grp
 import logging
 import os
-import pwd
 import tarfile
 from configparser import ConfigParser
+from dataclasses import dataclass
 
-from git import GitCommandError
+from git import GitCommandError, Repo
 
 from utility import repoutil, yangParser
 from utility.staticVariables import github_url
 from utility.util import revision_to_date
 
 
-def get_forked_repository(config: ConfigParser, logger: logging.Logger) -> repoutil.ModifiableRepoUtil:
+def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> Repo:
     """
     Returns the ModifiableRepoUtil instance of the https://github.com/yang-catalog/yang repository
     updated with the respect to the origin repo: https://github.com/YangModels/yang
     """
-    repo_name = 'yang'
-    repo_token = config.get('Secrets-Section', 'yang-catalog-token')
-    repo_owner = config.get('General-Section', 'repository-username')
-    repo_config_name = config.get('General-Section', 'repo-config-name')
-    repo_config_email = config.get('General-Section', 'repo-config-email')
     yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
-    repo_clone_options = repoutil.RepoUtil.CloneOptions(
-        config_username=repo_config_name,
-        config_user_email=repo_config_email,
-        recurse_submodules=False,
-    )
-    github_repo_url = repoutil.construct_github_repo_url(repo_owner, repo_name, repo_token)
-    update_forked_repository(yang_models_dir, github_repo_url, logger)
-    repo = repoutil.clone_repo(github_repo_url, repo_clone_options, logger)
-    if not repo:
-        raise RuntimeError(f'Failed to clone repository {repo_owner}/{repo_name}')
-    return repo
+    update_forked_repository(yang_models_dir, config, logger)
+    worktree_dir = repoutil.add_worktree(yang_models_dir, branch='fork/main')
+    return Repo(worktree_dir)
 
 
-def update_forked_repository(yang_models: str, forked_repo_url: str, logger: logging.Logger):
+def update_forked_repository(yang_models: str, config: ConfigParser, logger: logging.Logger):
     """
     Check whether forked repository yang-catalog/yang is up-to-date with YangModels/yang repository.
     Push missing commits to the forked repository if any are missing.
 
     Arguments:
         :param yang_models      (str) path to the directory where YangModels/yang repo is cloned
-        :param forked_repo_url  (str) url to the forked repository
+        :param config           (ConfigParser)
         :param logger           (logging.Logger) formated logger with the specified name
     """
     try:
         main_repo = repoutil.load(yang_models, f'{github_url}/YangModels/yang.git')
-        origin = main_repo.repo.remote('origin')
         try:
             fork = main_repo.repo.remote('fork')
         except ValueError:
             git_config_lock_file = os.path.join(yang_models, '.git', 'config.lock')
             if os.path.exists(git_config_lock_file):
                 os.remove(git_config_lock_file)
+            repo_name = 'yang'
+            repo_token = config.get('Secrets-Section', 'yang-catalog-token')
+            repo_owner = config.get('General-Section', 'repository-username')
+            forked_repo_url = repoutil.construct_github_repo_url(repo_owner, repo_name, repo_token)
             fork = main_repo.repo.create_remote('fork', forked_repo_url)
             os.mknod(git_config_lock_file)
-
-        # git fetch --all
-        for remote in main_repo.repo.remotes:
-            info = remote.fetch('main')[0]
-            logger.info(f'Remote: {remote.name} - Commit: {info.commit}')
-
-        # git pull origin main
-        origin.pull('main')
 
         # git push fork main
         push_info = fork.push('main')[0]
@@ -228,18 +209,56 @@ def extract_rfc_tgz(tgz_path: str, extract_to: str, logger: logging.Logger) -> b
     return tar_opened
 
 
-def set_permissions(directory: str):
-    """
-    Use chown for all the files and folders recursively in provided directory.
+@dataclass
+class PushResult:
+    is_successful: bool
+    detail: str
 
-    Argument:
-        :param directory    (str) path to the directory where permissions should be set
+
+def push_untracked_files(
+    repo: Repo,
+    commit_message: str,
+    logger: logging.Logger,
+    verified_commits_file_path: str,
+    is_production: bool,
+) -> PushResult:
     """
-    uid = pwd.getpwnam('yang').pw_uid
-    gid = grp.getgrnam('yang').gr_gid
-    os.chown(directory, uid, gid)
-    for root, dirs, files in os.walk(directory):
-        for dir in dirs:
-            os.chown(os.path.join(root, dir), uid, gid)
-        for file in files:
-            os.chown(os.path.join(root, file), uid, gid)
+    Commits locally and pushes all the changes to the remote repository.
+
+    Arguments:
+          :param repo (Repo) Repository where to push changes.
+          :param commit_message (str) New commit message.
+          :param logger (logging.Logger) Logger instance to log information/exceptions.
+          :param verified_commits_file_path (str) Path to file where our verified commits should be stored
+          in order to verify commits in GitHub webhooks.
+          :param is_production (bool) If set to False then files would only be committed and not pushed to the repo.
+    :return (PushResult) Returns information about the push.
+    """
+    try:
+        untracked_files = repo.untracked_files
+        logger.info('Committing all files locally')
+        repo.git.commit(a=True, m=commit_message)
+        logger.info('Pushing files to forked repository')
+        commit_hash = repo.head.commit
+        logger.info(f'Commit hash {commit_hash}')
+        with open(verified_commits_file_path, 'w') as f:
+            f.write(f'{commit_hash}\n')
+        if is_production:
+            logger.info('Pushing untracked and modified files to remote repository')
+            repo.git.push('fork')
+        else:
+            logger.info('DEV environment - not pushing changes into remote repository')
+            untracked_files_list = '\n'.join(untracked_files)
+            logger.debug(f'List of all untracked and modified files:\n{untracked_files_list}')
+    except GitCommandError as e:
+        message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
+        if 'Your branch is up to date' in e.stdout:
+            logger.warning(message)
+            return PushResult(is_successful=True, detail='Branch is up to date')
+        else:
+            logger.exception('Error while pushing procedure - Git command error')
+            return PushResult(is_successful=False, detail=str(e))
+    except Exception as e:
+        logger.exception('Error while pushing procedure')
+        return PushResult(is_successful=False, detail=str(e))
+    return PushResult(is_successful=True, detail=f'Commit hash: {commit_hash}')
