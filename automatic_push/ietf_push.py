@@ -173,12 +173,11 @@ class IetfPush:
         if self.send_message:
             self.logger.info('new or modified RFC files found. Sending an E-mail')
             mf = message_factory.MessageFactory()
-            for _ in self.repo.repo.index.diff(None, paths=self.rfc_dir):
+            if self.repo.repo.untracked_files:
                 local_files_update_message = (
                     'RFC files are updated locally, changes must be pushed in the repo soon, '
                     'and a PullRequest must be created after successful run of GitHub Actions.'
                 )
-                break
             else:
                 local_files_update_message = 'RFC files are not updated locally'
             mf.send_new_rfc_message(new_files, diff_files, local_files_update_message)
