@@ -31,7 +31,7 @@ class GrepSearch:
         self.starting_cursor = self.finishing_cursor = starting_cursor
 
         self.all_modules_directory = config.get('Directory-Section', 'save-file-dir')
-        self.results_per_page = int(config.get('Web-Section', 'grep-search-results-per-page', fallback=500))
+        self.results_per_page = int(config.get('Web-Section', 'grep-search-results-per-page', fallback=50))
 
         self.listdir_results_cache_key = f'listdir_{self.all_modules_directory}'
 
@@ -44,6 +44,7 @@ class GrepSearch:
 
         self.modules_es_index = modules_es_index
         self._es_manager = es_manager
+        self._searched_modules_amount = 0
 
     def search(
         self,
@@ -66,7 +67,7 @@ class GrepSearch:
         )
         if not module_names_with_file_extension:
             return []
-        return self._search_modules_in_database(organizations, module_names_with_file_extension)
+        return self._search_modules_in_database(search_string, organizations, module_names_with_file_extension)
 
     def _get_matching_module_names(
         self,
@@ -109,6 +110,8 @@ class GrepSearch:
             self.logger.info(f'Did not find any modules satisfying such a search: {search_string}')
             return
         module_names_with_file_extension = command_output.decode().split('\n')
+        if not module_names_with_file_extension[-1]:
+            del module_names_with_file_extension[-1]
         if inverted_search:
             module_names_with_file_extension = tuple(
                 set(self._get_all_modules_with_filename_extension()) - set(module_names_with_file_extension),
@@ -122,8 +125,6 @@ class GrepSearch:
             return
         cached_pcregrep_search_results = json.loads(cached_pcregrep_search_results)
         cursors = cached_pcregrep_search_results['cursors']
-        module_names_with_file_extension = cached_pcregrep_search_results['module_names_with_file_extension']
-        timeout_timestamp = cached_pcregrep_search_results['timeout_timestamp']
         try:
             self.previous_cursor = cursors[-2]
         except IndexError:
@@ -131,12 +132,15 @@ class GrepSearch:
         if self.starting_cursor not in cursors:
             cursors.append(self.starting_cursor)
         cached_pcregrep_search_results['cursors'] = cursors
+        current_timeout = datetime.fromtimestamp(cached_pcregrep_search_results['timeout_timestamp'])
+        current_datetime = datetime.now()
+        new_timeout = current_datetime + timedelta(seconds=(current_timeout - current_datetime).total_seconds())
         cache.set(
             cache_key,
             json.dumps(cached_pcregrep_search_results),
-            timeout=timeout_timestamp - datetime.now().timestamp(),
+            timeout=new_timeout.timestamp(),
         )
-        return self._get_modules_from_cursor(module_names_with_file_extension)
+        return self._get_modules_from_cursor(cached_pcregrep_search_results['module_names_with_file_extension'])
 
     def _get_filesystem_search_commands(
         self,
@@ -198,40 +202,66 @@ class GrepSearch:
 
     def _search_modules_in_database(
         self,
+        search_string: str,
         organizations: list[str],
         module_names_with_file_extension: tuple[str],
     ) -> list[dict]:
-        response = []
-        if not organizations:
-            self.query['query']['bool']['minimum_should_match'] = 0
-        else:
-            self.query['query']['bool']['should'] = [
-                {'term': {'organization': organization}} for organization in organizations
-            ]
-            self.query['query']['bool']['minimum_should_match'] = 1
-        for module_name in module_names_with_file_extension:
-            if len(response) >= self.results_per_page:
-                return response
-            if not module_name:
-                continue
+        self._construct_db_query(organizations, module_names_with_file_extension)
+        if len(self.query['query']['bool']['filter'][0]['bool']['should']) == 0:
+            return []
+        response = self._get_results_from_db()
+        search_attempts = 1
+        while len(response) < self.results_per_page and self._searched_modules_amount < len(
+            module_names_with_file_extension,
+        ):
+            self._construct_db_query(organizations, module_names_with_file_extension)
+            response = self._get_results_from_db(response)
+            search_attempts += 1
+        self.logger.info(
+            f'Database modules search for such a search string: {repr(search_string)}, '
+            f'took {search_attempts} search attempts',
+        )
+        return response
+
+    def _construct_db_query(
+        self,
+        organizations: list[str],
+        module_names_with_file_extension: tuple[str],
+    ):
+        if organizations and len(self.query['query']['bool']['filter']) == 1:
+            self.query['query']['bool']['filter'].append({'terms': {'organization': organizations}})
+        self.query['query']['bool']['filter'][0]['bool']['should'].clear()
+        for module_name in module_names_with_file_extension[self._searched_modules_amount :]:
+            if len(self.query['query']['bool']['filter'][0]['bool']['should']) >= self.results_per_page:
+                break
             self.finishing_cursor += 1
+            self._searched_modules_amount += 1
             name, revision = module_name.split('.yang')[0].split('@')
-            self.query['query']['bool']['must'] = [
-                {'term': {'name': name}},
-                {'term': {'revision': validate_revision(revision)}},
-            ]
-            es_response = self._es_manager.generic_search(
-                index=self.modules_es_index,
-                query=self.query,
-                response_size=None,
-            )['hits']['hits']
-            for result in es_response:
-                module_data = result['_source']
-                response.append(
-                    {
-                        'module-name': module_data['name'],
-                        'revision': module_data['revision'],
-                        'organization': module_data['organization'],
+            self.query['query']['bool']['filter'][0]['bool']['should'].append(
+                {
+                    'bool': {
+                        'must': [
+                            {'term': {'name.keyword': name}},
+                            {'term': {'revision': validate_revision(revision)}},
+                        ],
                     },
-                )
+                },
+            )
+
+    def _get_results_from_db(self, already_found_results: t.Optional[list[dict]] = None) -> list[dict]:
+        response = already_found_results or []
+        es_response = self._es_manager.generic_search(
+            index=self.modules_es_index,
+            query=self.query,
+            response_size=None,
+        )['hits']['hits']
+        for result in es_response:
+            module_data = result['_source']
+            response.append(
+                {
+                    'module-name': module_data['name'],
+                    'revision': module_data['revision'],
+                    'organization': module_data['organization'],
+                },
+            )
         return response
