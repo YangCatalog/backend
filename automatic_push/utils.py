@@ -36,8 +36,8 @@ from utility.util import revision_to_date
 
 def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> Repo:
     """
-    Returns the ModifiableRepoUtil instance of the https://github.com/yang-catalog/yang repository
-    updated with the respect to the origin repo: https://github.com/YangModels/yang
+    First pulls changes from YangModels/yang and pushes them to yang-catalog/yang
+    Then returns a Repo object of a new working tree with the main branch of yang-catalog/yang checked out.
     """
     yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
     update_forked_repository(yang_models_dir, config, logger)
@@ -235,8 +235,8 @@ def push_untracked_files(
     :return (PushResult) Returns information about the push.
     """
     try:
-        untracked_files = repo.untracked_files
         logger.info('Committing all files locally')
+        repo.git.add('.')
         repo.git.commit(a=True, m=commit_message)
         logger.info('Pushing files to forked repository')
         commit_hash = repo.head.commit
@@ -248,8 +248,8 @@ def push_untracked_files(
             repo.git.push('fork')
         else:
             logger.info('DEV environment - not pushing changes into remote repository')
-            untracked_files_list = '\n'.join(untracked_files)
-            logger.debug(f'List of all untracked and modified files:\n{untracked_files_list}')
+            changes = '\n'.join(repo.index.diff(None))
+            logger.debug(f'List of all untracked and modified files:\n{changes}')
     except GitCommandError as e:
         message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
         if 'Your branch is up to date' in e.stdout:
