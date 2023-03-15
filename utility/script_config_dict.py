@@ -181,6 +181,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'default': '/var/yang/all_modules',
             },
             {
+                'flag': '--official-source',
+                'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
+                'type': str,
+                'default': '',
+            },
+            {
                 'flag': '--config-path',
                 'help': 'Set path to config file',
                 'type': str,
@@ -215,6 +221,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
                 'default': False,
+            },
+            {
+                'flag': '--official-source',
+                'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
+                'type': str,
+                'default': '',
             },
             {
                 'flag': '--notify-indexing',
