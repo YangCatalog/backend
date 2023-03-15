@@ -295,7 +295,6 @@ def context_check_update_from(old_schema: str, new_schema: str, yang_models: str
 
 def get_list_of_backups(directory: str) -> list[str]:
     """
-
     Get a sorted list of backup file or directory names in a directory.
     Backups are identified by matching backup date format.
 
@@ -304,6 +303,8 @@ def get_list_of_backups(directory: str) -> list[str]:
         :return (list[str]) sorted list of file/directory names
     """
     dates: t.List[str] = []
+    if not os.path.exists(directory):
+        return dates
     for name in os.listdir(directory):
         try:
             i = name.index('.')
