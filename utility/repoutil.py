@@ -338,3 +338,20 @@ def add_worktree(repo_dir: str, branch: t.Optional[str] = None, new_worktree_dir
 
 def remove_worktree(worktree_dir: str):
     Git(worktree_dir).worktree('remove', '.')
+
+
+class WorktreeManager:
+    def __init__(self):
+        self._worktrees = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        for worktree in self._worktrees.values():
+            remove_worktree(worktree)
+
+    def __getitem__(self, repo_dir: str):
+        if repo_dir not in self._worktrees:
+            self._worktrees[repo_dir] = add_worktree(repo_dir)
+        return self._worktrees[repo_dir]

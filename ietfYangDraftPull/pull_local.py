@@ -30,7 +30,7 @@ import os
 
 import utility.log as log
 from utility.create_config import create_config
-from utility.repoutil import add_worktree, remove_worktree
+from utility.repoutil import WorktreeManager
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.util import JobLogMessage, job_log
@@ -42,23 +42,6 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     args=script_config_dict[FILENAME].get('args'),
     arglist=None if __name__ == '__main__' else [],
 )
-
-
-class WorktreeManager:
-    def __init__(self):
-        self._worktrees = {}
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        for worktree in self._worktrees.values():
-            remove_worktree(worktree)
-
-    def __getitem__(self, repo_dir: str):
-        if repo_dir not in self._worktrees:
-            self._worktrees[repo_dir] = add_worktree(repo_dir)
-        return self._worktrees[repo_dir]
 
 
 def run_populate_script(directory: str, notify: bool, logger: logging.Logger) -> bool:
