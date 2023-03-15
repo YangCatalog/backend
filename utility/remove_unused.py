@@ -159,7 +159,7 @@ def remove_old_backups(backup_directory: str):
         :param backup_directory  (str) Path to directory to search for backups.
     """
     list_of_backups = get_list_of_backups(backup_directory)
-    backup_name_latest = os.path.join(backup_directory, list_of_backups[-1])
+    latest_backup = os.path.join(backup_directory, list_of_backups[-1]) if list_of_backups else None
 
     def diff_month(later_datetime: datetime, earlier_datetime: datetime) -> int:
         return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
@@ -195,7 +195,7 @@ def remove_old_backups(backup_directory: str):
             last_two_months[currently_processed_backup_hash] = backup
     for backup in to_remove:
         backup_path = os.path.join(backup_directory, backup)
-        if backup_path != backup_name_latest:
+        if backup_path != latest_backup:
             if os.path.isdir(backup_path):
                 shutil.rmtree(backup_path)
             elif os.path.isfile(backup_path):
