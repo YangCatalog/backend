@@ -393,19 +393,6 @@ class Receiver:
             except Exception:
                 self.LOGGER.exception('Problem while running pull_local script')
                 return StatusMessage.FAIL, 'Server error while running pull_local script'
-            # Run openconfigPullLocal.py script
-            script_name = 'openconfigPullLocal'
-            module = __import__('ietfYangDraftPull', fromlist=[script_name])
-            submodule = getattr(module, script_name)
-            script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
-
-            self.LOGGER.info('Runnning openconfigPullLocal.py script')
-            try:
-                submodule.main(script_conf=script_conf)
-            except Exception:
-                self.LOGGER.exception('Problem while running openconfigPullLocal script')
-                return StatusMessage.FAIL, 'Server error while running openconfigPullLocal script'
-
             return StatusMessage.SUCCESS, ''
         except Exception:
             self.LOGGER.exception('Server error while running scripts')

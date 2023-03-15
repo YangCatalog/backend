@@ -87,15 +87,6 @@
       "justMyCode": false
     },
     {
-      "name": "openconfigPullLocal",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/ietfYangDraftPull/openconfigPullLocal.py",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": false
-    },
-    {
       "name": "statistics",
       "type": "python",
       "request": "launch",

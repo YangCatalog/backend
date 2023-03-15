@@ -1792,9 +1792,8 @@ yang modules
 This endpoint serves to run two different processes:
 
 1. pull_local.py
-2. openconfigPullLocall.py
 
-These scripts serve as automated tools to parse and populate all
+This script serves as an automated tool to parse and populate all
 the new openconfig yang modules and ietf DRAFT and RFC yang modules
 to yangcatalog. Since this job takes some time the endpoint will respond
 only with verification information and a job-id on which you can
@@ -2730,7 +2729,6 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
     "ietf_push",
     "iana_push",
     "pull_local",
-    "openconfigPullLocal",
     "statistics",
     "recovery",
     "elk_recovery",
@@ -3130,13 +3128,6 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
       "error": "",
       "last_successfull": 1599612283,
       "start": 1599602701,
-      "status": "Success"
-    },
-    "openconfigPullLocal": {
-      "end": 1599613583,
-      "error": "",
-      "last_successfull": 1599613583,
-      "start": 1599613501,
       "status": "Success"
     },
     "recovery": {
