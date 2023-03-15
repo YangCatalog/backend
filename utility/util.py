@@ -304,6 +304,8 @@ def get_list_of_backups(directory: str) -> list[str]:
         :return (list[str]) sorted list of file/directory names
     """
     dates: t.List[str] = []
+    if not os.path.exists(directory):
+        return dates
     for name in os.listdir(directory):
         try:
             i = name.index('.')
