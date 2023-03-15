@@ -32,6 +32,12 @@ BLOCK_SIZE = 65536  # The size of each read from the file
 
 
 @dataclass
+class SdoHashCheck:
+    hash_changed: bool
+    was_parsed_previously: bool
+
+
+@dataclass
 class VendorModuleHashCheckForParsing:
     file_hash_exists: bool
     new_implementations_detected: bool
@@ -163,24 +169,24 @@ class FileHasher:
         validators = {'pyang_version': pyang.__version__}
         return json.dumps(validators).encode('utf-8')
 
-    def should_parse_sdo_module(self, path: str) -> bool:
+    def should_parse_sdo_module(self, new_path: str, accepted_path: str) -> SdoHashCheck:
         """
         Decide whether SDO module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Argument:
-            :param path     (str) Full path to the file to be hashed
-            :rtype           bool
+            :param new_path         (str) Full path to the file to be hashed
+            :param accepted_path    (str) Path to the currently accepted version of the module
         """
-        file_hash = self.hash_file(path)
+        file_hash = self.hash_file(new_path)
         if not file_hash:
-            return False
-        hashes = self.files_hashes.get(path, {})
+            return SdoHashCheck(True, False)
+        hashes = self.files_hashes.get(accepted_path, {})
         if file_hash not in hashes:
-            self.updated_hashes.setdefault(path, {})[file_hash] = []  # empty implementations
-            return True
+            self.updated_hashes.setdefault(accepted_path, {})[file_hash] = []  # empty implementations
+            return SdoHashCheck(True, bool(hashes))
 
-        return self.disabled
+        return SdoHashCheck(self.disabled, bool(hashes))
 
     def check_vendor_module_hash_for_parsing(
         self,
@@ -198,6 +204,7 @@ class FileHasher:
         file_hash = self.hash_file(path)
         if not file_hash:
             # So we assume that there are no new implementations for this vendor module and there's no need to parse it
+            # This should be impossible really, since the path always comes from get_yang()
             return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=False)
 
         implementation_keys = implementation_keys if implementation_keys is not None else []

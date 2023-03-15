@@ -66,6 +66,7 @@ def run_populate_script(directory: str, notify: bool, logger: logging.Logger) ->
         script_conf.args.__setattr__('sdo', True)
         script_conf.args.__setattr__('dir', directory)
         script_conf.args.__setattr__('notify_indexing', notify)
+        script_conf.args.__setattr__('official_source', 'ietf')
         logger.info(f'Running populate.py script over {directory}')
         submodule.main(script_conf=script_conf)
     except Exception:

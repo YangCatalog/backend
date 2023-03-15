@@ -167,6 +167,7 @@ class Populate:
                 ('api', self.args.api),
                 ('sdo', self.args.sdo),
                 ('save_file_hash', not self.args.force_parsing),
+                ('official_source', self.args.official_source),
             )
             for attr, value in options:
                 setattr(script_conf.args, attr, value)
