@@ -23,7 +23,7 @@ from datetime import datetime
 
 from utility.create_config import create_config
 from utility.scriptConfig import Arg
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 
 
 class BaseScriptConfigInfo(t.TypedDict):
@@ -371,7 +371,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                     'Default name is current UTC datetime.'
                 ),
                 'type': str,
-                'default': datetime.utcnow().strftime(backup_date_format),
+                'default': datetime.utcnow().strftime(BACKUP_DATE_FORMAT),
             },
         ],
     },
