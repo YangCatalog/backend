@@ -38,7 +38,7 @@ from pyang import plugin
 from pyang.plugins.check_update import check_update
 
 from utility.create_config import create_config
-from utility.staticVariables import JobLogStatuses, backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT, JobLogStatuses
 from utility.yangParser import create_context
 
 single_line_re = re.compile(r'//.*')
@@ -309,7 +309,7 @@ def get_list_of_backups(directory: str) -> list[str]:
         try:
             i = name.index('.')
             root = name[:i]
-            datetime.strptime(root, backup_date_format)
+            datetime.strptime(root, BACKUP_DATE_FORMAT)
             if os.stat(os.path.join(directory, name)).st_size == 0:
                 continue
             dates.append(name)

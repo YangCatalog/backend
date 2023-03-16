@@ -33,7 +33,7 @@ import utility.log as log
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 from utility.util import get_list_of_backups, job_log
 
 BASENAME = os.path.basename(__file__)
@@ -97,7 +97,7 @@ class RedisUsersRecovery:
             if cursor == 0:
                 break
         os.makedirs(self.backups, exist_ok=True)
-        self.args.file = self.args.file or datetime.datetime.utcnow().strftime(backup_date_format)
+        self.args.file = self.args.file or datetime.datetime.utcnow().strftime(BACKUP_DATE_FORMAT)
         self.args.file = f'{self.args.file}.json'
         with open(os.path.join(self.backups, self.args.file), 'w') as f:
             json.dump(data, f)

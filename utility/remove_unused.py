@@ -34,7 +34,7 @@ from datetime import datetime as dt
 import utility.log as log
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.create_config import create_config
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 from utility.util import get_list_of_backups, job_log
 
 DAY = 86400
@@ -128,6 +128,9 @@ def main():
 
         logger.info('Removing old cache json files')
         remove_old_backups(os.path.join(cache_directory, 'confd'))
+        remove_old_backups(os.path.join(cache_directory, 'redis'))
+        remove_old_backups(os.path.join(cache_directory, 'redis-json'))
+        remove_old_backups(os.path.join(cache_directory, 'redis-users'))
     except Exception as e:
         logger.exception('Exception found while running remove_unused script')
         raise e
@@ -170,7 +173,7 @@ def remove_old_backups(backup_directory: str):
 
     today = dt.now()
     for backup in list_of_backups:
-        backup_dt = dt.strptime(backup[: backup.index('.')], backup_date_format)
+        backup_dt = dt.strptime(backup[: backup.index('.')], BACKUP_DATE_FORMAT)
         month_difference = diff_month(today, backup_dt)
         if month_difference > 6:
             to_remove.append(backup)
@@ -192,14 +195,17 @@ def remove_old_backups(backup_directory: str):
                     to_remove.append(backup)
                 else:
                     to_remove.append(last_two_months[currently_processed_backup_hash])
-            last_two_months[currently_processed_backup_hash] = backup
+                    last_two_months[currently_processed_backup_hash] = backup
+            else:
+                last_two_months[currently_processed_backup_hash] = backup
     for backup in to_remove:
         backup_path = os.path.join(backup_directory, backup)
-        if backup_path != latest_backup:
-            if os.path.isdir(backup_path):
-                shutil.rmtree(backup_path)
-            elif os.path.isfile(backup_path):
-                os.unlink(backup_path)
+        if backup_path == latest_backup:
+            continue
+        if os.path.isdir(backup_path):
+            shutil.rmtree(backup_path)
+        elif os.path.isfile(backup_path):
+            os.unlink(backup_path)
 
 
 def hash_node(path: str) -> bytes:

@@ -29,7 +29,7 @@ import sys
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -48,7 +48,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     es_snapshots_manager.create_snapshot_repository(args.compress)
 
     if args.save:
-        args.file = args.file or datetime.datetime.utcnow().strftime(backup_date_format)
+        args.file = args.file or datetime.datetime.utcnow().strftime(BACKUP_DATE_FORMAT)
         es_snapshots_manager.create_snapshot(args.file)
     elif args.load:
         if args.file:

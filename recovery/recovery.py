@@ -38,7 +38,7 @@ from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 from utility.util import JobLogMessage, get_list_of_backups, job_log
 
 BASENAME = os.path.basename(__file__)
@@ -94,7 +94,7 @@ class BackupDatabaseData(Recovery):
         self.process_type = 'save'
 
     def _start_process(self):
-        self.args.file = self.args.file or datetime.utcnow().strftime(backup_date_format)
+        self.args.file = self.args.file or datetime.utcnow().strftime(BACKUP_DATE_FORMAT)
         os.makedirs(self.redis_backups, exist_ok=True)
         self._backup_redis_rdb_file()
         self._backup_redis_modules()
