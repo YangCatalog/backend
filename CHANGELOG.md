@@ -1,5 +1,11 @@
 ## Backend Release Notes
 
+* ##### v5.10.1 - 2023-03-20
+
+  * Cache directory cleaning improved [#751](https://github.com/YangCatalog/backend/issues/751)
+  * PermissionDenied error handling in remove_unused.py script [#745](https://github.com/YangCatalog/backend/issues/745)
+  * Prefering SDO modules from official source [#735](https://github.com/YangCatalog/backend/issues/735)
+
 * ##### v5.10.0 - 2023-03-07
 
   * draftPull.py and ianaPull.py moved to the automatic_push dir [#731](https://github.com/YangCatalog/backend/issues/731)
