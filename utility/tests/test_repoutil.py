@@ -21,8 +21,6 @@ import logging
 import os
 import unittest
 
-from git.exc import GitCommandError
-
 import utility.repoutil as ru
 from utility.create_config import create_config
 
@@ -49,17 +47,17 @@ class TestRepoutil(unittest.TestCase):
             cls.token = create_config().get('Secrets-Section', 'yang-catalog-token')
 
     def setUp(self):
-        self.repo = ru.ModifiableRepoUtil(
+        self.repo = ru.RepoUtil.clone(
             self.repourl,
+            temp=True,
             clone_options={'config_username': self.myname, 'config_user_email': self.myemail},
         )
-        self.repo.logger = self.logger
 
     def test_pull(self):
         ru.pull(self.repo.local_dir)
 
     def test_load(self):
-        repo = ru.load(self.repo.local_dir, self.repo.url)
+        repo = ru.RepoUtil.load(self.repo.local_dir, self.repo.url, True)
 
         self.assertEqual(repo.url, self.repo.url)
 
@@ -71,10 +69,6 @@ class TestRepoutil(unittest.TestCase):
         with self.repo.repo.config_reader() as config:
             self.assertEqual(config.get_value('user', 'email'), self.myemail)
             self.assertEqual(config.get_value('user', 'name'), self.myname)
-
-    def test_clone_invalid_url(self):
-        with self.assertRaises(GitCommandError):
-            ru.ModifiableRepoUtil('https://github.com/yang-catalog/fake')
 
     def test_del(self):
         self.assertTrue(os.path.exists(self.repo.local_dir))

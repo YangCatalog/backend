@@ -19,15 +19,12 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
-import logging
 import os
 import shutil
 import tempfile
-import time
 import typing as t
 
 import requests
-from git import GitCommandError
 from git.cmd import Git
 from git.exc import InvalidGitRepositoryError
 from git.repo import Repo
@@ -58,64 +55,70 @@ class RepoUtil:
     def __init__(
         self,
         repourl: str,
-        clone: bool = True,
-        clone_options: t.Optional[CloneOptions] = None,
-        logger: t.Optional[logging.Logger] = None,
+        temp: bool = True,
     ):
         """
+        For internal use only, for creating RepoUtil objects, use the load or clone class methods.
+
         Arguments:
             :param repourl          (str) URL of the repository
-            :param clone            (bool) Should always be set to True. To load a repository
-                                           which has already been cloned, see  the load() function.
-            :param clone_options    (Optional[CloneOptions]) May contain the information for the repository cloning
-            :param logger           (Optional[Logger])
+            :param temp             (bool) Delete directory when the RepoUtil object is deleted
         """
+        self.temp = temp
         self.url = repourl
-        self.logger = logger
-        clone_options = clone_options or self.CloneOptions()
-        if clone:
-            self._clone(clone_options)
         self.previous_active_branch: t.Optional[str] = None
 
-    def _clone(self, clone_options: CloneOptions):
+    @classmethod
+    def clone(
+        cls,
+        repourl: str,
+        temp: bool,
+        clone_options: t.Optional[CloneOptions] = None,
+    ) -> 'RepoUtil':
         """
         Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
         Arguments:
-            :param clone_options  (CloneOptions) Data for the repository cloning
+            :param repourl          (str) URL of the repository
+            :param temp             (bool) Delete directory when the RepoUtil object is deleted
+            :param clone_options    (CloneOptions) Data for the repository cloning
         """
+        clone_options = clone_options or cls.CloneOptions()
+        repoutil = cls(repourl, temp)
         if local_dir := clone_options.get('local_dir'):
-            self.local_dir = local_dir
+            repoutil.local_dir = local_dir
         else:
-            self.local_dir = tempfile.mkdtemp()
+            repoutil.local_dir = tempfile.mkdtemp()
         multi_options = ['--recurse-submodules'] if clone_options.setdefault('recurse_submodules', True) else None
-        self.repo = Repo.clone_from(self.url, self.local_dir, multi_options=multi_options)
+        repoutil.repo = Repo.clone_from(repoutil.url, repoutil.local_dir, multi_options=multi_options)
         if config_username := clone_options.get('config_username'):
-            with self.repo.config_writer() as config:
+            with repoutil.repo.config_writer() as config:
                 config.set_value('user', 'email', clone_options.get('config_user_email'))
                 config.set_value('user', 'name', config_username)
+        return repoutil
 
+    @classmethod
+    def load(cls, repo_dir: str, repo_url: str, temp: bool) -> 'RepoUtil':
+        """
+        Load git repository from a local directory into a Python object.
 
-# This probably isn't worth it's own class anymore
-class ModifiableRepoUtil(RepoUtil):
-    """
-    RepoUtil subclass with methods for manipulating the repository.
-    The repository directory is automatically removed on object deletion.
-    """
-
-    def __init__(
-        self,
-        repourl: str,
-        clone: bool = True,
-        clone_options: t.Optional[RepoUtil.CloneOptions] = None,
-        logger: t.Optional[logging.Logger] = None,
-    ):
-        super().__init__(repourl, clone, clone_options, logger)
+        Arguments:
+            :param repo_dir    (str) directory where .git file is located
+            :param repo_url    (str) url to GitHub repository
+            :param temp             (bool) Delete directory when the RepoUtil object is deleted
+        """
+        repoutil = cls(repo_url, temp)
+        try:
+            repoutil.repo = Repo(repo_dir)
+        except InvalidGitRepositoryError:
+            raise InvalidGitRepositoryError(repo_dir)
+        repoutil.local_dir = repo_dir
+        return repoutil
 
     def __del__(self):
         """Remove the temporary storage."""
-        if os.path.isdir(self.local_dir):
+        if self.temp and os.path.isdir(self.local_dir):
             shutil.rmtree(self.local_dir)
 
 
@@ -141,55 +144,6 @@ def construct_github_repo_url(user: str, repo: str, token: t.Optional[str] = Non
     return f'https://github.com/{user}/{repo}.git'
 
 
-def clone_repo(
-    repo_url: str,
-    clone_options: RepoUtil.CloneOptions,
-    logger: logging.Logger,
-) -> t.Optional[ModifiableRepoUtil]:
-    """
-    Tries to clone a repository. Repeat the cloning process several times if the attempt was not successful.
-
-    Arguments:
-        :param repo_url          (str) URL to the GitHub repository
-        :param clone_options    (dict) Dictionary that contains information about the author of the commit
-        :param logger           (logging.Logger) formated logger with the specified name
-    """
-    attempts = 3
-    wait_for_seconds = 30
-    repo_name = repo_url.split('github.com/')[-1].split('.git')[0]
-    while True:
-        try:
-            logger.info(f'Cloning repository from: {repo_url}')
-            repo = ModifiableRepoUtil(repo_url, clone_options=clone_options)
-            logger.info(f'Repository cloned to local directory {repo.local_dir}')
-            break
-        except GitCommandError:
-            attempts -= 1
-            logger.warning(f'Unable to clone {repo_name} repository - waiting for {wait_for_seconds} seconds')
-            if attempts == 0:
-                logger.exception(f'Failed to clone repository {repo_name}')
-                return
-            time.sleep(wait_for_seconds)
-    return repo
-
-
-def load(repo_dir: str, repo_url: str) -> RepoUtil:
-    """
-    Load git repository from a local directory into a Python object.
-
-    Arguments:
-        :param repo_dir    (str) directory where .git file is located
-        :param repo_url    (str) url to GitHub repository
-    """
-    repo = (RepoUtil if 'yangmodels/yang' in repo_dir else ModifiableRepoUtil)(repo_url, clone=False)
-    try:
-        repo.repo = Repo(repo_dir)
-    except InvalidGitRepositoryError:
-        raise InvalidGitRepositoryError(repo_dir)
-    repo.local_dir = repo_dir
-    return repo
-
-
 class PullRequestCreationDetail(t.TypedDict, total=False):
     """
     Additional data to send for a PullRequest creation, detail information about each param can be found here:
@@ -202,8 +156,6 @@ class PullRequestCreationDetail(t.TypedDict, total=False):
     maintainer_can_modify: bool
     draft: bool
     issue: int
-    head: str
-    base: str
 
 
 def create_pull_request(
@@ -233,13 +185,13 @@ def create_pull_request(
     """
     headers = headers or {}
     headers['accept'] = 'application/vnd.github+json'
-    request_body = request_body or PullRequestCreationDetail()
-    request_body['head'] = head_branch
-    request_body['base'] = base_branch
+    request_body_dict = dict(request_body or PullRequestCreationDetail())
+    request_body_dict['head'] = head_branch
+    request_body_dict['base'] = base_branch
     return requests.post(
         f'https://api.github.com/repos/{owner}/{repo}/pulls',
         headers=headers,
-        data=json.dumps(request_body),
+        data=json.dumps(request_body_dict),
     )
 
 
@@ -252,7 +204,7 @@ class PullRequestApprovingDetail(t.TypedDict, total=False):
     commit_id: str
     body: str
     comments: list[dict]
-    event: str
+    event: t.Literal['APPROVE']
 
 
 def approve_pull_request(

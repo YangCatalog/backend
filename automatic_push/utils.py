@@ -30,7 +30,6 @@ from dataclasses import dataclass
 from git import GitCommandError, Repo
 
 from utility import repoutil, yangParser
-from utility.staticVariables import github_url
 from utility.util import revision_to_date
 
 
@@ -56,9 +55,9 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
         :param logger           (logging.Logger) formated logger with the specified name
     """
     try:
-        main_repo = repoutil.load(yang_models, f'{github_url}/YangModels/yang.git')
+        main_repo = Repo(yang_models)
         try:
-            fork = main_repo.repo.remote('fork')
+            fork = main_repo.remote('fork')
         except ValueError:
             git_config_lock_file = os.path.join(yang_models, '.git', 'config.lock')
             if os.path.exists(git_config_lock_file):
@@ -67,7 +66,7 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
             repo_token = config.get('Secrets-Section', 'yang-catalog-token')
             repo_owner = config.get('General-Section', 'repository-username')
             forked_repo_url = repoutil.construct_github_repo_url(repo_owner, repo_name, repo_token)
-            fork = main_repo.repo.create_remote('fork', forked_repo_url)
+            fork = main_repo.create_remote('fork', forked_repo_url)
             os.mknod(git_config_lock_file)
 
         # git push fork main

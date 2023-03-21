@@ -34,6 +34,7 @@ from api.authentication.auth import auth
 from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
+from utility.repoutil import RepoUtil
 from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
 from utility.util import hash_pw
 
@@ -276,7 +277,7 @@ def add_modules():
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
-    repos: t.Dict[str, repoutil.RepoUtil] = {}
+    repos: t.Dict[str, RepoUtil] = {}
     warning = []
     missing_msg = 'bad request - at least one module object is missing mandatory field {}'
     for module in module_list:
@@ -435,7 +436,7 @@ def add_vendors():
         if e.errno != errno.EEXIST:
             raise
 
-    repos: t.Dict[str, repoutil.RepoUtil] = {}
+    repos: t.Dict[str, RepoUtil] = {}
     missing_msg = 'bad request - at least one platform object is missing mandatory field {}'
     for platform in platform_list:
         module_list_file = platform.get('module-list-file')
@@ -604,20 +605,19 @@ def organization_by_namespace(namespace: str):
     return ''
 
 
-def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
+def get_repo(repo_url: str, owner: str, repo_name: str) -> RepoUtil:
     if owner == 'YangModels' and repo_name == 'yang':
         app.logger.info('Using repo already downloaded from {}'.format(repo_url))
         repoutil.pull(ac.d_yang_models_dir)
         try:
-            yang_models_repo = repoutil.load(ac.d_yang_models_dir, github_url)
+            yang_models_repo = RepoUtil.load(ac.d_yang_models_dir, github_url, temp=False)
         except InvalidGitRepositoryError:
             raise Exception("Couldn't load YangModels/yang from directory")
         return yang_models_repo
     else:
         app.logger.info('Downloading repo {}'.format(repo_url))
         try:
-            repo = repoutil.ModifiableRepoUtil(repo_url)
-            return repo
+            return RepoUtil.clone(repo_url, temp=True)
         except GitCommandError as e:
             abort(
                 400,
