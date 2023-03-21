@@ -111,18 +111,15 @@ class ElkSearch:
                 bool_subquery = should_query
             string = sub.string
 
-            def query_type():
-                nonlocal string
-                ret = 'regex' if getattr(sub, 'regex', False) else 'term'
-                if ret == 'regex':
-                    string = _escape_reserved_characters(string)
-                return ret
+            selected_query_type = 'regexp' if getattr(sub, 'regex', False) else 'term'
+            if selected_query_type == 'regexp':
+                string = _escape_reserved_characters(string)
 
             sub_type = type(sub)
             field = sub.field
             assert sub_type is not sp.Subquery
             if sub_type in (sp.Name, sp.ModuleName):
-                bool_subquery.append({query_type(): {field: {'value': string}}})
+                bool_subquery.append({selected_query_type: {field: {'value': string}}})
             elif sub_type in (sp.Revision, sp.Organization, sp.Maturity):
                 bool_subquery.append({'term': {field: {'value': string}}})
             elif isinstance(sub, sp.Path):
@@ -130,7 +127,7 @@ class ElkSearch:
             elif isinstance(sub, sp.Description):
                 case_insensitive = sub.case_insensitive
                 use_synonyms = sub.use_synonyms
-                if query_type == 'regex':
+                if selected_query_type == 'regexp':
                     bool_subquery.append(
                         {
                             'regexp': {
