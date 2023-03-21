@@ -292,18 +292,20 @@ def remove_worktree(worktree_dir: str):
     Git(worktree_dir).worktree('remove', '.')
 
 
-class WorktreeManager:
+class ModuleDirectoryManager:
     def __init__(self):
-        self._worktrees = {}
+        self._module_directories = {}
 
     def __enter__(self):
         return self
 
     def __exit__(self, *exc_info):
-        for worktree in self._worktrees.values():
-            remove_worktree(worktree)
+        for module_dir in self._module_directories.values():
+            shutil.rmtree(module_dir)
 
     def __getitem__(self, repo_dir: str):
-        if repo_dir not in self._worktrees:
-            self._worktrees[repo_dir] = add_worktree(repo_dir)
-        return self._worktrees[repo_dir]
+        if repo_dir not in self._module_directories:
+            temp_dir = tempfile.mkdtemp()
+            shutil.copytree(repo_dir, temp_dir)
+            self._module_directories[repo_dir] = temp_dir
+        return self._module_directories[repo_dir]

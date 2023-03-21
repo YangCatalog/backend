@@ -30,7 +30,7 @@ import os
 
 import utility.log as log
 from utility.create_config import create_config
-from utility.repoutil import WorktreeManager
+from utility.repoutil import ModuleDirectoryManager
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.util import JobLogMessage, job_log
@@ -104,7 +104,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
     notify_indexing = notify_indexing == 'True'
     success = True
 
-    with WorktreeManager() as worktrees:
+    with ModuleDirectoryManager() as module_dirs:
         try:
             for repo, path_in_repo, label in (
                 (yang_models_dir, 'standard/ietf/RFC', 'Standard RFC modules'),
@@ -112,7 +112,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
                 (yang_models_dir, 'standard/iana', 'IANA modules'),
                 (openconfig_dir, '', 'OpenConfig modules'),
             ):
-                full_path = os.path.join(worktrees[repo], path_in_repo)
+                full_path = os.path.join(module_dirs[repo], path_in_repo)
                 directory_success, message = populate_directory(full_path, notify_indexing, logger)
                 success &= directory_success
                 messages.append({'label': label, 'message': message})
