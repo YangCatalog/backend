@@ -34,7 +34,7 @@ from api.authentication.auth import auth
 from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
-from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
+from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
 from utility.util import hash_pw
 
 
@@ -76,8 +76,6 @@ def set_config():
 
 @bp.route('/register-user', methods=['POST'])
 def register_user():
-    if not request.json:
-        abort(400, description='bad request - no data received')
     body = request.json
     for data in [
         'username',
@@ -142,13 +140,10 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     if all((name, revision, organization)):
         input_modules = [{'name': name, 'revision': revision, 'organization': organization}]
     else:
-        if not request.json:
-            abort(400, description='Missing input data to know which modules we want to delete')
         rpc = request.json
-        if rpc.get('input'):
-            input_modules = rpc['input'].get('modules', [])
-        else:
-            abort(404, description="Data must start with 'input' root element in json")
+        if not rpc.get('input'):
+            abort(404, description='Data must start with "input" root element in json')
+        input_modules = rpc['input'].get('modules', [])
 
     assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
@@ -249,12 +244,6 @@ def add_modules():
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
-    if not request.json:
-        abort(
-            400,
-            description='bad request - you need to input json body that conforms with'
-            ' module-metadata.yang module. Received no json',
-        )
     body = request.json
     modules_cont = body.get('modules')
     if modules_cont is None:
@@ -263,7 +252,7 @@ def add_modules():
     if module_list is None:
         abort(400, description='bad request - "module" json list is missing and is mandatory')
 
-    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
     if not os.path.exists(ac.d_save_requests):
         os.mkdir(ac.d_save_requests)
     with open(dst_path, 'w') as f:
@@ -324,9 +313,6 @@ def add_modules():
         if repo_url not in repos:
             repos[repo_url] = get_repo(repo_url, owner, repo_name)
 
-        # needed to later construct the schema
-        source_file['commit-hash'] = repos[repo_url].get_commit_hash(branch=source_file.get('branch', 'HEAD'))
-
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
         try:
             os.makedirs(save_to)
@@ -339,7 +325,9 @@ def add_modules():
         except FileNotFoundError:
             app.logger.exception('Problem with file {}'.format(module_path))
             warning.append(
-                '{} does not exist'.format(os.path.join(repo_url, 'blob', source_file['commit-hash'], module_path)),
+                '{} does not exist'.format(
+                    os.path.join(repo_url, 'blob', source_file.get('branch', 'HEAD'), module_path),
+                ),
             )
             continue
 
@@ -349,12 +337,12 @@ def add_modules():
             namespace = yangParser.parse(path_to_parse).search('namespace')[0].arg
             organization_parsed = organization_by_namespace(namespace)
         except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
-            while True:
-                try:
-                    path_to_parse = os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))
-                    belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
-                except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
-                    break
+            try:
+                path_to_parse = os.path.abspath(os.path.join(repos[repo_url].local_dir, module_path))
+                belongs_to = yangParser.parse(path_to_parse).search('belongs-to')[0].arg
+            except (yangParser.ParseException, FileNotFoundError, IndexError, AttributeError):
+                pass
+            else:
                 namespace = (
                     yangParser.parse(
                         os.path.abspath(
@@ -365,7 +353,6 @@ def add_modules():
                     .arg
                 )
                 organization_parsed = organization_by_namespace(namespace)
-                break
         resolved_authorization = authorize_for_sdos(request, organization_sent, organization_parsed)
         if not resolved_authorization:
             shutil.rmtree(direc)
@@ -391,7 +378,7 @@ def add_modules():
     if len(warning) > 0:
         return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
     else:
-        return ({'info': 'Verification successful', 'job-id': job_id}, 202)
+        return {'info': 'Verification successful', 'job-id': job_id}, 202
 
 
 @bp.route('/platforms', methods=['PUT', 'POST'])
@@ -408,14 +395,7 @@ def add_vendors():
     :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
-    if not request.json:
-        abort(
-            400,
-            description='bad request - you need to input json body that conforms with'
-            ' platform-implementation-metadata.yang module. Received no json',
-        )
     body = request.json
-
     platforms_contents = body.get('platforms')
     if platforms_contents is None:
         abort(400, description='bad request - "platforms" json object is missing and is mandatory')
@@ -429,7 +409,7 @@ def add_vendors():
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
 
-    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
     if not os.path.exists(ac.d_save_requests):
         os.mkdir(ac.d_save_requests)
     with open(dst_path, 'w') as f:
@@ -482,9 +462,6 @@ def add_vendors():
         if repo_url not in repos:
             repos[repo_url] = get_repo(repo_url, owner, repo_name)
 
-        # needed to later construct the schema
-        module_list_file['commit-hash'] = repos[repo_url].get_commit_hash(branch=module_list_file.get('branch', 'HEAD'))
-
         save_to = os.path.join(direc, owner, repo_name.split('.')[0], dir_in_repo)
 
         try:
@@ -512,7 +489,7 @@ def add_vendors():
     ]
     job_id = ac.sender.send('#'.join(arguments))
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
-    return ({'info': 'Verification successful', 'job-id': job_id}, 202)
+    return {'info': 'Verification successful', 'job-id': job_id}, 202
 
 
 @bp.route('/job/<job_id>', methods=['GET'])

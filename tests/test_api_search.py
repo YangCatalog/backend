@@ -163,7 +163,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'body of request is empty')
+        self.assertEqual(
+            data['description'],
+            'The browser (or proxy) sent a request that this server could not understand.',
+        )
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_rpc_search_get_one_no_input(self):
@@ -405,7 +408,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'body of request is empty')
+        self.assertEqual(
+            data['description'],
+            'The browser (or proxy) sent a request that this server could not understand.',
+        )
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_get_common_no_input(self):
@@ -493,7 +499,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'body of request is empty')
+        self.assertEqual(
+            data['description'],
+            'The browser (or proxy) sent a request that this server could not understand.',
+        )
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_compare_no_input(self):
@@ -610,7 +619,10 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.content_type, 'application/json')
         self.assertIn('description', data)
         self.assertIn('error', data)
-        self.assertEqual(data['description'], 'body of request is empty')
+        self.assertEqual(
+            data['description'],
+            'The browser (or proxy) sent a request that this server could not understand.',
+        )
         self.assertEqual(data['error'], 'YangCatalog did not understand the message you have sent')
 
     def test_check_semver_no_input(self):

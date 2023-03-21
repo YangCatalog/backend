@@ -80,10 +80,11 @@ github_url = 'https://github.com'
 GITHUB_RAW = 'https://raw.githubusercontent.com'
 github_api = 'https://api.github.com'
 MISSING_ELEMENT = 'missing element'
-backup_date_format = '%Y-%m-%d_%H:%M:%S-UTC'
+BACKUP_DATE_FORMAT = '%Y-%m-%d_%H:%M:%S-UTC'
 
-SDOS = ['bbf', 'etsi', 'iana', 'ieee', 'ietf', 'mef', 'odp']
+SDOS = ['bbf', 'etsi', 'ieee', 'ietf', 'mef', 'opendaylight', 'openconfig']
 ORGANIZATIONS = [
+    'mef',
     'ietf',
     'ieee',
     'etsi',

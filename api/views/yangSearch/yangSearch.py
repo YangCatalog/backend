@@ -24,6 +24,7 @@ import typing as t
 from logging import Logger
 from urllib import parse as urllib_parse
 
+from flask import Response
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.helpers import make_response
@@ -144,7 +145,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
 
         if revision is None:
             # get the latest revision of provided module
-            revision = revisions[0]
+            revision = revisions[0]['revision']
 
         path_to_yang = f'{app_config.d_save_file_dir}/{module_name}@{revision}.yang'
         plugin.plugins = []
@@ -317,6 +318,8 @@ def search():
     elk_search.construct_query()
     response = {}
     response['rows'], response['max-hits'] = elk_search.search()
+    if payload.get('sub-search'):
+        response['max-hits'] = False
     response['warning'] = elk_search.alerts()
     response['timeout'] = elk_search.timeout
     return response
@@ -464,6 +467,7 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
 
     elk_response = get_modules_revision_organization(module, None, warnings)
+
     if 'warning' in elk_response:
         return elk_response
     revisions, organization = elk_response
@@ -473,8 +477,7 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(404, description='Provided module does not exist')
 
     # get the latest revision of provided module if revision not defined
-    revision = revisions[0] if not revision else revision
-
+    revision = revisions[0]['revision'] if not revision else revision
     response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
 
     # get module from Redis
@@ -487,6 +490,26 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
     module_data = json.loads(module_data)
     response['metadata'] = module_data
     return response
+
+
+@bp.route('/draft-code-snippets/<draft_name>', methods=['GET'])
+def get_draft_code_snippets(draft_name: str) -> Response:
+    """
+    Arguments:
+        :param draft_name (str) name of the draft/RFC which code snippets should be returned,
+        name should look like this: rfc7533.txt
+    :return Returns a list of draft/RFC code snippets' urls
+    """
+    code_snippets_directory = app_config.w_code_snippets_directory
+    draft_code_snippets_directory = os.path.join(code_snippets_directory, os.path.splitext(draft_name)[0])
+    if not os.path.exists(draft_code_snippets_directory):
+        return jsonify([])
+    domain_prefix = app_config.w_domain_prefix
+    public_directory = app_config.w_public_directory
+    draft_code_snippets_directory_relpath = os.path.relpath(draft_code_snippets_directory, public_directory)
+    draft_code_snippets_url = f'{domain_prefix}/{draft_code_snippets_directory_relpath}'
+    response = [f'{draft_code_snippets_url}/{filename}' for filename in os.listdir(draft_code_snippets_directory)]
+    return jsonify(response)
 
 
 @bp.route('/yang-catalog-help', methods=['GET'])
@@ -573,16 +596,22 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.YINDEX, module_name)
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.AUTOCOMPLETE, module)
+            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
 
         organization = hits[0]['_source']['organization']
         revisions = []
         for hit in hits:
             hit = hit['_source']
-            revisions.append(hit['revision'])
+            revision = hit['revision']
+            revision_mat_level = {
+                'revision': revision,
+                'is_rfc': hit['rfc'] if 'rfc' in hit else False,
+            }
+            if revision_mat_level not in revisions:
+                revisions.append(revision_mat_level)
         return revisions, organization
     except IndexError:
         name_rev = f'{module_name}@{revision}' if revision else module_name

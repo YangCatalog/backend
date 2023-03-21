@@ -46,11 +46,11 @@ from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgo
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
+from utility.elasticsearch_util import ESIndexingPaths, prepare_for_es_indexing, send_for_es_indexing
 from utility.message_factory import MessageFactory
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import json_headers
-from utility.util import prepare_for_es_indexing, send_for_es_indexing
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -167,6 +167,7 @@ class Populate:
                 ('api', self.args.api),
                 ('sdo', self.args.sdo),
                 ('save_file_hash', not self.args.force_parsing),
+                ('official_source', self.args.official_source),
             )
             for attr, value in options:
                 setattr(script_conf.args, attr, value)
@@ -206,12 +207,12 @@ class Populate:
         if not body_to_send:
             return
         self.logger.info('Sending files for indexing')
-        indexing_paths = {
-            'cache_path': self.changes_cache_path,
-            'deletes_path': self.delete_cache_path,
-            'failed_path': self.failed_changes_cache_path,
-            'lock_path': self.lock_file,
-        }
+        indexing_paths = ESIndexingPaths(
+            cache_path=self.changes_cache_path,
+            deletes_path=self.delete_cache_path,
+            failed_path=self.failed_changes_cache_path,
+            lock_path=self.lock_file,
+        )
         send_for_es_indexing(body_to_send, self.logger, indexing_paths)
 
     def _reload_cache_in_parallel(self):
@@ -260,7 +261,7 @@ class Populate:
             not self.args.force_parsing,
             self.log_directory,
         )
-        updated_hashes = file_hasher.load_hashed_files_list(path)
+        updated_hashes = file_hasher.load_hashed_files_data(path)
         if updated_hashes:
             file_hasher.merge_and_dump_hashed_files_list(updated_hashes)
 

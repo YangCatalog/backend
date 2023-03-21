@@ -1,5 +1,23 @@
 ## Backend Release Notes
 
+* ##### v5.10.1 - 2023-03-20
+
+  * Cache directory cleaning improved [#751](https://github.com/YangCatalog/backend/issues/751)
+  * PermissionDenied error handling in remove_unused.py script [#745](https://github.com/YangCatalog/backend/issues/745)
+  * Prefering SDO modules from official source [#735](https://github.com/YangCatalog/backend/issues/735)
+
+* ##### v5.10.0 - 2023-03-07
+
+  * draftPull.py and ianaPull.py moved to the automatic_push dir [#731](https://github.com/YangCatalog/backend/issues/731)
+  * Logic for maintaining GitHub schema URLs removed [#722](https://github.com/YangCatalog/backend/issues/722)
+  * Refactor: multiple TypeDict-s and dataclasses added [#693](https://github.com/YangCatalog/backend/issues/693)
+  * Leap year replacementes in revision dates removed [#741](https://github.com/YangCatalog/backend/issues/741)
+  * GitPython package version updated [#724](https://github.com/YangCatalog/backend/issues/724)
+  * SDO organizations list updated [#733](https://github.com/YangCatalog/backend/issues/733)
+  * New script: automatically push new RFC modules [#740](https://github.com/YangCatalog/backend/issues/740)
+  * New endpoint: fetching code snippets found in documents [#723](https://github.com/YangCatalog/backend/issues/723)
+  * Hiding modules from old drafts in impact analysis [#704](https://github.com/YangCatalog/backend/issues/704)
+
 * ##### v5.9.0 - 2023-01-26
 
   * Bugfix: Minor fix to the create_admin.py script [#713](https://github.com/YangCatalog/backend/issues/713)

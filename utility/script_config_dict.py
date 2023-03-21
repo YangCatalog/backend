@@ -23,7 +23,7 @@ from datetime import datetime
 
 from utility.create_config import create_config
 from utility.scriptConfig import Arg
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 
 
 class BaseScriptConfigInfo(t.TypedDict):
@@ -52,12 +52,13 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'draftPull': {
+    'ietf_push': {
         'help': (
-            ' Pull the latest IETF files and add any new IETF draft files to GitHub. Remove old files and ensure all '
-            'filenames have a <name>@<revision>.yang format. If there are new RFC files, produce an automated message '
-            'that will be sent to the Cisco Webex Teams and admin emails notifying that these need to be added to the '
-            'YangModels/yang GitHub repository manually. This script runs as a daily cronjob. '
+            'Script automatically pushes new IETF RFC and draft yang modules to the GitHub repository:'
+            'https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to '
+            '<name>@<revision>.yang. An e-mail with information about local update of new RFCs is sent to '
+            'yangcatalog admin users if there are files to update. Message about new RFC yang modules '
+            'is also sent to the Cisco Webex Teams, room: YANG Catalog Admin.'
         ),
         'args': [
             {
@@ -74,7 +75,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'draftPullLocal': {
+    'pull_local': {
         'help': (
             'Run populate script on all ietf RFC and DRAFT files to parse all ietf modules and populate the '
             'metadata to yangcatalog if there are any new. This runs as a daily cronjob'
@@ -88,8 +89,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'ianaPull': {
-        'help': 'Pull the latest IANA-maintained files and add them to the Github if there are any new.',
+    'iana_push': {
+        'help': (
+            'Script automatically pushes new IANA-maintained yang modules to the GitHub repository:'
+            'https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to '
+            '<name>@<revision>.yang.'
+        ),
         'args': [
             {
                 'flag': '--config-path',
@@ -176,6 +181,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'default': '/var/yang/all_modules',
             },
             {
+                'flag': '--official-source',
+                'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
+                'type': str,
+                'default': '',
+            },
+            {
                 'flag': '--config-path',
                 'help': 'Set path to config file',
                 'type': str,
@@ -210,6 +221,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
                 'default': False,
+            },
+            {
+                'flag': '--official-source',
+                'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
+                'type': str,
+                'default': '',
             },
             {
                 'flag': '--notify-indexing',
@@ -354,7 +371,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                     'Default name is current UTC datetime.'
                 ),
                 'type': str,
-                'default': datetime.utcnow().strftime(backup_date_format),
+                'default': datetime.utcnow().strftime(BACKUP_DATE_FORMAT),
             },
         ],
     },

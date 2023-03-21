@@ -22,15 +22,14 @@ import os
 import unittest
 
 from api.globalConfig import yc_gc
-from parseAndPopulate.dir_paths import DirPaths
-from parseAndPopulate.models.schema_parts import SchemaParts
+from parseAndPopulate.models.directory_paths import DirPaths
+from parseAndPopulate.models.vendor_modules import VendorInfo
 from parseAndPopulate.modules import SdoModule, VendorModule
 
 
 class TestModulesClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.schema_parts = SchemaParts(repo_owner='YangModels', repo_name='yang', commit_hash='master')
         cls.sdo_module_filename = 'sdo-module@2022-08-05.yang'
         cls.sdo_module_name = 'sdo-module'
         cls.hello_message_filename = 'capabilities-ncs5k.xml'
@@ -55,7 +54,7 @@ class TestModulesClass(unittest.TestCase):
         """
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, {}, self.dir_paths, {})
+        yang = SdoModule(path_to_yang, self.dir_paths, {})
 
         self.assertEqual(yang.generated_from, 'not-applicable')
         self.assertEqual(yang.module_type, 'module')
@@ -73,7 +72,7 @@ class TestModulesClass(unittest.TestCase):
         Pass keys as an argument so only some properties will be resolved, while other will stay set to None.
         """
         path_to_yang = os.path.join(yc_gc.save_file_dir, self.sdo_module_filename)
-        keys = {'sdo-module@2022-08-05/ietf': ''}
+        keys = {'sdo-module@2022-08-05/ietf'}
         additional_info = {
             'author-email': 'test@test.test',
             'maturity-level': 'ratified',
@@ -84,7 +83,7 @@ class TestModulesClass(unittest.TestCase):
             'module-classification': 'testing',
         }
 
-        yang = SdoModule(self.sdo_module_name, path_to_yang, {}, self.dir_paths, keys, additional_info)
+        yang = SdoModule(path_to_yang, self.dir_paths, keys, additional_info)
 
         self.assertEqual(yang.name, 'sdo-module')
         self.assertEqual(yang.module_type, 'module')
@@ -102,7 +101,7 @@ class TestModulesClass(unittest.TestCase):
         path_to_yang = os.path.join(yc_gc.save_file_dir, 'sdo-module@2022-08-05.yang')
         deviation = 'vendor-sdo-module-deviations'
 
-        yang = VendorModule(module_name, path_to_yang, {}, self.dir_paths, {}, data=yang_lib_data)
+        yang = VendorModule(path_to_yang, self.dir_paths, {}, data=yang_lib_data)
 
         self.assertEqual(yang.generated_from, 'not-applicable')
         self.assertEqual(yang.module_type, 'module')
@@ -127,16 +126,14 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': 'implement',
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_versions,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type='implement',
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_versions,
+        )
         yang = VendorModule(
-            module_name,
             path_to_yang,
-            {},
             self.dir_paths,
             {},
             vendor_info=vendor_info,
@@ -175,16 +172,14 @@ class TestModulesClass(unittest.TestCase):
 
         platform_data, netconf_versions, netconf_capabilities = self.get_platform_data(xml_path, platform_name)
 
-        vendor_info = {
-            'platform_data': platform_data,
-            'conformance_type': 'implement',
-            'capabilities': netconf_capabilities,
-            'netconf_versions': netconf_versions,
-        }
+        vendor_info = VendorInfo(
+            platform_data=platform_data,
+            conformance_type='implement',
+            capabilities=netconf_capabilities,
+            netconf_versions=netconf_versions,
+        )
         yang = VendorModule(
-            module_name,
             path_to_yang,
-            {},
             self.dir_paths,
             {},
             vendor_info=vendor_info,

@@ -23,15 +23,14 @@ import os
 import shutil
 import sys
 
-import requests
-
 from elasticsearchIndexing.build_yindex import build_indices
 from elasticsearchIndexing.es_manager import ESManager
+from elasticsearchIndexing.models.index_build import BuildYINDEXModule
 from utility import log
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.util import fetch_module_by_schema, validate_revision
+from utility.util import validate_revision
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -131,13 +130,12 @@ class ProcessChangedMods:
                 revision = validate_revision(revision)
                 name_revision = f'{name}@{revision}'
 
-                module = {'name': name, 'revision': revision, 'organization': organization, 'path': module_path}
+                module = BuildYINDEXModule(name=name, revision=revision, organization=organization, path=module_path)
                 self.logger.info(
                     f'yindex on module {name_revision}. module {module_count} out of {len(self.changes_cache)}',
                 )
 
                 try:
-                    self._check_file_availability(module)
                     build_indices(self.es_manager, module, self.save_file_dir, self.json_ytree, self.logger)
                 except Exception:
                     self.logger.exception(f'Problem while processing module {module_key}')
@@ -190,23 +188,6 @@ class ProcessChangedMods:
             empty = []
         with open(cache_path, 'w') as writer:
             json.dump(empty, writer)
-
-    def _check_file_availability(self, module: dict):
-        if os.path.isfile(module['path']):
-            return
-        url = (
-            'https://yangcatalog.org/api/search/modules/'
-            f'{module["name"]},{module["revision"]},{module["organization"]}'
-        )
-        try:
-            module_detail = requests.get(url).json().get('module', [])
-            schema = module_detail[0].get('schema')
-            result = fetch_module_by_schema(schema, module['path'])
-            if not result:
-                raise Exception
-            self.logger.info('File content successfully retrieved from GitHub using module schema')
-        except Exception:
-            raise Exception(f'Unable to retrieve content of {module["name"]}@{module["revision"]}')
 
 
 def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):

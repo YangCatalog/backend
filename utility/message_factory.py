@@ -32,6 +32,7 @@ from email.mime.text import MIMEText
 
 from webexteamssdk import WebexTeamsAPI
 
+import redisConnections.data_transfer_objects as redis_dto
 import utility.log as log
 from utility.create_config import create_config
 
@@ -143,7 +144,11 @@ class MessageFactory:
         self._smtp.sendmail(self._email_from, send_to, msg.as_string())
         self._smtp.quit()
 
-    def send_user_reminder_message(self, user_data):
+    class UserReminderData(t.TypedDict):
+        approved: list[redis_dto.ApprovedUserFields]
+        temp: list[redis_dto.TempUserFields]
+
+    def send_user_reminder_message(self, user_data: UserReminderData):
         """
         Send a message with the current data of pending and approved users.
         Messages are sent to Cisco Webex in Markdown format, and e-mails in HTML format.
@@ -158,7 +163,7 @@ class MessageFactory:
             subject='Automatic generated message - Users review',
         )
 
-    def _html_user_reminder_message(self, user_data: dict):
+    def _html_user_reminder_message(self, user_data: UserReminderData):
         """
         Generate the user reminder message in HTML format
 
@@ -207,7 +212,7 @@ class MessageFactory:
             f'\n\n{ret_text}\n</body>\n</html>'
         )
 
-    def _markdown_user_reminder_message(self, users_stats: dict):
+    def _markdown_user_reminder_message(self, users_stats: UserReminderData):
         """
         Generate the user reminder message in Markdown format
 
@@ -262,7 +267,7 @@ class MessageFactory:
 
         return f'{GREETINGS}\n\nTime to review the user profiles: affiliations and capabilities\n\n{tables_text}'
 
-    def send_new_rfc_message(self, new_files, diff_files):
+    def send_new_rfc_message(self, new_files: list[str], diff_files: list[str], local_files_update_message: str):
         self.LOGGER.info('Sending notification about new IETF RFC modules')
         new_files = '\n'.join(new_files)
         diff_files = '\n'.join(diff_files)
@@ -270,17 +275,11 @@ class MessageFactory:
             f'{GREETINGS}\n\nSome of the files are different in '
             'https://yangcatalog.org/private/IETFYANGRFC.json against yangModels/yang repository\n\n'
             f'Files that are missing in yangModels/yang repository: \n{new_files} \n\n '
-            f'Files that are different than in yangModels repository: \n{diff_files}'
+            f'Files that are different than in yangModels repository: \n{diff_files}\n\n'
+            f'{local_files_update_message}\n\n\n'
         )
-
         self._post_to_webex(message)
         self._post_to_email(message)
-
-    def send_travis_auth_failed(self):
-        """Send a message to Cisco Webex notifying about failed authorization on the endpoint for Travis jobs."""
-        self.LOGGER.info('Sending notification about travis authorization failed')
-        message = 'Travis pull job not sent because patch was not sent from' ' travis. Key verification failed'
-        self._post_to_webex(message)
 
     def send_automated_procedure_failed(self, arguments: list, file: str):
         """
@@ -367,7 +366,7 @@ class MessageFactory:
             f.write(text)
         self._post_to_webex(message, True, files=[self._message_log_file])
 
-    def send_github_unavailable_schemas(self, modules_list: list):
+    def send_github_unavailable_schemas(self, modules_list: list[str]):
         """
         Send an e-mail message notifying about schemas which could not be fetched from GitHub.
 

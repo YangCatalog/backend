@@ -38,8 +38,8 @@ from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import backup_date_format
-from utility.util import get_list_of_backups, job_log
+from utility.staticVariables import BACKUP_DATE_FORMAT
+from utility.util import JobLogMessage, get_list_of_backups, job_log
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
@@ -58,7 +58,7 @@ class Recovery:
         config: ConfigParser = create_config(),
         redis_connection: RedisConnection = RedisConnection(),
     ):
-        self.job_log_messages = []
+        self.job_log_messages: list[JobLogMessage] = []
         self.yang_catalog_module_name = 'yang-catalog@2018-04-03/ietf'
         self.process_type = ''
 
@@ -76,7 +76,7 @@ class Recovery:
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
     @job_log(file_basename=BASENAME)
-    def start_process(self):
+    def start_process(self) -> list[JobLogMessage]:
         self.logger.info(f'Starting {self.process_type} process of Redis database')
         self._start_process()
         self.logger.info(f'{self.process_type} process of Redis database finished successfully')
@@ -94,7 +94,7 @@ class BackupDatabaseData(Recovery):
         self.process_type = 'save'
 
     def _start_process(self):
-        self.args.file = self.args.file or datetime.utcnow().strftime(backup_date_format)
+        self.args.file = self.args.file or datetime.utcnow().strftime(BACKUP_DATE_FORMAT)
         os.makedirs(self.redis_backups, exist_ok=True)
         self._backup_redis_rdb_file()
         self._backup_redis_modules()

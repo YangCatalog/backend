@@ -82,7 +82,7 @@ class RedisConnection:
             else:
                 new_value = new_module.get(key)
                 existing_value = existing_module.get(key)
-                if not existing_value or (existing_value != new_value and new_value is not DEFAULT_VALUES.get(key)):
+                if not existing_value or (existing_value != new_value and new_value != DEFAULT_VALUES.get(key)):
                     existing_module[key] = new_value
 
         return existing_module

@@ -16,10 +16,10 @@ class UserReminder:
     def send_message(self):
         self._mf.send_user_reminder_message(self._produce_users_info())
 
-    def _produce_users_info(self):
+    def _produce_users_info(self) -> message_factory.MessageFactory.UserReminderData:
         return {
-            'approved': [self.users.get_all_fields(id) for id in self.users.get_all('approved')],
-            'temp': [self.users.get_all_fields(id) for id in self.users.get_all('temp')],
+            'approved': [self.users.get_all_fields(user_id) for user_id in self.users.get_all('approved')],
+            'temp': [self.users.get_all_fields(user_id) for user_id in self.users.get_all('temp')],
         }
 
 

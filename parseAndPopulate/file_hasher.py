@@ -32,6 +32,12 @@ BLOCK_SIZE = 65536  # The size of each read from the file
 
 
 @dataclass
+class SdoHashCheck:
+    hash_changed: bool
+    was_parsed_previously: bool
+
+
+@dataclass
 class VendorModuleHashCheckForParsing:
     file_hash_exists: bool
     new_implementations_detected: bool
@@ -64,7 +70,7 @@ class FileHasher:
         self.logger = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
         self.lock = threading.Lock()
         self.validators_versions_bytes = self.get_versions()
-        self.files_hashes = self.load_hashed_files_list()
+        self.files_hashes = self.load_hashed_files_data()
         self.updated_hashes = {}
 
     def hash_file(self, path: str) -> str:
@@ -90,8 +96,9 @@ class FileHasher:
 
         return file_hash.hexdigest()
 
-    def load_hashed_files_list(self, path: str = '') -> dict:
-        """Load dumped list of files content hashes from .json file.
+    def load_hashed_files_data(self, path: str = '') -> dict:
+        """
+        Load dumped list of files content hashes from .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Argument:
@@ -103,21 +110,21 @@ class FileHasher:
         self.lock.acquire()
         try:
             with open(path, 'r') as f:
-                hashed_files_list = json.load(f)
-            self.logger.info(f'Dictionary of {len(hashed_files_list)} hashes loaded successfully')
+                hashed_files_data = json.load(f)
+            self.logger.info(f'Dictionary of {len(hashed_files_data)} hashes loaded successfully')
         except FileNotFoundError:
             self.logger.error(f'{path} file was not found')
-            hashed_files_list = {}
+            hashed_files_data = {}
         self.lock.release()
 
-        return hashed_files_list
+        return hashed_files_data
 
     def merge_and_dump_hashed_files_list(self, new_hashes: dict, dst_dir: str = ''):
         """Dumped updated list of files content hashes into .json file.
         Several threads can access this file at once, so locking the file while accessing is necessary.
 
         Arguments:
-            :param files_hashes (dict) Dictionary of the hashes to be dumped
+            :param new_hashes (dict) Dictionary of the hashes to be dumped
             :param dst_dir      (str) Optional - directory where the .json file with hashes is saved
         """
         dst_dir = self.cache_dir if dst_dir == '' else dst_dir
@@ -144,7 +151,8 @@ class FileHasher:
         self.lock.release()
 
     def dump_tmp_hashed_files_list(self, files_hashes: dict, dst_dir: str = ''):
-        """Dump new hashes into temporary json file.
+        """
+        Dump new hashes into temporary json file.
 
         Arguments:
             :param files_hashes (dict) Dictionary of the hashes to be dumped
@@ -161,23 +169,24 @@ class FileHasher:
         validators = {'pyang_version': pyang.__version__}
         return json.dumps(validators).encode('utf-8')
 
-    def should_parse_sdo_module(self, path: str) -> bool:
-        """Decide whether SDO module at the given path should be parsed or not.
+    def should_parse_sdo_module(self, new_path: str, accepted_path: str) -> SdoHashCheck:
+        """
+        Decide whether SDO module at the given path should be parsed or not.
         Check whether file content hash has changed and keep it for the future use.
 
         Argument:
-            :param path     (str) Full path to the file to be hashed
-            :rtype           bool
+            :param new_path         (str) Full path to the file to be hashed
+            :param accepted_path    (str) Path to the currently accepted version of the module
         """
-        file_hash = self.hash_file(path)
+        file_hash = self.hash_file(new_path)
         if not file_hash:
-            return False
-        hashes = self.files_hashes.get(path, {})
+            return SdoHashCheck(True, False)
+        hashes = self.files_hashes.get(accepted_path, {})
         if file_hash not in hashes:
-            self.updated_hashes.setdefault(path, {})[file_hash] = []  # empty implementations
-            return True
+            self.updated_hashes.setdefault(accepted_path, {})[file_hash] = []  # empty implementations
+            return SdoHashCheck(True, bool(hashes))
 
-        return self.disabled
+        return SdoHashCheck(self.disabled, bool(hashes))
 
     def check_vendor_module_hash_for_parsing(
         self,
@@ -195,6 +204,7 @@ class FileHasher:
         file_hash = self.hash_file(path)
         if not file_hash:
             # So we assume that there are no new implementations for this vendor module and there's no need to parse it
+            # This should be impossible really, since the path always comes from get_yang()
             return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=False)
 
         implementation_keys = implementation_keys if implementation_keys is not None else []

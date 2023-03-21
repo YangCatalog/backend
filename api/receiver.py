@@ -53,8 +53,8 @@ from api.status_message import StatusMessage
 from redisConnections.redisConnection import RedisConnection, key_quote
 from utility import message_factory
 from utility.create_config import create_config
+from utility.elasticsearch_util import ESIndexingPaths, prepare_for_es_removal, send_for_es_indexing
 from utility.staticVariables import json_headers
-from utility.util import prepare_for_es_removal, send_for_es_indexing
 
 
 class Receiver:
@@ -381,18 +381,18 @@ class Receiver:
         :return: response success or failed
         """
         try:
-            # Run draftPullLocal.py script
-            script_name = 'draftPullLocal'
+            # Run pull_local.py script
+            script_name = 'pull_local'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
             submodule = getattr(module, script_name)
             script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
 
-            self.LOGGER.info('Runnning draftPullLocal.py script')
+            self.LOGGER.info('Runnning pull_local.py script')
             try:
                 submodule.main(script_conf=script_conf)
             except Exception:
-                self.LOGGER.exception('Problem while running draftPullLocal script')
-                return StatusMessage.FAIL, 'Server error while running draftPullLocal script'
+                self.LOGGER.exception('Problem while running pull_local script')
+                return StatusMessage.FAIL, 'Server error while running pull_local script'
             # Run openconfigPullLocal.py script
             script_name = 'openconfigPullLocal'
             module = __import__('ietfYangDraftPull', fromlist=[script_name])
@@ -433,12 +433,12 @@ class Receiver:
         self.json_ytree = config.get('Directory-Section', 'json-ytree')
         self._yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
 
-        self.indexing_paths = {
-            'cache_path': self._changes_cache_path,
-            'deletes_path': self._delete_cache_path,
-            'failed_path': self._failed_changes_cache_path,
-            'lock_path': self._lock_file,
-        }
+        self.indexing_paths = ESIndexingPaths(
+            cache_path=self._changes_cache_path,
+            deletes_path=self._delete_cache_path,
+            failed_path=self._failed_changes_cache_path,
+            lock_path=self._lock_file,
+        )
 
         self._notify_indexing = self._notify_indexing == 'True'
         self._rabbitmq_credentials = pika.PlainCredentials(username=rabbitmq_username, password=rabbitmq_password)
