@@ -40,7 +40,7 @@ def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> Repo:
     """
     yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
     update_forked_repository(yang_models_dir, config, logger)
-    worktree_dir = repoutil.add_worktree(yang_models_dir, branch='fork/main')
+    worktree_dir = repoutil.add_worktree(yang_models_dir, branch='fork-main')
     return Repo(worktree_dir)
 
 
