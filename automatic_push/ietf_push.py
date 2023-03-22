@@ -77,7 +77,6 @@ class IetfPush:
         self.config = config
         self.rfc_exceptions_file_path = self.config.get('Directory-Section', 'rfc-exceptions')
         self.verified_commits_file_path = self.config.get('Directory-Section', 'commit-dir')
-        self.yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
         self.ietf_rfc_url = self.config.get('Web-Section', 'ietf-RFC-tar-private-url')
         self.ietf_draft_url = config.get('Web-Section', 'ietf-draft-private-url')
         self.my_uri = config.get('Web-Section', 'my-uri')

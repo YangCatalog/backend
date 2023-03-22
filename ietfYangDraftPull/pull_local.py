@@ -96,7 +96,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
     log_directory = config.get('Directory-Section', 'logs')
     yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
     non_ietf_directory = config.get('Directory-Section', 'non-ietf-directory')
-    openconfig_dir = os.path.join(non_ietf_directory, 'openconfig/public')
+    ietf_directory = config.get('Directory-Section', 'ietf-directory')
     logger = log.get_logger('pull_local', f'{log_directory}/jobs/pull-local.log')
     logger.info('Starting cron job IETF pull request local')
 
@@ -106,14 +106,14 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
 
     with ModuleDirectoryManager() as module_dirs:
         try:
-            for repo, path_in_repo, label in (
-                (yang_models_dir, 'standard/ietf/RFC', 'Standard RFC modules'),
-                (yang_models_dir, 'experimental/ietf-extracted-YANG-modules', 'Experimental modules'),
-                (yang_models_dir, 'standard/iana', 'IANA modules'),
-                (openconfig_dir, '', 'OpenConfig modules'),
+            for original_module_dir, label in (
+                (os.path.join(ietf_directory, 'YANG-rfc'), 'Standard RFC modules'),
+                (os.path.join(ietf_directory, 'YANG'), 'Experimental modules'),
+                (os.path.join(yang_models_dir, 'standard/iana'), 'IANA modules'),
+                (os.path.join(non_ietf_directory, 'openconfig/public'), 'OpenConfig modules'),
             ):
-                full_path = os.path.join(module_dirs[repo], path_in_repo)
-                directory_success, message = populate_directory(full_path, notify_indexing, logger)
+                module_dir_copy = module_dirs[original_module_dir]
+                directory_success, message = populate_directory(module_dir_copy, notify_indexing, logger)
                 success &= directory_success
                 messages.append({'label': label, 'message': message})
         except Exception as e:
