@@ -19,12 +19,11 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 import os
-import typing as t
 
 from elasticsearch import ConnectionTimeout
 
+import api.views.yangSearch.search_params as sp
 from api.views.yangSearch.response_row import ResponseRow
-from api.views.yangSearch.search_params import SearchParams
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from redisConnections.redisConnection import RedisConnection
@@ -44,11 +43,10 @@ class ElkSearch:
 
     def __init__(
         self,
-        searched_term: str,
         logs_dir: str,
         es_manager: ESManager,
         redis_connection: RedisConnection,
-        search_params: SearchParams,
+        search_params: sp.SearchParams,
     ) -> None:
         """
         Initialization of search under Elasticsearch engine. We need to prepare a query
@@ -65,12 +63,11 @@ class ElkSearch:
         search_query_path = os.path.join(os.environ['BACKEND'], 'api/views/yangSearch/json/search.json')
         with open(search_query_path, encoding='utf-8') as reader:
             self.query: dict = json.load(reader)
-        self._searched_term = searched_term
         self._es_manager = es_manager
         self._redis_connection = redis_connection
         self._latest_revisions = {}
         self._remove_columns = list(set(OUTPUT_COLUMNS) - set(self._search_params.output_columns))
-        self._row_hashes = []
+        self._row_hashes = set()
         self._missing_modules = []
         self.timeout = False
         log_file_path = os.path.join(logs_dir, 'yang.log')
@@ -104,28 +101,38 @@ class ElkSearch:
         self.query['query']['bool']['must'][0]['terms']['statement'] = self._search_params.schema_types
         if not self._search_params.include_drafts:
             self.query['query']['bool']['must'].append({'term': {'rfc': True}})
-        case_insensitive = not self._search_params.case_sensitive
-        query_type = self._search_params.query_type
-        if query_type == 'regexp':
-            self._searched_term = _escape_reserved_characters(self._searched_term)
-        searched_term = self._searched_term
-        should_query: list = self.query['query']['bool']['should']
-        for searched_field in self._search_params.searched_fields:
-            if searched_field == 'module':
-                should_query.append(
-                    {query_type: {'module': {'value': searched_term, 'case_insensitive': case_insensitive}}},
-                )
-            elif searched_field == 'argument':
-                should_query.append(
-                    {query_type: {'argument': {'value': searched_term, 'case_insensitive': case_insensitive}}},
-                )
-            elif searched_field == 'description':
-                if query_type == 'regexp':
-                    should_query.append(
+        should_query = self.query['query']['bool']['should']
+        must_query = self.query['query']['bool']['must']
+        for sub in self._search_params.subqueries:
+            if sub.must:
+                bool_subquery = must_query
+                self.query['query']['bool']['minimum_should_match'] = 0
+            else:
+                bool_subquery = should_query
+            string = sub.string
+
+            selected_query_type = 'regexp' if getattr(sub, 'regex', False) else 'term'
+            if selected_query_type == 'regexp':
+                string = _escape_reserved_characters(string)
+
+            sub_type = type(sub)
+            field = sub.field
+            assert sub_type is not sp.Subquery
+            if sub_type in (sp.Name, sp.ModuleName):
+                bool_subquery.append({selected_query_type: {field: {'value': string}}})
+            elif sub_type in (sp.Revision, sp.Organization, sp.Maturity):
+                bool_subquery.append({'term': {field: {'value': string}}})
+            elif isinstance(sub, sp.Path):
+                bool_subquery.append({'wildcard': {'path': {'value': string}}})
+            elif isinstance(sub, sp.Description):
+                case_insensitive = sub.case_insensitive
+                use_synonyms = sub.use_synonyms
+                if selected_query_type == 'regexp':
+                    bool_subquery.append(
                         {
                             'regexp': {
                                 'description.keyword': {
-                                    'value': f'.*{searched_term}.*',
+                                    'value': f'.*{string}.*',
                                     'case_insensitive': case_insensitive,
                                 },
                             },
@@ -135,27 +142,26 @@ class ElkSearch:
                     analyzer = 'description'
                     if case_insensitive:
                         analyzer += '_lowercase'
-                    if self._search_params.use_synonyms:
+                    if use_synonyms:
                         analyzer += '_synonym'
-                    field = 'description'
                     if case_insensitive:
                         field += '.lowercase'
-                    should_query.extend(
-                        [
-                            {
-                                'match': {
-                                    field: {
-                                        'query': searched_term,
-                                        'analyzer': analyzer,
-                                        'minimum_should_match': '4<80%',
-                                    },
+                    bool_subquery.append(
+                        {
+                            'match': {
+                                field: {
+                                    'query': string,
+                                    'analyzer': analyzer,
+                                    'minimum_should_match': '4<80%',
                                 },
                             },
-                            {
-                                # boost results that contain the words in the same order
-                                'match_phrase': {field: {'query': searched_term, 'analyzer': analyzer, 'boost': 2}},
-                            },
-                        ],
+                        },
+                    )
+                    should_query.append(
+                        {
+                            # boost results that contain the words in the same order
+                            'match_phrase': {field: {'query': string, 'analyzer': analyzer, 'boost': 2}},
+                        },
                     )
 
     def search(self) -> tuple[list[dict], bool]:
@@ -165,15 +171,17 @@ class ElkSearch:
         :return list of rows containing dictionary that is filled with output for each column for yangcatalog search
         """
         self.logger.debug('Running search')
-        hits: list = self._retrieve_results(self._search_params.latest_revision)
+        hits = self._retrieve_results(self._search_params.latest_revision)
         processed_rows = self._process_hits(hits)
         return processed_rows, len(hits) == RESPONSE_SIZE
 
     def _retrieve_results(self, latest_revisions: bool) -> list[dict]:
+        self.logger.debug(f'latest revision: {latest_revisions}')
         query = self.query.copy()
         if not latest_revisions:
             query.pop('aggs')
         try:
+            self.logger.debug(json.dumps(query, indent=2))
             response = self._es_manager.generic_search(
                 ESIndices.YINDEX,
                 query,
@@ -193,23 +201,23 @@ class ElkSearch:
 
     def _process_hits(self, hits: list) -> list[dict]:
         response_rows: list[dict] = []
-        reject: list[str] = []
+        reject: set[str] = set()
         for hit in hits:
-            row = ResponseRow(elastic_hit=hit['_source'])
+            row = ResponseRow(source=hit['_source'])
             module_key = f'{row.module_name}@{row.revision}/{row.organization}'
             if module_key in reject:
                 continue
 
             module_latest_revision = self._latest_revisions.get(row.module_name, '')
             if self._search_params.latest_revision and row.revision != module_latest_revision:
-                reject.append(module_key)
+                reject.add(module_key)
                 continue
 
             module_data = self._redis_connection.get_module(module_key)
             module_data = json.loads(module_data)
             if not module_data:
                 self.logger.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
-                reject.append(module_key)
+                reject.add(module_key)
                 self._missing_modules.append(module_key)
                 continue
             row.maturity = row.maturity if row.maturity else module_data.get('maturity-level', '')
@@ -217,10 +225,8 @@ class ElkSearch:
             row.compilation_status = module_data.get('compilation-status', 'unknown')
             row.create_representation()
 
-            if self._rejects_mibs_or_versions(module_key, reject, module_data):
-                continue
-
-            if not row.meets_subsearch_condition(self._search_params.sub_search):
+            if self._rejects_mibs_or_versions(module_data):
+                reject.add(module_key)
                 continue
 
             row.create_output(self._remove_columns)
@@ -231,18 +237,16 @@ class ElkSearch:
                         f'Trimmed output row {row.output_row} already exists in response rows - cutting this one out',
                     )
                     continue
-                self._row_hashes.append(row_hash)
+                self._row_hashes.add(row_hash)
             response_rows.append(row.output_row)
 
         self.logger.debug(f'ElkSearch finished with length {len(response_rows)}')
         return response_rows
 
-    def _rejects_mibs_or_versions(self, module_key: str, reject: t.List[str], module_data: dict) -> bool:
+    def _rejects_mibs_or_versions(self, module_data: dict) -> bool:
         if not self._search_params.include_mibs and 'yang:smiv2:' in module_data.get('namespace', ''):
-            reject.append(module_key)
             return True
-        if module_data.get('yang-version') not in self._search_params.yang_versions:
-            reject.append(module_key)
+        if module_data['yang-version'] not in self._search_params.yang_versions:
             return True
         return False
 

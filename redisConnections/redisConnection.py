@@ -107,7 +107,7 @@ class RedisConnection:
                 updated_module = self.update_module_properties(json.loads(temp_module_data), updated_module)
                 self.delete_temporary([redis_key])
 
-            self.set_redis_module(updated_module, redis_key)
+            self.set_module(updated_module, redis_key)
 
     def get_all_modules(self) -> str:
         data = self.modulesDB.get('modules-data')
@@ -121,7 +121,7 @@ class RedisConnection:
         data = self.temp_modulesDB.get(key)
         return (data or b'{}').decode('utf-8')
 
-    def set_redis_module(self, module: dict, redis_key: str):
+    def set_module(self, module: dict, redis_key: str):
         result = self.modulesDB.set(redis_key, json.dumps(module))
         if result:
             self.LOGGER.info(f'{redis_key} key updated')
@@ -136,7 +136,7 @@ class RedisConnection:
             redis_key = key.decode('utf-8')
             if redis_key != 'modules-data' and ':' not in redis_key:
                 modules_data[redis_key] = json.loads(self.get_module(redis_key))
-        result = self.set_redis_module(modules_data, 'modules-data')
+        result = self.set_module(modules_data, 'modules-data')
 
         return result
 
@@ -157,7 +157,7 @@ class RedisConnection:
 
         if dependent_to_remove is not None:
             dependents_list.remove(dependent_to_remove)
-            result = self.set_redis_module(redis_module, redis_key)
+            result = self.set_module(redis_module, redis_key)
         return result
 
     def delete_implementation(self, redis_key: str, implemntation_key: str):
@@ -171,7 +171,7 @@ class RedisConnection:
             impl_key = ','.join(imp_data)
             if impl_key == implemntation_key:
                 implementations.remove(impl)
-                result = self.set_redis_module(redis_module, redis_key)
+                result = self.set_module(redis_module, redis_key)
                 break
 
         return result
@@ -181,7 +181,7 @@ class RedisConnection:
         redis_module_raw = self.get_module(redis_key)
         redis_module = json.loads(redis_module_raw)
         redis_module.pop('expires', None)
-        result = self.set_redis_module(redis_module, redis_key)
+        result = self.set_module(redis_module, redis_key)
 
         return result
 

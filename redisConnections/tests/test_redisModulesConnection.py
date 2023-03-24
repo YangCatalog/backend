@@ -95,7 +95,7 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         redis_key = f'{name}@{revision}/{organization}'
         self.modulesDB.flushdb()
 
-        result = self.redisConnection.set_redis_module(self.original_data, redis_key)
+        result = self.redisConnection.set_module(self.original_data, redis_key)
         raw_data = self.redisConnection.get_module(redis_key)
         data = json.loads(raw_data)
 

@@ -101,6 +101,15 @@
       },
       "rfc": {
         "type": "boolean"
+      },
+      "path": {
+        "type": "wildcard"
+      },
+      "maturity": {
+        "type": "keyword"
+      },
+      "yang_version": {
+        "type": "keyword"
       }
     }
   }
