@@ -23,7 +23,7 @@ from datetime import datetime
 
 from utility.create_config import create_config
 from utility.scriptConfig import Arg
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 
 
 class BaseScriptConfigInfo(t.TypedDict):
@@ -167,6 +167,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'default': '/var/yang/all_modules',
             },
             {
+                'flag': '--official-source',
+                'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
+                'type': str,
+                'default': '',
+            },
+            {
                 'flag': '--config-path',
                 'help': 'Set path to config file',
                 'type': str,
@@ -201,6 +207,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                 'help': 'If we are processing sdo or vendor yang modules',
                 'action': 'store_true',
                 'default': False,
+            },
+            {
+                'flag': '--official-source',
+                'help': 'If this is an official souce of an SDOs modules, set this option to the name of the SDO',
+                'type': str,
+                'default': '',
             },
             {
                 'flag': '--notify-indexing',
@@ -345,7 +357,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
                     'Default name is current UTC datetime.'
                 ),
                 'type': str,
-                'default': datetime.utcnow().strftime(backup_date_format),
+                'default': datetime.utcnow().strftime(BACKUP_DATE_FORMAT),
             },
         ],
     },

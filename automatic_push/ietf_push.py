@@ -183,7 +183,6 @@ class IetfPush:
                     'RFC files are updated locally, changes must be pushed in the repo soon, '
                     'and a PullRequest must be created after successful run of GitHub Actions.'
                 )
-                break
             else:
                 local_files_update_message = 'RFC files are not updated locally'
             mf.send_new_rfc_message(new_files, diff_files, local_files_update_message)

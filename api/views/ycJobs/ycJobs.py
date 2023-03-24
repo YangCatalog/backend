@@ -153,10 +153,7 @@ def check_github():
                 'yang',
                 pull_number,
                 headers=headers,
-                request_body=repoutil.PullRequestMergingDetail(
-                    commit_title='Github Actions job passed',
-                    sha=body['check_run']['head_sha'],
-                ),
+                request_body=repoutil.PullRequestMergingDetail(sha=body['check_run']['head_sha']),
             )
             app.logger.info(
                 f'Merge response code {merging_response.status_code}\nMerge response {merging_response.text}',

@@ -93,7 +93,7 @@ class TestGroupingsClass(unittest.TestCase):
             ),
         }
 
-        sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, file_mapping)
+        sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, file_mapping, None)
         sdo_directory.parse_and_load()
 
         self.assertListEqual(
@@ -130,6 +130,7 @@ class TestGroupingsClass(unittest.TestCase):
             api,
             self.dir_paths,
             file_mapping,
+            None,
         )
         sdo_directory.parse_and_load()
 

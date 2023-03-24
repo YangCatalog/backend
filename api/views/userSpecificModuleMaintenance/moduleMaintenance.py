@@ -35,7 +35,7 @@ from api.my_flask import app
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.repoutil import RepoUtil
-from utility.staticVariables import NAMESPACE_MAP, backup_date_format, github_url
+from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
 from utility.util import hash_pw
 
 
@@ -253,7 +253,7 @@ def add_modules():
     if module_list is None:
         abort(400, description='bad request - "module" json list is missing and is mandatory')
 
-    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
     if not os.path.exists(ac.d_save_requests):
         os.mkdir(ac.d_save_requests)
     with open(dst_path, 'w') as f:
@@ -410,7 +410,7 @@ def add_vendors():
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
 
-    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(backup_date_format)))
+    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
     if not os.path.exists(ac.d_save_requests):
         os.mkdir(ac.d_save_requests)
     with open(dst_path, 'w') as f:

@@ -22,6 +22,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fileinput
 import json
 import os
+import shutil
 import typing as t
 import unicodedata
 import xml.etree.ElementTree as ET
@@ -92,9 +93,11 @@ class SdoDirectory(ModuleGrouping):
         api: bool,
         dir_paths: DirPaths,
         file_mapping: dict[str, str],
+        official_source: t.Optional[str],
         config: ConfigParser = create_config(),
     ):
         self.file_mapping = file_mapping
+        self.official_source = official_source
         super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
 
     def parse_and_load(self) -> tuple[int, int]:
@@ -116,10 +119,11 @@ class SdoDirectory(ModuleGrouping):
         self.logger.debug('Parsing sdo files sent via API')
         with open(os.path.join(self.dir_paths['json'], 'request-data.json'), 'r') as f:
             sdos_json = json.load(f)
-        sdos_list: t.List[dict] = sdos_json['modules']['module']
+        sdos_list: list[Module.AdditionalModuleInfo] = sdos_json['modules']['module']
         sdos_count = len(sdos_list)
         for i, sdo in enumerate(sdos_list, start=1):
             # remove diacritics
+            assert 'source-file' in sdo, 'This is checked at the /api/modules endpoint and guaranteed to pass here'
             file_name = (
                 unicodedata.normalize('NFKD', os.path.basename(sdo['source-file']['path']))
                 .encode('ascii', 'ignore')
@@ -165,8 +169,8 @@ class SdoDirectory(ModuleGrouping):
                     continue
                 path = os.path.join(root, file_name)
                 all_modules_path = self.file_mapping[path]
-                should_parse = self.file_hasher.should_parse_sdo_module(all_modules_path)
-                if not should_parse:
+                should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
+                if not should_parse.hash_changed:
                     self.skipped += 1
                     continue
                 if '[1]' in file_name:
@@ -183,7 +187,14 @@ class SdoDirectory(ModuleGrouping):
                 except (ParseException, FileNotFoundError) as e:
                     self.log_module_creation_exception(e)
                     continue
+                if yang.organization != self.official_source and should_parse.was_parsed_previously:
+                    # this is not the official source of this organization's modules
+                    # and we already have some version of this module
+                    continue
+                # this is the official source of this organization's modules
+                # or we don't have a version of this module yet
                 self.dumper.add_module(yang)
+                shutil.copy(path, all_modules_path)
                 self.parsed += 1
         return self.parsed, self.skipped
 
@@ -199,9 +210,10 @@ class IanaDirectory(SdoDirectory):
         api: bool,
         dir_paths: DirPaths,
         file_mapping: dict[str, str],
+        official_source: t.Optional[str],
         config: ConfigParser = create_config(),
     ):
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, file_mapping, config=config)
+        super().__init__(directory, dumper, file_hasher, api, dir_paths, file_mapping, official_source, config=config)
         iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
         try:
             with open(iana_exceptions, 'r') as exceptions_file:
@@ -248,8 +260,8 @@ class IanaDirectory(SdoDirectory):
             if not all_modules_path:
                 self.logger.warning(f'File {name} not found in the repository')
                 continue
-            should_parse = self.file_hasher.should_parse_sdo_module(all_modules_path)
-            if not should_parse:
+            should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
+            if not should_parse.hash_changed:
                 self.skipped += 1
                 continue
 
@@ -265,7 +277,10 @@ class IanaDirectory(SdoDirectory):
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
                 continue
+            if yang.organization != self.official_source and should_parse.was_parsed_previously:
+                continue
             self.dumper.add_module(yang)
+            shutil.copy(path, all_modules_path)
             self.parsed += 1
         return self.parsed, self.skipped
 

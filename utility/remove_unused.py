@@ -28,34 +28,19 @@ import os
 import shutil
 import time
 import uuid
+from datetime import datetime
 from datetime import datetime as dt
 
 import utility.log as log
 from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
 from utility.create_config import create_config
-from utility.staticVariables import backup_date_format
+from utility.staticVariables import BACKUP_DATE_FORMAT
 from utility.util import get_list_of_backups, job_log
 
 DAY = 86400
 BLOCK_SIZE = 65536
 
 current_file_basename = os.path.basename(__file__)
-
-
-def represents_int(s: str) -> bool:
-    try:
-        int(s)
-        return True
-    except ValueError:
-        return False
-
-
-def represents_uuid(s: str) -> bool:
-    try:
-        uuid.UUID(s)
-        return True
-    except ValueError:
-        return False
 
 
 @job_log(file_basename=current_file_basename)
@@ -88,12 +73,16 @@ def main():
     current_time = time.time()
     cutoff = current_time - DAY
     try:
-        logger.info('Removing old tmp directory representing int folders')
+        logger.info('Removing old tmp directory representing int or uuid folders')
         for dir in next(os.walk(temp_dir))[1]:
             if represents_int(dir) or represents_uuid(dir):
                 creation_time = os.path.getctime(os.path.join(temp_dir, dir))
-                if creation_time < cutoff:
+                if creation_time >= cutoff:
+                    continue
+                try:
                     shutil.rmtree(os.path.join(temp_dir, dir))
+                except PermissionError:
+                    logger.exception(f'Problem while deleting {dir}')
 
         logger.info('Removing old correlation ids')
         # removing correlation ids from file that are older than a day
@@ -118,14 +107,15 @@ def main():
         cutoff = current_time - 2 * DAY
         dirs = os.listdir(yang_validator_cache)
         for dir in dirs:
-            if dir.startswith('yangvalidator-v2-cache-'):
-                creation_time = os.path.getctime(os.path.join(yang_validator_cache, dir))
-                if creation_time < cutoff:
-                    try:
-                        shutil.rmtree(os.path.join(yang_validator_cache, dir))
-                    except PermissionError:
-                        logger.exception(f'Problem while deleting {dir}')
-                        continue
+            if not dir.startswith('yangvalidator-v2-cache-'):
+                continue
+            creation_time = os.path.getctime(os.path.join(yang_validator_cache, dir))
+            if creation_time >= cutoff:
+                continue
+            try:
+                shutil.rmtree(os.path.join(yang_validator_cache, dir))
+            except PermissionError:
+                logger.exception(f'Problem while deleting {dir}')
 
         if es_aws != 'True':
             logger.info('Removing old elasticsearch snapshots')
@@ -136,96 +126,114 @@ def main():
             for snapshot in sorted_snapshots[:-5]:
                 es_snapshots_manager.delete_snapshot(snapshot['snapshot'])
 
-        def hash_file(path: str) -> bytes:
-            sha1 = hashlib.sha1()
-
-            with open(path, 'rb') as byte_file:
-                while True:
-                    data = byte_file.read(BLOCK_SIZE)
-                    if not data:
-                        break
-                    sha1.update(data)
-
-            return sha1.digest()
-
-        def hash_node(path: str) -> bytes:
-            """Hash a file or directory."""
-            if os.path.isfile(path):
-                return hash_file(path)
-            elif os.path.isdir(path):
-                sha1 = hashlib.sha1()
-                for root, _, filenames in os.walk(path):
-                    for filename in filenames:
-                        file_path = os.path.join(root, filename)
-                        # we only want to compare the contents, not the top directory name
-                        relative_path = file_path[len(path) :]
-                        file_signature = relative_path.encode() + hash_file(file_path)
-                        sha1.update(file_signature)
-                return sha1.digest()
-            else:
-                assert False
-
-        def remove_old_backups(directory: str):
-            """Deduplicate backups and keep the latest copy only.
-            Keep one backup per month for the last 6 months.
-            For the last 2 month, keep all unique backups.
-            All other files are removed.
-
-            Arguments:
-                :param directory   (str) Directory to search for backups.
-            """
-            backup_directory = os.path.join(cache_directory, directory)
-            list_of_backups = get_list_of_backups(backup_directory)
-            backup_name_latest = os.path.join(backup_directory, list_of_backups[-1])
-
-            def diff_month(later_datetime, earlier_datetime):
-                return (
-                    (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
-                )
-
-            to_remove = []
-            last_six_months = {}
-            last_two_months = {}
-
-            today = dt.now()
-            for backup in list_of_backups:
-                backup_dt = dt.strptime(backup[: backup.index('.')], backup_date_format)
-                month_difference = diff_month(today, backup_dt)
-                if month_difference > 6:
-                    to_remove.append(backup)
-                elif month_difference > 2:
-                    month = backup_dt.month
-                    if month in last_six_months:
-                        if last_six_months[month] > backup:
-                            to_remove.append(backup)
-                        else:
-                            to_remove.append(last_six_months[month])
-                            last_six_months[month] = backup
-                    else:
-                        last_six_months[month] = backup
-                else:
-                    backup_path = os.path.join(backup_directory, backup)
-                    currently_processed_backup_hash = hash_node(backup_path)
-                    if currently_processed_backup_hash in last_two_months:
-                        if last_two_months[currently_processed_backup_hash] > backup:
-                            to_remove.append(backup)
-                        else:
-                            to_remove.append(last_two_months[currently_processed_backup_hash])
-                    last_two_months[currently_processed_backup_hash] = backup
-            for backup in to_remove:
-                backup_path = os.path.join(backup_directory, backup)
-                if backup_path != backup_name_latest:
-                    if os.path.isdir(backup_path):
-                        shutil.rmtree(backup_path)
-                    elif os.path.isfile(backup_path):
-                        os.unlink(backup_path)
-
         logger.info('Removing old cache json files')
-        remove_old_backups('confd')
+        remove_old_backups(os.path.join(cache_directory, 'confd'))
+        remove_old_backups(os.path.join(cache_directory, 'redis'))
+        remove_old_backups(os.path.join(cache_directory, 'redis-json'))
+        remove_old_backups(os.path.join(cache_directory, 'redis-users'))
     except Exception as e:
         logger.exception('Exception found while running remove_unused script')
         raise e
     logger.info('Job finished successfully')
+
+
+def represents_int(s: str) -> bool:
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+
+def represents_uuid(s: str) -> bool:
+    try:
+        uuid.UUID(s)
+        return True
+    except ValueError:
+        return False
+
+
+def remove_old_backups(backup_directory: str):
+    """
+    Deduplicate backups and keep the latest copy only. Keep one backup per month for the last 6 months.
+    For the last 2 month, keep all unique backups. All other files are removed.
+
+    Arguments:
+        :param backup_directory  (str) Path to directory to search for backups.
+    """
+    list_of_backups = get_list_of_backups(backup_directory)
+    latest_backup = os.path.join(backup_directory, list_of_backups[-1]) if list_of_backups else None
+
+    def diff_month(later_datetime: datetime, earlier_datetime: datetime) -> int:
+        return (later_datetime.year - earlier_datetime.year) * 12 + later_datetime.month - earlier_datetime.month
+
+    to_remove = []
+    last_six_months = {}
+    last_two_months = {}
+
+    today = dt.now()
+    for backup in list_of_backups:
+        backup_dt = dt.strptime(backup[: backup.index('.')], BACKUP_DATE_FORMAT)
+        month_difference = diff_month(today, backup_dt)
+        if month_difference > 6:
+            to_remove.append(backup)
+        elif month_difference > 2:
+            month = backup_dt.month
+            if month in last_six_months:
+                if last_six_months[month] > backup:
+                    to_remove.append(backup)
+                else:
+                    to_remove.append(last_six_months[month])
+                    last_six_months[month] = backup
+            else:
+                last_six_months[month] = backup
+        else:
+            backup_path = os.path.join(backup_directory, backup)
+            currently_processed_backup_hash = hash_node(backup_path)
+            if currently_processed_backup_hash in last_two_months:
+                if last_two_months[currently_processed_backup_hash] > backup:
+                    to_remove.append(backup)
+                else:
+                    to_remove.append(last_two_months[currently_processed_backup_hash])
+                    last_two_months[currently_processed_backup_hash] = backup
+            else:
+                last_two_months[currently_processed_backup_hash] = backup
+    for backup in to_remove:
+        backup_path = os.path.join(backup_directory, backup)
+        if backup_path == latest_backup:
+            continue
+        if os.path.isdir(backup_path):
+            shutil.rmtree(backup_path)
+        elif os.path.isfile(backup_path):
+            os.unlink(backup_path)
+
+
+def hash_node(path: str) -> bytes:
+    """Hash a file or directory."""
+    if os.path.isfile(path):
+        return hash_file(path)
+    elif os.path.isdir(path):
+        sha1 = hashlib.sha1()
+        for root, _, filenames in os.walk(path):
+            for filename in filenames:
+                file_path = os.path.join(root, filename)
+                # we only want to compare the contents, not the top directory name
+                relative_path = file_path[len(path) :]
+                file_signature = relative_path.encode() + hash_file(file_path)
+                sha1.update(file_signature)
+        return sha1.digest()
+    assert False
+
+
+def hash_file(path: str) -> bytes:
+    sha1 = hashlib.sha1()
+    with open(path, 'rb') as byte_file:
+        while True:
+            data = byte_file.read(BLOCK_SIZE)
+            if not data:
+                break
+            sha1.update(data)
+    return sha1.digest()
 
 
 if __name__ == '__main__':
