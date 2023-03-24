@@ -45,6 +45,14 @@ class MockRepoUtil:
     def get_commit_hash(self, path=None, branch='master'):
         return branch
 
+    @classmethod
+    def clone(cls, *args, **kwargs):
+        return MockRepoUtil(None)
+
+    @classmethod
+    def load(cls, *args, **kwargs):
+        return MockRepoUtil(None)
+
 
 class TestApiContributeClass(unittest.TestCase):
     @classmethod
@@ -585,7 +593,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.ModifiableRepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.RepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
@@ -605,7 +613,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.ModifiableRepoUtil', MockRepoUtil)
+    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.RepoUtil', MockRepoUtil)
     @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
     def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
         mock_authorize.return_value = True
