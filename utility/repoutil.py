@@ -306,6 +306,6 @@ class ModuleDirectoryManager:
     def __getitem__(self, repo_dir: str):
         if repo_dir not in self._module_directories:
             temp_dir = tempfile.mkdtemp()
-            shutil.copytree(repo_dir, temp_dir)
+            shutil.copytree(repo_dir, temp_dir, dirs_exist_ok=True)
             self._module_directories[repo_dir] = temp_dir
         return self._module_directories[repo_dir]
