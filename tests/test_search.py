@@ -58,11 +58,14 @@ class TestGrepSearchClass(unittest.TestCase):
         with app.app_context():
             cache.clear()
 
-    def test_grep_search(self):
+    def test_simple_grep_search(self):
         organizations = []
         simple_search = 'typedef minutes64 {\n.*type uint64;'
         simple_search_result = self.grep_search.search(organizations, simple_search)
         self.assertNotEqual(simple_search_result, [])
+
+    def test_complicated_grep_search(self):
+        organizations = []
         complicated_search = (
             'identity restconf {\n.*base protocol;|typedef email-address {\n.*type string {|'
             'typedef email-address {\n.*type string {\n.*pattern "'
@@ -92,11 +95,13 @@ class TestGrepSearchClass(unittest.TestCase):
         search_result = self.grep_search.search(organizations, search)
         self.assertEqual(search_result, [])
 
-    def test_inverted_grep_search(self):
+    def test_simple_inverted_grep_search(self):
         organizations = ['cisco']
         simple_search = 'organization'
         simple_search_result = self.grep_search.search(organizations, simple_search, inverted_search=True)
         self.assertEqual(simple_search_result, [])
+
+    def test_complicated_inverted_grep_search(self):
         organizations = ['ietf']
         complicated_search = (
             'identity restconf {\n.*base protocol;|typedef email-address {\n.*type string {|'
@@ -109,6 +114,8 @@ class TestGrepSearchClass(unittest.TestCase):
         ]
         self.assertNotIn('yang-catalog@2017-09-26', modules_from_complicated_search_result)
         self.assertNotIn('yang-catalog@2018-04-03', modules_from_complicated_search_result)
+        self.assertIn('semver-test@2020-03-01', modules_from_complicated_search_result)
+        self.assertIn('sdo-module@2022-08-05', modules_from_complicated_search_result)
 
     def test_empty_inverted_grep_search(self):
         organizations = []
@@ -151,7 +158,8 @@ class TestGrepSearchClass(unittest.TestCase):
         organizations = []
         search = 'organization'
         self.grep_search.search(organizations, search)
-        self.assertEqual(
-            self.grep_search.finishing_cursor,
+        finishing_cursor_valid_value = min(
+            self.grep_search.results_per_page,
             len(self.grep_search._get_all_modules_with_filename_extension()),
         )
+        self.assertEqual(self.grep_search.finishing_cursor, finishing_cursor_valid_value)
