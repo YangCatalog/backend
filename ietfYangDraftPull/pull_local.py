@@ -112,6 +112,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
                 (os.path.join(ietf_directory, 'YANG'), 'Experimental modules'),
                 (os.path.join(yang_models_dir, 'standard/iana'), 'IANA modules'),
                 (os.path.join(non_ietf_directory, 'openconfig/public'), 'OpenConfig modules'),
+                (os.path.join(yang_models_dir, 'standard/etsi'), 'ETSI modules'),
             ):
                 module_dir_copy = module_dirs[original_module_dir]
                 directory_success, message = populate_directory(module_dir_copy, notify_indexing, logger)
