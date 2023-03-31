@@ -1,29 +1,49 @@
-import argparse
+# Copyright The IETF Trust 2022, All Rights Reserved
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Script for adding new drafts to the DRAFTS index in Elasticsearch, so they can be searched in our system.
+"""
+
+__author__ = 'Dmytro Kyrychenko'
+__copyright__ = 'Copyright The IETF Trust 2022, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'dmytro.kyrychenko@pantheon.tech'
+
 import logging
 import os
-import typing as t
 
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from utility import log
 from utility.create_config import create_config
+from utility.script_config_dict import script_config_dict
+from utility.scriptConfig import ScriptConfig
+from utility.util import JobLogMessage, job_log
+
+BASENAME = os.path.basename(__file__)
+FILENAME = BASENAME.split('.py')[0]
+DEFAULT_SCRIPT_CONFIG = ScriptConfig(
+    help=script_config_dict[FILENAME]['help'],
+    args=script_config_dict[FILENAME]['args'],
+    arglist=None if __name__ == '__main__' else [],
+)
 
 
-def load_all_drafts(draft_dir: str) -> t.List[str]:
-    return [filename[:-4] for filename in os.listdir(draft_dir) if filename[-4:] == '.txt']
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Process drafts in draft directory')
-    parser.add_argument(
-        '--config-path',
-        type=str,
-        default=os.environ['YANGCATALOG_CONFIG_PATH'],
-        help='Set path to config file',
-    )
-    args = parser.parse_args()
-    config_path = args.config_path
-    config = create_config(config_path)
+@job_log(file_basename=BASENAME)
+def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLogMessage]:
+    config = create_config(script_config.args.config_path)
     is_prod = config.get('General-Section', 'is-prod')
     log_directory = config.get('Directory-Section', 'logs')
 
@@ -35,25 +55,25 @@ def main():
     logger = log.get_logger('process_drafts', os.path.join(log_directory, 'process-drafts.log'))
     logger.info('Starting process-drafts.py script')
 
-    drafts = load_all_drafts(ietf_drafts_dir)
+    drafts = [filename[:-4] for filename in os.listdir(ietf_drafts_dir) if filename[-4:] == '.txt']
 
     logger.info('Trying to initialize Elasticsearch indices')
     es_manager = ESManager()
     if not es_manager.index_exists(ESIndices.DRAFTS):
-        logger.error('Drafts index has not been created. Exiting.')
-        exit(1)
+        error_message = 'Drafts index has not been created yet.'
+        logger.error(error_message)
+        raise RuntimeError(error_message)
 
     logging.getLogger('elasticsearch').setLevel(logging.ERROR)
 
     done = 0
-    for i, draft_name in enumerate(drafts):
+    for i, draft_name in enumerate(drafts, 1):
         draft = {'draft': draft_name}
 
-        logger.info(f'Indexing draft {draft_name} - draft {i+1} out of {len(drafts)}')
+        logger.info(f'Indexing draft {draft_name} - draft {i} out of {len(drafts)}')
 
         try:
             if not es_manager.document_exists(ESIndices.DRAFTS, draft):
-                # Add draft to index only if it is not already there
                 es_manager.index_module(ESIndices.DRAFTS, draft)
                 logger.info(f'added {draft_name} to index')
                 done += 1
@@ -61,8 +81,8 @@ def main():
                 logger.info(f'skipping - {draft_name} is already in index')
         except Exception:
             logger.exception(f'Problem while processing draft {draft_name}')
-    logger.info(f'Added {done} drafts to ElasticSearch')
     logger.info('Job finished successfully')
+    return [JobLogMessage(label='Successful', message=f'Added {done} drafts to ElasticSearch')]
 
 
 if __name__ == '__main__':
