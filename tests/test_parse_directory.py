@@ -136,8 +136,8 @@ class TestParseDirectoryClass(unittest.TestCase):
             file_hasher,
             False,
             self.dir_paths,
-            config=config,
-            redis_connection=redis_connection,
+            config,
+            redis_connection,
         )
         mock_yang_lib = mock_yang_lib_cls.return_value
         mock_yang_lib.parse_and_load.assert_called()
@@ -151,8 +151,8 @@ class TestParseDirectoryClass(unittest.TestCase):
             file_hasher,
             False,
             self.dir_paths,
-            config=config,
-            redis_connection=redis_connection,
+            config,
+            redis_connection,
         )
         mock_capabilities = mock_capabilities_cls.return_value
         mock_capabilities.parse_and_load.assert_called()
