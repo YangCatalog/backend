@@ -9,7 +9,8 @@ with new/changed and deleted modules respectively, making `.bak` file backups be
 modules are being deleted from all indices and the new/changed modules are indexed in the `YINDEX` and `AUTOCOMPLETE` indices
 with the help of the [build_yindex.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/build_yindex.py) module.
 
-**Note:** `changes-cache` and `delete-cache` files are created by an external process calling our backend
+**Note:** `changes-cache` and `delete-cache` files are created inside the
+[populate.py](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py) script
 
 ## [build_yindex.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/build_yindex.py)
 

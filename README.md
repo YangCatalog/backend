@@ -56,7 +56,7 @@ repository a job is triggered to populate all the new modules to the yangcatalog
 The backend API also receives IETF Yang models every day and if there are any new drafts it will automatically populate
 the yangcatalog database and update the repository with all the new IETF modules if GitHub Actions pass successfully.
 
-Please note that UWSGI caching is used to improve the performance compared to ConfD requests. During loading of the UWSGI,
+Please note that UWSGI caching is used to improve the performance compared to Redis requests. During loading of the UWSGI,
 the cache is pre-populated by issuing one ConfD request per module; during this initial load time, the API will most likely
 time out and the NGINX server will return a 50x error.
 
@@ -71,7 +71,7 @@ job that checks all the IETF draft modules and their expiration dates and update
 * [remove_unused](https://github.com/YangCatalog/backend/blob/master/utility/remove_unused.py) job that removes data
 on the server that is not used anymore.
 * [user_reminder](https://github.com/YangCatalog/backend/blob/master/utility/user_reminder.py) script that will be
-triggered twice a year to show us which users we have in our database.
+triggered once a month to show us which users we have in our database.
 * In the [ietfYangDraftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull) directory there are two jobs.
     1. [pull_local](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/pull_local.py)
     clones the https://github.com/YangModels/yang repo, updates RFCs data with the latest data from the YANG-RFC.tgz,
@@ -117,7 +117,8 @@ See the README.md file in the `documentation/` directory.
 
 ### Fill the Redis database
 
-Using `backend/recovery/recovery.py --load --file /var/yang/cache/confd/<latest>.json`.
+Using `backend/recovery/recovery.py --load --file /var/yang/cache/redis-json/<specific>.json` for loading some specific backup,
+or using `backend/recovery/recovery.py --load` to load the latest backup.
 
 ### NGINX Configuration
 
