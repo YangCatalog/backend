@@ -56,10 +56,6 @@ repository a job is triggered to populate all the new modules to the yangcatalog
 The backend API also receives IETF Yang models every day and if there are any new drafts it will automatically populate
 the yangcatalog database and update the repository with all the new IETF modules if GitHub Actions pass successfully.
 
-Please note that UWSGI caching is used to improve the performance compared to Redis requests. During loading of the UWSGI,
-the cache is pre-populated by issuing one ConfD request per module; during this initial load time, the API will most likely
-time out and the NGINX server will return a 50x error.
-
 ### Jobs
 
 There are several cron jobs that run every day.
