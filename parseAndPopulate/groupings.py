@@ -142,13 +142,6 @@ class SdoDirectory(ModuleGrouping):
             if '[1]' in file_name:
                 self.logger.warning(f'File {file_name} contains [1] it its file name')
                 continue
-            # Openconfig modules are sent via API daily; see openconfigPullLocal.py script
-            if '/openconfig/public/' in path:
-                all_modules_path = self.file_mapping[path]
-                should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
-                if not should_parse.hash_changed:
-                    self.skipped += 1
-                    continue
             try:
                 yang = SdoModule(
                     path,

@@ -27,24 +27,19 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import logging
 import os
-import shutil
-
-import requests
 
 import utility.log as log
-from ietfYangDraftPull import draftPullUtility
-from utility import repoutil
 from utility.create_config import create_config
+from utility.repoutil import ModuleDirectoryManager
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import github_url
 from utility.util import JobLogMessage, job_log
 
 BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
 DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     help=script_config_dict[FILENAME]['help'],
-    args=script_config_dict[FILENAME]['args'],
+    args=script_config_dict[FILENAME].get('args'),
     arglist=None if __name__ == '__main__' else [],
 )
 
@@ -87,17 +82,8 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
         :return                 (tuple[bool, str]) First specifies whether the script ran successfully,
             second element is a corresponding text message.
     """
-    logger.info(f'Checking module filenames without revision in {directory}')
-    draftPullUtility.check_name_no_revision_exist(directory, logger)
-
-    logger.info(f'Checking for early revision in {directory}')
-    draftPullUtility.check_early_revisions(directory, logger)
-
     success = run_populate_script(directory, notify_indexing, logger)
-    if success:
-        message = 'Populate script finished successfully'
-    else:
-        message = 'Error while calling populate script'
+    message = 'Populate script finished successfully' if success else 'Error while calling populate script'
     return success, message
 
 
@@ -108,63 +94,33 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[JobLo
     config_path = args.config_path
     config = create_config(config_path)
     notify_indexing = config.get('General-Section', 'notify-index')
-    config_name = config.get('General-Section', 'repo-config-name')
-    config_email = config.get('General-Section', 'repo-config-email')
     log_directory = config.get('Directory-Section', 'logs')
-    ietf_rfc_url = config.get('Web-Section', 'ietf-RFC-tar-private-url')
-    temp_dir = config.get('Directory-Section', 'temp')
+    yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
+    non_ietf_directory = config.get('Directory-Section', 'non-ietf-directory')
+    ietf_directory = config.get('Directory-Section', 'ietf-directory')
     logger = log.get_logger('pull_local', f'{log_directory}/jobs/pull-local.log')
     logger.info('Starting cron job IETF pull request local')
 
     messages = []
     notify_indexing = notify_indexing == 'True'
     success = True
-    try:
-        # Clone YangModels/yang repository
-        clone_dir = os.path.join(temp_dir, 'pull_local')
-        if os.path.exists(clone_dir):
-            shutil.rmtree(clone_dir)
-        repo = repoutil.ModifiableRepoUtil(
-            f'{github_url}/YangModels/yang.git',
-            clone_options=repoutil.RepoUtil.CloneOptions(
-                config_username=config_name,
-                config_user_email=config_email,
-                local_dir=clone_dir,
-            ),
-        )
-        logger.info(f'YangModels/yang repo cloned to local directory {repo.local_dir}')
 
-        response = requests.get(ietf_rfc_url)
-        tgz_path = os.path.join(repo.local_dir, 'rfc.tgz')
-        extract_to = os.path.join(repo.local_dir, 'standard/ietf/RFC')
-        with open(tgz_path, 'wb') as zfile:
-            zfile.write(response.content)
-        tar_opened = draftPullUtility.extract_rfc_tgz(tgz_path, extract_to, logger)
-
-        if tar_opened:
-            # Standard RFC modules
-            directory_success, message = populate_directory(extract_to, notify_indexing, logger)
-            success = success and directory_success
-            messages.append({'label': 'Standard RFC modules', 'message': message})
-
-        # Experimental modules
-        experimental_path = os.path.join(repo.local_dir, 'experimental/ietf-extracted-YANG-modules')
-
-        directory_success, message = populate_directory(experimental_path, notify_indexing, logger)
-        success = success and directory_success
-        messages.append({'label': 'Experimental modules', 'message': message})
-
-        # IANA modules
-        iana_path = os.path.join(repo.local_dir, 'standard/iana')
-
-        if os.path.exists(iana_path):
-            directory_success, message = populate_directory(iana_path, notify_indexing, logger)
-            success = success and directory_success
-            messages.append({'label': 'IANA modules', 'message': message})
-
-    except Exception as e:
-        logger.exception('Exception found while running pull_local script')
-        raise e
+    with ModuleDirectoryManager() as module_dirs:
+        try:
+            for original_module_dir, label in (
+                (os.path.join(ietf_directory, 'YANG-rfc'), 'Standard RFC modules'),
+                (os.path.join(ietf_directory, 'YANG'), 'Experimental modules'),
+                (os.path.join(yang_models_dir, 'standard/iana'), 'IANA modules'),
+                (os.path.join(non_ietf_directory, 'openconfig/public'), 'OpenConfig modules'),
+                (os.path.join(yang_models_dir, 'standard/etsi'), 'ETSI modules'),
+            ):
+                module_dir_copy = module_dirs[original_module_dir]
+                directory_success, message = populate_directory(module_dir_copy, notify_indexing, logger)
+                success &= directory_success
+                messages.append({'label': label, 'message': message})
+        except Exception as e:
+            logger.exception('Exception found while running pull_local script')
+            raise e
     if success:
         logger.info('Job finished successfully')
     else:

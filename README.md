@@ -88,13 +88,11 @@ and their expiration dates and updates its metadata accordingly.
 anymore.
 * [user_reminder](https://github.com/YangCatalog/backend/blob/master/utility/user_reminder.py) script that will be triggered twice a year to show us what
 users we have in our database.
-* In the [ietfYangDraftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull) directory there are two jobs.
+* In the [ietfYangDraftPull](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull) directory there is one job.
     1. [pull_local](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/pull_local.py)
     clones the https://github.com/YangModels/yang repo, updates RFCs data with the latest data from the YANG-RFC.tgz,
     which is created during running of this script: https://github.com/YangCatalog/module-compilation/blob/develop/ietf_modules_extraction/run_ietf_module_extraction.sh.
     Then goes through RFC, experimental, and IANA modules data and populates yangcatalog.
-    2. [openconfigPullLocal](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/openconfigPullLocal.py) populates all the
-    new openconfig yang modules from their own repository to yangcatalog.
 * In the [automatic_push](https://github.com/YangCatalog/backend/blob/master/automatic_push) directory there are two jobs.
     1. [ietf_push](https://github.com/YangCatalog/backend/blob/master/automatic_push/ietf_push.py) retrieves and adds new
     IETF RFC and draft modules to the  https://github.com/yang-catalog/yang repository if there are any new/updated modules.
