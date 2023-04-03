@@ -115,20 +115,6 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'openconfigPullLocal': {
-        'help': (
-            'Run populate script on all openconfig files to parse all modules and populate the'
-            ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        ),
-        'args': [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ],
-    },
     'integrity': {
         'help': (
             'Checks the integrity (unspecified revisions, unspecified/invalid namespaces, etc.) '

@@ -578,7 +578,6 @@ def get_script_names():
         'ietf_push',
         'iana_push',
         'pull_local',
-        'openconfigPullLocal',
         'statistics',
         'recovery',
         'elk_recovery',
@@ -600,7 +599,7 @@ def get_disk_usage():
 def get_module_name(script_name):
     if script_name in ('populate', 'parse_directory', 'reviseSemver', 'resolve_expiration'):
         return 'parseAndPopulate'
-    elif script_name in ('pull_local', 'openconfigPullLocal'):
+    elif script_name in ('pull_local',):
         return 'ietfYangDraftPull'
     elif script_name in ('ietf_push', 'iana_push'):
         return 'automatic_push'

@@ -19,20 +19,15 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
-import logging
 import os
 import shutil
 import tempfile
-import time
 import typing as t
-from dataclasses import dataclass
 
 import requests
-from git import GitCommandError
 from git.cmd import Git
 from git.exc import InvalidGitRepositoryError
 from git.repo import Repo
-from gitdb.exc import BadName
 
 
 class RepoUtil:
@@ -60,118 +55,70 @@ class RepoUtil:
     def __init__(
         self,
         repourl: str,
-        clone: bool = True,
-        clone_options: t.Optional[CloneOptions] = None,
-        logger: t.Optional[logging.Logger] = None,
+        temp: bool = True,
     ):
         """
+        For internal use only, for creating RepoUtil objects, use the load or clone class methods.
+
         Arguments:
             :param repourl          (str) URL of the repository
-            :param clone            (bool) Should always be set to True. To load a repository
-                                           which has already been cloned, see  the load() function.
-            :param clone_options    (Optional[CloneOptions]) May contain the information for the repository cloning
-            :param logger           (Optional[Logger])
+            :param temp             (bool) Delete directory when the RepoUtil object is deleted
         """
+        self.temp = temp
         self.url = repourl
-        self.logger = logger
-        clone_options = clone_options or self.CloneOptions()
-        if clone:
-            self._clone(clone_options)
         self.previous_active_branch: t.Optional[str] = None
 
-    def get_repo_dir(self) -> str:
-        """Return the repository directory name from the URL"""
-        return os.path.splitext(os.path.basename(self.url))[0]
-
-    def get_commit_hash(self, path: str = '', branch: str = 'HEAD') -> str:
-        """
-        Get the commit hash of a branch.
-
-        Arguments:
-            :param path     (str) Path to a file of interest. This is used to determine
-                                  if we should search for the commit hash in a submodule.
-            :param branch   (str) The branch we want to get the commit hash of.
-            :return         (str) The commit hash.
-        """
-        assert self.repo is not None, 'Git repo not initialized'
-        try:
-            if path:
-                for submodule in self.repo.submodules:
-                    assert isinstance(submodule.path, str)
-                    if submodule.path in path:
-                        return load(os.path.join(self.local_dir, submodule.path), submodule._url).get_commit_hash(
-                            path,
-                            branch,
-                        )
-            return self.repo.commit(f'origin/{branch}').hexsha
-        except BadName:
-            if self.logger:
-                self.logger.error(f'Git branch - {branch} - could not be resolved')
-            return branch
-
-    def get_repo_owner(self) -> str:
-        """Return the root directory name of the repo.  In GitHub
-        parlance, this would be the owner of the repository.
-
-        Arguments:
-            :return     (str) GitHub repo owner.
-        """
-        owner = os.path.basename(os.path.dirname(self.url))
-        return owner.split(':')[-1]
-
-    def _clone(self, clone_options: CloneOptions):
+    @classmethod
+    def clone(
+        cls,
+        repourl: str,
+        temp: bool,
+        clone_options: t.Optional[CloneOptions] = None,
+    ) -> 'RepoUtil':
         """
         Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
 
         Arguments:
-            :param clone_options  (CloneOptions) Data for the repository cloning
+            :param repourl          (str) URL of the repository
+            :param temp             (bool) Delete directory when the RepoUtil object is deleted
+            :param clone_options    (CloneOptions) Data for the repository cloning
         """
+        clone_options = clone_options or cls.CloneOptions()
+        repoutil = cls(repourl, temp)
         if local_dir := clone_options.get('local_dir'):
-            self.local_dir = local_dir
+            repoutil.local_dir = local_dir
         else:
-            self.local_dir = tempfile.mkdtemp()
+            repoutil.local_dir = tempfile.mkdtemp()
         multi_options = ['--recurse-submodules'] if clone_options.setdefault('recurse_submodules', True) else None
-        self.repo = Repo.clone_from(self.url, self.local_dir, multi_options=multi_options)
+        repoutil.repo = Repo.clone_from(repoutil.url, repoutil.local_dir, multi_options=multi_options)
         if config_username := clone_options.get('config_username'):
-            with self.repo.config_writer() as config:
+            with repoutil.repo.config_writer() as config:
                 config.set_value('user', 'email', clone_options.get('config_user_email'))
                 config.set_value('user', 'name', config_username)
+        return repoutil
 
+    @classmethod
+    def load(cls, repo_dir: str, repo_url: str, temp: bool) -> 'RepoUtil':
+        """
+        Load git repository from a local directory into a Python object.
 
-class ModifiableRepoUtil(RepoUtil):
-    """
-    RepoUtil subclass with methods for manipulating the repository.
-    The repository directory is automatically removed on object deletion.
-    """
-
-    def __init__(
-        self,
-        repourl: str,
-        clone: bool = True,
-        clone_options: t.Optional[dict] = None,
-        logger: t.Optional[logging.Logger] = None,
-    ):
-        super().__init__(repourl, clone, clone_options, logger)
-
-    def add_untracked_remove_deleted(self):
-        """Add untracked files and remove deleted files."""
-        self.repo.index.add(self.repo.untracked_files)
-        diff = self.repo.index.diff(None)
-        for file in diff.iter_change_type('D'):
-            self.repo.index.remove(file.a_path)
-
-    def commit_all(self, message: str = 'RepoUtil Commit'):
-        """Equivalent of git commit -a -m MESSAGE."""
-        self.repo.git.commit(a=True, m=message)
-
-    def push(self):
-        """Push repo to origin. Credential errors may happen here."""
-        self.repo.git.push('origin')
+        Arguments:
+            :param repo_dir    (str) directory where .git file is located
+            :param repo_url    (str) url to GitHub repository
+            :param temp             (bool) Delete directory when the RepoUtil object is deleted
+        """
+        repoutil = cls(repo_url, temp)
+        try:
+            repoutil.repo = Repo(repo_dir)
+        except InvalidGitRepositoryError:
+            raise InvalidGitRepositoryError(repo_dir)
+        repoutil.local_dir = repo_dir
+        return repoutil
 
     def __del__(self):
         """Remove the temporary storage."""
-        if os.path.isdir(self.local_dir):
+        if self.temp and os.path.isdir(self.local_dir):
             shutil.rmtree(self.local_dir)
 
 
@@ -195,112 +142,6 @@ def construct_github_repo_url(user: str, repo: str, token: t.Optional[str] = Non
     if token:
         return f'https://{token}@github.com/{user}/{repo}.git'
     return f'https://github.com/{user}/{repo}.git'
-
-
-def clone_repo(
-    repo_url: str,
-    clone_options: RepoUtil.CloneOptions,
-    logger: logging.Logger,
-) -> t.Optional[ModifiableRepoUtil]:
-    """
-    Tries to clone a repository. Repeat the cloning process several times if the attempt was not successful.
-
-    Arguments:
-        :param repo_url          (str) URL to the GitHub repository
-        :param clone_options    (dict) Dictionary that contains information about the author of the commit
-        :param logger           (logging.Logger) formated logger with the specified name
-    """
-    attempts = 3
-    wait_for_seconds = 30
-    repo_name = repo_url.split('github.com/')[-1].split('.git')[0]
-    while True:
-        try:
-            logger.info(f'Cloning repository from: {repo_url}')
-            repo = ModifiableRepoUtil(repo_url, clone_options=clone_options)
-            logger.info(f'Repository cloned to local directory {repo.local_dir}')
-            break
-        except GitCommandError:
-            attempts -= 1
-            logger.warning(f'Unable to clone {repo_name} repository - waiting for {wait_for_seconds} seconds')
-            if attempts == 0:
-                logger.exception(f'Failed to clone repository {repo_name}')
-                return
-            time.sleep(wait_for_seconds)
-    return repo
-
-
-def load(repo_dir: str, repo_url: str) -> RepoUtil:
-    """
-    Load git repository from a local directory into a Python object.
-
-    Arguments:
-        :param repo_dir    (str) directory where .git file is located
-        :param repo_url    (str) url to GitHub repository
-    """
-    repo = (RepoUtil if 'yangmodels/yang' in repo_dir else ModifiableRepoUtil)(repo_url, clone=False)
-    try:
-        repo.repo = Repo(repo_dir)
-    except InvalidGitRepositoryError:
-        raise InvalidGitRepositoryError(repo_dir)
-    repo.local_dir = repo_dir
-    return repo
-
-
-@dataclass
-class PushResult:
-    is_successful: bool
-    detail: str
-
-
-def push_untracked_files(
-    repo: ModifiableRepoUtil,
-    commit_message: str,
-    logger: logging.Logger,
-    verified_commits_file_path: str,
-    is_production: bool,
-) -> PushResult:
-    """
-    Commits locally and pushes all the changes to the remote repository.
-
-    Arguments:
-          :param repo (ModifiableRepoUtil) Repository where to push changes.
-          :param commit_message (str) New commit message.
-          :param logger (logging.Logger) Logger instance to log information/exceptions.
-          :param verified_commits_file_path (str) Path to file where our verified commits should be stored
-          in order to verify commits in GitHub webhooks.
-          :param is_production (bool) If set to False then files would only be committed and not pushed to the repo.
-    :return (PushResult) Returns information about the push.
-    """
-    try:
-        logger.info('Adding all untracked files locally')
-        untracked_files = repo.repo.untracked_files
-        repo.add_untracked_remove_deleted()
-        logger.info('Committing all files locally')
-        repo.commit_all(message=commit_message)
-        logger.info('Pushing files to forked repository')
-        commit_hash = repo.repo.head.commit
-        logger.info(f'Commit hash {commit_hash}')
-        with open(verified_commits_file_path, 'w') as f:
-            f.write(f'{commit_hash}\n')
-        if is_production:
-            logger.info('Pushing untracked and modified files to remote repository')
-            repo.push()
-        else:
-            logger.info('DEV environment - not pushing changes into remote repository')
-            untracked_files_list = '\n'.join(untracked_files)
-            logger.debug(f'List of all untracked and modified files:\n{untracked_files_list}')
-    except GitCommandError as e:
-        message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
-        if 'Your branch is up to date' in e.stdout:
-            logger.warning(message)
-            return PushResult(is_successful=True, detail='Branch is up to date')
-        else:
-            logger.exception('Error while pushing procedure - Git command error')
-            return PushResult(is_successful=False, detail=str(e))
-    except Exception as e:
-        logger.exception('Error while pushing procedure')
-        return PushResult(is_successful=False, detail=str(e))
-    return PushResult(is_successful=True, detail=f'Commit hash: {commit_hash}')
 
 
 class PullRequestCreationDetail(t.TypedDict, total=False):
@@ -344,13 +185,13 @@ def create_pull_request(
     """
     headers = headers or {}
     headers['accept'] = 'application/vnd.github+json'
-    request_body = request_body or PullRequestCreationDetail()
-    request_body['head'] = head_branch
-    request_body['base'] = base_branch
+    request_body_dict = dict(request_body or PullRequestCreationDetail())
+    request_body_dict['head'] = head_branch
+    request_body_dict['base'] = base_branch
     return requests.post(
         f'https://api.github.com/repos/{owner}/{repo}/pulls',
         headers=headers,
-        data=json.dumps(request_body),
+        data=json.dumps(request_body_dict),
     )
 
 
@@ -363,6 +204,7 @@ class PullRequestApprovingDetail(t.TypedDict, total=False):
     commit_id: str
     body: str
     comments: list[dict]
+    event: t.Literal['APPROVE']
 
 
 def approve_pull_request(
@@ -435,3 +277,35 @@ def merge_pull_request(
         headers=headers,
         data=json.dumps(request_body or PullRequestMergingDetail()),
     )
+
+
+def add_worktree(repo_dir: str, branch: t.Optional[str] = None, new_worktree_dir: t.Optional[str] = None) -> str:
+    new_worktree_dir = new_worktree_dir or tempfile.mkdtemp()
+    if branch:
+        Git(repo_dir).worktree('add', new_worktree_dir, branch)
+    else:
+        Git(repo_dir).worktree('add', '--detach', new_worktree_dir)
+    return new_worktree_dir
+
+
+def remove_worktree(worktree_dir: str):
+    Git(worktree_dir).worktree('remove', '.')
+
+
+class ModuleDirectoryManager:
+    def __init__(self):
+        self._module_directories = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        for module_dir in self._module_directories.values():
+            shutil.rmtree(module_dir)
+
+    def __getitem__(self, repo_dir: str):
+        if repo_dir not in self._module_directories:
+            temp_dir = tempfile.mkdtemp()
+            shutil.copytree(repo_dir, temp_dir, dirs_exist_ok=True)
+            self._module_directories[repo_dir] = temp_dir
+        return self._module_directories[repo_dir]

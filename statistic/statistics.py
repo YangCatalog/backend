@@ -51,12 +51,12 @@ from parseAndPopulate.resolvers.namespace import NamespaceResolver
 from parseAndPopulate.resolvers.organization import OrganizationResolver
 from parseAndPopulate.resolvers.revision import RevisionResolver
 from statistic import runYANGallstats as all_stats
-from utility import repoutil, yangParser
+from utility import yangParser
 from utility.create_config import create_config
 from utility.fetch_modules import fetch_modules
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
-from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP, github_url
+from utility.staticVariables import MISSING_ELEMENT, NAMESPACE_MAP
 from utility.util import job_log
 
 BASENAME = os.path.basename(__file__)
@@ -229,10 +229,10 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
 
     config_path = args.config_path
     config = create_config(config_path)
-    config_name = config.get('General-Section', 'repo-config-name')
-    config_email = config.get('General-Section', 'repo-config-email')
     move_to = f'{config.get("Web-Section", "public-directory")}/.'
     yang_models = config.get('Directory-Section', 'yang-models-dir')
+    nonietf_dir = config.get('Directory-Section', 'non-ietf-directory')
+    openconfig_dir = os.path.join(nonietf_dir, 'openconfig/public')
     log_directory = config.get('Directory-Section', 'logs')
     private_dir = config.get('Web-Section', 'private-directory')
     global yangcatalog_api_prefix
@@ -241,8 +241,6 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
     global LOGGER
     LOGGER = log.get_logger('statistics', f'{log_directory}/statistics/yang.log')
     LOGGER.info('Starting statistics')
-
-    repo = None
 
     # Fetch the list of all modules known by YangCatalog
     LOGGER.info('Fetching all of the modules from API')
@@ -392,13 +390,9 @@ def main(script_conf: t.Optional[ScriptConfig] = None):
 
         # Openconfig is from different repository so we need yang models in Github equal to zero
         LOGGER.info('Cloning the repo')
-        repo = repoutil.ModifiableRepoUtil(
-            os.path.join(github_url, 'openconfig/public'),
-            clone_options={'config_username': config_name, 'config_user_email': config_email},
-        )
 
-        out = get_output(rootdir=os.path.join(repo.local_dir, 'release/models'))
-        process_data(out, sdo_list, os.path.join(repo.local_dir, 'release/models'), 'openconfig')
+        out = get_output(rootdir=os.path.join(openconfig_dir, 'release/models'))
+        process_data(out, sdo_list, os.path.join(openconfig_dir, 'release/models'), 'openconfig')
 
         context = {
             'table_sdo': sdo_list,
