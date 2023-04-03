@@ -31,12 +31,7 @@ from utility import message_factory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
 
-
-class YcJobs(Blueprint):
-    pass
-
-
-bp = YcJobs('ycJobs', __name__)
+bp = Blueprint('yc_jobs', __name__)
 
 
 @bp.before_request

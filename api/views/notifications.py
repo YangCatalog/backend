@@ -2,12 +2,7 @@ from flask import Blueprint, jsonify, make_response
 
 from api.my_flask import app
 
-
-class NotificationsBlueprint(Blueprint):
-    pass
-
-
-bp = NotificationsBlueprint('notifications', __name__)
+bp = Blueprint('notifications', __name__)
 
 
 @bp.before_request

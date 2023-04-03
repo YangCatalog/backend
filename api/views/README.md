@@ -2,7 +2,7 @@
 
 ---
 
-### [admin/admin.py](https://github.com/YangCatalog/backend/blob/master/api/views/admin/admin.py)
+### [admin.py](https://github.com/YangCatalog/backend/blob/master/api/views/admin.py)
 * `/api/admin/login`
 * `/admin`
 * `/admin/login`
@@ -24,7 +24,7 @@
 * `/api/admin/disk-usage - ['GET']`
 
 
-### [yangSearch/yangSearch.py](https://github.com/YangCatalog/backend/blob/master/api/views/yangSearch/yangSearch.py)
+### [yang_search/yang_search.py](https://github.com/YangCatalog/backend/blob/master/api/views/yang_search/yang_search.py)
 * `/api/yang-search/v2/grep_search - ['GET']`
 * `/api/yang-search/v2/tree/<module_name> - ['GET']`
 * `/api/yang-search/v2/tree/<module_name>@<revision> - ['GET']`
@@ -40,7 +40,7 @@
 * `/api/yang-search/v2/yang-catalog-help - ['GET']`
 
 
-### [healthCheck/healthCheck.py](https://github.com/YangCatalog/backend/blob/master/api/views/healthCheck/healthCheck.py)
+### [health_check.py](https://github.com/YangCatalog/backend/blob/master/api/views/health_check.py)
 * `/api/admin/healthcheck/services-list - ['GET']`
 * `/api/admin/healthcheck/elk - ['GET']`
 * `/api/admin/healthcheck/confd - ['GET']`
@@ -56,11 +56,11 @@
 * `/api/admin/healthcheck/cronjobs - ['GET']`
 
 
-### [notifications/notifications.py](https://github.com/YangCatalog/backend/blob/master/api/views/notifications/notifications.py)
+### [notifications.py](https://github.com/YangCatalog/backend/blob/master/api/views/notifications.py)
 * `/api/notifications/unsubscribe_from_emails/<path\:emails_type>/<path\:email> - ['GET']`
 
 
-### [comparisons/comparisons.py](https://github.com/YangCatalog/backend/blob/master/api/views/comparisons/comparisons.py)
+### [comparisons.py](https://github.com/YangCatalog/backend/blob/master/api/views/comparisons.py)
 * `/api/services/file1=<name1>@<revision1>/check-update-from/file2=<name2>@<revision2> - ['GET']`
 * `/api/services/diff-file/file1=<name1>@<revision1>/file2=<name2>@<revision2> - ['GET']`
 * `/api/services/diff-tree/file1=<name1>@<revision1>/file2=<file2>@<revision2> - ['GET']`
@@ -69,7 +69,7 @@
 * `/api/check-semantic-version - ['POST']`
 
 
-### [userSpecificModuleMaintenance/moduleMaintenance.py](https://github.com/YangCatalog/backend/blob/master/api/views/userSpecificModuleMaintenance/moduleMaintenance.py)
+### [user_specific_module_maintenance.py](https://github.com/YangCatalog/backend/blob/master/api/views/user_specific_module_maintenance.py)
 * `/api/register-user - ['POST']`
 * `/api/modules/module/<name>,<revision>,<organization> - ['DELETE']`
 * `/api/modules - ['DELETE','PUT', 'POST']`
@@ -78,7 +78,7 @@
 * `/api/job/<job_id> - ['GET']`
 
 
-### [redisSearch/redisSearch.py](https://github.com/YangCatalog/backend/blob/master/api/views/redisSearch/redisSearch.py)
+### [redis_search.py](https://github.com/YangCatalog/backend/blob/master/api/views/redis_search.py)
 * `/api/fast - ['POST']`
 * `/api/search/<path\:value> - ['GET']`
 * `/api/search-filter/<leaf> - ['POST']`
@@ -94,7 +94,7 @@
 * `/api/services/reference/<name>@<revision>.yang - ['GET']`
 
 
-### [ycJobs/ycJobs.py](https://github.com/YangCatalog/backend/blob/master/api/views/ycJobs/ycJobs.py)
+### [yc_jobs.py](https://github.com/YangCatalog/backend/blob/master/api/views/yc_jobs.py)
 * `/api/ietf - ['GET']`
 * `/api/checkCompleteGithub - ['POST']`
 * `/api/check-platform-metadata - ['POST']`

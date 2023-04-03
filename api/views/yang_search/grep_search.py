@@ -6,7 +6,7 @@ from configparser import ConfigParser
 from datetime import datetime, timedelta
 
 from api.cache.api_cache import cache
-from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
+from api.views.yang_search.constants import GREP_SEARCH_CACHE_TIMEOUT
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from utility import log
@@ -35,7 +35,7 @@ class GrepSearch:
 
         self.listdir_results_cache_key = f'listdir_{self.all_modules_directory}'
 
-        query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yangSearch', 'json', 'grep_search.json')
+        query_path = os.path.join(os.environ['BACKEND'], 'api', 'views', 'yang_search', 'json', 'grep_search.json')
         with open(query_path) as query_file:
             self.query = json.load(query_file)
 
