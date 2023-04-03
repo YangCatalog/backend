@@ -36,7 +36,7 @@ BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
 DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     help=script_config_dict[FILENAME]['help'],
-    args=script_config_dict[FILENAME]['args'],
+    args=script_config_dict[FILENAME].get('args'),
     arglist=None if __name__ == '__main__' else [],
 )
 

@@ -1,21 +1,22 @@
 # YANG Search Data Maintenance
 
-A cronjob is executed every 3 minutes and calls: `python3 process_changed_mods.py`
+## [process_changed_mods.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/process_changed_mods.py)
 
-## process_changed_mods.py
+Executed every 3 minutes by the cronjob. Takes as optional argument `--config-path` - path to the configuration file.
 
-Takes as optional argument: path to the configuration file
+Reads two files: `changes-cache` and `delete-cache` (their actual paths can be found in the configuration file by these names)
+with new/changed and deleted modules respectively, making `.bak` file backups before truncating them to 0. Then all the deleted
+modules are being deleted from all indices and the new/changed modules are indexed in the `YINDEX` and `AUTOCOMPLETE` indices
+with the help of the [build_yindex.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/build_yindex.py) module.
 
-Read the JSON file YANG_CACHE_FILE for the list of modules (also making a .bak before truncating it to 0), this is the list of modules to be processed.
+**Note:** `changes-cache` and `delete-cache` files are created inside the
+[populate.py](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py) script
 
-**Note:** the two JSON files are actually created by an external process calling the web service at /yang-search/metadata_update/
+## [build_yindex.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/build_yindex.py)
 
-Finally, calls `build_yindex.py` 
+Contains functionality to parse a module data using the custom pyang plugin: [yang_catalog_index_es.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/pyang_plugin/yang_catalog_index_es.py)
+and add the module data in the `YINDEX` and `AUTOCOMPLETE` indices, previously deleting the module data from these indices.
 
+## [process-drafts.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/process-drafts.py)
 
-## build_yindex.py
-
-Build the list of all modules modified since the last `process_changed_mods.py` call:
-## pyang_plugin directory
-
-This directory contains all PYANG plugins used by YangSearch.
+Script run by the cronjob to add new drafts to the `DRAFTS` Elasticsearch index.
