@@ -32,13 +32,13 @@ from flask.json import jsonify
 from pyang import plugin
 from werkzeug.exceptions import abort
 
-import api.views.yangSearch.search_params as sp
+import api.views.yang_search.search_params as sp
 import utility.log as log
 from api.cache.api_cache import cache
 from api.my_flask import app
-from api.views.yangSearch.constants import GREP_SEARCH_CACHE_TIMEOUT
-from api.views.yangSearch.elkSearch import ElkSearch
-from api.views.yangSearch.grep_search import GrepSearch
+from api.views.yang_search.constants import GREP_SEARCH_CACHE_TIMEOUT
+from api.views.yang_search.elk_search import ElkSearch
+from api.views.yang_search.grep_search import GrepSearch
 from elasticsearchIndexing.models.es_indices import ESIndices
 from elasticsearchIndexing.models.keywords_names import KeywordsNames
 from utility.create_config import create_config
@@ -46,11 +46,11 @@ from utility.staticVariables import MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS, SCH
 from utility.yangParser import create_context
 
 
-class YangSearch(Blueprint):
+class YangSearchBlueprint(Blueprint):
     logger: Logger
 
 
-bp = YangSearch('yangSearch', __name__)
+bp = YangSearchBlueprint('yang_search', __name__)
 
 
 @bp.record

@@ -59,11 +59,7 @@ provider_config = ProviderConfiguration(issuer=issuer, client_metadata=client_me
 ietf_auth = OIDCAuthentication({'default': provider_config})
 
 
-class YangCatalogAdminBlueprint(Blueprint):
-    pass
-
-
-bp = YangCatalogAdminBlueprint('admin', __name__)
+bp = Blueprint('admin', __name__)
 CORS(bp, supports_credentials=True)
 
 

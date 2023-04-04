@@ -29,9 +29,9 @@ from unittest import mock
 
 from redis import RedisError
 
-import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
+import api.views.user_specific_module_maintenance as mm
 from api.globalConfig import yc_gc
-from api.yangCatalogApi import app
+from api.yangcatalog_api import app
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.util import hash_pw
 
@@ -65,12 +65,12 @@ class TestApiContributeClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-        cls.send_patcher = mock.patch('api.yangCatalogApi.app.config.sender.send')
+        cls.send_patcher = mock.patch('api.yangcatalog_api.app.config.sender.send')
         cls.mock_send = cls.send_patcher.start()
         cls.addClassCleanup(cls.send_patcher.stop)
         cls.mock_send.return_value = 1
 
-        cls.confd_patcher = mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_mod_redis')
+        cls.confd_patcher = mock.patch('api.views.user_specific_module_maintenance.get_mod_redis')
         cls.mock_redis_get = cls.confd_patcher.start()
         cls.addClassCleanup(cls.confd_patcher.stop)
         cls.mock_redis_get.side_effect = mock_redis_get
@@ -99,8 +99,8 @@ class TestApiContributeClass(unittest.TestCase):
         self.users.delete(self.uid, temp=False)
         shutil.rmtree(yc_gc.save_requests)
 
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.create', mock.MagicMock())
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.MessageFactory', mock.MagicMock)
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.create', mock.MagicMock())
+    @mock.patch('api.views.user_specific_module_maintenance.MessageFactory', mock.MagicMock)
     def test_register_user(self):
         # we use a username different from "test" because such a user already exists
         body = {
@@ -188,8 +188,8 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test already exists')
 
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
     def test_register_user_tempuser_exist(self):
         body = {
             k: 'test'
@@ -212,7 +212,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User with username test is pending for permissions')
 
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
     def test_register_user_db_exception(self):
         body = {
             k: 'test'
@@ -251,7 +251,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_delete_modules_unavailable_module(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = ''
         mod = {'name': 'test', 'revision': '2017-01-01', 'organization': 'ietf'}
@@ -266,7 +266,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_delete_modules_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         """get_user_access_rights patched to give no rights.
         Test error response when the user has insufficient rights.
@@ -344,7 +344,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_delete_vendor_insufficient_rights(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = '/cisco'
         vendor_name = 'fujitsu'
@@ -362,9 +362,9 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(mm.organization_by_namespace('urn:test:test'), 'test')
         self.assertEqual(mm.organization_by_namespace('test'), '')
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.shutil.move')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.shutil.copy')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.shutil.rmtree')
+    @mock.patch('api.views.user_specific_module_maintenance.shutil.move')
+    @mock.patch('api.views.user_specific_module_maintenance.shutil.copy')
+    @mock.patch('api.views.user_specific_module_maintenance.shutil.rmtree')
     @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock(**{'return_value.get_commit_hash.return_value': 'master'}))
     @mock.patch('requests.put')
     def test_add_modules(self, mock_put: mock.MagicMock, *args):
@@ -575,7 +575,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('shutil.copy')
     @mock.patch('shutil.rmtree')
     @mock.patch('utility.repoutil.RepoUtil')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     @mock.patch('requests.put')
     def test_add_modules_unauthorized(self, mock_put: mock.MagicMock, mock_access_rights: mock.MagicMock, *args):
         body = self.payloads_content.get('add_modules')
@@ -591,10 +591,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(data['description'], 'Unauthorized for server unknown reason')
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.RepoUtil', MockRepoUtil)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
+    @mock.patch('api.views.user_specific_module_maintenance.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.user_specific_module_maintenance.open', mock.mock_open())
     def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -609,12 +609,12 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.pull')
+    @mock.patch('api.views.user_specific_module_maintenance.repoutil.pull')
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.RepoUtil', MockRepoUtil)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
+    @mock.patch('api.views.user_specific_module_maintenance.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.user_specific_module_maintenance.open', mock.mock_open())
     def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -661,7 +661,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('platform', data['description'])
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     def test_add_vendor_confd_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 400
@@ -678,7 +678,7 @@ class TestApiContributeClass(unittest.TestCase):
         )
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     def test_add_vendor_no_module_file_list(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -695,7 +695,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('module-list-file', data['description'])
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     def test_add_vendor_no_path(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -710,7 +710,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('path', data['description'])
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     def test_add_vendor_no_repository(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -725,7 +725,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('repository', data['description'])
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     def test_add_vendor_no_owner(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -740,10 +740,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('owner', data['description'])
 
     @mock.patch('requests.put')
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.authorize_for_vendors')
+    @mock.patch('api.views.user_specific_module_maintenance.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.open', mock.mock_open())
+    @mock.patch('api.views.user_specific_module_maintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.user_specific_module_maintenance.open', mock.mock_open())
     def test_add_vendor_git_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -761,7 +761,7 @@ class TestApiContributeClass(unittest.TestCase):
             ),
         )
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_vendors(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = '/test/test/test/test'
         request = mock.MagicMock()
@@ -776,7 +776,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertEqual(result, True)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_vendors_root(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = '/'
         request = mock.MagicMock()
@@ -786,7 +786,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertEqual(result, True)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_vendors_missing_rights(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = 'test'
         request = mock.MagicMock()
@@ -803,7 +803,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertEqual(result, 'vendor')
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_sdos_root(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = '/'
         request = mock.MagicMock()
@@ -813,7 +813,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertTrue(result)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_sdos(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = 'test'
         request = mock.MagicMock()
@@ -823,7 +823,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertTrue(result)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_sdos_not_same(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = '/'
         request = mock.MagicMock()
@@ -833,7 +833,7 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertEqual(result, 'module`s organization is not the same as organization provided')
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.get_user_access_rights')
+    @mock.patch('api.views.user_specific_module_maintenance.get_user_access_rights')
     def test_authorize_for_sdos_not_in_rights(self, mock_access_rights: mock.MagicMock):
         mock_access_rights.return_value = 'test'
         request = mock.MagicMock()

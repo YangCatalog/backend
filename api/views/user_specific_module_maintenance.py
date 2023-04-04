@@ -38,34 +38,7 @@ from utility.repoutil import RepoUtil
 from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
 from utility.util import hash_pw
 
-
-class UserSpecificModuleMaintenance(Blueprint):
-    def __init__(
-        self,
-        name,
-        import_name,
-        static_folder=None,
-        static_url_path=None,
-        template_folder=None,
-        url_prefix=None,
-        subdomain=None,
-        url_defaults=None,
-        root_path=None,
-    ):
-        super().__init__(
-            name,
-            import_name,
-            static_folder,
-            static_url_path,
-            template_folder,
-            url_prefix,
-            subdomain,
-            url_defaults,
-            root_path,
-        )
-
-
-bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
+bp = Blueprint('user_specific_module_maintenance', __name__)
 
 
 @bp.before_request

@@ -26,7 +26,7 @@ import unittest
 from unittest import mock
 
 from api.authentication.auth import auth
-from api.yangCatalogApi import app
+from api.yangcatalog_api import app
 
 app_config = app.config
 

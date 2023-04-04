@@ -169,7 +169,7 @@ class TestReceiverClass(TestReceiverBaseClass):
 
         self.assertEqual(status, StatusMessage.FAIL)
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.user_specific_module_maintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
     @mock.patch('parseAndPopulate.populate.Populate._reload_cache_in_parallel', mock.MagicMock)
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
@@ -208,7 +208,7 @@ class TestReceiverClass(TestReceiverBaseClass):
         self.assertEqual(details, 'Server error while running populate script')
         self.assertEqual(redis_data, '{}')
 
-    @mock.patch('api.views.userSpecificModuleMaintenance.moduleMaintenance.repoutil.RepoUtil', MockRepoUtil)
+    @mock.patch('api.views.user_specific_module_maintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
     @mock.patch('parseAndPopulate.populate.Populate._reload_cache_in_parallel', mock.MagicMock)
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
