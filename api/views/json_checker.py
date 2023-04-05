@@ -16,21 +16,25 @@ class JsonCheckerException(Exception):
 
 
 class MissingField(JsonCheckerException):
-    def __init__(self, path):
+    def __init__(self, path: str):
         self.path = path
 
 
 class IncorrectShape(JsonCheckerException):
-    def __init__(self, correct, path):
+    def __init__(self, correct: str, path: str):
         self.correct = correct
         self.path = path
 
 
+type_map: dict[type, str] = {dict: 'object', list: 'array', str: 'string', int: 'number (int)', type(None): 'null'}
+
+
 def check(shape, data):
+    """Check the data and raise an exception in case of a mismatch."""
     match shape:
         case dict():
             if not isinstance(data, dict):
-                raise IncorrectShape(dict, '')
+                raise IncorrectShape(type_map[dict], '')
             for key, component in shape.items():
                 if key not in data:
                     raise MissingField(f'["{key}"]')
@@ -40,12 +44,12 @@ def check(shape, data):
                     raise MissingField(f'["{key}"]{m.path}')
                 except IncorrectShape as e:
                     raise IncorrectShape(e.correct, f'["{key}"]{e.path}')
-        case [shape_element]:
+        case [element_shape]:
             if not isinstance(data, list):
-                raise IncorrectShape(list, '')
+                raise IncorrectShape(type_map[list], '')
             for i, data_element in enumerate(data):
                 try:
-                    check(shape_element, data_element)
+                    check(element_shape, data_element)
                 except MissingField as m:
                     raise MissingField(f'[{i}]{m.path}')
                 except IncorrectShape as e:
@@ -70,11 +74,12 @@ def check(shape, data):
 
         case type():
             if not isinstance(data, shape):
-                raise IncorrectShape(shape, '')
+                raise IncorrectShape(type_map[shape], '')
     return True
 
 
 def check_error(shape, data) -> None | str:
+    """Check the data and return a formatted error string in case of a mismatch."""
     try:
         check(shape, data)
     except MissingField as e:
@@ -84,6 +89,7 @@ def check_error(shape, data) -> None | str:
 
 
 def abort_with_error(error: None | str):
+    """Check the data and abort the current request with code 400 and a formatted error string in the description."""
     if error is None:
         return
     abort(400, description=error)
