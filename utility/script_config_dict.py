@@ -42,7 +42,18 @@ result_dir = config.get('Web-Section', 'result-html-dir')
 
 script_config_dict: dict[str, ScriptConfigInfo] = {
     'process_changed_mods': {
-        'help': 'Process changed modules in a git repo',
+        'help': 'Process added/changed/deleted modules, and reflect changes in Elasticsearch.',
+        'args': [
+            {
+                'flag': '--config-path',
+                'help': 'Set path to config file',
+                'type': str,
+                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
+            },
+        ],
+    },
+    'process-drafts': {
+        'help': 'Add new drafts to the DRAFTS Elasticsearch index.',
         'args': [
             {
                 'flag': '--config-path',
@@ -104,22 +115,11 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'openconfigPullLocal': {
-        'help': (
-            'Run populate script on all openconfig files to parse all modules and populate the'
-            ' metadata to yangcatalog if there are any new. This runs as a daily cronjob'
-        ),
-        'args': [
-            {
-                'flag': '--config-path',
-                'help': 'Set path to config file',
-                'type': str,
-                'default': os.environ['YANGCATALOG_CONFIG_PATH'],
-            },
-        ],
-    },
     'integrity': {
-        'help': '',
+        'help': (
+            'Checks the integrity (unspecified revisions, unspecified/invalid namespaces, etc.) '
+            'of all yang files in a given directory.'
+        ),
         'args': [
             {
                 'flag': '--sdo',
@@ -138,8 +138,8 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
     },
     'parse_directory': {
         'help': (
-            'Parse modules on given directory and generate json with module metadata '
-            'that can be populated to Redis database.'
+            'Parses modules on the given directory and generates json with modules data/metadata '
+            'that can be later populated to Redis.'
         ),
         'args': [
             {
@@ -196,10 +196,9 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
     },
     'populate': {
         'help': (
-            'Parse hello messages and YANG files to a JSON dictionary. These '
-            'dictionaries are used for populating the yangcatalog. This script first '
-            'runs the parse_directory.py script to create JSON files which are '
-            'used to populate database.'
+            'This script first runs the parse_directory.py script to create JSON files which are '
+            'used to populate databases, and then populates Redis/ConfD with new modules and vendors (metadata), and '
+            'creates files that will be later used by the process_changed_mods.py script.'
         ),
         'args': [
             {

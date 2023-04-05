@@ -30,8 +30,8 @@ from unittest import mock
 from redis import RedisError
 from werkzeug.exceptions import HTTPException
 
-import api.views.admin.admin as admin
-from api.yangCatalogApi import app
+import api.views.admin as admin
+from api.yangcatalog_api import app
 from redisConnections.redis_users_connection import RedisUsersConnection
 
 app_config = app.config
@@ -245,8 +245,8 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertJsonResponse(result, 200, 'info', 'Success')
         self.assertJsonResponse(result, 200, 'data', 'test')
 
-    @mock.patch('api.yangCatalogApi.app.config.sender.send', mock.MagicMock)
-    @mock.patch('api.views.admin.admin.open')
+    @mock.patch('api.yangcatalog_api.app.config.sender.send', mock.MagicMock)
+    @mock.patch('api.views.admin.open')
     def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
         mock.mock_open(mock_open)
         result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
@@ -258,7 +258,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     @mock.patch('requests.post')
     @mock.patch('api.sender.Sender.send')
-    @mock.patch('api.yangCatalogApi.app.load_config')
+    @mock.patch('api.yangcatalog_api.app.load_config')
     @mock.patch('builtins.open')
     def test_update_yangcatalog_config_errors(
         self,
@@ -292,7 +292,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertEqual(result, ('/good.log', '/good.log-more'))
 
     @mock.patch('os.path.getmtime')
-    @mock.patch('api.views.admin.admin.find_files')
+    @mock.patch('api.views.admin.find_files')
     def test_filter_from_date(self, mock_find_files: mock.MagicMock, mock_getmtime: mock.MagicMock):
         mock_find_files.return_value = iter(('test1', 'test2', 'test3'))
         mock_getmtime.side_effect = (1, 2, 3)
@@ -393,10 +393,10 @@ class TestApiAdminClass(unittest.TestCase):
             ['2021-07-07 11:02:39 WARNING     admin.py   api => Getting yangcatalog log files - 298\nt'],
         )
 
-    @mock.patch('api.views.admin.admin.generate_output', mock.MagicMock(return_value=3 * ['test']))
-    @mock.patch('api.views.admin.admin.determine_formatting', mock.MagicMock(return_value=True))
-    @mock.patch('api.views.admin.admin.find_timestamp', mock.MagicMock(return_value=0))
-    @mock.patch('api.views.admin.admin.filter_from_date', mock.MagicMock())
+    @mock.patch('api.views.admin.generate_output', mock.MagicMock(return_value=3 * ['test']))
+    @mock.patch('api.views.admin.determine_formatting', mock.MagicMock(return_value=True))
+    @mock.patch('api.views.admin.find_timestamp', mock.MagicMock(return_value=0))
+    @mock.patch('api.views.admin.filter_from_date', mock.MagicMock())
     def test_get_logs(self):
         body = {'input': {'lines-per-page': 2, 'page': 2}}
 
@@ -500,7 +500,7 @@ class TestApiAdminClass(unittest.TestCase):
 
         self.assertJsonResponse(result, 400, 'description', '"invalid" is not valid script name')
 
-    @mock.patch('api.yangCatalogApi.app_config.sender.send')
+    @mock.patch('api.yangcatalog_api.app_config.sender.send')
     def test_run_script_with_args(self, mock_send: mock.MagicMock):
         mock_send.return_value = 1
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
@@ -509,7 +509,7 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertJsonResponse(result, 202, 'job-id', 1)
         self.assertJsonResponse(result, 202, 'arguments', ['parseAndPopulate', 'populate', '"test"'])
 
-    @mock.patch('api.yangCatalogApi.app_config.sender', mock.MagicMock())
+    @mock.patch('api.yangcatalog_api.app_config.sender', mock.MagicMock())
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
 

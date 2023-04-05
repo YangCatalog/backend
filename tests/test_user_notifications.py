@@ -1,7 +1,7 @@
 import unittest
 from unittest import mock
 
-from api.yangCatalogApi import app
+from api.yangcatalog_api import app
 from redisConnections.redis_user_notifications_connection import RedisUserNotificationsConnection
 from utility.create_config import create_config
 
@@ -27,7 +27,7 @@ class TestUserNotificationsClass(unittest.TestCase):
     def test_unsubscription_from_emails_via_api(self):
         email_type = 'test-email-type'
         email = 'test@example.com'
-        mock.patch('api.views.notifications.notifications.user_notifications', self.redis_user_notifications_connection)
+        mock.patch('api.views.notifications.user_notifications', self.redis_user_notifications_connection)
         self.redis_user_notifications_connection.unsubscribe_from_emails(email_type, email)
         response = self.client.get(f'api/notifications/unsubscribe_from_emails/{email_type}/{email}')
         self.assertEqual(response.status_code, 200)

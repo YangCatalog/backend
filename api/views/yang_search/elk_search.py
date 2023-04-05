@@ -22,8 +22,8 @@ import os
 
 from elasticsearch import ConnectionTimeout
 
-import api.views.yangSearch.search_params as sp
-from api.views.yangSearch.response_row import ResponseRow
+import api.views.yang_search.search_params as sp
+from api.views.yang_search.response_row import ResponseRow
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from redisConnections.redisConnection import RedisConnection
@@ -60,7 +60,7 @@ class ElkSearch:
             :param search_params    (SearchParams) Contains search parameters
         """
         self._search_params = search_params
-        search_query_path = os.path.join(os.environ['BACKEND'], 'api/views/yangSearch/json/search.json')
+        search_query_path = os.path.join(os.environ['BACKEND'], 'api/views/yang_search/json/search.json')
         with open(search_query_path, encoding='utf-8') as reader:
             self.query: dict = json.load(reader)
         self._es_manager = es_manager

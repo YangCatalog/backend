@@ -22,7 +22,7 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
-from api.yangCatalogApi import app as application  # noqa
+from api.yangcatalog_api import app as application  # noqa
 
 # if __name__ == "__main__":
 #        application.run()

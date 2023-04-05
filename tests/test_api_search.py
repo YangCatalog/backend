@@ -27,8 +27,8 @@ from lxml import html as HT
 from markupsafe import escape
 from werkzeug.exceptions import BadRequest, NotFound
 
-import api.views.redisSearch.redisSearch as search_bp
-from api.yangCatalogApi import app
+import api.views.redis_search as search_bp
+from api.yangcatalog_api import app
 
 app_config = app.config
 
@@ -758,7 +758,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertIn(expected_message, data)
 
-    @mock.patch('api.views.redisSearch.redisSearch.ac', app_config)
+    @mock.patch('api.views.redis_search.ac', app_config)
     @mock.patch('api.my_flask.Redis.get')
     def test_modules_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.
@@ -772,7 +772,7 @@ class TestApiSearchClass(unittest.TestCase):
         self.assertEqual(len(result), 0)
         self.assertIsInstance(result, collections.OrderedDict)
 
-    @mock.patch('api.views.redisSearch.redisSearch.ac', app_config)
+    @mock.patch('api.views.redis_search.ac', app_config)
     @mock.patch('api.my_flask.Redis.get')
     def test_vendors_data_no_value(self, mock_redis_get: mock.MagicMock):
         """Redis get() method patched to return None.

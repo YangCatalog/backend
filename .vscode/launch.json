@@ -9,7 +9,7 @@
       "request": "launch",
       "module": "flask",
       "env": {
-        "FLASK_APP": "${workspaceFolder}/api/yangCatalogApi.py",
+        "FLASK_APP": "${workspaceFolder}/api/yangcatalog_api",
         "FLASK_ENV": "development",
         "FLASK_DEBUG": "1" // 1 = enable DEBUG mode; 0 = disable DEBUG mode
       },
@@ -82,15 +82,6 @@
       "type": "python",
       "request": "launch",
       "program": "${workspaceFolder}/ietfYangDraftPull/pull_local.py",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": false
-    },
-    {
-      "name": "openconfigPullLocal",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/ietfYangDraftPull/openconfigPullLocal.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false

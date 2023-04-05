@@ -35,37 +35,11 @@ from api.my_flask import app
 from api.views.json_checker import abort_with_error, check_error
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
+from utility.repoutil import RepoUtil
 from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
 from utility.util import hash_pw
 
-
-class UserSpecificModuleMaintenance(Blueprint):
-    def __init__(
-        self,
-        name,
-        import_name,
-        static_folder=None,
-        static_url_path=None,
-        template_folder=None,
-        url_prefix=None,
-        subdomain=None,
-        url_defaults=None,
-        root_path=None,
-    ):
-        super().__init__(
-            name,
-            import_name,
-            static_folder,
-            static_url_path,
-            template_folder,
-            url_prefix,
-            subdomain,
-            url_defaults,
-            root_path,
-        )
-
-
-bp = UserSpecificModuleMaintenance('userSpecificModuleMaintenance', __name__)
+bp = Blueprint('user_specific_module_maintenance', __name__)
 
 
 @bp.before_request
@@ -298,7 +272,7 @@ def add_modules():
         # be happy if someone already created the path
         if e.errno != errno.EEXIST:
             raise
-    repos: t.Dict[str, repoutil.RepoUtil] = {}
+    repos: t.Dict[str, RepoUtil] = {}
     warning = []
     for module in module_list:
         app.logger.debug(module)
@@ -454,7 +428,7 @@ def add_vendors():
         if e.errno != errno.EEXIST:
             raise
 
-    repos: t.Dict[str, repoutil.RepoUtil] = {}
+    repos: t.Dict[str, RepoUtil] = {}
     for platform in platform_list:
         module_list_file = platform['module-list-file']
         xml_path = module_list_file['path']
@@ -607,20 +581,19 @@ def organization_by_namespace(namespace: str):
     return ''
 
 
-def get_repo(repo_url: str, owner: str, repo_name: str) -> repoutil.RepoUtil:
+def get_repo(repo_url: str, owner: str, repo_name: str) -> RepoUtil:
     if owner == 'YangModels' and repo_name == 'yang':
         app.logger.info('Using repo already downloaded from {}'.format(repo_url))
         repoutil.pull(ac.d_yang_models_dir)
         try:
-            yang_models_repo = repoutil.load(ac.d_yang_models_dir, github_url)
+            yang_models_repo = RepoUtil.load(ac.d_yang_models_dir, github_url, temp=False)
         except InvalidGitRepositoryError:
             raise Exception("Couldn't load YangModels/yang from directory")
         return yang_models_repo
     else:
         app.logger.info('Downloading repo {}'.format(repo_url))
         try:
-            repo = repoutil.ModifiableRepoUtil(repo_url)
-            return repo
+            return RepoUtil.clone(repo_url, temp=True)
         except GitCommandError as e:
             abort(
                 400,

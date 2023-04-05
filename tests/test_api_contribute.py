@@ -30,13 +30,13 @@ from unittest import mock
 
 from redis import RedisError
 
-import api.views.userSpecificModuleMaintenance.moduleMaintenance as mm
+import api.views.user_specific_module_maintenance as mm
 from api.globalConfig import yc_gc
-from api.yangCatalogApi import app
+from api.yangcatalog_api import app
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.util import hash_pw
 
-import_string = 'api.views.userSpecificModuleMaintenance.moduleMaintenance'
+import_string = 'api.views.user_specific_module_maintenance'
 
 
 class MockRepoUtil:
@@ -47,6 +47,14 @@ class MockRepoUtil:
 
     def get_commit_hash(self, path=None, branch='master'):
         return branch
+
+    @classmethod
+    def clone(cls, *args, **kwargs):
+        return MockRepoUtil(None)
+
+    @classmethod
+    def load(cls, *args, **kwargs):
+        return MockRepoUtil(None)
 
 
 class TestApiContributeClass(unittest.TestCase):
@@ -59,7 +67,7 @@ class TestApiContributeClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-        cls.send_patcher = mock.patch('api.yangCatalogApi.app.config.sender.send')
+        cls.send_patcher = mock.patch('api.yangcatalog_api.app.config.sender.send')
         cls.mock_send = cls.send_patcher.start()
         cls.addClassCleanup(cls.send_patcher.stop)
         cls.mock_send.return_value = 1
@@ -168,15 +176,15 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertJsonResponse(result, 409, 'description', 'User with username test already exists')
 
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
     def test_register_user_tempuser_exist(self):
         body = self.user_registration_data
         result = self.client.post('api/register-user', json=body)
 
         self.assertJsonResponse(result, 409, 'description', 'User with username test is pending for permissions')
 
-    @mock.patch('api.yangCatalogApi.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
+    @mock.patch('api.yangcatalog_api.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
     def test_register_user_db_exception(self):
         body = self.user_registration_data
         result = self.client.post('api/register-user', json=body)
@@ -336,7 +344,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch(f'{import_string}.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch(f'{import_string}.repoutil.ModifiableRepoUtil', MockRepoUtil)
+    @mock.patch(f'{import_string}.RepoUtil', MockRepoUtil)
     @mock.patch(f'{import_string}.open', mock.mock_open())
     def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
@@ -350,7 +358,7 @@ class TestApiContributeClass(unittest.TestCase):
     @mock.patch('requests.put')
     @mock.patch(f'{import_string}.authorize_for_vendors')
     @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch(f'{import_string}.repoutil.ModifiableRepoUtil', MockRepoUtil)
+    @mock.patch(f'{import_string}.RepoUtil', MockRepoUtil)
     @mock.patch(f'{import_string}.open', mock.mock_open())
     def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
         mock_authorize.return_value = True

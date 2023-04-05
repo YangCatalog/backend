@@ -38,34 +38,7 @@ from api.my_flask import app
 from api.views.json_checker import abort_with_error, check_error
 from utility.yangParser import create_context
 
-
-class RedisSearch(Blueprint):
-    def __init__(
-        self,
-        name,
-        import_name,
-        static_folder=None,
-        static_url_path=None,
-        template_folder=None,
-        url_prefix=None,
-        subdomain=None,
-        url_defaults=None,
-        root_path=None,
-    ):
-        super().__init__(
-            name,
-            import_name,
-            static_folder,
-            static_url_path,
-            template_folder,
-            url_prefix,
-            subdomain,
-            url_defaults,
-            root_path,
-        )
-
-
-bp = RedisSearch('redisSearch', __name__)
+bp = Blueprint('redis_search', __name__)
 
 
 @bp.before_request

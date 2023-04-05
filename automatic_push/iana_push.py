@@ -25,14 +25,17 @@ __email__ = 'bohdan.konovalenko@pantheon.tech'
 import os
 import shutil
 import subprocess
-import typing as t
 import xml.etree.ElementTree as ET
 from configparser import ConfigParser
 from shutil import copy2
 
 import utility.log as log
-from automatic_push.utils import get_forked_repository
-from ietfYangDraftPull import draftPullUtility as dpu
+from automatic_push.utils import (
+    check_early_revisions,
+    check_name_no_revision_exist,
+    get_forked_worktree,
+    push_untracked_files,
+)
 from utility import repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -43,7 +46,7 @@ BASENAME = os.path.basename(__file__)
 FILENAME = BASENAME.split('.py')[0]
 DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     help=script_config_dict[FILENAME]['help'],
-    args=script_config_dict[FILENAME]['args'],
+    args=script_config_dict[FILENAME].get('args'),
     arglist=None if __name__ == '__main__' else [],
 )
 
@@ -66,17 +69,15 @@ class IanaPush:
         log_directory = self.config.get('Directory-Section', 'logs')
         self.logger = log.get_logger('iana_push', f'{log_directory}/jobs/iana-push.log')
 
-        self.repo: t.Optional[repoutil.ModifiableRepoUtil] = None
-
     @job_log(file_basename=BASENAME)
     def __call__(self) -> list[JobLogMessage]:
         self.logger.info('Starting job to push IANA-maintained modules')
-        self.repo = get_forked_repository(self.config, self.logger)
+        self.repo = get_forked_worktree(self.config, self.logger)
         self._configure_file_paths()
         self._sync_yang_parameters()
         self._parse_yang_parameters()
         self._check_iana_standard_dir()
-        push_result = repoutil.push_untracked_files(
+        push_result = push_untracked_files(
             self.repo,
             'Cronjob - daily check of IANA modules.',
             self.logger,
@@ -92,10 +93,11 @@ class IanaPush:
         else:
             messages = [JobLogMessage(label='Push is unsuccessful', message=push_result.detail)]
             self.logger.info('Job finished unsuccessfully, push failed')
+        repoutil.remove_worktree(self.repo.working_dir)  # pyright: ignore
         return messages
 
     def _configure_file_paths(self):
-        self.iana_standard_dir = os.path.join(self.repo.local_dir, 'standard/iana')
+        self.iana_standard_dir = os.path.join(self.repo.working_dir, 'standard/iana')  # pyright: ignore
         os.makedirs(self.iana_standard_dir, exist_ok=True)
         self.yang_parameters_path = os.path.join(self.iana_standard_dir, 'yang-parameters.xml')
         if not os.path.exists(self.iana_exceptions_file_path):
@@ -105,10 +107,9 @@ class IanaPush:
     def _sync_yang_parameters(self):
         if os.path.exists(self.iana_temp_dir):
             shutil.rmtree(self.iana_temp_dir)
-        subprocess.call(
-            ['rsync', '-avzq', '--delete', 'rsync.iana.org::assignments/yang-parameters/', self.iana_temp_dir],
+        subprocess.run(
+            ['rsync', '--recursive', '--times', 'rsync.iana.org::assignments/yang-parameters/', self.iana_temp_dir],
         )
-        dpu.set_permissions(self.iana_temp_dir)
         xml_path = os.path.join(self.iana_temp_dir, 'yang-parameters.xml')
         copy2(xml_path, self.yang_parameters_path)
 
@@ -133,10 +134,10 @@ class IanaPush:
 
     def _check_iana_standard_dir(self):
         self.logger.info(f'Checking module filenames without revision in {self.iana_standard_dir}')
-        dpu.check_name_no_revision_exist(self.iana_standard_dir, self.logger)
+        check_name_no_revision_exist(self.iana_standard_dir, self.logger)
 
         self.logger.info(f'Checking for early revision in {self.iana_standard_dir}')
-        dpu.check_early_revisions(self.iana_standard_dir, self.logger)
+        check_early_revisions(self.iana_standard_dir, self.logger)
 
 
 if __name__ == '__main__':

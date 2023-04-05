@@ -6,8 +6,8 @@ from configparser import ConfigParser
 from elasticsearch import Elasticsearch
 
 from api.cache.api_cache import cache
-from api.views.yangSearch.grep_search import GrepSearch
-from api.yangCatalogApi import app  # noqa: F401
+from api.views.yang_search.grep_search import GrepSearch
+from api.yangcatalog_api import app  # noqa: F401
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
 from utility.create_config import create_config
