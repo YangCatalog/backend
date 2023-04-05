@@ -444,14 +444,8 @@ class TestApiSearchClass(unittest.TestCase):
         """
         body = self.payloads_content.get('check_semver_no_difference')
         result = self.client.post('api/check-semantic-version', json=body)
-        data = json.loads(result.data)
 
-        self.assertEqual(result.status_code, 404)
-        self.assertEqual(result.content_type, 'application/json')
-        self.assertIn('description', data)
-        self.assertIn('error', data)
-        self.assertEqual(data['description'], 'No different semantic versions with provided input')
-        self.assertEqual(data['error'], 'Not found -- in api code')
+        self.assertJsonResponse(result, 404, 'description', 'No different semantic versions with provided input')
 
     def test_check_semver_no_hits(self):
         """
@@ -459,14 +453,8 @@ class TestApiSearchClass(unittest.TestCase):
         """
         body = self.payloads_content.get('check_semver_no_hits')
         result = self.client.post('api/check-semantic-version', json=body)
-        data = json.loads(result.data)
 
-        self.assertEqual(result.status_code, 404)
-        self.assertEqual(result.content_type, 'application/json')
-        self.assertIn('description', data)
-        self.assertIn('error', data)
-        self.assertEqual(data['description'], 'No hits found either in old or new input')
-        self.assertEqual(data['error'], 'Not found -- in api code')
+        self.assertJsonResponse(result, 404, 'description', 'No hits found either in old or new input')
 
     def test_search_vendor_statistics(self):
         """Test if payload contains desired output (os-type)."""

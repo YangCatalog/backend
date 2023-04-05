@@ -23,7 +23,6 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import json
 import os
 import shutil
-import typing as t
 import unittest
 from copy import deepcopy
 from unittest import mock
@@ -57,6 +56,15 @@ class MockRepoUtil:
         return MockRepoUtil(None)
 
 
+class MockRedisUsers:
+    def __init__(self):
+        self.create = mock.MagicMock(return_value=1)
+        self.is_approved = mock.MagicMock(return_value=False)
+        self.is_temp = mock.MagicMock(return_value=True)
+        self.username_exists = mock.MagicMock(return_value=False)
+        self.id_by_username = mock.MagicMock(return_value=1)
+
+
 class TestApiContributeClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -81,6 +89,10 @@ class TestApiContributeClass(unittest.TestCase):
         cls.mock_get = cls.get_patcher.start()
         cls.addClassCleanup(cls.get_patcher.stop)
         cls.mock_get.return_value.json.return_value = json.loads(yc_gc.redis.get('modules-data') or '{}')
+
+        cls.message_factory_patcher = mock.patch(f'{import_string}.MessageFactory')
+        cls.mock_message_factory = cls.message_factory_patcher.start()
+        cls.addClassCleanup(cls.message_factory_patcher.stop)
 
     def setUp(self):
         self.uid = self.users.create(
@@ -129,21 +141,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertJsonResponse(response, response.status_code, 'info', 'Verification successful')
         self.assertJsonResponse(response, response.status_code, 'job-id', 1)
 
-    class MockRedisUsers:
-        def create(self, *args, **kwargs):
-            return 1
-
-        def is_approved(self, *args, **kwargs):
-            return False
-
-        def is_temp(self, *args, **kwargs) -> t.Literal[True]:
-            return True
-
-        def username_exists(self, *args, **kwargs) -> t.Literal[False]:
-            return False
-
-    @mock.patch('api.yangCatalogApi.app.config.redis_users', MockRedisUsers())
-    @mock.patch(f'{import_string}.MessageFactory', mock.MagicMock)
+    @mock.patch('api.yangcatalog_api.app.config.redis_users', MockRedisUsers())
     def test_register_user(self):
         # we use a username different from "test" because such a user already exists
         body = {
@@ -176,16 +174,19 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertJsonResponse(result, 409, 'description', 'User with username test already exists')
 
-    @mock.patch('api.yangcatalog_api.app.config.redis_users.is_approved', mock.MagicMock(return_value=False))
-    @mock.patch('api.yangcatalog_api.app.config.redis_users.is_temp', mock.MagicMock(return_value=True))
-    def test_register_user_tempuser_exist(self):
+    @mock.patch('api.yangcatalog_api.app.config.redis_users', new_callable=MockRedisUsers)
+    def test_register_user_tempuser_exist(self, mock_redis_users: MockRedisUsers):
+        mock_redis_users.is_approved.return_value = False
+        mock_redis_users.is_temp.return_value = True
+        mock_redis_users.username_exists.return_value = True
         body = self.user_registration_data
         result = self.client.post('api/register-user', json=body)
 
         self.assertJsonResponse(result, 409, 'description', 'User with username test is pending for permissions')
 
-    @mock.patch('api.yangcatalog_api.app.config.redis_users.username_exists', mock.MagicMock(side_effect=RedisError))
-    def test_register_user_db_exception(self):
+    @mock.patch('api.yangcatalog_api.app.config.redis_users', new_callable=MockRedisUsers)
+    def test_register_user_db_exception(self, mock_redis_users: MockRedisUsers):
+        mock_redis_users.username_exists.side_effect = RedisError
         body = self.user_registration_data
         result = self.client.post('api/register-user', json=body)
 
@@ -263,12 +264,10 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertEqual(mm.organization_by_namespace('urn:test:test'), 'test')
         self.assertEqual(mm.organization_by_namespace('test'), '')
 
-    @mock.patch(f'{import_string}.shutil.move')
-    @mock.patch(f'{import_string}.shutil.copy')
-    @mock.patch(f'{import_string}.shutil.rmtree')
-    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
+    @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock)
     @mock.patch('requests.put')
-    def test_add_modules(self, mock_put: mock.MagicMock, *args):
+    def test_add_modules(self, mock_put: mock.MagicMock):
         body = self.payloads_content.get('add_modules')
         mock_response = mock.MagicMock()
         mock_response.status_code = 200
@@ -278,12 +277,10 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertJobSuccess(result)
 
-    @mock.patch('shutil.move')
-    @mock.patch('shutil.copy')
-    @mock.patch('shutil.rmtree')
-    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
+    @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock)
     @mock.patch('requests.put')
-    def test_add_modules_post(self, mock_put: mock.MagicMock, *args):
+    def test_add_modules_post(self, mock_put: mock.MagicMock):
         body = self.payloads_content.get('add_modules')
         mock_response = mock.MagicMock()
         mock_response.status_code = 200
@@ -293,6 +290,8 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertJobSuccess(result)
 
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
+    @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock)
     @mock.patch('requests.put')
     def test_add_modules_unparsable(self, mock_put: mock.MagicMock):
         mock_put.return_value.status_code = 400
@@ -309,6 +308,8 @@ class TestApiContributeClass(unittest.TestCase):
             'The body you have provided could not be parsed. ConfD error text:\ntest\nError code: 400',
         )
 
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
+    @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock)
     @mock.patch('requests.put')
     def test_add_modules_invalid_repo(self, mock_put: mock.MagicMock):
         body = self.payloads_content.get('add_modules')
@@ -326,13 +327,11 @@ class TestApiContributeClass(unittest.TestCase):
             contains=True,
         )
 
-    @mock.patch('shutil.move')
-    @mock.patch('shutil.copy')
-    @mock.patch('shutil.rmtree')
-    @mock.patch('utility.repoutil.RepoUtil')
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
+    @mock.patch('utility.repoutil.RepoUtil', mock.MagicMock)
     @mock.patch(f'{import_string}.authorize_for_sdos')
     @mock.patch('requests.put')
-    def test_add_modules_unauthorized(self, mock_put: mock.MagicMock, mock_access_rights: mock.MagicMock, *args):
+    def test_add_modules_unauthorized(self, mock_put: mock.MagicMock, mock_access_rights: mock.MagicMock):
         body = self.payloads_content.get('add_modules')
         mock_put.return_value.status_code = 200
         mock_access_rights.return_value = ''
@@ -341,11 +340,11 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertJsonResponse(result, 401, 'description', 'Unauthorized for server unknown reason')
 
-    @mock.patch('requests.put')
-    @mock.patch(f'{import_string}.authorize_for_vendors')
-    @mock.patch('shutil.copy', mock.MagicMock)
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
     @mock.patch(f'{import_string}.RepoUtil', MockRepoUtil)
     @mock.patch(f'{import_string}.open', mock.mock_open())
+    @mock.patch('requests.put')
+    @mock.patch(f'{import_string}.authorize_for_vendors')
     def test_add_vendor(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -354,12 +353,12 @@ class TestApiContributeClass(unittest.TestCase):
 
         self.assertJobSuccess(result)
 
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
+    @mock.patch(f'{import_string}.RepoUtil', MockRepoUtil)
+    @mock.patch(f'{import_string}.open', mock.mock_open())
     @mock.patch(f'{import_string}.repoutil.pull')
     @mock.patch('requests.put')
     @mock.patch(f'{import_string}.authorize_for_vendors')
-    @mock.patch('shutil.copy', mock.MagicMock)
-    @mock.patch(f'{import_string}.RepoUtil', MockRepoUtil)
-    @mock.patch(f'{import_string}.open', mock.mock_open())
     def test_add_vendor_post(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock, mock_pull: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
@@ -369,6 +368,7 @@ class TestApiContributeClass(unittest.TestCase):
         mock_pull.assert_called()
         self.assertJobSuccess(result)
 
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
     @mock.patch('requests.put')
     @mock.patch(f'{import_string}.authorize_for_vendors')
     def test_add_vendor_confd_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
@@ -384,11 +384,11 @@ class TestApiContributeClass(unittest.TestCase):
             'The body you have provided could not be parsed. ConfD error text:\ntest\nError code: 400',
         )
 
-    @mock.patch('requests.put')
-    @mock.patch(f'{import_string}.authorize_for_vendors')
-    @mock.patch('shutil.copy', mock.MagicMock)
+    @mock.patch(f'{import_string}.shutil', mock.MagicMock())
     @mock.patch(f'{import_string}.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch(f'{import_string}.open', mock.mock_open())
+    @mock.patch('requests.put')
+    @mock.patch(f'{import_string}.authorize_for_vendors')
     def test_add_vendor_git_error(self, mock_authorize: mock.MagicMock, mock_put: mock.MagicMock):
         mock_authorize.return_value = True
         mock_put.return_value.status_code = 200
