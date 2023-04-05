@@ -35,6 +35,7 @@ from pyang.plugins.tree import emit_tree
 from werkzeug.exceptions import abort
 
 from api.my_flask import app
+from api.views.json_checker import abort_with_error, check_error
 from utility.yangParser import create_context
 
 
@@ -136,9 +137,8 @@ def search(value: str):
 @bp.route('/search-filter/<leaf>', methods=['POST'])
 def rpc_search_get_one(leaf: str):
     """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request."""
-    body = request.json
-    if body.get('input') is None:
-        abort(400, description='body of request need to start with input')
+    body: t.Any = request.json
+    abort_with_error(check_error({'input': {}}, body))
 
     recursive = body['input'].get('recursive')
     if recursive:
@@ -170,44 +170,42 @@ def rpc_search(body: t.Optional[dict] = None):
     if not body:
         body = request.json
         from_api = True
-    app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body)))
+    abort_with_error(check_error({'input': {}}, body))
+    body_input: dict = body['input']  # pyright: ignore
+    app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body_input)))
     data = modules_data().get('module', {})
-    body = body.get('input', {})
-    if body:
-        matched_modules = []
-        operator = contains if body.get('partial') is not None else eq
+    matched_modules = []
+    operator = contains if body_input.get('partial') is not None else eq
 
-        def matches(module, body):
-            if not isinstance(module, type(body)):
-                return False
-            if isinstance(body, str):
-                return operator(module, body)
-            elif isinstance(body, list):
-                for i in body:
-                    for j in module:
-                        if matches(j, i):
-                            break
-                    else:
-                        return False
-                return True
-            elif isinstance(body, dict):
-                for key in body:
-                    if not matches(module.get(key), body[key]):
+    def matches(module, body):
+        if not isinstance(module, type(body)):
+            return False
+        if isinstance(body, str):
+            return operator(module, body)
+        elif isinstance(body, list):
+            for i in body:
+                for j in module:
+                    if matches(j, i):
                         break
                 else:
-                    return True
-                return False
+                    return False
+            return True
+        elif isinstance(body, dict):
+            for key in body:
+                if not matches(module.get(key), body[key]):
+                    break
+            else:
+                return True
+            return False
 
-        for module in data:
-            if matches(module, body):
-                matched_modules.append(module)
-        if from_api and len(matched_modules) == 0:
-            abort(404, description='No modules found with provided input')
-        else:
-            modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(json.dumps(matched_modules))
-            return {'yang-catalog:modules': {'module': modules}}
+    for module in data:
+        if matches(module, body_input):
+            matched_modules.append(module)
+    if from_api and len(matched_modules) == 0:
+        abort(404, description='No modules found with provided input')
     else:
-        abort(400, description='body request has to start with "input" container')
+        modules = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(json.dumps(matched_modules))
+        return {'yang-catalog:modules': {'module': modules}}
 
 
 @bp.route('/contributors', methods=['GET'])
@@ -449,6 +447,7 @@ def filter_using_api(res_row, payload):
                             for val in value['implementation']:
                                 val_found = False
                                 for impl in res_row['module'][key]['implementations']['implementation']:
+                                    # this should be handled with a dict
                                     vendor = impl.get('vendor')
                                     software_version = impl.get('software_version')
                                     software_flavor = impl.get('software_flavor')

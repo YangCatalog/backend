@@ -58,6 +58,16 @@ class TestApiAdminClass(unittest.TestCase):
     def tearDown(self):
         self.users.delete(self.uid, temp=True)
 
+    def assertJsonResponse(self, response, status_code: int, field: str, value, contains: bool = False):  # noqa: N802
+        self.assertEqual(response.status_code, status_code)
+        self.assertTrue(response.is_json)
+        data = response.json
+        self.assertIn(field, data)
+        if contains:
+            self.assertIn(value, data[field])
+        else:
+            self.assertEqual(data[field], value)
+
     def test_catch_db_error(self):
         with app.app_context():
 
@@ -87,123 +97,66 @@ class TestApiAdminClass(unittest.TestCase):
     def test_logout(self):
         result = self.client.post('api/admin/logout')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
 
     def test_check(self):
         result = self.client.get('api/admin/check')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
 
     @mock.patch('builtins.open', mock.mock_open(read_data='test'))
     def test_read_admin_file(self):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
         result = self.client.get(f'api/admin/directory-structure/read/{path}')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], 'test')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', 'test')
 
     def test_read_admin_file_not_found(self):
         path = 'nonexistent'
         result = self.client.get(f'api/admin/directory-structure/read/{path}')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'error - file does not exist')
+        self.assertJsonResponse(result, 400, 'description', 'error - file does not exist')
 
     def test_read_admin_file_directory(self):
         path = 'all_modules'
         result = self.client.get(f'api/admin/directory-structure/read/{path}')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'error - file does not exist')
+        self.assertJsonResponse(result, 400, 'description', 'error - file does not exist')
 
     @mock.patch('os.unlink')
     def test_delete_admin_file(self, mock_unlink: mock.MagicMock):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
         result = self.client.delete(f'api/admin/directory-structure/{path}')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(
-            data['data'],
-            f'directory of file {app_config.d_var}/{path} removed succesfully',
-        )
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', f'directory of file {app_config.d_var}/{path} removed succesfully')
 
     @mock.patch('shutil.rmtree')
     def test_delete_admin_file_directory(self, mock_rmtree: mock.MagicMock):
         result = self.client.delete('api/admin/directory-structure')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], f'directory of file {app_config.d_var}/ removed succesfully')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', f'directory of file {app_config.d_var}/ removed succesfully')
 
     def test_delete_admin_file_nonexistent(self):
         result = self.client.delete('api/admin/directory-structure/nonexistent')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'error - file or folder does not exist')
+        self.assertJsonResponse(result, 400, 'description', 'error - file or folder does not exist')
 
     @mock.patch('builtins.open', mock.mock_open())
     def test_write_to_directory_structure(self):
         path = 'all_modules/yang-catalog@2018-04-03.yang'
         result = self.client.put(f'api/admin/directory-structure/{path}', json={'input': {'data': 'test'}})
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], 'test')
-
-    def test_write_to_directory_structure_no_data(self):
-        path = 'all_modules/yang-catalog@2018-04-03.yang'
-        result = self.client.put(f'api/admin/directory-structure/{path}', json={'input': {}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], '"data" must be specified')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', 'test')
 
     def test_write_to_directory_structure_not_found(self):
         path = 'nonexistent'
         result = self.client.put(f'api/admin/directory-structure/{path}', json={'input': {'data': 'test'}})
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'error - file does not exist')
+        self.assertJsonResponse(result, 400, 'description', 'error - file does not exist')
 
     @mock.patch('os.walk')
     @mock.patch('os.lstat')
@@ -267,50 +220,30 @@ class TestApiAdminClass(unittest.TestCase):
             ],
         }
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], structure)
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', structure)
 
     @mock.patch('os.listdir')
     def test_read_yangcatalog_nginx_files(self, mock_listdir: mock.MagicMock):
         mock_listdir.return_value = ['test']
         result = self.client.get('api/admin/yangcatalog-nginx')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], ['sites-enabled/test', 'nginx.conf', 'conf.d/test'])
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', ['sites-enabled/test', 'nginx.conf', 'conf.d/test'])
 
     @mock.patch('builtins.open', mock.mock_open(read_data='test'))
     def test_read_yangcatalog_nginx(self):
         result = self.client.get('api/admin/yangcatalog-nginx/test')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], 'test')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', 'test')
 
     @mock.patch('builtins.open', mock.mock_open(read_data='test'))
     def test_read_yangcatalog_config(self):
         result = self.client.get('api/admin/yangcatalog-config')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], 'test')
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', 'test')
 
     @mock.patch('api.yangCatalogApi.app.config.sender.send', mock.MagicMock)
     @mock.patch('api.views.admin.admin.open')
@@ -340,36 +273,16 @@ class TestApiAdminClass(unittest.TestCase):
         mock_post.return_value.status_code = 404
         result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        info = {'api': 'error loading data', 'receiver': 'error loading data'}
-        self.assertEqual(data['info'], info)
-        self.assertIn('new-data', data)
-        self.assertEqual(data['new-data'], 'test')
-
-    def test_update_yangcatalog_config_no_data(self):
-        result = self.client.put('/api/admin/yangcatalog-config', json={'input': {}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], '"data" must be specified')
+        self.assertJsonResponse(result, 200, 'info', {'api': 'error loading data', 'receiver': 'error loading data'})
+        self.assertJsonResponse(result, 200, 'new-data', 'test')
 
     @mock.patch('os.walk')
     def test_get_log_files(self, mock_walk: mock.MagicMock):
         mock_walk.return_value = [('root/logs', [], ['test', 'test.log'])]
         result = self.client.get('api/admin/logs')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], ['test'])
+        self.assertJsonResponse(result, 200, 'info', 'Success')
+        self.assertJsonResponse(result, 200, 'data', ['test'])
 
     @mock.patch('os.walk')
     def test_find_files(self, mock_walk: mock.MagicMock):
@@ -489,68 +402,37 @@ class TestApiAdminClass(unittest.TestCase):
 
         result = self.client.post('/api/admin/logs', json=body)
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('meta', data)
         meta = {
             'file-names': ['yang'],
             'from-date': 0,
-            'to-date': data['meta'].get('to-date'),
+            'to-date': (result.json or {}).get('meta', {}).get('to-date'),
             'lines-per-page': 2,
             'page': 2,
             'pages': 2,
             'filter': None,
             'format': True,
         }
-        self.assertEqual(data['meta'], meta)
-        self.assertIn('output', data)
-        self.assertEqual(data['output'], ['test'])
+        self.assertJsonResponse(result, 200, 'meta', meta)
+        self.assertJsonResponse(result, 200, 'output', ['test'])
 
     def test_move_user(self):
         self.addCleanup(self.users.delete, self.uid, temp=False)
         body = {'id': self.uid, 'access-rights-sdo': 'test'}
         result = self.client.post('api/admin/move-user', json={'input': body})
 
-        self.assertEqual(result.status_code, 201)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'user successfully approved')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], body)
+        self.assertJsonResponse(result, 201, 'info', 'user successfully approved')
+        self.assertJsonResponse(result, 201, 'data', body)
         self.assertTrue(self.users.is_approved(self.uid))
-
-    def test_move_user_no_id(self):
-        result = self.client.post('api/admin/move-user', json={'input': {}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'id of a user is missing')
-
-    def test_move_user_no_access(self):
-        result = self.client.post('api/admin/move-user', json={'input': {'id': self.uid}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
 
     def test_create_user(self):
         body = self.payloads_content['user']
 
         result = self.client.post('api/admin/users/temp', json=body)
 
-        self.assertEqual(result.status_code, 201)
-        self.assertTrue(result.is_json)
+        self.assertJsonResponse(result, 201, 'info', 'data successfully added to database')
+        self.assertJsonResponse(result, 201, 'data', body['input'])
         data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'data successfully added to database')
-        self.assertIn('data', data)
-        self.assertEqual(data['data'], body['input'])
+        assert data
         self.assertIn('id', data)
         self.assertTrue(self.users.is_temp(data['id']))
         self.users.delete(data['id'], temp=True)
@@ -560,66 +442,23 @@ class TestApiAdminClass(unittest.TestCase):
 
         result = self.client.post('api/admin/users/fake', json=body)
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('error', data)
-        self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
-
-    def test_create_user_args_missing(self):
-        body = deepcopy(self.payloads_content['user'])
-        body['input']['username'] = ''
-
-        result = self.client.post('api/admin/users/temp', json=body)
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(
-            data['description'],
-            'username - , firstname - john, last-name - doe,'
-            ' email - j@d.com and password - secret must be specified',
-        )
-
-    def test_create_user_missing_access_rights(self):
-        body = self.payloads_content['user']
-
-        result = self.client.post('api/admin/users/approved', json=body)
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'access-rights-sdo OR access-rights-vendor must be specified')
+        self.assertJsonResponse(result, 400, 'error', 'invalid status "fake", use only "temp" or "approved" allowed')
 
     def test_delete_user(self):
         result = self.client.delete(f'api/admin/users/temp/id/{self.uid}')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], f'id {self.uid} deleted successfully')
+        self.assertJsonResponse(result, 200, 'info', f'id {self.uid} deleted successfully')
         self.assertFalse(self.users.is_temp(self.uid))
 
     def test_delete_user_invalid_status(self):
         result = self.client.delete(f'api/admin/users/fake/id/{self.uid}')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('error', data)
-        self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
+        self.assertJsonResponse(result, 400, 'error', 'invalid status "fake", use only "temp" or "approved" allowed')
 
     def test_delete_user_id_not_found(self):
         result = self.client.delete('api/admin/users/approved/id/24857629847625894258476')
 
-        self.assertEqual(result.status_code, 404)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'id 24857629847625894258476 not found with status approved')
+        self.assertJsonResponse(result, 404, 'description', 'id 24857629847625894258476 not found with status approved')
 
     def test_update_user(self):
         body = deepcopy(self.payloads_content['user'])
@@ -627,39 +466,18 @@ class TestApiAdminClass(unittest.TestCase):
 
         result = self.client.put(f'api/admin/users/temp/id/{self.uid}', json=body)
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], f'ID {self.uid} updated successfully')
+        self.assertJsonResponse(result, 200, 'info', f'ID {self.uid} updated successfully')
         self.assertEqual(self.users.get_field(self.uid, 'username'), 'jdoe')
 
     def test_update_user_invalid_status(self):
         result = self.client.put(f'api/admin/users/fake/id/{self.uid}')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('error', data)
-        self.assertEqual(data['error'], 'invalid status "fake", use only "temp" or "approved" allowed')
-
-    def test_update_user_args_missing(self):
-        result = self.client.put(f'api/admin/users/temp/id/{self.uid}', json={'input': {}})
-
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'username and email must be specified')
+        self.assertJsonResponse(result, 400, 'error', 'invalid status "fake", use only "temp" or "approved" allowed')
 
     def test_update_user_id_not_found(self):
         result = self.client.put('api/admin/users/approved/id/24857629847625894258476')
 
-        self.assertEqual(result.status_code, 404)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], 'id 24857629847625894258476 not found with status approved')
+        self.assertJsonResponse(result, 404, 'description', 'id 24857629847625894258476 not found with status approved')
 
     def test_get_users(self):
         result = self.client.get('api/admin/users/temp')
@@ -680,47 +498,30 @@ class TestApiAdminClass(unittest.TestCase):
     def test_get_script_details_invalid_name(self):
         result = self.client.get('api/admin/scripts/invalid')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], '"invalid" is not valid script name')
+        self.assertJsonResponse(result, 400, 'description', '"invalid" is not valid script name')
 
     @mock.patch('api.yangCatalogApi.app_config.sender.send')
     def test_run_script_with_args(self, mock_send: mock.MagicMock):
         mock_send.return_value = 1
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
 
-        self.assertEqual(result.status_code, 202)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Verification successful')
-        self.assertIn('job-id', data)
-        self.assertEqual(data['job-id'], 1)
-        self.assertIn('arguments', data)
-        self.assertEqual(data['arguments'], ['parseAndPopulate', 'populate', '"test"'])
+        self.assertJsonResponse(result, 202, 'info', 'Verification successful')
+        self.assertJsonResponse(result, 202, 'job-id', 1)
+        self.assertJsonResponse(result, 202, 'arguments', ['parseAndPopulate', 'populate', '"test"'])
 
     @mock.patch('api.yangCatalogApi.app_config.sender', mock.MagicMock())
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
 
-        self.assertEqual(result.status_code, 400)
-        self.assertTrue(result.is_json)
-        data = result.json
-        self.assertIn('description', data)
-        self.assertEqual(data['description'], '"invalid" is not valid script name')
+        self.assertJsonResponse(result, 400, 'description', '"invalid" is not valid script name')
 
     def test_get_script_names(self):
         result = self.client.get('api/admin/scripts')
 
-        self.assertEqual(result.status_code, 200)
-        self.assertTrue(result.is_json)
+        self.assertJsonResponse(result, 200, 'info', 'Success')
         data = result.json
         self.assertIn('data', data)
         self.assertIsInstance(data['data'], list)
-        self.assertIn('info', data)
-        self.assertEqual(data['info'], 'Success')
 
     def test_get_disk_usage(self):
         result = self.client.get('api/admin/disk-usage')

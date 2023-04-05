@@ -32,6 +32,7 @@ from werkzeug.exceptions import abort
 
 from api.authentication.auth import auth
 from api.my_flask import app
+from api.views.json_checker import abort_with_error, check_error
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
@@ -76,19 +77,22 @@ def set_config():
 
 @bp.route('/register-user', methods=['POST'])
 def register_user():
-    body = request.json
-    for data in [
-        'username',
-        'password',
-        'password-confirm',
-        'email',
-        'company',
-        'first-name',
-        'last-name',
-        'motivation',
-    ]:
-        if data not in body:
-            abort(400, description='bad request - missing {} data in input'.format(data))
+    body: t.Any = request.json
+    abort_with_error(
+        check_error(
+            {
+                'username': str,
+                'password': str,
+                'password-confirm': str,
+                'email': str,
+                'company': str,
+                'first-name': str,
+                'last-name': str,
+                'motivation': str,
+            },
+            body,
+        ),
+    )
     username = body['username']
 
     password = hash_pw(body['password'])
@@ -140,10 +144,11 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
     if all((name, revision, organization)):
         input_modules = [{'name': name, 'revision': revision, 'organization': organization}]
     else:
-        rpc = request.json
-        if not rpc.get('input'):
-            abort(404, description='Data must start with "input" root element in json')
-        input_modules = rpc['input'].get('modules', [])
+        rpc: t.Any = request.json
+        abort_with_error(
+            check_error({'input': {'modules': [{'name': str, 'revision': str, 'organization': str}]}}, rpc),
+        )
+        input_modules = rpc['input']['modules']
 
     assert request.authorization, 'No authorization sent'
     username = request.authorization['username']
@@ -244,13 +249,30 @@ def add_modules():
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
-    body = request.json
-    modules_cont = body.get('modules')
-    if modules_cont is None:
-        abort(400, description='bad request - "modules" json object is missing and is mandatory')
-    module_list = modules_cont.get('module')
-    if module_list is None:
-        abort(400, description='bad request - "module" json list is missing and is mandatory')
+    body: t.Any = request.json
+    abort_with_error(
+        check_error(
+            {
+                'modules': {
+                    'module': [
+                        {
+                            'name': str,
+                            'revision': str,
+                            'organization': str,
+                            'source-file': {
+                                'path': str,
+                                'repository': str,
+                                'owner': str,
+                            },
+                        },
+                    ],
+                },
+            },
+            body,
+        ),
+    )
+    modules_cont = body['modules']
+    module_list = modules_cont['module']
 
     dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
     if not os.path.exists(ac.d_save_requests):
@@ -278,35 +300,18 @@ def add_modules():
             raise
     repos: t.Dict[str, repoutil.RepoUtil] = {}
     warning = []
-    missing_msg = 'bad request - at least one module object is missing mandatory field {}'
     for module in module_list:
         app.logger.debug(module)
-        source_file: dict = module.get('source-file')
-        if source_file is None:
-            abort(400, description=missing_msg.format('source-file'))
-        organization_sent = module.get('organization')
-        if organization_sent is None:
-            abort(400, description=missing_msg.format('organization'))
-        name = module.get('name')
-        if name is None:
-            abort(400, description=missing_msg.format('name'))
-        revision = module.get('revision')
-        if revision is None:
-            abort(400, description=missing_msg.format('revision'))
+        source_file = module['source-file']
+        organization_sent = module['organization']
         if request.method == 'POST':
             # Check if the module is already in Redis
             redis_module = get_mod_redis(module)
             if redis_module != {}:
                 continue
-        module_path = source_file.get('path')
-        if module_path is None:
-            abort(400, description=missing_msg.format('source-file["path"]'))
-        repo_name = source_file.get('repository')
-        if repo_name is None:
-            abort(400, description=missing_msg.format('source-file["repository"]'))
-        owner = source_file.get('owner')
-        if owner is None:
-            abort(400, description=missing_msg.format('source-file["owner"]'))
+        module_path = source_file['path']
+        repo_name = source_file['repository']
+        owner = source_file['owner']
 
         dir_in_repo = os.path.dirname(module_path)
         repo_url = os.path.join(github_url, owner, repo_name)
@@ -395,13 +400,27 @@ def add_vendors():
     :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
     """
-    body = request.json
-    platforms_contents = body.get('platforms')
-    if platforms_contents is None:
-        abort(400, description='bad request - "platforms" json object is missing and is mandatory')
-    platform_list = platforms_contents.get('platform')
-    if platform_list is None:
-        abort(400, description='bad request - "platform" json list is missing and is mandatory')
+    body: t.Any = request.json
+    abort_with_error(
+        check_error(
+            {
+                'platforms': {
+                    'platform': [
+                        {
+                            'module-list-file': {
+                                'path': str,
+                                'repository': str,
+                                'owner': str,
+                            },
+                        },
+                    ],
+                },
+            },
+            body,
+        ),
+    )
+    platforms_contents = body['platforms']
+    platform_list = platforms_contents['platform']
 
     app.logger.info('Adding vendor with body\n{}'.format(json.dumps(body, indent=2)))
     tree_created = False
@@ -436,21 +455,12 @@ def add_vendors():
             raise
 
     repos: t.Dict[str, repoutil.RepoUtil] = {}
-    missing_msg = 'bad request - at least one platform object is missing mandatory field {}'
     for platform in platform_list:
-        module_list_file = platform.get('module-list-file')
-        if module_list_file is None:
-            abort(400, description=missing_msg.format('module-list-file'))
-        xml_path = module_list_file.get('path')
-        if xml_path is None:
-            abort(400, description=missing_msg.format('module-list-file["path"]'))
+        module_list_file = platform['module-list-file']
+        xml_path = module_list_file['path']
         file_name = os.path.basename(xml_path)
-        repo_name = module_list_file.get('repository')
-        if repo_name is None:
-            abort(400, description=missing_msg.format('module-list-file["repository"]'))
-        owner = module_list_file.get('owner')
-        if owner is None:
-            abort(400, description=missing_msg.format('module-list-file["owner"]'))
+        repo_name = module_list_file['repository']
+        owner = module_list_file['owner']
         if request.method == 'POST':
             repoutil.pull(ac.d_yang_models_dir)
             if os.path.isfile(os.path.join(ac.d_yang_models_dir, xml_path)):
@@ -557,18 +567,11 @@ def authorize_for_sdos(request, organizations_sent: str, organization_parsed: st
     username = request.authorization['username']
     app.logger.info('Checking sdo authorization for user {}'.format(username))
     access_rigths = get_user_access_rights(username)
-    assert access_rigths is not None, "Couldn't get access rights of user {}".format(username)
-
-    passed = False
-    if access_rigths == '/':
-        if organization_parsed != organizations_sent:
-            return 'module`s organization is not the same as organization provided'
-        return True
-    if organizations_sent in access_rigths.split(','):
-        if organization_parsed != organizations_sent:
-            return 'module`s organization is not in users rights'
-        passed = True
-    return passed
+    if access_rigths is None:
+        raise Exception("Couldn't get access rights of user {}".format(username))
+    if organization_parsed != organizations_sent:
+        return 'module`s organization is not the same as organization provided'
+    return access_rigths == '/' or organizations_sent in access_rigths.split(',')
 
 
 def get_user_access_rights(username: str, is_vendor: bool = False):
