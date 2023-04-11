@@ -19,6 +19,7 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
 import os
+import shutil
 import typing as t
 import unittest
 from ast import literal_eval
@@ -38,9 +39,9 @@ from utility.create_config import create_config
 class TestGroupingsClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        save_yang_files.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings'))
+        save_yang_files.main(os.path.join(os.environ['BACKEND'], 'tests/resources/groupings/testing_repo'))
         cls.prepare_output_filename = 'prepare'
-        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings')
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings/testing_repo')
         cls.test_private_dir = os.path.join(cls.resources_path, 'html/private')
         cls.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
         cls.dir_paths: DirPaths = {
@@ -70,6 +71,9 @@ class TestGroupingsClass(unittest.TestCase):
                 continue
             os.remove(module_path)
 
+    def setUp(self):
+        self.dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+
     def test_sdo_directory_parse_and_load(self):
         """
         Test whether keys were created and prepare object values were set correctly
@@ -77,23 +81,9 @@ class TestGroupingsClass(unittest.TestCase):
         """
         path = self.resource('owner/repo/sdo')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-        file_mapping = {
-            self.resource('owner/repo/sdo/sdo-first.yang'): os.path.join(
-                self.save_file_dir,
-                'sdo-first@2022-08-05.yang',
-            ),
-            self.resource('owner/repo/sdo/sdo-second.yang'): os.path.join(
-                self.save_file_dir,
-                'sdo-second@2022-08-05.yang',
-            ),
-            self.resource('owner/repo/sdo/subdir/sdo-third.yang'): os.path.join(
-                self.save_file_dir,
-                'sdo-third@2022-08-05.yang',
-            ),
-        }
+        file_mapping = self.get_file_mapping()
 
-        sdo_directory = SdoDirectory(path, dumper, self.file_hasher, api, self.dir_paths, file_mapping, None)
+        sdo_directory = SdoDirectory(path, self.dumper, self.file_hasher, api, self.dir_paths, file_mapping, None)
         sdo_directory.parse_and_load()
 
         self.assertListEqual(
@@ -107,8 +97,166 @@ class TestGroupingsClass(unittest.TestCase):
         from all modules loaded from request-data.json file.
         """
         api = True
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-        file_mapping = {
+        file_mapping = self.get_file_mapping()
+
+        sdo_directory = SdoDirectory(
+            self.resources_path,
+            self.dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+            file_mapping,
+            None,
+        )
+        sdo_directory.parse_and_load()
+
+        self.assertListEqual(
+            sorted(sdo_directory.dumper.yang_modules),
+            ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'],
+        )
+
+    def test_sdo_directory_with_changed_formatting_from_official_source(self):
+        """
+        This method tests that modules that are already parsed (from official or non-official source) would update the
+        formatting, if the file from the official source has updated formatting (with no semantic changes).
+        """
+        resource_path_parent_dir = os.path.dirname(self.resources_path)
+        tmp_dir = os.path.join(resource_path_parent_dir, 'tmp')
+        os.makedirs(tmp_dir, exist_ok=True)
+        shutil.copy(self.resource('owner/repo/sdo/sdo-first.yang'), os.path.join(tmp_dir, 'sdo-first.yang'))
+        shutil.copy(
+            os.path.join(
+                resource_path_parent_dir,
+                'changing_modules/official_source/changed_formatting/sdo-first.yang',
+            ),
+            self.resource('owner/repo/sdo/sdo-first.yang'),
+        )
+        self.populate_test_modules_basic_info_to_db()
+        file_mapping = self.get_file_mapping()
+        all_modules_path = os.path.join(self.save_file_dir, 'sdo-first@2022-08-05.yang')
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir)
+        file_hasher.files_hashes[all_modules_path] = {self.file_hasher.hash_file(all_modules_path): []}
+        try:
+            sdo_directory = SdoDirectory(
+                self.resources_path,
+                self.dumper,
+                file_hasher,
+                False,
+                self.dir_paths,
+                file_mapping,
+                'ietf',
+                config=self.config,
+                redis_connection=self.redis_connection,
+            )
+            sdo_directory.parse_and_load()
+            self.assertNotIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            with open(self.resource('owner/repo/sdo/sdo-first.yang'), 'r') as f1, open(all_modules_path, 'r') as f2:
+                self.assertEqual(f1.read(), f2.read())
+            self.assertIn('sdo-second@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            self.assertIn('sdo-third@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+        finally:
+            self.redis_connection.modulesDB.flushdb()
+            shutil.copy(os.path.join(tmp_dir, 'sdo-first.yang'), self.resource('owner/repo/sdo/sdo-first.yang'))
+            shutil.rmtree(tmp_dir)
+
+    def test_sdo_directory_with_changed_formatting_from_non_official_source(self):
+        """
+        This method tests that modules that are already parsed (from official or not from the official source) would not
+        update the formatting, if the file from non-official source has updated formatting (with no semantic changes).
+        """
+        resource_path_parent_dir = os.path.dirname(self.resources_path)
+        tmp_dir = os.path.join(resource_path_parent_dir, 'tmp')
+        os.makedirs(tmp_dir, exist_ok=True)
+        shutil.copy(self.resource('owner/repo/sdo/sdo-first.yang'), os.path.join(tmp_dir, 'sdo-first.yang'))
+        shutil.copy(
+            os.path.join(
+                resource_path_parent_dir,
+                'changing_modules/non_official_source/changed_formatting/sdo-first.yang',
+            ),
+            self.resource('owner/repo/sdo/sdo-first.yang'),
+        )
+        self.populate_test_modules_basic_info_to_db()
+        file_mapping = self.get_file_mapping()
+        all_modules_path = os.path.join(self.save_file_dir, 'sdo-first@2022-08-05.yang')
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir)
+        file_hasher.files_hashes[all_modules_path] = {self.file_hasher.hash_file(all_modules_path): []}
+        try:
+            sdo_directory = SdoDirectory(
+                self.resources_path,
+                self.dumper,
+                file_hasher,
+                False,
+                self.dir_paths,
+                file_mapping,
+                'ietf',
+                config=self.config,
+                redis_connection=self.redis_connection,
+            )
+            sdo_directory.parse_and_load()
+            self.assertNotIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            with open(self.resource('owner/repo/sdo/sdo-first.yang'), 'r') as f1, open(all_modules_path, 'r') as f2:
+                self.assertNotEqual(f1.read(), f2.read())
+            self.assertIn('sdo-second@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            self.assertIn('sdo-third@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+        finally:
+            self.redis_connection.modulesDB.flushdb()
+            shutil.copy(os.path.join(tmp_dir, 'sdo-first.yang'), self.resource('owner/repo/sdo/sdo-first.yang'))
+            shutil.rmtree(tmp_dir)
+
+    def test_sdo_directory_with_changed_content_from_official_source(self):
+        """
+        This method tests that modules that are already parsed from non-official source will be fully reparsed,
+        if the file from the official source has new semantic changes.
+        """
+        self.populate_test_modules_basic_info_to_db(
+            data=[
+                {
+                    'name': 'sdo-first',
+                    'revision': '2022-08-05',
+                    'organization': 'mef',
+                },
+            ],
+        )
+        file_mapping = self.get_file_mapping()
+        all_modules_path = os.path.join(self.save_file_dir, 'sdo-first@2022-08-05.yang')
+        resource_path_parent_dir = os.path.dirname(self.resources_path)
+        tmp_dir = os.path.join(resource_path_parent_dir, 'tmp')
+        os.makedirs(tmp_dir, exist_ok=True)
+        shutil.copy(all_modules_path, os.path.join(tmp_dir, 'sdo-first.yang'))
+        shutil.copy(
+            os.path.join(
+                resource_path_parent_dir,
+                'changing_modules/non_official_source/changed_content/sdo-first.yang',
+            ),
+            all_modules_path,
+        )
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir)
+        file_hasher.files_hashes[all_modules_path] = {self.file_hasher.hash_file(all_modules_path): []}
+        try:
+            sdo_directory = SdoDirectory(
+                self.resources_path,
+                self.dumper,
+                file_hasher,
+                False,
+                self.dir_paths,
+                file_mapping,
+                'ietf',
+                config=self.config,
+                redis_connection=self.redis_connection,
+            )
+            sdo_directory.parse_and_load()
+            self.assertIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            with open(self.resource('owner/repo/sdo/sdo-first.yang'), 'r') as f1, open(all_modules_path, 'r') as f2:
+                self.assertEqual(f1.read(), f2.read())
+            self.assertIn('sdo-second@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            self.assertIn('sdo-third@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+        finally:
+            self.redis_connection.modulesDB.flushdb()
+            shutil.copy(os.path.join(tmp_dir, 'sdo-first.yang'), all_modules_path)
+            shutil.rmtree(tmp_dir)
+
+    def get_file_mapping(self) -> dict[str, str]:
+        return {
             self.resource('owner/repo/sdo/sdo-first.yang'): os.path.join(
                 self.save_file_dir,
                 'sdo-first@2022-08-05.yang',
@@ -123,29 +271,12 @@ class TestGroupingsClass(unittest.TestCase):
             ),
         }
 
-        sdo_directory = SdoDirectory(
-            self.resources_path,
-            dumper,
-            self.file_hasher,
-            api,
-            self.dir_paths,
-            file_mapping,
-            None,
-        )
-        sdo_directory.parse_and_load()
-
-        self.assertListEqual(
-            sorted(sdo_directory.dumper.yang_modules),
-            ['sdo-first@2022-08-05/ietf', 'sdo-second@2022-08-05/ietf', 'sdo-third@2022-08-05/ietf'],
-        )
-
     def test_vendor_parse_raw_capability(self):
         path = self.resource('owner/repo/vendor')
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = False
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_grouping = VendorGrouping(path, xml_file, self.dumper, self.file_hasher, api, self.dir_paths)
         vendor_grouping._parse_raw_capability('urn:ietf:params:xml:ns:netconf:base:1.0')
 
         self.assertEqual(vendor_grouping.netconf_versions, ['urn:ietf:params:xml:ns:netconf:base:1.0'])
@@ -156,7 +287,6 @@ class TestGroupingsClass(unittest.TestCase):
 
     def test_vendor_parse_implementation(self):
         path = self.resource('owner/repo/vendor')
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = False
         implementation = {
@@ -173,7 +303,7 @@ class TestGroupingsClass(unittest.TestCase):
             'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0'],
         }
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_grouping = VendorGrouping(path, xml_file, self.dumper, self.file_hasher, api, self.dir_paths)
         vendor_grouping._parse_implementation(implementation)
 
         self.assertEqual(
@@ -193,11 +323,10 @@ class TestGroupingsClass(unittest.TestCase):
 
     def test_vendor_parse_platform_metadata(self):
         path = self.resource('owner/repo/vendor')
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = False
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_grouping = VendorGrouping(path, xml_file, self.dumper, self.file_hasher, api, self.dir_paths)
         with mock.patch.object(vendor_grouping, '_parse_implementation') as mock_parse_implementation:
             vendor_grouping._parse_platform_metadata()
 
@@ -208,7 +337,6 @@ class TestGroupingsClass(unittest.TestCase):
 
     def test_vendor_parse_platform_metadata_api(self):
         path = self.resource('owner/repo/vendor')
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
         xml_file = os.path.join(path, 'ietf-yang-library.xml')
         api = True
         implementation = {
@@ -221,7 +349,7 @@ class TestGroupingsClass(unittest.TestCase):
             'netconf-capabilities': ['"urn:ietf:params:netconf:capability:test-capability:1.0'],
         }
 
-        vendor_grouping = VendorGrouping(path, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_grouping = VendorGrouping(path, xml_file, self.dumper, self.file_hasher, api, self.dir_paths)
         with mock.patch.object(vendor_grouping, '_parse_implementation') as mock_parse_implementation:
             with mock.patch('parseAndPopulate.groupings.open', mock.mock_open(read_data=json.dumps(implementation))):
                 vendor_grouping._parse_platform_metadata()
@@ -236,12 +364,11 @@ class TestGroupingsClass(unittest.TestCase):
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'ietf-yang-library.xml')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_yang_lib = VendorYangLibrary(
             directory,
             xml_file,
-            dumper,
+            self.dumper,
             self.file_hasher,
             api,
             self.dir_paths,
@@ -279,10 +406,9 @@ class TestGroupingsClass(unittest.TestCase):
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'ietf-yang-library.xml')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         def check_vendor_module_hash_for_parsing_mock(path: str, new_implementations: t.Optional[list[str]] = None):
-            return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=True)
+            return VendorModuleHashCheckForParsing(hash_changed=True, new_implementations_detected=True)
 
         self.file_hasher.check_vendor_module_hash_for_parsing = check_vendor_module_hash_for_parsing_mock
 
@@ -291,7 +417,7 @@ class TestGroupingsClass(unittest.TestCase):
         vendor_yang_lib = VendorYangLibrary(
             directory,
             xml_file,
-            dumper,
+            self.dumper,
             self.file_hasher,
             api,
             self.dir_paths,
@@ -299,6 +425,8 @@ class TestGroupingsClass(unittest.TestCase):
             redis_connection=self.redis_connection,
         )
         vendor_yang_lib.parse_and_load()
+
+        self.redis_connection.modulesDB.flushdb()
 
         self.assertEqual(
             sorted(vendor_yang_lib.dumper.yang_modules),
@@ -329,12 +457,11 @@ class TestGroupingsClass(unittest.TestCase):
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'capabilities.xml')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         vendor_capabilities = VendorCapabilities(
             directory,
             xml_file,
-            dumper,
+            self.dumper,
             self.file_hasher,
             api,
             self.dir_paths,
@@ -376,10 +503,9 @@ class TestGroupingsClass(unittest.TestCase):
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'capabilities.xml')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
 
         def check_vendor_module_hash_for_parsing_mock(path: str, new_implementations: t.Optional[list[str]] = None):
-            return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=True)
+            return VendorModuleHashCheckForParsing(hash_changed=True, new_implementations_detected=True)
 
         self.file_hasher.check_vendor_module_hash_for_parsing = check_vendor_module_hash_for_parsing_mock
 
@@ -388,7 +514,7 @@ class TestGroupingsClass(unittest.TestCase):
         vendor_capabilities = VendorCapabilities(
             directory,
             xml_file,
-            dumper,
+            self.dumper,
             self.file_hasher,
             api,
             self.dir_paths,
@@ -396,6 +522,8 @@ class TestGroupingsClass(unittest.TestCase):
             redis_connection=self.redis_connection,
         )
         vendor_capabilities.parse_and_load()
+
+        self.redis_connection.modulesDB.flushdb()
 
         self.assertEqual(
             sorted(vendor_capabilities.dumper.yang_modules),
@@ -430,21 +558,23 @@ class TestGroupingsClass(unittest.TestCase):
         directory = self.resource('owner/repo/vendor')
         xml_file = os.path.join(directory, 'capabilities-amp.xml')
         api = False
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-
-        vendor_capabilities = VendorGrouping(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_capabilities = VendorGrouping(directory, xml_file, self.dumper, self.file_hasher, api, self.dir_paths)
 
         self.assertEqual(vendor_capabilities.root.tag, '{urn:ietf:params:xml:ns:netconf:base:1.0}hello')
 
-    def test_vendor__path_to_platform_data_xr(self):
+    def test_vendor_path_to_platform_data_xr(self):
         """Test if platform_data are set correctly when platform_metadata.json file is not present in the folder."""
         directory = os.path.join(self.test_repo, 'vendor/cisco/xr/702')
         xml_file = os.path.join(directory, 'capabilities-ncs5k.xml')
         api = False
-
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(
+            directory,
+            xml_file,
+            self.dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+        )
         platform_data = vendor_capabilities._path_to_platform_data()
 
         self.assertDictEqual(
@@ -460,15 +590,19 @@ class TestGroupingsClass(unittest.TestCase):
             },
         )
 
-    def test_vendor__path_to_platform_data_nx(self):
+    def test_vendor_path_to_platform_data_nx(self):
         """Test if platform_data are set correctly when platform_metadata.json file is not present in the folder."""
         directory = os.path.join(self.test_repo, 'vendor/cisco/nx/9.2-1')
         xml_file = os.path.join(directory, 'netconf-capabilities.xml')
         api = False
-
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(
+            directory,
+            xml_file,
+            self.dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+        )
         platform_data = vendor_capabilities._path_to_platform_data()
 
         self.assertEqual(
@@ -484,15 +618,19 @@ class TestGroupingsClass(unittest.TestCase):
             },
         )
 
-    def test_vendor__path_to_platform_data_xe(self):
+    def test_vendor_path_to_platform_data_xe(self):
         """Test if platform_data are set correctly when platform_metadata.json file is not present in the folder."""
         directory = os.path.join(self.test_repo, 'vendor/cisco/xe/16101')
         xml_file = os.path.join(directory, 'capability-asr1k.xml')
         api = False
-
-        dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
-
-        vendor_capabilities = VendorCapabilities(directory, xml_file, dumper, self.file_hasher, api, self.dir_paths)
+        vendor_capabilities = VendorCapabilities(
+            directory,
+            xml_file,
+            self.dumper,
+            self.file_hasher,
+            api,
+            self.dir_paths,
+        )
         platform_data = vendor_capabilities._path_to_platform_data()
 
         self.assertEqual(
@@ -517,8 +655,8 @@ class TestGroupingsClass(unittest.TestCase):
     def resource(self, path: str) -> str:
         return os.path.join(self.resources_path, path)
 
-    def populate_test_modules_basic_info_to_db(self):
-        data_to_populate = [
+    def populate_test_modules_basic_info_to_db(self, data: t.Optional[list[dict]] = None):
+        data_to_populate = data or [
             {
                 'name': 'sdo-first',
                 'revision': '2022-08-05',

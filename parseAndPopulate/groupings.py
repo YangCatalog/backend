@@ -30,7 +30,7 @@ from configparser import ConfigParser
 
 import utility.log as log
 from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher, SdoHashCheck
 from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.vendor_modules import VendorInfo, VendorPlatformData
 from parseAndPopulate.modules import Module, SdoModule, VendorModule
@@ -51,14 +51,16 @@ class ModuleGrouping:
         api: bool,
         dir_paths: DirPaths,
         config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
         """
         Arguments:
-            :param directory            (str) the directory containing the files
-            :param dumper               (Dumper) Dumper object
-            :param file_hasher          (FileHasher) FileHasher object
-            :param api                  (bool) whether the request came from API or not
-            :param dir_paths            (DirPaths) paths to various needed directories according to configuration
+            :param directory (str) the directory containing the files
+            :param dumper (Dumper) Dumper object
+            :param file_hasher (FileHasher) FileHasher object
+            :param api (bool) whether the request came from API or not
+            :param dir_paths (DirPaths) paths to various needed directories according to configuration
+            :param dir_paths (DirPaths) paths to various needed directories according to configuration
         """
         self.logger = log.get_logger('groupings', f'{dir_paths["log"]}/parseAndPopulate.log')
         self.logger.debug(f'Running {self.__class__.__name__} constructor')
@@ -68,6 +70,7 @@ class ModuleGrouping:
         self.api = api
         self.file_hasher = file_hasher
         self.directory = directory
+        self.redis_connection = redis_connection or RedisConnection(config=config)
         self.parsed = 0
         self.skipped = 0
 
@@ -95,10 +98,19 @@ class SdoDirectory(ModuleGrouping):
         file_mapping: dict[str, str],
         official_source: t.Optional[str],
         config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
+        super().__init__(
+            directory,
+            dumper,
+            file_hasher,
+            api,
+            dir_paths,
+            config=config,
+            redis_connection=redis_connection,
+        )
         self.file_mapping = file_mapping
         self.official_source = official_source
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
 
     def parse_and_load(self) -> tuple[int, int]:
         """
@@ -107,7 +119,7 @@ class SdoDirectory(ModuleGrouping):
         Otherwise, all the .yang files in the directory are parsed.
 
         Argument:
-            :return     (tuple[int, int]) The number of moudles parsed and skipped respectively
+            :return     (tuple[int, int]) The number of modules parsed and skipped respectively
         """
         if self.api:
             ret = self._parse_and_load_api()
@@ -175,6 +187,7 @@ class SdoDirectory(ModuleGrouping):
                     continue
                 if '[1]' in file_name:
                     self.logger.warning(f'File {file_name} contains [1] it its file name')
+                    self.skipped += 1
                     continue
                 self.logger.info(f'Parsing {file_name} {i} out of {sdos_count}')
                 try:
@@ -183,20 +196,40 @@ class SdoDirectory(ModuleGrouping):
                         self.dir_paths,
                         self.dumper.yang_modules,
                         config=self.config,
+                        official_source=self.official_source,
+                        was_parsed_previously=should_parse.was_parsed_previously,
+                        can_be_already_stored_in_db=(
+                            should_parse.was_parsed_previously and should_parse.only_formatting_changed
+                        ),
                     )
                 except (ParseException, FileNotFoundError) as e:
                     self.log_module_creation_exception(e)
                     continue
-                if yang.organization != self.official_source and should_parse.was_parsed_previously:
-                    # this is not the official source of this organization's modules
-                    # and we already have some version of this module
+                if not self._should_add_module_to_dumper(yang, should_parse, path, all_modules_path):
                     continue
-                # this is the official source of this organization's modules
-                # or we don't have a version of this module yet
                 self.dumper.add_module(yang)
                 shutil.copy(path, all_modules_path)
                 self.parsed += 1
         return self.parsed, self.skipped
+
+    def _should_add_module_to_dumper(
+        self,
+        yang: Module,
+        module_hash_check: SdoHashCheck,
+        new_module_path: str,
+        accepted_module_path: str,
+    ) -> bool:
+        if not yang.fully_parsed:
+            # this is not the official source of this organization's modules,
+            # and we already have some version of this module
+            self.skipped += 1
+            return False
+        # at this point we are sure that this is the official source or a new module
+        if module_hash_check.only_formatting_changed:
+            shutil.copy(new_module_path, accepted_module_path)
+            self.parsed += 1
+            return False
+        return True
 
 
 class IanaDirectory(SdoDirectory):
@@ -212,8 +245,19 @@ class IanaDirectory(SdoDirectory):
         file_mapping: dict[str, str],
         official_source: t.Optional[str],
         config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, file_mapping, official_source, config=config)
+        super().__init__(
+            directory,
+            dumper,
+            file_hasher,
+            api,
+            dir_paths,
+            file_mapping,
+            official_source,
+            config=config,
+            redis_connection=redis_connection,
+        )
         iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
         try:
             with open(iana_exceptions, 'r') as exceptions_file:
@@ -264,7 +308,6 @@ class IanaDirectory(SdoDirectory):
             if not should_parse.hash_changed:
                 self.skipped += 1
                 continue
-
             self.logger.info(f'Parsing module {name}')
             try:
                 yang = SdoModule(
@@ -273,11 +316,16 @@ class IanaDirectory(SdoDirectory):
                     self.dumper.yang_modules,
                     additional_info,
                     config=self.config,
+                    official_source=self.official_source,
+                    was_parsed_previously=should_parse.was_parsed_previously,
+                    can_be_already_stored_in_db=(
+                        should_parse.was_parsed_previously and should_parse.only_formatting_changed
+                    ),
                 )
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
                 continue
-            if yang.organization != self.official_source and should_parse.was_parsed_previously:
+            if not self._should_add_module_to_dumper(yang, should_parse, path, all_modules_path):
                 continue
             self.dumper.add_module(yang)
             shutil.copy(path, all_modules_path)
@@ -297,8 +345,15 @@ class VendorGrouping(ModuleGrouping):
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
     ):
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
-        self.redis_connection = redis_connection or RedisConnection(config=config)
+        super().__init__(
+            directory,
+            dumper,
+            file_hasher,
+            api,
+            dir_paths,
+            config=config,
+            redis_connection=redis_connection,
+        )
         self.found_capabilities = False
         self.capabilities = []
         self.netconf_versions = []
@@ -420,7 +475,7 @@ class VendorGrouping(ModuleGrouping):
             self.logger.info(f'Parsing module {name}')
             path = get_yang(name, config=self.config)
             if path is None:
-                return
+                continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
                 self.skipped += 1
@@ -500,7 +555,6 @@ class VendorCapabilities(VendorGrouping):
                 self.skipped += 1
                 continue
             self.logger.info(f'Parsing module {name}')
-            revision = revision or path.split('@')[-1].removesuffix('.yang')
             vendor_info = VendorInfo(
                 platform_data=self.platform_data,
                 conformance_type='implement',
@@ -576,7 +630,6 @@ class VendorYangLibrary(VendorGrouping):
             if not module_hash_info.module_should_be_parsed:
                 self.skipped += 1
                 continue
-            revision = revision or path.split('@')[-1].removesuffix('.yang')
             vendor_info = VendorInfo(
                 platform_data=self.platform_data,
                 conformance_type=conformance_type,

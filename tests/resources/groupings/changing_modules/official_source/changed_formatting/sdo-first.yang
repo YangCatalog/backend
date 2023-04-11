@@ -1,0 +1,11 @@
+module sdo-first {
+  /* This module only contains formatting changes to the sdo-first.yang module  */
+  revision 2022-08-05;
+  organization 'ietf';
+  namespace 'testing';
+  prefix 'yang';
+
+  leaf test-leaf {
+    type string;
+  }
+}

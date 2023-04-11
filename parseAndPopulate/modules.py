@@ -79,6 +79,8 @@ class Module:
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
         can_be_already_stored_in_db: bool = False,
+        official_source: t.Optional[str] = None,
+        was_parsed_previously: t.Optional[bool] = None,
     ):
         """
         Initialize and parse everything out of a module.
@@ -89,8 +91,11 @@ class Module:
             :param yang_modules:    (dict) yang modules we've already parsed
             :param additional_info:  (dict) some additional information about module given from client
             :param can_be_already_stored_in_db:  (bool) True if there's a chance that this module is already
-                stored in the DB (for example, we already have a stored cache of this module),
-                so we can try to avoid using resolvers and load information from the DB instead
+            stored in the DB (for example, we already have a stored cache of this module),
+            so we can try to avoid using resolvers and load information from the DB instead
+            :param official_source (Optional[str]) official organization of the module
+            :param was_parsed_previously (Optional[str]) indicates whether the module was already parsed,
+            similar to can_be_already_stored_in_db, but used for deciding if we have to parse the full module again
         """
         self.logger = log.get_logger('modules', os.path.join(dir_paths['log'], 'parseAndPopulate.log'))
         self._domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='https://yangcatalog.org')
@@ -107,13 +112,16 @@ class Module:
         self.description: t.Optional[str] = None
         self.prefix: t.Optional[str] = None
         self.tree: t.Optional[str] = None
-        self.can_be_already_stored_in_db = can_be_already_stored_in_db
+        self._can_be_already_stored_in_db = can_be_already_stored_in_db
+        self._official_source = official_source
+        self._was_parsed_previously = was_parsed_previously
         self._redis_connection = (
             redis_connection if redis_connection or not can_be_already_stored_in_db else RedisConnection(config=config)
         )
 
         self._parsed_yang = yangParser.parse(self._path)
         self.implementations: list[Implementation] = []
+        self.fully_parsed = True
         self._parse_all(yang_modules, additional_info)
 
     def _parse_all(self, yang_modules: t.Iterable[str], additional_info: t.Optional[AdditionalModuleInfo]):
@@ -144,6 +152,10 @@ class Module:
 
         organization_resolver = OrganizationResolver(self._parsed_yang, self.logger, self.namespace)
         self.organization = organization or organization_resolver.resolve()
+        if self._was_parsed_previously and self._official_source and self._official_source != self.organization:
+            # we don't have to parse further as it's not the official source
+            self.fully_parsed = False
+            return
 
         module_type_resolver = ModuleTypeResolver(self._parsed_yang, self.logger)
         self.module_type = module_type_resolver.resolve()
@@ -152,7 +164,7 @@ class Module:
         if key in yang_modules:
             return
         if (
-            self.can_be_already_stored_in_db
+            self._can_be_already_stored_in_db
             and self._redis_connection
             and (module_data := self._redis_connection.get_module(key)) != '{}'
         ):
@@ -240,6 +252,8 @@ class SdoModule(Module):
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
         can_be_already_stored_in_db: bool = False,
+        official_source: t.Optional[str] = None,
+        was_parsed_previously: t.Optional[bool] = None,
     ):
         super().__init__(
             os.path.abspath(path),
@@ -249,6 +263,8 @@ class SdoModule(Module):
             config=config,
             redis_connection=redis_connection,
             can_be_already_stored_in_db=can_be_already_stored_in_db,
+            official_source=official_source,
+            was_parsed_previously=was_parsed_previously,
         )
 
 
@@ -283,8 +299,6 @@ class VendorModule(Module):
         self.yang_models = dir_paths['yang_models']
         self.deviations = []
         self.features = []
-        if data:
-            self._resolve_deviations_and_features(data)
         super().__init__(
             path,
             dir_paths,
@@ -294,6 +308,8 @@ class VendorModule(Module):
             redis_connection=redis_connection,
             can_be_already_stored_in_db=can_be_already_stored_in_db,
         )
+        if data:
+            self._resolve_deviations_and_features(data)
         if vendor_info is not None:
             self.implementations += ImplementationResolver(vendor_info, self.features, self.deviations).resolve()
 

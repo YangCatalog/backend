@@ -35,6 +35,7 @@ BLOCK_SIZE = 65536  # The size of each read from the file
 class SdoHashCheck:
     hash_changed: bool
     was_parsed_previously: bool
+    only_formatting_changed: bool
 
 
 @dataclass
@@ -74,7 +75,8 @@ class FileHasher:
         self.updated_hashes = {}
 
     def hash_file(self, path: str) -> str:
-        """Create hash from content of the given file and validators versions.
+        """
+        Create hash from content of the given file and validators versions.
         Each time either the content of the file or the validator version change,
         the resulting hash will be different.
 
@@ -180,13 +182,41 @@ class FileHasher:
         """
         file_hash = self.hash_file(new_path)
         if not file_hash:
-            return SdoHashCheck(True, False)
+            return SdoHashCheck(True, False, False)
         hashes = self.files_hashes.get(accepted_path, {})
         if file_hash not in hashes:
             self.updated_hashes.setdefault(accepted_path, {})[file_hash] = []  # empty implementations
-            return SdoHashCheck(True, bool(hashes))
+            if not hashes:
+                # module has never been parsed before
+                return SdoHashCheck(True, False, False)
+            elif self._check_if_files_equivalent_in_normalized_form(new_path, accepted_path):
+                return SdoHashCheck(True, True, True)
+            return SdoHashCheck(True, True, False)
+        return SdoHashCheck(self.disabled, False if self.disabled else bool(hashes), not self.disabled)
 
-        return SdoHashCheck(self.disabled, bool(hashes))
+    def _check_if_files_equivalent_in_normalized_form(self, path1: str, path2: str) -> bool:
+        """
+        Checks if two yang files have the same content despite formatting (extra whitespaces, comments, etc.)
+
+        Arguments:
+            :param path1 (str) Full path to the first file
+            :param path2 (str) Full path to the second file
+        :return (bool) True if files have the same content, False otherwise
+        """
+        with os.popen(
+            (
+                f'pyang -f yang -p {os.path.dirname(path1)} --yang-canonical --yang-remove-comments '
+                f'--yang-join-substrings {path1}'
+            ),
+        ) as normalized_file1, os.popen(
+            (
+                f'pyang -f yang -p {os.path.dirname(path2)} --yang-canonical --yang-remove-comments '
+                f'--yang-join-substrings {path2}'
+            ),
+        ) as normalized_file2:
+            result = normalized_file1.read() == normalized_file2.read()
+        del normalized_file1, normalized_file2
+        return result
 
     def check_vendor_module_hash_for_parsing(
         self,
