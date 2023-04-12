@@ -35,7 +35,7 @@ from pyang.plugins.tree import emit_tree
 from werkzeug.exceptions import abort
 
 from api.my_flask import app
-from api.views.json_checker import abort_with_error, check_error
+from api.views.json_checker import check_error
 from utility.yangParser import create_context
 
 bp = Blueprint('redis_search', __name__)
@@ -111,7 +111,7 @@ def search(value: str):
 def rpc_search_get_one(leaf: str):
     """Get list of values of specified leaf in filtered set of modules. Filter is specified in body of the request."""
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {}}, body))
+    check_error({'input': {}}, body)
 
     recursive = body['input'].get('recursive')
     if recursive:
@@ -143,7 +143,7 @@ def rpc_search(body: t.Optional[dict] = None):
     if not body:
         body = request.json
         from_api = True
-    abort_with_error(check_error({'input': {}}, body))
+    check_error({'input': {}}, body)
     body_input: dict = body['input']  # pyright: ignore
     app.logger.info('Searching and filtering modules based on RPC {}'.format(json.dumps(body_input)))
     data = modules_data().get('module', {})

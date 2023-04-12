@@ -45,7 +45,7 @@ from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
 
 from api.my_flask import app
-from api.views.json_checker import Union, abort_with_error, check_error
+from api.views.json_checker import Union, check_error
 from utility.create_config import create_config
 from utility.util import hash_pw
 
@@ -141,7 +141,7 @@ def delete_admin_file(direc):
 def write_to_directory_structure(direc):
     app.logger.info(f'Updating file on path {direc}')
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {'data': str}}, body))
+    check_error({'input': {'data': str}}, body)
     data = body['input']['data']
     admin_file_path = os.path.join(ac.d_var, direc)
     if not os.path.isfile(admin_file_path):
@@ -237,7 +237,7 @@ def read_yangcatalog_config():
 def update_yangcatalog_config():
     app.logger.info('Updating yangcatalog config file')
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {'data': str}}, body))
+    check_error({'input': {'data': str}}, body)
     data = body['input']['data']
     with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'w') as f:
         f.write(data)
@@ -432,19 +432,16 @@ def get_logs():
 @catch_db_error
 def move_user():
     body: t.Any = request.json
-    abort_with_error(
-        check_error(
-            {'input': Union({'id': int, 'access-rights-sdo': str}, {'id': int, 'access-rights-vendor': str})},
-            body,
-        ),
+    check_error(
+        {'input': Union({'id': int, 'access-rights-sdo': str}, {'id': int, 'access-rights-vendor': str})},
+        body,
     )
-    body_input = body['input']
-    del body
-    id = body_input['id']
-    sdo_access = body_input.get('access-rights-sdo', '')
-    vendor_access = body_input.get('access-rights-vendor', '')
+    body = body['input']
+    id = body['id']
+    sdo_access = body.get('access-rights-sdo', '')
+    vendor_access = body.get('access-rights-vendor', '')
     users.approve(id, sdo_access, vendor_access)
-    response = {'info': 'user successfully approved', 'data': body_input}
+    response = {'info': 'user successfully approved', 'data': body}
     return (response, 201)
 
 
@@ -460,18 +457,17 @@ def create_user(status):
             registration_data | {'access-rights-sdo': str},
             registration_data | {'access-rights-vendor': str},
         )
-    abort_with_error(check_error({'input': registration_data}, body))
-    body_input = body['input']
-    del body
-    username = body_input['username']
-    password = body_input['password']
-    first_name = body_input['first-name']
-    last_name = body_input['last-name']
-    email = body_input['email']
-    motivation = body_input.get('motivation', '')
-    models_provider = body_input.get('models-provider', '')
-    sdo_access = body_input.get('access-rights-sdo', '')
-    vendor_access = body_input.get('access-rights-vendor', '')
+    check_error({'input': registration_data}, body)
+    body = body['input']
+    username = body['username']
+    password = body['password']
+    first_name = body['first-name']
+    last_name = body['last-name']
+    email = body['email']
+    motivation = body.get('motivation', '')
+    models_provider = body.get('models-provider', '')
+    sdo_access = body.get('access-rights-sdo', '')
+    vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
     fields = {
         'username': username,
@@ -487,7 +483,7 @@ def create_user(status):
         fields['access_rights_sdo'] = sdo_access
         fields['access_rights_vendor'] = vendor_access
     id = users.create(temp=status == 'temp', **fields)
-    response = {'info': 'data successfully added to database', 'data': body_input, 'id': id}
+    response = {'info': 'data successfully added to database', 'data': body, 'id': id}
     return (response, 201)
 
 
@@ -510,7 +506,7 @@ def update_user(status, id):
     if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
         abort(404, description=f'id {id} not found with status {status}')
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {'username': str, 'email': str}}, body))
+    check_error({'input': {'username': str, 'email': str}}, body)
 
     def get_set(field):
         users.set_field(id, field, body['input'].get(field, ''))

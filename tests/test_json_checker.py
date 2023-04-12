@@ -20,6 +20,8 @@ __email__ = 'richard.zilincik@pantheon.tech'
 import unittest
 from unittest import mock
 
+from werkzeug.exceptions import BadRequest
+
 from api.views.json_checker import IncorrectShape, MissingField, Union, check, check_error
 
 
@@ -39,14 +41,20 @@ class TestJsonCheckerClass(unittest.TestCase):
 
     def test_check_error(self):
         with mock.patch('api.views.json_checker.check', lambda _, __: None):
-            self.assertEqual(check_error({}, {}), None)
+            check_error({}, {})
         with mock.patch('api.views.json_checker.check', mock.MagicMock(side_effect=MissingField('["test"]'))):
-            self.assertEqual(check_error({}, {}), 'Missing field at data["test"]')
+            try:
+                check_error({}, {})
+            except BadRequest as e:
+                self.assertEqual(e.description, 'Missing field at data["test"]')
         with mock.patch(
             'api.views.json_checker.check',
             mock.MagicMock(side_effect=IncorrectShape('null', '["test"]')),
         ):
-            self.assertEqual(check_error({}, {}), 'Incorrect shape at data["test"]. Expected null.')
+            try:
+                check_error({}, {})
+            except BadRequest as e:
+                self.assertEqual(e.description, 'Incorrect shape at data["test"]. Expected null.')
 
 
 if __name__ == '__main__':

@@ -32,7 +32,7 @@ from werkzeug.exceptions import abort
 
 from api.authentication.auth import auth
 from api.my_flask import app
-from api.views.json_checker import abort_with_error, check_error
+from api.views.json_checker import check_error
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.repoutil import RepoUtil
@@ -52,20 +52,18 @@ def set_config():
 @bp.route('/register-user', methods=['POST'])
 def register_user():
     body: t.Any = request.json
-    abort_with_error(
-        check_error(
-            {
-                'username': str,
-                'password': str,
-                'password-confirm': str,
-                'email': str,
-                'company': str,
-                'first-name': str,
-                'last-name': str,
-                'motivation': str,
-            },
-            body,
-        ),
+    check_error(
+        {
+            'username': str,
+            'password': str,
+            'password-confirm': str,
+            'email': str,
+            'company': str,
+            'first-name': str,
+            'last-name': str,
+            'motivation': str,
+        },
+        body,
     )
     username = body['username']
 
@@ -119,9 +117,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         input_modules = [{'name': name, 'revision': revision, 'organization': organization}]
     else:
         rpc: t.Any = request.json
-        abort_with_error(
-            check_error({'input': {'modules': [{'name': str, 'revision': str, 'organization': str}]}}, rpc),
-        )
+        check_error({'input': {'modules': [{'name': str, 'revision': str, 'organization': str}]}}, rpc)
         input_modules = rpc['input']['modules']
 
     assert request.authorization, 'No authorization sent'
@@ -224,26 +220,24 @@ def add_modules():
             the job is still running or Failed or Finished successfully.
     """
     body: t.Any = request.json
-    abort_with_error(
-        check_error(
-            {
-                'modules': {
-                    'module': [
-                        {
-                            'name': str,
-                            'revision': str,
-                            'organization': str,
-                            'source-file': {
-                                'path': str,
-                                'repository': str,
-                                'owner': str,
-                            },
+    check_error(
+        {
+            'modules': {
+                'module': [
+                    {
+                        'name': str,
+                        'revision': str,
+                        'organization': str,
+                        'source-file': {
+                            'path': str,
+                            'repository': str,
+                            'owner': str,
                         },
-                    ],
-                },
+                    },
+                ],
             },
-            body,
-        ),
+        },
+        body,
     )
     modules_cont = body['modules']
     module_list = modules_cont['module']
@@ -375,23 +369,21 @@ def add_vendors():
             the job is still running or Failed or Finished successfully.
     """
     body: t.Any = request.json
-    abort_with_error(
-        check_error(
-            {
-                'platforms': {
-                    'platform': [
-                        {
-                            'module-list-file': {
-                                'path': str,
-                                'repository': str,
-                                'owner': str,
-                            },
+    check_error(
+        {
+            'platforms': {
+                'platform': [
+                    {
+                        'module-list-file': {
+                            'path': str,
+                            'repository': str,
+                            'owner': str,
                         },
-                    ],
-                },
+                    },
+                ],
             },
-            body,
-        ),
+        },
+        body,
     )
     platforms_contents = body['platforms']
     platform_list = platforms_contents['platform']

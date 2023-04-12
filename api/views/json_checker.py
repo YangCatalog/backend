@@ -1,14 +1,14 @@
 from werkzeug.exceptions import abort
 
+TYPE_MAP: dict[type, str] = {dict: 'object', list: 'array', str: 'string', int: 'number (int)', type(None): 'null'}
+
 
 class Union:
-    def __init__(self, *args):
-        self.members = tuple(args)
+    def __init__(self, *members):
+        self.members = members
 
     def __repr__(self):
         return ' | '.join(str(m) for m in self.members)
-
-    __str__ = __repr__
 
 
 class JsonCheckerException(Exception):
@@ -26,7 +26,14 @@ class IncorrectShape(JsonCheckerException):
         self.path = path
 
 
-type_map: dict[type, str] = {dict: 'object', list: 'array', str: 'string', int: 'number (int)', type(None): 'null'}
+def check_error(shape, data) -> None | str:
+    """Check the data and abort the current request with code 400 and a formatted error string in the description."""
+    try:
+        check(shape, data)
+    except MissingField as e:
+        abort(400, description=f'Missing field at data{e.path}')
+    except IncorrectShape as e:
+        abort(400, description=f'Incorrect shape at data{e.path}. Expected {e.correct}.')
 
 
 def check(shape, data):
@@ -34,7 +41,7 @@ def check(shape, data):
     match shape:
         case dict():
             if not isinstance(data, dict):
-                raise IncorrectShape(type_map[dict], '')
+                raise IncorrectShape(TYPE_MAP[dict], '')
             for key, component in shape.items():
                 if key not in data:
                     raise MissingField(f'["{key}"]')
@@ -46,7 +53,7 @@ def check(shape, data):
                     raise IncorrectShape(e.correct, f'["{key}"]{e.path}')
         case [element_shape]:
             if not isinstance(data, list):
-                raise IncorrectShape(type_map[list], '')
+                raise IncorrectShape(TYPE_MAP[list], '')
             for i, data_element in enumerate(data):
                 try:
                     check(element_shape, data_element)
@@ -74,22 +81,5 @@ def check(shape, data):
 
         case type():
             if not isinstance(data, shape):
-                raise IncorrectShape(type_map[shape], '')
+                raise IncorrectShape(TYPE_MAP[shape], '')
     return True
-
-
-def check_error(shape, data) -> None | str:
-    """Check the data and return a formatted error string in case of a mismatch."""
-    try:
-        check(shape, data)
-    except MissingField as e:
-        return f'Missing field at data{e.path}'
-    except IncorrectShape as e:
-        return f'Incorrect shape at data{e.path}. Expected {e.correct}.'
-
-
-def abort_with_error(error: None | str):
-    """Check the data and abort the current request with code 400 and a formatted error string in the description."""
-    if error is None:
-        return
-    abort(400, description=error)

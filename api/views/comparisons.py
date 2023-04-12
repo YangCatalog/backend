@@ -29,7 +29,7 @@ from pyang.plugins.tree import emit_tree
 from werkzeug.exceptions import abort
 
 from api.my_flask import app
-from api.views.json_checker import abort_with_error, check_error
+from api.views.json_checker import check_error
 from api.views.redis_search import rpc_search
 from utility.util import context_check_update_from
 from utility.yangParser import create_context
@@ -182,7 +182,7 @@ def get_common():
     Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
     """
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {'first': {}, 'second': {}}}, body))
+    check_error({'input': {'first': {}, 'second': {}}}, body)
     response_first = rpc_search({'input': body['input']['first']})
     response_second = rpc_search({'input': body['input']['second']})
 
@@ -214,7 +214,7 @@ def compare():
     'Different revision'.
     """
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {'old': {}, 'new': {}}}, body))
+    check_error({'input': {'old': {}, 'new': {}}}, body)
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
@@ -259,7 +259,7 @@ def check_semver():
     between two files.
     """
     body: t.Any = request.json
-    abort_with_error(check_error({'input': {'old': {}, 'new': {}}}, body))
+    check_error({'input': {'old': {}, 'new': {}}}, body)
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
