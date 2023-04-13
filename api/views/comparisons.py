@@ -19,6 +19,7 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import io
 import os
+import typing as t
 
 import requests
 from flask.blueprints import Blueprint
@@ -28,6 +29,7 @@ from pyang.plugins.tree import emit_tree
 from werkzeug.exceptions import abort
 
 from api.my_flask import app
+from api.views.json_checker import check_error
 from api.views.redis_search import rpc_search
 from utility.util import context_check_update_from
 from utility.yangParser import create_context
@@ -179,11 +181,8 @@ def get_common():
     """
     Get all the common modules out of two different filtering by leafs with data provided by in body of the request.
     """
-    body = request.json
-    if body.get('input') is None:
-        abort(400, description='body of request need to start with input')
-    if body['input'].get('first') is None or body['input'].get('second') is None:
-        abort(400, description='body of request need to contain first and second container')
+    body: t.Any = request.json
+    check_error({'input': {'first': {}, 'second': {}}}, body)
     response_first = rpc_search({'input': body['input']['first']})
     response_second = rpc_search({'input': body['input']['second']})
 
@@ -214,11 +213,8 @@ def compare():
     Output contains module metadata with 'reason-to-show' data as well which can be showing either 'New module' or
     'Different revision'.
     """
-    body = request.json
-    if body.get('input') is None:
-        abort(400, description='body of request need to start with input')
-    if body['input'].get('old') is None or body['input'].get('new') is None:
-        abort(400, description='body of request need to contain new and old container')
+    body: t.Any = request.json
+    check_error({'input': {'old': {}, 'new': {}}}, body)
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
@@ -262,11 +258,8 @@ def check_semver():
     II. If check-update-from has an output it will provide tree diff and output of the pyang together with diff
     between two files.
     """
-    body = request.json
-    if body.get('input') is None:
-        abort(400, description='body of request need to start with input')
-    if body['input'].get('old') is None or body['input'].get('new') is None:
-        abort(400, description='body of request need to contain new and old container')
+    body: t.Any = request.json
+    check_error({'input': {'old': {}, 'new': {}}}, body)
     response_new = rpc_search({'input': body['input']['new']})
     response_old = rpc_search({'input': body['input']['old']})
 
