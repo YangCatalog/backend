@@ -79,6 +79,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
         dir_paths['cache'],
         args.save_file_hash,
         dir_paths['log'],
+        config,
     )
 
     logger.info('Saving all yang files so the save-file-dir')

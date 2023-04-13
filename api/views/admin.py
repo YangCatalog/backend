@@ -27,6 +27,7 @@ import pwd
 import re
 import shutil
 import stat
+import typing as t
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -44,6 +45,7 @@ from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
 
 from api.my_flask import app
+from api.views.json_checker import Union, check_error
 from utility.create_config import create_config
 from utility.util import hash_pw
 
@@ -138,10 +140,9 @@ def delete_admin_file(direc):
 @bp.route('/api/admin/directory-structure/<path:direc>', methods=['PUT'])
 def write_to_directory_structure(direc):
     app.logger.info(f'Updating file on path {direc}')
-    body = get_input(request.json)
-    if 'data' not in body:
-        abort(400, description='"data" must be specified')
-    data = body['data']
+    body: t.Any = request.json
+    check_error({'input': {'data': str}}, body)
+    data = body['input']['data']
     admin_file_path = os.path.join(ac.d_var, direc)
     if not os.path.isfile(admin_file_path):
         abort(400, description='error - file does not exist')
@@ -235,12 +236,11 @@ def read_yangcatalog_config():
 @bp.route('/api/admin/yangcatalog-config', methods=['PUT'])
 def update_yangcatalog_config():
     app.logger.info('Updating yangcatalog config file')
-    body = get_input(request.json)
-    if 'data' not in body:
-        abort(400, description='"data" must be specified')
-
+    body: t.Any = request.json
+    check_error({'input': {'data': str}}, body)
+    data = body['input']['data']
     with open(os.environ['YANGCATALOG_CONFIG_PATH'], 'w') as f:
-        f.write(body['data'])
+        f.write(data)
     resp = {}
     try:
         app.load_config()
@@ -252,7 +252,7 @@ def update_yangcatalog_config():
         resp['receiver'] = 'data loaded successfully'
     except Exception:
         resp['receiver'] = 'error loading data'
-    response = {'info': resp, 'new-data': body['data']}
+    response = {'info': resp, 'new-data': data}
     return response
 
 
@@ -313,7 +313,7 @@ def determine_formatting(log_files, date_regex, time_regex):
             level_regex = r'[A-Z]{4,10}'
             two_words_regex = r'(\s*(\S*)\s*){2}'
             line_regex = f'({date_regex} {time_regex}[ ]{level_regex}{two_words_regex}[=][>])'
-            hits = re.findall(line_regex, file_stream)
+            hits = re.findall(line_regex, file_stream)  # pyright: ignore # broken type hints I think
             if len(hits) <= 1 and file_stream:
                 return False
     return True
@@ -326,6 +326,7 @@ def generate_output(format_text, log_files, filter, from_timestamp, to_timestamp
         with gzip.open(log_file, 'rt') if '.gz' in log_file else open(log_file, 'r') as f:
             whole_line = ''
             for line in reversed(f.readlines()):
+                line = line if isinstance(line, str) else line.decode()
                 if format_text:
                     line_timestamp = None
                     line_beginning = ''
@@ -430,15 +431,15 @@ def get_logs():
 @bp.route('/api/admin/move-user', methods=['POST'])
 @catch_db_error
 def move_user():
-    body = get_input(request.json)
-    id = body.get('id')
+    body: t.Any = request.json
+    check_error(
+        {'input': Union({'id': int, 'access-rights-sdo': str}, {'id': int, 'access-rights-vendor': str})},
+        body,
+    )
+    body = body['input']
+    id = body['id']
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
-    if id is None:
-        abort(400, description='id of a user is missing')
-    if sdo_access == '' and vendor_access == '':
-        abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
-
     users.approve(id, sdo_access, vendor_access)
     response = {'info': 'user successfully approved', 'data': body}
     return (response, 201)
@@ -449,27 +450,25 @@ def move_user():
 def create_user(status):
     if status not in ['temp', 'approved']:
         return ({'error': f'invalid status "{status}", use only "temp" or "approved" allowed'}, 400)
-    body = get_input(request.json)
-    username = body.get('username')
-    password = body.get('password')
-    first_name = body.get('first-name')
-    last_name = body.get('last-name')
-    email = body.get('email')
-    motivation = body.get('motivation', '')
-    if not all((body, username, first_name, last_name, email, password)):
-        abort(
-            400,
-            description=(
-                f'username - {username}, firstname - {first_name}, last-name - {last_name}, '
-                f'email - {email} and password - {password} must be specified'
-            ),
+    body: t.Any = request.json
+    registration_data = {'username': str, 'password': str, 'first-name': str, 'last-name': str, 'email': str}
+    if status == 'approved':
+        registration_data = Union(
+            registration_data | {'access-rights-sdo': str},
+            registration_data | {'access-rights-vendor': str},
         )
+    check_error({'input': registration_data}, body)
+    body = body['input']
+    username = body['username']
+    password = body['password']
+    first_name = body['first-name']
+    last_name = body['last-name']
+    email = body['email']
+    motivation = body.get('motivation', '')
     models_provider = body.get('models-provider', '')
     sdo_access = body.get('access-rights-sdo', '')
     vendor_access = body.get('access-rights-vendor', '')
     hashed_password = hash_pw(password)
-    if status == 'approved' and not (sdo_access or vendor_access):
-        abort(400, description='access-rights-sdo OR access-rights-vendor must be specified')
     fields = {
         'username': username,
         'password': hashed_password,
@@ -506,12 +505,11 @@ def update_user(status, id):
         return ({'error': f'invalid status "{status}", use only "temp" or "approved" allowed'}, 400)
     if not (users.is_temp(id) if status == 'temp' else users.is_approved(id)):
         abort(404, description=f'id {id} not found with status {status}')
-    body = get_input(request.json)
-    if 'username' not in body or 'email' not in body:
-        abort(400, description='username and email must be specified')
+    body: t.Any = request.json
+    check_error({'input': {'username': str, 'email': str}}, body)
 
     def get_set(field):
-        users.set_field(id, field, body.get(field, ''))
+        users.set_field(id, field, body['input'].get(field, ''))
 
     for field in ['username', 'email', 'models-provider', 'first-name', 'last-name']:
         get_set(field)

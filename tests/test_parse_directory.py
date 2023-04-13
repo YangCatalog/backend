@@ -63,7 +63,17 @@ class TestParseDirectoryClass(unittest.TestCase):
         config = mock.MagicMock()
 
         try:
-            pd.parse_sdo(self.resource('sdo'), dumper, file_hasher, False, self.dir_paths, {}, logger, config=config)
+            pd.parse_sdo(
+                self.resource('sdo'),
+                dumper,
+                file_hasher,
+                False,
+                self.dir_paths,
+                {},
+                logger,
+                config=config,
+                redis_connection=None,
+            )
         except Exception as e:
             e.args = (*e.args, 'This probably means the constructor of IanaDirectory was called.')
             raise e
@@ -77,6 +87,7 @@ class TestParseDirectoryClass(unittest.TestCase):
             {},
             None,
             config=config,
+            redis_connection=None,
         )
         mock_sdo_directory = mock_sdo_directory_cls.return_value
         mock_sdo_directory.parse_and_load.assert_called()
@@ -89,7 +100,17 @@ class TestParseDirectoryClass(unittest.TestCase):
         config = mock.MagicMock()
 
         try:
-            pd.parse_sdo(self.resource('iana'), dumper, file_hasher, False, self.dir_paths, {}, logger, config=config)
+            pd.parse_sdo(
+                self.resource('iana'),
+                dumper,
+                file_hasher,
+                False,
+                self.dir_paths,
+                {},
+                logger,
+                config=config,
+                redis_connection=None,
+            )
         except Exception as e:
             e.args = (*e.args, 'This probably means the constructor of SdoDirectory was called.')
             raise e
@@ -103,6 +124,7 @@ class TestParseDirectoryClass(unittest.TestCase):
             {},
             None,
             config=config,
+            redis_connection=None,
         )
         mock_iana_directory = mock_iana_directory_cls.return_value
         mock_iana_directory.parse_and_load.assert_called()

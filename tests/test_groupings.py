@@ -43,7 +43,6 @@ class TestGroupingsClass(unittest.TestCase):
         cls.prepare_output_filename = 'prepare'
         cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/groupings/testing_repo')
         cls.test_private_dir = os.path.join(cls.resources_path, 'html/private')
-        cls.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir)
         cls.dir_paths: DirPaths = {
             'cache': '',
             'json': cls.resources_path,
@@ -55,6 +54,7 @@ class TestGroupingsClass(unittest.TestCase):
         }
         cls.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
         cls.config = create_config()
+        cls.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir, cls.config)
         cls.redis_connection = RedisConnection(config=cls.config)
         cls.save_file_dir = cls.config.get('Directory-Section', 'save-file-dir')
 
@@ -117,7 +117,7 @@ class TestGroupingsClass(unittest.TestCase):
 
     def test_sdo_directory_with_changed_formatting_from_official_source(self):
         """
-        This method tests that modules that are already parsed (from official or non-official source) would update the
+        Tests that modules that are already parsed (from official or non-official source) would update the
         formatting, if the file from the official source has updated formatting (with no semantic changes).
         """
         resource_path_parent_dir = os.path.dirname(self.resources_path)
@@ -134,7 +134,7 @@ class TestGroupingsClass(unittest.TestCase):
         self.populate_test_modules_basic_info_to_db()
         file_mapping = self.get_file_mapping()
         all_modules_path = os.path.join(self.save_file_dir, 'sdo-first@2022-08-05.yang')
-        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir)
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir, self.config)
         file_hasher.files_hashes[all_modules_path] = {self.file_hasher.hash_file(all_modules_path): []}
         try:
             sdo_directory = SdoDirectory(
@@ -149,6 +149,11 @@ class TestGroupingsClass(unittest.TestCase):
                 redis_connection=self.redis_connection,
             )
             sdo_directory.parse_and_load()
+            self.assertIn(all_modules_path, file_hasher.updated_hashes)
+            self.assertEqual(
+                file_hasher.updated_hashes[all_modules_path][file_hasher.latest_normalized_file_hash_key],
+                file_hasher.get_normalized_file_hash(all_modules_path),
+            )
             self.assertNotIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
             with open(self.resource('owner/repo/sdo/sdo-first.yang'), 'r') as f1, open(all_modules_path, 'r') as f2:
                 self.assertEqual(f1.read(), f2.read())
@@ -161,7 +166,7 @@ class TestGroupingsClass(unittest.TestCase):
 
     def test_sdo_directory_with_changed_formatting_from_non_official_source(self):
         """
-        This method tests that modules that are already parsed (from official or not from the official source) would not
+        Tests that modules that are already parsed (from official or not from the official source) would not
         update the formatting, if the file from non-official source has updated formatting (with no semantic changes).
         """
         resource_path_parent_dir = os.path.dirname(self.resources_path)
@@ -178,7 +183,7 @@ class TestGroupingsClass(unittest.TestCase):
         self.populate_test_modules_basic_info_to_db()
         file_mapping = self.get_file_mapping()
         all_modules_path = os.path.join(self.save_file_dir, 'sdo-first@2022-08-05.yang')
-        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir)
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir, self.config)
         file_hasher.files_hashes[all_modules_path] = {self.file_hasher.hash_file(all_modules_path): []}
         try:
             sdo_directory = SdoDirectory(
@@ -193,6 +198,8 @@ class TestGroupingsClass(unittest.TestCase):
                 redis_connection=self.redis_connection,
             )
             sdo_directory.parse_and_load()
+            self.assertIn(all_modules_path, file_hasher.updated_hashes)
+            self.assertNotIn(file_hasher.latest_normalized_file_hash_key, file_hasher.updated_hashes[all_modules_path])
             self.assertNotIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
             with open(self.resource('owner/repo/sdo/sdo-first.yang'), 'r') as f1, open(all_modules_path, 'r') as f2:
                 self.assertNotEqual(f1.read(), f2.read())
@@ -205,7 +212,7 @@ class TestGroupingsClass(unittest.TestCase):
 
     def test_sdo_directory_with_changed_content_from_official_source(self):
         """
-        This method tests that modules that are already parsed from non-official source will be fully reparsed,
+        Tests that modules that are already parsed from non-official source will be fully reparsed,
         if the file from the official source has new semantic changes.
         """
         self.populate_test_modules_basic_info_to_db(
@@ -230,7 +237,7 @@ class TestGroupingsClass(unittest.TestCase):
             ),
             all_modules_path,
         )
-        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir)
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir, self.config)
         file_hasher.files_hashes[all_modules_path] = {self.file_hasher.hash_file(all_modules_path): []}
         try:
             sdo_directory = SdoDirectory(
@@ -245,6 +252,11 @@ class TestGroupingsClass(unittest.TestCase):
                 redis_connection=self.redis_connection,
             )
             sdo_directory.parse_and_load()
+            self.assertIn(all_modules_path, file_hasher.updated_hashes)
+            self.assertEqual(
+                file_hasher.updated_hashes[all_modules_path][file_hasher.latest_normalized_file_hash_key],
+                file_hasher.get_normalized_file_hash(all_modules_path),
+            )
             self.assertIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
             with open(self.resource('owner/repo/sdo/sdo-first.yang'), 'r') as f1, open(all_modules_path, 'r') as f2:
                 self.assertEqual(f1.read(), f2.read())
@@ -254,6 +266,41 @@ class TestGroupingsClass(unittest.TestCase):
             self.redis_connection.modulesDB.flushdb()
             shutil.copy(os.path.join(tmp_dir, 'sdo-first.yang'), all_modules_path)
             shutil.rmtree(tmp_dir)
+
+    def test_sdo_directory_with_unchanged_file(self):
+        """
+        Tests that after running groupings for unchanged modules, if they don't store the latest normalized file hash,
+        the normalized file hash will be added to the file hasher for the future use.
+        """
+        self.populate_test_modules_basic_info_to_db()
+        file_mapping = self.get_file_mapping()
+        file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, True, yc_gc.logs_dir, self.config)
+        for all_modules_file_path in file_mapping.values():
+            file_hasher.files_hashes[all_modules_file_path] = {self.file_hasher.hash_file(all_modules_file_path): []}
+        try:
+            sdo_directory = SdoDirectory(
+                self.resources_path,
+                self.dumper,
+                file_hasher,
+                False,
+                self.dir_paths,
+                file_mapping,
+                'ietf',
+                config=self.config,
+                redis_connection=self.redis_connection,
+            )
+            sdo_directory.parse_and_load()
+            self.assertNotIn('sdo-first@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            self.assertNotIn('sdo-second@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            self.assertNotIn('sdo-third@2022-08-05/ietf', sdo_directory.dumper.yang_modules)
+            for all_modules_file_path in file_mapping.values():
+                self.assertIn(all_modules_file_path, file_hasher.updated_hashes)
+                self.assertEqual(
+                    file_hasher.updated_hashes[all_modules_file_path][file_hasher.latest_normalized_file_hash_key],
+                    file_hasher.get_normalized_file_hash(all_modules_file_path),
+                )
+        finally:
+            self.redis_connection.modulesDB.flushdb()
 
     def get_file_mapping(self) -> dict[str, str]:
         return {
@@ -408,7 +455,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
 
         def check_vendor_module_hash_for_parsing_mock(path: str, new_implementations: t.Optional[list[str]] = None):
-            return VendorModuleHashCheckForParsing(hash_changed=True, new_implementations_detected=True)
+            return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=True)
 
         self.file_hasher.check_vendor_module_hash_for_parsing = check_vendor_module_hash_for_parsing_mock
 
@@ -505,7 +552,7 @@ class TestGroupingsClass(unittest.TestCase):
         api = False
 
         def check_vendor_module_hash_for_parsing_mock(path: str, new_implementations: t.Optional[list[str]] = None):
-            return VendorModuleHashCheckForParsing(hash_changed=True, new_implementations_detected=True)
+            return VendorModuleHashCheckForParsing(file_hash_exists=True, new_implementations_detected=True)
 
         self.file_hasher.check_vendor_module_hash_for_parsing = check_vendor_module_hash_for_parsing_mock
 

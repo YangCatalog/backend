@@ -183,6 +183,8 @@ class SdoDirectory(ModuleGrouping):
                 all_modules_path = self.file_mapping[path]
                 should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
                 if not should_parse.hash_changed:
+                    if self._should_update_normalized_file_hash_if_hash_not_changed(all_modules_path, should_parse):
+                        self._update_normalized_file_hash_in_file_hasher(all_modules_path, should_parse)
                     self.skipped += 1
                     continue
                 if '[1]' in file_name:
@@ -207,29 +209,58 @@ class SdoDirectory(ModuleGrouping):
                     continue
                 if not self._should_add_module_to_dumper(yang, should_parse, path, all_modules_path):
                     continue
-                self.dumper.add_module(yang)
-                shutil.copy(path, all_modules_path)
-                self.parsed += 1
+                self._add_module_to_dumper(yang, should_parse, path, all_modules_path)
         return self.parsed, self.skipped
+
+    def _should_update_normalized_file_hash_if_hash_not_changed(
+        self,
+        accepted_module_path: str,
+        module_hash_check: SdoHashCheck,
+    ) -> bool:
+        return (
+            module_hash_check.normalized_file_hash
+            and accepted_module_path in self.file_hasher.files_hashes
+            and not self.file_hasher.files_hashes[accepted_module_path].get(
+                self.file_hasher.latest_normalized_file_hash_key,
+            )
+        )
 
     def _should_add_module_to_dumper(
         self,
-        yang: Module,
+        module: Module,
         module_hash_check: SdoHashCheck,
         new_module_path: str,
         accepted_module_path: str,
     ) -> bool:
-        if not yang.fully_parsed:
+        if not module.fully_parsed:
             # this is not the official source of this organization's modules,
             # and we already have some version of this module
             self.skipped += 1
             return False
         # at this point we are sure that this is the official source or a new module
         if module_hash_check.only_formatting_changed:
+            self._update_normalized_file_hash_in_file_hasher(accepted_module_path, module_hash_check)
             shutil.copy(new_module_path, accepted_module_path)
             self.parsed += 1
             return False
         return True
+
+    def _add_module_to_dumper(
+        self,
+        module: Module,
+        module_hash_check: SdoHashCheck,
+        new_module_path: str,
+        accepted_module_path: str,
+    ):
+        self._update_normalized_file_hash_in_file_hasher(accepted_module_path, module_hash_check)
+        self.dumper.add_module(module)
+        shutil.copy(new_module_path, accepted_module_path)
+        self.parsed += 1
+
+    def _update_normalized_file_hash_in_file_hasher(self, accepted_module_path: str, module_hash_check: SdoHashCheck):
+        self.file_hasher.updated_hashes.setdefault(accepted_module_path, {})[
+            self.file_hasher.latest_normalized_file_hash_key
+        ] = module_hash_check.normalized_file_hash
 
 
 class IanaDirectory(SdoDirectory):
@@ -306,6 +337,8 @@ class IanaDirectory(SdoDirectory):
                 continue
             should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
             if not should_parse.hash_changed:
+                if self._should_update_normalized_file_hash_if_hash_not_changed(all_modules_path, should_parse):
+                    self._update_normalized_file_hash_in_file_hasher(all_modules_path, should_parse)
                 self.skipped += 1
                 continue
             self.logger.info(f'Parsing module {name}')
@@ -327,9 +360,7 @@ class IanaDirectory(SdoDirectory):
                 continue
             if not self._should_add_module_to_dumper(yang, should_parse, path, all_modules_path):
                 continue
-            self.dumper.add_module(yang)
-            shutil.copy(path, all_modules_path)
-            self.parsed += 1
+            self._add_module_to_dumper(yang, should_parse, path, all_modules_path)
         return self.parsed, self.skipped
 
 
