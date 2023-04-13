@@ -1,5 +1,14 @@
 ## Backend Release Notes
 
+* ##### v5.11.0 - 2023-04-13
+
+  * Documentation improved across the repository [#761](https://github.com/YangCatalog/backend/issues/761)
+  * JSON body validation generalized for API endpoints [#760](https://github.com/YangCatalog/backend/issues/760)
+  * Redundant subdirectories removed in api/views tree structure [#756](https://github.com/YangCatalog/backend/issues/756)
+  * Remove unnecessary git repositories clones [#739](https://github.com/YangCatalog/backend/issues/739)
+  * redis pypi packed bumped from 3.5.3 to 4.5.4
+  * Advanced search functionality extended [frontend #22](https://github.com/YangCatalog/frontend/issues/22)
+  
 * ##### v5.10.1 - 2023-03-20
 
   * Cache directory cleaning improved [#751](https://github.com/YangCatalog/backend/issues/751)
