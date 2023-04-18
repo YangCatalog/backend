@@ -282,7 +282,7 @@ def merge_pull_request(
 def add_worktree(repo_dir: str, branch: t.Optional[str] = None, new_worktree_dir: t.Optional[str] = None) -> str:
     new_worktree_dir = new_worktree_dir or tempfile.mkdtemp()
     if branch:
-        Git(repo_dir).worktree('add', new_worktree_dir, branch)
+        Git(repo_dir).worktree('add', '--detach', new_worktree_dir, branch)
     else:
         Git(repo_dir).worktree('add', '--detach', new_worktree_dir)
     return new_worktree_dir
