@@ -19,45 +19,36 @@ __email__ = 'stanislav.chlebec@pantheon.tech'
 
 import logging
 import os
+import shutil
 import unittest
 
-import utility.repoutil as ru
+from git import Repo
+
+import utility.repoutil as repoutil
 from utility.create_config import create_config
+
+TEST_REPO_URL = 'https://github.com/yang-catalog/test'
+TEST_REPO_MAIN_BRANCH = 'master'
 
 
 class TestRepoutil(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.repourl = 'https://github.com/yang-catalog/test'
-        cls.repo_owner = 'yang-catalog'
-
-        cls.logger = logging.getLogger(__name__)
-        f_handler = logging.FileHandler('test_repoutil.log')
-        f_handler.setLevel(logging.ERROR)
-        f_format = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        f_handler.setFormatter(f_format)
-        cls.logger.addHandler(f_handler)
-
         cls.myname = 'yang-catalog'
         cls.myemail = 'fake@gmail.com'
 
-        if os.environ.get('GITHUB_ACTIONS'):
-            cls.token = os.environ['TOKEN']
-        else:
-            cls.token = create_config().get('Secrets-Section', 'yang-catalog-token')
-
     def setUp(self):
-        self.repo = ru.RepoUtil.clone(
-            self.repourl,
+        self.repo = repoutil.RepoUtil.clone(
+            TEST_REPO_URL,
             temp=True,
             clone_options={'config_username': self.myname, 'config_user_email': self.myemail},
         )
 
     def test_pull(self):
-        ru.pull(self.repo.local_dir)
+        repoutil.pull(self.repo.local_dir)
 
     def test_load(self):
-        repo = ru.RepoUtil.load(self.repo.local_dir, self.repo.url, True)
+        repo = repoutil.RepoUtil.load(self.repo.local_dir, self.repo.url, True)
 
         self.assertEqual(repo.url, self.repo.url)
 
@@ -76,6 +67,73 @@ class TestRepoutil(unittest.TestCase):
 
         del self.repo
         self.assertFalse(os.path.exists(repodir))
+
+
+class TestWorktree(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.config = create_config()
+        cls.repo_config_username = cls.config.get('General-Section', 'repo-config-name')
+        cls.repo_config_user_email = cls.config.get('General-Section', 'repo-config-email')
+        cls.logger = logging.getLogger(__name__)
+        handler = logging.StreamHandler()
+        handler.setLevel(logging.ERROR)
+        cls.logger.addHandler(handler)
+        cls.path_to_test_repo = os.path.join(os.environ['BACKEND'], 'utility/tests/resources/test_repo')
+        os.makedirs(cls.path_to_test_repo, exist_ok=True)
+        cls.repo = Repo.clone_from(TEST_REPO_URL, cls.path_to_test_repo)
+        cls.test_branch_name = 'test'
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.path_to_test_repo)
+
+    def test_create_worktree_from_non_existent_branch(self):
+        try:
+            wt = self._create_worktree()
+            self._check_worktree_validity(wt)
+            del wt
+        finally:
+            if self.test_branch_name in self.repo.branches:
+                self.repo.delete_head(self.test_branch_name)
+
+    def test_create_worktree_from_existing_branch(self):
+        self.repo.create_head(self.test_branch_name)
+        try:
+            wt = self._create_worktree()
+            self._check_worktree_validity(wt)
+            del wt
+        finally:
+            self.repo.delete_head(self.test_branch_name)
+
+    def test_create_worktree_if_one_already_exists(self):
+        self.repo.create_head(self.test_branch_name)
+        try:
+            wt1 = self._create_worktree()
+            wt2 = self._create_worktree()
+            self._check_worktree_validity(wt2)
+            self.assertTrue(not os.path.exists(wt1.worktree_dir))
+            del wt2
+        finally:
+            self.repo.delete_head(self.test_branch_name)
+
+    def _create_worktree(self) -> repoutil.Worktree:
+        return repoutil.Worktree(
+            self.path_to_test_repo,
+            self.logger,
+            main_branch=TEST_REPO_MAIN_BRANCH,
+            branch=self.test_branch_name,
+            config_options=repoutil.Worktree.ConfigOptions(
+                config_username=self.repo_config_username,
+                config_user_email=self.repo_config_user_email,
+            ),
+        )
+
+    def _check_worktree_validity(self, wt: repoutil.Worktree):
+        self.assertTrue(os.path.exists(wt.worktree_dir))
+        with wt.repo.config_reader() as git_config_reader:
+            self.assertEqual(git_config_reader.get_value('user', 'email'), self.repo_config_user_email)
+            self.assertEqual(git_config_reader.get_value('user', 'name'), self.repo_config_username)
 
 
 if __name__ == '__main__':

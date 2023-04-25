@@ -132,6 +132,7 @@ class Worktree:
         self,
         repo_dir: str,
         logger: logging.Logger,
+        main_branch: str = 'main',
         branch: t.Optional[str] = None,
         new_worktree_dir: t.Optional[str] = None,
         config_options: t.Optional[ConfigOptions] = None,
@@ -140,6 +141,7 @@ class Worktree:
         Arguments:
             :param repo_dir (str) Path to the existing repository to create a worktree for.
             :param logger (Logger) Logger object.
+            :param main_branch (str) Name of the repository's main branch.
             :param branch (Optional[str]) Branch to create a worktree from.
             :param new_worktree_dir (Optional[str]) Directory where the new worktree will be created, if None,
             a new temporary directory will be created. Be careful, the new_worktree_dir will be automatically deleted
@@ -148,20 +150,26 @@ class Worktree:
             will be written to the git config.
         """
         self.logger = logger
-        self._create_worktree(repo_dir, branch=branch, new_worktree_dir=new_worktree_dir)
+        self._create_worktree(repo_dir, main_branch, branch=branch, new_worktree_dir=new_worktree_dir)
         self._repo_git = Git(self.worktree_dir)
         self.repo = Repo(self.worktree_dir)
         if config_options:
             self._set_config_options(config_options)
 
-    def _create_worktree(self, repo_dir: str, branch: t.Optional[str] = None, new_worktree_dir: t.Optional[str] = None):
+    def _create_worktree(
+        self,
+        repo_dir: str,
+        main_branch: str,
+        branch: t.Optional[str] = None,
+        new_worktree_dir: t.Optional[str] = None,
+    ):
         self.worktree_dir = new_worktree_dir or tempfile.mkdtemp()
         if not branch:
             Git(repo_dir).worktree('add', '--detach', self.worktree_dir)
             return
         repo = Repo(repo_dir)
         if branch not in repo.branches:
-            repo.git.checkout('main')
+            repo.git.checkout(main_branch)
             repo.create_head(branch)
         repo_git = Git(repo_dir)
         repo_git.worktree('prune')
@@ -191,7 +199,10 @@ class Worktree:
         anymore, for example, when you return not the Worktree object from a function itself, for example:
         return Worktree().repo
         """
-        self._repo_git.worktree('remove', '.')
+        try:
+            self._repo_git.worktree('remove', '.', '--force')
+        except GitCommandError:
+            pass
 
 
 def pull(repo_dir: str):
