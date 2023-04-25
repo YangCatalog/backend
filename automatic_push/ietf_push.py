@@ -43,7 +43,7 @@ from automatic_push.utils import (
     get_forked_worktree,
     push_untracked_files,
 )
-from utility import message_factory, repoutil
+from utility import message_factory
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
@@ -90,7 +90,8 @@ class IetfPush:
     @job_log(file_basename=BASENAME)
     def __call__(self) -> list[JobLogMessage]:
         self.logger.info('Starting job to push IETF modules')
-        self.repo = get_forked_worktree(self.config, self.logger)
+        self.worktree = get_forked_worktree(self.config, self.logger)
+        self.repo = self.worktree.repo
         self._configure_file_paths()
         try:
             ietf_tar_extracted_successfully = self._extract_ietf_modules_tar()
@@ -115,8 +116,6 @@ class IetfPush:
         except Exception as e:
             self.logger.exception('Exception found while running ietf_push script')
             raise e
-        finally:
-            repoutil.remove_worktree(self.repo.working_dir)  # pyright: ignore
 
     def _configure_file_paths(self):
         assert isinstance(self.repo.working_dir, str), 'always true'
