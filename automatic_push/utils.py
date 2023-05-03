@@ -33,17 +33,24 @@ from utility import repoutil, yangParser
 from utility.util import revision_to_date
 
 
-def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> Repo:
+def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repoutil.Worktree:
     """
     First pulls changes from YangModels/yang and pushes them to yang-catalog/yang
     Then returns a Repo object of a new working tree with the main branch of yang-catalog/yang checked out.
     """
     yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
     update_forked_repository(yang_models_dir, config, logger)
-    worktree_dir = repoutil.add_worktree(yang_models_dir, branch='fork-main')
-    repo = Repo(worktree_dir)
-    repo.git.pull()
-    return repo
+    worktree = repoutil.Worktree(
+        yang_models_dir,
+        logger,
+        branch='fork-main',
+        config_options=repoutil.Worktree.ConfigOptions(
+            config_username=config.get('General-Section', 'repo-config-name'),
+            config_user_email=config.get('General-Section', 'repo-config-email'),
+        ),
+    )
+    worktree.repo.git.pull('origin', 'main')
+    return worktree
 
 
 def update_forked_repository(yang_models: str, config: ConfigParser, logger: logging.Logger):
@@ -71,13 +78,18 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
             fork = main_repo.create_remote('fork', forked_repo_url)
             os.mknod(git_config_lock_file)
 
+        # git fetch --all
+        for remote in main_repo.remotes:
+            info = remote.fetch('main')[0]
+            logger.info(f'Remote: {remote.name} - Commit: {info.commit}')
+
         # git push fork main
         push_info = fork.push('main')[0]
         logger.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
-            logger.warning('yang-catalog/yang repo might not be up-to-date')
+            logger.warning('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
     except GitCommandError:
-        logger.exception('yang-catalog/yang repo might not be up-to-date')
+        logger.exception('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
 
 
 def get_latest_revision(path: str, logger: logging.Logger):
@@ -253,7 +265,7 @@ def push_untracked_files(
             logger.debug(f'List of all untracked and modified files:\n{changes}')
     except GitCommandError as e:
         message = f'Error while pushing procedure - git command error: \n {e.stderr} \n git command out: \n {e.stdout}'
-        if 'Your branch is up to date' in e.stdout:
+        if 'Your branch is up to date' in e.stdout or 'nothing to commit, working tree clean' in e.stdout:
             logger.warning(message)
             return PushResult(is_successful=True, detail='Branch is up to date')
         else:

@@ -27,10 +27,11 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import logging
 import os
+import shutil
+import tempfile
 
 import utility.log as log
 from utility.create_config import create_config
-from utility.repoutil import ModuleDirectoryManager
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.util import JobLogMessage, job_log
@@ -81,6 +82,25 @@ def populate_directory(directory: str, notify_indexing: bool, logger: logging.Lo
     success = run_populate_script(directory, notify_indexing, logger)
     message = 'Populate script finished successfully' if success else 'Error while calling populate script'
     return success, message
+
+
+class ModuleDirectoryManager:
+    def __init__(self):
+        self._module_directories = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc_info):
+        for module_dir in self._module_directories.values():
+            shutil.rmtree(module_dir)
+
+    def __getitem__(self, repo_dir: str):
+        if repo_dir not in self._module_directories:
+            temp_dir = tempfile.mkdtemp()
+            shutil.copytree(repo_dir, temp_dir, dirs_exist_ok=True)
+            self._module_directories[repo_dir] = temp_dir
+        return self._module_directories[repo_dir]
 
 
 @job_log(file_basename=BASENAME)

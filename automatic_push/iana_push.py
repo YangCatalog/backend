@@ -36,7 +36,6 @@ from automatic_push.utils import (
     get_forked_worktree,
     push_untracked_files,
 )
-from utility import repoutil
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
@@ -72,7 +71,8 @@ class IanaPush:
     @job_log(file_basename=BASENAME)
     def __call__(self) -> list[JobLogMessage]:
         self.logger.info('Starting job to push IANA-maintained modules')
-        self.repo = get_forked_worktree(self.config, self.logger)
+        self.worktree = get_forked_worktree(self.config, self.logger)
+        self.repo = self.worktree.repo
         self._configure_file_paths()
         self._sync_yang_parameters()
         self._parse_yang_parameters()
@@ -93,7 +93,6 @@ class IanaPush:
         else:
             messages = [JobLogMessage(label='Push is unsuccessful', message=push_result.detail)]
             self.logger.info('Job finished unsuccessfully, push failed')
-        repoutil.remove_worktree(self.repo.working_dir)  # pyright: ignore
         return messages
 
     def _configure_file_paths(self):
