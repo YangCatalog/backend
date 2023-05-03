@@ -131,14 +131,5 @@
       "cwd": "${workspaceFolder}",
       "justMyCode": false
     },
-    {
-      "name": "receiver",
-      "type": "python",
-      "request": "launch",
-      "program": "${workspaceFolder}/api/receiver.py",
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "justMyCode": false
-    }
   ]
 }

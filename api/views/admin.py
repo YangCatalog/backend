@@ -20,13 +20,13 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fnmatch
 import grp
 import gzip
-import json
 import math
 import os
 import pwd
 import re
 import shutil
 import stat
+import uuid
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -248,10 +248,10 @@ def update_yangcatalog_config():
     except Exception:
         resp['api'] = 'error loading data'
     try:
-        ac.sender.send('reload_config')
-        resp['receiver'] = 'data loaded successfully'
+        ac.module_jobs.load_config()
+        resp['job_runner'] = 'data loaded successfully'
     except Exception:
-        resp['receiver'] = 'error loading data'
+        resp['job_runner'] = 'error loading data'
     response = {'info': resp, 'new-data': body['data']}
     return response
 
@@ -559,11 +559,15 @@ def run_script_with_args(script):
         abort(400, description=f'"{script}" is not valid script name')
 
     body = get_input(request.json)
+    arguments = (module_name, script, body)
 
-    arguments = ['run_script', module_name, script, json.dumps(body)]
-    job_id = ac.sender.send('#'.join(arguments))
+    job_id = str(uuid.uuid4())
+    ac.job_statuses[job_id] = ac.process_pool.apply_async(
+        ac.job_runner.run_script,
+        args=arguments,
+    )
 
-    return {'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202
+    return {'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments}, 202
 
 
 @bp.route('/api/admin/scripts', methods=['GET'])

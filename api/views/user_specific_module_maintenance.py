@@ -22,8 +22,10 @@ import json
 import os
 import shutil
 import typing as t
+import uuid
 from datetime import datetime
 
+import requests
 from flask.blueprints import Blueprint
 from flask.globals import request
 from git import GitCommandError, InvalidGitRepositoryError
@@ -32,10 +34,11 @@ from werkzeug.exceptions import abort
 
 from api.authentication.auth import auth
 from api.my_flask import app
+from api.status_message import StatusMessage
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.repoutil import RepoUtil
-from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
+from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url, json_headers
 from utility.util import hash_pw
 
 bp = Blueprint('user_specific_module_maintenance', __name__)
@@ -103,10 +106,7 @@ def register_user():
 @bp.route('/modules', methods=['DELETE'])
 @auth.login_required
 def delete_modules(name: str = '', revision: str = '', organization: str = ''):
-    """Delete a specific modules defined with name, revision and organization. This is
-    not done right away but it will send another request to receiver which will work on deleting
-    while this request will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id".
+    """Delete a specific modules defined with name, revision and organization.
 
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
@@ -145,10 +145,13 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 
     # Filter out unavailble modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
-    modules_dict = json.dumps({'modules': input_modules})
 
-    arguments = ['DELETE-MODULES', ac.s_confd_credentials[0], ac.s_confd_credentials[1], modules_dict]
-    job_id = ac.sender.send('#'.join(arguments))
+    job_id = str(uuid.uuid4())
+    ac.job_statuses[job_id] = ac.process_pool.apply_async(
+        ac.job_runner.process_module_deletion,
+        args=(input_modules,),
+        callback=reload_cache_callback,
+    )
 
     app.logger.info('Running deletion of modules with job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
@@ -160,10 +163,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 @bp.route('/vendors/<path:value>', methods=['DELETE'])
 @auth.login_required
 def delete_vendor(value: str):
-    """Delete a specific vendor defined with path. This is
-    not done right away but it will send another request to receiver which will work on deleting
-    while this request will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id".
+    """Delete a specific vendor defined with path.
 
     Argument:
         :param value    (str) path to the branch that needs to be deleted
@@ -179,24 +179,26 @@ def delete_vendor(value: str):
 
     if access_rigths.startswith('/') and len(access_rigths) > 1:
         access_rigths = access_rigths[1:]
-    rights = access_rigths.split('/')
-    rights += [None] * (4 - len(rights))
+    param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
+    rights = {param_names[i]: right for i, right in enumerate(access_rigths.split('/'))}
 
     path = '/vendors/{}'.format(value)
 
-    param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
-    params = []
+    params = {}
     for param_name in param_names[::-1]:
         path, _, param = path.partition('/{}s/{}/'.format(param_name, param_name))
-        params.append(param or 'None')
-    params = params[::-1]
+        params[param_name] = param or None
 
-    for param_name, param, right in zip(param_names, params, rights):
-        if right and param != right:
+    for param_name, right in rights.items():
+        if right and params[param_name] != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params]
-    job_id = ac.sender.send('#'.join(arguments))
+    job_id = str(uuid.uuid4())
+    ac.job_statuses[job_id] = ac.process_pool.apply_async(
+        ac.job_runner.process_vendor_deletion,
+        args=(params,),
+        callback=reload_cache_callback,
+    )
 
     app.logger.info('Running deletion of vendors metadata with job_id {}'.format(job_id))
     payload = {'info': 'Verification successful', 'job-id': job_id}
@@ -209,11 +211,6 @@ def add_modules():
     """Endpoint is used to add new modules using the API.
     PUT request is used for updating each module in request body.
     POST request is used for creating new modules that are not in ConfD/Redis yet.
-    First it checks if the sent request is ok and if so, it will send a another request
-    to the receiver which will work on adding/updating modules while this request
-    will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id"
-    the job process.
 
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
@@ -337,17 +334,12 @@ def add_modules():
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
 
-    arguments = [
-        'POPULATE-MODULES',
-        '--sdo',
-        '--dir',
-        direc,
-        '--api',
-        '--credentials',
-        ac.s_confd_credentials[0],
-        ac.s_confd_credentials[1],
-    ]
-    job_id = ac.sender.send('#'.join(arguments))
+    job_id = str(uuid.uuid4())
+    ac.job_statuses[job_id] = ac.process_pool.apply_async(
+        ac.job_runner.process,
+        kwds={'sdo': True, 'api': True, 'direc': direc},
+        callback=reload_cache_callback,
+    )
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
     if len(warning) > 0:
         return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
@@ -361,10 +353,6 @@ def add_vendors():
     """Endpoint is used to add new vendors using the API.
     PUT request is used for updating each vendor in request body.
     POST request is used for creating new vendors that are not in ConfD/Redis yet.
-    First it checks if the sent request is ok and if so, it will send another request
-    to the receiver which will work on adding/updating vendors while this request
-    will send a "job_id" in the response back to the user.
-    User is able to check the success of the job using this "job_id".
 
     :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
@@ -378,7 +366,6 @@ def add_vendors():
         abort(400, description='bad request - "platform" json list is missing and is mandatory')
 
     app.logger.info('Adding vendor with body\n{}'.format(json.dumps(body, indent=2)))
-    tree_created = False
     authorization = authorize_for_vendors(request, body)
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
@@ -449,19 +436,13 @@ def add_vendors():
         with open('{}/{}.json'.format(save_to, file_name.split('.')[0]), 'w') as f:
             json.dump(platform, f)
         shutil.copy(os.path.join(repos[repo_url].local_dir, module_list_file['path']), save_to)
-        tree_created = True
 
-    arguments = [
-        'POPULATE-VENDORS',
-        '--dir',
-        direc,
-        '--api',
-        '--credentials',
-        ac.s_confd_credentials[0],
-        ac.s_confd_credentials[1],
-        repr(tree_created),
-    ]
-    job_id = ac.sender.send('#'.join(arguments))
+    job_id = str(uuid.uuid4())
+    ac.job_statuses[job_id] = ac.process_pool.apply_async(
+        ac.job_runner.process,
+        kwds={'sdo': False, 'api': True, 'direc': direc},
+        callback=reload_cache_callback,
+    )
     app.logger.info('Running populate.py with job_id {}'.format(job_id))
     return {'info': 'Verification successful', 'job-id': job_id}, 202
 
@@ -473,7 +454,7 @@ def get_job(job_id: str):
     :return response to the request with the job
     """
     app.logger.info('Searching for job_id {}'.format(job_id))
-    result = ac.sender.get_response(job_id)
+    result = get_response(job_id)
     split = result.split('#split#')
 
     reason = None
@@ -597,3 +578,23 @@ def get_repo(repo_url: str, owner: str, repo_name: str) -> RepoUtil:
                 description='bad request - could not clone the Github repository. Please check owner,'
                 ' repository and path of the request - {}'.format(e.stderr),
             )
+
+
+def get_response(correlation_id: str) -> str:
+    """Get response according to job_id. It can be either
+    'Failed', 'In progress', 'Finished successfully' or 'does not exist'
+
+    Arguments:
+        :param correlation_id: (str) job_id searched between
+            responses
+        :return                (str) one of the following - 'Failed', 'In progress',
+            'Finished successfully' or 'Does not exist'
+    """
+    app.logger.debug('Trying to get response from correlation ids')
+    if (status := ac.job_statuses.get(correlation_id)) is None:
+        return StatusMessage.NONEXISTENT.value
+    return status.get().value if status.ready() else StatusMessage.IN_PROGRESS.value
+
+
+def reload_cache_callback(_):
+    requests.post(f'{ac.w_yangcatalog_api_prefix}/load-cache', auth=ac.s_confd_credentials, headers=json_headers)

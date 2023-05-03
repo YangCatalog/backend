@@ -686,9 +686,9 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], '"invalid" is not valid script name')
 
-    @mock.patch('api.yangcatalog_api.app_config.sender.send')
-    def test_run_script_with_args(self, mock_send: mock.MagicMock):
-        mock_send.return_value = 1
+    @mock.patch('api.yangcatalog_api.app.config.job_runner', mock.MagicMock())
+    @mock.patch('uuid.uuid4', mock.MagicMock(return_value='1'))
+    def test_run_script_with_args(self):
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
 
         self.assertEqual(result.status_code, 202)
@@ -697,11 +697,12 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Verification successful')
         self.assertIn('job-id', data)
-        self.assertEqual(data['job-id'], 1)
+        self.assertEqual(data['job-id'], '1')
         self.assertIn('arguments', data)
-        self.assertEqual(data['arguments'], ['parseAndPopulate', 'populate', '"test"'])
+        self.assertEqual(data['arguments'], ['parseAndPopulate', 'populate', 'test'])
 
-    @mock.patch('api.yangcatalog_api.app_config.sender', mock.MagicMock())
+    @mock.patch('api.yangcatalog_api.app.config.job_runner', mock.MagicMock())
+    @mock.patch('uuid.uuid4', mock.MagicMock(return_value='1'))
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
 
