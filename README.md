@@ -46,8 +46,6 @@ Some requests may take a longer period of time to process. Because of thissome e
 The user can check this job at any time to see if the job has been completed or is still processing or failed during the
 execution by using the job-id.
 
-_**Note about rabbitMQ**: on some Linux distributions, you need to add `HOSTNAME=localhost` to `/etc/rabbitmq/rabbitmq-env.conf`_
-
 The Yangcatalog API is also used by some automated external jobs. Every time new modules are merged into the yangModels/yang
 repository a job is triggered to populate all the new modules to the yangcatalog database.
 

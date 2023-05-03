@@ -46,7 +46,6 @@
 * `/api/admin/healthcheck/confd - ['GET']`
 * `/api/admin/healthcheck/redis - ['GET']`
 * `/api/admin/healthcheck/nginx - ['GET']`
-* `/api/admin/healthcheck/rabbitmq - ['GET']`
 * `/api/admin/healthcheck/yangre-admin - ['GET']`
 * `/api/admin/healthcheck/yang-validator-admin - ['GET']`
 * `/api/admin/healthcheck/yang-search-admin - ['GET']`
