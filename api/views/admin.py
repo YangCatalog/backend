@@ -248,11 +248,11 @@ def update_yangcatalog_config():
     except Exception:
         resp['api'] = 'error loading data'
     try:
-        ac.module_jobs.load_config()
+        ac.job_runner.load_config()
         resp['job_runner'] = 'data loaded successfully'
     except Exception:
         resp['job_runner'] = 'error loading data'
-    response = {'info': resp, 'new-data': body['data']}
+    response = {'info': resp, 'new-data': data}
     return response
 
 

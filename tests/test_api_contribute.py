@@ -75,9 +75,9 @@ class TestApiContributeClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-        cls.job_runner_patcher = mock.patch('api.yangcatalog_api.app.config.job_runner')
-        cls.mock_job_runner = cls.job_runner_patcher.start()
-        cls.addClassCleanup(cls.job_runner_patcher.stop)
+        cls.process_pool_patcher = mock.patch('api.yangcatalog_api.app.config.process_pool')
+        cls.mock_process_pool = cls.process_pool_patcher.start()
+        cls.addClassCleanup(cls.process_pool_patcher.stop)
 
         cls.uuid_patcher = mock.patch('uuid.uuid4')
         cls.mock_uuid = cls.uuid_patcher.start()

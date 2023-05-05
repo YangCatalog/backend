@@ -48,7 +48,7 @@ def trigger_ietf_pull():
     username = request.authorization['username']
     if username != 'admin':
         abort(401, description='User must be admin')
-    job_id = uuid.uuid4()
+    job_id = str(uuid.uuid4())
     app_config.job_statuses[job_id] = app_config.process_pool.apply_async(
         app_config.job_runner.run_script,
         args=('ietfYangDraftPull', 'pull_local'),

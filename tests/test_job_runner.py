@@ -128,11 +128,11 @@ class TestJobRunnerBaseClass(unittest.TestCase):
         cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=6)
         cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=9)
         cls.huawei_dir = f'{yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
-        cls.directory = f'{temp_dir}/receiver_test'
+        cls.directory = f'{temp_dir}/job_runner_test'
         resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         cls.private_dir = os.path.join(resources_path, 'html/private')
 
-        with open(os.path.join(resources_path, 'receiver_tests_data.json'), 'r') as f:
+        with open(os.path.join(resources_path, 'job_runner_tests_data.json'), 'r') as f:
             cls.test_data = json.load(f)
 
         redis_modules_patcher = mock.patch('redisConnections.redisConnection.RedisConnection')
