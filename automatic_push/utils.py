@@ -84,7 +84,7 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
             logger.info(f'Remote: {remote.name} - Commit: {info.commit}')
 
         # git push fork main
-        push_info = fork.push('main')[0]
+        push_info = fork.push('fork-main:main')[0]
         logger.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
             logger.warning('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
@@ -258,7 +258,7 @@ def push_untracked_files(
             f.write(f'{commit_hash}\n')
         if is_production:
             logger.info('Pushing untracked and modified files to remote repository')
-            repo.git.push('fork')
+            repo.git.push('fork', 'fork-main:main')
         else:
             logger.info('DEV environment - not pushing changes into remote repository')
             changes = '\n'.join(repo.index.diff(None))
