@@ -10,7 +10,6 @@
       "module": "flask",
       "env": {
         "FLASK_APP": "${workspaceFolder}/api/yangcatalog_api",
-        "FLASK_ENV": "development",
         "FLASK_DEBUG": "1" // 1 = enable DEBUG mode; 0 = disable DEBUG mode
       },
       "justMyCode": false,
