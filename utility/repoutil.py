@@ -199,10 +199,11 @@ class Worktree:
         anymore, for example, when you return not the Worktree object from a function itself, for example:
         return Worktree().repo
         """
-        try:
-            self._repo_git.worktree('remove', '.', '--force')
-        except GitCommandError:
-            pass
+        if hasattr(self, '_repo_git'):
+            try:
+                self._repo_git.worktree('remove', '.', '--force')
+            except GitCommandError:
+                pass
 
 
 def pull(repo_dir: str):

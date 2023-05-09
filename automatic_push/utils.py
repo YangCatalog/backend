@@ -32,6 +32,9 @@ from git import GitCommandError, Repo
 from utility import repoutil, yangParser
 from utility.util import revision_to_date
 
+FORKED_WORKTREE_WORKING_BRANCH = 'fork-main'
+REPO_MAIN_BRANCH = 'main'
+
 
 def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repoutil.Worktree:
     """
@@ -40,16 +43,20 @@ def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repouti
     """
     yang_models_dir = config.get('Directory-Section', 'yang-models-dir')
     update_forked_repository(yang_models_dir, config, logger)
-    worktree = repoutil.Worktree(
-        yang_models_dir,
-        logger,
-        branch='fork-main',
-        config_options=repoutil.Worktree.ConfigOptions(
-            config_username=config.get('General-Section', 'repo-config-name'),
-            config_user_email=config.get('General-Section', 'repo-config-email'),
-        ),
-    )
-    worktree.repo.git.pull('origin', 'main')
+    try:
+        worktree = repoutil.Worktree(
+            yang_models_dir,
+            logger,
+            branch=FORKED_WORKTREE_WORKING_BRANCH,
+            config_options=repoutil.Worktree.ConfigOptions(
+                config_username=config.get('General-Section', 'repo-config-name'),
+                config_user_email=config.get('General-Section', 'repo-config-email'),
+            ),
+        )
+        worktree.repo.git.pull('origin', REPO_MAIN_BRANCH)
+    except Exception as e:
+        logger.exception('Exception occurred while creating/updating the worktree:\n')
+        raise e
     return worktree
 
 
@@ -80,15 +87,15 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
 
         # git fetch --all
         for remote in main_repo.remotes:
-            info = remote.fetch('main')[0]
+            info = remote.fetch(REPO_MAIN_BRANCH)[0]
             logger.info(f'Remote: {remote.name} - Commit: {info.commit}')
 
         # git pull origin main
         origin = main_repo.remote('origin')
-        origin.pull('main')
+        origin.pull(REPO_MAIN_BRANCH)
 
         # git push fork main
-        push_info = fork.push('main')[0]
+        push_info = fork.push(REPO_MAIN_BRANCH)[0]
         logger.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
             logger.warning('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
@@ -263,6 +270,7 @@ def push_untracked_files(
         if is_production:
             logger.info('Pushing untracked and modified files to remote repository')
             repo.git.push('fork')
+            repo.git.push('fork', f'{FORKED_WORKTREE_WORKING_BRANCH}:{REPO_MAIN_BRANCH}')
         else:
             logger.info('DEV environment - not pushing changes into remote repository')
             changes = '\n'.join(repo.index.diff(None))
