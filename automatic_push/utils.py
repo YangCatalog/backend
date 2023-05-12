@@ -54,6 +54,7 @@ def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repouti
             ),
         )
         worktree.repo.git.pull('origin', REPO_MAIN_BRANCH)
+        worktree.repo.git.pull('fork', REPO_MAIN_BRANCH)
     except Exception as e:
         logger.exception('Exception occurred while creating/updating the worktree:\n')
         raise e
@@ -269,7 +270,6 @@ def push_untracked_files(
             f.write(f'{commit_hash}\n')
         if is_production:
             logger.info('Pushing untracked and modified files to remote repository')
-            repo.git.push('fork')
             repo.git.push('fork', f'{FORKED_WORKTREE_WORKING_BRANCH}:{REPO_MAIN_BRANCH}')
         else:
             logger.info('DEV environment - not pushing changes into remote repository')
