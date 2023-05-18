@@ -18,7 +18,6 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
-import time
 from logging import Logger
 
 import requests
@@ -61,7 +60,6 @@ def get_services_list():
         'yang-validator-admin',
         'yangre-admin',
         'nginx',
-        'rabbitmq',
         'yangcatalog',
     ]
     service_names = [
@@ -72,7 +70,6 @@ def get_services_list():
         'YANG validator',
         'YANGre',
         'NGINX',
-        'RabbitMQ',
         'YangCatalog',
     ]
     for name, endpoint in zip(service_names, service_endpoints):
@@ -203,42 +200,6 @@ def health_check_nginx():
             )
     except Exception as err:
         bp.logger.error('Cannot ping {}. Error: {}'.format(service_name, err))
-        return make_response(jsonify(error_response(service_name, err)), 200)
-
-
-@bp.route('/rabbitmq', methods=['GET'])
-def health_check_rabbitmq():
-    service_name = 'RabbitMQ'
-
-    arguments = ['run_ping', 'ping']
-    prefix = '{}/job'.format(ac.w_yangcatalog_api_prefix)
-    try:
-        job_id = ac.sender.send('#'.join(arguments))
-        if job_id:
-            bp.logger.info('Sender successfully connected to RabbitMQ')
-        response_type = 'In progress'
-        while response_type == 'In progress':
-            response = requests.get('{}/{}'.format(prefix, job_id), headers=json_headers)
-            response_type = response.json()['info']['result']
-            if response.status_code == 200 and response_type == 'Finished successfully':
-                break
-            else:
-                time.sleep(2)
-        bp.logger.info('Ping job responded with a message: {}'.format(response_type))
-        return make_response(
-            jsonify(
-                {
-                    'info': '{} is available'.format(service_name),
-                    'status': 'running',
-                    'message': 'Ping job responded with a message: {}'.format(response_type),
-                },
-            ),
-            200,
-        )
-    except Exception as err:
-        if err:
-            err = 'Check yang.log file for more details!'
-        bp.logger.exception('Cannot ping {}'.format(service_name))
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 

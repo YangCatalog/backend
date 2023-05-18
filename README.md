@@ -42,13 +42,9 @@ If the user is registered, she/he can add, modify or delete modules based on a p
 Once a user has filled in the registration form, one of yangcatalog's admin users needs to approve user using
 Admin UI and give the user specific rights, so he is able to add, remove or update only certain modules.
 
-Some requests may take a longer period of time to process. Because of this, a sender and a receiver were made.
-These components use RabbitMQ to communicate. The API will use the sender to send a job to the receiver. While
-the receiver is processing this job, the user will receive a job-id. The user can check this job at any time to see
-if it has been completed or is still processing or failed during the execution.
-Once a receiver is done, it will update the job status to either `Failed` of `Finished successfully`.
-
-_**Note about rabbitMQ**: on some Linux distributions, you need to add `HOSTNAME=localhost` to `/etc/rabbitmq/rabbitmq-env.conf`_
+Some requests may take a longer period of time to process. Because of thissome endpoints will give the user a job-id.
+The user can check this job at any time to see if the job has been completed or is still processing or failed during the
+execution by using the job-id.
 
 The Yangcatalog API is also used by some automated external jobs. Every time new modules are merged into the yangModels/yang
 repository a job is triggered to populate all the new modules to the yangcatalog database.
