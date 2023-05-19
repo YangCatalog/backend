@@ -273,7 +273,7 @@ class TestApiAdminClass(unittest.TestCase):
         mock_post.return_value.status_code = 404
         result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
 
-        self.assertJsonResponse(result, 200, 'info', {'api': 'error loading data', 'job_runner': 'error loading data'})
+        self.assertJsonResponse(result, 200, 'info', {'api': 'error loading data'})
         self.assertJsonResponse(result, 200, 'new-data', 'test')
 
     @mock.patch('os.walk')

@@ -19,7 +19,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
 import os
-import uuid
 
 import requests
 from flask.blueprints import Blueprint
@@ -28,6 +27,7 @@ from werkzeug.exceptions import abort
 
 from api.authentication.auth import auth
 from api.my_flask import app
+from jobs.celery import github_populate, run_script
 from utility import message_factory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
@@ -48,13 +48,9 @@ def trigger_ietf_pull():
     username = request.authorization['username']
     if username != 'admin':
         abort(401, description='User must be admin')
-    job_id = str(uuid.uuid4())
-    app_config.job_statuses[job_id] = app_config.process_pool.apply_async(
-        app_config.job_runner.run_script,
-        args=('ietfYangDraftPull', 'pull_local'),
-    )
-    app.logger.info(f'job_id {job_id}')
-    return {'job-id': job_id}, 202
+    result = run_script.s('ietfYangDraftPull', 'pull_local').apply_async()
+    app.logger.info(f'job_id {result.id}')
+    return {'job-id': result.id}, 202
 
 
 @bp.route('/checkCompleteGithub', methods=['POST'])
@@ -197,10 +193,7 @@ def trigger_populate():
             mf = message_factory.MessageFactory()
             mf.send_new_modified_platform_metadata(new, mod)
             app.logger.info('Forking the repo')
-            app_config.process_pool.apply_async(
-                app_config.job_runner.github_populate,
-                args=([os.path.join(app_config.d_yang_models_dir, path) for path in paths],),
-            )
+            github_populate.s([os.path.join(app_config.d_yang_models_dir, path) for path in paths]).apply_async()
     except Exception as e:
         app.logger.error(f'Automated github webhook failure - {e}')
 

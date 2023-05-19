@@ -5,7 +5,6 @@ import os
 import threading
 import time
 from datetime import timedelta
-from multiprocessing import Pool
 from urllib.error import URLError
 
 import flask
@@ -20,9 +19,9 @@ from redis import Redis
 from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
-from api.job_runner import JobRunner
 from api.matomo_tracker import MatomoTrackerData, get_headers_dict, record_analytic
 from elasticsearchIndexing.es_manager import ESManager
+from jobs.celery import celery_app
 from redisConnections.redis_user_notifications_connection import RedisUserNotificationsConnection
 from redisConnections.redis_users_connection import RedisUsersConnection
 from redisConnections.redisConnection import RedisConnection
@@ -97,9 +96,7 @@ class MyFlask(Flask):
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
         self.config['ES-MANAGER'] = ESManager()
 
-        self.config['PROCESS-POOL'] = Pool()
-        self.config['JOB-STATUSES'] = {}
-        self.config['JOB-RUNNER'] = JobRunner()
+        self.config['CELERY-APP'] = celery_app
         self.config['G-IS-PROD'] = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(host=self.config.db_redis_host, port=self.config.db_redis_port)
         self.config['REDIS-USERS'] = RedisUsersConnection()

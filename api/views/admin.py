@@ -27,7 +27,6 @@ import re
 import shutil
 import stat
 import typing as t
-import uuid
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
@@ -46,6 +45,7 @@ from werkzeug.utils import redirect
 
 from api.my_flask import app
 from api.views.json_checker import Union, check_error
+from jobs.celery import run_script
 from utility.create_config import create_config
 from utility.util import hash_pw
 
@@ -247,11 +247,6 @@ def update_yangcatalog_config():
         resp['api'] = 'data loaded successfully'
     except Exception:
         resp['api'] = 'error loading data'
-    try:
-        ac.job_runner.load_config()
-        resp['job_runner'] = 'data loaded successfully'
-    except Exception:
-        resp['job_runner'] = 'error loading data'
     response = {'info': resp, 'new-data': data}
     return response
 
@@ -559,13 +554,9 @@ def run_script_with_args(script):
     body = get_input(request.json)
     arguments = (module_name, script, body)
 
-    job_id = str(uuid.uuid4())
-    ac.job_statuses[job_id] = ac.process_pool.apply_async(
-        ac.job_runner.run_script,
-        args=arguments,
-    )
+    result = run_script.s(*arguments).apply_async()
 
-    return {'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments}, 202
+    return {'info': 'Verification successful', 'job-id': result.id, 'arguments': arguments}, 202
 
 
 @bp.route('/api/admin/scripts', methods=['GET'])

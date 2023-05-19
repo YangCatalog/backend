@@ -22,10 +22,8 @@ import json
 import os
 import shutil
 import typing as t
-import uuid
 from datetime import datetime
 
-import requests
 from flask.blueprints import Blueprint
 from flask.globals import request
 from git import GitCommandError, InvalidGitRepositoryError
@@ -34,12 +32,13 @@ from werkzeug.exceptions import abort
 
 from api.authentication.auth import auth
 from api.my_flask import app
-from api.status_message import StatusMessage
 from api.views.json_checker import check_error
+from jobs import jobs_information
+from jobs.celery import process, process_module_deletion, process_vendor_deletion, test_task
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.repoutil import RepoUtil
-from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url, json_headers
+from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, github_url
 from utility.util import hash_pw
 
 bp = Blueprint('user_specific_module_maintenance', __name__)
@@ -47,9 +46,20 @@ bp = Blueprint('user_specific_module_maintenance', __name__)
 
 @bp.before_request
 def set_config():
-    global ac, users
-    ac = app.config
-    users = ac.redis_users
+    global app_config, users
+    app_config = app.config
+    users = app_config.redis_users
+
+
+@bp.route('/test_celery', methods=['GET'])
+def test_celery():
+    result = test_task.s('TEST STRING', 30).apply_async()
+    return result.id
+
+
+@bp.route('/celery_task_status/<task_id>', methods=['GET'])
+def check_celery_task_status(task_id: str):
+    return [jobs_information.get_response(app_config.celery_app, task_id)]
 
 
 @bp.route('/register-user', methods=['POST'])
@@ -144,18 +154,13 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         if read.get('implementations') is not None:
             unavailable_modules.append(mod)
 
-    # Filter out unavailble modules
+    # Filter out unavailable modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
 
-    job_id = str(uuid.uuid4())
-    ac.job_statuses[job_id] = ac.process_pool.apply_async(
-        ac.job_runner.process_module_deletion,
-        args=(input_modules,),
-        callback=reload_cache_callback,
-    )
+    result = process_module_deletion.s(input_modules).apply_async()
 
-    app.logger.info('Running deletion of modules with job_id {}'.format(job_id))
-    payload = {'info': 'Verification successful', 'job-id': job_id}
+    app.logger.info(f'Running deletion of modules with job_id {result.id}')
+    payload = {'info': 'Verification successful', 'job-id': result.id}
     if unavailable_modules:
         payload['skipped'] = unavailable_modules
     return (payload, 202)
@@ -194,16 +199,11 @@ def delete_vendor(value: str):
         if right and params[param_name] != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    job_id = str(uuid.uuid4())
-    ac.job_statuses[job_id] = ac.process_pool.apply_async(
-        ac.job_runner.process_vendor_deletion,
-        args=(params,),
-        callback=reload_cache_callback,
-    )
+    result = process_vendor_deletion.s(params).apply_async()
 
-    app.logger.info('Running deletion of vendors metadata with job_id {}'.format(job_id))
-    payload = {'info': 'Verification successful', 'job-id': job_id}
-    return (payload, 202)
+    app.logger.info(f'Running deletion of vendors metadata with job_id {result.id}')
+    payload = {'info': 'Verification successful', 'job-id': result.id}
+    return payload, 202
 
 
 @bp.route('/modules', methods=['PUT', 'POST'])
@@ -239,9 +239,12 @@ def add_modules():
     modules_cont = body['modules']
     module_list = modules_cont['module']
 
-    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
-    if not os.path.exists(ac.d_save_requests):
-        os.mkdir(ac.d_save_requests)
+    dst_path = os.path.join(
+        app_config.d_save_requests,
+        'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)),
+    )
+    if not os.path.exists(app_config.d_save_requests):
+        os.mkdir(app_config.d_save_requests)
     with open(dst_path, 'w') as f:
         json.dump(body, f)
 
@@ -254,9 +257,9 @@ def add_modules():
             'Error code: {}'.format(response.text, response.status_code),
         )
     direc_num = 0
-    while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
+    while os.path.isdir(os.path.join(app_config.d_temp, str(direc_num))):
         direc_num += 1
-    direc = os.path.join(ac.d_temp, str(direc_num))
+    direc = os.path.join(app_config.d_temp, str(direc_num))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -333,17 +336,15 @@ def add_modules():
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
 
-    job_id = str(uuid.uuid4())
-    ac.job_statuses[job_id] = ac.process_pool.apply_async(
-        ac.job_runner.process,
-        kwds={'sdo': True, 'api': True, 'direc': direc},
-        callback=reload_cache_callback,
-    )
-    app.logger.info('Running populate.py with job_id {}'.format(job_id))
+    result = process.s(sdo=True, api=True, direc=True).apply_async()
+    app.logger.info('Running populate.py with job_id {}'.format(result.id))
     if len(warning) > 0:
-        return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
-    else:
-        return {'info': 'Verification successful', 'job-id': job_id}, 202
+        return {
+            'info': 'Verification successful',
+            'job-id': result.id,
+            'warnings': [{'warning': val} for val in warning],
+        }
+    return {'info': 'Verification successful', 'job-id': result.id}, 202
 
 
 @bp.route('/platforms', methods=['PUT', 'POST'])
@@ -381,9 +382,12 @@ def add_vendors():
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
 
-    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
-    if not os.path.exists(ac.d_save_requests):
-        os.mkdir(ac.d_save_requests)
+    dst_path = os.path.join(
+        app_config.d_save_requests,
+        'vendor-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)),
+    )
+    if not os.path.exists(app_config.d_save_requests):
+        os.mkdir(app_config.d_save_requests)
     with open(dst_path, 'w') as f:
         json.dump(body, f)
 
@@ -397,9 +401,9 @@ def add_vendors():
         )
 
     direc_num = 0
-    while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
+    while os.path.isdir(os.path.join(app_config.d_temp, str(direc_num))):
         direc_num += 1
-    direc = os.path.join(ac.d_temp, str(direc_num))
+    direc = os.path.join(app_config.d_temp, str(direc_num))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -415,8 +419,8 @@ def add_vendors():
         repo_name = module_list_file['repository']
         owner = module_list_file['owner']
         if request.method == 'POST':
-            repoutil.pull(ac.d_yang_models_dir)
-            if os.path.isfile(os.path.join(ac.d_yang_models_dir, xml_path)):
+            repoutil.pull(app_config.d_yang_models_dir)
+            if os.path.isfile(os.path.join(app_config.d_yang_models_dir, xml_path)):
                 continue
 
         dir_in_repo = os.path.dirname(xml_path)
@@ -439,14 +443,9 @@ def add_vendors():
             json.dump(platform, f)
         shutil.copy(os.path.join(repos[repo_url].local_dir, module_list_file['path']), save_to)
 
-    job_id = str(uuid.uuid4())
-    ac.job_statuses[job_id] = ac.process_pool.apply_async(
-        ac.job_runner.process,
-        kwds={'sdo': False, 'api': True, 'direc': direc},
-        callback=reload_cache_callback,
-    )
-    app.logger.info('Running populate.py with job_id {}'.format(job_id))
-    return {'info': 'Verification successful', 'job-id': job_id}, 202
+    result = process.s(sdo=False, api=True, direc=direc).apply_async()
+    app.logger.info('Running populate.py with job_id {}'.format(result.id))
+    return {'info': 'Verification successful', 'job-id': result.id}, 202
 
 
 @bp.route('/job/<job_id>', methods=['GET'])
@@ -455,19 +454,9 @@ def get_job(job_id: str):
 
     :return response to the request with the job
     """
-    app.logger.info('Searching for job_id {}'.format(job_id))
-    result = get_response(job_id)
-    split = result.split('#split#')
-
-    reason = None
-    if split[0] == 'Failed' or split[0] == 'In progress':
-        result = split[0]
-        if len(split) == 2:
-            reason = split[1]
-        else:
-            reason = ''
-
-    return {'info': {'job-id': job_id, 'result': result, 'reason': reason}}
+    app.logger.info(f'Searching for job_id {job_id}')
+    status, reason = jobs_information.get_response(app_config.celery_app, job_id)
+    return {'info': {'job-id': job_id, 'result': status, 'reason': reason}}
 
 
 def authorize_for_vendors(request, body: dict):
@@ -557,9 +546,9 @@ def organization_by_namespace(namespace: str):
 def get_repo(repo_url: str, owner: str, repo_name: str) -> RepoUtil:
     if owner == 'YangModels' and repo_name == 'yang':
         app.logger.info('Using repo already downloaded from {}'.format(repo_url))
-        repoutil.pull(ac.d_yang_models_dir)
+        repoutil.pull(app_config.d_yang_models_dir)
         try:
-            yang_models_repo = RepoUtil.load(ac.d_yang_models_dir, github_url, temp=False)
+            yang_models_repo = RepoUtil.load(app_config.d_yang_models_dir, github_url, temp=False)
         except InvalidGitRepositoryError:
             raise Exception("Couldn't load YangModels/yang from directory")
         return yang_models_repo
@@ -573,23 +562,3 @@ def get_repo(repo_url: str, owner: str, repo_name: str) -> RepoUtil:
                 description='bad request - could not clone the Github repository. Please check owner,'
                 ' repository and path of the request - {}'.format(e.stderr),
             )
-
-
-def get_response(correlation_id: str) -> str:
-    """Get response according to job_id. It can be either
-    'Failed', 'In progress', 'Finished successfully' or 'does not exist'
-
-    Arguments:
-        :param correlation_id: (str) job_id searched between
-            responses
-        :return                (str) one of the following - 'Failed', 'In progress',
-            'Finished successfully' or 'Does not exist'
-    """
-    app.logger.debug('Trying to get response from correlation ids')
-    if (status := ac.job_statuses.get(correlation_id)) is None:
-        return StatusMessage.NONEXISTENT.value
-    return status.get().value if status.ready() else StatusMessage.IN_PROGRESS.value
-
-
-def reload_cache_callback(_):
-    requests.post(f'{ac.w_yangcatalog_api_prefix}/load-cache', auth=ac.s_confd_credentials, headers=json_headers)
