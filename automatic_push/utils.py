@@ -16,6 +16,9 @@
 This module contains common functions used in the automatic_push directory.
 """
 
+# WARNING: The code in this file is rather fragile and borderline impossible to test.
+#          Avoid substantial changes without a very good reason.
+
 __author__ = 'Bohdan Konovalenko, Slavomir Mazur'
 __copyright__ = 'Copyright The IETF Trust 2023, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
