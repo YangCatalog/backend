@@ -34,7 +34,7 @@ from api.authentication.auth import auth
 from api.my_flask import app
 from api.views.json_checker import check_error
 from jobs import jobs_information
-from jobs.celery import process, process_module_deletion, process_vendor_deletion, test_task
+from jobs.celery import process, process_module_deletion, process_vendor_deletion
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.repoutil import RepoUtil
@@ -49,17 +49,6 @@ def set_config():
     global app_config, users
     app_config = app.config
     users = app_config.redis_users
-
-
-@bp.route('/test_celery', methods=['GET'])
-def test_celery():
-    result = test_task.s('TEST STRING', 30).apply_async()
-    return result.id
-
-
-@bp.route('/celery_task_status/<task_id>', methods=['GET'])
-def check_celery_task_status(task_id: str):
-    return [jobs_information.get_response(app_config.celery_app, task_id)]
 
 
 @bp.route('/register-user', methods=['POST'])

@@ -27,7 +27,6 @@ import json
 import logging
 import os
 import shutil
-import time
 import typing as t
 
 import requests
@@ -87,10 +86,8 @@ celery_app.config_from_object('jobs.celery_configuration')
 
 @celery_app.task
 def test_task(s: str, n: int):
-    celery_app.logger.info(f'\n\nBEFORE SLEEPING FOR {n} seconds\n\n')
-    time.sleep(n)
-    celery_app.logger.info(f'\n\nTEST TASK MESSAGE: {s} - {n}\n\n')
-    return StatusMessage.SUCCESS, 'TEST TASK RESULT STRING'
+    celery_app.logger.info(f'TEST TASK CALLED WITH SUCH ARGS: {s}, {n}')
+    return StatusMessage.SUCCESS
 
 
 @celery_app.task
