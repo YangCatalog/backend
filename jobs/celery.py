@@ -111,6 +111,7 @@ def process(dir: str, sdo: bool, api: bool):
         )
     finally:
         shutil.rmtree(dir)
+        celery_app.reload_cache()
 
 
 @celery_app.task
@@ -206,6 +207,7 @@ def process_vendor_deletion(params: dict[str, str]):
         )
         if body_to_send.get('modules-to-delete'):
             send_for_es_indexing(body_to_send, celery_app.logger, celery_app.indexing_paths)
+    celery_app.reload_cache()
     return StatusMessage.SUCCESS
 
 
@@ -315,6 +317,7 @@ def process_module_deletion(modules: list[dict[str, str]]):
 
         if len(body_to_send) > 0:
             send_for_es_indexing(body_to_send, celery_app.logger, celery_app.indexing_paths)
+    celery_app.reload_cache()
     if len(modules_not_deleted) == 0:
         return StatusMessage.SUCCESS
     return StatusMessage.FAIL, f'modules-not-deleted:{":".join(modules_not_deleted)}'

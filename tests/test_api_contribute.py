@@ -32,6 +32,7 @@ from redis import RedisError
 import api.views.user_specific_module_maintenance as mm
 from api.globalConfig import yc_gc
 from api.yangcatalog_api import app
+from jobs.status_messages import StatusMessage
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.util import hash_pw
 
@@ -75,14 +76,23 @@ class TestApiContributeClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-        cls.process_pool_patcher = mock.patch('api.yangcatalog_api.app.config.process_pool')
-        cls.mock_process_pool = cls.process_pool_patcher.start()
-        cls.addClassCleanup(cls.process_pool_patcher.stop)
+        cls.process_task_patcher = mock.patch(f'{import_string}.process.s')
+        cls.process = cls.process_task_patcher.start()
+        cls.addClassCleanup(cls.process_task_patcher.stop)
+        cls.process_task_patcher.return_value = mock.MagicMock()
+        cls.process_task_patcher.return_value.apply_async.return_value = 1
 
-        cls.uuid_patcher = mock.patch('uuid.uuid4')
-        cls.mock_uuid = cls.uuid_patcher.start()
-        cls.addClassCleanup(cls.uuid_patcher.stop)
-        cls.mock_uuid.return_value = '1'
+        cls.process_module_deletion_task_patcher = mock.patch(f'{import_string}.process_module_deletion.s')
+        cls.process_module_deletion = cls.process_module_deletion_task_patcher.start()
+        cls.addClassCleanup(cls.process_module_deletion_task_patcher.stop)
+        cls.process_module_deletion_task_patcher.return_value = mock.MagicMock()
+        cls.process_module_deletion_task_patcher.return_value.apply_async.return_value = 1
+
+        cls.process_vendor_deletion_task_patcher = mock.patch(f'{import_string}.process_vendor_deletion.s')
+        cls.process_vendor_deletion = cls.process_vendor_deletion_task_patcher.start()
+        cls.addClassCleanup(cls.process_vendor_deletion_task_patcher.stop)
+        cls.process_vendor_deletion_task_patcher.return_value = mock.MagicMock()
+        cls.process_vendor_deletion_task_patcher.return_value.apply_async.return_value = 1
 
         cls.confd_patcher = mock.patch(f'{import_string}.get_mod_redis')
         cls.mock_redis_get = cls.confd_patcher.start()
@@ -143,7 +153,7 @@ class TestApiContributeClass(unittest.TestCase):
     def assertJobSuccess(self, response):  # noqa: N802
         self.assertTrue(200 <= response.status_code < 300)
         self.assertJsonResponse(response, response.status_code, 'info', 'Verification successful')
-        self.assertJsonResponse(response, response.status_code, 'job-id', '1')
+        self.assertJsonResponse(response, response.status_code, 'job-id', 1)
 
     @mock.patch('api.yangcatalog_api.app.config.redis_users', MockRedisUsers())
     def test_register_user(self):
@@ -469,12 +479,11 @@ class TestApiContributeClass(unittest.TestCase):
 
     def test_get_job(self):
         job_id = 'invalid-id'
-        mock_async_result = mock.MagicMock()
-        mock_async_result.ready.return_value = True
-        mock_status = mock.MagicMock()
-        mock_status.value = 'Failed'
-        mock_async_result.get.return_value = mock_status
-        with mock.patch.dict('api.yangcatalog_api.app.config.job_statuses', {'invalid-id': mock_async_result}):
+        celery_app_mock = mock.MagicMock()
+        async_result_mock = celery_app_mock.AsyncResult.return_value = mock.MagicMock()
+        async_result_mock.ready.return_value = True
+        async_result_mock.status = StatusMessage.SUCCESS.value
+        with mock.patch('api.yangcatalog_api.app.config.celery_app', celery_app_mock):
             result = self.client.get(f'api/job/{job_id}')
 
         self.assertEqual(result.status_code, 200)
@@ -484,7 +493,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data['info'])
         self.assertEqual(data['info']['job-id'], 'invalid-id')
         self.assertIn('result', data['info'])
-        self.assertEqual(data['info']['result'], 'Failed')
+        self.assertEqual(data['info']['result'], StatusMessage.SUCCESS.value)
 
 
 def mock_redis_get(module: dict):

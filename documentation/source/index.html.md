@@ -2986,6 +2986,10 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
   {
     "endpoint": "nginx",
     "name": "NGINX"
+  },
+  {
+    "endpoint": "celery",
+    "name": "Celery"
   }
 ]
 ```

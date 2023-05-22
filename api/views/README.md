@@ -53,6 +53,7 @@
 * `/api/admin/healthcheck/redis-admin - ['GET']`
 * `/api/admin/healthcheck/yangcatalog - ['GET']`
 * `/api/admin/healthcheck/cronjobs - ['GET']`
+* `/api/admin/healthcheck/celery - ['GET']`
 
 
 ### [notifications.py](https://github.com/YangCatalog/backend/blob/master/api/views/notifications.py)

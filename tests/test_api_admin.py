@@ -245,7 +245,6 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertJsonResponse(result, 200, 'info', 'Success')
         self.assertJsonResponse(result, 200, 'data', 'test')
 
-    @mock.patch('api.yangcatalog_api.app.config.process_pool', mock.MagicMock())
     @mock.patch('api.views.admin.open')
     def test_update_yangcatalog_config(self, mock_open: mock.MagicMock):
         mock.mock_open(mock_open)
@@ -257,19 +256,16 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertTrue(result.is_json)
 
     @mock.patch('requests.post')
-    @mock.patch('api.yangcatalog_api.app.config.process_pool')
     @mock.patch('api.yangcatalog_api.app.load_config')
     @mock.patch('builtins.open')
     def test_update_yangcatalog_config_errors(
         self,
         mock_open: mock.MagicMock,
         mock_load_config: mock.MagicMock,
-        mock_process_pool: mock.MagicMock,
         mock_post: mock.MagicMock,
     ):
         mock.mock_open(mock_open)
         mock_load_config.side_effect = Exception
-        mock_process_pool.apply_async.side_effect = Exception
         mock_post.return_value.status_code = 404
         result = self.client.put('/api/admin/yangcatalog-config', json={'input': {'data': 'test'}})
 
@@ -500,16 +496,15 @@ class TestApiAdminClass(unittest.TestCase):
 
         self.assertJsonResponse(result, 400, 'description', '"invalid" is not valid script name')
 
-    @mock.patch('api.yangcatalog_api.app.config.process_pool', mock.MagicMock())
-    @mock.patch('uuid.uuid4', mock.MagicMock(return_value='1'))
-    def test_run_script_with_args(self):
+    @mock.patch('api.views.admin.run_script.s')
+    def test_run_script_with_args(self, run_script_mock: mock.MagicMock):
+        run_script_mock.return_value = mock.MagicMock()
+        run_script_mock.return_value.apply_async.return_value = 1
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
-
         self.assertJsonResponse(result, 202, 'info', 'Verification successful')
-        self.assertJsonResponse(result, 202, 'job-id', '1')
+        self.assertJsonResponse(result, 202, 'job-id', 1)
         self.assertJsonResponse(result, 202, 'arguments', ['parseAndPopulate', 'populate', 'test'])
 
-    @mock.patch('api.yangcatalog_api.app.config.process_pool', mock.MagicMock())
     @mock.patch('uuid.uuid4', mock.MagicMock(return_value='1'))
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
