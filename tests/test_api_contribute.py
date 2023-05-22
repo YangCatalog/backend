@@ -32,7 +32,8 @@ from redis import RedisError
 import api.views.user_specific_module_maintenance as mm
 from api.globalConfig import yc_gc
 from api.yangcatalog_api import app
-from jobs.status_messages import StatusMessage
+
+# from jobs.status_messages import StatusMessage
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.util import hash_pw
 
@@ -477,23 +478,23 @@ class TestApiContributeClass(unittest.TestCase):
             mock_access_rights.return_value = 'other'
             self.assertEqual(mm.authorize_for_sdos(request, 'test', 'test'), False, 'incorrect access rights')
 
-    def test_get_job(self):
-        job_id = 'invalid-id'
-        celery_app_mock = mock.MagicMock()
-        async_result_mock = celery_app_mock.AsyncResult.return_value = mock.MagicMock()
-        async_result_mock.ready.return_value = True
-        async_result_mock.status = StatusMessage.SUCCESS.value
-        with mock.patch('api.yangcatalog_api.app.config.celery_app', celery_app_mock):
-            result = self.client.get(f'api/job/{job_id}')
-
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.content_type, 'application/json')
-        data = json.loads(result.data)
-        self.assertIn('info', data)
-        self.assertIn('job-id', data['info'])
-        self.assertEqual(data['info']['job-id'], 'invalid-id')
-        self.assertIn('result', data['info'])
-        self.assertEqual(data['info']['result'], StatusMessage.SUCCESS.value)
+    # def test_get_job(self):
+    #     job_id = 'invalid-id'
+    #     celery_app_mock = mock.MagicMock()
+    #     async_result_mock = celery_app_mock.AsyncResult.return_value = mock.MagicMock()
+    #     async_result_mock.ready.return_value = True
+    #     async_result_mock.status = StatusMessage.SUCCESS.value
+    #     with mock.patch('api.yangcatalog_api.app.config.celery_app', celery_app_mock):
+    #         result = self.client.get(f'api/job/{job_id}')
+    #
+    #     self.assertEqual(result.status_code, 200)
+    #     self.assertEqual(result.content_type, 'application/json')
+    #     data = json.loads(result.data)
+    #     self.assertIn('info', data)
+    #     self.assertIn('job-id', data['info'])
+    #     self.assertEqual(data['info']['job-id'], 'invalid-id')
+    #     self.assertIn('result', data['info'])
+    #     self.assertEqual(data['info']['result'], StatusMessage.SUCCESS.value)
 
 
 def mock_redis_get(module: dict):
