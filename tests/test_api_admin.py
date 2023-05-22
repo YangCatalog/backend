@@ -498,8 +498,7 @@ class TestApiAdminClass(unittest.TestCase):
 
     @mock.patch('api.views.admin.run_script.s')
     def test_run_script_with_args(self, run_script_mock: mock.MagicMock):
-        run_script_mock.return_value = mock.MagicMock()
-        run_script_mock.return_value.apply_async.return_value = 1
+        run_script_mock.return_value.apply_async.return_value = mock.MagicMock(id=1)
         result = self.client.post('api/admin/scripts/populate', json={'input': 'test'})
         self.assertJsonResponse(result, 202, 'info', 'Verification successful')
         self.assertJsonResponse(result, 202, 'job-id', 1)

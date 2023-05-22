@@ -41,8 +41,7 @@ class TestApiInternalClass(unittest.TestCase):
 
     @mock.patch('api.views.admin.run_script.s')
     def test_trigger_ietf_pull(self, run_script_mock: mock.MagicMock):
-        run_script_mock.return_value = mock.MagicMock()
-        run_script_mock.return_value.apply_async.return_value = 1
+        run_script_mock.return_value.apply_async.return_value = mock.MagicMock(id=1)
         auth.hash_password(lambda _: 'True')
         auth.get_password(lambda _: 'True')
         result = self.client.get('api/ietf', auth=('admin', 'admin'))
