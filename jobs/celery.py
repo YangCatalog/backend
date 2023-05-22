@@ -86,7 +86,7 @@ celery_app.config_from_object('jobs.celery_configuration')
 
 @celery_app.task
 def test_task(s: str, n: int):
-    celery_app.logger.info(f'TEST TASK CALLED WITH SUCH ARGS: {s}, {n}')
+    celery_app.logger.info(f'Test task called with such args: {s}, {n}')
     return StatusMessage.SUCCESS
 
 
