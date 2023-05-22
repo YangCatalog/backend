@@ -26,8 +26,8 @@
 # from ddt import data, ddt
 # from redis import Redis
 #
-# from jobs import JobRunner
-# from api.status_message import StatusMessage
+# from jobs.celery import process, process_module_deletion, process_vendor_deletion
+# from jobs.status_messages import StatusMessage
 # from redisConnections.redisConnection import RedisConnection
 # from utility.create_config import create_config
 #
@@ -106,7 +106,6 @@
 #
 #
 # class TestJobRunnerBaseClass(unittest.TestCase):
-#     job_runner: JobRunner
 #     redis_connection: RedisConnection
 #     directory: str
 #     test_data: dict
@@ -123,8 +122,6 @@
 #         _redis_port = int(config.get('DB-Section', 'redis-port'))
 #
 #         cls.redis_connection = RedisConnection(modules_db=6, vendors_db=9)
-#         cls.job_runner = JobRunner()
-#         cls.job_runner.redis_connection = cls.redis_connection
 #         cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=6)
 #         cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=9)
 #         cls.huawei_dir = f'{yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
@@ -177,7 +174,7 @@
 #         with open(os.path.join(self.directory, 'request-data.json'), 'w') as f:
 #             json.dump(data, f)
 #
-#         status = self.job_runner.process(self.directory, sdo=True, api=True)
+#         status = process(self.directory, sdo=True, api=True)
 #         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
 #         redis_data = (redis_module or b'{}').decode('utf-8')
 #
@@ -186,7 +183,7 @@
 #
 #     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
 #     def test_process_sdo_failed_populate(self):
-#         status = self.job_runner.process(self.directory, sdo=True, api=True)
+#         status = process(self.directory, sdo=True, api=True)
 #         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
 #         redis_data = (redis_module or b'{}').decode('utf-8')
 #
@@ -214,11 +211,11 @@
 #         with open(os.path.join(dst, 'capabilities.json'), 'w') as f:
 #             json.dump(platform, f)
 #
-#         status = self.job_runner.process(self.directory, sdo=False, api=True)
+#         status = process(self.directory, sdo=False, api=True)
 #
 #         self.assertEqual(status, StatusMessage.SUCCESS)
 #
-#     @mock.patch('api.job_runner.prepare_for_es_removal', mock.MagicMock)
+#     @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
 #     def test_process_module_deletion(self):
 #         module_to_populate = self.test_data['module-deletion-tests']
 #         self.redis_connection.populate_modules(module_to_populate)
@@ -226,7 +223,7 @@
 #
 #         modules_to_delete = [{'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'}]
 #         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
-#         status = self.job_runner.process_module_deletion(modules_to_delete)
+#         status = process_module_deletion(modules_to_delete)
 #         self.redis_connection.reload_modules_cache()
 #         raw_all_modules = self.redis_connection.get_all_modules()
 #         all_modules = json.loads(raw_all_modules)
@@ -237,7 +234,7 @@
 #             dependents_list = [f'{dep["name"]}@{dep.get("revision")}' for dep in module.get('dependents', [])]
 #             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
 #
-#     @mock.patch('api.job_runner.prepare_for_es_removal', mock.MagicMock)
+#     @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
 #     def test_process_module_deletion_cannot_delete(self):
 #         module_to_populate = self.test_data['module-deletion-tests']
 #         self.redis_connection.populate_modules(module_to_populate)
@@ -245,7 +242,7 @@
 #
 #         modules_to_delete = [{'name': 'yang-submodule', 'revision': '2020-02-01', 'organization': 'ietf'}]
 #         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
-#         status = self.job_runner.process_module_deletion(modules_to_delete)
+#         status = process_module_deletion(modules_to_delete)
 #         self.redis_connection.reload_modules_cache()
 #         raw_all_modules = self.redis_connection.get_all_modules()
 #         all_modules = json.loads(raw_all_modules)
@@ -253,7 +250,7 @@
 #         self.assertEqual(status, StatusMessage.IN_PROGRESS)
 #         self.assertIn(deleted_module_key, all_modules)
 #
-#     @mock.patch('api.job_runner.prepare_for_es_removal', mock.MagicMock)
+#     @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
 #     def test_process_module_deletion_module_and_its_dependent(self):
 #         module_to_populate = self.test_data['module-deletion-tests']
 #         self.redis_connection.populate_modules(module_to_populate)
@@ -264,7 +261,7 @@
 #             {'name': 'yang-module', 'revision': '2020-01-01', 'organization': 'ietf'},
 #         ]
 #
-#         status = self.job_runner.process_module_deletion(modules_to_delete)
+#         status = process_module_deletion(modules_to_delete)
 #         self.redis_connection.reload_modules_cache()
 #         raw_all_modules = self.redis_connection.get_all_modules()
 #         all_modules = json.loads(raw_all_modules)
@@ -278,13 +275,13 @@
 #             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
 #             self.assertNotIn('yang-module@2020-01-01/ietf', dependents_list)
 #
-#     @mock.patch('api.job_runner.prepare_for_es_removal', mock.MagicMock)
+#     @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
 #     def test_process_module_deletion_empty_list_input(self):
 #         module_to_populate = self.test_data['module-deletion-tests']
 #         self.redis_connection.populate_modules(module_to_populate)
 #         self.redis_connection.reload_modules_cache()
 #
-#         status = self.job_runner.process_module_deletion([])
+#         status = process_module_deletion([])
 #
 #         self.assertEqual(status, StatusMessage.SUCCESS)
 #
@@ -311,7 +308,7 @@
 #         ('fujitsu', None, None, None),
 #         ('huawei', 'ne5000e', None, None),
 #     )
-#     @mock.patch('api.job_runner.prepare_for_es_removal')
+#     @mock.patch('jobs.celery.prepare_for_es_removal')
 #     def test_process_vendor_deletion(self, param_tuple, indexing_mock: mock.MagicMock):
 #         indexing_mock.return_value = {}
 #         vendor, platform, software_version, software_flavor = param_tuple
@@ -332,7 +329,7 @@
 #         if software_flavor:
 #             deleted_vendor_branch += software_flavor
 #
-#         status = self.job_runner.process_vendor_deletion(params)
+#         status = process_vendor_deletion(params)
 #         self.redis_connection.reload_vendors_cache()
 #         self.redis_connection.reload_modules_cache()
 #
