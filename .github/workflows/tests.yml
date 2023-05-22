@@ -103,7 +103,7 @@ jobs:
           export TEST_REPO=/var/yang/tmp/test/YangModels/yang
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
-          coverage run -am pytest
+          coverage run -am pytest -s
           coverage xml
 
       - name: Coverage report PR
