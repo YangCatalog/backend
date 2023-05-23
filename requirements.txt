@@ -2,7 +2,7 @@ certifi==2022.12.7
 lxml==4.9.1
 pyOpenSSL==23.0.0
 configparser==5.2.0
-requests==2.26.0
+requests==2.31.0
 Jinja2==3.1.2
 pyang==2.5.3
 GitPython==3.1.31
