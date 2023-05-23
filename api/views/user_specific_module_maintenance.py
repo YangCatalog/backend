@@ -325,7 +325,7 @@ def add_modules():
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
 
-    result = process.s(sdo=True, api=True, direc=True).apply_async()
+    result = process.s(sdo=True, api=True, dir=direc).apply_async()
     app.logger.info('Running populate.py with job_id {}'.format(result.id))
     if len(warning) > 0:
         return {
@@ -432,7 +432,7 @@ def add_vendors():
             json.dump(platform, f)
         shutil.copy(os.path.join(repos[repo_url].local_dir, module_list_file['path']), save_to)
 
-    result = process.s(sdo=False, api=True, direc=direc).apply_async()
+    result = process.s(sdo=False, api=True, dir=direc).apply_async()
     app.logger.info('Running populate.py with job_id {}'.format(result.id))
     return {'info': 'Verification successful', 'job-id': result.id}, 202
 
