@@ -20,10 +20,8 @@ __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'richard.zilincik@pantheon.tech'
 
-import functools
 import json
 import os
-import signal
 import unittest
 from unittest import mock
 
@@ -31,25 +29,6 @@ from api.authentication.auth import auth
 from api.yangcatalog_api import app
 
 app_config = app.config
-
-
-def timeout(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        def timeout_handler(signum, frame):
-            raise Exception('HHH')
-
-        signal.signal(signal.SIGALRM, timeout_handler)
-        signal.alarm(20)
-
-        try:
-            result = func(*args, **kwargs)
-        finally:
-            signal.alarm(0)  # Cancel the alarm
-
-        return result
-
-    return wrapper
 
 
 class TestApiInternalClass(unittest.TestCase):
@@ -60,7 +39,6 @@ class TestApiInternalClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-    @timeout
     @mock.patch('api.views.admin.run_script.s')
     def test_trigger_ietf_pull(self, run_script_mock: mock.MagicMock):
         run_script_mock.return_value.apply_async.return_value = mock.MagicMock(id=1)
@@ -74,7 +52,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @timeout
     @mock.patch('api.views.admin.run_script.s', mock.MagicMock())
     def test_trigger_ietf_pull_not_admin(self):
         auth.hash_password(lambda _: 'True')
@@ -87,7 +64,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User must be admin')
 
-    @timeout
     @mock.patch('api.views.admin.run_script.s', mock.MagicMock())
     @mock.patch('utility.message_factory.MessageFactory')
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
@@ -112,7 +88,6 @@ class TestApiInternalClass(unittest.TestCase):
             'vendor/cisco/xe/1651',
         )
 
-    @timeout
     @mock.patch('api.views.admin.run_script.s', mock.MagicMock())
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock())
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
@@ -125,7 +100,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
 
-    @timeout
     @mock.patch('builtins.open', mock.mock_open(read_data='{"test": true}'))
     @mock.patch('os.path.exists')
     def test_get_statistics(self, mock_exists: mock.MagicMock):
@@ -134,7 +108,6 @@ class TestApiInternalClass(unittest.TestCase):
 
         self.assertEqual(result.status_code, 200)
 
-    @timeout
     @mock.patch('os.path.exists')
     def test_get_statistics_not_generated(self, mock_exists: mock.MagicMock):
         mock_exists.return_value = False
