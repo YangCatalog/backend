@@ -12,11 +12,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""
-Script automatically pushes new IANA-maintained yang modules to the GitHub repository:
-https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to <name>@<revision>.yang.
-"""
-
 __author__ = 'Bohdan Konovalenko'
 __copyright__ = 'Copyright The IETF Trust 2023, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'

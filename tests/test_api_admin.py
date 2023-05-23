@@ -504,7 +504,6 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertJsonResponse(result, 202, 'job-id', 1)
         self.assertJsonResponse(result, 202, 'arguments', ['parseAndPopulate', 'populate', 'test'])
 
-    @mock.patch('uuid.uuid4', mock.MagicMock(return_value='1'))
     def test_run_script_with_args_invalid_name(self):
         result = self.client.post('api/admin/scripts/invalid')
 
