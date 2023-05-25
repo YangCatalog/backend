@@ -24,6 +24,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
+import logging
 import os
 import random
 import string
@@ -31,29 +32,31 @@ from configparser import ConfigParser
 
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
-from utility import confdService
+from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.util import JobLogMessage, job_log
 
 current_file_basename = os.path.basename(__file__)
 
 
-@job_log(file_basename=current_file_basename)
-def main(config: ConfigParser = create_config()) -> list[JobLogMessage]:
-    logs_dir = config.get('Directory-Section', 'logs')
-
-    logger = log.get_logger('healthcheck', os.path.join(logs_dir, 'healthcheck.log'))
-    messages = []
+def generate_random_check_module_name():
     letters = string.ascii_letters
     suffix = ''.join(random.choice(letters) for _ in range(6))
-    check_module_name = f'confd-full-check-{suffix}'
-    confd_service = confdService.ConfdService()
+    return f'confd-full-check-{suffix}'
+
+
+def perform_confd_full_check(
+    redis_connection: RedisConnection,
+    confd_service: ConfdService,
+    check_module_name: str,
+    logger: logging.Logger,
+):
+    logger.info('Removing everything from confd')
     confd_service.delete_modules()
     confd_service.delete_vendors()
-
     logger.info('Running confdFullCheck')
+    messages = []
     try:
-        redis_connection = RedisConnection()
         yang_catalog_module = redis_connection.get_module('yang-catalog@2018-04-03/ietf')
         module = json.loads(yang_catalog_module)
         error = confd_service.patch_modules([module])
@@ -117,6 +120,17 @@ def main(config: ConfigParser = create_config()) -> list[JobLogMessage]:
     except Exception as e:
         logger.exception(e)
         raise e
+
+
+@job_log(file_basename=current_file_basename)
+def main(config: ConfigParser = create_config()) -> list[JobLogMessage]:
+    logs_dir = config.get('Directory-Section', 'logs')
+    logger = log.get_logger('healthcheck', os.path.join(logs_dir, 'healthcheck.log'))
+    redis_connection = RedisConnection()
+    confd_service = ConfdService()
+    check_module_name = generate_random_check_module_name()
+
+    perform_confd_full_check(redis_connection, confd_service, check_module_name, logger)
 
 
 if __name__ == '__main__':

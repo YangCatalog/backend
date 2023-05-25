@@ -35,6 +35,8 @@ from datetime import datetime
 
 import utility.log as log
 from redisConnections.redisConnection import RedisConnection
+from utility.confdFullCheck import generate_random_check_module_name, perform_confd_full_check
+from utility.confdService import ConfdService
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
@@ -137,6 +139,7 @@ class LoadDataFromBackupToDatabase(Recovery):
     def __init__(self, args: Namespace, config: ConfigParser = create_config()):
         super().__init__(args, config)
         self.process_type = 'load'
+        self.confd_service = ConfdService()
 
     def _start_process(self):
         if self.args.file:
@@ -152,6 +155,10 @@ class LoadDataFromBackupToDatabase(Recovery):
         yang_catalog_module = self.redis_connection.get_module(self.yang_catalog_module_name)
         if '{}' in (redis_modules, yang_catalog_module):
             self._populate_data_from_redis_backup_to_redis()
+
+        # Reloading confd
+        check_module_name = generate_random_check_module_name()
+        perform_confd_full_check(self.redis_connection, self.confd_service, check_module_name, self.logger)
 
     def _populate_data_from_redis_backup_to_redis(self):
         # RDB not exists - load from JSON

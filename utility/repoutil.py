@@ -19,22 +19,23 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
 import json
+import logging
 import os
 import shutil
 import tempfile
 import typing as t
+from dataclasses import dataclass
 
 import requests
 from git.cmd import Git
-from git.exc import InvalidGitRepositoryError
+from git.exc import GitCommandError, InvalidGitRepositoryError
 from git.repo import Repo
 
 
 class RepoUtil:
     """
-    Simple class for rolling up some git operations as part of file
-    manipulation. The user should create the object with the URL to
-    the repository and an appropriate set of credentials.
+    Simple class for rolling up some git operations as part of file manipulation. The user should create the object
+    with the URL to the repository and an appropriate set of credentials.
     """
 
     local_dir: str
@@ -52,11 +53,7 @@ class RepoUtil:
         recurse_submodules: bool
         'If set to True then the repository will be cloned with all of submodules, will be set to True by default'
 
-    def __init__(
-        self,
-        repourl: str,
-        temp: bool = True,
-    ):
+    def __init__(self, repourl: str, temp: bool = True):
         """
         For internal use only, for creating RepoUtil objects, use the load or clone class methods.
 
@@ -66,15 +63,9 @@ class RepoUtil:
         """
         self.temp = temp
         self.url = repourl
-        self.previous_active_branch: t.Optional[str] = None
 
     @classmethod
-    def clone(
-        cls,
-        repourl: str,
-        temp: bool,
-        clone_options: t.Optional[CloneOptions] = None,
-    ) -> 'RepoUtil':
+    def clone(cls, repourl: str, temp: bool, clone_options: t.Optional[CloneOptions] = None) -> 'RepoUtil':
         """
         Clone the specified repository and recursively clone submodules.
         This method raises a git.exec.GitCommandError if the repository does not exist.
@@ -120,6 +111,99 @@ class RepoUtil:
         """Remove the temporary storage."""
         if self.temp and os.path.isdir(self.local_dir):
             shutil.rmtree(self.local_dir)
+
+
+class Worktree:
+    """
+    Creates a new git worktree in the new_worktree_dir directory: https://git-scm.com/docs/git-worktree#_description.
+    """
+
+    repo: Repo
+    worktree_dir: str
+
+    @dataclass
+    class ConfigOptions:
+        config_username: str
+        'Username to set in the git config.'
+        config_user_email: str
+        'Email to set in the git config.'
+
+    def __init__(
+        self,
+        repo_dir: str,
+        logger: logging.Logger,
+        main_branch: str = 'main',
+        branch: t.Optional[str] = None,
+        new_worktree_dir: t.Optional[str] = None,
+        config_options: t.Optional[ConfigOptions] = None,
+    ):
+        """
+        Arguments:
+            :param repo_dir (str) Path to the existing repository to create a worktree for.
+            :param logger (Logger) Logger object.
+            :param main_branch (str) Name of the repository's main branch.
+            :param branch (Optional[str]) Branch to create a worktree from.
+            :param new_worktree_dir (Optional[str]) Directory where the new worktree will be created, if None,
+            a new temporary directory will be created. Be careful, the new_worktree_dir will be automatically deleted
+            after deleting the Worktree object, so don't pass permanent directories here.
+            :param config_options (Optional[ConfigOptions]) Options to write to the git config, by default no options
+            will be written to the git config.
+        """
+        self.logger = logger
+        self._create_worktree(repo_dir, main_branch, branch=branch, new_worktree_dir=new_worktree_dir)
+        self._repo_git = Git(self.worktree_dir)
+        self.repo = Repo(self.worktree_dir)
+        if config_options:
+            self._set_config_options(config_options)
+
+    def _create_worktree(
+        self,
+        repo_dir: str,
+        main_branch: str,
+        branch: t.Optional[str] = None,
+        new_worktree_dir: t.Optional[str] = None,
+    ):
+        self.worktree_dir = new_worktree_dir or tempfile.mkdtemp()
+        if not branch:
+            Git(repo_dir).worktree('add', '--detach', self.worktree_dir)
+            return
+        repo = Repo(repo_dir)
+        if branch not in repo.branches:
+            repo.git.checkout(main_branch)
+            repo.create_head(branch)
+        repo_git = Git(repo_dir)
+        repo_git.worktree('prune')
+        try:
+            repo_git.worktree('add', self.worktree_dir, branch)
+        except GitCommandError as e:
+            if 'is already checked out at' not in e.stderr:
+                raise e
+            worktrees_output: list[str] = repo.git.worktree('list', '--porcelain').splitlines()
+            conflicting_worktree = None
+            for line in worktrees_output:
+                if line.startswith('worktree '):
+                    conflicting_worktree = line.lstrip('worktree ')
+                elif line.startswith('branch ') and branch in line:
+                    repo_git.worktree('remove', conflicting_worktree, '--force')
+                    break
+            repo_git.worktree('add', self.worktree_dir, branch)
+
+    def _set_config_options(self, config_options: ConfigOptions):
+        with self.repo.config_writer() as git_config:
+            git_config.set_value('user', 'email', config_options.config_user_email)
+            git_config.set_value('user', 'name', config_options.config_username)
+
+    def __del__(self):
+        """
+        Removes the worktree and its directory. Be careful, can be called when you don't use the worktree object itself
+        anymore, for example, when you return not the Worktree object from a function itself, for example:
+        return Worktree().repo
+        """
+        if hasattr(self, '_repo_git'):
+            try:
+                self._repo_git.worktree('remove', '.', '--force')
+            except GitCommandError:
+                pass
 
 
 def pull(repo_dir: str):
@@ -277,35 +361,3 @@ def merge_pull_request(
         headers=headers,
         data=json.dumps(request_body or PullRequestMergingDetail()),
     )
-
-
-def add_worktree(repo_dir: str, branch: t.Optional[str] = None, new_worktree_dir: t.Optional[str] = None) -> str:
-    new_worktree_dir = new_worktree_dir or tempfile.mkdtemp()
-    if branch:
-        Git(repo_dir).worktree('add', new_worktree_dir, branch)
-    else:
-        Git(repo_dir).worktree('add', '--detach', new_worktree_dir)
-    return new_worktree_dir
-
-
-def remove_worktree(worktree_dir: str):
-    Git(worktree_dir).worktree('remove', '.')
-
-
-class ModuleDirectoryManager:
-    def __init__(self):
-        self._module_directories = {}
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, *exc_info):
-        for module_dir in self._module_directories.values():
-            shutil.rmtree(module_dir)
-
-    def __getitem__(self, repo_dir: str):
-        if repo_dir not in self._module_directories:
-            temp_dir = tempfile.mkdtemp()
-            shutil.copytree(repo_dir, temp_dir, dirs_exist_ok=True)
-            self._module_directories[repo_dir] = temp_dir
-        return self._module_directories[repo_dir]

@@ -1,5 +1,9 @@
 ## Backend Release Notes
 
+* ##### v5.11.1 - 2023-05-03
+
+  * Bugfixes related to work with GitHub fixed
+
 * ##### v5.11.0 - 2023-04-13
 
   * Documentation improved across the repository [#761](https://github.com/YangCatalog/backend/issues/761)
