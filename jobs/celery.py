@@ -37,6 +37,7 @@ from utility.staticVariables import json_headers
 
 class BackendCeleryApp(Celery):
     logger: logging.Logger
+    redis_connection: RedisConnection
     notify_indexing: bool
     save_file_dir: str
     yangcatalog_api_prefix: str
@@ -46,12 +47,12 @@ class BackendCeleryApp(Celery):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.load_config()
-        self.redis_connection = RedisConnection()
 
     def load_config(self):
         config = create_config()
         log_directory = config.get('Directory-Section', 'logs')
         self.logger = log.get_logger('job_runner', os.path.join(log_directory, 'job_runner.log'))
+        self.redis_connection = RedisConnection(config=config)
         self.notify_indexing = config.get('General-Section', 'notify-index') == 'True'
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
         changes_cache_path = config.get('Directory-Section', 'changes-cache')

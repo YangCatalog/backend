@@ -39,7 +39,6 @@ class TestApiInternalClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-    # @timeout
     @mock.patch('api.views.yc_jobs.run_script.s')
     def test_trigger_ietf_pull(self, run_script_mock: mock.MagicMock):
         run_script_mock.return_value.apply_async.return_value = mock.MagicMock(id=1)
@@ -53,7 +52,6 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    # @timeout
     @mock.patch('api.views.yc_jobs.run_script.s', mock.MagicMock())
     def test_trigger_ietf_pull_not_admin(self):
         auth.hash_password(lambda _: 'True')

@@ -96,6 +96,7 @@ class MyFlask(Flask):
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
         self.config['ES-MANAGER'] = ESManager()
 
+        celery_app.load_config()
         self.config['CELERY-APP'] = celery_app
         self.config['G-IS-PROD'] = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(host=self.config.db_redis_host, port=self.config.db_redis_port)
