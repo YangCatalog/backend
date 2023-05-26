@@ -28,7 +28,7 @@ def get_response(celery_app_instance: BackendCeleryApp, job_id: str) -> tuple[st
     Arguments:
         :param celery_app_instance (BackendCeleryApp) instance of the celery app
         :param job_id: (str) id of the celery task
-    :return (tuple[str, str]) Returns the job status which can one of the following -
+    :return (tuple[str, str]) Returns the job status which can be one of the following -
     'Failed', 'In progress', 'Finished successfully' and traceback of the job if the job has failed,
     or the return value if the job is successful, empty string otherwise
     """

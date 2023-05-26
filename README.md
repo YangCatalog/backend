@@ -42,7 +42,7 @@ If the user is registered, she/he can add, modify or delete modules based on a p
 Once a user has filled in the registration form, one of yangcatalog's admin users needs to approve user using
 Admin UI and give the user specific rights, so he is able to add, remove or update only certain modules.
 
-Some requests may take a longer period of time to process. Because of thissome endpoints will give the user a job-id.
+Some requests may take a longer period of time to process. Because of this some endpoints will give the user a job-id.
 The user can check this job at any time to see if the job has been completed or is still processing or failed during the
 execution by using the job-id.
 

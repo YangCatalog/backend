@@ -538,7 +538,7 @@ def health_check_celery():
         jsonify(
             {
                 'info': 'Celery is available',
-                'status': 'running' if status != StatusMessage.FAIL else 'problem',
+                'status': 'running' if status == StatusMessage.SUCCESS else 'problem',
                 'message': message_mapping.get(status),
             },
         ),
