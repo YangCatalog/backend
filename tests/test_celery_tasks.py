@@ -18,6 +18,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'slavomir.mazur@pantheon.tech'
 
 import json
+import logging
 import os
 import shutil
 import unittest
@@ -26,10 +27,12 @@ from unittest import mock
 from ddt import data, ddt
 from redis import Redis
 
-from api.receiver import Receiver
-from api.status_message import StatusMessage
+import jobs.celery
+from jobs.celery import process, process_module_deletion, process_vendor_deletion
+from jobs.status_messages import StatusMessage
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
+from utility.elasticsearch_util import ESIndexingPaths
 
 
 class MockModulesComplicatedAlgorithms:
@@ -105,8 +108,30 @@ class MockRepoUtil:
         pass
 
 
-class TestReceiverBaseClass(unittest.TestCase):
-    receiver: Receiver
+class CeleryAppMock:
+    def __init__(self, *args, **kwargs):
+        config = create_config()
+        self.logger = logging.getLogger('test_celery_tasks')
+        self.notify_indexing = config.get('General-Section', 'notify-index') == 'True'
+        self.save_file_dir = config.get('Directory-Section', 'save-file-dir')
+        changes_cache_path = config.get('Directory-Section', 'changes-cache')
+        delete_cache_path = config.get('Directory-Section', 'delete-cache')
+        failed_changes_cache_path = config.get('Directory-Section', 'changes-cache-failed')
+        lock_file = config.get('Directory-Section', 'lock')
+        self.yangcatalog_api_prefix = config.get('Web-Section', 'yangcatalog-api-prefix')
+        self.indexing_paths = ESIndexingPaths(
+            cache_path=changes_cache_path,
+            deletes_path=delete_cache_path,
+            failed_path=failed_changes_cache_path,
+            lock_path=lock_file,
+        )
+        self.confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+
+    def reload_cache(self):
+        pass
+
+
+class TestCeleryTasksBaseClass(unittest.TestCase):
     redis_connection: RedisConnection
     directory: str
     test_data: dict
@@ -114,6 +139,10 @@ class TestReceiverBaseClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         config = create_config()
+        celery_app_mock = CeleryAppMock()
+        cls.celery_app_patcher = mock.patch.object(jobs.celery, 'celery_app', celery_app_mock)
+        cls.celery_app_patcher.start()
+        cls.addClassCleanup(cls.celery_app_patcher.stop)
         cls.log_directory = config.get('Directory-Section', 'logs')
         temp_dir = config.get('Directory-Section', 'temp')
         cls.credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split(' ')
@@ -122,17 +151,15 @@ class TestReceiverBaseClass(unittest.TestCase):
         _redis_host = config.get('DB-Section', 'redis-host')
         _redis_port = int(config.get('DB-Section', 'redis-port'))
 
-        cls.redis_connection = RedisConnection(modules_db=6, vendors_db=9)
-        cls.receiver = Receiver(os.environ['YANGCATALOG_CONFIG_PATH'])
-        cls.receiver.redisConnection = cls.redis_connection
+        cls.redis_connection = celery_app_mock.redis_connection = RedisConnection(modules_db=6, vendors_db=9)
         cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=6)
         cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=9)
         cls.huawei_dir = f'{yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
-        cls.directory = f'{temp_dir}/receiver_test'
+        cls.directory = f'{temp_dir}/celery_tasks_test'
         resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         cls.private_dir = os.path.join(resources_path, 'html/private')
 
-        with open(os.path.join(resources_path, 'receiver_tests_data.json'), 'r') as f:
+        with open(os.path.join(resources_path, 'celery_tasks_tests_data.json'), 'r') as f:
             cls.test_data = json.load(f)
 
         redis_modules_patcher = mock.patch('redisConnections.redisConnection.RedisConnection')
@@ -150,24 +177,15 @@ class TestReceiverBaseClass(unittest.TestCase):
         self.vendorsDB.flushdb()
 
 
-class TestReceiverClass(TestReceiverBaseClass):
+class TestCeleryTasksClass(TestCeleryTasksBaseClass):
     def setUp(self):
         super().setUp()
         os.makedirs(self.directory, exist_ok=True)
 
     def tearDown(self):
         super().tearDown()
-        shutil.rmtree(self.directory)
-
-    def test_run_ping_successful(self):
-        status = self.receiver.run_ping('ping')
-
-        self.assertEqual(status, StatusMessage.SUCCESS)
-
-    def test_run_ping_failure(self):
-        status = self.receiver.run_ping('pong')
-
-        self.assertEqual(status, StatusMessage.FAIL)
+        if os.path.exists(self.directory):
+            shutil.rmtree(self.directory)
 
     @mock.patch('api.views.user_specific_module_maintenance.repoutil.RepoUtil', MockRepoUtil)
     @mock.patch('parseAndPopulate.populate.ModulesComplicatedAlgorithms', MockModulesComplicatedAlgorithms)
@@ -186,26 +204,20 @@ class TestReceiverClass(TestReceiverBaseClass):
         with open(os.path.join(self.directory, 'request-data.json'), 'w') as f:
             json.dump(data, f)
 
-        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.directory, '--api', '--credentials', *self.credentials]
-
-        status, details = self.receiver.process(arguments)
+        status = process(self.directory, sdo=True, api=True)
         redis_module = self.modulesDB.get('ietf-yang-types@2010-09-24/ietf')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
         self.assertEqual(status, StatusMessage.SUCCESS)
-        self.assertEqual(details, '')
         self.assertNotEqual(redis_data, '{}')
 
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock)
     def test_process_sdo_failed_populate(self):
-        arguments = ['POPULATE-MODULES', '--sdo', '--dir', self.directory, '--api', '--credentials', *self.credentials]
-
-        status, details = self.receiver.process(arguments)
+        status = process(self.directory, sdo=True, api=True)
         redis_module = self.modulesDB.get('openconfig-extensions@2020-06-16/openconfig')
         redis_data = (redis_module or b'{}').decode('utf-8')
 
         self.assertEqual(status, StatusMessage.FAIL)
-        self.assertEqual(details, 'Server error while running populate script')
         self.assertEqual(redis_data, '{}')
 
     @mock.patch('api.views.user_specific_module_maintenance.repoutil.RepoUtil', MockRepoUtil)
@@ -229,75 +241,62 @@ class TestReceiverClass(TestReceiverBaseClass):
         with open(os.path.join(dst, 'capabilities.json'), 'w') as f:
             json.dump(platform, f)
 
-        arguments = ['POPULATE-VENDORS', '--dir', self.directory, '--api', '--credentials', *self.credentials, 'True']
-
-        status, details = self.receiver.process(arguments)
+        status = process(self.directory, sdo=False, api=True)
 
         self.assertEqual(status, StatusMessage.SUCCESS)
-        self.assertEqual(details, '')
 
-    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion(self):
-        module_to_populate = self.test_data.get('module-deletion-tests')
+        module_to_populate = self.test_data['module-deletion-tests']
         self.redis_connection.populate_modules(module_to_populate)
         self.redis_connection.reload_modules_cache()
 
-        modules_to_delete = {
-            'modules': [{'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'}],
-        }
+        modules_to_delete = [{'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'}]
         deleted_module_key = 'another-yang-module@2020-03-01/ietf'
-        arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
-        status, details = self.receiver.process_module_deletion(arguments)
+        status = process_module_deletion(modules_to_delete)
         self.redis_connection.reload_modules_cache()
         raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(status, StatusMessage.SUCCESS)
-        self.assertEqual(details, '')
         self.assertNotIn(deleted_module_key, all_modules)
         for module in all_modules.values():
             dependents_list = [f'{dep["name"]}@{dep.get("revision")}' for dep in module.get('dependents', [])]
             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
 
-    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_cannot_delete(self):
-        module_to_populate = self.test_data.get('module-deletion-tests')
+        module_to_populate = self.test_data['module-deletion-tests']
         self.redis_connection.populate_modules(module_to_populate)
         self.redis_connection.reload_modules_cache()
 
-        modules_to_delete = {'modules': [{'name': 'yang-submodule', 'revision': '2020-02-01', 'organization': 'ietf'}]}
+        modules_to_delete = [{'name': 'yang-submodule', 'revision': '2020-02-01', 'organization': 'ietf'}]
         deleted_module_key = 'yang-submodule@2020-02-01/ietf'
-        arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
-        status, details = self.receiver.process_module_deletion(arguments)
+        status, _ = process_module_deletion(modules_to_delete)
         self.redis_connection.reload_modules_cache()
         raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
-        self.assertEqual(status, StatusMessage.IN_PROGRESS)
-        self.assertEqual(details, 'modules-not-deleted:yang-submodule,2020-02-01,ietf')
+        self.assertEqual(status, StatusMessage.FAIL)
         self.assertIn(deleted_module_key, all_modules)
 
-    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_module_and_its_dependent(self):
-        module_to_populate = self.test_data.get('module-deletion-tests')
+        module_to_populate = self.test_data['module-deletion-tests']
         self.redis_connection.populate_modules(module_to_populate)
         self.redis_connection.reload_modules_cache()
 
-        modules_to_delete = {
-            'modules': [
-                {'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'},
-                {'name': 'yang-module', 'revision': '2020-01-01', 'organization': 'ietf'},
-            ],
-        }
+        modules_to_delete = [
+            {'name': 'another-yang-module', 'revision': '2020-03-01', 'organization': 'ietf'},
+            {'name': 'yang-module', 'revision': '2020-01-01', 'organization': 'ietf'},
+        ]
 
-        arguments = ['DELETE-MODULES', *self.credentials, json.dumps(modules_to_delete)]
-        status, details = self.receiver.process_module_deletion(arguments)
+        status = process_module_deletion(modules_to_delete)
         self.redis_connection.reload_modules_cache()
         raw_all_modules = self.redis_connection.get_all_modules()
         all_modules = json.loads(raw_all_modules)
 
         self.assertEqual(status, StatusMessage.SUCCESS)
-        self.assertEqual(details, '')
         self.assertNotIn('another-yang-module@2020-03-01/ietf', all_modules)
         self.assertNotIn('yang-module@2020-01-01/ietf', all_modules)
 
@@ -306,38 +305,24 @@ class TestReceiverClass(TestReceiverBaseClass):
             self.assertNotIn('another-yang-module@2020-03-01', dependents_list)
             self.assertNotIn('yang-module@2020-01-01/ietf', dependents_list)
 
-    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
+    @mock.patch('jobs.celery.prepare_for_es_removal', mock.MagicMock)
     def test_process_module_deletion_empty_list_input(self):
-        module_to_populate = self.test_data.get('module-deletion-tests')
+        module_to_populate = self.test_data['module-deletion-tests']
         self.redis_connection.populate_modules(module_to_populate)
         self.redis_connection.reload_modules_cache()
 
-        arguments = ['DELETE-MODULES', *self.credentials, json.dumps({'modules': []})]
-        status, details = self.receiver.process_module_deletion(arguments)
+        status = process_module_deletion([])
 
         self.assertEqual(status, StatusMessage.SUCCESS)
-        self.assertEqual(details, '')
-
-    @mock.patch('api.receiver.prepare_for_es_removal', mock.MagicMock)
-    def test_process_module_deletion_incorrect_arguments_input(self):
-        module_to_populate = self.test_data.get('module-deletion-tests')
-        self.redis_connection.populate_modules(module_to_populate)
-        self.redis_connection.reload_modules_cache()
-
-        arguments = ['DELETE-MODULES', *self.credentials, json.dumps([])]
-        status, details = self.receiver.process_module_deletion(arguments)
-
-        self.assertEqual(status, StatusMessage.FAIL)
-        self.assertEqual(details, 'Server error -> Unable to parse arguments')
 
 
 @ddt
-class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
+class TestCeleryTasksVendorsDeletionClass(TestCeleryTasksBaseClass):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.vendors_to_populate = cls.test_data.get('vendor-deletion-tests').get('vendors')
-        cls.modules_to_populate = cls.test_data.get('vendor-deletion-tests').get('modules')
+        cls.vendors_to_populate = cls.test_data['vendor-deletion-tests']['vendors']
+        cls.modules_to_populate = cls.test_data['vendor-deletion-tests']['modules']
 
     def setUp(self):
         super().setUp()
@@ -348,28 +333,33 @@ class TestReceiverVendorsDeletionClass(TestReceiverBaseClass):
 
     @data(
         ('fujitsu', 'T100', '2.4', 'Linux'),
-        ('fujitsu', 'T100', '2.4', 'None'),
-        ('fujitsu', 'T100', 'None', 'None'),
-        ('fujitsu', 'None', 'None', 'None'),
-        ('huawei', 'ne5000e', 'None', 'None'),
+        ('fujitsu', 'T100', '2.4', None),
+        ('fujitsu', 'T100', None, None),
+        ('fujitsu', None, None, None),
+        ('huawei', 'ne5000e', None, None),
     )
-    @mock.patch('api.receiver.prepare_for_es_removal')
-    def test_process_vendor_deletion(self, params, indexing_mock: mock.MagicMock):
+    @mock.patch('jobs.celery.prepare_for_es_removal')
+    def test_process_vendor_deletion(self, param_tuple, indexing_mock: mock.MagicMock):
         indexing_mock.return_value = {}
-        vendor, platform, software_version, software_flavor = params
+        vendor, platform, software_version, software_flavor = param_tuple
+        params = {
+            'vendor': vendor,
+            'platform': platform,
+            'software-version': software_version,
+            'software-flavor': software_flavor,
+        }
 
         deleted_vendor_branch = ''
-        if vendor != 'None':
+        if vendor:
             deleted_vendor_branch += f'{vendor}/'
-        if platform != 'None':
+        if platform:
             deleted_vendor_branch += f'{platform}/'
-        if software_version != 'None':
+        if software_version:
             deleted_vendor_branch += f'{software_version}/'
-        if software_flavor != 'None':
+        if software_flavor:
             deleted_vendor_branch += software_flavor
 
-        arguments = ['DELETE-VENDORS', *self.credentials, vendor, platform, software_version, software_flavor]
-        status = self.receiver.process_vendor_deletion(arguments)
+        status = process_vendor_deletion(params)
         self.redis_connection.reload_vendors_cache()
         self.redis_connection.reload_modules_cache()
 

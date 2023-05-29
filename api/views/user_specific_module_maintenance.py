@@ -33,6 +33,8 @@ from werkzeug.exceptions import abort
 from api.authentication.auth import auth
 from api.my_flask import app
 from api.views.json_checker import check_error
+from jobs import jobs_information
+from jobs.celery import process, process_module_deletion, process_vendor_deletion
 from utility import repoutil, yangParser
 from utility.message_factory import MessageFactory
 from utility.repoutil import RepoUtil
@@ -44,9 +46,9 @@ bp = Blueprint('user_specific_module_maintenance', __name__)
 
 @bp.before_request
 def set_config():
-    global ac, users
-    ac = app.config
-    users = ac.redis_users
+    global app_config, users
+    app_config = app.config
+    users = app_config.redis_users
 
 
 @bp.route('/register-user', methods=['POST'])
@@ -105,10 +107,7 @@ def register_user():
 @bp.route('/modules', methods=['DELETE'])
 @auth.login_required
 def delete_modules(name: str = '', revision: str = '', organization: str = ''):
-    """Delete a specific modules defined with name, revision and organization. This is
-    not done right away but it will send another request to receiver which will work on deleting
-    while this request will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id".
+    """Delete a specific modules defined with name, revision and organization.
 
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
@@ -144,15 +143,13 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
         if read.get('implementations') is not None:
             unavailable_modules.append(mod)
 
-    # Filter out unavailble modules
+    # Filter out unavailable modules
     input_modules = [x for x in input_modules if x not in unavailable_modules]
-    modules_dict = json.dumps({'modules': input_modules})
 
-    arguments = ['DELETE-MODULES', ac.s_confd_credentials[0], ac.s_confd_credentials[1], modules_dict]
-    job_id = ac.sender.send('#'.join(arguments))
+    result = process_module_deletion.s(input_modules).apply_async()
 
-    app.logger.info('Running deletion of modules with job_id {}'.format(job_id))
-    payload = {'info': 'Verification successful', 'job-id': job_id}
+    app.logger.info(f'Running deletion of modules with job_id {result.id}')
+    payload = {'info': 'Verification successful', 'job-id': result.id}
     if unavailable_modules:
         payload['skipped'] = unavailable_modules
     return (payload, 202)
@@ -161,10 +158,7 @@ def delete_modules(name: str = '', revision: str = '', organization: str = ''):
 @bp.route('/vendors/<path:value>', methods=['DELETE'])
 @auth.login_required
 def delete_vendor(value: str):
-    """Delete a specific vendor defined with path. This is
-    not done right away but it will send another request to receiver which will work on deleting
-    while this request will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id".
+    """Delete a specific vendor defined with path.
 
     Argument:
         :param value    (str) path to the branch that needs to be deleted
@@ -180,28 +174,25 @@ def delete_vendor(value: str):
 
     if access_rigths.startswith('/') and len(access_rigths) > 1:
         access_rigths = access_rigths[1:]
-    rights = access_rigths.split('/')
-    rights += [None] * (4 - len(rights))
+    param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
+    rights = {param_names[i]: right for i, right in enumerate(access_rigths.split('/'))}
 
     path = '/vendors/{}'.format(value)
 
-    param_names = ['vendor', 'platform', 'software-version', 'software-flavor']
-    params = []
+    params = {}
     for param_name in param_names[::-1]:
         path, _, param = path.partition('/{}s/{}/'.format(param_name, param_name))
-        params.append(param or 'None')
-    params = params[::-1]
+        params[param_name] = param or None
 
-    for param_name, param, right in zip(param_names, params, rights):
-        if right and param != right:
+    for param_name, right in rights.items():
+        if right and params[param_name] != right:
             abort(401, description='User not authorized to supply data for this {}'.format(param_name))
 
-    arguments = ['DELETE-VENDORS', ac.s_confd_credentials[0], ac.s_confd_credentials[1], *params]
-    job_id = ac.sender.send('#'.join(arguments))
+    result = process_vendor_deletion.s(params).apply_async()
 
-    app.logger.info('Running deletion of vendors metadata with job_id {}'.format(job_id))
-    payload = {'info': 'Verification successful', 'job-id': job_id}
-    return (payload, 202)
+    app.logger.info(f'Running deletion of vendors metadata with job_id {result.id}')
+    payload = {'info': 'Verification successful', 'job-id': result.id}
+    return payload, 202
 
 
 @bp.route('/modules', methods=['PUT', 'POST'])
@@ -210,11 +201,6 @@ def add_modules():
     """Endpoint is used to add new modules using the API.
     PUT request is used for updating each module in request body.
     POST request is used for creating new modules that are not in ConfD/Redis yet.
-    First it checks if the sent request is ok and if so, it will send a another request
-    to the receiver which will work on adding/updating modules while this request
-    will send a "job_id" in the response back to the user.
-    User is able to check success of the job using this "job_id"
-    the job process.
 
     :return response with "job_id" that user can use to check whether
             the job is still running or Failed or Finished successfully.
@@ -242,9 +228,12 @@ def add_modules():
     modules_cont = body['modules']
     module_list = modules_cont['module']
 
-    dst_path = os.path.join(ac.d_save_requests, 'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
-    if not os.path.exists(ac.d_save_requests):
-        os.mkdir(ac.d_save_requests)
+    dst_path = os.path.join(
+        app_config.d_save_requests,
+        'sdo-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)),
+    )
+    if not os.path.exists(app_config.d_save_requests):
+        os.mkdir(app_config.d_save_requests)
     with open(dst_path, 'w') as f:
         json.dump(body, f)
 
@@ -257,9 +246,9 @@ def add_modules():
             'Error code: {}'.format(response.text, response.status_code),
         )
     direc_num = 0
-    while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
+    while os.path.isdir(os.path.join(app_config.d_temp, str(direc_num))):
         direc_num += 1
-    direc = os.path.join(ac.d_temp, str(direc_num))
+    direc = os.path.join(app_config.d_temp, str(direc_num))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -336,22 +325,15 @@ def add_modules():
     with open(os.path.join(direc, 'request-data.json'), 'w') as f:
         json.dump(body, f)
 
-    arguments = [
-        'POPULATE-MODULES',
-        '--sdo',
-        '--dir',
-        direc,
-        '--api',
-        '--credentials',
-        ac.s_confd_credentials[0],
-        ac.s_confd_credentials[1],
-    ]
-    job_id = ac.sender.send('#'.join(arguments))
-    app.logger.info('Running populate.py with job_id {}'.format(job_id))
+    result = process.s(sdo=True, api=True, dir=direc).apply_async()
+    app.logger.info('Running populate.py with job_id {}'.format(result.id))
     if len(warning) > 0:
-        return {'info': 'Verification successful', 'job-id': job_id, 'warnings': [{'warning': val} for val in warning]}
-    else:
-        return {'info': 'Verification successful', 'job-id': job_id}, 202
+        return {
+            'info': 'Verification successful',
+            'job-id': result.id,
+            'warnings': [{'warning': val} for val in warning],
+        }
+    return {'info': 'Verification successful', 'job-id': result.id}, 202
 
 
 @bp.route('/platforms', methods=['PUT', 'POST'])
@@ -360,10 +342,6 @@ def add_vendors():
     """Endpoint is used to add new vendors using the API.
     PUT request is used for updating each vendor in request body.
     POST request is used for creating new vendors that are not in ConfD/Redis yet.
-    First it checks if the sent request is ok and if so, it will send another request
-    to the receiver which will work on adding/updating vendors while this request
-    will send a "job_id" in the response back to the user.
-    User is able to check the success of the job using this "job_id".
 
     :return response with "job_id" that the user can use to check whether
             the job is still running or Failed or Finished successfully.
@@ -389,14 +367,16 @@ def add_vendors():
     platform_list = platforms_contents['platform']
 
     app.logger.info('Adding vendor with body\n{}'.format(json.dumps(body, indent=2)))
-    tree_created = False
     authorization = authorize_for_vendors(request, body)
     if authorization is not True:
         abort(401, description='User not authorized to supply data for this {}'.format(authorization))
 
-    dst_path = os.path.join(ac.d_save_requests, 'vendor-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)))
-    if not os.path.exists(ac.d_save_requests):
-        os.mkdir(ac.d_save_requests)
+    dst_path = os.path.join(
+        app_config.d_save_requests,
+        'vendor-{}.json'.format(datetime.utcnow().strftime(BACKUP_DATE_FORMAT)),
+    )
+    if not os.path.exists(app_config.d_save_requests):
+        os.mkdir(app_config.d_save_requests)
     with open(dst_path, 'w') as f:
         json.dump(body, f)
 
@@ -410,9 +390,9 @@ def add_vendors():
         )
 
     direc_num = 0
-    while os.path.isdir(os.path.join(ac.d_temp, str(direc_num))):
+    while os.path.isdir(os.path.join(app_config.d_temp, str(direc_num))):
         direc_num += 1
-    direc = os.path.join(ac.d_temp, str(direc_num))
+    direc = os.path.join(app_config.d_temp, str(direc_num))
     try:
         os.makedirs(direc)
     except OSError as e:
@@ -428,8 +408,8 @@ def add_vendors():
         repo_name = module_list_file['repository']
         owner = module_list_file['owner']
         if request.method == 'POST':
-            repoutil.pull(ac.d_yang_models_dir)
-            if os.path.isfile(os.path.join(ac.d_yang_models_dir, xml_path)):
+            repoutil.pull(app_config.d_yang_models_dir)
+            if os.path.isfile(os.path.join(app_config.d_yang_models_dir, xml_path)):
                 continue
 
         dir_in_repo = os.path.dirname(xml_path)
@@ -451,21 +431,10 @@ def add_vendors():
         with open('{}/{}.json'.format(save_to, file_name.split('.')[0]), 'w') as f:
             json.dump(platform, f)
         shutil.copy(os.path.join(repos[repo_url].local_dir, module_list_file['path']), save_to)
-        tree_created = True
 
-    arguments = [
-        'POPULATE-VENDORS',
-        '--dir',
-        direc,
-        '--api',
-        '--credentials',
-        ac.s_confd_credentials[0],
-        ac.s_confd_credentials[1],
-        repr(tree_created),
-    ]
-    job_id = ac.sender.send('#'.join(arguments))
-    app.logger.info('Running populate.py with job_id {}'.format(job_id))
-    return {'info': 'Verification successful', 'job-id': job_id}, 202
+    result = process.s(sdo=False, api=True, dir=direc).apply_async()
+    app.logger.info('Running populate.py with job_id {}'.format(result.id))
+    return {'info': 'Verification successful', 'job-id': result.id}, 202
 
 
 @bp.route('/job/<job_id>', methods=['GET'])
@@ -474,19 +443,9 @@ def get_job(job_id: str):
 
     :return response to the request with the job
     """
-    app.logger.info('Searching for job_id {}'.format(job_id))
-    result = ac.sender.get_response(job_id)
-    split = result.split('#split#')
-
-    reason = None
-    if split[0] == 'Failed' or split[0] == 'In progress':
-        result = split[0]
-        if len(split) == 2:
-            reason = split[1]
-        else:
-            reason = ''
-
-    return {'info': {'job-id': job_id, 'result': result, 'reason': reason}}
+    app.logger.info(f'Searching for job_id {job_id}')
+    status, reason = jobs_information.get_response(app_config.celery_app, job_id)
+    return {'info': {'job-id': job_id, 'result': status, 'reason': reason}}
 
 
 def authorize_for_vendors(request, body: dict):
@@ -576,9 +535,9 @@ def organization_by_namespace(namespace: str):
 def get_repo(repo_url: str, owner: str, repo_name: str) -> RepoUtil:
     if owner == 'YangModels' and repo_name == 'yang':
         app.logger.info('Using repo already downloaded from {}'.format(repo_url))
-        repoutil.pull(ac.d_yang_models_dir)
+        repoutil.pull(app_config.d_yang_models_dir)
         try:
-            yang_models_repo = RepoUtil.load(ac.d_yang_models_dir, github_url, temp=False)
+            yang_models_repo = RepoUtil.load(app_config.d_yang_models_dir, github_url, temp=False)
         except InvalidGitRepositoryError:
             raise Exception("Couldn't load YangModels/yang from directory")
         return yang_models_repo

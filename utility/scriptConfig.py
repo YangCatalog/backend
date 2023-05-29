@@ -118,3 +118,7 @@ class ScriptConfig:
 
     def copy(self):
         return ScriptConfig(**self.copy_info)
+
+    def set_args(self, **kwargs):
+        for key, value in kwargs.items():
+            self.args.__setattr__(key, value)

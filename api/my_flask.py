@@ -20,8 +20,8 @@ from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
 from api.matomo_tracker import MatomoTrackerData, get_headers_dict, record_analytic
-from api.sender import Sender
 from elasticsearchIndexing.es_manager import ESManager
+from jobs.celery import celery_app
 from redisConnections.redis_user_notifications_connection import RedisUserNotificationsConnection
 from redisConnections.redis_users_connection import RedisUsersConnection
 from redisConnections.redisConnection import RedisConnection
@@ -96,21 +96,8 @@ class MyFlask(Flask):
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
         self.config['ES-MANAGER'] = ESManager()
 
-        rabbitmq_host = self.config.config_parser.get('RabbitMQ-Section', 'host', fallback='127.0.0.1')
-        rabbitmq_port = int(self.config.config_parser.get('RabbitMQ-Section', 'port', fallback='5672'))
-        rabbitmq_virtual_host = self.config.config_parser.get('RabbitMQ-Section', 'virtual-host', fallback='/')
-        rabbitmq_username = self.config.config_parser.get('RabbitMQ-Section', 'username', fallback='guest')
-        rabbitmq_password = self.config.config_parser.get('Secrets-Section', 'rabbitmq-password', fallback='guest')
-        self.config['SENDER'] = Sender(
-            self.config.d_logs,
-            self.config.d_temp,
-            rabbitmq_host=rabbitmq_host,
-            rabbitmq_port=rabbitmq_port,
-            rabbitmq_virtual_host=rabbitmq_virtual_host,
-            rabbitmq_username=rabbitmq_username,
-            rabbitmq_password=rabbitmq_password,
-        )
-
+        celery_app.load_config()
+        self.config['CELERY-APP'] = celery_app
         self.config['G-IS-PROD'] = self.config.g_is_prod == 'True'
         self.config['REDIS'] = Redis(host=self.config.db_redis_host, port=self.config.db_redis_port)
         self.config['REDIS-USERS'] = RedisUsersConnection()

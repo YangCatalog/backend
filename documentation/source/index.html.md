@@ -2988,8 +2988,8 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
     "name": "NGINX"
   },
   {
-    "endpoint": "rabbitmq",
-    "name": "RabbitMQ"
+    "endpoint": "celery",
+    "name": "Celery"
   }
 ]
 ```

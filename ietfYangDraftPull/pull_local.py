@@ -59,11 +59,7 @@ def run_populate_script(directory: str, notify: bool, logger: logging.Logger) ->
         module = __import__('parseAndPopulate', fromlist=['populate'])
         submodule = getattr(module, 'populate')
         script_conf = submodule.DEFAULT_SCRIPT_CONFIG.copy()
-        script_conf.args.__setattr__('sdo', True)
-        script_conf.args.__setattr__('dir', directory)
-        script_conf.args.__setattr__('notify_indexing', notify)
-        script_conf.args.__setattr__('official_source', 'ietf')
-        logger.info(f'Running populate.py script over {directory}')
+        script_conf.set_args(sdo=True, dir=directory, notify_indexing=notify, official_source='ietf')
         submodule.main(script_conf=script_conf)
     except Exception:
         logger.exception('Error occurred while running populate.py script')

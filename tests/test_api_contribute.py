@@ -1,5 +1,3 @@
-# Copyright The IETF Trust 2021, All Rights Reserved
-#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -27,11 +25,13 @@ import unittest
 from copy import deepcopy
 from unittest import mock
 
+from celery import states
 from redis import RedisError
 
 import api.views.user_specific_module_maintenance as mm
 from api.globalConfig import yc_gc
 from api.yangcatalog_api import app
+from jobs.status_messages import StatusMessage
 from redisConnections.redis_users_connection import RedisUsersConnection
 from utility.util import hash_pw
 
@@ -75,10 +75,20 @@ class TestApiContributeClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-        cls.send_patcher = mock.patch('api.yangcatalog_api.app.config.sender.send')
-        cls.mock_send = cls.send_patcher.start()
-        cls.addClassCleanup(cls.send_patcher.stop)
-        cls.mock_send.return_value = 1
+        cls.process_task_patcher = mock.patch(f'{import_string}.process.s')
+        cls.process = cls.process_task_patcher.start()
+        cls.addClassCleanup(cls.process_task_patcher.stop)
+        cls.process.return_value.apply_async.return_value = mock.MagicMock(id=1)
+
+        cls.process_module_deletion_task_patcher = mock.patch(f'{import_string}.process_module_deletion.s')
+        cls.process_module_deletion = cls.process_module_deletion_task_patcher.start()
+        cls.addClassCleanup(cls.process_module_deletion_task_patcher.stop)
+        cls.process_module_deletion.return_value.apply_async.return_value = mock.MagicMock(id=1)
+
+        cls.process_vendor_deletion_task_patcher = mock.patch(f'{import_string}.process_vendor_deletion.s')
+        cls.process_vendor_deletion = cls.process_vendor_deletion_task_patcher.start()
+        cls.addClassCleanup(cls.process_vendor_deletion_task_patcher.stop)
+        cls.process_vendor_deletion.return_value.apply_async.return_value = mock.MagicMock(id=1)
 
         cls.confd_patcher = mock.patch(f'{import_string}.get_mod_redis')
         cls.mock_redis_get = cls.confd_patcher.start()
@@ -463,10 +473,14 @@ class TestApiContributeClass(unittest.TestCase):
             mock_access_rights.return_value = 'other'
             self.assertEqual(mm.authorize_for_sdos(request, 'test', 'test'), False, 'incorrect access rights')
 
-    @mock.patch('api.sender.Sender.get_response', mock.MagicMock(return_value='Failed#split#reason'))
     def test_get_job(self):
         job_id = 'invalid-id'
-        result = self.client.get(f'api/job/{job_id}')
+        celery_app_mock = mock.MagicMock()
+        celery_app_mock.AsyncResult.return_value.ready.return_value = True
+        celery_app_mock.AsyncResult.return_value.status = states.SUCCESS
+        celery_app_mock.AsyncResult.return_value.get.return_value = StatusMessage.SUCCESS.value
+        with mock.patch('api.yangcatalog_api.app.config.celery_app', celery_app_mock):
+            result = self.client.get(f'api/job/{job_id}')
 
         self.assertEqual(result.status_code, 200)
         self.assertEqual(result.content_type, 'application/json')
@@ -475,9 +489,7 @@ class TestApiContributeClass(unittest.TestCase):
         self.assertIn('job-id', data['info'])
         self.assertEqual(data['info']['job-id'], 'invalid-id')
         self.assertIn('result', data['info'])
-        self.assertEqual(data['info']['result'], 'Failed')
-        self.assertIn('reason', data['info'])
-        self.assertEqual(data['info']['reason'], 'reason')
+        self.assertEqual(data['info']['result'], StatusMessage.SUCCESS.value)
 
 
 def mock_redis_get(module: dict):

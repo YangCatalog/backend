@@ -242,9 +242,11 @@ class TestParseDirectoryClass(unittest.TestCase):
 
         :returns        ScriptConfig with arguments set.
         """
-        script_conf.args.__setattr__('result_html_dir', yc_gc.result_dir)
-        script_conf.args.__setattr__('save_file_dir', yc_gc.save_file_dir)
-        script_conf.args.__setattr__('json_dir', yc_gc.temp_dir)
+        script_conf.set_args(
+            result_html_dir=yc_gc.result_dir,
+            save_file_dir=yc_gc.save_file_dir,
+            json_dir=yc_gc.temp_dir,
+        )
 
         return script_conf
 

@@ -20,7 +20,6 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import fnmatch
 import grp
 import gzip
-import json
 import math
 import os
 import pwd
@@ -46,6 +45,7 @@ from werkzeug.utils import redirect
 
 from api.my_flask import app
 from api.views.json_checker import Union, check_error
+from jobs.celery import run_script
 from utility.create_config import create_config
 from utility.util import hash_pw
 
@@ -247,11 +247,6 @@ def update_yangcatalog_config():
         resp['api'] = 'data loaded successfully'
     except Exception:
         resp['api'] = 'error loading data'
-    try:
-        ac.sender.send('reload_config')
-        resp['receiver'] = 'data loaded successfully'
-    except Exception:
-        resp['receiver'] = 'error loading data'
     response = {'info': resp, 'new-data': data}
     return response
 
@@ -557,11 +552,11 @@ def run_script_with_args(script):
         abort(400, description=f'"{script}" is not valid script name')
 
     body = get_input(request.json)
+    arguments = (module_name, script, body)
 
-    arguments = ['run_script', module_name, script, json.dumps(body)]
-    job_id = ac.sender.send('#'.join(arguments))
+    result = run_script.s(*arguments).apply_async()
 
-    return {'info': 'Verification successful', 'job-id': job_id, 'arguments': arguments[1:]}, 202
+    return {'info': 'Verification successful', 'job-id': result.id, 'arguments': arguments}, 202
 
 
 @bp.route('/api/admin/scripts', methods=['GET'])

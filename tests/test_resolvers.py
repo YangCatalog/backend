@@ -18,6 +18,7 @@ __license__ = 'Apache License, Version 2.0'
 __email__ = 'dmytro.kyrychenko@pantheon.tech'
 
 import logging
+import os
 import unittest
 from unittest import mock
 
@@ -43,10 +44,12 @@ from parseAndPopulate.resolvers.yang_version import YangVersionResolver
 
 
 class TestResolversClass(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources/resolvers')
+
     def setUp(self) -> None:
         self.logger = logging.getLogger('test')
-
-        return super().setUp()
 
     # BasicResolver
     def test_basic_resolver_simple_resolve(self):
@@ -172,7 +175,7 @@ class TestResolversClass(unittest.TestCase):
         res = ir.resolve()
         self.assertEqual(res, [])
 
-    @mock.patch('utility.util.get_yang')
+    @mock.patch('parseAndPopulate.resolvers.imports.get_yang')
     def test_imports_resolver_simple_resolve_one_import(self, mock_get_yang: mock.MagicMock):
         module_stmt = new_statement(None, None, None, 'module', 'test-module')
         import_stmt = new_statement(None, module_stmt, None, 'import', 'test-import')
@@ -416,7 +419,7 @@ class TestResolversClass(unittest.TestCase):
         self.assertEqual(deps, [])
         self.assertEqual(subs, [])
 
-    @mock.patch('backend.utility.util.get_yang')
+    @mock.patch('parseAndPopulate.resolvers.submodule.get_yang')
     def test_submodule_resolver_simple_resolve_one_include(self, mock_get_yang: mock.MagicMock):
         mock_get_yang.return_value = 'test_yang_file@test_revision.yang'
 
@@ -495,7 +498,9 @@ class TestResolversClass(unittest.TestCase):
         res = pr.resolve()
         self.assertIsNone(res)
 
-    def test_prefix_resolver_simple_resolve_submodule(self):
+    @mock.patch('parseAndPopulate.resolvers.prefix.get_yang')
+    def test_prefix_resolver_simple_resolve_submodule(self, mock_get_yang: mock.MagicMock):
+        mock_get_yang.return_value = os.path.join(self.resources_path, 'ietf-yang-types.yang')
         module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
         prefix_stmt = new_statement(None, module_stmt, None, 'prefix', 'some-prefix')
         module_stmt.substmts.append(prefix_stmt)
@@ -557,7 +562,9 @@ class TestResolversClass(unittest.TestCase):
         res = nr.resolve()
         self.assertEqual(res, 'missing element')
 
-    def test_namespace_resolver_simple_resolve_submodule(self):
+    @mock.patch('parseAndPopulate.resolvers.namespace.get_yang')
+    def test_namespace_resolver_simple_resolve_submodule(self, mock_get_yang: mock.MagicMock):
+        mock_get_yang.return_value = os.path.join(self.resources_path, 'ietf-yang-types.yang')
         module_stmt = new_statement(None, None, None, 'submodule', 'test-module')
         namespace_stmt = new_statement(None, module_stmt, None, 'namespace', 'some-namespace')
         module_stmt.substmts.append(namespace_stmt)

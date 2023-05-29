@@ -28,6 +28,9 @@ from flask.json import jsonify
 
 import utility.log as log
 from api.my_flask import app
+from jobs.celery import test_task
+from jobs.jobs_information import get_response
+from jobs.status_messages import StatusMessage
 from utility.staticVariables import json_headers
 
 
@@ -45,9 +48,9 @@ def init_logger(state):
 
 @bp.before_request
 def set_config():
-    global ac, users
-    ac = app.config
-    users = ac.redis_users
+    global app_config, users
+    app_config = app.config
+    users = app_config.redis_users
 
 
 @bp.route('/services-list', methods=['GET'])
@@ -61,8 +64,8 @@ def get_services_list():
         'yang-validator-admin',
         'yangre-admin',
         'nginx',
-        'rabbitmq',
         'yangcatalog',
+        'celery',
     ]
     service_names = [
         'Elasticsearch',
@@ -72,8 +75,8 @@ def get_services_list():
         'YANG validator',
         'YANGre',
         'NGINX',
-        'RabbitMQ',
         'YangCatalog',
+        'Celery',
     ]
     for name, endpoint in zip(service_names, service_endpoints):
         pair = {'name': name, 'endpoint': endpoint}
@@ -86,14 +89,14 @@ def health_check_elk():
     service_name = 'Elasticsearch'
     try:
         # try to ping Elasticsearch
-        if ac.es_manager.ping():
+        if app_config.es_manager.ping():
             bp.logger.info('Successfully connected to Elasticsearch')
             # get health of cluster
-            health = ac.es_manager.cluster_health()
+            health = app_config.es_manager.cluster_health()
             health_status = health.get('status')
             bp.logger.info('Health status of cluster: {}'.format(health_status))
             # get list of indices
-            indices = ac.es_manager.get_indices()
+            indices = app_config.es_manager.get_indices()
             if len(indices) > 0:
                 return make_response(
                     jsonify(
@@ -157,26 +160,26 @@ def health_check_confd():
 @bp.route('/redis', methods=['GET'])
 def health_check_redis():
     try:
-        result = ac.redis.ping()
+        result = app_config.redis.ping()
         if result:
             bp.logger.info('Redis ping responsed successfully')
             response = {'info': 'Success'}
         else:
             bp.logger.error('Redis ping failed to respond')
             response = {'error': 'Unable to ping Redis'}
-        return (response, 200)
+        return response, 200
 
     except Exception:
         bp.logger.exception('Cannot ping Redis')
         error_message = {'error': 'Unable to ping Redis'}
-        return (error_message, 200)
+        return error_message, 200
 
 
 @bp.route('/nginx', methods=['GET'])
 def health_check_nginx():
     service_name = 'NGINX'
     try:
-        response = requests.get('{}/nginx-health'.format(ac.w_my_uri), headers=json_headers)
+        response = requests.get('{}/nginx-health'.format(app_config.w_my_uri), headers=json_headers)
         bp.logger.info('NGINX responded with a code {}'.format(response.status_code))
         response_message = response.json()['info']
         if response.status_code == 200 and response_message == 'Success':
@@ -206,46 +209,10 @@ def health_check_nginx():
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 
-@bp.route('/rabbitmq', methods=['GET'])
-def health_check_rabbitmq():
-    service_name = 'RabbitMQ'
-
-    arguments = ['run_ping', 'ping']
-    prefix = '{}/job'.format(ac.w_yangcatalog_api_prefix)
-    try:
-        job_id = ac.sender.send('#'.join(arguments))
-        if job_id:
-            bp.logger.info('Sender successfully connected to RabbitMQ')
-        response_type = 'In progress'
-        while response_type == 'In progress':
-            response = requests.get('{}/{}'.format(prefix, job_id), headers=json_headers)
-            response_type = response.json()['info']['result']
-            if response.status_code == 200 and response_type == 'Finished successfully':
-                break
-            else:
-                time.sleep(2)
-        bp.logger.info('Ping job responded with a message: {}'.format(response_type))
-        return make_response(
-            jsonify(
-                {
-                    'info': '{} is available'.format(service_name),
-                    'status': 'running',
-                    'message': 'Ping job responded with a message: {}'.format(response_type),
-                },
-            ),
-            200,
-        )
-    except Exception as err:
-        if err:
-            err = 'Check yang.log file for more details!'
-        bp.logger.exception('Cannot ping {}'.format(service_name))
-        return make_response(jsonify(error_response(service_name, err)), 200)
-
-
 @bp.route('/yangre-admin', methods=['GET'])
 def health_check_yangre_admin():
     service_name = 'yangre'
-    yangre_prefix = '{}/yangre'.format(ac.w_my_uri)
+    yangre_prefix = '{}/yangre'.format(app_config.w_my_uri)
 
     pattern = '[0-9]*'
     content = '123456789'
@@ -299,7 +266,7 @@ def health_check_yangre_admin():
 @bp.route('/yang-validator-admin', methods=['GET'])
 def health_check_yang_validator_admin():
     service_name = 'yang-validator'
-    yang_validator_prefix = '{}/yangvalidator'.format(ac.w_my_uri)
+    yang_validator_prefix = '{}/yangvalidator'.format(app_config.w_my_uri)
 
     rfc_number = '7223'
     body = json.dumps({'rfc': rfc_number, 'latest': True})
@@ -352,7 +319,7 @@ def health_check_yang_validator_admin():
 @bp.route('/yang-search-admin', methods=['GET'])
 def health_check_yang_search_admin():
     service_name = 'yang-search'
-    yang_search_prefix = '{}/search'.format(ac.w_yangcatalog_api_prefix)
+    yang_search_prefix = '{}/search'.format(app_config.w_yangcatalog_api_prefix)
     module_name = 'yang-catalog,2018-04-03,ietf'
     try:
         response = requests.get('{}/modules/{}'.format(yang_search_prefix, module_name), headers=json_headers)
@@ -538,12 +505,45 @@ def health_check_yangcatalog():
 @bp.route('/cronjobs', methods=['GET'])
 def check_cronjobs():
     try:
-        with open('{}/cronjob.json'.format(ac.d_temp), 'r') as f:
+        with open('{}/cronjob.json'.format(app_config.d_temp), 'r') as f:
             file_content = json.load(f)
     except (FileNotFoundError, json.decoder.JSONDecodeError):
         bp.logger.error('cronjob.json file does not exist')
         file_content = {}
     return make_response(jsonify({'data': file_content}), 200)
+
+
+@bp.route('/celery', methods=['GET'])
+def health_check_celery():
+    result = test_task.s('test', 1).apply_async()
+    attempts = 3
+    status = StatusMessage.IN_PROGRESS.value
+    reason = ''
+    while attempts > 0:
+        status, reason = get_response(app_config.celery_app, result.id)
+        if status == StatusMessage.IN_PROGRESS:
+            time.sleep(5)
+            attempts -= 1
+            continue
+        break
+    message_mapping = {
+        StatusMessage.IN_PROGRESS.value: (
+            'Waiting for the finish of the test task but only one task can be run at a time, so it\'s possible that '
+            'another long-running task is being executed'
+        ),
+        StatusMessage.SUCCESS.value: f'Test task finished successfully with such message: {reason}',
+        StatusMessage.FAIL.value: f'Test task failed with such traceback: {reason}',
+    }
+    return make_response(
+        jsonify(
+            {
+                'info': 'Celery is available',
+                'status': 'running' if status == StatusMessage.SUCCESS else 'problem',
+                'message': message_mapping.get(status),
+            },
+        ),
+        200,
+    )
 
 
 def error_response(service_name, err):

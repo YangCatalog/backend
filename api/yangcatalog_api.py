@@ -18,15 +18,15 @@ This is an API script that holds several endpoints for
 various usage. Contributors can use this for adding,
 updating and deleting of the yang modules. For this they
 need to sign up first and use their credentials. Their
-credentials needs to be approved by one of the yangcatalog.org
-admin users. Otherwise they will not be able to contribute to
+credentials need to be approved by one of the yangcatalog.org
+admin users. Otherwise, they will not be able to contribute to
 the database.
 
 All the users can read the metadata of the yangmodules at any time.
 For this there is no need of credentials. They can search for specific
 modules or filter out several modules by providing keywords in payload.
 
-Finally there are endpoints that are used by automated jobs. These
+Finally, there are endpoints that are used by automated jobs. These
 jobs use basic or http signature authorization.
 
 Documentation for all these endpoints can be found in
