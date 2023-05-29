@@ -39,8 +39,9 @@ class TestApiInternalClass(unittest.TestCase):
         with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
-    @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
-    def test_trigger_ietf_pull(self):
+    @mock.patch('api.views.yc_jobs.run_script.s')
+    def test_trigger_ietf_pull(self, run_script_mock: mock.MagicMock):
+        run_script_mock.return_value.apply_async.return_value = mock.MagicMock(id=1)
         auth.hash_password(lambda _: 'True')
         auth.get_password(lambda _: 'True')
         result = self.client.get('api/ietf', auth=('admin', 'admin'))
@@ -51,7 +52,7 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('job-id', data)
         self.assertEqual(data['job-id'], 1)
 
-    @mock.patch('api.sender.Sender.send', mock.MagicMock(return_value=1))
+    @mock.patch('api.views.yc_jobs.run_script.s', mock.MagicMock())
     def test_trigger_ietf_pull_not_admin(self):
         auth.hash_password(lambda _: 'True')
         auth.get_password(lambda _: 'True')
@@ -63,7 +64,7 @@ class TestApiInternalClass(unittest.TestCase):
         self.assertIn('description', data)
         self.assertEqual(data['description'], 'User must be admin')
 
-    @mock.patch.object(app_config.sender, 'send', mock.MagicMock())
+    @mock.patch('api.views.yc_jobs.github_populate.s', mock.MagicMock())
     @mock.patch('utility.message_factory.MessageFactory')
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate(self, mock_message_factory: mock.MagicMock):
@@ -87,7 +88,7 @@ class TestApiInternalClass(unittest.TestCase):
             'vendor/cisco/xe/1651',
         )
 
-    @mock.patch.object(app_config.sender, 'send', mock.MagicMock())
+    @mock.patch('api.views.yc_jobs.github_populate.s', mock.MagicMock())
     @mock.patch('utility.message_factory.MessageFactory', mock.MagicMock())
     @mock.patch('utility.repoutil.pull', mock.MagicMock())
     def test_trigger_populate_empty(self):

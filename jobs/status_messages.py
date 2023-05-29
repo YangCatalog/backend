@@ -1,4 +1,4 @@
-# Copyright The IETF Trust 2022, All Rights Reserved
+# Copyright The IETF Trust 2023, All Rights Reserved
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,11 +12,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+__author__ = 'Bohdan Konovalenko'
+__copyright__ = 'Copyright The IETF Trust 2023, All Rights Reserved'
+__license__ = 'Apache License, Version 2.0'
+__email__ = 'bohdan.konovalenko@pantheon.tech'
+
 from enum import Enum
+
+from celery import states
 
 
 class StatusMessage(str, Enum):
     FAIL = 'Failed'
     SUCCESS = 'Finished successfully'
     IN_PROGRESS = 'In progress'
-    NONEXISTENT = 'Does not exist'
+
+
+status_messages_mapping = {
+    states.FAILURE: StatusMessage.FAIL.value,
+    states.SUCCESS: StatusMessage.SUCCESS.value,
+}

@@ -27,6 +27,7 @@ from werkzeug.exceptions import abort
 
 from api.authentication.auth import auth
 from api.my_flask import app
+from jobs.celery import github_populate, run_script
 from utility import message_factory, repoutil
 from utility.staticVariables import github_api
 from utility.util import create_signature
@@ -47,9 +48,9 @@ def trigger_ietf_pull():
     username = request.authorization['username']
     if username != 'admin':
         abort(401, description='User must be admin')
-    job_id = app_config.sender.send('run_ietf')
-    app.logger.info(f'job_id {job_id}')
-    return {'job-id': job_id}, 202
+    result = run_script.s('ietfYangDraftPull', 'pull_local').apply_async()
+    app.logger.info(f'job_id {result.id}')
+    return {'job-id': result.id}, 202
 
 
 @bp.route('/checkCompleteGithub', methods=['POST'])
@@ -192,24 +193,7 @@ def trigger_populate():
             mf = message_factory.MessageFactory()
             mf.send_new_modified_platform_metadata(new, mod)
             app.logger.info('Forking the repo')
-            try:
-                populate_path = os.path.join(os.environ['BACKEND'], 'parseAndPopulate/populate.py')
-                arguments = [
-                    'python',
-                    populate_path,
-                    '--result-html-dir',
-                    app_config.w_result_html_dir,
-                    '--credentials',
-                    app_config.s_confd_credentials[0],
-                    app_config.s_confd_credentials[1],
-                    '--save-file-dir',
-                    app_config.d_save_file_dir,
-                    'repoLocalDir',
-                ]
-                arguments = arguments + list(paths) + [app_config.d_yang_models_dir, 'github']
-                app_config.sender.send('#'.join(arguments))
-            except Exception:
-                app.logger.exception('Could not populate after git push')
+            github_populate.s([os.path.join(app_config.d_yang_models_dir, path) for path in paths]).apply_async()
     except Exception as e:
         app.logger.error(f'Automated github webhook failure - {e}')
 
