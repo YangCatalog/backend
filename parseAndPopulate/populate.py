@@ -195,7 +195,7 @@ class Populate:
         return modules
 
     def _prepare_and_send_modules_for_es_indexing(self):
-        body_to_send = {}
+        body_to_send = None
         if self.args.notify_indexing:
             body_to_send = prepare_for_es_indexing(
                 self.yangcatalog_api_prefix,
@@ -272,7 +272,22 @@ def main(
     message_factory: t.Optional[MessageFactory] = None,
 ):
     script_conf = script_conf or DEFAULT_SCRIPT_CONFIG.copy()
-    Populate(script_conf.args, config, message_factory=message_factory).start_populating()
+    populate = Populate(script_conf.args, config, message_factory=message_factory)
+    lock = os.path.join(populate.temp_dir, 'populate.lock')
+    if os.path.exists(lock):
+        for _ in range(72):  # give up after 6 hours
+            if os.path.exists(lock):
+                time.sleep(60 * 5)  # try again in 5 mins
+            else:
+                break
+        else:
+            populate.logger.error("Couldn't receive lock in 6 hours, something is stuck")
+            exit(1)
+    try:
+        open(lock, 'w').close()
+        populate.start_populating()
+    finally:
+        os.unlink(lock)
 
 
 if __name__ == '__main__':
