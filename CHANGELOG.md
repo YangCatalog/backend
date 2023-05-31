@@ -1,5 +1,11 @@
 ## Backend Release Notes
 
+* ##### v5.12.0 - 2023-05-31
+
+  * flask, celery and requests pypi packages updated
+  * Replaced receiver with celery [#779](https://github.com/YangCatalog/backend/issues/779)
+  * Fixes related to automatic pushes on Github [#778](https://github.com/YangCatalog/backend/issues/778)
+
 * ##### v5.11.1 - 2023-05-03
 
   * Bugfixes related to work with GitHub fixed
