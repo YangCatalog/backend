@@ -54,6 +54,10 @@ class TestGroupingsClass(unittest.TestCase):
         }
         cls.test_repo = os.path.join(yc_gc.temp_dir, 'test/YangModels/yang')
         cls.config = create_config()
+        cls.vendors_changed_modules = os.path.join(os.path.dirname(cls.resources_path), 'vendors_changed_modules')
+        cls.normalized_modules = os.path.join(os.path.dirname(cls.resources_path), 'normalized_modules')
+        cls.config.set('Directory-Section', 'vendors-changed-modules', cls.vendors_changed_modules)
+        cls.config.set('Directory-Section', 'normalized-modules', cls.normalized_modules)
         cls.file_hasher = FileHasher('test_modules_hashes', yc_gc.cache_dir, False, yc_gc.logs_dir, cls.config)
         cls.redis_connection = RedisConnection(config=cls.config)
         cls.save_file_dir = cls.config.get('Directory-Section', 'save-file-dir')
@@ -73,6 +77,14 @@ class TestGroupingsClass(unittest.TestCase):
 
     def setUp(self):
         self.dumper = Dumper(yc_gc.logs_dir, self.prepare_output_filename)
+        os.makedirs(self.vendors_changed_modules, exist_ok=True)
+        os.makedirs(self.normalized_modules, exist_ok=True)
+
+    def tearDown(self):
+        if os.path.exists(self.vendors_changed_modules):
+            shutil.rmtree(self.vendors_changed_modules)
+        if os.path.exists(self.normalized_modules):
+            shutil.rmtree(self.normalized_modules)
 
     def test_sdo_directory_parse_and_load(self):
         """
@@ -692,6 +704,35 @@ class TestGroupingsClass(unittest.TestCase):
                 'vendor': 'cisco',
             },
         )
+
+    @mock.patch('parseAndPopulate.groupings.glob.glob')
+    def test_vendor_check_vendor_module_differences_from_original_module(self, glob_mock: mock.MagicMock):
+        resources_path = os.path.dirname(self.resources_path)
+        directory = os.path.join(resources_path, 'vendor_different_modules/huawei')
+        glob_mock.return_value = [os.path.join(directory, 'openconfig-telemetry.yang')]
+        vendor_grouping = VendorGrouping(
+            directory,
+            os.path.join(directory, 'test_file.xml'),
+            self.dumper,
+            self.file_hasher,
+            False,
+            self.dir_paths,
+        )
+        vendor_grouping.temp_dir = os.path.join(directory, 'tmp')
+        os.makedirs(vendor_grouping.temp_dir, exist_ok=True)
+        vendor_grouping.vendors_incorrect_modules_dir = self.vendors_changed_modules
+        vendor_grouping.normalized_modules_dir = self.normalized_modules
+        try:
+            vendor_grouping._check_vendor_module_differences_from_original_module(
+                'original_openconfig-telemetry',
+                os.path.join(directory, 'original_openconfig-telemetry.yang'),
+                None,
+                'openconfig',
+            )
+            self.assertIn('openconfig-telemetry.yang', os.listdir(vendor_grouping.vendors_incorrect_modules_dir))
+            self.assertIn('original_openconfig-telemetry.yang', os.listdir(vendor_grouping.normalized_modules_dir))
+        finally:
+            shutil.rmtree(vendor_grouping.temp_dir)
 
     def load_path_to_name_rev(self, key: str):
         """Load a path to (name, revision) dictionary needed by SdoDirectory from parseAndPopulate_tests_data.json."""

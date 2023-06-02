@@ -19,12 +19,15 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import difflib
 import fileinput
+import glob
 import json
 import os
 import shutil
 import typing as t
 import unicodedata
+import uuid
 import xml.etree.ElementTree as ET
 from configparser import ConfigParser
 
@@ -35,8 +38,10 @@ from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.vendor_modules import VendorInfo, VendorPlatformData
 from parseAndPopulate.modules import Module, SdoModule, VendorModule
 from redisConnections.redisConnection import RedisConnection
+from utility import yangParser
 from utility.create_config import create_config
-from utility.util import get_yang
+from utility.staticVariables import VENDORS
+from utility.util import get_yang, resolve_organization, resolve_revision
 from utility.yangParser import ParseException
 
 
@@ -385,6 +390,8 @@ class VendorGrouping(ModuleGrouping):
             config=config,
             redis_connection=redis_connection,
         )
+        self.vendor = self._get_vendor()
+        self._prepare_directories()
         self.found_capabilities = False
         self.capabilities = []
         self.netconf_versions = []
@@ -403,6 +410,25 @@ class VendorGrouping(ModuleGrouping):
             hello_file.close()
             self.logger.warning('Hello message file has & instead of &amp, automatically changing to &amp')
             self.root = ET.parse(xml_file).getroot()
+
+    def _get_vendor(self) -> t.Optional[str]:
+        for vendor in VENDORS:
+            if vendor in self.directory.lower():
+                return vendor
+
+    def _prepare_directories(self):
+        self.temp_dir = self.config.get('Directory-Section', 'temp')
+        if self.vendor:
+            vendors_incorrect_modules_dir = self.config.get('Directory-Section', 'vendors-changed-modules')
+            vendor_dir = self.directory.replace(self.config.get('Directory-Section', 'yang-models-dir'), '')
+            if vendor_dir.startswith('/'):
+                vendor_dir = vendor_dir[1:]
+            self.vendors_incorrect_modules_dir = os.path.join(vendors_incorrect_modules_dir, self.vendor, vendor_dir)
+            self.normalized_modules_dir = self.config.get('Directory-Section', 'normalized-modules')
+            os.makedirs(self.vendors_incorrect_modules_dir, exist_ok=True)
+            for file in os.listdir(self.vendors_incorrect_modules_dir):
+                os.remove(os.path.join(self.vendors_incorrect_modules_dir, file))
+            os.makedirs(self.normalized_modules_dir, exist_ok=True)
 
     def _parse_platform_metadata(self):
         # Vendor modules send from API
@@ -509,6 +535,14 @@ class VendorGrouping(ModuleGrouping):
                 continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
+                revision = module.search_one('revision')
+                if revision:
+                    revision = revision.arg
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_revision=revision,
+                )
                 self.skipped += 1
                 continue
             vendor_info = VendorInfo(
@@ -536,6 +570,53 @@ class VendorGrouping(ModuleGrouping):
             set_of_names.add(yang.name)
             self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True)
             self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False)
+
+    def _check_vendor_module_differences_from_original_module(
+        self,
+        original_module_name: str,
+        original_module_path: str,
+        original_module_revision: t.Optional[str],
+        original_module_organization: t.Optional[str] = None,
+    ):
+        if not self.vendor:
+            return
+        vendor_module_path = glob.glob(os.path.join(self.directory, f'{original_module_name}.yang'))
+        if not vendor_module_path:
+            return
+        vendor_module_path = vendor_module_path[0]
+        if original_module_revision and original_module_revision != resolve_revision(vendor_module_path):
+            return
+        if not original_module_organization:
+            parsed_yang = yangParser.parse(vendor_module_path)
+            original_module_organization = resolve_organization(
+                parsed_yang,
+                self.config.get('Directory-Section', 'save-file-dir'),
+            )
+        if self.vendor != original_module_organization:
+            self._notify_vendor_about_incorrect_module_changes(original_module_path, vendor_module_path)
+
+    def _notify_vendor_about_incorrect_module_changes(self, module_original_path: str, vendor_module_path: str):
+        self.logger.info(f'Notifying vendor "{self.vendor}" about incorrect module changes in {vendor_module_path}')
+        output_path = os.path.join(self.vendors_incorrect_modules_dir, os.path.basename(vendor_module_path))
+        normalized_module_path = os.path.join(self.normalized_modules_dir, os.path.basename(module_original_path))
+        # by calling this method, we make sure that the latest normalized file hash is written to the hasher,
+        # and the normalized file is saved to the normalized modules dir
+        self.file_hasher.should_parse_sdo_module(module_original_path, module_original_path)
+        normalized_vendor_module_path = os.path.join(self.temp_dir, uuid.uuid4().hex)
+        self.file_hasher.get_normalized_file_hash(vendor_module_path, normalized_vendor_module_path)
+        with open(normalized_module_path, 'r') as f1, open(normalized_vendor_module_path, 'r') as f2:
+            diff = tuple(
+                difflib.unified_diff(
+                    f1.readlines(),
+                    f2.readlines(),
+                    fromfile=normalized_module_path,
+                    tofile=normalized_vendor_module_path,
+                ),
+            )
+        if diff:
+            with open(output_path, 'w') as output:
+                output.writelines(f'{line}\n' for line in diff)
+        os.remove(normalized_vendor_module_path)
 
 
 class VendorCapabilities(VendorGrouping):
@@ -583,6 +664,11 @@ class VendorCapabilities(VendorGrouping):
                 continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_revision=revision,
+                )
                 self.skipped += 1
                 continue
             self.logger.info(f'Parsing module {name}')
@@ -605,6 +691,15 @@ class VendorCapabilities(VendorGrouping):
                 )
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
+                continue
+            if self.vendor and self.vendor != yang.organization:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_organization=yang.organization,
+                    original_module_revision=revision,
+                )
+                self.skipped += 1
                 continue
             self.dumper.add_module(yang)
             self.parsed += 1
@@ -659,6 +754,11 @@ class VendorYangLibrary(VendorGrouping):
                 continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_revision=revision,
+                )
                 self.skipped += 1
                 continue
             vendor_info = VendorInfo(
@@ -680,6 +780,15 @@ class VendorYangLibrary(VendorGrouping):
                 )
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
+                continue
+            if self.vendor and self.vendor != yang.organization:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_organization=yang.organization,
+                    original_module_revision=revision,
+                )
+                self.skipped += 1
                 continue
             self.dumper.add_module(yang)
             self.parsed += 1

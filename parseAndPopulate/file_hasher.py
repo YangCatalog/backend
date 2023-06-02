@@ -84,7 +84,7 @@ class FileHasher:
         self.file_name = file_name
         self.cache_dir = cache_dir
         self.disabled = not is_active
-        self.temp_dir = config.get('Directory-Section', 'temp')
+        self.normalized_modules_dir = config.get('Directory-Section', 'normalized-modules')
         self.logger = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
         self.lock = threading.Lock()
         self.validators_versions_bytes = self.get_versions()
@@ -229,18 +229,17 @@ class FileHasher:
             accepted_path_normalized_hash = self.get_normalized_file_hash(accepted_path)
         return accepted_path_normalized_hash
 
-    def get_normalized_file_hash(self, path: str) -> str:
-        tmp_file_path = os.path.join(self.temp_dir, os.path.basename(path))
+    def get_normalized_file_hash(self, path: str, normalized_file_path: t.Optional[str] = None) -> str:
+        normalized_file_path = normalized_file_path or os.path.join(self.normalized_modules_dir, os.path.basename(path))
         with os.popen(
             (
                 f'pyang -f yang -p {os.path.dirname(path)} --yang-canonical --yang-remove-comments '
                 f'{path}'  # TODO: --yang-join-substrings option should be added when available in pyang
             ),
-        ) as normalized_file, open(tmp_file_path, 'w') as tmp_file:
-            tmp_file.write(normalized_file.read())
-        del normalized_file
-        normalized_file_hash = self.hash_file(tmp_file_path)
-        os.remove(tmp_file_path)
+        ) as normalized_module, open(normalized_file_path, 'w') as normalized_file:
+            normalized_file.write(normalized_module.read())
+        del normalized_module
+        normalized_file_hash = self.hash_file(normalized_file_path)
         return normalized_file_hash
 
     def check_vendor_module_hash_for_parsing(

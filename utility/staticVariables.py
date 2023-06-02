@@ -100,6 +100,7 @@ ORGANIZATIONS = [
     'nokia',
     'acklio',
 ]
+VENDORS = [org for org in ORGANIZATIONS if org not in SDOS]
 SCHEMA_TYPES = [
     'typedef',
     'grouping',
