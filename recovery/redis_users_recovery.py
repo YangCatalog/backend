@@ -30,6 +30,7 @@ from configparser import ConfigParser
 from redis import Redis
 
 import utility.log as log
+from redisConnections.redis_enum import RedisEnum
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
@@ -60,7 +61,7 @@ class RedisUsersRecovery:
         self.redis_host = config.get('DB-Section', 'redis-host')
         self.redis_port = int(config.get('DB-Section', 'redis-port'))
         self.backups = os.path.join(self.cache_directory, 'redis-users')
-        self.redis = Redis(host=self.redis_host, port=self.redis_port, db=2)
+        self.redis = Redis(host=self.redis_host, port=self.redis_port, db=RedisEnum.USERS)
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
     @job_log(file_basename=BASENAME)

@@ -26,6 +26,7 @@ from urllib.parse import quote, unquote
 from redis import Redis
 
 import utility.log as log
+from redisConnections.redis_enum import RedisEnum
 from utility.create_config import create_config
 
 DEFAULT_VALUES = {'compilation-status': 'unknown', 'compilation-result': ''}
@@ -42,12 +43,12 @@ class RedisConnection:
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = int(config.get('DB-Section', 'redis-port'))
         if modules_db is None:
-            modules_db = config.get('DB-Section', 'redis-modules-db', fallback=1)
+            modules_db = config.get('DB-Section', 'redis-modules-db', fallback=RedisEnum.MODULES)
         if vendors_db is None:
-            vendors_db = config.get('DB-Section', 'redis-vendors-db', fallback=4)
+            vendors_db = config.get('DB-Section', 'redis-vendors-db', fallback=RedisEnum.VENDORS)
         self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db)  # pyright: ignore
         self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db)  # pyright: ignore
-        self.temp_modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=5)
+        self.temp_modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=RedisEnum.TEMP_MODULES)
 
         self.LOGGER = log.get_logger('redisModules', os.path.join(self.log_directory, 'redisModulesConnection.log'))
 

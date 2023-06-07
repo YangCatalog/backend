@@ -51,6 +51,8 @@ class RedisUsersConnection:
     def __init__(self, db: t.Optional[t.Union[int, str]] = None, config: ConfigParser = create_config()):
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = int(config.get('DB-Section', 'redis-port'))
+
+        # TODO: start using new created enum
         db = db if db is not None else config.get('DB-Section', 'redis-users-db', fallback=2)
         self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)  # pyright: ignore
 
