@@ -61,7 +61,7 @@ class RedisUsersRecovery:
         self.redis_host = config.get('DB-Section', 'redis-host')
         self.redis_port = int(config.get('DB-Section', 'redis-port'))
         self.backups = os.path.join(self.cache_directory, 'redis-users')
-        self.redis = Redis(host=self.redis_host, port=self.redis_port, db=RedisEnum.USERS)
+        self.redis = Redis(host=self.redis_host, port=self.redis_port, db=RedisEnum.USERS.value)
         self.logger = log.get_logger('recovery', os.path.join(self.log_directory, 'yang.log'))
 
     @job_log(file_basename=BASENAME)

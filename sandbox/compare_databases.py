@@ -18,6 +18,7 @@ from redis import Redis
 import utility.log as log
 from elasticsearchIndexing.es_manager import ESManager
 from elasticsearchIndexing.models.es_indices import ESIndices
+from redisConnections.redis_enum import RedisEnum
 from utility.create_config import create_config
 
 
@@ -49,7 +50,7 @@ def main():
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
     # Create Redis and Elasticsearch connections
-    redis = Redis(host=redis_host, port=redis_port, db=1)
+    redis = Redis(host=redis_host, port=redis_port, db=RedisEnum.MODULES.value)
     es_manager = ESManager()
 
     # Set up variables and counters

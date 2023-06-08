@@ -30,6 +30,7 @@ from redis import Redis
 import jobs.celery
 from jobs.celery import process, process_module_deletion, process_vendor_deletion
 from jobs.status_messages import StatusMessage
+from redisConnections.redis_enum import RedisEnum
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
 from utility.elasticsearch_util import ESIndexingPaths
@@ -151,9 +152,12 @@ class TestCeleryTasksBaseClass(unittest.TestCase):
         _redis_host = config.get('DB-Section', 'redis-host')
         _redis_port = int(config.get('DB-Section', 'redis-port'))
 
-        cls.redis_connection = celery_app_mock.redis_connection = RedisConnection(modules_db=6, vendors_db=9)
-        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=6)
-        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=9)
+        cls.redis_connection = celery_app_mock.redis_connection = RedisConnection(
+            modules_db=RedisEnum.TEST_MODULES.value,
+            vendors_db=RedisEnum.TEST_VENDORS.value,
+        )
+        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.TEST_MODULES.value)
+        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.TEST_VENDORS.value)
         cls.huawei_dir = f'{yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
         cls.directory = f'{temp_dir}/celery_tasks_test'
         resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
