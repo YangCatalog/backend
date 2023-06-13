@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Create an Elasticsearch index"""
+"""Create an OpenSearch index"""
 
 __author__ = 'Richard Zilincik'
 __copyright__ = 'Copyright The IETF Trust 2022, All Rights Reserved'
@@ -25,7 +25,7 @@ import glob
 import json
 import os
 
-from elasticsearchIndexing.es_manager import ESManager
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 
 
 def main():
@@ -34,37 +34,37 @@ def main():
         '--index',
         type=str,
         help='Name of the new index. If not specified, indices are created '
-        'from all the initialization files found in elasticsearchIndexing/json.',
+        'from all the initialization files found in opensearch_indexing/json.',
     )
     parser.add_argument(
         '--schema',
         type=str,
         help='Path to a json schema file. Only valid if an index name was provided. '
-        'Defaults to elasticsearchIndexing/json/initialize_<index>_index.json.',
+        'Defaults to opensearch_indexing/json/initialize_<index>_index.json.',
     )
     args = parser.parse_args()
-    es = ESManager().es
-    schema_dir = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing/json')
+    opensearch = OpenSearchManager().opensearch
+    schema_dir = os.path.join(os.environ['BACKEND'], 'opensearch_indexing/json')
     if args.index is None:
         for index_schema_base in glob.glob('initialize_*_index.json', root_dir=schema_dir):
             index_name = index_schema_base.removeprefix('initialize_').removesuffix('_index.json')
-            if es.indices.exists(index_name):
+            if opensearch.indices.exists(index_name):
                 print(f'{index_name} index already exists')
                 continue
             index_schema = os.path.join(schema_dir, index_schema_base)
             with open(index_schema) as f:
                 schema_contents = json.load(f)
-            create_result = es.indices.create(index=index_name, body=schema_contents)
+            create_result = opensearch.indices.create(index=index_name, body=schema_contents)
             print(create_result)
     else:
         index_name = args.index
-        if es.indices.exists(index_name):
+        if opensearch.indices.exists(index_name):
             print(f'{index_name} index already exists')
             return
         index_schema = args.schema or os.path.join(schema_dir, f'initialize_{index_name}_index.json')
         with open(index_schema) as f:
             schema_contents = json.load(f)
-        create_result = es.indices.create(index=index_name, body=schema_contents, ignore=400)
+        create_result = opensearch.indices.create(index=index_name, body=schema_contents, ignore=400)
         print(create_result)
 
 

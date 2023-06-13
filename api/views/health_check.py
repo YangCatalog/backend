@@ -57,7 +57,7 @@ def set_config():
 def get_services_list():
     response_body = []
     service_endpoints = [
-        'elk',
+        'opensearch',
         'confd-admin',
         'redis-admin',
         'yang-search-admin',
@@ -68,7 +68,7 @@ def get_services_list():
         'celery',
     ]
     service_names = [
-        'Elasticsearch',
+        'OpenSearch',
         'ConfD',
         'Redis',
         'YANG search',
@@ -84,24 +84,24 @@ def get_services_list():
     return make_response(jsonify(response_body), 200)
 
 
-@bp.route('/elk', methods=['GET'])
-def health_check_elk():
-    service_name = 'Elasticsearch'
+@bp.route('/opensearch', methods=['GET'])
+def health_check_opensearch():
+    service_name = 'OpenSearch'
     try:
-        # try to ping Elasticsearch
-        if app_config.es_manager.ping():
-            bp.logger.info('Successfully connected to Elasticsearch')
+        # try to ping OpenSearch
+        if app_config.opensearch_manager.ping():
+            bp.logger.info('Successfully connected to OpenSearch')
             # get health of cluster
-            health = app_config.es_manager.cluster_health()
+            health = app_config.opensearch_manager.cluster_health()
             health_status = health.get('status')
             bp.logger.info('Health status of cluster: {}'.format(health_status))
             # get list of indices
-            indices = app_config.es_manager.get_indices()
+            indices = app_config.opensearch_manager.get_indices()
             if len(indices) > 0:
                 return make_response(
                     jsonify(
                         {
-                            'info': 'Elasticsearch is running',
+                            'info': 'OpenSearch is running',
                             'status': 'running',
                             'message': 'Cluster status: {}'.format(health_status),
                         },
@@ -112,7 +112,7 @@ def health_check_elk():
                 return make_response(
                     jsonify(
                         {
-                            'info': 'Elasticsearch is running',
+                            'info': 'OpenSearch is running',
                             'status': 'problem',
                             'message': 'Cluster status: {} Number of indices: {}'.format(health_status, len(indices)),
                         },
@@ -120,19 +120,19 @@ def health_check_elk():
                     200,
                 )
         else:
-            bp.logger.info('Cannot connect to Elasticsearch database')
+            bp.logger.info('Cannot connect to OpenSearch database')
             return make_response(
                 jsonify(
                     {
-                        'info': 'Not OK - Elasticsearch is not running',
+                        'info': 'Not OK - OpenSearch is not running',
                         'status': 'down',
-                        'error': 'Cannot ping Elasticsearch',
+                        'error': 'Cannot ping OpenSearch',
                     },
                 ),
                 200,
             )
     except Exception as err:
-        bp.logger.error('Cannot connect to Elasticsearch database. Error: {}'.format(err))
+        bp.logger.error('Cannot connect to OpenSearch database. Error: {}'.format(err))
         return make_response(jsonify(error_response(service_name, err)), 200)
 
 

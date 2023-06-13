@@ -44,7 +44,9 @@ class YangCatalogApiGlobalConfig:
         self.credentials = (
             config.get('Secrets-Section', 'confd-credentials', fallback='admin admin').strip('"').split(' ')
         )
-        self.elk_credentials = config.get('Secrets-Section', 'elk-secret', fallback='').strip('"').split(' ')
+        self.opensearch_credentials = (
+            config.get('Secrets-Section', 'opensearch-secret', fallback='').strip('"').split(' ')
+        )
         self.cache_dir = config.get('Directory-Section', 'cache', fallback='tests/resources/cache')
         self.save_requests = config.get('Directory-Section', 'save-requests', fallback='/var/yang/test-requests')
         self.save_file_dir = config.get('Directory-Section', 'save-file-dir', fallback='/var/yang/all_modules')
@@ -69,9 +71,9 @@ class YangCatalogApiGlobalConfig:
             'yang-models-dir',
             fallback='tests/resources/yangmodels/yang',
         )
-        self.es_host = config.get('DB-Section', 'es-host', fallback='localhost')
-        self.es_port = config.get('DB-Section', 'es-port', fallback='9200')
-        self.es_aws = config.get('DB-Section', 'es-aws', fallback=False)
+        self.opensearch_host = config.get('DB-Section', 'opensearch-host', fallback='localhost')
+        self.opensearch_port = config.get('DB-Section', 'opensearch-port', fallback='9200')
+        self.opensearch_aws = config.get('DB-Section', 'opensearch-aws', fallback=False)
         self.redis_host = config.get('DB-Section', 'redis-host', fallback='localhost')
         self.redis_port = config.get('DB-Section', 'redis-port', fallback='6379')
         self.json_ytree = config.get('Directory-Section', 'json-ytree', fallback='/var/yang/ytrees')
@@ -81,7 +83,7 @@ class YangCatalogApiGlobalConfig:
             fallback='http://localhost/api',
         )
         self.domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='http://localhost')
-        self.es_aws = self.es_aws == 'True'
+        self.opensearch_aws = self.opensearch_aws == 'True'
 
         self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
 

@@ -103,7 +103,7 @@
         "type": "boolean"
       },
       "path": {
-        "type": "wildcard"
+        "type": "keyword"
       },
       "maturity": {
         "type": "keyword"

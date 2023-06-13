@@ -42,7 +42,7 @@
 
 ### [health_check.py](https://github.com/YangCatalog/backend/blob/master/api/views/health_check.py)
 * `/api/admin/healthcheck/services-list - ['GET']`
-* `/api/admin/healthcheck/elk - ['GET']`
+* `/api/admin/healthcheck/opensearch - ['GET']`
 * `/api/admin/healthcheck/confd - ['GET']`
 * `/api/admin/healthcheck/redis - ['GET']`
 * `/api/admin/healthcheck/nginx - ['GET']`

@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """
-Script for adding new drafts to the DRAFTS index in Elasticsearch, so they can be searched in our system.
+Script for adding new drafts to the DRAFTS index in OpenSearch, so they can be searched in our system.
 """
 
 __author__ = 'Dmytro Kyrychenko'
@@ -24,8 +24,8 @@ __email__ = 'dmytro.kyrychenko@pantheon.tech'
 import logging
 import os
 
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility import log
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -57,14 +57,14 @@ def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[Job
 
     drafts = [filename[:-4] for filename in os.listdir(ietf_drafts_dir) if filename[-4:] == '.txt']
 
-    logger.info('Trying to initialize Elasticsearch indices')
-    es_manager = ESManager()
-    if not es_manager.index_exists(ESIndices.DRAFTS):
+    logger.info('Trying to initialize OpenSearch indices')
+    opensearch_manager = OpenSearchManager()
+    if not opensearch_manager.index_exists(OpenSearchIndices.DRAFTS):
         error_message = 'Drafts index has not been created yet.'
         logger.error(error_message)
         raise RuntimeError(error_message)
 
-    logging.getLogger('elasticsearch').setLevel(logging.ERROR)
+    logging.getLogger('opensearch').setLevel(logging.ERROR)
 
     done = 0
     for i, draft_name in enumerate(drafts, 1):
@@ -73,8 +73,8 @@ def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[Job
         logger.info(f'Indexing draft {draft_name} - draft {i} out of {len(drafts)}')
 
         try:
-            if not es_manager.document_exists(ESIndices.DRAFTS, draft):
-                es_manager.index_module(ESIndices.DRAFTS, draft)
+            if not opensearch_manager.document_exists(OpenSearchIndices.DRAFTS, draft):
+                opensearch_manager.index_module(OpenSearchIndices.DRAFTS, draft)
                 logger.info(f'added {draft_name} to index')
                 done += 1
             else:
@@ -82,7 +82,7 @@ def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[Job
         except Exception:
             logger.exception(f'Problem while processing draft {draft_name}')
     logger.info('Job finished successfully')
-    return [JobLogMessage(label='Successful', message=f'Added {done} drafts to ElasticSearch')]
+    return [JobLogMessage(label='Successful', message=f'Added {done} drafts to Opensearch')]
 
 
 if __name__ == '__main__':

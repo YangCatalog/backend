@@ -14,7 +14,7 @@
 # limitations under the License.
 
 """
-Create or restore backups of our Elasticsearch database.
+Create or restore backups of our OpenSearch database.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -26,7 +26,7 @@ import datetime
 import os
 import sys
 
-from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
+from opensearch_indexing.opensearch_snapshots_manager import OpenSearchSnapshotsManager
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import BACKUP_DATE_FORMAT
@@ -37,29 +37,29 @@ DEFAULT_SCRIPT_CONFIG = ScriptConfig(
     help=script_config_dict[FILENAME]['help'],
     args=script_config_dict[FILENAME].get('args'),
     arglist=None if __name__ == '__main__' else [],
-    mutually_exclusive_args=script_config_dict[FILENAME]['mutually_exclusive_args'],
+    mutually_exclusive_args=script_config_dict[FILENAME].get('mutually_exclusive_args'),
 )
 
 
 def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
     args = script_conf.args
 
-    es_snapshots_manager = ESSnapshotsManager()
-    es_snapshots_manager.create_snapshot_repository(args.compress)
+    opensearch_snapshots_manager = OpenSearchSnapshotsManager()
+    opensearch_snapshots_manager.create_snapshot_repository(args.compress)
 
     if args.save:
         args.file = args.file or datetime.datetime.utcnow().strftime(BACKUP_DATE_FORMAT)
-        es_snapshots_manager.create_snapshot(args.file)
+        opensearch_snapshots_manager.create_snapshot(args.file)
     elif args.load:
         if args.file:
             snapshot_name = args.file
         else:
-            sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
+            sorted_snapshots = opensearch_snapshots_manager.get_sorted_snapshots()
             if not sorted_snapshots:
                 print('There are no snapshots to restore')
                 sys.exit(1)
             snapshot_name = sorted_snapshots[-1]['snapshot']
-        restore_result = es_snapshots_manager.restore_snapshot(snapshot_name)
+        restore_result = opensearch_snapshots_manager.restore_snapshot(snapshot_name)
         print(f'Restore result:\n{restore_result}')
 
 

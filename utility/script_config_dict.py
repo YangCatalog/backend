@@ -42,7 +42,7 @@ result_dir = config.get('Web-Section', 'result-html-dir')
 
 script_config_dict: dict[str, ScriptConfigInfo] = {
     'process_changed_mods': {
-        'help': 'Process added/changed/deleted modules, and reflect changes in Elasticsearch.',
+        'help': 'Process added/changed/deleted modules, and reflect changes in OpenSearch.',
         'args': [
             {
                 'flag': '--config-path',
@@ -53,7 +53,7 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
         ],
     },
     'process-drafts': {
-        'help': 'Add new drafts to the DRAFTS Elasticsearch index.',
+        'help': 'Add new drafts to the DRAFTS OpenSearch index.',
         'args': [
             {
                 'flag': '--config-path',
@@ -277,12 +277,12 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             ' to confd directory'
         ),
     },
-    'elk_fill': {
+    'opensearch_fill': {
         'help': (
             'This script creates a dictionary of all the modules currently stored in the Redis database. '
             'The key is in <name>@<revision>/<organization> format and the value is the path to the .yang file. '
             'The entire dictionary is then stored in a JSON file - '
-            'the content of this JSON file can then be used as an input for indexing modules into Elasticsearch.'
+            'the content of this JSON file can then be used as an input for indexing modules into OpenSearch.'
         ),
         'args': [
             {
@@ -293,8 +293,8 @@ script_config_dict: dict[str, ScriptConfigInfo] = {
             },
         ],
     },
-    'elk_recovery': {
-        'help': ' Create or restore backups of our Elasticsearch database. ',
+    'opensearch_recovery': {
+        'help': ' Create or restore backups of our OpenSearch database. ',
         'mutually_exclusive_args': [
             [
                 {

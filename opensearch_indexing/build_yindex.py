@@ -22,15 +22,15 @@ import json
 import logging
 import os.path
 
-from elasticsearch import ConnectionError, ConnectionTimeout, RequestError
+from opensearchpy import ConnectionError, ConnectionTimeout, RequestError
 from pyang import plugin
 from pyang.util import get_latest_revision
 
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
-from elasticsearchIndexing.models.index_build import BuildYINDEXModule
-from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree
-from elasticsearchIndexing.pyang_plugin.yang_catalog_index_es import IndexerPlugin
+from opensearch_indexing.models.index_build import BuildYINDEXModule
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
+from opensearch_indexing.pyang_plugin.json_tree import emit_tree
+from opensearch_indexing.pyang_plugin.yang_catalog_index_opensearch import IndexerPlugin
 from utility import yangParser
 from utility.util import validate_revision
 
@@ -38,7 +38,7 @@ ES_CHUNK_SIZE = 100
 
 
 def build_indices(
-    es_manager: ESManager,
+    opensearch_manager: OpenSearchManager,
     module: BuildYINDEXModule,
     save_file_dir: str,
     json_ytree: str,
@@ -83,7 +83,7 @@ def build_indices(
         try:
             # Remove exisiting modules from all indices
             logger.debug('deleting data from index: modules')
-            es_manager.delete_from_indices(module)
+            opensearch_manager.delete_from_indices(module)
 
             # Remove existing submodules from index: yindex
             for subm in submodules:
@@ -93,7 +93,7 @@ def build_indices(
                 submodule = {'name': subm_n, 'revision': subm_r}
                 try:
                     logger.debug('deleting data from index: yindex')
-                    es_manager.delete_from_index(ESIndices.YINDEX, submodule)
+                    opensearch_manager.delete_from_index(OpenSearchIndices.YINDEX, submodule)
                 except RequestError:
                     logger.exception(f'Problem while deleting {subm_n}@{subm_r}')
 
@@ -102,12 +102,12 @@ def build_indices(
                 chunks = [yindexes[key][i : i + ES_CHUNK_SIZE] for i in range(0, len(yindexes[key]), ES_CHUNK_SIZE)]
                 for idx, chunk in enumerate(chunks, start=1):
                     logger.debug(f'Pushing data to index: yindex {idx} out of {len(chunks)}')
-                    es_manager.bulk_modules(ESIndices.YINDEX, chunk)
+                    opensearch_manager.bulk_modules(OpenSearchIndices.YINDEX, chunk)
 
             # Index new modules to index: autocomplete
             logger.debug('pushing data to index: autocomplete')
             del module['path']
-            es_manager.index_module(ESIndices.AUTOCOMPLETE, module)
+            opensearch_manager.index_module(OpenSearchIndices.AUTOCOMPLETE, module)
             break
         except (ConnectionTimeout, ConnectionError) as e:
             attempts -= 1

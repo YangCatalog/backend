@@ -12,7 +12,7 @@ ENV LANG=C.UTF-8 LC_ALL=C.UTF-8 PYTHONUNBUFFERED=1
 
 ENV VIRTUAL_ENV=/backend
 ENV BACKEND=/backend
-ENV PYANG_PLUGINPATH="$BACKEND/elasticsearchIndexing/pyang_plugin"
+ENV PYANG_PLUGINPATH="$BACKEND/opensearch_indexing/pyang_plugin"
 
 #Install Cron
 RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim pcregrep

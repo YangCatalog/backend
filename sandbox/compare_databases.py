@@ -1,9 +1,9 @@
 """
 PHASE I:
 This script loops through each key in the Redis database (= each stored module)
-and checks whether the necessary information about this module is also in the Elasticsearch database.
-If module is missing in Elasticsearch database, check if it is stored in all_modules folder,
-and dump it in format which can be directly used to insert to Elasticsearch.
+and checks whether the necessary information about this module is also in the OpenSearch database.
+If module is missing in OpenSearch database, check if it is stored in all_modules folder,
+and dump it in format which can be directly used to insert to OpenSearch.
 PHASE II:
 Search and scroll all the documents in the 'modules' index and check whether this modules
 is also stored in Redis database
@@ -12,12 +12,12 @@ Finally, all the information are dumped into json file, so they can be reviewed 
 import json
 import os
 
-from elasticsearch.exceptions import RequestError
+from opensearchpy.exceptions import RequestError
 from redis import Redis
 
 import utility.log as log
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility.create_config import create_config
 
 
@@ -48,19 +48,19 @@ def main():
     global LOGGER
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
-    # Create Redis and Elasticsearch connections
+    # Create Redis and OpenSearch connections
     redis = Redis(host=redis_host, port=redis_port, db=1)
-    es_manager = ESManager()
+    opensearch_manager = OpenSearchManager()
 
     # Set up variables and counters
-    es_missing_modules = []
+    opensearch_missing_modules = []
     redis_missing_modules = []
     incorrect_format_modules = []
     modules_to_index_dict = {}
     modules_to_index_list = []
     redis_modules = 0
 
-    # PHASE I: Check modules from Redis in Elasticsearch
+    # PHASE I: Check modules from Redis in OpenSearch
     LOGGER.info('Starting PHASE I')
     for redis_key in redis.scan_iter():
         try:
@@ -72,11 +72,11 @@ def main():
         except ValueError:
             continue
         try:
-            in_es = es_manager.document_exists(ESIndices.AUTOCOMPLETE, module)
+            in_es = opensearch_manager.document_exists(OpenSearchIndices.AUTOCOMPLETE, module)
             if in_es:
                 continue
 
-            es_missing_modules.append(key)
+            opensearch_missing_modules.append(key)
             module_raw = redis.get(redis_key)
             module = json.loads(module_raw or '{}')
             # Check if this file is in /var/yang/all_modules folder
@@ -95,25 +95,25 @@ def main():
         except Exception:
             continue
 
-    # PHASE II: Check modules from Elasticsearch in Redis
+    # PHASE II: Check modules from OpenSearch in Redis
     LOGGER.info('Starting PHASE II')
-    all_es_modules = es_manager.match_all(ESIndices.AUTOCOMPLETE)
-    result = check_module_in_redis(all_es_modules, redis)
+    all_opensearch_modules = opensearch_manager.match_all(OpenSearchIndices.AUTOCOMPLETE)
+    result = check_module_in_redis(all_opensearch_modules, redis)
     redis_missing_modules.extend(result)
 
     # Log results
     LOGGER.info('REDIS')
     LOGGER.info('Number of modules in Redis: {}'.format(redis_modules))
     LOGGER.info('Number of modules with incorrect format {}'.format(len(incorrect_format_modules)))
-    LOGGER.info('Number of Redis modules missing in ES: {}'.format(len(es_missing_modules)))
+    LOGGER.info('Number of Redis modules missing in OpenSearch: {}'.format(len(opensearch_missing_modules)))
     LOGGER.info('Number of missing modules which can be immediately indexed: {}'.format(len(modules_to_index_dict)))
 
-    LOGGER.info('ELASTICSEARCH')
-    LOGGER.info('Number of modules in Elasticsearch: {}'.format(len(all_es_modules)))
-    LOGGER.info('Number of ES modules missing in Redis: {}'.format(len(redis_missing_modules)))
+    LOGGER.info('OPENSEARCH')
+    LOGGER.info('Number of modules in OpenSearch: {}'.format(len(all_opensearch_modules)))
+    LOGGER.info('Number of OpenSearch modules missing in Redis: {}'.format(len(redis_missing_modules)))
 
     result = {
-        'es_missing_modules_list': es_missing_modules,
+        'opensearch_missing_modules_list': opensearch_missing_modules,
         'redis_missing_modules_list': redis_missing_modules,
         'incorrect_format_modules_list': incorrect_format_modules,
         'modules_to_index': modules_to_index_dict,

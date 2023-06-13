@@ -21,8 +21,8 @@ The main scripts are:
    Firstly, it creates a temporary json directory, which will be used to store the needed files
    (like `prepare.json`, `normal.json`, `temp_hashes.json`). Secondly, it runs the [parse_directory](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/parse_directory.py)
    script which dumps new/updated modules and vendors data into the json dir mentioned above in the `prepare.json` and `normal.json` files respectively.
-   After populating ConfD and Redis, it will prepare and send modules data for Elasticsearch indexing (writes data to the
-   `changes-cache` and `delete-cache` files which are later used in the [process_changed_mods.py](https://github.com/YangCatalog/backend/blob/master/elasticsearchindexing/process_changed_mods.py)
+   After populating ConfD and Redis, it will prepare and send modules data for OpenSearch indexing (writes data to the
+   `changes-cache` and `delete-cache` files which are later used in the [process_changed_mods.py](https://github.com/YangCatalog/backend/blob/master/opensearch_indexing/process_changed_mods.py)
    script). Then the API will be restarted, so it can load all the new metadata into its cache. After that,
    this script will start to run more complicated algorithms on those parsed yang files. This will extract dependents,
    semantic versioning and tree types. When this is parsed it will once again populate ConfD and Redis, and restart API,

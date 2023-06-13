@@ -569,8 +569,8 @@ def get_script_names():
         'pull_local',
         'statistics',
         'recovery',
-        'elk_recovery',
-        'elk_fill',
+        'opensearch_recovery',
+        'opensearch_fill',
         'redis_users_recovery',
         'resolve_expiration',
         'reviseSemver',
@@ -592,7 +592,7 @@ def get_module_name(script_name):
         return 'ietfYangDraftPull'
     elif script_name in ('ietf_push', 'iana_push'):
         return 'automatic_push'
-    elif script_name in ('recovery', 'elk_recovery', 'elk_fill', 'redis_users_recovery'):
+    elif script_name in ('recovery', 'opensearch_recovery', 'opensearch_fill', 'redis_users_recovery'):
         return 'recovery'
     elif script_name == 'statistics':
         return 'statistic'

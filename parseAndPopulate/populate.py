@@ -46,8 +46,8 @@ from parseAndPopulate.modulesComplicatedAlgorithms import ModulesComplicatedAlgo
 from redisConnections.redisConnection import RedisConnection
 from utility.confdService import ConfdService
 from utility.create_config import create_config
-from utility.elasticsearch_util import ESIndexingPaths, prepare_for_es_indexing, send_for_es_indexing
 from utility.message_factory import MessageFactory
+from utility.opensearch_util import ESIndexingPaths, prepare_for_es_indexing, send_for_es_indexing
 from utility.script_config_dict import script_config_dict
 from utility.scriptConfig import ScriptConfig
 from utility.staticVariables import json_headers

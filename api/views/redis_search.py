@@ -506,7 +506,7 @@ def filter_using_api(res_row, payload):
                         reject = True
                         break
                 else:
-                    # Module key has different value then serached for then reject
+                    # Module key has different value then searched for then reject
                     values = value.split(',')
                     reject = True
                     for val in values:

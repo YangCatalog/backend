@@ -40,7 +40,7 @@ import requests
 from pyang import plugin
 from pyang.plugins.tree import emit_tree
 
-from elasticsearchIndexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
+from opensearch_indexing.pyang_plugin.json_tree import emit_tree as emit_json_tree
 from redisConnections.redisConnection import RedisConnection
 from utility import log, message_factory
 from utility.confdService import ConfdService
