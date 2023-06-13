@@ -1,8 +1,8 @@
 {
   "SECRETS": 0,
-  "MODULES": 1,
-  "USERS": 2,
-  "VENDORS": 4,
+  "MODULES": 11,
+  "USERS": 12,
+  "VENDORS": 14,
   "TEMP_MODULES": 5,
   "TEST_MODULES": 6,
   "USERS_NOTIFICATIONS": 7,

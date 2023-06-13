@@ -42,10 +42,8 @@ class RedisConnection:
         self.log_directory = config.get('Directory-Section', 'logs')
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = int(config.get('DB-Section', 'redis-port'))
-        if modules_db is None:
-            modules_db = config.get('DB-Section', 'redis-modules-db', fallback=RedisEnum.MODULES.value)
-        if vendors_db is None:
-            vendors_db = config.get('DB-Section', 'redis-vendors-db', fallback=RedisEnum.VENDORS.value)
+        modules_db = RedisEnum.MODULES.value if modules_db is None else modules_db
+        vendors_db = RedisEnum.VENDORS.value if vendors_db is None else vendors_db
         self.modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=modules_db)  # pyright: ignore
         self.vendorsDB = Redis(host=self._redis_host, port=self._redis_port, db=vendors_db)  # pyright: ignore
         self.temp_modulesDB = Redis(host=self._redis_host, port=self._redis_port, db=RedisEnum.TEMP_MODULES.value)

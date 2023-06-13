@@ -53,8 +53,7 @@ class RedisUsersConnection:
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = int(config.get('DB-Section', 'redis-port'))
 
-        # TODO: start using new created enum
-        db = db if db is not None else config.get('DB-Section', 'redis-users-db', fallback=RedisEnum.USERS.value)
+        db = db if db is not None else RedisEnum.USERS.value
         self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)  # pyright: ignore
 
         self.log_directory = config.get('Directory-Section', 'logs')

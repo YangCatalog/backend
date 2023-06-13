@@ -17,11 +17,7 @@ class RedisUserNotificationsConnection:
     def __init__(self, db: t.Optional[t.Union[int, str]] = None, config: ConfigParser = create_config()):
         self._redis_host = config.get('DB-Section', 'redis-host')
         self._redis_port = int(config.get('DB-Section', 'redis-port'))
-        db = (
-            db
-            if db is not None
-            else config.get('DB-Section', 'redis-user-notifications-db', fallback=RedisEnum.USERS_NOTIFICATIONS.value)
-        )
+        db = db if db is not None else RedisEnum.USERS_NOTIFICATIONS.value
         self.redis = Redis(host=self._redis_host, port=self._redis_port, db=db)
 
         self.log_directory = config.get('Directory-Section', 'logs')
