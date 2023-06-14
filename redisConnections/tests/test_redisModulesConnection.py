@@ -39,11 +39,11 @@ class TestRedisModulesConnectionClass(unittest.TestCase):
         _redis_port = config.get('DB-Section', 'redis-port')
         resources_path = os.path.join(os.environ['BACKEND'], 'redisConnections/tests/resources')
         cls.redisConnection = RedisConnection(
-            modules_db=RedisEnum.TEST_MODULES.value,
-            vendors_db=RedisEnum.TEST_VENDORS.value,
+            modules_db=RedisEnum.MODULES.value,
+            vendors_db=RedisEnum.VENDORS.value,
         )
-        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.TEST_MODULES.value)  # pyright: ignore
-        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.TEST_VENDORS.value)  # pyright: ignore
+        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.MODULES.value)  # pyright: ignore
+        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.VENDORS.value)  # pyright: ignore
         with open(os.path.join(resources_path, 'ietf-bgp@2021-10-25.json'), 'r') as f:
             cls.original_data = json.load(f)
 
