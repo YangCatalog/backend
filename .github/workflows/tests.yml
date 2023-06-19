@@ -16,7 +16,7 @@ jobs:
       matrix:
         python-version: ['3.10']
         redis-version: [6]
-        elasticsearch-version: [7.10.1]
+        opensearch-version: [2.7.0]
       max-parallel: 1
 
     steps:
@@ -65,13 +65,10 @@ jobs:
           sudo sysctl -w vm.swappiness=1
           sudo sysctl -w vm.max_map_count=262144
 
-      - name: Setup Elasticsearch ${{ matrix.elasticsearch-version }}
-        uses: getong/elasticsearch-action@v1.2
+      - name: Setup OpenSearch ${{ matrix.opensearch-version }}
+        uses: ankane/setup-opensearch@v1
         with:
-          elasticsearch version: ${{ matrix.elasticsearch-version }}
-          host port: 9200
-          container port: 9200
-          discovery type: 'single-node'
+          opensearch-version: ${{ matrix.opensearch-version }}
 
       - name: Prepare environment
         run: |
@@ -97,7 +94,7 @@ jobs:
       - name: Test with pytest
         env:
           TOKEN: ${{ secrets.TOKEN }}
-          PYANG_PLUGINPATH: $PWD/elasticsearchIndexing/pyang_plugin
+          PYANG_PLUGINPATH: $PWD/opensearch_indexing/pyang_plugin
         run: |
           export TOKEN
           export TEST_REPO=/var/yang/tmp/test/YangModels/yang

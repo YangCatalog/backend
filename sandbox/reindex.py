@@ -1,10 +1,10 @@
-"""Reindex an Elasticsearch index."""
+"""Reindex an OpenSearch index."""
 
 import argparse
 import time
 
 import utility.log as log
-from elasticsearchIndexing.es_manager import ESManager
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility.create_config import create_config
 
 
@@ -16,13 +16,13 @@ def main():
     config = create_config()
     log_directory = config.get('Directory-Section', 'logs', fallback='/var/yang/logs')
     logger = log.get_logger('reindex', '{}/sandbox.log'.format(log_directory))
-    es = ESManager().es
-    task_id = es.reindex(
+    opensearch = OpenSearchManager().opensearch
+    task_id = opensearch.reindex(
         body={'source': {'index': args.source}, 'dest': {'index': args.dest}},
         wait_for_completion=False,
     )['task']
     while True:
-        task_info = es.tasks.get(task_id=task_id)
+        task_info = opensearch.tasks.get(task_id=task_id)
         logger.info(f'{task_info["task"]["status"]["updated"]} out of {task_info["task"]["status"]["total"]}')
         if task_info['completed']:
             break

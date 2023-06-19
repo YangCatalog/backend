@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class ESIndices(Enum):
+class OpenSearchIndices(Enum):
     YINDEX = 'yindex-alias'
     MODULES = 'modules-alias'
     DRAFTS = 'drafts-alias'

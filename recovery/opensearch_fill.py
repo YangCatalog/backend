@@ -14,7 +14,7 @@
 
 """
 This script will create JSON file which is used to
-populate Elasticsearch from all the modules saved in Redis database.
+populate OpenSearch from all the modules saved in Redis database.
 """
 
 __author__ = 'Miroslav Kovac'
@@ -70,7 +70,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()):
         value = f'{save_file_dir}/{name}@{revision}.yang'
         modules_dict[key] = value
 
-    output_path = os.path.join(temp, 'elasticsearch_data.json')
+    output_path = os.path.join(temp, 'opensearch_data.json')
     with open(output_path, 'w') as writer:
         json.dump(modules_dict, writer)
 

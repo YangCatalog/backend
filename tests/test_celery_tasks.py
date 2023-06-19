@@ -32,7 +32,7 @@ from jobs.celery import process, process_module_deletion, process_vendor_deletio
 from jobs.status_messages import StatusMessage
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
-from utility.elasticsearch_util import ESIndexingPaths
+from utility.opensearch_util import ESIndexingPaths
 
 
 class MockModulesComplicatedAlgorithms:

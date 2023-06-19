@@ -3,21 +3,21 @@ import os
 import unittest
 from configparser import ConfigParser
 
-from elasticsearch import Elasticsearch
+from opensearchpy import OpenSearch
 
 from api.cache.api_cache import cache
 from api.views.yang_search.grep_search import GrepSearch
 from api.yangcatalog_api import app  # noqa: F401
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility.create_config import create_config
 
 
 class TestGrepSearchClass(unittest.TestCase):
     resources_path: str
-    es: Elasticsearch
-    es_manager: ESManager
-    es_index: ESIndices
+    opensearch: OpenSearch
+    opensearch_manager: OpenSearchManager
+    opensearch_index: OpenSearchIndices
 
     @classmethod
     def setUpClass(cls):
@@ -27,32 +27,36 @@ class TestGrepSearchClass(unittest.TestCase):
 
     @classmethod
     def _configure_es(cls, config: ConfigParser):
-        es_host_config = {
-            'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-            'port': config.get('DB-Section', 'es-port', fallback='9200'),
+        opensearch_host_config = {
+            'host': config.get('DB-Section', 'opensearch-host', fallback='localhost'),
+            'port': config.get('DB-Section', 'opensearch-port', fallback='9200'),
         }
-        cls.es = Elasticsearch(hosts=[es_host_config])
-        cls.es_manager = ESManager(cls.es)
-        cls.es_index = ESIndices.TEST_SEARCH
+        cls.opensearch = OpenSearch(hosts=[opensearch_host_config])
+        cls.opensearch_manager = OpenSearchManager(cls.opensearch)
+        cls.opensearch_index = OpenSearchIndices.TEST_SEARCH
         with open(os.path.join(cls.resources_path, 'test_search/search_test_data.json'), 'r') as reader:
             es_test_data = json.load(reader)
-        index_json_name = f'initialize_{cls.es_index.value}_index.json'
-        index_json_path = os.path.join(os.environ['BACKEND'], 'elasticsearchIndexing', 'json', index_json_name)
+        index_json_name = f'initialize_{cls.opensearch_index.value}_index.json'
+        index_json_path = os.path.join(os.environ['BACKEND'], 'opensearch_indexing', 'json', index_json_name)
         with open(index_json_path, encoding='utf-8') as reader:
             index_config = json.load(reader)
-        cls.es.indices.create(index=cls.es_index.value, body=index_config, ignore=400)
+        cls.opensearch.indices.create(index=cls.opensearch_index.value, body=index_config, ignore=400)
         all_modules = es_test_data['all_modules']
         for module in all_modules:
-            cls.es.index(index=cls.es_index.value, body=module, refresh='true')
+            cls.opensearch.index(index=cls.opensearch_index.value, body=module, refresh='true')
 
     @classmethod
     def tearDownClass(cls):
-        cls.es.indices.delete(index=cls.es_index.value, ignore=[400, 404])
+        cls.opensearch.indices.delete(index=cls.opensearch_index.value, ignore=[400, 404])
 
     def setUp(self):
         with app.app_context():
             cache.clear()
-        self.grep_search = GrepSearch(config=self.config, es_manager=self.es_manager, modules_es_index=self.es_index)
+        self.grep_search = GrepSearch(
+            config=self.config,
+            opensearch_manager=self.opensearch_manager,
+            modules_es_index=self.opensearch_index,
+        )
 
     def tearDown(self):
         with app.app_context():

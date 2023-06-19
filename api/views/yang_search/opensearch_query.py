@@ -20,12 +20,12 @@ __email__ = 'miroslav.kovac@pantheon.tech'
 import json
 import os
 
-from elasticsearch import ConnectionTimeout
+from opensearchpy import ConnectionTimeout
 
 import api.views.yang_search.search_params as sp
 from api.views.yang_search.response_row import ResponseRow
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from redisConnections.redisConnection import RedisConnection
 from utility import log
 from utility.staticVariables import OUTPUT_COLUMNS
@@ -34,9 +34,9 @@ RESPONSE_SIZE = 2000
 RESERVED_CHARACTERS = ['"', '<']
 
 
-class ElkSearch:
+class OpenSearchQuery:
     """
-    Serves distinctly for yangcatalog search. This class will create a query that is sent to elasticsearch
+    Serves distinctly for yangcatalog search. This class will create a query that is sent to OpenSearch
     which returns output that needs to be processed. We process this into a list which is displayed as rows
     in a grid of yangcatalog search.
     """
@@ -44,18 +44,18 @@ class ElkSearch:
     def __init__(
         self,
         logs_dir: str,
-        es_manager: ESManager,
+        opensearch_manager: OpenSearchManager,
         redis_connection: RedisConnection,
         search_params: sp.SearchParams,
     ) -> None:
         """
-        Initialization of search under Elasticsearch engine. We need to prepare a query
-        that will be used to search in Elasticsearch.
+        Initialization of search under OpenSearch engine. We need to prepare a query
+        that will be used to search in OpenSearch.
 
         Arguments:
             :param searched_term    (str) String that we are searching for
             :param logs_dir         (str) Directory to log files
-            :param es_manager       (ESManager) Elasticsearch manager
+            :param opensearch_manager       (OpenSearchManager) OpenSearch manager
             :param redis_connection (RedisConnection) Redis connection to modules db (db=1)
             :param search_params    (SearchParams) Contains search parameters
         """
@@ -63,7 +63,7 @@ class ElkSearch:
         search_query_path = os.path.join(os.environ['BACKEND'], 'api/views/yang_search/json/search.json')
         with open(search_query_path, encoding='utf-8') as reader:
             self.query: dict = json.load(reader)
-        self._es_manager = es_manager
+        self._opensearch_manager = opensearch_manager
         self._redis_connection = redis_connection
         self._latest_revisions = {}
         self._remove_columns = list(set(OUTPUT_COLUMNS) - set(self._search_params.output_columns))
@@ -71,7 +71,8 @@ class ElkSearch:
         self._missing_modules = []
         self.timeout = False
         log_file_path = os.path.join(logs_dir, 'yang.log')
-        self.logger = log.get_logger('yc-elasticsearch', log_file_path)
+        self.logger = log.get_logger('yc-opensearch', log_file_path)
+        self._construct_query()
 
     def alerts(self):
         """
@@ -83,9 +84,9 @@ class ElkSearch:
             alerts.append(f'Module {missing} metadata does not exist in yangcatalog')
         return alerts
 
-    def construct_query(self):
+    def _construct_query(self):
         """
-        Create a json query that is then sent to Elasticsearch.
+        Create a json query that is then sent to OpenSearch.
         Changes being made while creating query:
         - statement is a list of schema types. It is one or more or all of ['typedef', 'grouping', 'feature',
         'identity', 'extension', 'rpc', 'container', 'list', 'leaf-list', 'leaf', 'notification', 'action']
@@ -182,13 +183,13 @@ class ElkSearch:
             query.pop('aggs')
         try:
             self.logger.debug(json.dumps(query, indent=2))
-            response = self._es_manager.generic_search(
-                ESIndices.YINDEX,
+            response = self._opensearch_manager.generic_search(
+                OpenSearchIndices.YINDEX,
                 query,
                 response_size=RESPONSE_SIZE,
             )
         except ConnectionTimeout:
-            self.logger.exception('Error while searching in Elasticsearch')
+            self.logger.exception('Error while searching in OpenSearch')
             self.timeout = True
             return []
         hits = response['hits']['hits']
@@ -216,7 +217,7 @@ class ElkSearch:
             module_data = self._redis_connection.get_module(module_key)
             module_data = json.loads(module_data)
             if not module_data:
-                self.logger.error(f'Failed to get module from Redis, but found in Elasticsearch: {module_key}')
+                self.logger.error(f'Failed to get module from Redis, but found in OpenSearch: {module_key}')
                 reject.add(module_key)
                 self._missing_modules.append(module_key)
                 continue
@@ -240,7 +241,7 @@ class ElkSearch:
                 self._row_hashes.add(row_hash)
             response_rows.append(row.output_row)
 
-        self.logger.debug(f'ElkSearch finished with length {len(response_rows)}')
+        self.logger.debug(f'OpenSearch finished with length {len(response_rows)}')
         return response_rows
 
     def _rejects_mibs_or_versions(self, module_data: dict) -> bool:

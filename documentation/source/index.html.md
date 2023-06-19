@@ -2398,12 +2398,12 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/log
 ```json
 {
   "data": [
-    "elasticsearch/gc",
+    "opensearch/gc",
     "crons-log",
     "confd/browser",
     "YANGgenericstats-daily",
     "confd/netconf",
-    "elasticsearch/elasticsearch_index_indexing_slowlog",
+    "opensearch/opensearch_index_indexing_slowlog",
     "healthcheck"
   ],
   "info": "success"
@@ -2731,8 +2731,8 @@ curl -X GET -H "Accept: application/json" "https://yangcatalog.org/api/admin/scr
     "pull_local",
     "statistics",
     "recovery",
-    "elk_recovery",
-    "elk_fill",
+    "opensearch_recovery",
+    "opensearch_fill",
     "resolve_expiration",
     "reviseSemver"
   ],
@@ -2964,8 +2964,8 @@ curl -X GET -H "Accept: application/json" -H "Content-type: application/json"
 ```json
 [
   {
-    "endpoint": "elk",
-    "name": "Elasticsearch"
+    "endpoint": "opensearch",
+    "name": "OpenSearch"
   },
   {
     "endpoint": "confd",

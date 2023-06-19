@@ -32,7 +32,7 @@ from datetime import datetime
 from datetime import datetime as dt
 
 import utility.log as log
-from elasticsearchIndexing.es_snapshots_manager import ESSnapshotsManager
+from opensearch_indexing.opensearch_snapshots_manager import OpenSearchSnapshotsManager
 from utility.create_config import create_config
 from utility.staticVariables import BACKUP_DATE_FORMAT
 from utility.util import get_list_of_backups, job_log
@@ -64,7 +64,7 @@ def main():
     log_directory = config.get('Directory-Section', 'logs')
     temp_dir = config.get('Directory-Section', 'temp')
     cache_directory = config.get('Directory-Section', 'cache')
-    es_aws = config.get('DB-Section', 'es-aws')
+    opensearch_aws = config.get('DB-Section', 'opensearch-aws')
 
     log_file_path = os.path.join(log_directory, 'jobs', 'removeUnused.log')
     logger = log.get_logger('remove_unused', log_file_path)
@@ -117,14 +117,14 @@ def main():
             except PermissionError:
                 logger.exception(f'Problem while deleting {dir}')
 
-        if es_aws != 'True':
-            logger.info('Removing old elasticsearch snapshots')
-            es_snapshots_manager = ESSnapshotsManager()
-            es_snapshots_manager.create_snapshot_repository(args.compress)
-            sorted_snapshots = es_snapshots_manager.get_sorted_snapshots()
+        if opensearch_aws != 'True':
+            logger.info('Removing old opensea snapshots')
+            opensearch_snapshots_manager = OpenSearchSnapshotsManager()
+            opensearch_snapshots_manager.create_snapshot_repository(args.compress)
+            sorted_snapshots = opensearch_snapshots_manager.get_sorted_snapshots()
 
             for snapshot in sorted_snapshots[:-5]:
-                es_snapshots_manager.delete_snapshot(snapshot['snapshot'])
+                opensearch_snapshots_manager.delete_snapshot(snapshot['snapshot'])
 
         logger.info('Removing old cache json files')
         remove_old_backups(os.path.join(cache_directory, 'confd'))

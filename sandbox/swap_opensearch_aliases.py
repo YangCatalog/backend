@@ -1,8 +1,8 @@
-"""Swap the underlying indices of an Elasticsearch alias"""
+"""Swap the underlying indices of an OpenSearch alias"""
 
 import argparse
 
-from elasticsearchIndexing.es_manager import ESManager
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 
 
 def main():
@@ -12,8 +12,8 @@ def main():
     parser.add_argument('add', type=str, help='New index to add to the alias')
     parser.add_argument('--delete', action='store_true', help='Delete the old index after removal')
     args = parser.parse_args()
-    es = ESManager().es
-    es.indices.update_aliases(
+    opensearch = OpenSearchManager().opensearch
+    opensearch.indices.update_aliases(
         body={
             'actions': [
                 {'remove': {'index': '*', 'alias': args.alias}},
@@ -22,7 +22,7 @@ def main():
         },
     )
     if args.delete:
-        es.indices.delete(args.remove)
+        opensearch.indices.delete(args.remove)
 
 
 if __name__ == '__main__':

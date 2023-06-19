@@ -125,7 +125,7 @@
       "name": "process_changed_mods",
       "type": "python",
       "request": "launch",
-      "program": "${workspaceFolder}/elasticsearchIndexing/process_changed_mods.py",
+      "program": "${workspaceFolder}/opensearch_indexing/process_changed_mods.py",
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
       "justMyCode": false
