@@ -21,7 +21,6 @@ class OrganizationResolver(Resolver):
         self.namespace = namespace
 
     def resolve(self) -> str:
-        self.logger.debug('Resolving organization')
         try:
             parsed_organization = self.parsed_yang.search('organization')[0].arg.lower()
             for possible_organization in ORGANIZATIONS:

@@ -21,7 +21,6 @@ class SubmoduleResolver(Resolver):
         self.domain_prefix = domain_prefix
 
     def resolve(self) -> t.Tuple[list, list]:
-        self.logger.debug('Resolving submodules')
         submodules = []
         dependencies = []
         parsed_submodules = self.parsed_yang.search('include')

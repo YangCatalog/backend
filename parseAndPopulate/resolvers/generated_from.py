@@ -1,6 +1,5 @@
 import logging
 import typing as t
-from asyncio.log import logger
 
 from parseAndPopulate.resolvers.resolver import Resolver
 
@@ -20,7 +19,6 @@ class GeneratedFromResolver(Resolver):
         self.namespace = namespace
 
     def resolve(self) -> str:
-        logger.debug('Resolving generated from')
         if self.namespace and ':smi' in self.namespace:
             return 'mib'
         if 'cisco' in self.name.lower():

@@ -610,31 +610,31 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         :param warnings         (bool) Whether return with warnings or not
     :return: tuple (list of revisions and organization) of specified module name
     """
-    try:
-        if revision is None:
-            hits = app_config.opensearch_manager.get_sorted_module_revisions(OpenSearchIndices.YINDEX, module_name)
-        else:
-            module = {'name': module_name, 'revision': revision}
-            hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.YINDEX, module)
+    if revision is None:
+        hits = app_config.opensearch_manager.get_sorted_module_revisions(OpenSearchIndices.YINDEX, module_name)
+    else:
+        module = {'name': module_name, 'revision': revision}
+        hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.YINDEX, module)
 
-        organization = hits[0]['_source']['organization']
-        revisions = []
-        for hit in hits:
-            hit = hit['_source']
-            revision = hit['revision']
-            revision_mat_level = {
-                'revision': revision,
-                'is_rfc': hit['rfc'] if 'rfc' in hit else False,
-            }
-            if revision_mat_level not in revisions:
-                revisions.append(revision_mat_level)
-        return revisions, organization
-    except IndexError:
+    if not hits:
         name_rev = f'{module_name}@{revision}' if revision else module_name
         bp.logger.warning(f'Failed to get revisions and organization for {name_rev}')
         if warnings:
             return {'warning': f'Failed to find module {name_rev}'}
         abort(404, f'Failed to get revisions and organization for {name_rev}')
+
+    organization = hits[0]['_source']['organization']
+    revisions = []
+    for hit in hits:
+        hit = hit['_source']
+        revision = hit['revision']
+        revision_mat_level = {
+            'revision': revision,
+            'is_rfc': hit['rfc'] if 'rfc' in hit else False,
+        }
+        if revision_mat_level not in revisions:
+            revisions.append(revision_mat_level)
+    return revisions, organization
 
 
 def get_latest_module_revision(module_name: str) -> str:
