@@ -5,7 +5,7 @@ This package contains Python scripts to save or load all the modules from databa
 
 ## [recovery.py](https://github.com/YangCatalog/backend/blob/master/recovery/recovery.py)
 
-This script is called with the `--save` option by the cronjob every day, and with the `--load` option on every docker-compose
+This script is called with the `--save` option by cron every day, and with the `--load` option on every docker-compose
 rebuilding by the `yc-api-recovery` container.
 
 1. Saving modules
@@ -53,9 +53,11 @@ which are currently stored in the Redis database. Dictionary contains key: value
 The entire dictionary is then stored in a JSON file: `opense_data.json` in the `temp` directory. 
 Content of this JSON file can then be used as an input for indexing modules into OpenSearch.
 
+Beware, reindexing all the modules in this way could take over a week.
+
 ## [redis_users_recovery.py](https://github.com/YangCatalog/backend/blob/master/recovery/redis_users_recovery.py)
 
-This script is called with the `--save` option by the cronjob every month, and it also can be called via the Admin page
+This script is called with the `--save` option by cron every month, and it also can be called via the Admin page
 with either `--save` or `--load` option.
 
 1. Saving users

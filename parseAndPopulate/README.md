@@ -1,42 +1,42 @@
 # Parse and Populate
 
-This package contains python scripts to parse yang files and consequently populate them to ConfD and Redis.
+This package contains python scripts to parse yang files and populate them to ConfD and Redis.
 The main scripts are:
 
 ## [integrity](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/integrity.py)
 
-   This script will go through all the yang files and find all the problems with them like missing includes or imports,
+   This script will go through all the YANG files and find all the problems with them like missing includes or imports,
    wrong namespaces, wrong revisions, missing or extra files in folders with capabilities.xml files, etc...
-   The `--dir` option specifies the directory to check. The `--sdo` option tell it not to look for capabilities.xml files.
+   The `--dir` option specifies the directory to check. The `--sdo` option tells it not to look for capabilities.xml files.
    The `--output` option specifies the output JSON file.
 
 ## [populate](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py)
 
    This script is called either by an admin user to manually populate data of a certain directory or by an API call
-   when other users would like to contribute to yangcatalog. Also, when there are new yang modules added to the GitHub
-   repository, this script will be automatically called after the API loads all the new yang modules from the GitHub repository.
+   when other users would like to contribute to YANG Catalog. When there are new yang modules added to the GitHub
+   repository, this script will be automatically called after the backend loads all the new YANG modules from the GitHub repository.
    This script is also called for different directories in the [pull_local](https://github.com/YangCatalog/backend/blob/master/ietfYangDraftPull/pull_local.py)
    script during the daily cronjob.
 
    Firstly, it creates a temporary json directory, which will be used to store the needed files
    (like `prepare.json`, `normal.json`, `temp_hashes.json`). Secondly, it runs the [parse_directory](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/parse_directory.py)
    script which dumps new/updated modules and vendors data into the json dir mentioned above in the `prepare.json` and `normal.json` files respectively.
-   After populating ConfD and Redis, it will prepare and send modules data for OpenSearch indexing (writes data to the
+   After populating ConfD and Redis, it will prepare and send module data for OpenSearch indexing (writes data to the
    `changes-cache` and `delete-cache` files which are later used in the [process_changed_mods.py](https://github.com/YangCatalog/backend/blob/master/opensearch_indexing/process_changed_mods.py)
-   script). Then the API will be restarted, so it can load all the new metadata into its cache. After that,
-   this script will start to run more complicated algorithms on those parsed yang files. This will extract dependents,
-   semantic versioning and tree types. When this is parsed it will once again populate ConfD and Redis, and restart API,
-   so we have all the metadata of the yang files available. If there were no errors while updating modules info in ConfD,
+   script). Then the API's cache will be reloaded to reflect the changes from the new data. After that,
+   this script will start to run more complicated algorithms on those parsed YANG files. This will extract dependents,
+   semantic versioning and tree types. When this is parsed it will once again populate ConfD and Redis, and reloads the API cache,
+   so we have all the metadata of the YANG files available. If there were no errors while updating modules info in ConfD,
    files hashes from the `temp_hashes.json` in the temporary json dir will be saved to the permanent cache directory,
-   so the information about already parsed modules can be re-used in the future runs of this script to not reparse unchanged modules in the
+   so the information about already parsed modules can be re-used in future runs of this script to not reparse unchanged modules in the
    [parse_directory](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/parse_directory.py) script.
 
-   Before starting to parse and populate yang modules, make sure that all the ports, protocols and ip addresses are set correctly.
+   Before starting to parse and populate YANG modules, make sure that all the ports, protocols and ip addresses are set correctly.
 
 ## [parse_directory](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/parse_directory.py)
 
    This script is called by the [populate](https://github.com/YangCatalog/backend/blob/master/parseAndPopulate/populate.py)
-   script during the daily cronjob, and it can also be called via admin page.
+   script during the daily cronjob, and it can also be called via the admin page.
 
    The main option of this script is `--sdo` (boolean) based on this option, either sdo modules or vendor modules will be parsed.
    Firstly, all the new yang modules from the `--dir` directory will be saved to the `--save-file-dir` directory, and then

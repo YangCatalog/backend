@@ -6,7 +6,7 @@ This package contains python scripts to process IETF and IANA YANG files:
 - ietf_push
 
   Script automatically pushes new IETF RFC and draft yang modules to the GitHub repository:
-  https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to <name>@<revision>.yang.
+  https://github.com/yang-catalog/yang. Old ones are removed and their naming is corrected to `<name>@<revision>.yang`.
   An e-mail with information about local update of new RFCs is sent to yangcatalog admin users if
   there are files to update. Message about new RFC yang modules is also sent to the Cisco Webex Teams,
   room: YANG Catalog Admin.
