@@ -465,21 +465,23 @@ def module_details_no_revision(module: str):
     return jsonify(module_details(module, None))
 
 
-@bp.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: t.Optional[str] = None, warnings: bool = False):
+@bp.route('/module-details/<module>@<selected_revision>', methods=['GET'])
+def module_details(module: str, selected_revision: t.Optional[str] = None, warnings: bool = False):
     """
     Search for data saved in our datastore (= Redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> (= module_details_no_revision() method).
 
     Arguments:
-        :param module           (str) Name of the searched module
-        :param revision         (str) (Optional) Revision of the searched module (can be None)
-        :param warnings         (bool) Whether return with warnings or not
+        :param module               (str) Name of the searched module
+        :param selected_revision    (str) (Optional) Revision of the searched module (can be None)
+        :param warnings             (bool) Whether return with warnings or not
     :return: returns json with yang-catalog saved metdata of a specific module
     """
     if not module:
         abort(400, description='No module name provided')
-    if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
+    if selected_revision is not None and (
+        len(selected_revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', selected_revision) is None
+    ):
         abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
 
     opensearch_response = get_modules_revision_organization(module, None, warnings)
@@ -493,18 +495,24 @@ def module_details(module: str, revision: t.Optional[str] = None, warnings: bool
         abort(404, description='Provided module does not exist')
 
     # get the latest revision of provided module if revision not defined
-    revision = revisions[0]['revision'] if not revision else revision
-    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
+    selected_revision = selected_revision or revisions[0]
+    response = {'current-module': f'{module}@{selected_revision}.yang', 'revisions': []}
+    for revision in revisions:
+        module_key = f'{module}@{revision}/{organization}'
+        module_data = app.redisConnection.get_module(module_key)
+        if module_data == '{}':
+            if warnings:
+                return {'warning': f'module {module_key} does not exist in API'}
+            abort(404, description='Provided module does not exist')
+        module_data = json.loads(module_data)
+        rev_mat_pair = {
+            'revision': module_data['revision'],
+            'is_rfc': module_data.get('maturity-level') == 'ratified',
+        }
+        response['revisions'].append(rev_mat_pair)
+        if selected_revision == revision:
+            response['metadata'] = module_data
 
-    # get module from Redis
-    module_key = f'{module}@{revision}/{organization}'
-    module_data = app.redisConnection.get_module(module_key)
-    if module_data == '{}':
-        if warnings:
-            return {'warning': f'module {module_key} does not exists in API'}
-        abort(404, description='Provided module does not exist')
-    module_data = json.loads(module_data)
-    response['metadata'] = module_data
     return response
 
 
@@ -612,23 +620,21 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = app_config.opensearch_manager.get_sorted_module_revisions(OpenSearchIndices.YINDEX, module_name)
+            hits = app_config.opensearch_manager.get_sorted_module_revisions(
+                OpenSearchIndices.AUTOCOMPLETE,
+                module_name,
+            )
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.YINDEX, module)
+            hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.AUTOCOMPLETE, module)
 
         organization = hits[0]['_source']['organization']
-        revisions = []
+        revisions = set()
         for hit in hits:
             hit = hit['_source']
             revision = hit['revision']
-            revision_mat_level = {
-                'revision': revision,
-                'is_rfc': hit['rfc'] if 'rfc' in hit else False,
-            }
-            if revision_mat_level not in revisions:
-                revisions.append(revision_mat_level)
-        return revisions, organization
+            revisions.add(revision)
+        return sorted(revisions, reverse=True), organization
     except IndexError:
         name_rev = f'{module_name}@{revision}' if revision else module_name
         bp.logger.warning(f'Failed to get revisions and organization for {name_rev}')

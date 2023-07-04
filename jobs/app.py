@@ -18,7 +18,7 @@ class BackendCeleryApp(Celery):
     save_file_dir: str
     yangcatalog_api_prefix: str
     indexing_paths: ESIndexingPaths
-    confd_credentials: list[str]
+    confd_credentials: tuple[str, str]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -42,7 +42,7 @@ class BackendCeleryApp(Celery):
             failed_path=failed_changes_cache_path,
             lock_path=lock_file,
         )
-        self.confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+        self.confd_credentials = tuple(config.get('Secrets-Section', 'confd-credentials').strip('"').split())
         self.logger.info('Config loaded succesfully')
 
     def reload_cache(self):
