@@ -1,10 +1,10 @@
-"""Update Elasticsearch index's mapping"""
+"""Update OpenSearch index's mapping"""
 
 import argparse
 import json
 import os
 
-from elasticsearchIndexing.es_manager import ESManager
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility import log
 from utility.create_config import create_config
 
@@ -39,12 +39,13 @@ def main():
         ),
     )
     args = parser.parse_args()
-    es = ESManager().es
+    opensearch = OpenSearchManager().opensearch
     with open(args.new_mapping_path, 'r') as new_mapping_file:
         new_mapping_body = json.load(new_mapping_file)
-    es.indices.put_mapping(index=args.index, body=new_mapping_body)
+    opensearch.indices.put_mapping(index=args.index, body=new_mapping_body)
     logger.info(
-        f'{args.index} index is updated and now has the following mapping:\n{es.indices.get_mapping(index=args.index)}',
+        f'{args.index} index is updated and now has the following mapping:\n'
+        f'{opensearch.indices.get_mapping(index=args.index)}',
     )
 
 

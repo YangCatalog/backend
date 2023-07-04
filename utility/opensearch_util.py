@@ -7,8 +7,8 @@ from dataclasses import dataclass
 
 import requests
 
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from redisConnections.redisConnection import RedisConnection
 from utility import message_factory
 from utility.staticVariables import json_headers
@@ -33,7 +33,7 @@ class ESIndexingPaths:
 
 def send_for_es_indexing(body_to_send: ESIndexingBody, logger: logging.Logger, paths: ESIndexingPaths):
     """
-    Creates a json file that will be used for Elasticsearch indexing.
+    Creates a json file that will be used for OpenSearch indexing.
 
     Arguments:
         :param body_to_send:        (dict) body that needs to be indexed
@@ -151,7 +151,7 @@ def prepare_for_es_indexing(
         :param force_indexing       (bool) Whether we should force indexing even if module exists in cache.
     """
     mf = message_factory.MessageFactory()
-    es_manager = ESManager()
+    opensearch_manager = OpenSearchManager()
     with open(modules_to_index, 'r') as reader:
         sdos_json = json.load(reader)
         logger.debug(f'{len(sdos_json.get("module", []))} modules loaded from prepare.json')
@@ -162,14 +162,14 @@ def prepare_for_es_indexing(
         response = requests.get(url, headers=json_headers)
         code = response.status_code
 
-        in_es = False
+        in_opensearch = False
         in_redis = code in [200, 201, 204]
         if in_redis:
-            in_es = es_manager.document_exists(ESIndices.AUTOCOMPLETE, module)
+            in_opensearch = opensearch_manager.document_exists(OpenSearchIndices.AUTOCOMPLETE, module)
         else:
             load_new_files_to_github = True
 
-        if force_indexing or not in_es or not in_redis:
+        if force_indexing or not in_opensearch or not in_redis:
             path = f'{save_file_dir}/{module.get("name")}@{module.get("revision")}.yang'
             key = f'{module["name"]}@{module["revision"]}/{module["organization"]}'
             post_body[key] = path

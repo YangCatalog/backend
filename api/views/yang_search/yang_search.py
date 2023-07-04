@@ -37,10 +37,10 @@ import utility.log as log
 from api.cache.api_cache import cache
 from api.my_flask import app
 from api.views.yang_search.constants import GREP_SEARCH_CACHE_TIMEOUT
-from api.views.yang_search.elk_search import ElkSearch
 from api.views.yang_search.grep_search import GrepSearch
-from elasticsearchIndexing.models.es_indices import ESIndices
-from elasticsearchIndexing.models.keywords_names import KeywordsNames
+from api.views.yang_search.opensearch_query import OpenSearchQuery
+from opensearch_indexing.models.keywords_names import KeywordsNames
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
 from utility.create_config import create_config
 from utility.staticVariables import MODULE_PROPERTIES_ORDER, OUTPUT_COLUMNS, SCHEMA_TYPES
 from utility.yangParser import create_context
@@ -80,7 +80,11 @@ def grep_search():
     cursor = int(value[0]) if (value := query_params.get('cursor')) else 0
     config = create_config()
     try:
-        grep_search_instance = GrepSearch(config=config, es_manager=app_config.es_manager, starting_cursor=cursor)
+        grep_search_instance = GrepSearch(
+            config=config,
+            opensearch_manager=app_config.opensearch_manager,
+            starting_cursor=cursor,
+        )
         results = grep_search_instance.search(organizations, search_string, inverted_search, case_sensitive)
     except ValueError as e:
         abort(400, description=str(e))
@@ -314,14 +318,18 @@ def search():
         schema_types=is_list_in(payload, 'schema-types', SCHEMA_TYPES),
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
     )
-    elk_search = ElkSearch(app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
-    elk_search.construct_query()
+    opensearch_search = OpenSearchQuery(
+        app_config.d_logs,
+        app_config.opensearch_manager,
+        app.redisConnection,
+        search_params,
+    )
     response = {}
-    response['rows'], response['max-hits'] = elk_search.search()
+    response['rows'], response['max-hits'] = opensearch_search.search()
     if payload.get('sub-search'):
         response['max-hits'] = False
-    response['warning'] = elk_search.alerts()
-    response['timeout'] = elk_search.timeout
+    response['warning'] = opensearch_search.alerts()
+    response['timeout'] = opensearch_search.timeout
     return response
 
 
@@ -354,12 +362,16 @@ def advanced_search():
         output_columns=is_list_in(payload, 'output-columns', OUTPUT_COLUMNS),
         include_drafts=is_boolean(payload, 'include-drafts', True),
     )
-    elk_search = ElkSearch(app_config.d_logs, app_config.es_manager, app.redisConnection, search_params)
-    elk_search.construct_query()
+    opensearch_search = OpenSearchQuery(
+        app_config.d_logs,
+        app_config.opensearch_manager,
+        app.redisConnection,
+        search_params,
+    )
     response = {}
-    response['rows'], response['max-hits'] = elk_search.search()
-    response['warning'] = elk_search.alerts()
-    response['timeout'] = elk_search.timeout
+    response['rows'], response['max-hits'] = opensearch_search.search()
+    response['warning'] = opensearch_search.alerts()
+    response['timeout'] = opensearch_search.timeout
     return response
 
 
@@ -379,11 +391,15 @@ def get_services_list(keyword: str, pattern: str):
         return make_response(jsonify(result), 200)
 
     if keyword == 'organization':
-        result = app_config.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.ORGANIZATION, pattern)
+        result = app_config.opensearch_manager.autocomplete(
+            OpenSearchIndices.AUTOCOMPLETE,
+            KeywordsNames.ORGANIZATION,
+            pattern,
+        )
     if keyword == 'module':
-        result = app_config.es_manager.autocomplete(ESIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
+        result = app_config.opensearch_manager.autocomplete(OpenSearchIndices.AUTOCOMPLETE, KeywordsNames.NAME, pattern)
     if keyword == 'draft':
-        result = app_config.es_manager.autocomplete(ESIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
+        result = app_config.opensearch_manager.autocomplete(OpenSearchIndices.DRAFTS, KeywordsNames.DRAFT, pattern)
 
     return make_response(jsonify(result), 200)
 
@@ -428,7 +444,7 @@ def show_node_with_revision(name: str, path: str, revision: t.Optional[str] = No
             revision = get_latest_module_revision(name)
 
         module = {'name': name, 'revision': revision, 'path': path}
-        hits = app_config.es_manager.get_node(module)['hits']['hits']
+        hits = app_config.opensearch_manager.get_node(module)['hits']['hits']
 
         if not hits:
             abort(404, description=f'Could not find data for {name}@{revision} at {path}')
@@ -449,46 +465,54 @@ def module_details_no_revision(module: str):
     return jsonify(module_details(module, None))
 
 
-@bp.route('/module-details/<module>@<revision>', methods=['GET'])
-def module_details(module: str, revision: t.Optional[str] = None, warnings: bool = False):
+@bp.route('/module-details/<module>@<selected_revision>', methods=['GET'])
+def module_details(module: str, selected_revision: t.Optional[str] = None, warnings: bool = False):
     """
     Search for data saved in our datastore (= Redis) based on specific module with some revision.
     Revision can be empty called from endpoint /module-details/<module> (= module_details_no_revision() method).
 
     Arguments:
-        :param module           (str) Name of the searched module
-        :param revision         (str) (Optional) Revision of the searched module (can be None)
-        :param warnings         (bool) Whether return with warnings or not
+        :param module               (str) Name of the searched module
+        :param selected_revision    (str) (Optional) Revision of the searched module (can be None)
+        :param warnings             (bool) Whether return with warnings or not
     :return: returns json with yang-catalog saved metdata of a specific module
     """
     if not module:
         abort(400, description='No module name provided')
-    if revision is not None and (len(revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', revision) is None):
+    if selected_revision is not None and (
+        len(selected_revision) != 10 or re.match(r'\d{4}[-/]\d{2}[-/]\d{2}', selected_revision) is None
+    ):
         abort(400, description='Revision provided has wrong format - please use "YYYY-MM-DD" format')
 
-    elk_response = get_modules_revision_organization(module, None, warnings)
+    opensearch_response = get_modules_revision_organization(module, None, warnings)
 
-    if 'warning' in elk_response:
-        return elk_response
-    revisions, organization = elk_response
+    if 'warning' in opensearch_response:
+        return opensearch_response
+    revisions, organization = opensearch_response
     if len(revisions) == 0:
         if warnings:
             return {'warning': f'module {module} does not exists in API'}
         abort(404, description='Provided module does not exist')
 
     # get the latest revision of provided module if revision not defined
-    revision = revisions[0]['revision'] if not revision else revision
-    response = {'current-module': f'{module}@{revision}.yang', 'revisions': revisions}
+    selected_revision = selected_revision or revisions[0]
+    response = {'current-module': f'{module}@{selected_revision}.yang', 'revisions': []}
+    for revision in revisions:
+        module_key = f'{module}@{revision}/{organization}'
+        module_data = app.redisConnection.get_module(module_key)
+        if module_data == '{}':
+            if warnings:
+                return {'warning': f'module {module_key} does not exist in API'}
+            abort(404, description='Provided module does not exist')
+        module_data = json.loads(module_data)
+        rev_mat_pair = {
+            'revision': module_data['revision'],
+            'is_rfc': module_data.get('maturity-level') == 'ratified',
+        }
+        response['revisions'].append(rev_mat_pair)
+        if selected_revision == revision:
+            response['metadata'] = module_data
 
-    # get module from Redis
-    module_key = f'{module}@{revision}/{organization}'
-    module_data = app.redisConnection.get_module(module_key)
-    if module_data == '{}':
-        if warnings:
-            return {'warning': f'module {module_key} does not exists in API'}
-        abort(404, description='Provided module does not exist')
-    module_data = json.loads(module_data)
-    response['metadata'] = module_data
     return response
 
 
@@ -523,7 +547,7 @@ def get_yang_catalog_help():
     """
     revision = get_latest_module_revision('yang-catalog')
     module = {'name': 'yang-catalog', 'revision': revision}
-    hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
+    hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.YINDEX, module)
     module_details_data = {}
     skip_statement = ['typedef', 'grouping', 'identity']
     for hit in hits:
@@ -596,23 +620,21 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
     """
     try:
         if revision is None:
-            hits = app_config.es_manager.get_sorted_module_revisions(ESIndices.YINDEX, module_name)
+            hits = app_config.opensearch_manager.get_sorted_module_revisions(
+                OpenSearchIndices.AUTOCOMPLETE,
+                module_name,
+            )
         else:
             module = {'name': module_name, 'revision': revision}
-            hits = app_config.es_manager.get_module_by_name_revision(ESIndices.YINDEX, module)
+            hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.AUTOCOMPLETE, module)
 
         organization = hits[0]['_source']['organization']
-        revisions = []
+        revisions = set()
         for hit in hits:
             hit = hit['_source']
             revision = hit['revision']
-            revision_mat_level = {
-                'revision': revision,
-                'is_rfc': hit['rfc'] if 'rfc' in hit else False,
-            }
-            if revision_mat_level not in revisions:
-                revisions.append(revision_mat_level)
-        return revisions, organization
+            revisions.add(revision)
+        return sorted(revisions, reverse=True), organization
     except IndexError:
         name_rev = f'{module_name}@{revision}' if revision else module_name
         bp.logger.warning(f'Failed to get revisions and organization for {name_rev}')
@@ -630,7 +652,10 @@ def get_latest_module_revision(module_name: str) -> str:
     :return: latest revision of the module
     """
     try:
-        es_result = app_config.es_manager.get_sorted_module_revisions(ESIndices.AUTOCOMPLETE, module_name)
+        es_result = app_config.opensearch_manager.get_sorted_module_revisions(
+            OpenSearchIndices.AUTOCOMPLETE,
+            module_name,
+        )
         return es_result[0]['_source']['revision']
     except IndexError:
         bp.logger.exception(f'Failed to get revision for {module_name}')

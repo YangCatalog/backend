@@ -33,7 +33,7 @@ from jobs.status_messages import StatusMessage
 from redisConnections.redis_enum import RedisEnum
 from redisConnections.redisConnection import RedisConnection
 from utility.create_config import create_config
-from utility.elasticsearch_util import ESIndexingPaths
+from utility.opensearch_util import ESIndexingPaths
 
 
 class MockModulesComplicatedAlgorithms:

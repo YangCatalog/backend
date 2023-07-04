@@ -7,8 +7,8 @@ from datetime import datetime, timedelta
 
 from api.cache.api_cache import cache
 from api.views.yang_search.constants import GREP_SEARCH_CACHE_TIMEOUT
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility import log
 from utility.create_config import create_config
 from utility.staticVariables import ORGANIZATIONS
@@ -23,8 +23,8 @@ class GrepSearch:
     def __init__(
         self,
         config: ConfigParser = create_config(),
-        es_manager: ESManager = ESManager(),
-        modules_es_index: ESIndices = ESIndices.AUTOCOMPLETE,
+        opensearch_manager: OpenSearchManager = OpenSearchManager(),
+        modules_es_index: OpenSearchIndices = OpenSearchIndices.AUTOCOMPLETE,
         starting_cursor: int = 0,
     ):
         self.previous_cursor = 0
@@ -40,10 +40,10 @@ class GrepSearch:
             self.query = json.load(query_file)
 
         log_file_path = os.path.join(config.get('Directory-Section', 'logs'), 'yang.log')
-        self.logger = log.get_logger('yc-elasticsearch', log_file_path)
+        self.logger = log.get_logger('yc-opensearch', log_file_path)
 
         self.modules_es_index = modules_es_index
-        self._es_manager = es_manager
+        self._opensearch_manager = opensearch_manager
         self._searched_modules_amount = 0
 
     def search(
@@ -250,7 +250,7 @@ class GrepSearch:
 
     def _get_results_from_db(self, already_found_results: t.Optional[list[dict]] = None) -> list[dict]:
         response = already_found_results or []
-        es_response = self._es_manager.generic_search(
+        es_response = self._opensearch_manager.generic_search(
             index=self.modules_es_index,
             query=self.query,
             response_size=None,

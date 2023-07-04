@@ -23,9 +23,9 @@ import os
 import shutil
 import sys
 
-from elasticsearchIndexing.build_yindex import build_indices
-from elasticsearchIndexing.es_manager import ESManager
-from elasticsearchIndexing.models.index_build import BuildYINDEXModule
+from opensearch_indexing.build_yindex import build_indices
+from opensearch_indexing.models.index_build import BuildYINDEXModule
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from utility import log
 from utility.create_config import create_config
 from utility.script_config_dict import script_config_dict
@@ -78,7 +78,7 @@ class ProcessChangedMods:
             os.unlink(self.lock_file_cron)
             sys.exit()
 
-        self._initialize_es_manager()
+        self._initialize_opensearch_manager()
 
         self.logger.info('Running cache files backup')
         self._backup_cache_files(self.delete_cache_path)
@@ -103,22 +103,22 @@ class ProcessChangedMods:
             self.logger.error('Temporary lock file could not be created although it is not locked')
             sys.exit()
 
-    def _initialize_es_manager(self):
-        self.es_manager = ESManager()
-        logging.getLogger('elasticsearch').setLevel(logging.ERROR)
+    def _initialize_opensearch_manager(self):
+        self.opensearch_manager = OpenSearchManager()
+        logging.getLogger('opensearch').setLevel(logging.ERROR)
 
     def _delete_modules_from_es(self):
         for module in self.delete_cache:
             name, rev_org = module.split('@')
             revision, organization = rev_org.split('/')
             revision = validate_revision(revision)
-            self.logger.info(f'Deleting {module} from es indices')
+            self.logger.info(f'Deleting {module} from opensearch indices')
             module = {
                 'name': name,
                 'revision': revision,
                 'organization': organization,
             }
-            self.es_manager.delete_from_indices(module)
+            self.opensearch_manager.delete_from_indices(module)
 
     def _change_modules_in_es(self):
         recursion_limit = sys.getrecursionlimit()
@@ -136,7 +136,7 @@ class ProcessChangedMods:
                 )
 
                 try:
-                    build_indices(self.es_manager, module, self.save_file_dir, self.json_ytree, self.logger)
+                    build_indices(self.opensearch_manager, module, self.save_file_dir, self.json_ytree, self.logger)
                 except Exception:
                     self.logger.exception(f'Problem while processing module {module_key}')
                     try:

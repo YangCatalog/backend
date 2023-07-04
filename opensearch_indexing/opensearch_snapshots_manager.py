@@ -20,40 +20,40 @@ __email__ = 'slavomir.mazur@pantheon.tech'
 import os
 from operator import itemgetter
 
-from elasticsearch import Elasticsearch
-from elasticsearch.exceptions import NotFoundError
+from opensearchpy import OpenSearch
+from opensearchpy.exceptions import NotFoundError
 
 import utility.log as log
-from elasticsearchIndexing.models.es_indices import ESIndices
+from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
 from utility.create_config import create_config
 
 
-class ESSnapshotsManager:
+class OpenSearchSnapshotsManager:
     def __init__(self) -> None:
         config = create_config()
         log_directory = config.get('Directory-Section', 'logs')
-        es_aws = config.get('DB-Section', 'es-aws')
-        elk_credentials = config.get('Secrets-Section', 'elk-secret').strip('"').split(' ')
-        self.elk_repo_name = config.get('General-Section', 'elk-repo-name')
-        es_host_config = {
-            'host': config.get('DB-Section', 'es-host', fallback='localhost'),
-            'port': config.get('DB-Section', 'es-port', fallback='9200'),
+        opensearch_aws = config.get('DB-Section', 'opensearch-aws')
+        opensearch_credentials = config.get('Secrets-Section', 'opensearch-secret').strip('"').split(' ')
+        self.opensearch_repo_name = config.get('General-Section', 'opensearch-repo-name')
+        opensearch_host_config = {
+            'host': config.get('DB-Section', 'opensearch-host', fallback='localhost'),
+            'port': config.get('DB-Section', 'opensearch-port', fallback='9200'),
         }
-        if es_aws == 'True':
-            self.es = Elasticsearch(
-                hosts=[es_host_config],
-                http_auth=(elk_credentials[0], elk_credentials[1]),
+        if opensearch_aws == 'True':
+            self.opensearch = OpenSearch(
+                hosts=[opensearch_host_config],
+                http_auth=(opensearch_credentials[0], opensearch_credentials[1]),
                 scheme='https',
             )
         else:
-            self.es = Elasticsearch(hosts=[es_host_config])
-        log_file_path = os.path.join(log_directory, 'jobs', 'es-manager.log')
-        self.LOGGER = log.get_logger('es-snapshots-manager', log_file_path)
+            self.opensearch = OpenSearch(hosts=[opensearch_host_config])
+        log_file_path = os.path.join(log_directory, 'jobs', 'opensearch-manager.log')
+        self.LOGGER = log.get_logger('opensearch-snapshots-manager', log_file_path)
 
     def create_snapshot_repository(self, compress: bool) -> dict:
         """Register a snapshot repository."""
-        body = {'type': 'fs', 'settings': {'location': self.elk_repo_name, 'compress': compress}}
-        return self.es.snapshot.create_repository(repository=self.elk_repo_name, body=body)
+        body = {'type': 'fs', 'settings': {'location': self.opensearch_repo_name, 'compress': compress}}
+        return self.opensearch.snapshot.create_repository(repository=self.opensearch_repo_name, body=body)
 
     def create_snapshot(self, snapshot_name: str) -> dict:
         """Creates a snapshot with given 'snapshot_name' in a snapshot repository.
@@ -62,12 +62,16 @@ class ESSnapshotsManager:
             :param snapshot_name    (str) Name of the snapshot to be created
         """
         index_body = {'indices': '_all'}
-        return self.es.snapshot.create(repository=self.elk_repo_name, snapshot=snapshot_name, body=index_body)
+        return self.opensearch.snapshot.create(
+            repository=self.opensearch_repo_name,
+            snapshot=snapshot_name,
+            body=index_body,
+        )
 
     def get_sorted_snapshots(self) -> list:
         """Return a sorted list of existing snapshots."""
         try:
-            snapshots = self.es.snapshot.get(repository=self.elk_repo_name, snapshot='_all')
+            snapshots = self.opensearch.snapshot.get(repository=self.opensearch_repo_name, snapshot='_all')
         except NotFoundError:
             self.LOGGER.exception('Snapshots not found')
             return []
@@ -80,14 +84,14 @@ class ESSnapshotsManager:
             :param snapshot_name    (str) Name of the snapshot to restore
         """
         index_body = {'indices': '_all'}
-        for index in ESIndices:
+        for index in OpenSearchIndices:
             try:
-                self.es.indices.close(index.value)
+                self.opensearch.indices.close(index.value)
             except NotFoundError:
                 continue
 
-        return self.es.snapshot.restore(
-            repository=self.elk_repo_name,
+        return self.opensearch.snapshot.restore(
+            repository=self.opensearch_repo_name,
             snapshot=snapshot_name,
             body=index_body,
             wait_for_completion=True,
@@ -99,4 +103,4 @@ class ESSnapshotsManager:
         Argument:
             :param snapshot_name    (str) Name of the snapshot to delete
         """
-        return self.es.snapshot.delete(repository=self.elk_repo_name, snapshot=snapshot_name)
+        return self.opensearch.snapshot.delete(repository=self.opensearch_repo_name, snapshot=snapshot_name)

@@ -20,8 +20,8 @@ from werkzeug.exceptions import abort
 
 import api.authentication.auth as auth
 from api.matomo_tracker import MatomoTrackerData, get_headers_dict, record_analytic
-from elasticsearchIndexing.es_manager import ESManager
 from jobs.celery import celery_app
+from opensearch_indexing.opensearch_manager import OpenSearchManager
 from redisConnections.redis_user_notifications_connection import RedisUserNotificationsConnection
 from redisConnections.redis_users_connection import RedisUsersConnection
 from redisConnections.redisConnection import RedisConnection
@@ -92,9 +92,9 @@ class MyFlask(Flask):
             os.chmod(file_name_path, 0o664)
 
     def post_config_load(self):
-        self.config['S-ELK-CREDENTIALS'] = self.config.s_elk_secret.strip('"').split()
+        self.config['S-OPENSEARCH-CREDENTIALS'] = self.config.s_opensearch_secret.strip('"').split()
         self.config['S-CONFD-CREDENTIALS'] = self.config.s_confd_credentials.strip('"').split()
-        self.config['ES-MANAGER'] = ESManager()
+        self.config['OPENSEARCH-MANAGER'] = OpenSearchManager()
 
         celery_app.load_config()
         self.config['CELERY-APP'] = celery_app

@@ -31,7 +31,7 @@ from jobs.status_messages import StatusMessage
 from redisConnections.redisConnection import RedisConnection, key_quote
 from utility import log
 from utility.create_config import create_config
-from utility.elasticsearch_util import ESIndexingPaths, prepare_for_es_removal, send_for_es_indexing
+from utility.opensearch_util import ESIndexingPaths, prepare_for_es_removal, send_for_es_indexing
 from utility.staticVariables import json_headers
 
 
@@ -42,7 +42,7 @@ class BackendCeleryApp(Celery):
     save_file_dir: str
     yangcatalog_api_prefix: str
     indexing_paths: ESIndexingPaths
-    confd_credentials: list[str, str]
+    confd_credentials: tuple[str, str]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -66,7 +66,7 @@ class BackendCeleryApp(Celery):
             failed_path=failed_changes_cache_path,
             lock_path=lock_file,
         )
-        self.confd_credentials = config.get('Secrets-Section', 'confd-credentials').strip('"').split()
+        self.confd_credentials = tuple(config.get('Secrets-Section', 'confd-credentials').strip('"').split())
         self.logger.info('Config loaded succesfully')
 
     def reload_cache(self):
@@ -116,7 +116,7 @@ def process_vendor_deletion(params: dict[str, str]):
     Deleting vendors metadata. Deletes all the modules in the vendor branch of the yang-catalog.yang
     module on given path. If the module was added by a vendor and it doesn't contain any other implementations
     it will delete the whole module in the modules branch of the yang-catalog.yang module.
-    It will also call the indexing script to update Elasticsearch searching.
+    It will also call the indexing script to update OpenSearch searching.
     """
     data_key = ''
     redis_vendor_key = ''
@@ -235,7 +235,7 @@ def process_module_deletion(modules: list[dict[str, str]]):
     """
     Delete modules. It deletes modules of given path from Redis.
     This will delete whole module in modules branch of the yang-catalog:yang module.
-    It will also call the indexing script to update ES.
+    It will also call the indexing script to update OpenSearch.
     """
     try:
         all_modules_raw = celery_app.redis_connection.get_all_modules()
