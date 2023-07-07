@@ -14,8 +14,7 @@ ENV VIRTUAL_ENV=/backend
 ENV BACKEND=/backend
 ENV PYANG_PLUGINPATH="$BACKEND/opensearch_indexing/pyang_plugin"
 
-#Install Cron
-RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim pcregrep
+RUN apt-get -y update && apt-get -y install libv8-dev cron gunicorn logrotate curl mydumper rsync vim pcregrep python3-pip
 
 RUN echo postfix postfix/mailname string yangcatalog.org | debconf-set-selections; \
     echo postfix postfix/main_mailer_type string 'Internet Site' | debconf-set-selections; \
@@ -26,7 +25,7 @@ COPY ./resources/main.cf /etc/postfix/main.cf
 
 RUN groupadd -g ${YANG_GID} -r yang \
   && useradd --no-log-init -r -g yang -u ${YANG_ID} -d $VIRTUAL_ENV yang \
-  && pip install virtualenv \
+  && pip3 install virtualenv \
   && virtualenv --system-site-packages $VIRTUAL_ENV \
   && mkdir -p /etc/yangcatalog
 
@@ -43,8 +42,9 @@ RUN mkdir -p /usr/share/nginx/html/stats
 RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
+RUN pip3 install --upgrade pip
 COPY ./backend/requirements.txt .
-RUN pip install -r requirements.txt
+RUN pip3 install -r requirements.txt
 
 COPY --chown=yang:yang ./backend $VIRTUAL_ENV
 

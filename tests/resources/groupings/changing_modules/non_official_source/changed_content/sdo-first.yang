@@ -1,0 +1,14 @@
+module sdo-first {
+  /* This module contains semantic changes to the sdo-first.yang module */
+  revision 2022-08-05;
+  organization 'mef';
+  namespace 'testing';
+  prefix 'yang';
+
+  leaf test-leaf {
+    type string;
+  }
+  leaf test-leaf-second {
+    type string;
+  }
+}

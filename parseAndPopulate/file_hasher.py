@@ -22,11 +22,13 @@ import json
 import os
 import threading
 import typing as t
+from configparser import ConfigParser
 from dataclasses import dataclass
 
 import pyang
 
 from utility import log
+from utility.create_config import create_config
 
 BLOCK_SIZE = 65536  # The size of each read from the file
 
@@ -35,6 +37,8 @@ BLOCK_SIZE = 65536  # The size of each read from the file
 class SdoHashCheck:
     hash_changed: bool
     was_parsed_previously: bool
+    only_formatting_changed: bool
+    normalized_file_hash: str
 
 
 @dataclass
@@ -48,25 +52,39 @@ class VendorModuleHashCheckForParsing:
 
 
 class FileHasher:
-    def __init__(self, file_name: str, cache_dir: str, is_active: bool, log_directory: str):
+    latest_normalized_file_hash_key = 'latest_normalized_file_hash'
+
+    def __init__(
+        self,
+        file_name: str,
+        cache_dir: str,
+        is_active: bool,
+        log_directory: str,
+        config: ConfigParser = create_config(),
+    ):
         """
         The format of the cache file is:
         {
             path: {
-                hash: [implementations]
+                first_calculated_hash: [implementations],
+                second_calculated_hash: [implementations],
+                ...
+                self.latest_normalized_file_hash_key: normalized_file_calculated_hash
             }
         }
 
         Arguments:
-            :param file_name        (str) name of the file to which the modules hashes are dumped
-            :param cache_dir        (str) directory where json file with hashes is saved
-            :param is_active        (bool) whether FileHasher is active or not
+            :param file_name (str) name of the file to which the modules hashes are dumped
+            :param cache_dir (str) directory where json file with hashes is saved
+            :param is_active (bool) whether FileHasher is active or not
             (use hashes to skip module parsing or not)
-            :param log_directory    (str) directory where the log file is saved
+            :param log_directory (str) directory where the log file is saved
+            :param config (ConfigParser) config which contains all the settings
         """
         self.file_name = file_name
         self.cache_dir = cache_dir
         self.disabled = not is_active
+        self.normalized_modules_dir = config.get('Directory-Section', 'normalized-modules')
         self.logger = log.get_logger(__name__, os.path.join(log_directory, 'parseAndPopulate.log'))
         self.lock = threading.Lock()
         self.validators_versions_bytes = self.get_versions()
@@ -74,7 +92,8 @@ class FileHasher:
         self.updated_hashes = {}
 
     def hash_file(self, path: str) -> str:
-        """Create hash from content of the given file and validators versions.
+        """
+        Create hash from content of the given file and validators versions.
         Each time either the content of the file or the validator version change,
         the resulting hash will be different.
 
@@ -144,6 +163,9 @@ class FileHasher:
             for hash in new_hashes[path]:
                 implementations = file_path_cache.setdefault(hash, [])  # get per hash cache
                 implementations.extend(new_hashes[path][hash])
+            file_path_cache[self.latest_normalized_file_hash_key] = new_hashes[path][
+                self.latest_normalized_file_hash_key
+            ]
 
         with open(f'{dst_dir}/{self.file_name}.json', 'w') as f:
             json.dump(merged_hashes, f, indent=2, sort_keys=True)
@@ -180,13 +202,45 @@ class FileHasher:
         """
         file_hash = self.hash_file(new_path)
         if not file_hash:
-            return SdoHashCheck(True, False)
+            # will be skipped for parsing
+            return SdoHashCheck(False, False, False, '')
         hashes = self.files_hashes.get(accepted_path, {})
         if file_hash not in hashes:
             self.updated_hashes.setdefault(accepted_path, {})[file_hash] = []  # empty implementations
-            return SdoHashCheck(True, bool(hashes))
+            new_path_normalized_hash = self.get_normalized_file_hash(new_path)
+            if not hashes:
+                # module has never been parsed before
+                return SdoHashCheck(True, False, False, new_path_normalized_hash)
+            accepted_path_normalized_hash = self._get_accepted_path_normalized_hash(accepted_path)
+            if new_path_normalized_hash == accepted_path_normalized_hash:
+                return SdoHashCheck(True, True, True, new_path_normalized_hash)
+            return SdoHashCheck(True, True, False, new_path_normalized_hash)
+        accepted_path_normalized_hash = self._get_accepted_path_normalized_hash(accepted_path)
+        return SdoHashCheck(
+            self.disabled,
+            False if self.disabled else bool(hashes),
+            not self.disabled,
+            accepted_path_normalized_hash,
+        )
 
-        return SdoHashCheck(self.disabled, bool(hashes))
+    def _get_accepted_path_normalized_hash(self, accepted_path: str) -> str:
+        accepted_path_normalized_hash = self.files_hashes[accepted_path].get(self.latest_normalized_file_hash_key)
+        if not accepted_path_normalized_hash:
+            accepted_path_normalized_hash = self.get_normalized_file_hash(accepted_path)
+        return accepted_path_normalized_hash
+
+    def get_normalized_file_hash(self, path: str, normalized_file_path: t.Optional[str] = None) -> str:
+        normalized_file_path = normalized_file_path or os.path.join(self.normalized_modules_dir, os.path.basename(path))
+        with os.popen(
+            (
+                f'pyang -f yang -p {os.path.dirname(path)} --yang-canonical --yang-remove-comments '
+                f'{path}'  # TODO: --yang-join-substrings option should be added when available in pyang
+            ),
+        ) as normalized_module, open(normalized_file_path, 'w') as normalized_file:
+            normalized_file.write(normalized_module.read())
+        del normalized_module
+        normalized_file_hash = self.hash_file(normalized_file_path)
+        return normalized_file_hash
 
     def check_vendor_module_hash_for_parsing(
         self,

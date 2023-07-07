@@ -19,24 +19,29 @@ __copyright__ = 'Copyright 2018 Cisco and its affiliates, Copyright The IETF Tru
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import difflib
 import fileinput
+import glob
 import json
 import os
 import shutil
 import typing as t
 import unicodedata
+import uuid
 import xml.etree.ElementTree as ET
 from configparser import ConfigParser
 
 import utility.log as log
 from parseAndPopulate.dumper import Dumper
-from parseAndPopulate.file_hasher import FileHasher
+from parseAndPopulate.file_hasher import FileHasher, SdoHashCheck
 from parseAndPopulate.models.directory_paths import DirPaths
 from parseAndPopulate.models.vendor_modules import VendorInfo, VendorPlatformData
 from parseAndPopulate.modules import Module, SdoModule, VendorModule
 from redisConnections.redisConnection import RedisConnection
+from utility import yangParser
 from utility.create_config import create_config
-from utility.util import get_yang
+from utility.staticVariables import VENDORS
+from utility.util import get_yang, resolve_organization, resolve_revision
 from utility.yangParser import ParseException
 
 
@@ -51,14 +56,16 @@ class ModuleGrouping:
         api: bool,
         dir_paths: DirPaths,
         config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
         """
         Arguments:
-            :param directory            (str) the directory containing the files
-            :param dumper               (Dumper) Dumper object
-            :param file_hasher          (FileHasher) FileHasher object
-            :param api                  (bool) whether the request came from API or not
-            :param dir_paths            (DirPaths) paths to various needed directories according to configuration
+            :param directory (str) the directory containing the files
+            :param dumper (Dumper) Dumper object
+            :param file_hasher (FileHasher) FileHasher object
+            :param api (bool) whether the request came from API or not
+            :param dir_paths (DirPaths) paths to various needed directories according to configuration
+            :param dir_paths (DirPaths) paths to various needed directories according to configuration
         """
         self.logger = log.get_logger('groupings', f'{dir_paths["log"]}/parseAndPopulate.log')
         self.logger.debug(f'Running {self.__class__.__name__} constructor')
@@ -68,6 +75,7 @@ class ModuleGrouping:
         self.api = api
         self.file_hasher = file_hasher
         self.directory = directory
+        self.redis_connection = redis_connection or RedisConnection(config=config)
         self.parsed = 0
         self.skipped = 0
 
@@ -95,10 +103,19 @@ class SdoDirectory(ModuleGrouping):
         file_mapping: dict[str, str],
         official_source: t.Optional[str],
         config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
+        super().__init__(
+            directory,
+            dumper,
+            file_hasher,
+            api,
+            dir_paths,
+            config=config,
+            redis_connection=redis_connection,
+        )
         self.file_mapping = file_mapping
         self.official_source = official_source
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
 
     def parse_and_load(self) -> tuple[int, int]:
         """
@@ -107,7 +124,7 @@ class SdoDirectory(ModuleGrouping):
         Otherwise, all the .yang files in the directory are parsed.
 
         Argument:
-            :return     (tuple[int, int]) The number of moudles parsed and skipped respectively
+            :return     (tuple[int, int]) The number of modules parsed and skipped respectively
         """
         if self.api:
             ret = self._parse_and_load_api()
@@ -171,10 +188,13 @@ class SdoDirectory(ModuleGrouping):
                 all_modules_path = self.file_mapping[path]
                 should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
                 if not should_parse.hash_changed:
+                    if self._should_update_normalized_file_hash_if_hash_not_changed(all_modules_path, should_parse):
+                        self._update_normalized_file_hash_in_file_hasher(all_modules_path, should_parse)
                     self.skipped += 1
                     continue
                 if '[1]' in file_name:
                     self.logger.warning(f'File {file_name} contains [1] it its file name')
+                    self.skipped += 1
                     continue
                 self.logger.info(f'Parsing {file_name} {i} out of {sdos_count}')
                 try:
@@ -183,20 +203,69 @@ class SdoDirectory(ModuleGrouping):
                         self.dir_paths,
                         self.dumper.yang_modules,
                         config=self.config,
+                        official_source=self.official_source,
+                        was_parsed_previously=should_parse.was_parsed_previously,
+                        can_be_already_stored_in_db=(
+                            should_parse.was_parsed_previously and should_parse.only_formatting_changed
+                        ),
                     )
                 except (ParseException, FileNotFoundError) as e:
                     self.log_module_creation_exception(e)
                     continue
-                if yang.organization != self.official_source and should_parse.was_parsed_previously:
-                    # this is not the official source of this organization's modules
-                    # and we already have some version of this module
+                if not self._should_add_module_to_dumper(yang, should_parse, path, all_modules_path):
                     continue
-                # this is the official source of this organization's modules
-                # or we don't have a version of this module yet
-                self.dumper.add_module(yang)
-                shutil.copy(path, all_modules_path)
-                self.parsed += 1
+                self._add_module_to_dumper(yang, should_parse, path, all_modules_path)
         return self.parsed, self.skipped
+
+    def _should_update_normalized_file_hash_if_hash_not_changed(
+        self,
+        accepted_module_path: str,
+        module_hash_check: SdoHashCheck,
+    ) -> bool:
+        return (
+            module_hash_check.normalized_file_hash
+            and accepted_module_path in self.file_hasher.files_hashes
+            and not self.file_hasher.files_hashes[accepted_module_path].get(
+                self.file_hasher.latest_normalized_file_hash_key,
+            )
+        )
+
+    def _should_add_module_to_dumper(
+        self,
+        module: Module,
+        module_hash_check: SdoHashCheck,
+        new_module_path: str,
+        accepted_module_path: str,
+    ) -> bool:
+        if not module.fully_parsed:
+            # this is not the official source of this organization's modules,
+            # and we already have some version of this module
+            self.skipped += 1
+            return False
+        # at this point we are sure that this is the official source or a new module
+        if module_hash_check.only_formatting_changed:
+            self._update_normalized_file_hash_in_file_hasher(accepted_module_path, module_hash_check)
+            shutil.copy(new_module_path, accepted_module_path)
+            self.parsed += 1
+            return False
+        return True
+
+    def _add_module_to_dumper(
+        self,
+        module: Module,
+        module_hash_check: SdoHashCheck,
+        new_module_path: str,
+        accepted_module_path: str,
+    ):
+        self._update_normalized_file_hash_in_file_hasher(accepted_module_path, module_hash_check)
+        self.dumper.add_module(module)
+        shutil.copy(new_module_path, accepted_module_path)
+        self.parsed += 1
+
+    def _update_normalized_file_hash_in_file_hasher(self, accepted_module_path: str, module_hash_check: SdoHashCheck):
+        self.file_hasher.updated_hashes.setdefault(accepted_module_path, {})[
+            self.file_hasher.latest_normalized_file_hash_key
+        ] = module_hash_check.normalized_file_hash
 
 
 class IanaDirectory(SdoDirectory):
@@ -212,8 +281,19 @@ class IanaDirectory(SdoDirectory):
         file_mapping: dict[str, str],
         official_source: t.Optional[str],
         config: ConfigParser = create_config(),
+        redis_connection: t.Optional[RedisConnection] = None,
     ):
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, file_mapping, official_source, config=config)
+        super().__init__(
+            directory,
+            dumper,
+            file_hasher,
+            api,
+            dir_paths,
+            file_mapping,
+            official_source,
+            config=config,
+            redis_connection=redis_connection,
+        )
         iana_exceptions = config.get('Directory-Section', 'iana-exceptions')
         try:
             with open(iana_exceptions, 'r') as exceptions_file:
@@ -262,9 +342,10 @@ class IanaDirectory(SdoDirectory):
                 continue
             should_parse = self.file_hasher.should_parse_sdo_module(new_path=path, accepted_path=all_modules_path)
             if not should_parse.hash_changed:
+                if self._should_update_normalized_file_hash_if_hash_not_changed(all_modules_path, should_parse):
+                    self._update_normalized_file_hash_in_file_hasher(all_modules_path, should_parse)
                 self.skipped += 1
                 continue
-
             self.logger.info(f'Parsing module {name}')
             try:
                 yang = SdoModule(
@@ -273,15 +354,18 @@ class IanaDirectory(SdoDirectory):
                     self.dumper.yang_modules,
                     additional_info,
                     config=self.config,
+                    official_source=self.official_source,
+                    was_parsed_previously=should_parse.was_parsed_previously,
+                    can_be_already_stored_in_db=(
+                        should_parse.was_parsed_previously and should_parse.only_formatting_changed
+                    ),
                 )
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
                 continue
-            if yang.organization != self.official_source and should_parse.was_parsed_previously:
+            if not self._should_add_module_to_dumper(yang, should_parse, path, all_modules_path):
                 continue
-            self.dumper.add_module(yang)
-            shutil.copy(path, all_modules_path)
-            self.parsed += 1
+            self._add_module_to_dumper(yang, should_parse, path, all_modules_path)
         return self.parsed, self.skipped
 
 
@@ -297,8 +381,17 @@ class VendorGrouping(ModuleGrouping):
         config: ConfigParser = create_config(),
         redis_connection: t.Optional[RedisConnection] = None,
     ):
-        super().__init__(directory, dumper, file_hasher, api, dir_paths, config=config)
-        self.redis_connection = redis_connection or RedisConnection(config=config)
+        super().__init__(
+            directory,
+            dumper,
+            file_hasher,
+            api,
+            dir_paths,
+            config=config,
+            redis_connection=redis_connection,
+        )
+        self.vendor = self._get_vendor()
+        self._prepare_directories()
         self.found_capabilities = False
         self.capabilities = []
         self.netconf_versions = []
@@ -317,6 +410,25 @@ class VendorGrouping(ModuleGrouping):
             hello_file.close()
             self.logger.warning('Hello message file has & instead of &amp, automatically changing to &amp')
             self.root = ET.parse(xml_file).getroot()
+
+    def _get_vendor(self) -> t.Optional[str]:
+        for vendor in VENDORS:
+            if vendor in self.directory.lower():
+                return vendor
+
+    def _prepare_directories(self):
+        self.temp_dir = self.config.get('Directory-Section', 'temp')
+        if self.vendor:
+            vendors_incorrect_modules_dir = self.config.get('Directory-Section', 'vendors-changed-modules')
+            vendor_dir = self.directory.replace(self.config.get('Directory-Section', 'yang-models-dir'), '')
+            if vendor_dir.startswith('/'):
+                vendor_dir = vendor_dir[1:]
+            self.vendors_incorrect_modules_dir = os.path.join(vendors_incorrect_modules_dir, self.vendor, vendor_dir)
+            self.normalized_modules_dir = self.config.get('Directory-Section', 'normalized-modules')
+            os.makedirs(self.vendors_incorrect_modules_dir, exist_ok=True)
+            for file in os.listdir(self.vendors_incorrect_modules_dir):
+                os.remove(os.path.join(self.vendors_incorrect_modules_dir, file))
+            os.makedirs(self.normalized_modules_dir, exist_ok=True)
 
     def _parse_platform_metadata(self):
         # Vendor modules send from API
@@ -420,9 +532,17 @@ class VendorGrouping(ModuleGrouping):
             self.logger.info(f'Parsing module {name}')
             path = get_yang(name, config=self.config)
             if path is None:
-                return
+                continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
+                revision = module.search_one('revision')
+                if revision:
+                    revision = revision.arg
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_revision=revision,
+                )
                 self.skipped += 1
                 continue
             vendor_info = VendorInfo(
@@ -450,6 +570,53 @@ class VendorGrouping(ModuleGrouping):
             set_of_names.add(yang.name)
             self._parse_imp_inc(self.dumper.yang_modules[key].submodule, set_of_names, True)
             self._parse_imp_inc(self.dumper.yang_modules[key].imports, set_of_names, False)
+
+    def _check_vendor_module_differences_from_original_module(
+        self,
+        original_module_name: str,
+        original_module_path: str,
+        original_module_revision: t.Optional[str],
+        original_module_organization: t.Optional[str] = None,
+    ):
+        if not self.vendor:
+            return
+        vendor_module_path = glob.glob(os.path.join(self.directory, f'{original_module_name}.yang'))
+        if not vendor_module_path:
+            return
+        vendor_module_path = vendor_module_path[0]
+        if original_module_revision and original_module_revision != resolve_revision(vendor_module_path):
+            return
+        if not original_module_organization:
+            parsed_yang = yangParser.parse(vendor_module_path)
+            original_module_organization = resolve_organization(
+                parsed_yang,
+                self.config.get('Directory-Section', 'save-file-dir'),
+            )
+        if self.vendor != original_module_organization:
+            self._notify_vendor_about_incorrect_module_changes(original_module_path, vendor_module_path)
+
+    def _notify_vendor_about_incorrect_module_changes(self, module_original_path: str, vendor_module_path: str):
+        self.logger.info(f'Notifying vendor "{self.vendor}" about incorrect module changes in {vendor_module_path}')
+        output_path = os.path.join(self.vendors_incorrect_modules_dir, os.path.basename(vendor_module_path))
+        normalized_module_path = os.path.join(self.normalized_modules_dir, os.path.basename(module_original_path))
+        # by calling this method, we make sure that the latest normalized file hash is written to the hasher,
+        # and the normalized file is saved to the normalized modules dir
+        self.file_hasher.should_parse_sdo_module(module_original_path, module_original_path)
+        normalized_vendor_module_path = os.path.join(self.temp_dir, uuid.uuid4().hex)
+        self.file_hasher.get_normalized_file_hash(vendor_module_path, normalized_vendor_module_path)
+        with open(normalized_module_path, 'r') as f1, open(normalized_vendor_module_path, 'r') as f2:
+            diff = tuple(
+                difflib.unified_diff(
+                    f1.readlines(),
+                    f2.readlines(),
+                    fromfile=normalized_module_path,
+                    tofile=normalized_vendor_module_path,
+                ),
+            )
+        if diff:
+            with open(output_path, 'w') as output:
+                output.writelines(f'{line}\n' for line in diff)
+        os.remove(normalized_vendor_module_path)
 
 
 class VendorCapabilities(VendorGrouping):
@@ -497,10 +664,14 @@ class VendorCapabilities(VendorGrouping):
                 continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_revision=revision,
+                )
                 self.skipped += 1
                 continue
             self.logger.info(f'Parsing module {name}')
-            revision = revision or path.split('@')[-1].removesuffix('.yang')
             vendor_info = VendorInfo(
                 platform_data=self.platform_data,
                 conformance_type='implement',
@@ -520,6 +691,15 @@ class VendorCapabilities(VendorGrouping):
                 )
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
+                continue
+            if self.vendor and self.vendor != yang.organization:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_organization=yang.organization,
+                    original_module_revision=revision,
+                )
+                self.skipped += 1
                 continue
             self.dumper.add_module(yang)
             self.parsed += 1
@@ -574,9 +754,13 @@ class VendorYangLibrary(VendorGrouping):
                 continue
             module_hash_info = self.file_hasher.check_vendor_module_hash_for_parsing(path, self.implementation_keys)
             if not module_hash_info.module_should_be_parsed:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_revision=revision,
+                )
                 self.skipped += 1
                 continue
-            revision = revision or path.split('@')[-1].removesuffix('.yang')
             vendor_info = VendorInfo(
                 platform_data=self.platform_data,
                 conformance_type=conformance_type,
@@ -596,6 +780,15 @@ class VendorYangLibrary(VendorGrouping):
                 )
             except (ParseException, FileNotFoundError) as e:
                 self.log_module_creation_exception(e)
+                continue
+            if self.vendor and self.vendor != yang.organization:
+                self._check_vendor_module_differences_from_original_module(
+                    name,
+                    path,
+                    original_module_organization=yang.organization,
+                    original_module_revision=revision,
+                )
+                self.skipped += 1
                 continue
             self.dumper.add_module(yang)
             self.parsed += 1

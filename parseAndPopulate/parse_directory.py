@@ -79,6 +79,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
         dir_paths['cache'],
         args.save_file_hash,
         dir_paths['log'],
+        config,
     )
 
     logger.info('Saving all yang files so the save-file-dir')
@@ -95,6 +96,7 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
             logger,
             args.official_source or None,  # in case of an empty string
             config=config,
+            redis_connection=redis_connection,
         )
     else:
         stats = parse_vendor(
@@ -120,14 +122,10 @@ def main(script_conf: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> tuple[int,
     return stats
 
 
-def save_files(
-    search_directory: str,
-    save_file_dir: str,
-) -> dict[str, str]:
+def save_files(search_directory: str, save_file_dir: str) -> dict[str, str]:
     """
-    Copy all found yang files to the save_file_dir.
-    Return dicts with data containing the original locations of the files,
-    which is later needed for parsing.
+    Copy all new yang files from the search_directory to the save_file_dir.
+    Return dicts with data containing the original locations of all files, which is later needed for parsing.
 
     Arguments:
         :param search_directory     (str) Directory to process
@@ -138,13 +136,13 @@ def save_files(
     for yang_file in glob.glob(os.path.join(search_directory, '**/*.yang'), recursive=True):
         with open(yang_file) as f:
             text = f.read()
-            text = strip_comments(text)
-            name = parse_name(text)
-            revision = parse_revision(text)
-            save_file_path = os.path.join(save_file_dir, f'{name}@{revision}.yang')
-            file_mapping[yang_file] = save_file_path
-            if not os.path.exists(save_file_path):
-                shutil.copy(yang_file, save_file_path)
+        text = strip_comments(text)
+        name = parse_name(text)
+        revision = parse_revision(text)
+        save_file_path = os.path.join(save_file_dir, f'{name}@{revision}.yang')
+        file_mapping[yang_file] = save_file_path
+        if not os.path.exists(save_file_path):
+            shutil.copy(yang_file, save_file_path)
     return file_mapping
 
 
@@ -158,6 +156,7 @@ def parse_sdo(
     logger: Logger,
     official_source: t.Optional[str] = None,
     config: ConfigParser = create_config(),
+    redis_connection: t.Optional[RedisConnection] = None,
 ) -> tuple[int, int]:
     """Parse all yang modules in an SDO directory."""
     logger.info(f'Parsing SDO directory {search_directory}')
@@ -166,7 +165,17 @@ def parse_sdo(
         cls = IanaDirectory
     else:
         cls = SdoDirectory
-    grouping = cls(search_directory, dumper, file_hasher, api, dir_paths, file_mapping, official_source, config=config)
+    grouping = cls(
+        search_directory,
+        dumper,
+        file_hasher,
+        api,
+        dir_paths,
+        file_mapping,
+        official_source,
+        config=config,
+        redis_connection=redis_connection,
+    )
     return grouping.parse_and_load()
 
 

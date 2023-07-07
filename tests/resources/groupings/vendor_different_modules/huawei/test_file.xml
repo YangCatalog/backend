@@ -1,0 +1,12 @@
+<root>
+  <person>
+    <name>John Doe</name>
+    <age>30</age>
+    <location>New York</location>
+  </person>
+  <person>
+    <name>Jane Smith</name>
+    <age>25</age>
+    <location>London</location>
+  </person>
+</root>

@@ -260,6 +260,7 @@ class Populate:
             self.cache_dir,
             not self.args.force_parsing,
             self.log_directory,
+            self.config,
         )
         updated_hashes = file_hasher.load_hashed_files_data(path)
         if updated_hashes:

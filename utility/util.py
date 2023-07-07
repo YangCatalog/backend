@@ -36,9 +36,11 @@ import dateutil.parser
 from Crypto.Hash import HMAC, SHA
 from pyang import plugin
 from pyang.plugins.check_update import check_update
+from pyang.statements import Statement
 
+from utility import yangParser
 from utility.create_config import create_config
-from utility.staticVariables import BACKUP_DATE_FORMAT, JobLogStatuses
+from utility.staticVariables import BACKUP_DATE_FORMAT, NAMESPACE_MAP, ORGANIZATIONS, JobLogStatuses
 from utility.yangParser import create_context
 
 single_line_re = re.compile(r'//.*')
@@ -347,3 +349,39 @@ def hash_pw(password: str) -> str:
 def yang_url(name, revision, config: ConfigParser = create_config()) -> str:
     domain_prefix = config.get('Web-Section', 'domain-prefix')
     return f'{domain_prefix}/all_modules/{name}@{revision}.yang'
+
+
+def resolve_organization(parsed_yang: Statement, save_file_dir: str) -> str:
+    parsed_organization = org[0].arg.lower() if (org := parsed_yang.search('organization')) else None
+    if parsed_organization:
+        for possible_organization in ORGANIZATIONS:
+            if possible_organization in parsed_organization:
+                return possible_organization
+    if parsed_yang.keyword == 'submodule':
+        belongs_to = belongs_to[0].arg if (belongs_to := parsed_yang.search('belongs-to')) else None
+        if not belongs_to:
+            return 'independent'
+        belongs_to = glob.glob(os.path.join(save_file_dir, f'{belongs_to}@*.yang'))
+        # calling the max() function with an empty sequence causes an error
+        filename = max(belongs_to) if belongs_to else None
+        if not filename:
+            return 'independent'
+        try:
+            parsed_yang = yangParser.parse(os.path.abspath(filename))
+        except yangParser.ParseException:
+            return 'independent'
+    namespace = namespace[0].arg if (namespace := parsed_yang.search('namespace')) else None
+    return namespace_to_organization(namespace) if namespace else 'independent'
+
+
+def namespace_to_organization(namespace: str) -> str:
+    for ns, org in NAMESPACE_MAP:
+        if ns in namespace:
+            return org
+    if 'cisco' in namespace:
+        return 'cisco'
+    elif 'ietf' in namespace:
+        return 'ietf'
+    elif 'urn:' in namespace:
+        return namespace.split('urn:')[1].split(':')[0]
+    return 'independent'
