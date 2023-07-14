@@ -21,7 +21,6 @@ class SemanticVersionResolver(Resolver):
         self.logger = logger
 
     def resolve(self) -> t.Optional[str]:
-        self.logger.debug('Resolving semantic version')
         # cisco specific modules - semver defined is inside revision - cisco-semver:module-version
         try:
             parsed_semver = self.parsed_yang.search('revision')[0].search(('cisco-semver', 'module-version'))[0].arg

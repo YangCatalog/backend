@@ -31,7 +31,6 @@ class PrefixResolver(Resolver):
 
     def resolve(self) -> t.Optional[str]:
         module_type = self.parsed_yang.keyword
-        self.logger.debug('Resolving prefix of {}'.format(module_type))
         if module_type == 'submodule':
             return self._resolve_submodule_prefix()
         return self._resolve_module_prefix()
@@ -42,17 +41,16 @@ class PrefixResolver(Resolver):
             self.logger.error('Belongs to not defined - unable to resolve namespace')
             return DEFAULT
 
-        self.logger.debug('Getting parent namespace - {} is a submodule'.format(self.name_revision))
         yang_file = get_yang(self.belongs_to)
         if yang_file is None:
-            self.logger.error('Parent module not found - unable to resolve namespace')
+            self.logger.error(f'Parent module not found - unable to resolve namespace - {self.name_revision}')
             return DEFAULT
 
         try:
             parsed_yang_parent = yangParser.parse(os.path.abspath(yang_file))
             return parsed_yang_parent.search(self.property_name)[0].arg
         except IndexError:
-            self.logger.error('Cannot parse out {} property'.format(self.property_name))
+            self.logger.error(f'Cannot parse out {self.property_name} property - {self.name_revision}')
             return DEFAULT
 
     def _resolve_module_prefix(self) -> t.Optional[str]:
