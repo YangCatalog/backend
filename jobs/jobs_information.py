@@ -17,7 +17,7 @@ __copyright__ = 'Copyright The IETF Trust 2023, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'bohdan.konovalenko@pantheon.tech'
 
-from jobs.celery import BackendCeleryApp
+from jobs.app import BackendCeleryApp
 from jobs.status_messages import StatusMessage, status_messages_mapping
 
 
