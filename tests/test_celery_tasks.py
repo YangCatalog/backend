@@ -153,11 +153,11 @@ class TestCeleryTasksBaseClass(unittest.TestCase):
         _redis_port = int(config.get('DB-Section', 'redis-port'))
 
         cls.redis_connection = celery_app_mock.redis_connection = RedisConnection(
-            modules_db=RedisEnum.MODULES.value,
-            vendors_db=RedisEnum.VENDORS.value,
+            modules_db=RedisEnum.TEST_MODULES.value,
+            vendors_db=RedisEnum.TEST_VENDORS.value,
         )
-        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.MODULES.value)
-        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.VENDORS.value)
+        cls.modulesDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.TEST_MODULES.value)
+        cls.vendorsDB = Redis(host=_redis_host, port=_redis_port, db=RedisEnum.TEST_VENDORS.value)
         cls.huawei_dir = f'{yang_models}/vendor/huawei/network-router/8.20.0/ne5000e'
         cls.directory = f'{temp_dir}/celery_tasks_test'
         resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
