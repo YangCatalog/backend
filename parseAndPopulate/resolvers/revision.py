@@ -21,11 +21,10 @@ class RevisionResolver(Resolver):
         self.logger = logger
 
     def resolve(self) -> str:
-        self.logger.debug('Resolving revision')
         try:
             revision = self.parsed_yang.search('revision')[0].arg
         except IndexError:
-            self.logger.exception('Error while resolving revision')
+            self.logger.exception(f'Error while resolving revision - {self.parsed_yang.arg}')
             revision = DEFAULT
 
         return validate_revision(revision)

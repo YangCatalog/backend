@@ -19,7 +19,6 @@ class YangVersionResolver(Resolver):
         self.logger = logger
 
     def resolve(self) -> str:
-        self.logger.debug('Resolving yang version')
         try:
             yang_version = self.parsed_yang.search('yang-version')[0].arg
         except IndexError:

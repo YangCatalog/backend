@@ -1,5 +1,10 @@
 ## Backend Release Notes
 
+* ##### v5.13.0 - 2023-07-06
+
+  * Changed elasticsearch to opensearch
+  * celery package updated
+
 * ##### v5.12.0 - 2023-05-31
 
   * flask, celery and requests pypi packages updated

@@ -21,7 +21,6 @@ class ModuleTypeResolver(Resolver):
         self.logger = logger
 
     def resolve(self) -> t.Optional[str]:
-        self.logger.debug('Resolving module type')
         try:
             module_type = self.parsed_yang.keyword
             if module_type in ALLOWED:

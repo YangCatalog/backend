@@ -90,11 +90,9 @@ def health_check_opensearch():
     try:
         # try to ping OpenSearch
         if app_config.opensearch_manager.ping():
-            bp.logger.info('Successfully connected to OpenSearch')
             # get health of cluster
             health = app_config.opensearch_manager.cluster_health()
             health_status = health.get('status')
-            bp.logger.info('Health status of cluster: {}'.format(health_status))
             # get list of indices
             indices = app_config.opensearch_manager.get_indices()
             if len(indices) > 0:
@@ -162,7 +160,6 @@ def health_check_redis():
     try:
         result = app_config.redis.ping()
         if result:
-            bp.logger.info('Redis ping responsed successfully')
             response = {'info': 'Success'}
         else:
             bp.logger.error('Redis ping failed to respond')

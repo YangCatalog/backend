@@ -126,7 +126,7 @@ class MyFlask(Flask):
     def preprocess_request(self):
         super().preprocess_request()
         g.special_id = 0
-        if 'admin/' not in request.path or 'api/job/' not in request.path:
+        if not any(i in request.path for i in ('admin/', 'api/job', 'healthcheck/')):
             self.logger.info(request.path)
             client_ip = request.remote_addr
             data = MatomoTrackerData(self.config.m_matomo_api_url, self.config.m_matomo_site_id)

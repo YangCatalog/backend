@@ -9,7 +9,7 @@ on:
 jobs:
 
   build:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    # if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-22.04
     environment: tests
     strategy:
@@ -84,12 +84,20 @@ jobs:
           sudo chown -R $(whoami):$(whoami) $VAR
           ./prepare_environment.sh
           sed -i "s/yc-redis/localhost/" $BACKEND/tests/resources/test.conf
+          sed -i "s/yc-rabbit/localhost/" $BACKEND/tests/resources/test.conf
+          sed -i "s/username=rabbitmq/username=guest/" $BACKEND/tests/resources/test.conf
+          sed -i "s/rabbitmq-password=rabbitmq/rabbitmq-password=guest/" $BACKEND/tests/resources/test.conf
 
       - name: Feed Redis
         run: |
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
           python feed_redis.py
+
+      - name: RabbitMQ in GitHub Actions
+        uses: Namoshek/rabbitmq-github-action@v1.1.0
+        with:
+          ports: "5672:5672"
 
       - name: Test with pytest
         env:
@@ -100,6 +108,7 @@ jobs:
           export TEST_REPO=/var/yang/tmp/test/YangModels/yang
           export BACKEND=$PWD
           export YANGCATALOG_CONFIG_PATH=$BACKEND/tests/resources/test.conf
+          celery -A tests.test_celery_app:celery_app worker -l INFO &
           coverage run -am pytest
           coverage xml
 

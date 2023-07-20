@@ -1,6 +1,6 @@
 /var/yang/logs/*.log {
-    rotate 7
-    daily
+    rotate 52
+    weekly
     compress
     missingok
     copytruncate
@@ -9,8 +9,8 @@
 }
 
 /var/yang/logs/*/*.log {
-    rotate 7
-    daily
+    rotate 52
+    weekly
     compress
     missingok
     copytruncate
@@ -19,8 +19,8 @@
 }
 
 /var/yang/logs/*.access {
-    rotate 7
-    daily
+    rotate 52
+    weekly
     compress
     missingok
     copytruncate

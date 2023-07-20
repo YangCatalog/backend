@@ -149,7 +149,7 @@ def tree_module_revision(module_name: str, revision: t.Optional[str] = None):
 
         if revision is None:
             # get the latest revision of provided module
-            revision = revisions[0]['revision']
+            revision = revisions[0]
 
         path_to_yang = f'{app_config.d_save_file_dir}/{module_name}@{revision}.yang'
         plugin.plugins = []
@@ -618,29 +618,29 @@ def get_modules_revision_organization(module_name: str, revision: t.Optional[str
         :param warnings         (bool) Whether return with warnings or not
     :return: tuple (list of revisions and organization) of specified module name
     """
-    try:
-        if revision is None:
-            hits = app_config.opensearch_manager.get_sorted_module_revisions(
-                OpenSearchIndices.AUTOCOMPLETE,
-                module_name,
-            )
-        else:
-            module = {'name': module_name, 'revision': revision}
-            hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.AUTOCOMPLETE, module)
+    if revision is None:
+        hits = app_config.opensearch_manager.get_sorted_module_revisions(
+            OpenSearchIndices.AUTOCOMPLETE,
+            module_name,
+        )
+    else:
+        module = {'name': module_name, 'revision': revision}
+        hits = app_config.opensearch_manager.get_module_by_name_revision(OpenSearchIndices.AUTOCOMPLETE, module)
 
-        organization = hits[0]['_source']['organization']
-        revisions = set()
-        for hit in hits:
-            hit = hit['_source']
-            revision = hit['revision']
-            revisions.add(revision)
-        return sorted(revisions, reverse=True), organization
-    except IndexError:
+    if not hits:
         name_rev = f'{module_name}@{revision}' if revision else module_name
         bp.logger.warning(f'Failed to get revisions and organization for {name_rev}')
         if warnings:
             return {'warning': f'Failed to find module {name_rev}'}
         abort(404, f'Failed to get revisions and organization for {name_rev}')
+
+    organization = hits[0]['_source']['organization']
+    revisions = set()
+    for hit in hits:
+        hit = hit['_source']
+        revision = hit['revision']
+        revisions.add(revision)
+    return sorted(revisions, reverse=True), organization
 
 
 def get_latest_module_revision(module_name: str) -> str:

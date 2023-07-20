@@ -73,7 +73,6 @@ class ProcessChangedMods:
         self.delete_cache = self._load_delete_cache(self.delete_cache_path)
 
         if not self.changes_cache and not self.delete_cache:
-            self.logger.info('No new modules are added or removed. Exiting script!!!')
             os.unlink(self.lock_file)
             os.unlink(self.lock_file_cron)
             sys.exit()

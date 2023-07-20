@@ -73,12 +73,12 @@ def main(script_config: ScriptConfig = DEFAULT_SCRIPT_CONFIG.copy()) -> list[Job
         logger.info(f'Indexing draft {draft_name} - draft {i} out of {len(drafts)}')
 
         try:
+            # it takes an hour to do this with a request for each draft
+            # would be much more efficient to cache it in a file
             if not opensearch_manager.document_exists(OpenSearchIndices.DRAFTS, draft):
                 opensearch_manager.index_module(OpenSearchIndices.DRAFTS, draft)
                 logger.info(f'added {draft_name} to index')
                 done += 1
-            else:
-                logger.info(f'skipping - {draft_name} is already in index')
         except Exception:
             logger.exception(f'Problem while processing draft {draft_name}')
     logger.info('Job finished successfully')
