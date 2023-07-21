@@ -18,6 +18,7 @@ from redis import Redis
 import utility.log as log
 from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
 from opensearch_indexing.opensearch_manager import OpenSearchManager
+from redisConnections.redis_enum import RedisEnum
 from utility.create_config import create_config
 
 
@@ -48,8 +49,8 @@ def main():
     global LOGGER
     LOGGER = log.get_logger('sandbox', '{}/sandbox.log'.format(log_directory))
 
-    # Create Redis and OpenSearch connections
-    redis = Redis(host=redis_host, port=redis_port, db=1)
+    # Create Redis and Elasticsearch connections
+    redis = Redis(host=redis_host, port=redis_port, db=RedisEnum.MODULES.value)
     opensearch_manager = OpenSearchManager()
 
     # Set up variables and counters
