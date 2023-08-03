@@ -27,7 +27,6 @@ from opensearchpy import OpenSearch
 from opensearch_indexing.models.keywords_names import KeywordsNames
 from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
 from opensearch_indexing.opensearch_manager import OpenSearchManager
-from utility.create_config import create_config
 
 
 class TestOpenSearchManagerClass(unittest.TestCase):
@@ -36,15 +35,14 @@ class TestOpenSearchManagerClass(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        config = create_config()
         opensearch_host_config = {
-            'host': config.get('DB-Section', 'opensearch-host', fallback='localhost'),
-            'port': config.get('DB-Section', 'opensearch-port', fallback='9200'),
+            'host': 'yc-opensearch',
+            'port': '9200',
         }
         cls.opensearch = OpenSearch(hosts=[opensearch_host_config])
         cls.opensearch_manager = OpenSearchManager(cls.opensearch)
         cls.test_index = OpenSearchIndices.TEST
-        resources_path = os.path.join(os.environ['BACKEND'], 'opensearch_indexing/tests/resources')
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         with open(os.path.join(resources_path, 'opensearch_test_data.json'), 'r') as reader:
             cls.test_data = json.load(reader)
         cls.ietf_rip_module = {'name': 'ietf-rip', 'revision': '2020-02-20', 'organization': 'ietf'}
