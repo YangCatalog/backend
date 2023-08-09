@@ -27,6 +27,7 @@ from opensearchpy import OpenSearch
 from opensearch_indexing.models.keywords_names import KeywordsNames
 from opensearch_indexing.models.opensearch_indices import OpenSearchIndices
 from opensearch_indexing.opensearch_manager import OpenSearchManager
+from utility.create_config import create_config
 
 
 class TestOpenSearchManagerClass(unittest.TestCase):
@@ -35,9 +36,10 @@ class TestOpenSearchManagerClass(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        config = create_config()
         opensearch_host_config = {
-            'host': 'yc-opensearch',
-            'port': '9200',
+            'host': config.get('DB-Section', 'opensearch-host', fallback='yc-opensearch'),
+            'port': config.get('DB-Section', 'opensearch-port', fallback='9200'),
         }
         cls.opensearch = OpenSearch(hosts=[opensearch_host_config])
         cls.opensearch_manager = OpenSearchManager(cls.opensearch)
