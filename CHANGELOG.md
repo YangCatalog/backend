@@ -1,5 +1,11 @@
 ## Backend Release Notes
 
+* ##### v5.14.0 - 2023-08-09
+
+  * Added github actions tests for celery [#785](https://github.com/YangCatalog/backend/issues/785)
+  * Improved readability of redis related code [#797](https://github.com/YangCatalog/backend/issues/797)
+  * pre-commit, certifi packages updated
+
 * ##### v5.13.0 - 2023-07-06
 
   * Changed elasticsearch to opensearch
