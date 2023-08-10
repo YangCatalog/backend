@@ -37,8 +37,8 @@ class TestOpenSearchManagerClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         config = create_config()
-        opensearch_host_config = {
-            'host': config.get('DB-Section', 'opensearch-host', fallback='yc-opensearch'),
+        opensearch_host_config = {  # you need to change host to 'yc-opensearch' when testing locally
+            'host': config.get('DB-Section', 'opensearch-host', fallback='localhost'),
             'port': config.get('DB-Section', 'opensearch-port', fallback='9200'),
         }
         cls.opensearch = OpenSearch(hosts=[opensearch_host_config])
