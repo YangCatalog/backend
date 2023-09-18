@@ -46,7 +46,7 @@ class TestResolveExpirationClass(unittest.TestCase):
     def setUpClass(cls):
         cls.module_name = 'parseAndPopulate'
         cls.script_name = 'resolve_expiration'
-        cls.resources_path = os.path.join(os.environ['BACKEND'], 'utility/tests/resources')
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         cls.logger = log.get_logger('resolve_expiration', '/var/yang/logs/jobs/resolve_expiration.log')
         cls.redisConnection = RedisConnection()
 

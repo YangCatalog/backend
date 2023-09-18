@@ -37,14 +37,14 @@ class TestOpenSearchManagerClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         config = create_config()
-        opensearch_host_config = {
+        opensearch_host_config = {  # you need to change host to 'yc-opensearch' when testing locally
             'host': config.get('DB-Section', 'opensearch-host', fallback='localhost'),
             'port': config.get('DB-Section', 'opensearch-port', fallback='9200'),
         }
         cls.opensearch = OpenSearch(hosts=[opensearch_host_config])
         cls.opensearch_manager = OpenSearchManager(cls.opensearch)
         cls.test_index = OpenSearchIndices.TEST
-        resources_path = os.path.join(os.environ['BACKEND'], 'opensearch_indexing/tests/resources')
+        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         with open(os.path.join(resources_path, 'opensearch_test_data.json'), 'r') as reader:
             cls.test_data = json.load(reader)
         cls.ietf_rip_module = {'name': 'ietf-rip', 'revision': '2020-02-20', 'organization': 'ietf'}
