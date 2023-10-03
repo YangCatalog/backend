@@ -271,6 +271,7 @@ def impact_analysis():
         return False
 
     for direction in graph_directions:
+        # WARNING: get_dependencies_dependents_data will return None if they got internal warning
         response[direction] = list(
             filter(
                 None,
@@ -868,7 +869,8 @@ def get_dependencies_dependents_data(
     module_detail = module_details(module_data['name'], module_data.get('revision'), True)
     assert isinstance(module_detail, dict)
     if 'warning' in module_detail:
-        return module_detail
+        # NOTE: ignoring warnings, so that impact analysis page could load even if we have problem with module
+        return None
     module_detail = module_detail['metadata']
     assert isinstance(module_detail, dict)
     module_type = module_detail.get('module-type')
