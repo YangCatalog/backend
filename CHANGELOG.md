@@ -1,5 +1,11 @@
 ## Backend Release Notes
 
+* ##### v5.15.0 - 2023-10-04
+
+  * Added fix for Impact Analysis page internal server error [frontend #38](https://github.com/YangCatalog/frontend/issues/38)
+  * Test refactoring [#804](https://github.com/YangCatalog/backend/issues/804)
+  * gevent package bumped from 22.10.2 to 23.9.1
+
 * ##### v5.14.0 - 2023-08-09
 
   * Added github actions tests for celery [#785](https://github.com/YangCatalog/backend/issues/785)
