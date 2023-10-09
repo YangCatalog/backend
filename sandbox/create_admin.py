@@ -26,7 +26,7 @@ def main():
         password=hash_pw(password),
         first_name='admin',
         last_name='admin',
-        email='foo@bar.com',
+        email='patrik.provaznik@pantheon.tech',
         models_provider='IETF',
         access_rights_sdo='/',
         access_rights_vendor='/',
