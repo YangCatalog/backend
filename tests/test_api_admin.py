@@ -543,7 +543,7 @@ class TestApiAdminClass(unittest.TestCase):
         response = self.client.get('/api/admin/module/test_module@2023-10-20/test_organization')
         self.assertEqual(response.status_code, 404)
         mock_get_module.assert_called_once_with('test_module@2023-10-20/test_organization')
-    
+
     @mock.patch('redisConnections.redisConnection.RedisConnection.get_module')
     def test_get_redis_module_internal_server_error(self, mock_get_module):
         mock_get_module.side_effect = Exception('Internal server error occured.')

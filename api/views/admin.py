@@ -32,7 +32,6 @@ import typing as t
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
-from typing_extensions import Tuple
 
 import flask
 from flask.blueprints import Blueprint
@@ -44,6 +43,7 @@ from flask_pyoidc import OIDCAuthentication
 from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
 from flask_pyoidc.user_session import UserSession
 from redis import RedisError
+from typing_extensions import Tuple
 from werkzeug.exceptions import abort
 from werkzeug.utils import redirect
 
@@ -610,22 +610,22 @@ def get_input(body):
         abort(400, description='bad-request - body has to start with "input" and can not be empty')
     else:
         return body['input']
-    
+
 
 @bp.route('/api/admin/module/<module>@<revision>/<organization>', methods=['GET'])
 @catch_db_error
-def get_redis_module(module:str, revision:str, organization: str) -> dict | Tuple[Response, int]:
+def get_redis_module(module: str, revision: str, organization: str) -> dict | Tuple[Response, int]:
     module_key = f'{module}@{revision}/{organization}'
     module_from_db = app.redisConnection.get_module(module_key)
     if module_from_db != '{}':
         return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(module_from_db)
     else:
         return jsonify({module_key: {'info': 'Module does not exist.'}}), 404
-    
+
 
 @bp.route('/api/admin/module/<module>@<revision>/<organization>', methods=['PUT'])
 @catch_db_error
-def update_redis_module(module:str, revision:str, organization: str) -> dict | Tuple[Response, int]:
+def update_redis_module(module: str, revision: str, organization: str) -> dict | Tuple[Response, int]:
     module_key = f'{module}@{revision}/{organization}'
     module_from_db = app.redisConnection.get_module(module_key)
     module_to_json = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(module_from_db)
