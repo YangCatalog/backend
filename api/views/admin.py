@@ -17,9 +17,11 @@ __copyright__ = 'Copyright The IETF Trust 2020, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
 __email__ = 'miroslav.kovac@pantheon.tech'
 
+import collections
 import fnmatch
 import grp
 import gzip
+import json
 import math
 import os
 import pwd
@@ -30,11 +32,13 @@ import typing as t
 from datetime import datetime
 from functools import wraps
 from pathlib import Path
+from typing_extensions import Tuple
 
 import flask
 from flask.blueprints import Blueprint
 from flask.globals import request
 from flask.json import jsonify
+from flask.wrappers import Response
 from flask_cors import CORS
 from flask_pyoidc import OIDCAuthentication
 from flask_pyoidc.provider_configuration import ClientMetadata, ProviderConfiguration
@@ -606,3 +610,29 @@ def get_input(body):
         abort(400, description='bad-request - body has to start with "input" and can not be empty')
     else:
         return body['input']
+    
+
+@bp.route('/api/admin/module/<module>@<revision>/<organization>', methods=['GET'])
+@catch_db_error
+def get_redis_module(module:str, revision:str, organization: str) -> dict | Tuple[Response, int]:
+    module_key = f'{module}@{revision}/{organization}'
+    module_from_db = app.redisConnection.get_module(module_key)
+    if module_from_db != '{}':
+        return json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(module_from_db)
+    else:
+        return jsonify({module_key: {'info': 'Module does not exist.'}}), 404
+    
+
+@bp.route('/api/admin/module/<module>@<revision>/<organization>', methods=['PUT'])
+@catch_db_error
+def update_redis_module(module:str, revision:str, organization: str) -> dict | Tuple[Response, int]:
+    module_key = f'{module}@{revision}/{organization}'
+    module_from_db = app.redisConnection.get_module(module_key)
+    module_to_json = json.JSONDecoder(object_pairs_hook=collections.OrderedDict).decode(module_from_db)
+    if body := request.get_json():
+        if body == module_to_json:
+            return jsonify({'message': f'Module {module_key} is already in database.'}), 200
+        app.redisConnection.set_module(body, module_key)
+        return jsonify({'message': f'Module {module_key} updated successfully.'}), 200
+    else:
+        return jsonify({'error': 'Invalid data provided.'}), 400
