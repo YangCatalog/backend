@@ -869,7 +869,8 @@ def get_dependencies_dependents_data(
     module_detail = module_details(module_data['name'], module_data.get('revision'), True)
     assert isinstance(module_detail, dict)
     if 'warning' in module_detail:
-        # NOTE: ignoring warnings, so that impact analysis page could load even if we have problem with module
+        return module_detail
+    if 'metadata' not in module_detail:
         return None
     module_detail = module_detail['metadata']
     assert isinstance(module_detail, dict)
