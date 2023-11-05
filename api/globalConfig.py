@@ -36,7 +36,7 @@ class YangCatalogApiGlobalConfig:
 
     def load_config(self):
         config = create_config()
-        self.secret_key = config.get('Secrets-Section', 'flask-secret-key', fallback='S3CR3T!')
+        self.secret_key = config.get('Secrets-Section', 'flask-secret-key', fallback='FLASKS3CR3T')
         self.nginx_dir = config.get('Directory-Section', 'nginx-conf', fallback='')
         self.result_dir = config.get('Web-Section', 'result-html-dir', fallback='tests/resources/html/results')
         self.private_dir = config.get('Web-Section', 'private-directory', fallback='tests/resources/html/private')
@@ -85,7 +85,7 @@ class YangCatalogApiGlobalConfig:
         self.domain_prefix = config.get('Web-Section', 'domain-prefix', fallback='http://localhost')
         self.opensearch_aws = self.opensearch_aws == 'True'
 
-        self.LOGGER = log.get_logger('api.yc_gc', '{}/yang.log'.format(self.logs_dir))
+        self.LOGGER = log.get_logger('api.yc_gc', f'{self.logs_dir}/yang.log')
 
         self.LOGGER.info('yangcatalog configuration reloaded')
         self.redis = redis.Redis(host=self.redis_host, port=self.redis_port)  # pyright: ignore
