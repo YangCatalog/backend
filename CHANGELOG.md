@@ -1,5 +1,9 @@
 ## Backend Release Notes
 
+* ##### v5.17.0 - 2023-12-11
+
+  * Added 2 new endpoints for prototype redis-editing page [frontend #39](https://github.com/YangCatalog/frontend/issues/39)
+
 * ##### v5.16.0 - 2023-11-08
 
   * Added fix for Impact Analysis page internal server error [frontend #38](https://github.com/YangCatalog/frontend/issues/38)
