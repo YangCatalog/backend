@@ -40,16 +40,16 @@ app_config = app.config
 class TestApiAdminClass(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
+        cls.resources_path = os.path.join(os.environ['BACKEND'], 'tests/resources')
         cls.client = app.test_client()
         cls.users = RedisUsersConnection()
-        with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
+        with open(os.path.join(cls.resources_path, 'payloads.json'), 'r') as f:
             content = json.load(f)
         fields = content['user']['input']
         cls.user_info_fields = {key.replace('-', '_'): value for key, value in fields.items()}
-        with open(os.path.join(resources_path, 'testlog.log'), 'r') as f:
+        with open(os.path.join(cls.resources_path, 'testlog.log'), 'r') as f:
             cls.test_log_text = f.read()
-        with open(os.path.join(resources_path, 'payloads.json'), 'r') as f:
+        with open(os.path.join(cls.resources_path, 'payloads.json'), 'r') as f:
             cls.payloads_content = json.load(f)
 
     def setUp(self):
@@ -529,6 +529,57 @@ class TestApiAdminClass(unittest.TestCase):
         self.assertIn('free', data['data'])
         self.assertIn('info', data)
         self.assertEqual(data['info'], 'Success')
+
+    @mock.patch('redisConnections.redisConnection.RedisConnection.get_module')
+    def test_get_redis_module_existing_module(self, mock_get_module):
+        mock_get_module.return_value = '{"name": "test_module"}'
+        response = self.client.get('/api/admin/module/test_module@2023-10-20/test_organization')
+        self.assertEqual(response.status_code, 200)
+        mock_get_module.assert_called_once_with('test_module@2023-10-20/test_organization')
+
+        # Checking if payload looks as expected
+        response_data = response.get_json()
+        self.assertIn('name', response_data)
+        self.assertEqual(response_data['name'], 'test_module')
+
+    @mock.patch('redisConnections.redisConnection.RedisConnection.get_module')
+    def test_get_redis_module_non_existing_module(self, mock_get_module):
+        mock_get_module.return_value = '{}'
+        response = self.client.get('/api/admin/module/test_module@2023-10-20/test_organization')
+        self.assertEqual(response.status_code, 404)
+        mock_get_module.assert_called_once_with('test_module@2023-10-20/test_organization')
+
+        # Checking if payload looks as expected
+        response_data = response.get_json()
+        self.assertIn('test_module@2023-10-20/test_organization', response_data)
+        self.assertIn('info', response_data['test_module@2023-10-20/test_organization'])
+        self.assertEqual(response_data['test_module@2023-10-20/test_organization']['info'], 'Module does not exist.')
+
+    @mock.patch('redisConnections.redisConnection.RedisConnection.get_module')
+    def test_get_redis_module_internal_server_error(self, mock_get_module):
+        mock_get_module.side_effect = Exception('Internal server error occured.')
+        response = self.client.get('/api/admin/module/test_module@2023-10-20/test_organization')
+        self.assertEqual(response.status_code, 500)
+        mock_get_module.assert_called_once_with('test_module@2023-10-20/test_organization')
+
+    @mock.patch('redisConnections.redisConnection.RedisConnection.get_module')
+    @mock.patch('redisConnections.redisConnection.RedisConnection.set_module')
+    def test_update_redis_module_valid_data(self, mock_set_module, mock_get_module):
+        with open(os.path.join(self.resources_path, 'yang-catalog@2018-04-03.json'), 'r') as f:
+            modules_data = json.load(f)
+        mock_get_module.return_value = '{"name": "test_module"}'
+        response = self.client.put('/api/admin/module/test_module@2023-10-20/test_organization', json=modules_data)
+        self.assertEqual(response.status_code, 200)
+        mock_get_module.assert_called_once_with('test_module@2023-10-20/test_organization')
+        mock_set_module.assert_called_once_with(modules_data, 'test_module@2023-10-20/test_organization')
+
+        # Checking if payload looks as expected
+        response_data = response.get_json()
+        self.assertIn('message', response_data)
+        self.assertEqual(
+            response_data['message'],
+            'Module test_module@2023-10-20/test_organization updated successfully.',
+        )
 
 
 if __name__ == '__main__':
