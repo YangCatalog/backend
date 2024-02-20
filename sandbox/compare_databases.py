@@ -9,6 +9,7 @@ Search and scroll all the documents in the 'modules' index and check whether thi
 is also stored in Redis database
 Finally, all the information are dumped into json file, so they can be reviewed later.
 """
+
 import json
 import os
 
