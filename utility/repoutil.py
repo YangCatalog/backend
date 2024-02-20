@@ -176,7 +176,10 @@ class Worktree:
         try:
             repo_git.worktree('add', self.worktree_dir, branch)
         except GitCommandError as e:
-            if 'is already checked out at' not in e.stderr:
+            conflicting_worktree_exists: bool = (
+                'is already checked out at' in e.stderr or 'is already used by worktree at' in e.stderr
+            )
+            if not conflicting_worktree_exists:
                 raise e
             worktrees_output: list[str] = repo.git.worktree('list', '--porcelain').splitlines()
             conflicting_worktree = None
