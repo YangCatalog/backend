@@ -425,8 +425,12 @@ class ModulesComplicatedAlgorithms:
                 ctx.opts.lint_modulename_prefixes = []
                 for p in plugin.plugins:
                     p.setup_ctx(ctx)
-                with open(self._path, 'r', errors='ignore') as f:
-                    a = ctx.add_module(self._path, f.read())
+                try:
+                    with open(self._path, 'r', errors='ignore') as f:
+                        a = ctx.add_module(self._path, f.read())
+                except Exception as e:
+                    LOGGER.debug("Error opening %s: %s" % self._path, str(e))
+                    a = None
                 if a is None:
                     LOGGER.debug(
                         f'Could not use pyang to generate tree because of errors on module {self._path}',
