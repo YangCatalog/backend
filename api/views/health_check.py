@@ -466,10 +466,6 @@ def health_check_yangcatalog():
         {'url': 'http://www.yangvalidator.com', 'verify': True},
         {'url': 'https://yangvalidator.com', 'verify': True},
         {'url': 'https://www.yangvalidator.com', 'verify': True},
-        {'url': 'http://18.224.127.129', 'verify': False},
-        {'url': 'https://18.224.127.129', 'verify': False},
-        {'url': 'http://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False},
-        {'url': 'https://[2600:1f16:ba:200:a10d:3212:e763:e720]', 'verify': False},
     ]
 
     for item in urls:
