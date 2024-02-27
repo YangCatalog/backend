@@ -70,7 +70,7 @@ def build_indices(
 
     yindexes = json.loads(f.getvalue())
 
-    with open(os.path.join(json_ytree, name_revision), 'w') as writer:
+    with open(os.path.join(json_ytree, name_revision + '.json'), 'w') as writer:
         try:
             emit_tree([parsed_module], writer, ctx)
         except Exception:
