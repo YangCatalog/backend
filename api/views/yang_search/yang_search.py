@@ -502,9 +502,11 @@ def module_details(module: str, selected_revision: t.Optional[str] = None, warni
         module_key = f'{module}@{revision}/{organization}'
         module_data = app.redisConnection.get_module(module_key)
         if module_data == '{}':
-            if warnings:
-                return {'warning': f'module {module_key} does not exist in API'}
-            abort(404, description='Provided module does not exist')
+            if selected_revision == revision:
+                abort(404, description=f'module {module_key} does not exist in redis (found in search index)')
+            else:
+                bp.logger.warning(f'module {module_key} does not exist in redis (found in search index)')
+                continue
         module_data = json.loads(module_data)
         rev_mat_pair = {
             'revision': module_data['revision'],
