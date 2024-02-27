@@ -66,6 +66,9 @@ WORKDIR $VIRTUAL_ENV
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
 
+# Enforce rebase pulls
+RUN /usr/bin/git config --global pull.rebase true
+
 USER root:root
 CMD cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
