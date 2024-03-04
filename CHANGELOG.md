@@ -1,5 +1,15 @@
 ## Backend Release Notes
 
+* ##### v5.18.0 - 2024-02-26
+
+  * Restore the .json extension on ytree files [backend #816](https://github.com/YangCatalog/backend/pull/816)
+  * Ignore a missing module revision [backend #820](https://github.com/YangCatalog/backend/pull/820)
+  * Ignore errors on modules that don't exist [backend #821](https://github.com/YangCatalog/backend/pull/821)
+  * Always use rebase when pulling [backend #818](https://github.com/YangCatalog/backend/pull/818) [module-compilation #294](https://github.com/YangCatalog/module-compilation/pull/294)
+  * Remove legacy IPs [backend #817](https://github.com/YangCatalog/backend/pull/817) [yang-validator-extractor #151](https://github.com/YangCatalog/yang-validator-extractor/pull/151)
+  * Start postfix as root [deployment #208](https://github.com/YangCatalog/deployment/pull/208)
+  * Remove redundant healthcheck [deployment #209](https://github.com/YangCatalog/deployment/pull/209)
+
 * ##### v5.17.0 - 2023-12-11
 
   * Added 2 new endpoints for prototype redis-editing page [frontend #39](https://github.com/YangCatalog/frontend/issues/39)
