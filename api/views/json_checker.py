@@ -11,8 +11,7 @@ class Union:
         return ' | '.join(str(m) for m in self.members)
 
 
-class JsonCheckerException(Exception):
-    ...
+class JsonCheckerException(Exception): ...  # noqa: E701
 
 
 class MissingField(JsonCheckerException):

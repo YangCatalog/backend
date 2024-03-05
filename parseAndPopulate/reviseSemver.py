@@ -9,6 +9,7 @@ each module (and all of the revisions).
 Lastly, populate() method will send PATCH request to ConfD and
 cache will be re-loaded using api/load-cache endpoint.
 """
+
 import json
 import os
 import sys
