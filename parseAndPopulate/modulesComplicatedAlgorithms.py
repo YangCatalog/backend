@@ -429,7 +429,7 @@ class ModulesComplicatedAlgorithms:
                     with open(self._path, 'r', errors='ignore') as f:
                         a = ctx.add_module(self._path, f.read())
                 except Exception as e:
-                    LOGGER.debug('Error opening %s: %s' % self._path, str(e))
+                    LOGGER.debug("Error opening %s: %s" % self._path, str(e))
                     a = None
                 if a is None:
                     LOGGER.debug(
