@@ -56,8 +56,11 @@ def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repouti
                 config_user_email=config.get('General-Section', 'repo-config-email'),
             ),
         )
+        # Only pull from upstream (origin), not from fork/main
+        # This keeps fork-main current with upstream without pulling
+        # in previous automation commits
         worktree.repo.git.pull('origin', REPO_MAIN_BRANCH)
-        worktree.repo.git.pull('fork', REPO_MAIN_BRANCH)
+        #worktree.repo.git.pull('fork', REPO_MAIN_BRANCH)
     except Exception as e:
         logger.exception('Exception occurred while creating/updating the worktree:\n')
         raise e
@@ -98,8 +101,11 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
         origin = main_repo.remote('origin')
         origin.pull(REPO_MAIN_BRANCH)
 
+        # update submodules to match origin/main
+        main_repo.submodule_update(recursive=True)
+
         # git push fork main
-        push_info = fork.push(REPO_MAIN_BRANCH)[0]
+        push_info = fork.push(REPO_MAIN_BRANCH, force_with_lease=True)[0]
         logger.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
             logger.warning('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
@@ -265,6 +271,9 @@ def push_untracked_files(
     try:
         logger.info('Committing all files locally')
         repo.git.add('.')
+        if not repo.is_dirty(index=True, working_tree=True, untracked_files=True):
+            logger.info('Nothing to commit, skipping push')
+            return PushResult(is_successful=True, detail='Nothing to commit')
         repo.git.commit(a=True, m=commit_message)
         logger.info('Pushing files to forked repository')
         commit_hash = repo.head.commit
