@@ -309,7 +309,6 @@ class PushResult:
     detail: str
 
 
-
 def push_untracked_files(
     repo: Repo,
     commit_message: str,
