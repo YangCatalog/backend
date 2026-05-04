@@ -16,6 +16,7 @@
 This is for use with json.dump(s) option. It will dump json without
 null values of the json. use cls option - cls=NullJsonEncoder
 """
+
 import json
 
 __author__ = 'Miroslav Kovac'

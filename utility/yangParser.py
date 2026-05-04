@@ -157,7 +157,7 @@ def create_context(path: str = '.') -> OptsContext:
 
     # make a map of features to support, per module (taken from pyang bin)
     for feature_name in opts.features:
-        (module_name, features) = _parse_features_string(feature_name)
+        module_name, features = _parse_features_string(feature_name)
         ctx.features[module_name] = features
 
     # apply deviations (taken from pyang bin)

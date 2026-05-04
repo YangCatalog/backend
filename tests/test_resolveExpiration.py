@@ -25,7 +25,6 @@ VIII. Active draft - change expires property to date in the future
 IX. Datatracker unavailable - exception raised after GET request
 """
 
-
 __author__ = 'Slavomir Mazur'
 __copyright__ = 'Copyright The IETF Trust 2021, All Rights Reserved'
 __license__ = 'Apache License, Version 2.0'
