@@ -30,6 +30,7 @@ import tarfile
 from configparser import ConfigParser
 from dataclasses import dataclass
 
+import requests
 from git import GitCommandError, Repo
 
 from utility import repoutil, yangParser
@@ -37,6 +38,36 @@ from utility.util import revision_to_date
 
 FORKED_WORKTREE_WORKING_BRANCH = 'fork-main'
 REPO_MAIN_BRANCH = 'main'
+
+
+def _has_open_pr(repo_owner: str, repo_token: str, logger: logging.Logger) -> bool:
+    """Check if there is an open PR from our fork's main branch to YangModels/yang main.
+
+    Fails closed (returns True) if the API call fails, so that an open PR is
+    never accidentally wiped by a force sync.
+
+    Arguments:
+        :param repo_owner   (str) GitHub username or organisation that owns the fork
+        :param repo_token   (str) Personal access token with repo read scope
+        :param logger       (logging.Logger) formatted logger with the specified name
+    """
+    try:
+        response = requests.get(
+            'https://api.github.com/repos/YangModels/yang/pulls',
+            headers={'Authorization': f'token {repo_token}'},
+            params={'state': 'open', 'head': f'{repo_owner}:{REPO_MAIN_BRANCH}'},
+            timeout=10,
+        )
+        response.raise_for_status()
+        prs = response.json()
+        if prs:
+            logger.info(f'Open PR found: {prs[0]["html_url"]} - skipping force sync')
+            return True
+        return False
+    except Exception:
+        # Fail safe: if we cannot determine PR state, assume one is open
+        logger.exception('Failed to check for open PRs - assuming one exists, skipping force sync')
+        return True
 
 
 def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repoutil.Worktree:
@@ -56,11 +87,11 @@ def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repouti
                 config_user_email=config.get('General-Section', 'repo-config-email'),
             ),
         )
-        # Only pull from upstream (origin), not from fork/main
-        # This keeps fork-main current with upstream without pulling
-        # in previous automation commits
+        # Only pull from upstream (origin) to keep fork-main current with
+        # YangModels/yang without pulling previous automation commits back in,
+        # which caused merge commit accumulation and history sprawl.
         worktree.repo.git.pull('origin', REPO_MAIN_BRANCH)
-        #worktree.repo.git.pull('fork', REPO_MAIN_BRANCH)
+        # worktree.repo.git.pull('fork', REPO_MAIN_BRANCH)
     except Exception as e:
         logger.exception('Exception occurred while creating/updating the worktree:\n')
         raise e
@@ -92,6 +123,12 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
             fork = main_repo.create_remote('fork', forked_repo_url)
             os.mknod(git_config_lock_file)
 
+        # repo_token and repo_owner are set inside the except block above when
+        # the remote doesn't exist yet, but we need them available for the PR
+        # check below regardless of whether the remote already existed.
+        repo_token = config.get('Secrets-Section', 'yang-catalog-token')
+        repo_owner = config.get('General-Section', 'repository-username')
+
         # git fetch --all
         for remote in main_repo.remotes:
             info = remote.fetch(REPO_MAIN_BRANCH)[0]
@@ -101,13 +138,36 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
         origin = main_repo.remote('origin')
         origin.pull(REPO_MAIN_BRANCH)
 
-        # update submodules to match origin/main
-        main_repo.submodule_update(recursive=True)
+        # Submodule update removed - the automation jobs do not interact with
+        # submodules and the network fetch caused hangs on large vendor submodules.
+        # main_repo.submodule_update(recursive=True)
 
         # git push fork main
-        push_info = fork.push(REPO_MAIN_BRANCH, force_with_lease=True)[0]
+        push_info = fork.push(REPO_MAIN_BRANCH)[0]
         logger.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
+            # Non-fast-forward means fork/main is behind origin/main, which
+            # happens after a PR is merged upstream and origin/main advances.
+            # Only force-sync when there is no open PR from our fork — otherwise
+            # we would wipe commits that are still under review.
+            logger.warning('Non-fast-forward push to fork/main detected')
+            if _has_open_pr(repo_owner, repo_token, logger):
+                logger.warning('Open PR exists - skipping force sync, will retry next run')
+            else:
+                logger.warning('No open PR found - PR likely merged, force-syncing fork with origin/main')
+                # Reset local branches to origin/main before force pushing.
+                # Without this, the push adds on top of existing history rather
+                # than truly resyncing, leaving stale commits in fork/main.
+                origin_main_commit = main_repo.commit(f'origin/{REPO_MAIN_BRANCH}')
+                main_repo.heads[REPO_MAIN_BRANCH].set_commit(origin_main_commit)
+                main_repo.heads[FORKED_WORKTREE_WORKING_BRANCH].set_commit(origin_main_commit)
+                fork.push(REPO_MAIN_BRANCH, force_with_lease=True)
+                fork.push(
+                    f'{FORKED_WORKTREE_WORKING_BRANCH}:{FORKED_WORKTREE_WORKING_BRANCH}',
+                    force_with_lease=True,
+                )
+                logger.info('Force sync complete')
+        elif 'non-fast-forward' in push_info.summary:
             logger.warning('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
     except GitCommandError:
         logger.exception('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
@@ -249,6 +309,7 @@ class PushResult:
     detail: str
 
 
+
 def push_untracked_files(
     repo: Repo,
     commit_message: str,
@@ -271,9 +332,15 @@ def push_untracked_files(
     try:
         logger.info('Committing all files locally')
         repo.git.add('.')
+
+        # Skip commit and push when nothing has actually changed. Without this
+        # guard, the cron jobs produce a new commit every run regardless of
+        # whether any YANG files were updated, causing history sprawl in the
+        # upstream repository.
         if not repo.is_dirty(index=True, working_tree=True, untracked_files=True):
             logger.info('Nothing to commit, skipping push')
             return PushResult(is_successful=True, detail='Nothing to commit')
+
         repo.git.commit(a=True, m=commit_message)
         logger.info('Pushing files to forked repository')
         commit_hash = repo.head.commit
