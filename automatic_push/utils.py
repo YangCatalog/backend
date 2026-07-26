@@ -40,34 +40,35 @@ FORKED_WORKTREE_WORKING_BRANCH = 'fork-main'
 REPO_MAIN_BRANCH = 'main'
 
 
-def _has_open_pr(repo_owner: str, repo_token: str, logger: logging.Logger) -> bool:
-    """Check if there is an open PR from our fork's main branch to YangModels/yang main.
+def _fork_head_was_merged(fork_head_sha: str, repo_token: str, logger: logging.Logger) -> bool:
+    """Check if the exact head of the fork was merged into YangModels/yang.
 
-    Fails closed (returns True) if the API call fails, so that an open PR is
-    never accidentally wiped by a force sync.
+    Fails closed (returns False) if the API call fails, so that fork commits
+    are never accidentally wiped by a force sync.
 
     Arguments:
-        :param repo_owner   (str) GitHub username or organisation that owns the fork
-        :param repo_token   (str) Personal access token with repo read scope
-        :param logger       (logging.Logger) formatted logger with the specified name
+        :param fork_head_sha (str) SHA at the head of the fork's main branch
+        :param repo_token    (str) Personal access token with repo read scope
+        :param logger        (logging.Logger) formatted logger with the specified name
     """
     try:
         response = requests.get(
-            'https://api.github.com/repos/YangModels/yang/pulls',
-            headers={'Authorization': f'token {repo_token}'},
-            params={'state': 'open', 'head': f'{repo_owner}:{REPO_MAIN_BRANCH}'},
+            f'https://api.github.com/repos/YangModels/yang/commits/{fork_head_sha}/pulls',
+            headers={
+                'Accept': 'application/vnd.github+json',
+                'Authorization': f'token {repo_token}',
+            },
             timeout=10,
         )
         response.raise_for_status()
-        prs = response.json()
-        if prs:
-            logger.info(f'Open PR found: {prs[0]["html_url"]} - skipping force sync')
-            return True
+        for pull_request in response.json():
+            if pull_request.get('merged_at'):
+                logger.info(f'Fork head was merged by {pull_request["html_url"]}')
+                return True
         return False
     except Exception:
-        # Fail safe: if we cannot determine PR state, assume one is open
-        logger.exception('Failed to check for open PRs - assuming one exists, skipping force sync')
-        return True
+        logger.exception('Failed to check whether the fork head was merged - preserving fork commits')
+        return False
 
 
 def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repoutil.Worktree:
@@ -87,11 +88,11 @@ def get_forked_worktree(config: ConfigParser, logger: logging.Logger) -> repouti
                 config_user_email=config.get('General-Section', 'repo-config-email'),
             ),
         )
-        # Only pull from upstream (origin) to keep fork-main current with
-        # YangModels/yang without pulling previous automation commits back in,
-        # which caused merge commit accumulation and history sprawl.
-        worktree.repo.git.pull('origin', REPO_MAIN_BRANCH)
-        # worktree.repo.git.pull('fork', REPO_MAIN_BRANCH)
+        # Incorporate pending automation commits from the fork before changes
+        # from upstream. Explicitly use merge pulls so cron behavior does not
+        # depend on the host's pull.rebase configuration.
+        worktree.repo.git.pull('--no-rebase', '--no-edit', 'fork', REPO_MAIN_BRANCH)
+        worktree.repo.git.pull('--no-rebase', '--no-edit', 'origin', REPO_MAIN_BRANCH)
     except Exception as e:
         logger.exception('Exception occurred while creating/updating the worktree:\n')
         raise e
@@ -123,11 +124,10 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
             fork = main_repo.create_remote('fork', forked_repo_url)
             os.mknod(git_config_lock_file)
 
-        # repo_token and repo_owner are set inside the except block above when
-        # the remote doesn't exist yet, but we need them available for the PR
-        # check below regardless of whether the remote already existed.
+        # repo_token is set inside the except block above when the remote
+        # doesn't exist yet, but we need it available for the PR check below
+        # regardless of whether the remote already existed.
         repo_token = config.get('Secrets-Section', 'yang-catalog-token')
-        repo_owner = config.get('General-Section', 'repository-username')
 
         # git fetch --all
         for remote in main_repo.remotes:
@@ -146,29 +146,17 @@ def update_forked_repository(yang_models: str, config: ConfigParser, logger: log
         push_info = fork.push(REPO_MAIN_BRANCH)[0]
         logger.info(f'Push info: {push_info.summary}')
         if 'non-fast-forward' in push_info.summary:
-            # Non-fast-forward means fork/main is behind origin/main, which
-            # happens after a PR is merged upstream and origin/main advances.
-            # Only force-sync when there is no open PR from our fork — otherwise
-            # we would wipe commits that are still under review.
             logger.warning('Non-fast-forward push to fork/main detected')
-            if _has_open_pr(repo_owner, repo_token, logger):
-                logger.warning('Open PR exists - skipping force sync, will retry next run')
-            else:
-                logger.warning('No open PR found - PR likely merged, force-syncing fork with origin/main')
-                # Reset local branches to origin/main before force pushing.
-                # Without this, the push adds on top of existing history rather
-                # than truly resyncing, leaving stale commits in fork/main.
+            fork_head_commit = main_repo.commit(f'fork/{REPO_MAIN_BRANCH}')
+            if _fork_head_was_merged(fork_head_commit.hexsha, repo_token, logger):
+                logger.info('Fork head was merged - force-syncing fork with origin/main')
                 origin_main_commit = main_repo.commit(f'origin/{REPO_MAIN_BRANCH}')
                 main_repo.heads[REPO_MAIN_BRANCH].set_commit(origin_main_commit)
                 main_repo.heads[FORKED_WORKTREE_WORKING_BRANCH].set_commit(origin_main_commit)
-                fork.push(REPO_MAIN_BRANCH, force_with_lease=True)
-                fork.push(
-                    f'{FORKED_WORKTREE_WORKING_BRANCH}:{FORKED_WORKTREE_WORKING_BRANCH}',
-                    force_with_lease=True,
-                )
-                logger.info('Force sync complete')
-        elif 'non-fast-forward' in push_info.summary:
-            logger.warning('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
+                sync_push_info = fork.push(REPO_MAIN_BRANCH, force_with_lease=True)[0]
+                logger.info(f'Force sync complete: {sync_push_info.summary}')
+            else:
+                logger.info('Fork head is not confirmed as merged - preserving fork commits')
     except GitCommandError:
         logger.exception('yang-catalog/yang repo might not be up-to-date, or there is nothing to push')
 
@@ -332,15 +320,16 @@ def push_untracked_files(
         logger.info('Committing all files locally')
         repo.git.add('.')
 
-        # Skip commit and push when nothing has actually changed. Without this
-        # guard, the cron jobs produce a new commit every run regardless of
-        # whether any YANG files were updated, causing history sprawl in the
-        # upstream repository.
-        if not repo.is_dirty(index=True, working_tree=True, untracked_files=True):
+        # Avoid creating an empty importer commit, but still push a clean
+        # reconciliation commit created while pulling fork and upstream.
+        if repo.is_dirty(index=True, working_tree=True, untracked_files=True):
+            repo.git.commit(a=True, m=commit_message)
+        elif repo.head.commit == repo.commit(f'fork/{REPO_MAIN_BRANCH}'):
             logger.info('Nothing to commit, skipping push')
             return PushResult(is_successful=True, detail='Nothing to commit')
+        else:
+            logger.info('Local branch contains unpushed reconciliation commits')
 
-        repo.git.commit(a=True, m=commit_message)
         logger.info('Pushing files to forked repository')
         commit_hash = repo.head.commit
         logger.info(f'Commit hash {commit_hash}')
