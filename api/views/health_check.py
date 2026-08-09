@@ -458,14 +458,10 @@ def health_check_yangcatalog():
     additional_info = []
 
     urls = [
-        {'url': 'http://yangcatalog.org', 'verify': True},
         {'url': 'http://www.yangcatalog.org', 'verify': True},
-        {'url': 'https://yangcatalog.org', 'verify': True},
         {'url': 'https://www.yangcatalog.org', 'verify': True},
-        {'url': 'http://yangvalidator.com', 'verify': True},
-        {'url': 'http://www.yangvalidator.com', 'verify': True},
-        {'url': 'https://yangvalidator.com', 'verify': True},
-        {'url': 'https://www.yangvalidator.com', 'verify': True},
+        {'url': 'http://www.yangcatalog.org/yangvalidator', 'verify': True},
+        {'url': 'https://www.yangcatalog.org/yangvalidator', 'verify': True},
     ]
 
     for item in urls:
