@@ -9,7 +9,7 @@ GitPython==3.1.37
 pika==1.2.0
 prometheus-client==0.10.1
 Crypto==1.4.1
-pycryptodome==3.14.1
+pycryptodome==3.19.1
 python-dateutil==2.8.1
 opensearch-py==2.2.0
 Flask==2.3.2
