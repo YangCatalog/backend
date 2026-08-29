@@ -44,6 +44,7 @@ RUN chown -R yang:yang /usr/share/nginx
 RUN ln -s /usr/share/nginx/html/stats/statistics.html /usr/share/nginx/html/statistics.html
 
 COPY ./backend/requirements.txt .
+RUN python -m pip install "pip<24.1"
 RUN pip install -r requirements.txt
 
 COPY --chown=yang:yang ./backend $VIRTUAL_ENV
@@ -66,10 +67,11 @@ WORKDIR $VIRTUAL_ENV
 # Apply cron job
 RUN crontab /etc/cron.d/yang-cron
 
+USER root:root
+
 # Enforce rebase pulls
 RUN /usr/bin/git config --global pull.rebase true
 
-USER root:root
 CMD cron && service postfix start && service rsyslog start && /backend/bin/gunicorn api.wsgi:application -c gunicorn.conf.py
 
 EXPOSE 3031
